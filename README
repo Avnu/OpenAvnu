@@ -1,0 +1,87 @@
+INTRODUCTION
+
+This component demonstrates various features of the Intel I210 Ethernet controller.
+These features can be used for developing Audio/Video Bridging applications, 
+Industrial Ethernet applications which require precise timing control over frame 
+transmission, or test harnesses for measuring system latencies and sampling events.
+
+This component - igb_avb - is limited to the Intel I210 Ethernet controller. The kernel
+module can be loaded in parallel to existing in-kernel igb modules which may be 
+used on other supported Intel LAN controllers. Modifications are required to
+the in-kernel drivers if the existing in-kernel igb driver has support for the Intel I210.
+
+BUILDING
+
+There are four primary components - kmod (for the kernel-mode igb_avb driver), 
+lib (for the user-mode driver library), examples (for test applications), and
+daemons (at present an MRP daemon required for establishing AVB streams).
+
+To build, 'cd' into each of the respective directories, and execute 'make'.
+
+The kernel igb module can be built which supports the latest Linux kernel
+3.x PTP clock support - to enable, modify kmod/Makefile and enable -DCONFIG_PTP
+as a build option (e.g. EXTRA_CFLAGS += -DCONFIG_PTP).
+
+The example application uses the pciutils library - the latest version 
+can be downloaded from < ftp://ftp.kernel.org/pub/software/utils/pciutils/ >.
+Download and extract the library, and run 'make;make install;make install-lib'.
+
+RUNNING
+
+To install the kernel mode driver, you must have root permissions. Typically,
+the driver is loaded by:
+	<optional> sudo modprobe dca
+	<optional> sudo modprobe ptp
+	sudo insmod ./igb_avb.ko
+
+As 3.4 and later kernels include support for the I210, you may need to 'rmmod igb'
+before loading the igb_avb module.
+
+Note that packets generated from the 'user-mode' libraries are not counted in 
+ifconfig output, and likewise, if generating multicast traffic, the receiving
+node must be registered to receive the traffic (or run the interface in promiscious
+mode).
+
+TIME SYNC
+
+This package relies on using the linuxptp daemon to establish time
+synchronization. The latest source for this is available here:
+
+	git clone git://git.code.sf.net/p/linuxptp/code linuxptp-code
+
+Type 'make' to build. This version has been tested with kernel 3.5.1.
+Assuming kernel support is enabled, simply 'modprobe ptp' to load the 
+required kernel mode components. Example command line to the daemon is:
+
+	ptp4l -f gPTP.cfg -2 -P -i p11p1
+
+Note the default gPTP.cfg file queries and times out relatively fast while
+awaiting the transmit timestamps to complete. To adjust this, modify the
+'tx_timestamp_retries' parameter to 400 (which roughly corresponds to 400 usec).
+
+EXAMPLE APPLICATIONS
+
+The test application - which simply streams timed packets - requires root permissions 
+as well to execute and attach to the driver.
+	sudo ./test
+
+To exit the test app, hit Ctrl-C. The application gracefully tears down
+the connection to the driver. If the application unexpectedly aborts the
+kernel-mode driver also reclaims the various buffers and attempts to clean up.
+The application should be able to re-initialize and use the transmit queues
+without restarting the driver.
+
+The 'simple_talker' application illustrates the various steps to publish a stream
+and being streaming after a listener connects.
+
+MRPD DAEMON
+
+The MRP daemon is required to establish stream reservations with compatible AVB
+infrastructure devices. The command line selectively enables MMRP (via the -m option),
+MVRP (via the -v option), and MSRP (via the -s option). You must also specify the 
+interface on which you want to bind the daemon to (e.g. -i eth2). The full command line 
+typically appears as follows:
+	sudo ./mrpd -mvs -i eth2
+
+Sample client applications - mrpctl, mrpq, mrpl - illustrates how to connect, query 
+and add attributes to the MRP daemon.
