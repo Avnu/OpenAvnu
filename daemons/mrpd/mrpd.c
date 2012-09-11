@@ -6972,9 +6972,12 @@ init_protocol_socket(u_int16_t etype, int *sock, unsigned char *multicast_addr)
 
 int init_mrp_timers(struct mrp_database *mrp_db)
 {
-	mrp_db->join_timer = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-	mrp_db->lv_timer = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-	mrp_db->lva_timer = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	mrp_db->join_timer = timerfd_create(CLOCK_MONOTONIC, 0);
+	fcntl(mrp_db->join_timer, F_SETFL, O_NONBLOCK);  
+	mrp_db->lv_timer = timerfd_create(CLOCK_MONOTONIC, 0);
+	fcntl(mrp_db->lv_timer, F_SETFL, O_NONBLOCK);  
+	mrp_db->lva_timer = timerfd_create(CLOCK_MONOTONIC, 0);
+	fcntl(mrp_db->lva_timer, F_SETFL, O_NONBLOCK);  
 
 	if (-1 == mrp_db->join_timer)
 		goto out;
@@ -7184,8 +7187,10 @@ int init_timers(void)
 	 * of the various attributes
 	 */
 
-	periodic_timer = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-	gc_timer = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	periodic_timer = timerfd_create(CLOCK_MONOTONIC, 0);
+	fcntl(periodic_timer, F_SETFL, O_NONBLOCK);  
+	gc_timer = timerfd_create(CLOCK_MONOTONIC, 0);
+	fcntl(gc_timer, F_SETFL, O_NONBLOCK);  
 
 	if (-1 == periodic_timer)
 		goto out;
