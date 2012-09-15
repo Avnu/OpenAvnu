@@ -217,14 +217,17 @@ main(int argc, char *argv[]) {
 	
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"M??");
+	printf("M??\n");
 	rc = send_ctl_msg(msgbuf, 1500);
 	recv_ctl_msg();
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"V??");
+	printf("V??\n");
 	rc = send_ctl_msg(msgbuf, 1500 );
 	recv_ctl_msg();
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S??");
+	printf("S??\n");
 	rc = send_ctl_msg(msgbuf, 1500 );
 	recv_ctl_msg();
 
