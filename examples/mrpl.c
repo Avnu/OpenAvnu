@@ -234,6 +234,9 @@ main(int argc, char *argv[]) {
 
 	rc = send_ctl_msg(msgbuf, 1500);
 
+	sprintf(msgbuf,"BYE");
+	rc = send_ctl_msg(msgbuf, 1500 );
+
 	return(rc);
 
 }
