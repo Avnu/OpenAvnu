@@ -151,7 +151,7 @@ out:
 }
 
 int
-send_ctl_msg( char *notify_data, int notify_len) {
+send_control_msg( char *notify_data, int notify_len) {
 	struct sockaddr_in	addr;
 	socklen_t addr_len;
 
@@ -227,52 +227,52 @@ main(int argc, char *argv[]) {
 #ifdef XXX
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"M++m010203040506");
-	rc = send_ctl_msg(msgbuf, 1500 );
+	rc = send_control_msg(msgbuf, 1500 );
 	
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"M++m060504030201");
-	rc = send_ctl_msg(msgbuf, 1500 );
+	rc = send_control_msg(msgbuf, 1500 );
 	
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"M++mffffffffffff");
-	rc = send_ctl_msg(msgbuf, 1500 );
+	rc = send_control_msg(msgbuf, 1500 );
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"M++s1");
-	rc = send_ctl_msg(msgbuf, 1500 );
+	rc = send_control_msg(msgbuf, 1500 );
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"V++0002");
-	rc = send_ctl_msg(msgbuf, 1500 );
+	rc = send_control_msg(msgbuf, 1500 );
 
 #endif
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S++S:DEADBEEFBADFCA11:A:112233445566:V:0002:Z:576:I:8000:P:96:L:1000");
-	rc = send_ctl_msg(msgbuf, 1500);
+	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S++S:FFEEDDCCBBAA9988:A:112233445567:V:0002:Z:576:I:8000:P:96:L:1000");
-	rc = send_ctl_msg(msgbuf, 1500);
+	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S+L:DEADBEEFBADFCA11:D:2");
-	rc = send_ctl_msg(msgbuf, 1500);
+	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S+L:F00F00F00F00F000:D:2");
-	rc = send_ctl_msg(msgbuf, 1500);
+	rc = send_control_msg(msgbuf, 1500);
 
 	
 	do {
 		memset(msgbuf,0,1500);
 		sprintf(msgbuf,"M??");
-		rc = send_ctl_msg(msgbuf, 1500);
+		rc = send_control_msg(msgbuf, 1500);
 		memset(msgbuf,0,1500);
 		sprintf(msgbuf,"V??");
-		rc = send_ctl_msg(msgbuf, 1500 );
+		rc = send_control_msg(msgbuf, 1500 );
 		memset(msgbuf,0,1500);
 		sprintf(msgbuf,"S??");
-		rc = send_ctl_msg(msgbuf, 1500 );
+		rc = send_control_msg(msgbuf, 1500 );
 		recv_ctl_msg();
 		sleep(1);
 	} while (1);
