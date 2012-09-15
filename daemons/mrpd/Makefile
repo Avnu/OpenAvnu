@@ -9,15 +9,12 @@ CC=gcc
 
 all: mrpd mrpctl
 
-mrpd: mrpd.o
+mrpd: mrpd.o mvrp.o
 
 mrpctl: mrpctl.o
 
-mrpctl.o: mrpctl.c
-	gcc -c $(INCFLAGS) $(CFLAGS) mrpctl.c
-
-mrpd.o: mrpd.c
-	gcc -c $(INCFLAGS) $(CFLAGS) mrpd.c
+%.o: %.c
+	gcc -c $(INCFLAGS) $(CFLAGS) -o $@  $<
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
