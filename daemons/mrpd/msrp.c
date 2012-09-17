@@ -57,6 +57,7 @@
 
 #include "mrpd.h"
 #include "msrp.h"
+#include "mmrp.h"
 #include "mrp.h"
 
 int msrp_txpdu(void);

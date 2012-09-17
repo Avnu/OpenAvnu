@@ -9,7 +9,7 @@ CC=gcc
 
 all: mrpd mrpctl
 
-mrpd: mrpd.o mvrp.o msrp.o
+mrpd: mrpd.o mvrp.o msrp.o mmrp.o
 
 mrpctl: mrpctl.o
 
