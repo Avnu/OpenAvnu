@@ -1343,8 +1343,6 @@ int register_mrp_timers(struct mrp_database *mrp_db, fd_set *fds)
 
 int mrpd_reclaim()
 {
-	struct mmrp_attribute *mattrib, *free_mattrib;
-	struct msrp_attribute *sattrib, *free_sattrib;
 
 	/*
 	 * if the local applications have neither registered interest
@@ -1352,51 +1350,9 @@ int mrpd_reclaim()
 	 * and allowing it to go into the MT state, delete the attribute 
 	 */
 
-	if (NULL != MMRP_db) {
-		mattrib = MMRP_db->attrib_list;
-		while (NULL != mattrib) {
-			if ((mattrib->registrar.mrp_state == MRP_MT_STATE) && \
-			((mattrib->applicant.mrp_state == MRP_VO_STATE) || \
-			    (mattrib->applicant.mrp_state == MRP_AO_STATE) || \
-				(mattrib->applicant.mrp_state == MRP_QO_STATE)))
-			{
-				if (NULL != mattrib->prev)
-					mattrib->prev->next = mattrib->next;
-				else
-					MMRP_db->attrib_list = mattrib->next;
-				if (NULL != mattrib->next)
-					mattrib->next->prev = mattrib->prev;
-				free_mattrib = mattrib;
-				mattrib = mattrib->next;
-				mmrp_send_notifications(free_mattrib, MRP_NOTIFY_LV);
-				free(free_mattrib);
-			} else
-				mattrib = mattrib->next;
-		}
-	}
+	mmrp_reclaim();
 	mvrp_reclaim();
-	if (NULL != MSRP_db) {
-		sattrib = MSRP_db->attrib_list;
-		while (NULL != sattrib) {
-			if ((sattrib->registrar.mrp_state == MRP_MT_STATE) && \
-			((sattrib->applicant.mrp_state == MRP_VO_STATE) || \
-			    (sattrib->applicant.mrp_state == MRP_AO_STATE) || \
-				(sattrib->applicant.mrp_state == MRP_QO_STATE)))
-			{
-				if (NULL != sattrib->prev)
-					sattrib->prev->next = sattrib->next;
-				else
-					MSRP_db->attrib_list = sattrib->next;
-				if (NULL != sattrib->next)
-					sattrib->next->prev = sattrib->prev;
-				free_sattrib = sattrib;
-				sattrib = sattrib->next;
-				msrp_send_notifications(free_sattrib, MRP_NOTIFY_LV);
-				free(free_sattrib);
-			} else
-				sattrib = sattrib->next;
-		}
-	}
+	msrp_reclaim();
 
 	gctimer_start();
 

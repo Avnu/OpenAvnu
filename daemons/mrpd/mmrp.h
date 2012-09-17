@@ -38,3 +38,4 @@ int mmrp_reclaim(void);
 void mmrp_bye(struct sockaddr_in *client);
 int mmrp_recv_msg(void);
 void mmrp_increment_macaddr(u_int8_t *macaddr);
+int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify);

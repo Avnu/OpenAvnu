@@ -3106,4 +3106,33 @@ void msrp_bye(struct sockaddr_in *client)
 		client_delete(&(MSRP_db->mrp_db.clients), client);
 }
 
+int msrp_reclaim(void)
+{
+	struct msrp_attribute *sattrib, *free_sattrib;
+
+	if (NULL == MSRP_db)
+		return 0;
+
+	sattrib = MSRP_db->attrib_list;
+	while (NULL != sattrib) {
+		if ((sattrib->registrar.mrp_state == MRP_MT_STATE) &&
+		((sattrib->applicant.mrp_state == MRP_VO_STATE) ||
+		    (sattrib->applicant.mrp_state == MRP_AO_STATE) ||
+			(sattrib->applicant.mrp_state == MRP_QO_STATE)))
+		{
+			if (NULL != sattrib->prev)
+				sattrib->prev->next = sattrib->next;
+			else
+				MSRP_db->attrib_list = sattrib->next;
+			if (NULL != sattrib->next)
+				sattrib->next->prev = sattrib->prev;
+			free_sattrib = sattrib;
+			sattrib = sattrib->next;
+			msrp_send_notifications(free_sattrib, MRP_NOTIFY_LV);
+			free(free_sattrib);
+		} else
+			sattrib = sattrib->next;
+	}
+	return 0;
+}
 

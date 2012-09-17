@@ -1766,5 +1766,34 @@ int mmrp_init(int mmrp_enable)
 	return 0;
 }
 
+int mmrp_reclaim(void)
+{
+	struct mmrp_attribute *mattrib, *free_mattrib;
+
+	if (NULL == MMRP_db)
+		return 0;
+
+	mattrib = MMRP_db->attrib_list;
+	while (NULL != mattrib) {
+		if ((mattrib->registrar.mrp_state == MRP_MT_STATE) &&
+		((mattrib->applicant.mrp_state == MRP_VO_STATE) ||
+		    (mattrib->applicant.mrp_state == MRP_AO_STATE) ||
+			(mattrib->applicant.mrp_state == MRP_QO_STATE)))
+		{
+			if (NULL != mattrib->prev)
+				mattrib->prev->next = mattrib->next;
+			else
+				MMRP_db->attrib_list = mattrib->next;
+			if (NULL != mattrib->next)
+				mattrib->next->prev = mattrib->prev;
+			free_mattrib = mattrib;
+			mattrib = mattrib->next;
+			mmrp_send_notifications(free_mattrib, MRP_NOTIFY_LV);
+			free(free_mattrib);
+		} else
+			mattrib = mattrib->next;
+	}
+	return 0;
+}
 
 
