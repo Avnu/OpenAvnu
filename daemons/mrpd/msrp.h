@@ -31,15 +31,29 @@
 
 ******************************************************************************/
 
-int mrp_jointimer_stop(struct mrp_database *mrp_db);
-int mrp_jointimer_start(struct mrp_database *mrp_db);
-int mrp_lvtimer_start(struct mrp_database *mrp_db);
-int mrp_lvtimer_stop(struct mrp_database *mrp_db);
-int mrp_lvatimer_start(struct mrp_database *mrp_db);
-int mrp_lvatimer_stop(struct mrp_database *mrp_db);
-int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event);
-int mrp_applicant_fsm(mrp_applicant_attribute_t *attrib, int event);
-int mrp_registrar_fsm(mrp_registrar_attribute_t *attrib,
-		  struct mrp_database *mrp_db, int event);
-int mrp_decode_state(mrp_registrar_attribute_t *rattrib,
-	mrp_applicant_attribute_t *aattrib, char *str, int strlen);
+struct msrp_attribute {
+	struct msrp_attribute		*prev;
+	struct msrp_attribute		*next;
+	u_int32_t			type;
+	union {
+		msrpdu_talker_fail_t		talk_listen;
+		msrpdu_domain_t			domain;
+	} attribute;
+	u_int32_t			substate;	/*for listener events*/
+	u_int32_t			direction;	/*for listener events*/
+	mrp_applicant_attribute_t	applicant;
+	mrp_registrar_attribute_t	registrar;
+};
+
+struct msrp_database {
+	struct mrp_database	mrp_db;
+	struct msrp_attribute	*attrib_list;
+};
+
+int msrp_init(int msrp_enable);
+int msrp_event(int event, struct msrp_attribute *rattrib);
+int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);
+int msrp_send_notifications(struct msrp_attribute *attrib, int notify);
+int msrp_reclaim(void);
+void msrp_bye(struct sockaddr_in *client);
+int msrp_recv_msg(void);

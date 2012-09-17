@@ -368,27 +368,6 @@ struct mmrp_database {
 	struct mmrp_attribute	*attrib_list;
 };
 
-
-struct msrp_attribute {
-	struct msrp_attribute		*prev;
-	struct msrp_attribute		*next;
-	u_int32_t			type;	
-	union {
-		msrpdu_talker_fail_t		talk_listen;
-		msrpdu_domain_t			domain;
-	} attribute;
-	u_int32_t			substate;	/*for listener events*/
-	u_int32_t			direction;	/*for listener events*/
-	mrp_applicant_attribute_t	applicant;
-	mrp_registrar_attribute_t	registrar;
-};
-
-struct msrp_database {
-	struct mrp_database	mrp_db;
-	struct msrp_attribute	*attrib_list;
-};
-
-
 int send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 		int notify_len);
 int client_add(client_t **list, struct sockaddr_in *newclient);
@@ -396,3 +375,4 @@ int init_protocol_socket(u_int16_t etype, int *sock,
 		unsigned char *multicast_addr);
 int init_mrp_timers(struct mrp_database *mrp_db);
 int client_delete(client_t **list, struct sockaddr_in *newclient);
+void mmrp_increment_macaddr(u_int8_t *macaddr);
