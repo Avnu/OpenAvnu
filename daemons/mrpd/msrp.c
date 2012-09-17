@@ -56,9 +56,9 @@
 #include <sys/un.h>
 
 #include "mrpd.h"
+#include "mrp.h"
 #include "msrp.h"
 #include "mmrp.h"
-#include "mrp.h"
 
 int msrp_txpdu(void);
 int msrp_send_notifications(struct msrp_attribute *attrib, int notify);
@@ -2415,7 +2415,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		goto out;
 	}
 
-	rc = client_add(&(MSRP_db->mrp_db.clients), client);
+	rc = mrp_client_add(&(MSRP_db->mrp_db.clients), client);
 
 	if (buflen < 3)
 		return -1;
@@ -3041,8 +3041,6 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	return -1;
 }
 
-
-
 int msrp_init(int msrp_enable)
 {
 	int rc;
@@ -3080,7 +3078,7 @@ int msrp_init(int msrp_enable)
 	 */
 	MSRP_db->mrp_db.participant = MRP_APPLICANT_CTL_NORMAL;	/* default */
 
-	rc = init_mrp_timers(&(MSRP_db->mrp_db));
+	rc = mrp_init_timers(&(MSRP_db->mrp_db));
 
 	if (rc < 0)
 		goto abort_alloc;
@@ -3103,7 +3101,7 @@ int msrp_init(int msrp_enable)
 void msrp_bye(struct sockaddr_in *client)
 {
 	if (NULL != MSRP_db)
-		client_delete(&(MSRP_db->mrp_db.clients), client);
+		mrp_client_delete(&(MSRP_db->mrp_db.clients), client);
 }
 
 int msrp_reclaim(void)

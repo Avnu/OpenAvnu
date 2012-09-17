@@ -31,6 +31,43 @@
 
 ******************************************************************************/
 
+#define MMRP_ETYPE	0x88F6
+#define MMRP_PROT_VER	0x00
+
+/* two attribute types defined for MMRP */
+#define MMRP_SVCREQ_TYPE	1
+#define MMRP_MACVEC_TYPE	2
+
+/* MMRP_MACVEC_TYPE FirstValue is the 6-byte MAC address, with
+ * corresponding attrib_length=6
+ */
+
+/* MMRP_SVCREQ_TYPE FirstValue is a single byte - values follow,
+ * attrib_length=1
+ */
+
+#define MMRP_SVCREQ_FOWARD_ALL			0
+#define MMRP_SVCREQ_FOWARD_UNREGISTERED	1
+/* MMRP uses ThreePackedEvents for all vector encodings */
+
+
+struct mmrp_attribute {
+	struct mmrp_attribute		*prev;
+	struct mmrp_attribute		*next;
+	u_int32_t			type;
+	union {
+		unsigned char	macaddr[6];
+		uint8_t	svcreq;
+	} attribute;
+	mrp_applicant_attribute_t	applicant;
+	mrp_registrar_attribute_t	registrar;
+};
+
+struct mmrp_database {
+	struct mrp_database	mrp_db;
+	struct mmrp_attribute	*attrib_list;
+};
+
 int mmrp_init(int mmrp_enable);
 int mmrp_event(int event, struct mmrp_attribute *rattrib);
 int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);

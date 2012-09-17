@@ -56,8 +56,8 @@
 #include <sys/un.h>
 
 #include "mrpd.h"
-#include "mmrp.h"
 #include "mrp.h"
+#include "mmrp.h"
 
 int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify);
 int mmrp_txpdu(void);
@@ -1510,7 +1510,7 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		goto out;
 	}
 
-	rc = client_add(&(MMRP_db->mrp_db.clients), client);
+	rc = mrp_client_add(&(MMRP_db->mrp_db.clients), client);
 
 	if (buflen < 3)
 		return -1;
@@ -1745,7 +1745,7 @@ int mmrp_init(int mmrp_enable)
 	 */
 	MMRP_db->mrp_db.participant = MRP_APPLICANT_CTL_NORMAL;	/* default */
 
-	rc = init_mrp_timers(&(MMRP_db->mrp_db));
+	rc = mrp_init_timers(&(MMRP_db->mrp_db));
 
 	if (rc < 0)
 		goto abort_alloc;
@@ -1795,5 +1795,12 @@ int mmrp_reclaim(void)
 	}
 	return 0;
 }
+
+void mmrp_bye(struct sockaddr_in *client)
+{
+	if (NULL != MMRP_db)
+		mrp_client_delete(&(MMRP_db->mrp_db.clients), client);
+}
+
 
 

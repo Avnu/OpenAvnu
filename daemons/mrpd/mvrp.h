@@ -44,6 +44,18 @@ struct mvrp_database {
 	struct mvrp_attribute	*attrib_list;
 };
 
+
+#define MVRP_ETYPE	0x88F5
+#define MVRP_PROT_VER	0x00
+/* one attribute type defined for MVRP */
+#define MVRP_VID_TYPE	1
+
+/*
+ * MVRP_VID_TYPE FirstValue is a two byte value encoding the 12-bit VID
+ * of interest , with attrib_len=2
+ */
+
+/* MVRP uses ThreePackedEvents for all vector encodings */
 int mvrp_init(int mvrp_enable);
 int mvrp_event(int event, struct mvrp_attribute *rattrib);
 int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);
