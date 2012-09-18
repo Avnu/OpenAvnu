@@ -30,30 +30,14 @@
 
 ******************************************************************************/
 /*
- * an MRP (MMRP, MVRP, MSRP) endpoint implementation of 802.1Q-2011
+ * MVRP protocol (part of 802.1Q-2011)
  */
 #include <unistd.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include <syslog.h>
-#include <signal.h>
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/mman.h>
-#include <sys/timerfd.h>
-#include <sys/user.h>
-#include <sys/socket.h>
-#include <linux/if.h>
-#include <netpacket/packet.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <net/ethernet.h>
-#include <sys/un.h>
 
 #include "mrpd.h"
 #include "mrp.h"
@@ -330,9 +314,6 @@ struct mvrp_attribute *mvrp_alloc()
 int mvrp_recv_msg(void)
 {
 	char *msgbuf;
-	struct sockaddr_ll client_addr;
-	struct msghdr msg;
-	struct iovec iov;
 	int bytes = 0;
 	eth_hdr_t *eth;
 	mrpdu_t *mrpdu;
@@ -351,20 +332,7 @@ int mvrp_recv_msg(void)
 	struct mvrp_attribute *attrib;
 	int endmarks;
 
-	msgbuf = (char *)malloc(MAX_FRAME_SIZE);
-	if (NULL == msgbuf)
-		return -1;
-	memset(&msg, 0, sizeof(msg));
-	memset(&client_addr, 0, sizeof(client_addr));
-	memset(msgbuf, 0, MAX_FRAME_SIZE);
-
-	iov.iov_len = MAX_FRAME_SIZE;
-	iov.iov_base = msgbuf;
-	msg.msg_name = &client_addr;
-	msg.msg_namelen = sizeof(client_addr);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	bytes = recvmsg(mvrp_socket, &msg, 0);
+	bytes = mrpd_recvmsgbuf(mvrp_socket, &msgbuf);
 	if (bytes <= 0)
 		goto out;
 
@@ -975,7 +943,7 @@ int mvrp_send_notifications(struct mvrp_attribute *attrib, int notify)
 
 	client = MVRP_db->mrp_db.clients;
 	while (NULL != client) {
-		send_ctl_msg(&(client->client), msgbuf, MAX_MRPD_CMDSZ);
+		mrpd_send_ctl_msg(&(client->client), msgbuf, MAX_MRPD_CMDSZ);
 		client = client->next;
 	}
 
@@ -1045,7 +1013,7 @@ int mvrp_dumptable(struct sockaddr_in *client)
 		attrib = attrib->next;
 	}
 
-	send_ctl_msg(client, msgbuf, MAX_MRPD_CMDSZ);
+	mrpd_send_ctl_msg(client, msgbuf, MAX_MRPD_CMDSZ);
 
 free_msgbuf:
 	if (regsrc)
@@ -1069,7 +1037,7 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 
 	if (NULL == MVRP_db) {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
-		send_ctl_msg(client, respbuf, sizeof(respbuf));
+		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
 
@@ -1094,13 +1062,13 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	case '-':
 		if (buflen < 5) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 		/* buf[] should look similar to 'V--0001' where VID is in hex */
 		if (buflen < 7) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 
@@ -1109,14 +1077,14 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		rc = sscanf((char *)&buf[3], "%04x", &vid_firstval);
 		if (0 == rc) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 
 		attrib = mvrp_alloc();
 		if (NULL == attrib) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;	/* oops - internal error */
 		}
 		attrib->attribute = vid_firstval;
@@ -1128,26 +1096,26 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		/* buf[] should look similar to 'V+?0001' where VID is in hex */
 		if (('?' != buf[2]) && ('+' != buf[2])) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 		if (buflen < 7) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 		rc = sscanf((char *)&buf[3], "%04x", &vid_firstval);
 
 		if (0 == rc) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 
 		attrib = mvrp_alloc();
 		if (NULL == attrib) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;	/* oops - internal error */
 		}
 		attrib->attribute = vid_firstval;
@@ -1161,7 +1129,7 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		break;
 	default:
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
-		send_ctl_msg(client, respbuf, sizeof(respbuf));
+		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 		break;
 	}
@@ -1183,7 +1151,7 @@ int mvrp_init(int mvrp_enable)
 		return 0;
 	}
 
-	rc = init_protocol_socket(MVRP_ETYPE, &mvrp_socket,
+	rc = mrpd_init_protocol_socket(MVRP_ETYPE, &mvrp_socket,
 				  MVRP_CUSTOMER_BRIDGE_ADDR);
 	if (rc < 0)
 		return -1;

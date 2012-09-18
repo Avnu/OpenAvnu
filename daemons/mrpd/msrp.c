@@ -33,27 +33,11 @@
  * MSRP protocol (part of 802.1Q-2011)
  */
 #include <unistd.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include <syslog.h>
-#include <signal.h>
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/mman.h>
-#include <sys/timerfd.h>
-#include <sys/user.h>
-#include <sys/socket.h>
-#include <linux/if.h>
-#include <netpacket/packet.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <net/ethernet.h>
-#include <sys/un.h>
 
 #include "mrpd.h"
 #include "mrp.h"
@@ -448,9 +432,6 @@ void msrp_increment_streamid(u_int8_t *streamid)
 int msrp_recv_msg()
 {
 	char *msgbuf;
-	struct sockaddr_ll client_addr;
-	struct msghdr msg;
-	struct iovec iov;
 	int bytes = 0;
 	eth_hdr_t *eth;
 	mrpdu_t *mrpdu;
@@ -478,21 +459,7 @@ int msrp_recv_msg()
 	int listener_vectevt_idx;
 	int listener_endbyte;
 
-	msgbuf = (char *)malloc(MAX_FRAME_SIZE);
-	if (NULL == msgbuf)
-		return -1;
-
-	memset(&msg, 0, sizeof(msg));
-	memset(&client_addr, 0, sizeof(client_addr));
-	memset(msgbuf, 0, MAX_FRAME_SIZE);
-
-	iov.iov_len = MAX_FRAME_SIZE;
-	iov.iov_base = msgbuf;
-	msg.msg_name = &client_addr;
-	msg.msg_namelen = sizeof(client_addr);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	bytes = recvmsg(msrp_socket, &msg, 0);
+	bytes = mrpd_recvmsgbuf(msrp_socket, &msgbuf);
 	if (bytes <= 0)
 		goto out;
 	if ((unsigned int)bytes < (sizeof(eth_hdr_t) + sizeof(mrpdu_t) +
@@ -2236,7 +2203,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 
 	client = MSRP_db->mrp_db.clients;
 	while (NULL != client) {
-		send_ctl_msg(&(client->client), msgbuf, MAX_MRPD_CMDSZ);
+		mrpd_send_ctl_msg(&(client->client), msgbuf, MAX_MRPD_CMDSZ);
 		client = client->next;
 	}
 
@@ -2376,7 +2343,7 @@ int msrp_dumptable(struct sockaddr_in *client)
 		attrib = attrib->next;
 	}
 
-	send_ctl_msg(client, msgbuf, MAX_MRPD_CMDSZ);
+	mrpd_send_ctl_msg(client, msgbuf, MAX_MRPD_CMDSZ);
 
 free_msgbuf:
 	if (regsrc)
@@ -2411,7 +2378,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 
 	if (NULL == MSRP_db) {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
-		send_ctl_msg(client, respbuf, sizeof(respbuf));
+		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
 
@@ -2441,7 +2408,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		/* parse the type - either talker, listener or domain */
 		if (buflen < 5) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 		switch (buf[2]) {
@@ -2450,7 +2417,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (buflen < 22) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 			/* buf[] should look similar to 'S-L:xxyyzz...' */
@@ -2458,7 +2425,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 			attrib->type = MSRP_LISTENER_TYPE;
@@ -2473,7 +2440,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 				if (0 == rc) {
 					snprintf(respbuf, sizeof(respbuf) - 1,
 						 "ERP %s", buf);
-					send_ctl_msg(client, respbuf,
+					mrpd_send_ctl_msg(client, respbuf,
 						     sizeof(respbuf));
 					free(attrib);
 					goto out;
@@ -2490,7 +2457,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (buflen < 18) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 			/* buf[] should look similar to 'S-D:C:%d:P:%d:V:%04x"*/
@@ -2498,7 +2465,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 			attrib->type = MSRP_DOMAIN_TYPE;
@@ -2512,7 +2479,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2524,7 +2491,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= buflen) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2537,7 +2504,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2550,7 +2517,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= buflen) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2563,7 +2530,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2581,7 +2548,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (buflen < 22) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 			/* buf[] should look similar to 'S--S:xxyyzz...' */
@@ -2589,7 +2556,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 			attrib->type = MSRP_TALKER_ADV_TYPE;
@@ -2604,7 +2571,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 				if (0 == rc) {
 					snprintf(respbuf, sizeof(respbuf) - 1,
 						 "ERP %s", buf);
-					send_ctl_msg(client, respbuf,
+					mrpd_send_ctl_msg(client, respbuf,
 						     sizeof(respbuf));
 					goto out;
 				}
@@ -2618,7 +2585,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			break;
 		default:
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 		break;
@@ -2626,7 +2593,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		/* parse the type - either talker or listener */
 		if (buflen < 5) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 		switch (buf[2]) {
@@ -2635,7 +2602,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (buflen < 26) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 			/* buf[] should look similar to 'S+L:xxyyzz...:D:a' */
@@ -2643,7 +2610,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 
@@ -2661,7 +2628,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 				if (0 == rc) {
 					snprintf(respbuf, sizeof(respbuf) - 1,
 						 "ERP %s", buf);
-					send_ctl_msg(client, respbuf,
+					mrpd_send_ctl_msg(client, respbuf,
 						     sizeof(respbuf));
 					goto out;
 				}
@@ -2674,7 +2641,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2686,7 +2653,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (buflen < 18) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 			/* buf[] should look similar to 'S+D:C:%d:P:%d:V:%04x"*/
@@ -2694,7 +2661,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 			attrib->type = MSRP_DOMAIN_TYPE;
@@ -2708,7 +2675,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2720,7 +2687,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= buflen) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2733,7 +2700,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2746,7 +2713,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= buflen) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2759,7 +2726,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
-				send_ctl_msg(client, respbuf,
+				mrpd_send_ctl_msg(client, respbuf,
 					     sizeof(respbuf));
 				free(attrib);
 				goto out;
@@ -2783,7 +2750,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (buflen < 22) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 			/*
@@ -2810,7 +2777,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= buflen) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2828,7 +2795,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= (buflen - 3)) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2846,7 +2813,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= (buflen - 3)) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2864,7 +2831,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= (buflen - 3)) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2882,7 +2849,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= (buflen - 3)) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2900,7 +2867,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= (buflen - 3)) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2918,7 +2885,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (i >= (buflen - 3)) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2933,7 +2900,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 				if (0 == rc) {
 					snprintf(respbuf, sizeof(respbuf) - 1,
 						 "ERP %s", buf);
-					send_ctl_msg(client, respbuf,
+					mrpd_send_ctl_msg(client, respbuf,
 						     sizeof(respbuf));
 					goto out;
 				}
@@ -2949,7 +2916,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 				if (0 == rc) {
 					snprintf(respbuf, sizeof(respbuf) - 1,
 						 "ERP %s", buf);
-					send_ctl_msg(client, respbuf,
+					mrpd_send_ctl_msg(client, respbuf,
 						     sizeof(respbuf));
 					goto out;
 				}
@@ -2959,7 +2926,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2967,7 +2934,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2975,7 +2942,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2983,7 +2950,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2991,7 +2958,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 
@@ -2999,7 +2966,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 			attrib->type = MSRP_TALKER_ADV_TYPE;
@@ -3026,13 +2993,13 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			break;
 		default:
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			send_ctl_msg(client, respbuf, sizeof(respbuf));
+			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
 		break;
 	default:
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
-		send_ctl_msg(client, respbuf, sizeof(respbuf));
+		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 		break;
 	}
@@ -3054,7 +3021,7 @@ int msrp_init(int msrp_enable)
 		return 0;
 	}
 
-	rc = init_protocol_socket(MSRP_ETYPE, &msrp_socket, MSRP_ADDR);
+	rc = mrpd_init_protocol_socket(MSRP_ETYPE, &msrp_socket, MSRP_ADDR);
 	if (rc < 0)
 		return -1;
 

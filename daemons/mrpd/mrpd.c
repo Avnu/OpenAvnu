@@ -54,6 +54,7 @@
 #include <arpa/inet.h>
 #include <net/ethernet.h>
 #include <sys/un.h>
+
 #include "mrpd.h"
 #include "mrp.h"
 #include "mvrp.h"
@@ -106,48 +107,79 @@ extern struct mmrp_database *MMRP_db;
 extern struct mvrp_database *MVRP_db;
 extern struct msrp_database *MSRP_db;
 
-
-int gctimer_start()
+int mrpd_timer_create(void)
 {
+	int t = timerfd_create(CLOCK_MONOTONIC, 0);
+	if (-1 != t)
+		fcntl(t, F_SETFL, O_NONBLOCK);
+	return t;
+}
 
-	int rc;
-	struct itimerspec itimerspec_new;
-	struct itimerspec itimerspec_old;
+void mrpd_timer_close(int t)
+{
+	if (-1 != t)
+		close(t);
+}
+
+int mrpd_timer_start_interval(
+		int timerfd,
+		unsigned long value_ms,
+		unsigned long interval_ms)
+{
+	int	rc;
+	struct	itimerspec	itimerspec_new;
+	struct	itimerspec	itimerspec_old;
+	unsigned long ns_per_ms = 1000000;
 
 	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
 	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
 
+	if (interval_ms) {
+		itimerspec_new.it_interval.tv_sec = interval_ms / 1000;
+		itimerspec_new.it_interval.tv_nsec = (interval_ms % 1000) * ns_per_ms;
+	}
+
+	itimerspec_new.it_value.tv_sec = value_ms / 1000;
+	itimerspec_new.it_value.tv_nsec = (value_ms % 1000) * ns_per_ms;
+
+	rc = timerfd_settime(timerfd, 0, &itimerspec_new, &itimerspec_old);
+
+	return(rc);
+}
+
+int mrpd_timer_start(int timerfd, unsigned long value_ms)
+{
+	return mrpd_timer_start_interval(timerfd, value_ms, 0);
+}
+
+int mrpd_timer_stop(int timerfd)
+{
+	int	rc;
+	struct	itimerspec	itimerspec_new;
+	struct	itimerspec	itimerspec_old;
+
+	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
+	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
+
+	rc = timerfd_settime(timerfd, 0, &itimerspec_new, &itimerspec_old);
+
+	return(rc);
+}
+
+
+int gctimer_start()
+{
 	/* reclaim memory every 30 minutes */
-	itimerspec_new.it_interval.tv_sec = 30;
-	itimerspec_new.it_value.tv_sec = 30;
-
-	rc = timerfd_settime(gc_timer, 0, &itimerspec_new, &itimerspec_old);
-
-	return rc;
+	return mrpd_timer_start(gc_timer, 30 * 60 *1000);
 }
 
 int periodictimer_start()
 {
-
-	int rc;
-	struct itimerspec itimerspec_new;
-	struct itimerspec itimerspec_old;
-
 	/* periodictimer has expired. (10.7.5.23)
 	 * PeriodicTransmission state machine generates periodic events
 	 * period is one-per-sec
 	 */
-
-	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
-	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
-
-	itimerspec_new.it_interval.tv_sec = 1;
-	itimerspec_new.it_value.tv_sec = 1;
-
-	rc = timerfd_settime(periodic_timer, 0, &itimerspec_new,
-			     &itimerspec_old);
-
-	return rc;
+	return mrpd_timer_start_interval(periodic_timer, 1000, 1000);
 }
 
 int periodictimer_stop()
@@ -156,24 +188,7 @@ int periodictimer_stop()
 	 * PeriodicTransmission state machine generates periodic events
 	 * period is one-per-sec
 	 */
-	int rc;
-	struct itimerspec itimerspec_new;
-	struct itimerspec itimerspec_old;
-
-	/* periodictimer has expired. (10.7.5.23)
-	 * PeriodicTransmission state machine generates periodic events
-	 * period is one-per-sec
-	 */
-
-	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
-	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
-
-	itimerspec_new.it_interval.tv_sec = 1;
-
-	rc = timerfd_settime(periodic_timer, 0, &itimerspec_new,
-			     &itimerspec_old);
-
-	return rc;
+	return  mrpd_timer_stop(periodic_timer);
 }
 
 int init_local_ctl(void)
@@ -209,7 +224,7 @@ int init_local_ctl(void)
 }
 
 int
-send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data, int notify_len)
+mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data, int notify_len)
 {
 
 	int rc;
@@ -305,7 +320,7 @@ int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
 	default:
 		printf("unrecognized command %s\n", buf);
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
-		send_ctl_msg(client, respbuf, sizeof(respbuf));
+		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		return -1;
 		break;
 	}
@@ -347,8 +362,33 @@ int recv_ctl_msg()
 	return -1;
 }
 
+int mrpd_recvmsgbuf(int sock, char **buf)
+{
+	struct sockaddr_ll client_addr;
+	struct msghdr msg;
+	struct iovec iov;
+	int bytes = 0;
+
+	*buf = (char *)malloc(MAX_FRAME_SIZE);
+	if (NULL == *buf)
+		return -1;
+
+	memset(&msg, 0, sizeof(msg));
+	memset(&client_addr, 0, sizeof(client_addr));
+	memset(*buf, 0, MAX_FRAME_SIZE);
+
+	iov.iov_len = MAX_FRAME_SIZE;
+	iov.iov_base = *buf;
+	msg.msg_name = &client_addr;
+	msg.msg_namelen = sizeof(client_addr);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	bytes = recvmsg(sock, &msg, 0);
+	return bytes;
+}
+
 int
-init_protocol_socket(u_int16_t etype, int *sock, unsigned char *multicast_addr)
+mrpd_init_protocol_socket(u_int16_t etype, int *sock, unsigned char *multicast_addr)
 {
 	struct sockaddr_ll addr;
 	struct ifreq if_request;
@@ -424,14 +464,14 @@ init_protocol_socket(u_int16_t etype, int *sock, unsigned char *multicast_addr)
 	return 0;
 }
 
+
+
+
 int mrp_init_timers(struct mrp_database *mrp_db)
 {
-	mrp_db->join_timer = timerfd_create(CLOCK_MONOTONIC, 0);
-	fcntl(mrp_db->join_timer, F_SETFL, O_NONBLOCK);  
-	mrp_db->lv_timer = timerfd_create(CLOCK_MONOTONIC, 0);
-	fcntl(mrp_db->lv_timer, F_SETFL, O_NONBLOCK);  
-	mrp_db->lva_timer = timerfd_create(CLOCK_MONOTONIC, 0);
-	fcntl(mrp_db->lva_timer, F_SETFL, O_NONBLOCK);  
+	mrp_db->join_timer = mrpd_timer_create();
+	mrp_db->lv_timer = mrpd_timer_create();
+	mrp_db->lva_timer = mrpd_timer_create();
 
 	if (-1 == mrp_db->join_timer)
 		goto out;
@@ -441,12 +481,9 @@ int mrp_init_timers(struct mrp_database *mrp_db)
 		goto out;
 	return 0;
  out:
-	if (-1 != mrp_db->join_timer)
-		close(mrp_db->join_timer);
-	if (-1 != mrp_db->lv_timer)
-		close(mrp_db->lv_timer);
-	if (-1 != mrp_db->lva_timer)
-		close(mrp_db->lva_timer);
+	mrpd_timer_close(mrp_db->join_timer);
+	mrpd_timer_close(mrp_db->lv_timer);
+	mrpd_timer_close(mrp_db->lva_timer);
 
 	return -1;
 }
@@ -469,10 +506,8 @@ int init_timers(void)
 	 * of the various attributes
 	 */
 
-	periodic_timer = timerfd_create(CLOCK_MONOTONIC, 0);
-	fcntl(periodic_timer, F_SETFL, O_NONBLOCK);  
-	gc_timer = timerfd_create(CLOCK_MONOTONIC, 0);
-	fcntl(gc_timer, F_SETFL, O_NONBLOCK);  
+	periodic_timer = mrpd_timer_create();
+	gc_timer = mrpd_timer_create();
 
 	if (-1 == periodic_timer)
 		goto out;
@@ -701,9 +736,6 @@ int main(int argc, char *argv[])
 	msrp_socket = -1;
 	periodic_timer = -1;
 	gc_timer = -1;
-
-	MMRP_db = NULL;
-	MSRP_db = NULL;
 
 	for (;;) {
 		c = getopt(argc, argv, "hdlmvspi:");

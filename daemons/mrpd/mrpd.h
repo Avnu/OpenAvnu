@@ -72,10 +72,15 @@ typedef struct mrpdu {
 
 #define MAX_FRAME_SIZE		2000
 #define MRPD_PORT_DEFAULT	7500
+#define MAX_MRPD_CMDSZ	(1500)
 
-
-int send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
+int mrpd_timer_start(int timerfd, unsigned long value_ms);
+int mrpd_timer_stop(int timerfd);
+int mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 		int notify_len);
-int init_protocol_socket(u_int16_t etype, int *sock,
+int mrpd_init_protocol_socket(u_int16_t etype, int *sock,
 		unsigned char *multicast_addr);
+
+int mrpd_recvmsgbuf(int sock, char **buf);
+
 

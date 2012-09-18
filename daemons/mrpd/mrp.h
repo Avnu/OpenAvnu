@@ -157,8 +157,6 @@ typedef struct mrpdu_vectorattrib {
 #define MRPDU_VECT_NUMVALUES(x)	((x) & ((1 << 13) - 1))
 #define MRPDU_VECT_LVA(x)	((x) & (1 << 13))
 
-#define MAX_MRPD_CMDSZ	(1500)
-
 typedef struct client {
 	struct client		*next;
 	struct sockaddr_in	client;

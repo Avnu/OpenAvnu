@@ -30,30 +30,14 @@
 
 ******************************************************************************/
 /*
- * an MRP (MMRP, MVRP, MSRP) endpoint implementation of 802.1Q-2011
+ * MRP protocol (part of 802.1Q-2011)
  */
 #include <unistd.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include <syslog.h>
-#include <signal.h>
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/mman.h>
-#include <sys/timerfd.h>
-#include <sys/user.h>
-#include <sys/socket.h>
-#include <linux/if.h>
-#include <netpacket/packet.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <net/ethernet.h>
-#include <sys/un.h>
 
 #include "mrpd.h"
 #include "mrp.h"
@@ -159,36 +143,13 @@ int mrp_jointimer_start(struct mrp_database *mrp_db)
 	/* 10.7.4.1 - interval between transmit opportunities
 	 * for applicant state machine
 	 */
-	int rc;
-	struct itimerspec itimerspec_new;
-	struct itimerspec itimerspec_old;
-
-	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
-	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
-
-	itimerspec_new.it_value.tv_nsec = MRP_JOINTIMER_VAL * 1000000;
-
-	rc = timerfd_settime(mrp_db->join_timer, 0, &itimerspec_new,
-			     &itimerspec_old);
-
-	return rc;
-
+	return mrpd_timer_start(mrp_db->join_timer, MRP_LVTIMER_VAL);
 }
+
 
 int mrp_jointimer_stop(struct mrp_database *mrp_db)
 {
-	int rc;
-	struct itimerspec itimerspec_new;
-	struct itimerspec itimerspec_old;
-
-	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
-	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
-
-	rc = timerfd_settime(mrp_db->join_timer, 0, &itimerspec_new,
-			     &itimerspec_old);
-
-	return rc;
-
+	return mrpd_timer_stop(mrp_db->join_timer);
 }
 
 int mrp_lvtimer_start(struct mrp_database *mrp_db)
@@ -197,40 +158,12 @@ int mrp_lvtimer_start(struct mrp_database *mrp_db)
 	 * controls how long the Registrar state machine stays in the
 	 * LV state before transitioning to the MT state.
 	 */
-	int rc;
-	struct itimerspec itimerspec_new;
-	struct itimerspec itimerspec_old;
-	unsigned long lv_next = MRP_LVTIMER_VAL;
-
-	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
-	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
-
-	while (lv_next >= 1000) {
-		itimerspec_new.it_value.tv_sec++;
-		lv_next -= 1000;
-	}
-
-	itimerspec_new.it_value.tv_nsec = lv_next * 1000000;
-
-	rc = timerfd_settime(mrp_db->lv_timer, 0, &itimerspec_new,
-			     &itimerspec_old);
-
-	return rc;
+	return mrpd_timer_start(mrp_db->lv_timer, MRP_LVTIMER_VAL);
 }
 
 int mrp_lvtimer_stop(struct mrp_database *mrp_db)
 {
-	int rc;
-	struct itimerspec itimerspec_new;
-	struct itimerspec itimerspec_old;
-
-	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
-	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
-
-	rc = timerfd_settime(mrp_db->lv_timer, 0, &itimerspec_new,
-			     &itimerspec_old);
-
-	return rc;
+	return mrpd_timer_stop(mrp_db->lv_timer);
 }
 
 static unsigned long lva_next;
@@ -243,41 +176,15 @@ int mrp_lvatimer_start(struct mrp_database *mrp_db)
 	 * timer is for all attributes of a given application and port, but
 	 * expires each listed attribute individually (per application)
 	 */
-	int rc;
-	struct itimerspec itimerspec_new;
-	struct itimerspec itimerspec_old;
-
-	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
-	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
-
-	lva_next = MRP_LVATIMER_VAL + (random() % (MRP_LVATIMER_VAL / 2));
-
-	while (lva_next >= 1000) {
-		itimerspec_new.it_value.tv_sec++;
-		lva_next -= 1000;
-	}
-
-	itimerspec_new.it_value.tv_nsec = lva_next * 1000000;
-	rc = timerfd_settime(mrp_db->lva_timer, 0, &itimerspec_new,
-			     &itimerspec_old);
-
-	return rc;
+	return mrpd_timer_start(mrp_db->lva_timer,
+		MRP_LVATIMER_VAL + (random() % (MRP_LVATIMER_VAL / 2)));
 }
 
 int mrp_lvatimer_stop(struct mrp_database *mrp_db)
 {
-	int rc;
-	struct itimerspec itimerspec_new;
-	struct itimerspec itimerspec_old;
-
-	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
-	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
-
-	rc = timerfd_settime(mrp_db->lva_timer, 0, &itimerspec_new,
-			     &itimerspec_old);
-
-	return rc;
+	return mrpd_timer_stop(mrp_db->lva_timer);
 }
+
 
 int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 {
