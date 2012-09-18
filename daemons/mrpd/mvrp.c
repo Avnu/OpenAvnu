@@ -1187,8 +1187,8 @@ int mvrp_init(int mvrp_enable)
 	free(MVRP_db);
 	MVRP_db = NULL;
  abort_socket:
-	close(mvrp_socket);
-	mvrp_socket = -1;
+	mrpd_close_socket(mvrp_socket);
+	mvrp_socket = INVALID_SOCKET;
 	/* XXX */
 	return -1;
 }

@@ -112,9 +112,9 @@ int mrpd_timer_start(HTIMER timerfd, unsigned long value_ms);
 int mrpd_timer_stop(HTIMER timerfd);
 int mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 		int notify_len);
-int mrpd_init_protocol_socket(uint16_t etype, int *sock,
+int mrpd_init_protocol_socket(uint16_t etype, SOCKET *sock,
 		unsigned char *multicast_addr);
-
+int mrpd_close_socket(SOCKET sock);
 int mrpd_recvmsgbuf(SOCKET sock, char **buf);
 
 

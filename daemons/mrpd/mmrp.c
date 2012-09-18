@@ -1725,8 +1725,8 @@ int mmrp_init(int mmrp_enable)
 	free(MMRP_db);
 	MMRP_db = NULL;
  abort_socket:
-	close(mmrp_socket);
-	mmrp_socket = -1;
+	mrpd_close_socket(mmrp_socket);
+	mmrp_socket = INVALID_SOCKET;
 	/* XXX */
 	return -1;
 

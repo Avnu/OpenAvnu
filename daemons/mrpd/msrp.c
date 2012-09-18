@@ -3054,8 +3054,8 @@ int msrp_init(int msrp_enable)
 	free(MSRP_db);
 	MSRP_db = NULL;
  abort_socket:
-	close(msrp_socket);
-	msrp_socket = -1;
+	mrpd_close_socket(msrp_socket);
+	msrp_socket = INVALID_SOCKET;
 	/* XXX */
 	return -1;
 }
