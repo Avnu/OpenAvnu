@@ -36,17 +36,33 @@
 
 /* Operating specific defines */
 #if defined WIN32
+#include <winsock.h>
+struct win_timer {
+	void *timer_struct;
+};
+typedef struct win_timer HTIMER;
+#define snprintf _snprintf
 #elif defined __linux__
+#include <netinet/in.h>
 typedef int HTIMER;
 typedef int SOCKET;
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR -1
 #endif
 
+#ifdef __cplusplus
+#define __STDC_CONSTANT_MACROS
+#ifdef _STDINT_H
+#undef _STDINT_H
+#endif
+#endif
+
+#include <stdint.h> // for uint8_t etc
+
 typedef struct eth_hdr {
 	uint8_t	destaddr[6];
 	uint8_t	srcaddr[6];
-	u_int16_t	typelen;
+	uint16_t	typelen;
 } eth_hdr_t;
 
 /*

@@ -439,19 +439,19 @@ int msrp_recv_msg()
 	unsigned char *mrpdu_msg_ptr;
 	unsigned char *mrpdu_msg_eof;
 	mrpdu_vectorattrib_t *mrpdu_vectorptr;
-	u_int16_t numvalues;
-	u_int16_t numvalues_processed;
+	uint16_t numvalues;
+	uint16_t numvalues_processed;
 	int numvectorbytes;
-	u_int8_t vect_3pack;
-	u_int8_t vect_4pack;
+	uint8_t vect_3pack;
+	uint8_t vect_4pack;
 	int vectidx;
 	int vectevt[4];
 	int vectevt_idx;
-	u_int8_t srclassID_firstval;
-	u_int8_t srclassprio_firstval;
-	u_int16_t srclassvid_firstval;
-	u_int8_t streamid_firstval[8];
-	u_int8_t destmac_firstval[6];
+	uint8_t srclassID_firstval;
+	uint8_t srclassprio_firstval;
+	uint16_t srclassvid_firstval;
+	uint8_t streamid_firstval[8];
+	uint8_t destmac_firstval[6];
 	struct msrp_attribute *attrib;
 	int endmarks;
 	int *listener_vectevt = NULL;
@@ -541,7 +541,7 @@ int msrp_recv_msg()
 					/* skip this null attribute ... some switches generate these ... */
 					/* 2 byte numvalues + 4 byte FirstValue + (0) vector bytes */
 					mrpdu_msg_ptr =
-					    (u_int8_t *) mrpdu_vectorptr;
+					    (uint8_t *) mrpdu_vectorptr;
 					mrpdu_msg_ptr += 6;
 
 					mrpdu_vectorptr =
@@ -559,7 +559,7 @@ int msrp_recv_msg()
 				srclassprio_firstval =
 				    mrpdu_vectorptr->FirstValue_VectorEvents[1];
 				srclassvid_firstval =
-				    ((u_int16_t) mrpdu_vectorptr->
+				    ((uint16_t) mrpdu_vectorptr->
 				     FirstValue_VectorEvents[2]) << 8 |
 				    mrpdu_vectorptr->FirstValue_VectorEvents[3];
 
@@ -655,7 +655,7 @@ int msrp_recv_msg()
 					msrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 2 byte numvalues + 4 byte FirstValue + (n) vector bytes */
-				mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 				mrpdu_msg_ptr += 6 + numvectorbytes;
 
 				mrpdu_vectorptr =
@@ -686,7 +686,7 @@ int msrp_recv_msg()
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 8 byte FirstValue + (0) vector bytes */
 					mrpdu_msg_ptr =
-					    (u_int8_t *) mrpdu_vectorptr;
+					    (uint8_t *) mrpdu_vectorptr;
 					mrpdu_msg_ptr += 10;
 
 					mrpdu_vectorptr =
@@ -905,7 +905,7 @@ int msrp_recv_msg()
 					numvectorbytes += (numvalues / 4);
 
 				/* 2 byte numvalues + 8 byte FirstValue + (n) vector bytes */
-				mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 				mrpdu_msg_ptr += 10 + numvectorbytes;
 
 				mrpdu_vectorptr =
@@ -1134,7 +1134,7 @@ int msrp_recv_msg()
 					msrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 2 byte numvalues + 25 byte FirstValue + (n) vector bytes */
-				mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 				mrpdu_msg_ptr += 27 + numvectorbytes;
 
 				mrpdu_vectorptr =
@@ -1164,7 +1164,7 @@ int msrp_recv_msg()
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 34 byte FirstValue + (0) vector bytes */
 					mrpdu_msg_ptr =
-					    (u_int8_t *) mrpdu_vectorptr;
+					    (uint8_t *) mrpdu_vectorptr;
 					mrpdu_msg_ptr += 36;
 					mrpdu_vectorptr =
 					    (mrpdu_vectorattrib_t *)
@@ -1362,7 +1362,7 @@ int msrp_recv_msg()
 					msrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 2 byte numvalues + 34 byte FirstValue + (n) vector bytes */
-				mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 				mrpdu_msg_ptr += 36 + numvectorbytes;
 
 				mrpdu_vectorptr =
@@ -1399,13 +1399,13 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		      int *bytes_used, int lva)
 {
 	mrpdu_vectorattrib_t *mrpdu_vectorptr;
-	u_int16_t numvalues;
-	u_int8_t vect_3pack;
+	uint16_t numvalues;
+	uint8_t vect_3pack;
 	int vectidx;
 	int vectevt[3];
 	int vectevt_idx;
-	u_int8_t streamid_firstval[8];
-	u_int8_t destmac_firstval[6];
+	uint8_t streamid_firstval[8];
+	uint8_t destmac_firstval[6];
 	int attriblistlen;
 	struct msrp_attribute *attrib, *vattrib;
 	mrpdu_message_t *mrpdu_msg;
@@ -1682,9 +1682,9 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	mrpdu_message_t *mrpdu_msg;
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
-	u_int16_t numvalues;
-	u_int8_t vect_3pack;
-	u_int8_t vect_4pack;
+	uint16_t numvalues;
+	uint8_t vect_3pack;
+	uint8_t vect_4pack;
 	int vectidx;
 	int attriblistlen;
 	int vectevt[4];
@@ -1693,7 +1693,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	int listen_declare_sz = 64;
 	int listen_declare_idx = 0;
 	int listen_declare_end = 0;
-	u_int8_t streamid_firstval[8];
+	uint8_t streamid_firstval[8];
 	struct msrp_attribute *attrib, *vattrib;
 	int mac_eq;
 
@@ -2370,9 +2370,9 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	char *prio_str = NULL;
 	char *latency_str = NULL;
 	int join = 0;
-	u_int8_t streamid_firstval[8];
-	u_int8_t macvec_firstval[6];
-	u_int8_t macvec_parsestr[64];
+	uint8_t streamid_firstval[8];
+	uint8_t macvec_firstval[6];
+	uint8_t macvec_parsestr[64];
 	unsigned vlan, size, interval, prio, latency;
 	int i;
 
@@ -2500,7 +2500,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			rc = sscanf((char *)&(buf[i]), "%d",
 				&prio);
 
-			attrib->attribute.domain.SRclassPriority = (u_int16_t)prio;
+			attrib->attribute.domain.SRclassPriority = (uint16_t)prio;
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
@@ -2696,7 +2696,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			rc = sscanf((char *)&(buf[i]), "%d",
 				&prio);
 
-			attrib->attribute.domain.SRclassPriority = (u_int16_t)prio;
+			attrib->attribute.domain.SRclassPriority = (uint16_t)prio;
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);

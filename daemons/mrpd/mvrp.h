@@ -34,7 +34,7 @@
 struct mvrp_attribute {
 	struct mvrp_attribute		*prev;
 	struct mvrp_attribute		*next;
-	u_int16_t			attribute;	/* 12-bit VID */
+	uint16_t			attribute;	/* 12-bit VID */
 	mrp_applicant_attribute_t	applicant;
 	mrp_registrar_attribute_t	registrar;
 };

@@ -359,7 +359,7 @@ struct mmrp_attribute *mmrp_alloc()
 	return attrib;
 }
 
-void mmrp_increment_macaddr(u_int8_t *macaddr)
+void mmrp_increment_macaddr(uint8_t *macaddr)
 {
 
 	int i;
@@ -386,15 +386,15 @@ int mmrp_recv_msg()
 	unsigned char *mrpdu_msg_ptr;
 	unsigned char *mrpdu_msg_eof;
 	mrpdu_vectorattrib_t *mrpdu_vectorptr;
-	u_int16_t numvalues;
-	u_int16_t numvalues_processed;
+	uint16_t numvalues;
+	uint16_t numvalues_processed;
 	int numvectorbytes;
-	u_int8_t vect_3pack;
+	uint8_t vect_3pack;
 	int vectidx;
 	int vectevt[3];
 	int vectevt_idx;
-	u_int8_t svcreq_firstval;
-	u_int8_t macvec_firstval[6];
+	uint8_t svcreq_firstval;
+	uint8_t macvec_firstval[6];
 	struct mmrp_attribute *attrib;
 	int endmarks;
 
@@ -564,7 +564,7 @@ int mmrp_recv_msg()
 					mmrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 2 byte numvalues + 34 byte FirstValue + (n) vector bytes */
-				mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 				mrpdu_msg_ptr += 3 + numvectorbytes;
 				mrpdu_vectorptr =
 				    (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
@@ -691,7 +691,7 @@ int mmrp_recv_msg()
 					mmrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 1 byte Type, 1 byte Len, 6 byte FirstValue, and (n) vector bytes */
-				mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 				mrpdu_msg_ptr += 8 + numvectorbytes;
 
 				mrpdu_vectorptr =
@@ -720,12 +720,12 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		     int *bytes_used, int lva)
 {
 	mrpdu_vectorattrib_t *mrpdu_vectorptr;
-	u_int16_t numvalues;
-	u_int8_t vect_3pack;
+	uint16_t numvalues;
+	uint8_t vect_3pack;
 	int vectidx;
 	int vectevt[3];
 	int vectevt_idx;
-	u_int8_t svcreq_firstval;
+	uint8_t svcreq_firstval;
 	struct mmrp_attribute *attrib, *vattrib;
 	mrpdu_message_t *mrpdu_msg;
 	unsigned char *mrpdu_msg_ptr = msgbuf;
@@ -946,12 +946,12 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	mrpdu_message_t *mrpdu_msg;
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
-	u_int16_t numvalues;
-	u_int8_t vect_3pack;
+	uint16_t numvalues;
+	uint8_t vect_3pack;
 	int vectidx;
 	int vectevt[3];
 	int vectevt_idx;
-	u_int8_t macvec_firstval[6];
+	uint8_t macvec_firstval[6];
 	struct mmrp_attribute *attrib, *vattrib;
 	int mac_eq;
 
@@ -1468,9 +1468,9 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	int rc;
 	char respbuf[8];
 	struct mmrp_attribute *attrib;
-	u_int8_t svcreq_firstval;
-	u_int8_t macvec_firstval[6];
-	u_int8_t macvec_parsestr[8];
+	uint8_t svcreq_firstval;
+	uint8_t macvec_firstval[6];
+	uint8_t macvec_parsestr[8];
 	int i;
 
 	if (NULL == MMRP_db) {

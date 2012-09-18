@@ -150,7 +150,7 @@ typedef struct mrp_timer {
 						((y) * 4) + (z))
 
 typedef struct mrpdu_vectorattrib {
-	u_int16_t	VectorHeader;	/* LVA << 13 | NumberOfValues */
+	uint16_t	VectorHeader;	/* LVA << 13 | NumberOfValues */
 	uint8_t	FirstValue_VectorEvents[];
 } mrpdu_vectorattrib_t;
 

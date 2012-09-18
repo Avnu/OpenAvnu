@@ -54,7 +54,7 @@
 struct mmrp_attribute {
 	struct mmrp_attribute		*prev;
 	struct mmrp_attribute		*next;
-	u_int32_t			type;
+	uint32_t			type;
 	union {
 		unsigned char	macaddr[6];
 		uint8_t	svcreq;
@@ -74,5 +74,5 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);
 int mmrp_reclaim(void);
 void mmrp_bye(struct sockaddr_in *client);
 int mmrp_recv_msg(void);
-void mmrp_increment_macaddr(u_int8_t *macaddr);
+void mmrp_increment_macaddr(uint8_t *macaddr);
 int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify);

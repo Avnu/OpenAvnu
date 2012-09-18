@@ -63,11 +63,11 @@ typedef struct msrpdu_talker_advertise {
 	uint8_t	StreamID[8];
 	struct {
 		uint8_t	Dest_Addr[6];
-		u_int16_t	Vlan_ID;
+		uint16_t	Vlan_ID;
 	} DataFrameParameters;
 	struct {
-		u_int16_t	MaxFrameSize;
-		u_int16_t	MaxIntervalFrames;
+		uint16_t	MaxFrameSize;
+		uint16_t	MaxIntervalFrames;
 	} TSpec;
 	uint8_t	PriorityAndRank;
 	/*
@@ -81,11 +81,11 @@ typedef struct msrpdu_talker_fail {
 	uint8_t	StreamID[8];
 	struct {
 		uint8_t	Dest_Addr[6];
-		u_int16_t	Vlan_ID;
+		uint16_t	Vlan_ID;
 	} DataFrameParameters;
 	struct {
-		u_int16_t	MaxFrameSize;
-		u_int16_t	MaxIntervalFrames;
+		uint16_t	MaxFrameSize;
+		uint16_t	MaxIntervalFrames;
 	} TSpec;
 	uint8_t	PriorityAndRank;
 	unsigned	AccumulatedLatency;
@@ -121,7 +121,7 @@ typedef struct msrpdu_talker_fail {
 typedef struct msrpdu_domain {
 	uint8_t	SRclassID;
 	uint8_t	SRclassPriority;
-	u_int16_t	SRclassVID;
+	uint16_t	SRclassVID;
 } msrpdu_domain_t;
 
 /* Class ID defitions */
@@ -138,13 +138,13 @@ typedef struct msrpdu_domain {
 struct msrp_attribute {
 	struct msrp_attribute		*prev;
 	struct msrp_attribute		*next;
-	u_int32_t			type;
+	uint32_t			type;
 	union {
 		msrpdu_talker_fail_t		talk_listen;
 		msrpdu_domain_t			domain;
 	} attribute;
-	u_int32_t			substate;	/*for listener events*/
-	u_int32_t			direction;	/*for listener events*/
+	uint32_t			substate;	/*for listener events*/
+	uint32_t			direction;	/*for listener events*/
 	mrp_applicant_attribute_t	applicant;
 	mrp_registrar_attribute_t	registrar;
 };

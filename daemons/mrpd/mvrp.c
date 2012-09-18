@@ -321,14 +321,14 @@ int mvrp_recv_msg(void)
 	unsigned char *mrpdu_msg_ptr;
 	unsigned char *mrpdu_msg_eof;
 	mrpdu_vectorattrib_t *mrpdu_vectorptr;
-	u_int16_t numvalues;
-	u_int16_t numvalues_processed;
+	uint16_t numvalues;
+	uint16_t numvalues_processed;
 	int numvectorbytes;
-	u_int8_t vect_3pack;
+	uint8_t vect_3pack;
 	int vectidx;
 	int vectevt[3];
 	int vectevt_idx;
-	u_int16_t vid_firstval;
+	uint16_t vid_firstval;
 	struct mvrp_attribute *attrib;
 	int endmarks;
 
@@ -433,7 +433,7 @@ int mvrp_recv_msg(void)
 					goto out;
 
 				vid_firstval =
-				    (((u_int16_t) mrpdu_vectorptr->
+				    (((uint16_t) mrpdu_vectorptr->
 				      FirstValue_VectorEvents[0]) << 8)
 				    | mrpdu_vectorptr->
 				    FirstValue_VectorEvents[1];
@@ -522,7 +522,7 @@ int mvrp_recv_msg(void)
 					mvrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 1 byte Type, 1 byte Len, 2 byte FirstValue, and (n) vector bytes */
-				mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 				mrpdu_msg_ptr += 4 + numvectorbytes;
 
 				mrpdu_vectorptr =
@@ -551,12 +551,12 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		     int *bytes_used, int lva)
 {
 	mrpdu_vectorattrib_t *mrpdu_vectorptr;
-	u_int16_t numvalues;
-	u_int8_t vect_3pack;
+	uint16_t numvalues;
+	uint8_t vect_3pack;
 	int vectidx;
 	unsigned int vectevt[3];
 	int vectevt_idx;
-	u_int16_t vid_firstval;
+	uint16_t vid_firstval;
 	struct mvrp_attribute *attrib, *vattrib;
 	mrpdu_message_t *mrpdu_msg;
 
@@ -591,9 +591,9 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		attrib->applicant.tx = 0;
 		vid_firstval = attrib->attribute;
 		mrpdu_vectorptr->FirstValue_VectorEvents[0] =
-		    (u_int8_t) (attrib->attribute >> 8);
+		    (uint8_t) (attrib->attribute >> 8);
 		mrpdu_vectorptr->FirstValue_VectorEvents[1] =
-		    (u_int8_t) (attrib->attribute);
+		    (uint8_t) (attrib->attribute);
 
 		switch (attrib->applicant.sndmsg) {
 		case MRP_SND_IN:
@@ -1033,7 +1033,7 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	char respbuf[8];
 	struct mvrp_attribute *attrib;
 	unsigned int vid_firstval;
-	u_int8_t vid_parsestr[8];
+	uint8_t vid_parsestr[8];
 
 	if (NULL == MVRP_db) {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);

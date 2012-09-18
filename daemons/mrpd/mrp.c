@@ -116,8 +116,8 @@ int mrp_client_delete(client_t **list, struct sockaddr_in *newclient)
 		return 0;
 
 	while (NULL != client_item) {
-		if (0 == memcmp((u_int8_t *) newclient,
-				(u_int8_t *) &client_item->client,
+		if (0 == memcmp((uint8_t *) newclient,
+				(uint8_t *) &client_item->client,
 				sizeof(struct sockaddr_in))) {
 
 			if (client_last) {
