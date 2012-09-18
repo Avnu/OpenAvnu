@@ -1464,17 +1464,17 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		    attrib->attribute.talk_listen.DataFrameParameters.
 		    Vlan_ID >> 8;
 		mrpdu_vectorptr->FirstValue_VectorEvents[15] =
-		    attrib->attribute.talk_listen.DataFrameParameters.Vlan_ID;
+		    (uint8_t)attrib->attribute.talk_listen.DataFrameParameters.Vlan_ID;
 
 		mrpdu_vectorptr->FirstValue_VectorEvents[16] =
 		    attrib->attribute.talk_listen.TSpec.MaxFrameSize >> 8;
 		mrpdu_vectorptr->FirstValue_VectorEvents[17] =
-		    attrib->attribute.talk_listen.TSpec.MaxFrameSize;
+		    (uint8_t)attrib->attribute.talk_listen.TSpec.MaxFrameSize;
 
 		mrpdu_vectorptr->FirstValue_VectorEvents[18] =
 		    attrib->attribute.talk_listen.TSpec.MaxIntervalFrames >> 8;
 		mrpdu_vectorptr->FirstValue_VectorEvents[19] =
-		    attrib->attribute.talk_listen.TSpec.MaxIntervalFrames;
+		    (uint8_t)attrib->attribute.talk_listen.TSpec.MaxIntervalFrames;
 
 		mrpdu_vectorptr->FirstValue_VectorEvents[20] =
 		    attrib->attribute.talk_listen.PriorityAndRank;
@@ -2495,7 +2495,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			rc = sscanf((char *)&(buf[i]), "%d",
 				&prio);
 
-			attrib->attribute.domain.SRclassPriority = (uint16_t)prio;
+			attrib->attribute.domain.SRclassPriority = (uint8_t)prio;
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
@@ -2691,7 +2691,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			rc = sscanf((char *)&(buf[i]), "%d",
 				&prio);
 
-			attrib->attribute.domain.SRclassPriority = (uint16_t)prio;
+			attrib->attribute.domain.SRclassPriority = (uint8_t)prio;
 			if (0 == rc) {
 				snprintf(respbuf, sizeof(respbuf) - 1,
 					 "ERP %s", buf);
@@ -3040,7 +3040,7 @@ int msrp_init(int msrp_enable)
 	 */
 	MSRP_db->mrp_db.participant = MRP_APPLICANT_CTL_NORMAL;	/* default */
 
-	rc = mrp_init_timers(&(MSRP_db->mrp_db));
+	rc = mrpd_init_timers(&(MSRP_db->mrp_db));
 
 	if (rc < 0)
 		goto abort_alloc;

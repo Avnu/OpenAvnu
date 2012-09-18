@@ -37,11 +37,11 @@
 /* Operating specific defines */
 #if defined WIN32
 #include <winsock2.h>
-struct win_timer {
-	void *timer_struct;
-};
-typedef struct win_timer HTIMER;
+typedef int socklen_t;
+typedef void *HTIMER;
 #define snprintf _snprintf
+#define random rand
+#define send mrpw_send
 #elif defined __linux__
 #include <netinet/in.h>
 typedef int HTIMER;
@@ -108,6 +108,7 @@ typedef struct mrpdu {
 #define MRPD_PORT_DEFAULT	7500
 #define MAX_MRPD_CMDSZ		(1500)
 
+int mrpd_init_timers(struct mrp_database *mrp_db);
 int mrpd_timer_start(HTIMER timerfd, unsigned long value_ms);
 int mrpd_timer_stop(HTIMER timerfd);
 int mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,

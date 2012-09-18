@@ -469,7 +469,7 @@ int mrpd_close_socket(SOCKET sock)
 	return close(sock);
 }
 
-int mrp_init_timers(struct mrp_database *mrp_db)
+int mrpd_init_timers(struct mrp_database *mrp_db)
 {
 	mrp_db->join_timer = mrpd_timer_create();
 	mrp_db->lv_timer = mrpd_timer_create();

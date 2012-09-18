@@ -1174,7 +1174,7 @@ int mvrp_init(int mvrp_enable)
 	 */
 	MVRP_db->mrp_db.participant = MRP_APPLICANT_CTL_NORMAL;	/* default */
 
-	rc = mrp_init_timers(&(MVRP_db->mrp_db));
+	rc = mrpd_init_timers(&(MVRP_db->mrp_db));
 
 	if (rc < 0)
 		goto abort_alloc;

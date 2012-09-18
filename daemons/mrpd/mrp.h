@@ -189,5 +189,4 @@ int mrp_registrar_fsm(mrp_registrar_attribute_t *attrib,
 		  struct mrp_database *mrp_db, int event);
 int mrp_decode_state(mrp_registrar_attribute_t *rattrib,
 	mrp_applicant_attribute_t *aattrib, char *str, int strlen);
-int mrp_init_timers(struct mrp_database *mrp_db);
 
