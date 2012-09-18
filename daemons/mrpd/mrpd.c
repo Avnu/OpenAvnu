@@ -464,8 +464,10 @@ mrpd_init_protocol_socket(u_int16_t etype, int *sock, unsigned char *multicast_a
 	return 0;
 }
 
-
-
+int mrpd_close_socket(SOCKET sock)
+{
+	return close(sock);
+}
 
 int mrp_init_timers(struct mrp_database *mrp_db)
 {
