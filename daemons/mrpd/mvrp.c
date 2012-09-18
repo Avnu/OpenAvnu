@@ -53,7 +53,7 @@ unsigned char MVRP_PROVIDER_BRIDGE_ADDR[] = \
 extern unsigned char STATION_ADDR[];
 
 /* global variables */
-int mvrp_socket;
+SOCKET mvrp_socket;
 struct mvrp_database *MVRP_db;
 
 /* MVRP */
@@ -1144,7 +1144,7 @@ int mvrp_init(int mvrp_enable)
 
 	/* XXX doesn't handle re-start */
 
-	mvrp_socket = -1;
+	mvrp_socket = INVALID_SOCKET;
 	MVRP_db = NULL;
 
 	if (0 == mvrp_enable) {

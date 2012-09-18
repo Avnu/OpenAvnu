@@ -34,6 +34,14 @@
  * an endpoint implementation of 802.1Q-2011 MRP (MMRP, MVRP, MSRP)
  */
 
+/* Operating specific defines */
+#if defined WIN32
+#elif defined __linux__
+typedef int HTIMER;
+typedef int SOCKET;
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR -1
+#endif
 
 typedef struct eth_hdr {
 	uint8_t	destaddr[6];
@@ -74,13 +82,13 @@ typedef struct mrpdu {
 #define MRPD_PORT_DEFAULT	7500
 #define MAX_MRPD_CMDSZ	(1500)
 
-int mrpd_timer_start(int timerfd, unsigned long value_ms);
-int mrpd_timer_stop(int timerfd);
+int mrpd_timer_start(HTIMER timerfd, unsigned long value_ms);
+int mrpd_timer_stop(HTIMER timerfd);
 int mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 		int notify_len);
 int mrpd_init_protocol_socket(u_int16_t etype, int *sock,
 		unsigned char *multicast_addr);
 
-int mrpd_recvmsgbuf(int sock, char **buf);
+int mrpd_recvmsgbuf(SOCKET sock, char **buf);
 
 

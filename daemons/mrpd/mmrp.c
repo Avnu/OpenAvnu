@@ -50,7 +50,7 @@ int mmrp_txpdu(void);
 unsigned char MMRP_ADDR[] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x20 };
 extern unsigned char STATION_ADDR[];
 
-int mmrp_socket;
+SOCKET mmrp_socket;
 
 struct mmrp_database *MMRP_db;
 
@@ -1683,7 +1683,7 @@ int mmrp_init(int mmrp_enable)
 
 	/* XXX doesn't handle re-start */
 
-	mmrp_socket = -1;
+	mmrp_socket = INVALID_SOCKET;
 	MMRP_db = NULL;
 
 	if (0 == mmrp_enable) {

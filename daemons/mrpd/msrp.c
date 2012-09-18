@@ -51,7 +51,7 @@ unsigned char MSRP_ADDR[] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E };
 extern unsigned char STATION_ADDR[];
 
 /* global variables */
-int msrp_socket;
+SOCKET msrp_socket;
 struct msrp_database *MSRP_db;
 
 struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
@@ -3014,7 +3014,7 @@ int msrp_init(int msrp_enable)
 
 	/* XXX doesn't handle re-start */
 
-	msrp_socket = -1;
+	msrp_socket = INVALID_SOCKET;
 	MSRP_db = NULL;
 
 	if (0 == msrp_enable) {

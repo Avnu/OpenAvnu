@@ -95,10 +95,10 @@ static const char *version_str =
 unsigned char STATION_ADDR[] = { 0x00, 0x88, 0x77, 0x66, 0x55, 0x44 };
 
 /* global variables */
-int control_socket;
-extern int mmrp_socket;
-extern int mvrp_socket;
-extern int msrp_socket;
+SOCKET control_socket;
+extern SOCKET mmrp_socket;
+extern SOCKET mvrp_socket;
+extern SOCKET msrp_socket;
 
 int periodic_timer;
 int gc_timer;
@@ -730,10 +730,10 @@ int main(int argc, char *argv[])
 	periodic_enable = 0;
 	registration = MRP_REGISTRAR_CTL_NORMAL;	/* default */
 	participant = MRP_APPLICANT_CTL_NORMAL;	/* default */
-	control_socket = -1;
-	mmrp_socket = -1;
-	mvrp_socket = -1;
-	msrp_socket = -1;
+	control_socket = INVALID_SOCKET;
+	mmrp_socket = INVALID_SOCKET;
+	mvrp_socket = INVALID_SOCKET;
+	msrp_socket = INVALID_SOCKET;
 	periodic_timer = -1;
 	gc_timer = -1;
 
@@ -818,6 +818,9 @@ int main(int argc, char *argv[])
 
 	process_events();
  out:
+	 if (rc)
+		printf("Error starting. Run as sudo?\n");
+
 	return rc;
 
 }

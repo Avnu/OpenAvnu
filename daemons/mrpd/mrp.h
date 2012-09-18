@@ -165,9 +165,9 @@ typedef struct client {
 struct mrp_database {
 	mrp_timer_t	lva;
 	mrp_timer_t	periodic;
-	int		join_timer;
-	int		lv_timer;
-	int		lva_timer;
+	HTIMER		join_timer;
+	HTIMER		lv_timer;
+	HTIMER		lva_timer;
 	client_t	*clients;
 	int		registration;
 	int		participant;
