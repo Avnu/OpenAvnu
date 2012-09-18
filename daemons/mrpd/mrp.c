@@ -32,12 +32,11 @@
 /*
  * MRP protocol (part of 802.1Q-2011)
  */
-#include <unistd.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include <netinet/in.h>
 
 #include "mrpd.h"
 #include "mrp.h"

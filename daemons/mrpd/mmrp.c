@@ -33,12 +33,12 @@
  * MMRP protocol (part of 802.1Q-2011)
  */
 
-#include <unistd.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include <netinet/in.h>
+
 
 #include "mrpd.h"
 #include "mrp.h"
@@ -419,12 +419,12 @@ int mmrp_recv_msg()
 	if (MMRP_PROT_VER != mrpdu->ProtocolVersion)	/* should accept */
 		goto out;
 
-	mrpdu_msg_ptr = (unsigned char *)mrpdu->MessageList;
+	mrpdu_msg_ptr = MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu);
 
 	mrpdu_msg_eof = (unsigned char *)mrpdu_msg_ptr;
 	mrpdu_msg_eof += bytes;
 	mrpdu_msg_eof -= sizeof(eth_hdr_t);
-	mrpdu_msg_eof -= offsetof(mrpdu_t, MessageList);
+	mrpdu_msg_eof -= MRPD_OFFSETOF_MRPD_GET_MRPDU_MESSAGE_LIST;
 
 	endmarks = 0;
 
@@ -452,9 +452,8 @@ int mmrp_recv_msg()
 			/* AttributeListLength not used for MMRP, hence
 			 * Data points to the beginning of the VectorAttributes
 			 */
-			mrpdu_vectorptr =
-			    (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
-			mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+			mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
+			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 
 			while (!
 			       ((mrpdu_msg_ptr[0] == 0)
@@ -581,9 +580,8 @@ int mmrp_recv_msg()
 			/* AttributeListLength not used for MMRP, hence
 			 * Data points to the beginning of the VectorAttributes
 			 */
-			mrpdu_vectorptr =
-			    (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
-			mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+			mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
+			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 
 			while (!
 			       ((mrpdu_msg_ptr[0] == 0)
@@ -741,7 +739,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	attrib = MMRP_db->attrib_list;
 
-	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
+	mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
@@ -919,7 +917,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	}
 
-	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) mrpdu_msg->Data) {
+	if (mrpdu_vectorptr ==  MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0)) {
 		*bytes_used = 0;
 		return 0;
 	}
@@ -965,7 +963,7 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	attrib = MMRP_db->attrib_list;
 
-	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
+	mrpdu_vectorptr =  MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
@@ -1149,7 +1147,7 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
 	}
 
-	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) mrpdu_msg->Data) {
+	if (mrpdu_vectorptr == MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0)) {
 		*bytes_used = 0;
 		return 0;
 	}
@@ -1214,7 +1212,7 @@ int mmrp_txpdu(void)
 	 */
 
 	mrpdu->ProtocolVersion = MMRP_PROT_VER;
-	mrpdu_msg_ptr = (unsigned char *)mrpdu->MessageList;
+	mrpdu_msg_ptr = MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu);
 	mrpdu_msg_eof = (unsigned char *)msgbuf + MAX_FRAME_SIZE;
 
 	/*
@@ -1267,7 +1265,7 @@ int mmrp_txpdu(void)
 
 	/* endmark */
 
-	if (mrpdu_msg_ptr == (unsigned char *)mrpdu->MessageList) {
+	if (mrpdu_msg_ptr == MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu)) {
 		free(msgbuf);
 		return 0;
 	}

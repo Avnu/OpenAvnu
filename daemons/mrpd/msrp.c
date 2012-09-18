@@ -32,12 +32,11 @@
 /*
  * MSRP protocol (part of 802.1Q-2011)
  */
-#include <unistd.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include <netinet/in.h>
 
 #include "mrpd.h"
 #include "mrp.h"
@@ -412,7 +411,7 @@ struct msrp_attribute *msrp_alloc()
 	return attrib;
 }
 
-void msrp_increment_streamid(u_int8_t *streamid)
+void msrp_increment_streamid(uint8_t *streamid)
 {
 
 	int i;
@@ -494,12 +493,12 @@ int msrp_recv_msg()
 	if (MSRP_PROT_VER != mrpdu->ProtocolVersion) {	/* XXX should accept ... */
 		goto out;
 	}
-	mrpdu_msg_ptr = (unsigned char *)mrpdu->MessageList;
+	mrpdu_msg_ptr = MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu);
 
 	mrpdu_msg_eof = (unsigned char *)mrpdu_msg_ptr;
 	mrpdu_msg_eof += bytes;
 	mrpdu_msg_eof -= sizeof(eth_hdr_t);
-	mrpdu_msg_eof -= offsetof(mrpdu_t, MessageList);
+	mrpdu_msg_eof -= MRPD_OFFSETOF_MRPD_GET_MRPDU_MESSAGE_LIST;
 
 	endmarks = 0;
 
@@ -526,9 +525,8 @@ int msrp_recv_msg()
 				goto out;
 			}
 
-			mrpdu_vectorptr =
-			    (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2]);
-			mrpdu_msg_ptr = (u_int8_t *) mrpdu_vectorptr;
+			mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg,2);
+			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 			while (!
 			       ((mrpdu_msg_ptr[0] == 0)
 				&& (mrpdu_msg_ptr[1] == 0))) {
@@ -671,9 +669,8 @@ int msrp_recv_msg()
 			}
 
 			/* MSRP uses AttributeListLength ...  */
-			mrpdu_vectorptr =
-			    (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2]);
-			mrpdu_msg_ptr = (u_int8_t *)mrpdu_vectorptr;
+			mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 2);
+			mrpdu_msg_ptr = (uint8_t *)mrpdu_vectorptr;
 
 			while (!
 			       ((mrpdu_msg_ptr[0] == 0)
@@ -933,9 +930,8 @@ int msrp_recv_msg()
 			}
 
 			/* MSRP uses AttributeListLength ...  */
-			mrpdu_vectorptr =
-			    (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2]);
-			mrpdu_msg_ptr = (u_int8_t *)mrpdu_vectorptr;
+			mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 2);
+			mrpdu_msg_ptr = (uint8_t *)mrpdu_vectorptr;
 
 			while (!
 			       ((mrpdu_msg_ptr[0] == 0)
@@ -948,7 +944,7 @@ int msrp_recv_msg()
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 25 byte FirstValue + (0) vector bytes */
 					mrpdu_msg_ptr =
-					    (u_int8_t *) mrpdu_vectorptr;
+					    (uint8_t *) mrpdu_vectorptr;
 					mrpdu_msg_ptr += 27;
 
 					mrpdu_vectorptr =
@@ -1150,9 +1146,8 @@ int msrp_recv_msg()
 			}
 
 			/* MSRP uses AttributeListLength ...  */
-			mrpdu_vectorptr =
-			    (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2]);
-			mrpdu_msg_ptr = (u_int8_t *)mrpdu_vectorptr;
+			mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 2);
+			mrpdu_msg_ptr = (uint8_t *)mrpdu_vectorptr;
 			while (!
 			       ((mrpdu_msg_ptr[0] == 0)
 				&& (mrpdu_msg_ptr[1] == 0))) {
@@ -1430,7 +1425,7 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	attrib = MSRP_db->attrib_list;
 
-	mrpdu_vectorptr = (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2]);
+	mrpdu_vectorptr =  MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 2);
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
@@ -1651,7 +1646,7 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	}
 
-	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2])) {
+	if (mrpdu_vectorptr == MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 2)) {
 		*bytes_used = 0;
 		return 0;
 	}
@@ -1664,9 +1659,9 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	*bytes_used = (mrpdu_msg_ptr - msgbuf);
 
-	attriblistlen = mrpdu_msg_ptr - &(mrpdu_msg->Data[2]);
-	mrpdu_msg->Data[0] = (u_int8_t) (attriblistlen >> 8);
-	mrpdu_msg->Data[1] = (u_int8_t) attriblistlen;
+	attriblistlen = mrpdu_msg_ptr - (uint8_t *)MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 2);
+	MRPD_SET_MRPDU_MESSAGE_DATA(mrpdu_msg, 0, (uint8_t)(attriblistlen >> 8));
+	MRPD_SET_MRPDU_MESSAGE_DATA(mrpdu_msg, 1, (uint8_t)attriblistlen);
 	return 0;
  oops:
 	/* an internal error - caller should assume TXLAF */
@@ -1711,7 +1706,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	attrib = MSRP_db->attrib_list;
 
-	mrpdu_vectorptr = (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2]);
+	mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 2);
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
@@ -1971,7 +1966,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
 	}
 
-	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2])) {
+	if (mrpdu_vectorptr == MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 2)) {
 		if (listen_declare)
 			free(listen_declare);
 		*bytes_used = 0;
@@ -1986,9 +1981,9 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	*bytes_used = (mrpdu_msg_ptr - msgbuf);
 
-	attriblistlen = mrpdu_msg_ptr - &(mrpdu_msg->Data[2]);
-	mrpdu_msg->Data[0] = (u_int8_t) (attriblistlen >> 8);
-	mrpdu_msg->Data[1] = (u_int8_t) attriblistlen;
+	attriblistlen = mrpdu_msg_ptr - (uint8_t *)MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 2);
+	MRPD_SET_MRPDU_MESSAGE_DATA(mrpdu_msg, 0, (uint8_t)(attriblistlen >> 8));
+	MRPD_SET_MRPDU_MESSAGE_DATA(mrpdu_msg, 1, (uint8_t)attriblistlen);
 
 	free(listen_declare);
 	return 0;
@@ -2031,7 +2026,7 @@ int msrp_txpdu(void)
 	mrpdu = (mrpdu_t *) msgbuf_wrptr;
 
 	mrpdu->ProtocolVersion = MSRP_PROT_VER;
-	mrpdu_msg_ptr = (unsigned char *)mrpdu->MessageList;
+	mrpdu_msg_ptr = MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu);
 	mrpdu_msg_eof = (unsigned char *)msgbuf + MAX_FRAME_SIZE;
 
 	if (MSRP_db->mrp_db.lva.tx) {
@@ -2054,7 +2049,7 @@ int msrp_txpdu(void)
 
 	mrpdu_msg_ptr += bytes;
 
-	if (mrpdu_msg_ptr == (unsigned char *)mrpdu->MessageList) {
+	if (mrpdu_msg_ptr == MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu)) {
 		goto out;	/* nothing to send */
 	}
 

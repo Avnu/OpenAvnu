@@ -36,7 +36,7 @@
 
 /* Operating specific defines */
 #if defined WIN32
-#include <winsock.h>
+#include <winsock2.h>
 struct win_timer {
 	void *timer_struct;
 };
@@ -79,30 +79,40 @@ typedef struct eth_hdr {
 typedef struct mrpdu_message {
 	uint8_t	AttributeType;
 	uint8_t	AttributeLength;	/* length of FirstValue */
-	uint8_t	Data[];
-	/* parsing of the data field is application specific - either
+	/* Microsoft does not support 0 length arrays
+	 * uint8_t	Data[];
+	 * parsing of the data field is application specific - either
 	 * a ushort with an attribute list length followed by vector
 	 * attributes, or just a list of vector attributes ...
 	 */
 
 	/* table should have a trailing NULL (0x0000) indicating the ENDMARK */
 } mrpdu_message_t;
+#define MRPD_GET_MRPDU_MESSAGE_VECTOR(a,n) (mrpdu_vectorattrib_t *) \
+	((unsigned char *)&((a)->AttributeType) + 2 + n)
+
+#define MRPD_SET_MRPDU_MESSAGE_DATA(a, n, d) \
+	*(&a->AttributeLength + 1 + n) = d
 
 typedef struct mrpdu {
 	uint8_t	ProtocolVersion;
-	mrpdu_message_t	MessageList[];	
-	/* mrpdu should have trailing NULL (0x0000) indicating the ENDMARK */
+	/* Microsoft does not support 0 length arrays
+	 * mrpdu_message_t	MessageList[];
+	 * mrpdu should have trailing NULL (0x0000) indicating the ENDMARK */
 } mrpdu_t;
+
+#define MRPD_GET_MRPDU_MESSAGE_LIST(a) ((unsigned char *)&((a)->ProtocolVersion) + 1)
+#define MRPD_OFFSETOF_MRPD_GET_MRPDU_MESSAGE_LIST (1)
 
 #define MAX_FRAME_SIZE		2000
 #define MRPD_PORT_DEFAULT	7500
-#define MAX_MRPD_CMDSZ	(1500)
+#define MAX_MRPD_CMDSZ		(1500)
 
 int mrpd_timer_start(HTIMER timerfd, unsigned long value_ms);
 int mrpd_timer_stop(HTIMER timerfd);
 int mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 		int notify_len);
-int mrpd_init_protocol_socket(u_int16_t etype, int *sock,
+int mrpd_init_protocol_socket(uint16_t etype, int *sock,
 		unsigned char *multicast_addr);
 
 int mrpd_recvmsgbuf(SOCKET sock, char **buf);
