@@ -45,10 +45,9 @@
 int mvrp_send_notifications(struct mvrp_attribute *attrib, int notify);
 int mvrp_txpdu(void);
 
-unsigned char MVRP_CUSTOMER_BRIDGE_ADDR[] = \
-	{ 0x01, 0x80, 0xC2, 0x00, 0x00, 0x21 };	/* 81-00 */
-unsigned char MVRP_PROVIDER_BRIDGE_ADDR[] = \
-	{ 0x01, 0x80, 0xC2, 0x00, 0x00, 0x0D };	/* 88-A8 */
+unsigned char MVRP_CUSTOMER_BRIDGE_ADDR[] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x21 };	/* 81-00 */
+unsigned char MVRP_PROVIDER_BRIDGE_ADDR[] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x0D };	/* 88-A8 */
+
 extern unsigned char STATION_ADDR[];
 
 /* global variables */
@@ -410,16 +409,15 @@ int mvrp_recv_msg(void)
 			/* AttributeListLength not used for MVRP, hence
 			 * Data points to the beginning of the VectorAttributes
 			 */
-			mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
+			mrpdu_vectorptr =
+			    MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 
-			while (!
-			       ((mrpdu_msg_ptr[0] == 0)
-				&& (mrpdu_msg_ptr[1] == 0))) {
+			while (!((mrpdu_msg_ptr[0] == 0)
+				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->
-							  VectorHeader));
+							 (mrpdu_vectorptr->VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -431,10 +429,11 @@ int mvrp_recv_msg(void)
 					goto out;
 
 				vid_firstval =
-				    (((uint16_t) mrpdu_vectorptr->
-				      FirstValue_VectorEvents[0]) << 8)
-				    | mrpdu_vectorptr->
-				    FirstValue_VectorEvents[1];
+				    (((uint16_t)
+				      mrpdu_vectorptr->FirstValue_VectorEvents
+				      [0]) << 8)
+				    |
+				    mrpdu_vectorptr->FirstValue_VectorEvents[1];
 
 				/* if not an even multiple ... */
 				if (numvalues != ((numvalues / 3) * 3))
@@ -446,8 +445,8 @@ int mvrp_recv_msg(void)
 				     vectidx <= (numvectorbytes + 2);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->
-					    FirstValue_VectorEvents[vectidx];
+					    mrpdu_vectorptr->FirstValue_VectorEvents
+					    [vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -472,9 +471,9 @@ int mvrp_recv_msg(void)
 						attrib->attribute =
 						    vid_firstval;
 						vid_firstval++;
-						memcpy(attrib->registrar.
-						       macaddr, eth->srcaddr,
-						       6);
+						memcpy(attrib->
+						       registrar.macaddr,
+						       eth->srcaddr, 6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -697,9 +696,8 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 								vectevt[1],
 								vectevt[2]);
 
-				mrpdu_vectorptr->
-				    FirstValue_VectorEvents[vectidx] =
-				    vect_3pack;
+				mrpdu_vectorptr->FirstValue_VectorEvents
+				    [vectidx] = vect_3pack;
 				vectidx++;
 				vectevt[0] = 0;
 				vectevt[1] = 0;
@@ -745,7 +743,7 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
 	}
 
-	if (mrpdu_vectorptr ==  MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0)) {
+	if (mrpdu_vectorptr == MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0)) {
 		*bytes_used = 0;
 		return 0;
 	}
@@ -1013,7 +1011,7 @@ int mvrp_dumptable(struct sockaddr_in *client)
 
 	mrpd_send_ctl_msg(client, msgbuf, MAX_MRPD_CMDSZ);
 
-free_msgbuf:
+ free_msgbuf:
 	if (regsrc)
 		free(regsrc);
 	if (variant)
@@ -1150,7 +1148,7 @@ int mvrp_init(int mvrp_enable)
 	}
 
 	rc = mrpd_init_protocol_socket(MVRP_ETYPE, &mvrp_socket,
-				  MVRP_CUSTOMER_BRIDGE_ADDR);
+				       MVRP_CUSTOMER_BRIDGE_ADDR);
 	if (rc < 0)
 		return -1;
 
@@ -1202,10 +1200,9 @@ int mvrp_reclaim(void)
 	vattrib = MVRP_db->attrib_list;
 	while (NULL != vattrib) {
 		if ((vattrib->registrar.mrp_state == MRP_MT_STATE) &&
-		((vattrib->applicant.mrp_state == MRP_VO_STATE) ||
-		    (vattrib->applicant.mrp_state == MRP_AO_STATE) ||
-			(vattrib->applicant.mrp_state == MRP_QO_STATE)))
-		{
+		    ((vattrib->applicant.mrp_state == MRP_VO_STATE) ||
+		     (vattrib->applicant.mrp_state == MRP_AO_STATE) ||
+		     (vattrib->applicant.mrp_state == MRP_QO_STATE))) {
 			if (NULL != vattrib->prev)
 				vattrib->prev->next = vattrib->next;
 			else

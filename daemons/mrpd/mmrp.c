@@ -33,12 +33,10 @@
  * MMRP protocol (part of 802.1Q-2011)
  */
 
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-
 
 #include "mrpd.h"
 #include "mrp.h"
@@ -48,6 +46,7 @@ int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify);
 int mmrp_txpdu(void);
 
 unsigned char MMRP_ADDR[] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x20 };
+
 extern unsigned char STATION_ADDR[];
 
 SOCKET mmrp_socket;
@@ -359,7 +358,7 @@ struct mmrp_attribute *mmrp_alloc()
 	return attrib;
 }
 
-void mmrp_increment_macaddr(uint8_t *macaddr)
+void mmrp_increment_macaddr(uint8_t * macaddr)
 {
 
 	int i;
@@ -452,16 +451,15 @@ int mmrp_recv_msg()
 			/* AttributeListLength not used for MMRP, hence
 			 * Data points to the beginning of the VectorAttributes
 			 */
-			mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
+			mrpdu_vectorptr =
+			    MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 
-			while (!
-			       ((mrpdu_msg_ptr[0] == 0)
-				&& (mrpdu_msg_ptr[1] == 0))) {
+			while (!((mrpdu_msg_ptr[0] == 0)
+				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->
-							  VectorHeader));
+							 (mrpdu_vectorptr->VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -485,8 +483,8 @@ int mmrp_recv_msg()
 				     vectidx <= (numvectorbytes + 1);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->
-					    FirstValue_VectorEvents[vectidx];
+					    mrpdu_vectorptr->FirstValue_VectorEvents
+					    [vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -512,9 +510,9 @@ int mmrp_recv_msg()
 						attrib->attribute.svcreq =
 						    svcreq_firstval;
 						svcreq_firstval++;
-						memcpy(attrib->registrar.
-						       macaddr, eth->srcaddr,
-						       6);
+						memcpy(attrib->
+						       registrar.macaddr,
+						       eth->srcaddr, 6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -580,16 +578,15 @@ int mmrp_recv_msg()
 			/* AttributeListLength not used for MMRP, hence
 			 * Data points to the beginning of the VectorAttributes
 			 */
-			mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
+			mrpdu_vectorptr =
+			    MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 
-			while (!
-			       ((mrpdu_msg_ptr[0] == 0)
-				&& (mrpdu_msg_ptr[1] == 0))) {
+			while (!((mrpdu_msg_ptr[0] == 0)
+				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->
-							  VectorHeader));
+							 (mrpdu_vectorptr->VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -614,8 +611,8 @@ int mmrp_recv_msg()
 				     vectidx <= (numvectorbytes + 6);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->
-					    FirstValue_VectorEvents[vectidx];
+					    mrpdu_vectorptr->FirstValue_VectorEvents
+					    [vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -635,15 +632,15 @@ int mmrp_recv_msg()
 							goto out;	/* oops - internal error */
 
 						attrib->type = MMRP_MACVEC_TYPE;
-						memcpy(attrib->attribute.
-						       macaddr, macvec_firstval,
-						       6);
+						memcpy(attrib->
+						       attribute.macaddr,
+						       macvec_firstval, 6);
 						mmrp_increment_macaddr
 						    (macvec_firstval);
 
-						memcpy(attrib->registrar.
-						       macaddr, eth->srcaddr,
-						       6);
+						memcpy(attrib->
+						       registrar.macaddr,
+						       eth->srcaddr, 6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -868,9 +865,8 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 								vectevt[1],
 								vectevt[2]);
 
-				mrpdu_vectorptr->
-				    FirstValue_VectorEvents[vectidx] =
-				    vect_3pack;
+				mrpdu_vectorptr->FirstValue_VectorEvents
+				    [vectidx] = vect_3pack;
 				vectidx++;
 				vectevt[0] = 0;
 				vectevt[1] = 0;
@@ -917,7 +913,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	}
 
-	if (mrpdu_vectorptr ==  MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0)) {
+	if (mrpdu_vectorptr == MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0)) {
 		*bytes_used = 0;
 		return 0;
 	}
@@ -963,7 +959,7 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	attrib = MMRP_db->attrib_list;
 
-	mrpdu_vectorptr =  MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
+	mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
@@ -1099,9 +1095,8 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 								vectevt[1],
 								vectevt[2]);
 
-				mrpdu_vectorptr->
-				    FirstValue_VectorEvents[vectidx] =
-				    vect_3pack;
+				mrpdu_vectorptr->FirstValue_VectorEvents
+				    [vectidx] = vect_3pack;
 				vectidx++;
 				vectevt[0] = 0;
 				vectevt[1] = 0;
@@ -1453,7 +1448,7 @@ int mmrp_dumptable(struct sockaddr_in *client)
 
 	mrpd_send_ctl_msg(client, msgbuf, MAX_MRPD_CMDSZ);
 
-free_msgbuf:
+ free_msgbuf:
 	if (regsrc)
 		free(regsrc);
 	if (variant)
@@ -1514,7 +1509,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (svcreq_firstval > 1) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf,
+						  sizeof(respbuf));
 				goto out;
 			}
 
@@ -1522,7 +1518,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf,
+						  sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 			attrib->type = MMRP_SVCREQ_TYPE;
@@ -1542,7 +1539,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (buflen < 16) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf,
+						  sizeof(respbuf));
 				goto out;
 			}
 
@@ -1558,7 +1556,7 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 					snprintf(respbuf, sizeof(respbuf) - 1,
 						 "ERP %s", buf);
 					mrpd_send_ctl_msg(client, respbuf,
-						     sizeof(respbuf));
+							  sizeof(respbuf));
 					goto out;
 				}
 			}
@@ -1567,7 +1565,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf,
+						  sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 			attrib->type = MMRP_MACVEC_TYPE;
@@ -1598,14 +1597,16 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (('?' != buf[2]) && ('+' != buf[2])) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf,
+						  sizeof(respbuf));
 				goto out;
 			}
 			svcreq_firstval = buf[4] - '0';
 			if (svcreq_firstval > 1) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf,
+						  sizeof(respbuf));
 				goto out;
 			}
 
@@ -1613,7 +1614,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf,
+						  sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 			attrib->type = MMRP_SVCREQ_TYPE;
@@ -1628,7 +1630,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (buflen < 16) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf,
+						  sizeof(respbuf));
 				goto out;
 			}
 
@@ -1644,7 +1647,7 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 					snprintf(respbuf, sizeof(respbuf) - 1,
 						 "ERP %s", buf);
 					mrpd_send_ctl_msg(client, respbuf,
-						     sizeof(respbuf));
+							  sizeof(respbuf));
 					goto out;
 				}
 			}
@@ -1653,7 +1656,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (NULL == attrib) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf,
+						  sizeof(respbuf));
 				goto out;	/* oops - internal error */
 			}
 			attrib->type = MMRP_MACVEC_TYPE;
@@ -1747,10 +1751,9 @@ int mmrp_reclaim(void)
 	mattrib = MMRP_db->attrib_list;
 	while (NULL != mattrib) {
 		if ((mattrib->registrar.mrp_state == MRP_MT_STATE) &&
-		((mattrib->applicant.mrp_state == MRP_VO_STATE) ||
-		    (mattrib->applicant.mrp_state == MRP_AO_STATE) ||
-			(mattrib->applicant.mrp_state == MRP_QO_STATE)))
-		{
+		    ((mattrib->applicant.mrp_state == MRP_VO_STATE) ||
+		     (mattrib->applicant.mrp_state == MRP_AO_STATE) ||
+		     (mattrib->applicant.mrp_state == MRP_QO_STATE))) {
 			if (NULL != mattrib->prev)
 				mattrib->prev->next = mattrib->next;
 			else
@@ -1772,6 +1775,3 @@ void mmrp_bye(struct sockaddr_in *client)
 	if (NULL != MMRP_db)
 		mrp_client_delete(&(MMRP_db->mrp_db.clients), client);
 }
-
-
-

@@ -44,8 +44,7 @@
 /* state machine controls */
 int p2pmac;
 
-
-static int client_lookup(client_t *list, struct sockaddr_in *newclient)
+static int client_lookup(client_t * list, struct sockaddr_in *newclient)
 {
 	client_t *client_item;
 
@@ -62,7 +61,7 @@ static int client_lookup(client_t *list, struct sockaddr_in *newclient)
 	return 0;
 }
 
-int mrp_client_add(client_t **list, struct sockaddr_in *newclient)
+int mrp_client_add(client_t ** list, struct sockaddr_in *newclient)
 {
 	client_t *client_item;
 
@@ -100,7 +99,7 @@ int mrp_client_add(client_t **list, struct sockaddr_in *newclient)
 	return -1;
 }
 
-int mrp_client_delete(client_t **list, struct sockaddr_in *newclient)
+int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient)
 {
 	client_t *client_item;
 	client_t *client_last;
@@ -116,7 +115,7 @@ int mrp_client_delete(client_t **list, struct sockaddr_in *newclient)
 
 	while (NULL != client_item) {
 		if (0 == memcmp((uint8_t *) newclient,
-				(uint8_t *) &client_item->client,
+				(uint8_t *) & client_item->client,
 				sizeof(struct sockaddr_in))) {
 
 			if (client_last) {
@@ -136,7 +135,6 @@ int mrp_client_delete(client_t **list, struct sockaddr_in *newclient)
 	return 0;
 }
 
-
 int mrp_jointimer_start(struct mrp_database *mrp_db)
 {
 	/* 10.7.4.1 - interval between transmit opportunities
@@ -144,7 +142,6 @@ int mrp_jointimer_start(struct mrp_database *mrp_db)
 	 */
 	return mrpd_timer_start(mrp_db->join_timer, MRP_LVTIMER_VAL);
 }
-
 
 int mrp_jointimer_stop(struct mrp_database *mrp_db)
 {
@@ -176,14 +173,14 @@ int mrp_lvatimer_start(struct mrp_database *mrp_db)
 	 * expires each listed attribute individually (per application)
 	 */
 	return mrpd_timer_start(mrp_db->lva_timer,
-		MRP_LVATIMER_VAL + (random() % (MRP_LVATIMER_VAL / 2)));
+				MRP_LVATIMER_VAL +
+				(random() % (MRP_LVATIMER_VAL / 2)));
 }
 
 int mrp_lvatimer_stop(struct mrp_database *mrp_db)
 {
 	return mrpd_timer_stop(mrp_db->lva_timer);
 }
-
 
 int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 {
@@ -275,7 +272,7 @@ int mrp_periodictimer_fsm(struct mrp_database *mrp_db, int event)
  * per-attribute MRP FSM
  */
 
-int mrp_applicant_fsm(mrp_applicant_attribute_t *attrib, int event)
+int mrp_applicant_fsm(mrp_applicant_attribute_t * attrib, int event)
 {
 	int tx = 0;
 	int optional = 0;
@@ -619,7 +616,7 @@ int mrp_applicant_fsm(mrp_applicant_attribute_t *attrib, int event)
 }
 
 int
-mrp_registrar_fsm(mrp_registrar_attribute_t *attrib,
+mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		  struct mrp_database *mrp_db, int event)
 {
 	int mrp_state = attrib->mrp_state;
@@ -730,64 +727,67 @@ mrp_registrar_fsm(mrp_registrar_attribute_t *attrib,
 	return 0;
 }
 
-int mrp_decode_state(mrp_registrar_attribute_t *rattrib,
-	mrp_applicant_attribute_t *aattrib, char *str, int strlen) {
+int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
+		     mrp_applicant_attribute_t * aattrib, char *str, int strlen)
+{
 	char reg_stat[8];
 
-	switch(rattrib->mrp_state) {
+	switch (rattrib->mrp_state) {
 	case MRP_IN_STATE:
-		snprintf(reg_stat, sizeof(reg_stat)-1, "IN");
+		snprintf(reg_stat, sizeof(reg_stat) - 1, "IN");
 		break;
 	case MRP_LV_STATE:
-		snprintf(reg_stat, sizeof(reg_stat)-1, "LV");
+		snprintf(reg_stat, sizeof(reg_stat) - 1, "LV");
 		break;
 	case MRP_MT_STATE:
-		snprintf(reg_stat, sizeof(reg_stat)-1, "MT");
+		snprintf(reg_stat, sizeof(reg_stat) - 1, "MT");
 		break;
 	default:
-		snprintf(reg_stat, sizeof(reg_stat)-1, "%d", rattrib->mrp_state);
+		snprintf(reg_stat, sizeof(reg_stat) - 1, "%d",
+			 rattrib->mrp_state);
 		break;
 	}
 
-	switch(aattrib->mrp_state) {
+	switch (aattrib->mrp_state) {
 	case MRP_VO_STATE:
-		snprintf(str, strlen-1, "VO/%s", reg_stat);
+		snprintf(str, strlen - 1, "VO/%s", reg_stat);
 		break;
 	case MRP_VP_STATE:
-		snprintf(str, strlen-1, "VP/%s", reg_stat);
+		snprintf(str, strlen - 1, "VP/%s", reg_stat);
 		break;
 	case MRP_VN_STATE:
-		snprintf(str, strlen-1, "VN/%s", reg_stat);
+		snprintf(str, strlen - 1, "VN/%s", reg_stat);
 		break;
 	case MRP_AN_STATE:
-		snprintf(str, strlen-1, "AN/%s", reg_stat);
+		snprintf(str, strlen - 1, "AN/%s", reg_stat);
 		break;
 	case MRP_AA_STATE:
-		snprintf(str, strlen-1, "AA/%s", reg_stat);
+		snprintf(str, strlen - 1, "AA/%s", reg_stat);
 		break;
 	case MRP_QA_STATE:
-		snprintf(str, strlen-1, "QA/%s", reg_stat);
+		snprintf(str, strlen - 1, "QA/%s", reg_stat);
 		break;
 	case MRP_LA_STATE:
-		snprintf(str, strlen-1, "LA/%s", reg_stat);
+		snprintf(str, strlen - 1, "LA/%s", reg_stat);
 		break;
 	case MRP_AO_STATE:
-		snprintf(str, strlen-1, "AO/%s", reg_stat);
+		snprintf(str, strlen - 1, "AO/%s", reg_stat);
 		break;
 	case MRP_QO_STATE:
-		snprintf(str, strlen-1, "QO/%s", reg_stat);
+		snprintf(str, strlen - 1, "QO/%s", reg_stat);
 		break;
 	case MRP_AP_STATE:
-		snprintf(str, strlen-1, "AP/%s", reg_stat);
+		snprintf(str, strlen - 1, "AP/%s", reg_stat);
 		break;
 	case MRP_QP_STATE:
-		snprintf(str, strlen-1, "QP/%s", reg_stat);
+		snprintf(str, strlen - 1, "QP/%s", reg_stat);
 		break;
 	case MRP_LO_STATE:
-		snprintf(str, strlen-1, "LO/%s", reg_stat);
+		snprintf(str, strlen - 1, "LO/%s", reg_stat);
 		break;
 	default:
-		snprintf(str, strlen-1, "%d/%s", aattrib->mrp_state, reg_stat);
+		snprintf(str, strlen - 1, "%d/%s", aattrib->mrp_state,
+			 reg_stat);
 		break;
 	}
 	return 0;

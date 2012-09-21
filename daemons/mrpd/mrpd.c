@@ -121,14 +121,12 @@ void mrpd_timer_close(int t)
 		close(t);
 }
 
-int mrpd_timer_start_interval(
-		int timerfd,
-		unsigned long value_ms,
-		unsigned long interval_ms)
+int mrpd_timer_start_interval(int timerfd,
+			      unsigned long value_ms, unsigned long interval_ms)
 {
-	int	rc;
-	struct	itimerspec	itimerspec_new;
-	struct	itimerspec	itimerspec_old;
+	int rc;
+	struct itimerspec itimerspec_new;
+	struct itimerspec itimerspec_old;
 	unsigned long ns_per_ms = 1000000;
 
 	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
@@ -136,7 +134,8 @@ int mrpd_timer_start_interval(
 
 	if (interval_ms) {
 		itimerspec_new.it_interval.tv_sec = interval_ms / 1000;
-		itimerspec_new.it_interval.tv_nsec = (interval_ms % 1000) * ns_per_ms;
+		itimerspec_new.it_interval.tv_nsec =
+		    (interval_ms % 1000) * ns_per_ms;
 	}
 
 	itimerspec_new.it_value.tv_sec = value_ms / 1000;
@@ -144,7 +143,7 @@ int mrpd_timer_start_interval(
 
 	rc = timerfd_settime(timerfd, 0, &itimerspec_new, &itimerspec_old);
 
-	return(rc);
+	return (rc);
 }
 
 int mrpd_timer_start(int timerfd, unsigned long value_ms)
@@ -154,23 +153,22 @@ int mrpd_timer_start(int timerfd, unsigned long value_ms)
 
 int mrpd_timer_stop(int timerfd)
 {
-	int	rc;
-	struct	itimerspec	itimerspec_new;
-	struct	itimerspec	itimerspec_old;
+	int rc;
+	struct itimerspec itimerspec_new;
+	struct itimerspec itimerspec_old;
 
 	memset(&itimerspec_new, 0, sizeof(itimerspec_new));
 	memset(&itimerspec_old, 0, sizeof(itimerspec_old));
 
 	rc = timerfd_settime(timerfd, 0, &itimerspec_new, &itimerspec_old);
 
-	return(rc);
+	return (rc);
 }
-
 
 int gctimer_start()
 {
 	/* reclaim memory every 30 minutes */
-	return mrpd_timer_start(gc_timer, 30 * 60 *1000);
+	return mrpd_timer_start(gc_timer, 30 * 60 * 1000);
 }
 
 int periodictimer_start()
@@ -188,7 +186,7 @@ int periodictimer_stop()
 	 * PeriodicTransmission state machine generates periodic events
 	 * period is one-per-sec
 	 */
-	return  mrpd_timer_stop(periodic_timer);
+	return mrpd_timer_stop(periodic_timer);
 }
 
 int init_local_ctl(void)
@@ -224,7 +222,8 @@ int init_local_ctl(void)
 }
 
 int
-mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data, int notify_len)
+mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
+		  int notify_len)
 {
 
 	int rc;
@@ -388,7 +387,8 @@ int mrpd_recvmsgbuf(int sock, char **buf)
 }
 
 int
-mrpd_init_protocol_socket(u_int16_t etype, int *sock, unsigned char *multicast_addr)
+mrpd_init_protocol_socket(u_int16_t etype, int *sock,
+			  unsigned char *multicast_addr)
 {
 	struct sockaddr_ll addr;
 	struct ifreq if_request;
@@ -417,7 +417,8 @@ mrpd_init_protocol_socket(u_int16_t etype, int *sock, unsigned char *multicast_a
 		return -1;
 	}
 
-	memcpy(STATION_ADDR, if_request.ifr_hwaddr.sa_data, sizeof(STATION_ADDR));
+	memcpy(STATION_ADDR, if_request.ifr_hwaddr.sa_data,
+	       sizeof(STATION_ADDR));
 
 	memset(&if_request, 0, sizeof(if_request));
 
@@ -526,7 +527,7 @@ int init_timers(void)
 	return -1;
 }
 
-int mrp_register_timers(struct mrp_database *mrp_db, fd_set *fds)
+int mrp_register_timers(struct mrp_database *mrp_db, fd_set * fds)
 {
 	int max_fd;
 
@@ -648,7 +649,8 @@ void process_events(void)
 					}
 			}
 			if (mvrp_enable) {
-				if FD_ISSET(mvrp_socket, &sel_fds) mvrp_recv_msg();
+				if FD_ISSET
+					(mvrp_socket, &sel_fds) mvrp_recv_msg();
 				if FD_ISSET
 					(MVRP_db->mrp_db.lva_timer, &sel_fds) {
 					mvrp_event(MRP_EVENT_LVATIMER, NULL);
@@ -766,7 +768,8 @@ int main(int argc, char *argv[])
 			break;
 		case 'i':
 			if (interface) {
-				printf("only one interface per daemon is supported\n");
+				printf
+				    ("only one interface per daemon is supported\n");
 				usage();
 			}
 			interface = strdup(optarg);
@@ -797,7 +800,6 @@ int main(int argc, char *argv[])
 	if (rc)
 		goto out;
 
-
 	rc = init_local_ctl();
 	if (rc)
 		goto out;
@@ -820,7 +822,7 @@ int main(int argc, char *argv[])
 
 	process_events();
  out:
-	 if (rc)
+	if (rc)
 		printf("Error starting. Run as sudo?\n");
 
 	return rc;
