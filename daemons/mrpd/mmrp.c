@@ -1280,7 +1280,7 @@ int mmrp_txpdu(void)
 
 	msgbuf_len = mrpdu_msg_ptr - msgbuf;
 
-	bytes = send(mmrp_socket, msgbuf, msgbuf_len, 0);
+	bytes = mrpd_send(mmrp_socket, msgbuf, msgbuf_len, 0);
 	if (bytes <= 0)
 		goto out;
 
@@ -1409,6 +1409,10 @@ int mmrp_dumptable(struct sockaddr_in *client)
 	msgbuf_wrptr = msgbuf;
 
 	attrib = MMRP_db->attrib_list;
+
+	if (attrib == NULL) {
+		sprintf(msgbuf, "Empty");
+	}
 
 	while (NULL != attrib) {
 		if (MMRP_SVCREQ_TYPE == attrib->type) {

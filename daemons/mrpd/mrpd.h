@@ -41,13 +41,14 @@ typedef int socklen_t;
 typedef void *HTIMER;
 #define snprintf _snprintf
 #define random rand
-#define send mrpw_send
+size_t mrpd_send(SOCKET sockfd, const void *buf, size_t len, int flags);
 #elif defined __linux__
 #include <netinet/in.h>
 typedef int HTIMER;
 typedef int SOCKET;
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR -1
+#define mrpd_send send
 #endif
 
 #ifdef __cplusplus

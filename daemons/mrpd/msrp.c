@@ -2064,7 +2064,7 @@ int msrp_txpdu(void)
 
 	msgbuf_len = mrpdu_msg_ptr - msgbuf;
 
-	bytes = send(msrp_socket, msgbuf, msgbuf_len, 0);
+	bytes = mrpd_send(msrp_socket, msgbuf, msgbuf_len, 0);
 	if (bytes <= 0)
 		goto out;
 

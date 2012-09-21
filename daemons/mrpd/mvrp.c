@@ -864,7 +864,7 @@ int mvrp_txpdu(void)
 
 	msgbuf_len = mrpdu_msg_ptr - msgbuf;
 
-	bytes = send(mvrp_socket, msgbuf, msgbuf_len, 0);
+	bytes = mrpd_send(mvrp_socket, msgbuf, msgbuf_len, 0);
 	if (bytes <= 0)
 		goto out;
 
