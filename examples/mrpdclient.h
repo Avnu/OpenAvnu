@@ -35,9 +35,11 @@
 #ifndef _MRPDCLIENT_H_
 #define _MRPDCLIENT_H_
 
+#define MRPDCLIENT_MAX_FRAME_SIZE 2000
+
 typedef int (*ptr_process_msg)(char *buf, int buflen);
 
-int mrpdclient_init(void);
+int mrpdclient_init(int port);
 int mrpdclient_recv(ptr_process_msg fn);
 int mprdclient_sendto(char *notify_data, int notify_len);
 int mprdclient_close(void);

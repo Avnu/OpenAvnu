@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #if defined WIN32
 #include <winsock2.h>
@@ -43,26 +44,27 @@ typedef int socklen_t;
 static int rcv_timeout = 100; /* 100 ms */
 #elif defined __linux__
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 typedef int SOCKET;
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR   -1
 #define closesocket(s) close(s);
-#define mrpd_send send
 static struct timeval rcv_timeout = {
 	.tv_sec = 0,
 	.tv_usec = 100 * 1000  /* 100 ms */
 };
 #endif
 
-#include "mrpd.h"
 #include "mrpdclient.h"
 
 /* global variables */
 static SOCKET control_socket = SOCKET_ERROR;
+static int udp_port = 0;
 
-int mrpdclient_init(void) {
+int mrpdclient_init(int port) {
 	struct sockaddr_in addr;
-	SOCKET sock_fd = SOCKET_ERROR;
 	int rc;
 
 	control_socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -70,11 +72,11 @@ int mrpdclient_init(void) {
 
 	rc = setsockopt(control_socket, SOL_SOCKET, SO_RCVTIMEO,
 			(const char *)&rcv_timeout, sizeof(rcv_timeout));
-	if (rc != NO_ERROR)
+	if (rc != 0)
 		goto out;
 	rc = setsockopt(control_socket, SOL_SOCKET, SO_SNDTIMEO,
 			(const char *)&rcv_timeout, sizeof(rcv_timeout));
-	if (rc != NO_ERROR)
+	if (rc != 0)
 		goto out;
 
 	memset(&addr, 0, sizeof(addr));
@@ -84,7 +86,7 @@ int mrpdclient_init(void) {
 	rc = bind(control_socket, (struct sockaddr *)&addr, sizeof(struct sockaddr));
 	if (rc <= SOCKET_ERROR) goto out;
 
-	control_socket = sock_fd;
+	udp_port = port;
 	return(0);
 
 out:
@@ -105,12 +107,12 @@ int mrpdclient_recv(ptr_process_msg fn) {
 	char	*msgbuf;
 	int	bytes = 0;
 
-	msgbuf = (char *)malloc(MAX_FRAME_SIZE);
+	msgbuf = (char *)malloc(MRPDCLIENT_MAX_FRAME_SIZE);
 	if (NULL == msgbuf)
 		return -1;
 
-	memset(msgbuf, 0, MAX_FRAME_SIZE);
-	bytes = recv(control_socket, msgbuf, MAX_FRAME_SIZE, 0);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
+	bytes = recv(control_socket, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE, 0);
 	if (bytes <= SOCKET_ERROR)  {
 		goto out;
 	}
@@ -128,7 +130,7 @@ int mprdclient_sendto( char *notify_data, int notify_len)
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(MRPD_PORT_DEFAULT);
+	addr.sin_port = htons(udp_port);
 	addr.sin_addr.s_addr =  inet_addr("127.0.0.1");
 	addr_len = sizeof(addr);
 	

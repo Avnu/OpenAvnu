@@ -52,53 +52,23 @@
 #include <net/ethernet.h>
 #include <sys/un.h>
 
+#if defined WIN32
+#include <winsock2.h>
+#endif
+
 #include "mrpd.h"
+#include "mrpdclient.h"
 
 /* global variables */
-int control_socket = -1;
 
 #define VERSION_STR	"0.0"
 
 static const char *version_str =
-"mrpctl v" VERSION_STR "\n"
+"mrpl v" VERSION_STR "\n"
 "Copyright (c) 2012, Intel Corporation\n";
 
-int
-init_local_ctl( void ) {
-	struct sockaddr_in	addr;
-	socklen_t addr_len;
-	int sock_fd = -1;
-
-	sock_fd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
-	if (sock_fd < 0) goto out;
-
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(MRPD_PORT_DEFAULT);
-	inet_aton("127.0.0.1", &addr.sin_addr);
-	addr_len = sizeof(addr);
-
-	/* rc = bind(sock_fd, (struct sockaddr *)&addr, addr_len); */
-	
-	/* if (rc < 0) goto out; */
-
-	memset(&addr, 0, sizeof(addr));
-	/* 
-	 * use an abstract socket address with a leading null character 
-	 * note this is non-portable
-	 */
-
-	control_socket = sock_fd;
-
-	return(0);
-out:
-	if (sock_fd != -1) close(sock_fd);
-	sock_fd = -1;
-	return(-1);
-}
-
-int
-process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client) {
+int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
+{
 
 	/*
 	 * M?? - query MMRP Registrar MAC Address database
@@ -117,71 +87,21 @@ process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client) {
 	return(0);
 }
 
-int
-recv_ctl_msg() {
-	char			*msgbuf;
-	struct sockaddr_in	client_addr;
-	struct msghdr		msg;
-	struct iovec		iov;
-	int			bytes = 0;
-
-	msgbuf = (char *)malloc (MAX_MRPD_CMDSZ);
-	memset(&msg, 0, sizeof(msg));
-	memset(&client_addr, 0, sizeof(client_addr));
-	memset(msgbuf, 0, MAX_MRPD_CMDSZ);
-
-	iov.iov_len = MAX_MRPD_CMDSZ;
-	iov.iov_base = msgbuf;
-	msg.msg_name = &client_addr;
-	msg.msg_namelen = sizeof(client_addr);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	bytes = recvmsg(control_socket, &msg, 0); 	if (bytes < 0) goto out;
-
-	return(process_ctl_msg(msgbuf, bytes, &client_addr) );
-out:
-	free (msgbuf);
-	
-	return(-1);
-}
-
-int
-send_ctl_msg( char *notify_data, int notify_len) {
-	struct sockaddr_in	addr;
-	socklen_t addr_len;
-
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(MRPD_PORT_DEFAULT);
-	inet_aton("127.0.0.1", &addr.sin_addr);
-	addr_len = sizeof(addr);
-
-	if (control_socket != -1)
-		return(sendto(control_socket, notify_data, notify_len, 0, (struct sockaddr *)&addr, addr_len));
-	else
-		return(0);
-}
-
 void 
 process_events( void ) {
 
 	/* wait for events, demux the received packets, process packets */
 }
 
-static void
-usage( void ) {
+static void usage( void ) {
 	fprintf(stderr, 
 		"\n"
-		"usage: mrpd [-hdlmvs] -i interface-name"
+		"usage: mrpl [-lj]"
 		"\n"
 		"options:\n"
 		"    -h  show this message\n"
-		"    -d  run daemon in the background\n"
-		"    -l  enable logging (ignored in daemon mode)\n"
-		"    -m  enable MMRP Registrar and Participant\n"
-		"    -v  enable MVRP Registrar and Participant\n"
-		"    -s  enable MSRP Registrar and Participant\n"
-		"    -i  specify interface to monitor\n"
+		"    -l  leave a stream\n"
+		"    -j  join a steam\n"
 		"\n"
 		"%s"
 		"\n", version_str);
@@ -195,6 +115,11 @@ main(int argc, char *argv[]) {
 	int	rc = 0;
 	char	*msgbuf;
 	int	leave = 0;
+
+#if defined WIN32
+	WSADATA wsa_data;
+	WSAStartup(MAKEWORD(1,1), &wsa_data);
+#endif
 
 	for (;;) {
 		c = getopt(argc, argv, "hlj");
@@ -217,14 +142,17 @@ main(int argc, char *argv[]) {
 	if (optind < argc)
 		usage();
 
-	rc = init_local_ctl(); if (rc) { printf("init failed\n"); return -1; }
+	rc = mrpdclient_init(MRPD_PORT_DEFAULT); 
+	if (rc) {
+		printf("init failed\n"); return -1;
+	}
 
 	msgbuf = malloc(1500);
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S+D:C:6:P:3:V:0002");
 
-	rc = send_ctl_msg(msgbuf, 1500);
+	rc = mprdclient_sendto(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
 	if (leave)
@@ -232,10 +160,10 @@ main(int argc, char *argv[]) {
 	else
 		sprintf(msgbuf,"S+L:A0369F022EEE0000:D:2");
 
-	rc = send_ctl_msg(msgbuf, 1500);
+	rc = mprdclient_sendto(msgbuf, 1500);
 
 	sprintf(msgbuf,"BYE");
-	rc = send_ctl_msg(msgbuf, 1500 );
+	rc = mprdclient_sendto(msgbuf, 1500 );
 
 	return(rc);
 
