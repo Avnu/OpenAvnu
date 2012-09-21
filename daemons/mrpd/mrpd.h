@@ -43,11 +43,15 @@ typedef void *HTIMER;
 #define random rand
 size_t mrpd_send(SOCKET sockfd, const void *buf, size_t len, int flags);
 #elif defined __linux__
+#include <unistd.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
-typedef int HTIMER;
+#include <arpa/inet.h>
 typedef int SOCKET;
+typedef int HTIMER;
 #define INVALID_SOCKET -1
-#define SOCKET_ERROR -1
+#define SOCKET_ERROR   -1
+#define closesocket(s) close(s);
 #define mrpd_send send
 #endif
 
@@ -108,6 +112,9 @@ typedef struct mrpdu {
 #define MAX_FRAME_SIZE		2000
 #define MRPD_PORT_DEFAULT	7500
 #define MAX_MRPD_CMDSZ		(1500)
+
+/* forward declare */
+struct mrp_database;
 
 int mrpd_init_timers(struct mrp_database *mrp_db);
 int mrpd_timer_start(HTIMER timerfd, unsigned long value_ms);
