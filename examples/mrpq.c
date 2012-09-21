@@ -85,12 +85,13 @@ int main(int argc, char *argv[])
 {
 	int	rc = 0;
 	char	*msgbuf;
-
+#if defined WIN32
+	WSADATA wsa_data;
+#endif
 	(void)argc;
 	(void)argv;
 
 #if defined WIN32
-	WSADATA wsa_data;
 	WSAStartup(MAKEWORD(1,1), &wsa_data);
 #endif
 
