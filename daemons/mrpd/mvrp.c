@@ -417,7 +417,8 @@ int mvrp_recv_msg(void)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -428,12 +429,12 @@ int mvrp_recv_msg(void)
 					/* Malformed - runs off the end of the pdu */
 					goto out;
 
-				vid_firstval =
-				    (((uint16_t)
-				      mrpdu_vectorptr->FirstValue_VectorEvents
-				      [0]) << 8)
-				    |
-				    mrpdu_vectorptr->FirstValue_VectorEvents[1];
+				vid_firstval = (((uint16_t)
+						 mrpdu_vectorptr->
+						 FirstValue_VectorEvents[0]) <<
+						8)
+				    | mrpdu_vectorptr->
+				    FirstValue_VectorEvents[1];
 
 				/* if not an even multiple ... */
 				if (numvalues != ((numvalues / 3) * 3))
@@ -445,8 +446,8 @@ int mvrp_recv_msg(void)
 				     vectidx <= (numvectorbytes + 2);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -471,9 +472,9 @@ int mvrp_recv_msg(void)
 						attrib->attribute =
 						    vid_firstval;
 						vid_firstval++;
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:

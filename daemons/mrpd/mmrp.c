@@ -459,7 +459,8 @@ int mmrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -483,8 +484,8 @@ int mmrp_recv_msg()
 				     vectidx <= (numvectorbytes + 1);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -510,9 +511,9 @@ int mmrp_recv_msg()
 						attrib->attribute.svcreq =
 						    svcreq_firstval;
 						svcreq_firstval++;
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -586,7 +587,8 @@ int mmrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -611,8 +613,8 @@ int mmrp_recv_msg()
 				     vectidx <= (numvectorbytes + 6);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -632,15 +634,15 @@ int mmrp_recv_msg()
 							goto out;	/* oops - internal error */
 
 						attrib->type = MMRP_MACVEC_TYPE;
-						memcpy(attrib->
-						       attribute.macaddr,
-						       macvec_firstval, 6);
+						memcpy(attrib->attribute.
+						       macaddr, macvec_firstval,
+						       6);
 						mmrp_increment_macaddr
 						    (macvec_firstval);
 
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:

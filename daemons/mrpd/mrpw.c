@@ -68,7 +68,7 @@ struct netif {
 	pcap_if_t *d;
 	uint8_t mac[6];
 	int inum;
-	int i; 
+	int i;
 	int error;
 	pcap_t *pcap_interface;
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -100,10 +100,8 @@ HANDLE sem_kill_localhost_thread;
 struct que_def *que_wpcap;
 struct que_def *que_localhost;
 
-
 //char *net_interface;
 int interface_fd;
-
 
 /* state machine controls */
 int periodic_enable;
@@ -142,113 +140,116 @@ extern struct mmrp_database *MMRP_db;
 extern struct mvrp_database *MVRP_db;
 extern struct msrp_database *MSRP_db;
 
-struct netif *netif_open( int timeout_ms )
+struct netif *netif_open(int timeout_ms)
 {
-	int inum=0;
-	int i=0, total_interfaces=0;
+	int inum = 0;
+	int i = 0, total_interfaces = 0;
 	struct netif *netif;
-	IP_ADAPTER_INFO *AdapterInfo; 
+	IP_ADAPTER_INFO *AdapterInfo;
 	IP_ADAPTER_INFO *Current;
 	ULONG AIS;
 	DWORD status;
 
-
 	netif = (struct netif *)calloc(1, sizeof(struct netif));
 
 	/* Retrieve the device list on the local machine */
-    if (pcap_findalldevs(&netif->alldevs, netif->errbuf) == -1)
-    {
-        printf("Error finding interfaces\n");
-	goto error_return;
-    }
-    
-    /* Print the list */
-    for(netif->d=netif->alldevs; netif->d; netif->d=netif->d->next)
-    {
-        /*printf("%d. %s", ++i, d->name);*/
-	printf("%d", ++i);
-        if (netif->d->description)
-            printf(" (%-70s)\n", netif->d->description);
-        else
-            printf(" (No description available)\n");
-    }
-    total_interfaces = i;
-    
-    if(i==0)
-    {
-        printf("\nNo interfaces found! Make sure WinPcap is installed.\n");
-	goto error_return;
-    }
-    
-    printf("Enter the interface number (1-%d):",i );
-    scanf_s("%d", &inum);
-    
-    if(inum < 1 || inum > i)
-    {
-        printf("\nInterface number out of range.\n");
-        /* Free the device list */
-        pcap_freealldevs(netif->alldevs);
-	goto error_return;
-    }
-    
-    /* Jump to the selected adapter */
-    for(netif->d=netif->alldevs, i=0; i< inum-1 ;netif->d=netif->d->next, i++);
-    
-    /* Open the device */
-    if ( (netif->pcap_interface= pcap_open_live(netif->d->name,          // name of the device
-                              65536,            // portion of the packet to capture
-                                                // 65536 guarantees that the whole packet will be captured on all the link layers
-                              1,			// promiscuous mode
-                              timeout_ms,             // read timeout in ms
-                              netif->errbuf            // error buffer
-                              ) ) == NULL)
-    {
-        fprintf(stderr,"\nUnable to open the adapter. %s is not supported by WinPcap\n", netif->d->name);
-        /* Free the device list */
-        pcap_freealldevs(netif->alldevs);
-	goto error_return;
-    }
+	if (pcap_findalldevs(&netif->alldevs, netif->errbuf) == -1) {
+		printf("Error finding interfaces\n");
+		goto error_return;
+	}
+
+	/* Print the list */
+	for (netif->d = netif->alldevs; netif->d; netif->d = netif->d->next) {
+		/*printf("%d. %s", ++i, d->name); */
+		printf("%d", ++i);
+		if (netif->d->description)
+			printf(" (%-70s)\n", netif->d->description);
+		else
+			printf(" (No description available)\n");
+	}
+	total_interfaces = i;
+
+	if (i == 0) {
+		printf
+		    ("\nNo interfaces found! Make sure WinPcap is installed.\n");
+		goto error_return;
+	}
+
+	printf("Enter the interface number (1-%d):", i);
+	scanf_s("%d", &inum);
+
+	if (inum < 1 || inum > i) {
+		printf("\nInterface number out of range.\n");
+		/* Free the device list */
+		pcap_freealldevs(netif->alldevs);
+		goto error_return;
+	}
+
+	/* Jump to the selected adapter */
+	for (netif->d = netif->alldevs, i = 0; i < inum - 1;
+	     netif->d = netif->d->next, i++) ;
+
+	/* Open the device */
+	if ((netif->pcap_interface = pcap_open_live(netif->d->name,	// name of the device
+						    65536,	// portion of the packet to capture
+						    // 65536 guarantees that the whole packet will be captured on all the link layers
+						    1,	// promiscuous mode
+						    timeout_ms,	// read timeout in ms
+						    netif->errbuf	// error buffer
+	     )) == NULL) {
+		fprintf(stderr,
+			"\nUnable to open the adapter. %s is not supported by WinPcap\n",
+			netif->d->name);
+		/* Free the device list */
+		pcap_freealldevs(netif->alldevs);
+		goto error_return;
+	}
 
 	/* lookup ip address */
-	AdapterInfo = (IP_ADAPTER_INFO *)calloc(total_interfaces, sizeof(IP_ADAPTER_INFO));
+	AdapterInfo =
+	    (IP_ADAPTER_INFO *) calloc(total_interfaces,
+				       sizeof(IP_ADAPTER_INFO));
 	AIS = sizeof(IP_ADAPTER_INFO) * total_interfaces;
 	status = GetAdaptersInfo(AdapterInfo, &AIS);
 	if (status != ERROR_SUCCESS) {
-	        fprintf(stderr,"\nError, GetAdaptersInfo() call in netif_win32_pcap.c failed\n");
+		fprintf(stderr,
+			"\nError, GetAdaptersInfo() call in netif_win32_pcap.c failed\n");
 		free(AdapterInfo);
 		goto error_return;
 	}
 
-	for(Current = AdapterInfo; Current != NULL; Current = Current->Next) {
-	        if(strstr(netif->d->name, Current->AdapterName) != 0){
+	for (Current = AdapterInfo; Current != NULL; Current = Current->Next) {
+		if (strstr(netif->d->name, Current->AdapterName) != 0) {
 			uint32_t my_ip;
 			ULONG len;
 			uint8_t tmp[16];
 
-			my_ip = inet_addr(Current->IpAddressList.IpAddress.String);
+			my_ip =
+			    inet_addr(Current->IpAddressList.IpAddress.String);
 			len = sizeof(tmp);
-			SendARP(my_ip ,INADDR_ANY, tmp, &len);
+			SendARP(my_ip, INADDR_ANY, tmp, &len);
 			memcpy(netif->mac, &tmp[0], sizeof(netif->mac));
 		}
 	}
 	free(AdapterInfo);
 	return netif;
 
-error_return:
+ error_return:
 	free(netif);
 	return NULL;
 }
 
-int netif_close( struct netif *net_if )
+int netif_close(struct netif *net_if)
 {
 	/* At this point, we don't need any more the device list. Free it */
-    pcap_freealldevs(net_if->alldevs);
+	pcap_freealldevs(net_if->alldevs);
 	pcap_close(net_if->pcap_interface);
 	free(net_if);
-	return(0);
+	return (0);
 }
 
-int netif_set_capture_ethertype( struct netif *net_if, uint16_t *ethertype, uint32_t count)
+int netif_set_capture_ethertype(struct netif *net_if, uint16_t * ethertype,
+				uint32_t count)
 {
 	struct bpf_program fcode;
 	char ethertype_string[512];
@@ -256,55 +257,58 @@ int netif_set_capture_ethertype( struct netif *net_if, uint16_t *ethertype, uint
 	unsigned int i;
 
 	ethertype_string[0] = 0;
-	for (i = 0; i < count; i++){
-		sprintf( ethertype_single, "ether proto 0x%04x", ethertype[i]);
+	for (i = 0; i < count; i++) {
+		sprintf(ethertype_single, "ether proto 0x%04x", ethertype[i]);
 		strcat(ethertype_string, ethertype_single);
-		if ( (i + 1) < count)
+		if ((i + 1) < count)
 			strcat(ethertype_string, " or ");
 	}
 
 	// compile a filter
-	if (pcap_compile(net_if->pcap_interface, &fcode, ethertype_string, 1, 0) < 0) {
-		fprintf(stderr,"\nUnable to compile the packet filter. Check the syntax.\n");
+	if (pcap_compile(net_if->pcap_interface, &fcode, ethertype_string, 1, 0)
+	    < 0) {
+		fprintf(stderr,
+			"\nUnable to compile the packet filter. Check the syntax.\n");
 		/* Free the device list */
 		pcap_freealldevs(net_if->alldevs);
 		return -1;
 	}
-    
 	//set the filter
 	if (pcap_setfilter(net_if->pcap_interface, &fcode) < 0) {
-		fprintf(stderr,"\nError setting the filter.\n");
+		fprintf(stderr, "\nError setting the filter.\n");
 		/* Free the device list */
 		pcap_freealldevs(net_if->alldevs);
 		return -1;
 	}
 
-	return(0);
+	return (0);
 }
 
-int netif_capture_frame( struct netif *net_if, uint8_t **frame, uint16_t *length )
+int netif_capture_frame(struct netif *net_if, uint8_t ** frame,
+			uint16_t * length)
 {
 	struct pcap_pkthdr *header;
-	int error=0;
+	int error = 0;
 
 	*length = 0;
-	error = pcap_next_ex( net_if->pcap_interface, &header, frame);
-	if(error > 0 ) {
-		*length = (uint16_t)header->len;
-		return(1);
+	error = pcap_next_ex(net_if->pcap_interface, &header, frame);
+	if (error > 0) {
+		*length = (uint16_t) header->len;
+		return (1);
 	} else {
-		return(NETIF_TIMEOUT);
+		return (NETIF_TIMEOUT);
 	}
 }
 
-int netif_send_frame( struct netif *net_if, uint8_t *frame, uint16_t length )
+int netif_send_frame(struct netif *net_if, uint8_t * frame, uint16_t length)
 {
 	//printf("TX frame: %d bytes\n", length);
-	if (pcap_sendpacket(net_if->pcap_interface, frame, length ) != 0){
-		fprintf(stderr,"\nError sending the packet: \n", pcap_geterr(net_if->pcap_interface));
+	if (pcap_sendpacket(net_if->pcap_interface, frame, length) != 0) {
+		fprintf(stderr, "\nError sending the packet: \n",
+			pcap_geterr(net_if->pcap_interface));
 		return -1;
 	}
-	return(0);
+	return (0);
 }
 
 struct netif_thread_data {
@@ -312,18 +316,20 @@ struct netif_thread_data {
 	uint16_t length;
 };
 
-DWORD WINAPI netif_thread( LPVOID lpParam )
+DWORD WINAPI netif_thread(LPVOID lpParam)
 {
 	int status;
 	struct netif_thread_data d;
 
-	while (WaitForSingleObject(sem_kill_wpcap_thread, 0)){
+	while (WaitForSingleObject(sem_kill_wpcap_thread, 0)) {
 		status = netif_capture_frame(net_if, &d.frame, &d.length);
 		if (status > 0) {
 			que_push(que_wpcap, &d);
 		} else {
-			if ( !SetEvent(pkt_events[pkt_event_wpcap_timeout]) ) {
-			        printf("SetEvent pkt_event_wpcap_timeout failed (%d)\n", GetLastError());
+			if (!SetEvent(pkt_events[pkt_event_wpcap_timeout])) {
+				printf
+				    ("SetEvent pkt_event_wpcap_timeout failed (%d)\n",
+				     GetLastError());
 				return 1;
 			}
 		}
@@ -342,13 +348,13 @@ unsigned int clock_monotonic_in_ms(void)
 		QueryPerformanceFrequency(&clock_monotonic_freq);
 		clock_monotonic_in_ms_init = 1;
 	}
-	return (unsigned int)((double)count.QuadPart * 1000.0 / 
-		(double)clock_monotonic_freq.QuadPart);
+	return (unsigned int)((double)count.QuadPart * 1000.0 /
+			      (double)clock_monotonic_freq.QuadPart);
 }
 
 HTIMER mrpd_timer_create(void)
 {
-	return (struct wtimer *)calloc(1,sizeof(struct wtimer));
+	return (struct wtimer *)calloc(1, sizeof(struct wtimer));
 }
 
 void mrpd_timer_close(HTIMER t)
@@ -357,27 +363,24 @@ void mrpd_timer_close(HTIMER t)
 		free(t);
 }
 
-int mrpd_timer_start_interval(
-		HTIMER timerfd,
-		unsigned long value_ms,
-		unsigned long interval_ms)
+int mrpd_timer_start_interval(HTIMER timerfd,
+			      unsigned long value_ms, unsigned long interval_ms)
 {
 	struct wtimer *t = (struct wtimer *)timerfd;
 	t->running = TRUE;
 	t->elapsed = FALSE;
 	t->count = value_ms;
 	t->interval = interval_ms;
-	t->start_time =	clock_monotonic_in_ms();
+	t->start_time = clock_monotonic_in_ms();
 	return 0;
 }
-int mrpd_timer_start(
-		HTIMER timerfd,
-		unsigned long value_ms)
+
+int mrpd_timer_start(HTIMER timerfd, unsigned long value_ms)
 {
 	return mrpd_timer_start_interval(timerfd, value_ms, 0);
 }
 
-int mrpd_timer_restart(	HTIMER timerfd)
+int mrpd_timer_restart(HTIMER timerfd)
 {
 	struct wtimer *t = (struct wtimer *)timerfd;
 	if (t->interval) {
@@ -396,15 +399,14 @@ int mrpd_timer_stop(HTIMER timerfd)
 	return 0;
 }
 
-int mrpd_timer_timeout(
-		HTIMER timerfd)
+int mrpd_timer_timeout(HTIMER timerfd)
 {
 	struct wtimer *t = (struct wtimer *)timerfd;
 	if (t->running && !t->elapsed) {
 		unsigned int elapsed_ms;
 		unsigned int current_time = clock_monotonic_in_ms();
 		elapsed_ms = current_time - t->start_time;
-		if( elapsed_ms > t->count) {
+		if (elapsed_ms > t->count) {
 			t->elapsed = TRUE;
 		}
 	}
@@ -414,7 +416,7 @@ int mrpd_timer_timeout(
 int gctimer_start()
 {
 	/* reclaim memory every 30 minutes */
-	return mrpd_timer_start(gc_timer, 30 * 60 *1000);
+	return mrpd_timer_start(gc_timer, 30 * 60 * 1000);
 }
 
 int periodictimer_start()
@@ -432,9 +434,8 @@ int periodictimer_stop()
 	 * PeriodicTransmission state machine generates periodic events
 	 * period is one-per-sec
 	 */
-	return  mrpd_timer_stop(periodic_timer);
+	return mrpd_timer_stop(periodic_timer);
 }
-
 
 int mrpd_init_timers(struct mrp_database *mrp_db)
 {
@@ -590,11 +591,8 @@ int mrpd_recvmsgbuf(SOCKET sock, char **buf)
 	return last_pdu_buffer_size;
 }
 
-int mrpd_send_ctl_msg(
-		struct sockaddr_in *client_addr,
-		char *notify_data,
-		int notify_len
-)
+int mrpd_send_ctl_msg(struct sockaddr_in *client_addr,
+		      char *notify_data, int notify_len)
 {
 
 	int rc;
@@ -615,43 +613,42 @@ int mrpd_close_socket(SOCKET sock)
 
 size_t mrpd_send(SOCKET sockfd, const void *buf, size_t len, int flags)
 {
-	if (pcap_sendpacket(net_if->pcap_interface, buf, len ) != 0){
-		fprintf(stderr,"\nError sending the packet: \n", pcap_geterr(net_if->pcap_interface));
+	if (pcap_sendpacket(net_if->pcap_interface, buf, len) != 0) {
+		fprintf(stderr, "\nError sending the packet: \n",
+			pcap_geterr(net_if->pcap_interface));
 		return -1;
 	}
 	return len;
 }
 
-
-int mrpd_init_protocol_socket(uint16_t etype, SOCKET *sock, unsigned char *multicast_addr)
+int mrpd_init_protocol_socket(uint16_t etype, SOCKET * sock,
+			      unsigned char *multicast_addr)
 {
 	*sock = 0x1234;
 	return 0;
 }
-
 
 int init_local_ctl(void)
 {
 	struct sockaddr_in addr;
 	SOCKET sock_fd = INVALID_SOCKET;
 	int rc;
-	u_long iMode=1;
+	u_long iMode = 1;
 	DWORD iResult;
-	int timeout = 100; // ms
+	int timeout = 100;	// ms
 
 	sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock_fd == INVALID_SOCKET)
 		goto out;
 
 	iResult = setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO,
-			(void *)&timeout, sizeof(timeout));
+			     (void *)&timeout, sizeof(timeout));
 	if (iResult != NO_ERROR)
 		goto out;
 	iResult = setsockopt(sock_fd, SOL_SOCKET, SO_SNDTIMEO,
-			(void *)&timeout, sizeof(timeout));
+			     (void *)&timeout, sizeof(timeout));
 	if (iResult != NO_ERROR)
 		goto out;
-
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -673,28 +670,31 @@ int init_local_ctl(void)
 	return -1;
 }
 
-
 struct ctl_thread_params {
-	char			*msgbuf;
-	struct sockaddr		client_addr;
-	int			bytes;
+	char *msgbuf;
+	struct sockaddr client_addr;
+	int bytes;
 };
 
-DWORD WINAPI ctl_thread( LPVOID lpParam )
+DWORD WINAPI ctl_thread(LPVOID lpParam)
 {
 	struct ctl_thread_params s;
 	int client_len;
 
-	while (WaitForSingleObject(sem_kill_localhost_thread, 0)){
+	while (WaitForSingleObject(sem_kill_localhost_thread, 0)) {
 		client_len = sizeof(struct sockaddr);
-		s.msgbuf = (char *)malloc (MAX_MRPD_CMDSZ);
-		s.bytes = recvfrom(control_socket, s.msgbuf, MAX_MRPD_CMDSZ, 0, &s.client_addr, &client_len);
+		s.msgbuf = (char *)malloc(MAX_MRPD_CMDSZ);
+		s.bytes =
+		    recvfrom(control_socket, s.msgbuf, MAX_MRPD_CMDSZ, 0,
+			     &s.client_addr, &client_len);
 		if (s.bytes > 0) {
 			que_push(que_localhost, &s);
 		} else {
 			free(s.msgbuf);
-			if ( !SetEvent(pkt_events[pkt_event_localhost_timeout]) ) {
-			        printf("SetEvent pkt_event_localhost_timeout failed (%d)\n", GetLastError());
+			if (!SetEvent(pkt_events[pkt_event_localhost_timeout])) {
+				printf
+				    ("SetEvent pkt_event_localhost_timeout failed (%d)\n",
+				     GetLastError());
 				return 1;
 			}
 		}
@@ -727,12 +727,12 @@ void process_events(void)
 {
 	HANDLE hThread1, hThread2;
 	DWORD dwThreadID1, dwThreadID2;
-	uint16_t length=0;
+	uint16_t length = 0;
 	uint8_t *payload;
 	uint16_t protocol;
 	uint8_t *proto;
-	struct avb_avtpdu *avtpdu=NULL;
-	uint64_t src_mac_address=0;
+	struct avb_avtpdu *avtpdu = NULL;
+	uint64_t src_mac_address = 0;
 	struct ctl_thread_params localhost_pkt;
 	struct netif_thread_data wpcap_pkt;
 	int i;
@@ -740,55 +740,52 @@ void process_events(void)
 	timer_check_tick = mrpd_timer_create();
 	mrpd_timer_start_interval(timer_check_tick, 100, 100);
 
-	que_wpcap =  que_new(256, sizeof(struct netif_thread_data) );
-	que_localhost = que_new(256, sizeof(struct ctl_thread_params) );
+	que_wpcap = que_new(256, sizeof(struct netif_thread_data));
+	que_localhost = que_new(256, sizeof(struct ctl_thread_params));
 
 	sem_kill_wpcap_thread = CreateSemaphore(NULL, 0, 32767, NULL);
 	sem_kill_localhost_thread = CreateSemaphore(NULL, 0, 32767, NULL);
 	for (i = pkt_event_wpcap_timeout; i <= loop_time_tick; i++) {
-	        pkt_events[i] = CreateEvent(NULL, FALSE, FALSE, NULL); 
-		if (pkt_events[i] == NULL) { 
-			fprintf(stderr, "CreateEvent error: %d\n", GetLastError() ); 
-			ExitProcess(0); 
-		} 
+		pkt_events[i] = CreateEvent(NULL, FALSE, FALSE, NULL);
+		if (pkt_events[i] == NULL) {
+			fprintf(stderr, "CreateEvent error: %d\n",
+				GetLastError());
+			ExitProcess(0);
+		}
 	}
 	pkt_events[pkt_event_wpcap] = que_data_available_object(que_wpcap);
-	pkt_events[pkt_event_localhost] = que_data_available_object(que_localhost);
-
+	pkt_events[pkt_event_localhost] =
+	    que_data_available_object(que_localhost);
 
 	// Create threads
-	hThread1 = CreateThread( 
-		NULL,         // default security attributes
-		0,            // default stack size
-		(LPTHREAD_START_ROUTINE)netif_thread, 
-		NULL,         // no thread function arguments
-		0,            // default creation flags
-		&dwThreadID1); // receive thread identifier
+	hThread1 = CreateThread(NULL,	// default security attributes
+				0,	// default stack size
+				(LPTHREAD_START_ROUTINE) netif_thread, NULL,	// no thread function arguments
+				0,	// default creation flags
+				&dwThreadID1);	// receive thread identifier
 
-	if( hThread1 == NULL ) {
-		fprintf(stderr,"CreateThread error: %d\n", GetLastError());
+	if (hThread1 == NULL) {
+		fprintf(stderr, "CreateThread error: %d\n", GetLastError());
 		ExitProcess(0);
 	}
 
-	hThread2 = CreateThread( 
-		NULL,         // default security attributes
-		0,            // default stack size
-		(LPTHREAD_START_ROUTINE) ctl_thread, 
-		NULL,         // no thread function arguments
-		0,            // default creation flags
-		&dwThreadID2); // receive thread identifier
+	hThread2 = CreateThread(NULL,	// default security attributes
+				0,	// default stack size
+				(LPTHREAD_START_ROUTINE) ctl_thread, NULL,	// no thread function arguments
+				0,	// default creation flags
+				&dwThreadID2);	// receive thread identifier
 
-	if( hThread1 == NULL ) {
-		fprintf(stderr,"CreateThread error: %d\n", GetLastError());
+	if (hThread1 == NULL) {
+		fprintf(stderr, "CreateThread error: %d\n", GetLastError());
 		ExitProcess(0);
 	}
 
-	while(1) {
-		DWORD dwEvent = WaitForMultipleObjects(
-			    sizeof(pkt_events)/sizeof(HANDLE),
-			    pkt_events,
-			    FALSE,
-			    100); /* 100ms wait */
+	while (1) {
+		DWORD dwEvent =
+		    WaitForMultipleObjects(sizeof(pkt_events) / sizeof(HANDLE),
+					   pkt_events,
+					   FALSE,
+					   100);	/* 100ms wait */
 
 		/* special exit case */
 		if (WAIT_OBJECT_0 + app_event_kill_all == dwEvent)
@@ -836,13 +833,14 @@ void process_events(void)
 			printf("pkt_event_wpcap\n");
 			que_pop_nowait(que_wpcap, &wpcap_pkt);
 			proto = &wpcap_pkt.frame[12];
-			protocol = (uint16_t)proto[0] << 8 | (uint16_t)proto[1];
+			protocol =
+			    (uint16_t) proto[0] << 8 | (uint16_t) proto[1];
 			payload = proto + 2;
 
 			last_pdu_buffer = wpcap_pkt.frame;
 			last_pdu_buffer_size = wpcap_pkt.length;
 
-			switch(protocol){
+			switch (protocol) {
 			case MVRP_ETYPE:
 				mvrp_recv_msg();
 				break;
@@ -856,37 +854,42 @@ void process_events(void)
 				break;
 			}
 			if (mrpd_timer_timeout(&timer_check_tick)) {
-				if ( !SetEvent(pkt_events[loop_time_tick]) ) {
-				        printf("SetEvent loop_time_tick failed (%d)\n", GetLastError());
+				if (!SetEvent(pkt_events[loop_time_tick])) {
+					printf
+					    ("SetEvent loop_time_tick failed (%d)\n",
+					     GetLastError());
 					exit(-1);
 				}
 			}
 			break;
-	
+
 		case WAIT_OBJECT_0 + pkt_event_wpcap_timeout:
-		        //printf("pkt_event_wpcap_timeout\n");
+			//printf("pkt_event_wpcap_timeout\n");
 			break;
 
 		case WAIT_OBJECT_0 + pkt_event_localhost:
 			printf("pkt_event_localhost\n");
 			que_pop_nowait(que_localhost, &localhost_pkt);
-			process_ctl_msg(localhost_pkt.msgbuf, 
-				localhost_pkt.bytes, 
-				(struct sockaddr_in *)&localhost_pkt.client_addr);
+			process_ctl_msg(localhost_pkt.msgbuf,
+					localhost_pkt.bytes,
+					(struct sockaddr_in *)&localhost_pkt.
+					client_addr);
 			if (mrpd_timer_timeout(&timer_check_tick)) {
-				if ( !SetEvent(pkt_events[loop_time_tick]) ) {
-				        printf("SetEvent loop_time_tick failed (%d)\n", GetLastError());
+				if (!SetEvent(pkt_events[loop_time_tick])) {
+					printf
+					    ("SetEvent loop_time_tick failed (%d)\n",
+					     GetLastError());
 					exit(-1);
 				}
 			}
 			break;
 
 		case WAIT_OBJECT_0 + pkt_event_localhost_timeout:
-		        //printf("pkt_event_localhost_timeout\n");
+			//printf("pkt_event_localhost_timeout\n");
 			break;
 
 		default:
-		        printf("Unknown event %d\n", dwEvent);
+			printf("Unknown event %d\n", dwEvent);
 		}
 	}
 }
@@ -904,20 +907,20 @@ int main(int argc, char *argv[])
 	periodic_enable = 1;
 	logging_enable = 1;
 
-	WSAStartup(MAKEWORD(1,1), &wsa_data);
+	WSAStartup(MAKEWORD(1, 1), &wsa_data);
 
 	/* open our network interface and set the capture ethertype to MRP types */
 	net_if = netif_open(TIME_PERIOD_100_MILLISECONDS);	// time out is 100ms
-	if(!net_if) {
-		fprintf(stderr,"ERROR - opening network interface\n");
+	if (!net_if) {
+		fprintf(stderr, "ERROR - opening network interface\n");
 		exit(-1);
 	}
 
 	ether_types[0] = MVRP_ETYPE;
 	ether_types[1] = MMRP_ETYPE;
 	ether_types[2] = MSRP_ETYPE;
-	if( netif_set_capture_ethertype( net_if, ether_types, 3 )) {
-		fprintf(stderr,"ERROR - setting netif capture ethertype\n");
+	if (netif_set_capture_ethertype(net_if, ether_types, 3)) {
+		fprintf(stderr, "ERROR - setting netif capture ethertype\n");
 		exit(-1);
 	}
 
@@ -947,11 +950,10 @@ int main(int argc, char *argv[])
 
 	process_events();
  out:
-	 if (rc)
+	if (rc)
 		printf("Error starting. Run as sudo?\n");
-	
+
 	WSACleanup();
 	return rc;
-
 
 }

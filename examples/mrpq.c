@@ -50,9 +50,7 @@
 #define VERSION_STR	"0.0"
 
 static const char *version_str =
-"mrpq v" VERSION_STR "\n"
-"Copyright (c) 2012, Intel Corporation\n";
-
+    "mrpq v" VERSION_STR "\n" "Copyright (c) 2012, Intel Corporation\n";
 
 int process_ctl_msg(char *buf, int buflen)
 {
@@ -73,18 +71,19 @@ int process_ctl_msg(char *buf, int buflen)
 	printf("<%s\n", buf);
 	fflush(stdout);
 	free(buf);
-	return(0);
+	return (0);
 }
 
-void process_events( void ) {
+void process_events(void)
+{
 
 	/* wait for events, demux the received packets, process packets */
 }
 
 int main(int argc, char *argv[])
 {
-	int	rc = 0;
-	char	*msgbuf;
+	int rc = 0;
+	char *msgbuf;
 #if defined WIN32
 	WSADATA wsa_data;
 #endif
@@ -92,49 +91,49 @@ int main(int argc, char *argv[])
 	(void)argv;
 
 #if defined WIN32
-	WSAStartup(MAKEWORD(1,1), &wsa_data);
+	WSAStartup(MAKEWORD(1, 1), &wsa_data);
 #endif
 
-	printf("%s\n",version_str);
+	printf("%s\n", version_str);
 
-	rc = mrpdclient_init(MRPD_PORT_DEFAULT); 
-	if (rc) { 
-		printf("init failed\n"); 
+	rc = mrpdclient_init(MRPD_PORT_DEFAULT);
+	if (rc) {
+		printf("init failed\n");
 		return -1;
 	}
 
 	msgbuf = (char *)malloc(1500);
 
-	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"M??");
+	memset(msgbuf, 0, 1500);
+	sprintf(msgbuf, "M??");
 	printf(">M??\n");
 	rc = mprdclient_sendto(msgbuf, 1500);
 	rc = mrpdclient_recv(process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
-	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"V??");
+	memset(msgbuf, 0, 1500);
+	sprintf(msgbuf, "V??");
 	printf(">V??\n");
-	rc = mprdclient_sendto(msgbuf, 1500 );
+	rc = mprdclient_sendto(msgbuf, 1500);
 	rc = mrpdclient_recv(process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
-	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S??");
+	memset(msgbuf, 0, 1500);
+	sprintf(msgbuf, "S??");
 	printf(">S??\n");
-	rc = mprdclient_sendto(msgbuf, 1500 );
+	rc = mprdclient_sendto(msgbuf, 1500);
 	rc = mrpdclient_recv(process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
-	sprintf(msgbuf,"BYE");
-	rc = mprdclient_sendto(msgbuf, 1500 );
+	sprintf(msgbuf, "BYE");
+	rc = mprdclient_sendto(msgbuf, 1500);
 	mprdclient_close();
 
 #if defined WIN32
 	WSACleanup();
 #endif
-	return(rc);
+	return (rc);
 }

@@ -41,7 +41,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 typedef int socklen_t;
-static int rcv_timeout = 100; /* 100 ms */
+static int rcv_timeout = 100;	/* 100 ms */
 #elif defined __linux__
 #include <unistd.h>
 #include <sys/socket.h>
@@ -53,7 +53,7 @@ typedef int SOCKET;
 #define closesocket(s) close(s);
 static struct timeval rcv_timeout = {
 	.tv_sec = 0,
-	.tv_usec = 100 * 1000  /* 100 ms */
+	.tv_usec = 100 * 1000	/* 100 ms */
 };
 #endif
 
@@ -63,12 +63,14 @@ static struct timeval rcv_timeout = {
 static SOCKET control_socket = SOCKET_ERROR;
 static int udp_port = 0;
 
-int mrpdclient_init(int port) {
+int mrpdclient_init(int port)
+{
 	struct sockaddr_in addr;
 	int rc;
 
 	control_socket = socket(AF_INET, SOCK_DGRAM, 0);
-	if (control_socket == INVALID_SOCKET) goto out;
+	if (control_socket == INVALID_SOCKET)
+		goto out;
 
 	rc = setsockopt(control_socket, SOL_SOCKET, SO_RCVTIMEO,
 			(const char *)&rcv_timeout, sizeof(rcv_timeout));
@@ -83,13 +85,15 @@ int mrpdclient_init(int port) {
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(0);
 
-	rc = bind(control_socket, (struct sockaddr *)&addr, sizeof(struct sockaddr));
-	if (rc <= SOCKET_ERROR) goto out;
+	rc = bind(control_socket, (struct sockaddr *)&addr,
+		  sizeof(struct sockaddr));
+	if (rc <= SOCKET_ERROR)
+		goto out;
 
 	udp_port = port;
-	return(0);
+	return (0);
 
-out:
+ out:
 	if (control_socket != SOCKET_ERROR)
 		closesocket(control_socket);
 	control_socket = SOCKET_ERROR;
@@ -103,9 +107,10 @@ int mprdclient_close(void)
 	return 0;
 }
 
-int mrpdclient_recv(ptr_process_msg fn) {
-	char	*msgbuf;
-	int	bytes = 0;
+int mrpdclient_recv(ptr_process_msg fn)
+{
+	char *msgbuf;
+	int bytes = 0;
 
 	msgbuf = (char *)malloc(MRPDCLIENT_MAX_FRAME_SIZE);
 	if (NULL == msgbuf)
@@ -113,30 +118,31 @@ int mrpdclient_recv(ptr_process_msg fn) {
 
 	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
 	bytes = recv(control_socket, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE, 0);
-	if (bytes <= SOCKET_ERROR)  {
+	if (bytes <= SOCKET_ERROR) {
 		goto out;
 	}
 
 	return fn(msgbuf, bytes);
-out:
-	free (msgbuf);
-	return(-1);
+ out:
+	free(msgbuf);
+	return (-1);
 }
 
-int mprdclient_sendto( char *notify_data, int notify_len)
+int mprdclient_sendto(char *notify_data, int notify_len)
 {
-	struct sockaddr_in	addr;
+	struct sockaddr_in addr;
 	socklen_t addr_len;
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(udp_port);
-	addr.sin_addr.s_addr =  inet_addr("127.0.0.1");
+	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	addr_len = sizeof(addr);
-	
-	if (control_socket != SOCKET_ERROR)
-		return(sendto(control_socket, notify_data, notify_len, 0, (struct sockaddr *)&addr, addr_len));
-	else
-		return(0);
-}
 
+	if (control_socket != SOCKET_ERROR)
+		return (sendto
+			(control_socket, notify_data, notify_len, 0,
+			 (struct sockaddr *)&addr, addr_len));
+	else
+		return (0);
+}

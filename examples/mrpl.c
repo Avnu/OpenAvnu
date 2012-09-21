@@ -64,8 +64,7 @@
 #define VERSION_STR	"0.0"
 
 static const char *version_str =
-"mrpl v" VERSION_STR "\n"
-"Copyright (c) 2012, Intel Corporation\n";
+    "mrpl v" VERSION_STR "\n" "Copyright (c) 2012, Intel Corporation\n";
 
 int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
 {
@@ -82,43 +81,41 @@ int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
 	 */
 
 	/* XXX */
-	printf("RESP:%s from SRV %d (bytes=%d)\n", buf, client->sin_port, buflen);
+	printf("RESP:%s from SRV %d (bytes=%d)\n", buf, client->sin_port,
+	       buflen);
 	fflush(stdout);
-	return(0);
+	return (0);
 }
 
-void 
-process_events( void ) {
+void process_events(void)
+{
 
 	/* wait for events, demux the received packets, process packets */
 }
 
-static void usage( void ) {
-	fprintf(stderr, 
+static void usage(void)
+{
+	fprintf(stderr,
 		"\n"
 		"usage: mrpl [-lj]"
 		"\n"
 		"options:\n"
 		"    -h  show this message\n"
 		"    -l  leave a stream\n"
-		"    -j  join a steam\n"
-		"\n"
-		"%s"
-		"\n", version_str);
+		"    -j  join a steam\n" "\n" "%s" "\n", version_str);
 	exit(1);
 }
 
-
-int
-main(int argc, char *argv[]) {
-	int	c;
-	int	rc = 0;
-	char	*msgbuf;
-	int	leave = 0;
+int main(int argc, char *argv[])
+{
+	int c;
+	int rc = 0;
+	char *msgbuf;
+	int leave = 0;
 
 #if defined WIN32
 	WSADATA wsa_data;
-	WSAStartup(MAKEWORD(1,1), &wsa_data);
+	WSAStartup(MAKEWORD(1, 1), &wsa_data);
 #endif
 
 	for (;;) {
@@ -142,29 +139,30 @@ main(int argc, char *argv[]) {
 	if (optind < argc)
 		usage();
 
-	rc = mrpdclient_init(MRPD_PORT_DEFAULT); 
+	rc = mrpdclient_init(MRPD_PORT_DEFAULT);
 	if (rc) {
-		printf("init failed\n"); return -1;
+		printf("init failed\n");
+		return -1;
 	}
 
 	msgbuf = malloc(1500);
 
-	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S+D:C:6:P:3:V:0002");
+	memset(msgbuf, 0, 1500);
+	sprintf(msgbuf, "S+D:C:6:P:3:V:0002");
 
 	rc = mprdclient_sendto(msgbuf, 1500);
 
-	memset(msgbuf,0,1500);
+	memset(msgbuf, 0, 1500);
 	if (leave)
-		sprintf(msgbuf,"S-L:A0369F022EEE0000:D:2");
+		sprintf(msgbuf, "S-L:A0369F022EEE0000:D:2");
 	else
-		sprintf(msgbuf,"S+L:A0369F022EEE0000:D:2");
+		sprintf(msgbuf, "S+L:A0369F022EEE0000:D:2");
 
 	rc = mprdclient_sendto(msgbuf, 1500);
 
-	sprintf(msgbuf,"BYE");
-	rc = mprdclient_sendto(msgbuf, 1500 );
+	sprintf(msgbuf, "BYE");
+	rc = mprdclient_sendto(msgbuf, 1500);
 
-	return(rc);
+	return (rc);
 
 }

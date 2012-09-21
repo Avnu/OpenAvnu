@@ -23,6 +23,6 @@ clean:
 	rm mrpd mrpctl
 	
 indent:
-	indent --linux-style mrpd.c mvrp.c msrp.c mmrp.c mrp.c
+	indent --linux-style mrpd.c mvrp.c msrp.c mmrp.c mrp.c mrpw.c
 
 
