@@ -872,8 +872,8 @@ void process_events(void)
 			que_pop_nowait(que_localhost, &localhost_pkt);
 			process_ctl_msg(localhost_pkt.msgbuf,
 					localhost_pkt.bytes,
-					(struct sockaddr_in *)&localhost_pkt.
-					client_addr);
+					(struct sockaddr_in *)
+					&localhost_pkt.client_addr);
 			if (mrpd_timer_timeout(&timer_check_tick)) {
 				if (!SetEvent(pkt_events[loop_time_tick])) {
 					printf
