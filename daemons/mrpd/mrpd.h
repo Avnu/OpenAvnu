@@ -62,12 +62,12 @@ typedef int HTIMER;
 #endif
 #endif
 
-#include <stdint.h> // for uint8_t etc
+#include <stdint.h>		// for uint8_t etc
 
 typedef struct eth_hdr {
-	uint8_t	destaddr[6];
-	uint8_t	srcaddr[6];
-	uint16_t	typelen;
+	uint8_t destaddr[6];
+	uint8_t srcaddr[6];
+	uint16_t typelen;
 } eth_hdr_t;
 
 /*
@@ -82,10 +82,10 @@ typedef struct eth_hdr {
  * operates on the (FirstEvent+1) attribute, and so forth.
  */
 typedef struct mrpdu_message {
-	uint8_t	AttributeType;
-	uint8_t	AttributeLength;	/* length of FirstValue */
+	uint8_t AttributeType;
+	uint8_t AttributeLength;	/* length of FirstValue */
 	/* Microsoft does not support 0 length arrays
-	 * uint8_t	Data[];
+	 * uint8_t      Data[];
 	 * parsing of the data field is application specific - either
 	 * a ushort with an attribute list length followed by vector
 	 * attributes, or just a list of vector attributes ...
@@ -100,9 +100,9 @@ typedef struct mrpdu_message {
 	*(&a->AttributeLength + 1 + n) = d
 
 typedef struct mrpdu {
-	uint8_t	ProtocolVersion;
+	uint8_t ProtocolVersion;
 	/* Microsoft does not support 0 length arrays
-	 * mrpdu_message_t	MessageList[];
+	 * mrpdu_message_t      MessageList[];
 	 * mrpdu should have trailing NULL (0x0000) indicating the ENDMARK */
 } mrpdu_t;
 
@@ -120,10 +120,8 @@ int mrpd_init_timers(struct mrp_database *mrp_db);
 int mrpd_timer_start(HTIMER timerfd, unsigned long value_ms);
 int mrpd_timer_stop(HTIMER timerfd);
 int mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
-		int notify_len);
-int mrpd_init_protocol_socket(uint16_t etype, SOCKET *sock,
-		unsigned char *multicast_addr);
+		      int notify_len);
+int mrpd_init_protocol_socket(uint16_t etype, SOCKET * sock,
+			      unsigned char *multicast_addr);
 int mrpd_close_socket(SOCKET sock);
 int mrpd_recvmsgbuf(SOCKET sock, char **buf);
-
-

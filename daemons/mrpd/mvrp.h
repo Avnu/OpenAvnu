@@ -32,18 +32,17 @@
 ******************************************************************************/
 
 struct mvrp_attribute {
-	struct mvrp_attribute		*prev;
-	struct mvrp_attribute		*next;
-	uint16_t			attribute;	/* 12-bit VID */
-	mrp_applicant_attribute_t	applicant;
-	mrp_registrar_attribute_t	registrar;
+	struct mvrp_attribute *prev;
+	struct mvrp_attribute *next;
+	uint16_t attribute;	/* 12-bit VID */
+	mrp_applicant_attribute_t applicant;
+	mrp_registrar_attribute_t registrar;
 };
 
 struct mvrp_database {
-	struct mrp_database	mrp_db;
-	struct mvrp_attribute	*attrib_list;
+	struct mrp_database mrp_db;
+	struct mvrp_attribute *attrib_list;
 };
-
 
 #define MVRP_ETYPE	0x88F5
 #define MVRP_PROT_VER	0x00

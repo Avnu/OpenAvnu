@@ -37,7 +37,7 @@
 
 #define MRPDCLIENT_MAX_FRAME_SIZE 2000
 
-typedef int (*ptr_process_msg)(char *buf, int buflen);
+typedef int (*ptr_process_msg) (char *buf, int buflen);
 
 int mrpdclient_init(int port);
 int mrpdclient_recv(ptr_process_msg fn);

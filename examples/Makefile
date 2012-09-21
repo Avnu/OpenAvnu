@@ -40,5 +40,5 @@ clean:
 	rm -f `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"`
 	
 indent:
-	indent --linux-style mrpdclient.c mrpl.c mrpq.c
+	indent --linux-style mrpdclient.c mrpdclient.h mrpl.c mrpq.c
 

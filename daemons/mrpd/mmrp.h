@@ -50,22 +50,21 @@
 #define MMRP_SVCREQ_FOWARD_UNREGISTERED	1
 /* MMRP uses ThreePackedEvents for all vector encodings */
 
-
 struct mmrp_attribute {
-	struct mmrp_attribute		*prev;
-	struct mmrp_attribute		*next;
-	uint32_t			type;
+	struct mmrp_attribute *prev;
+	struct mmrp_attribute *next;
+	uint32_t type;
 	union {
-		unsigned char	macaddr[6];
-		uint8_t	svcreq;
+		unsigned char macaddr[6];
+		uint8_t svcreq;
 	} attribute;
-	mrp_applicant_attribute_t	applicant;
-	mrp_registrar_attribute_t	registrar;
+	mrp_applicant_attribute_t applicant;
+	mrp_registrar_attribute_t registrar;
 };
 
 struct mmrp_database {
-	struct mrp_database	mrp_db;
-	struct mmrp_attribute	*attrib_list;
+	struct mrp_database mrp_db;
+	struct mmrp_attribute *attrib_list;
 };
 
 int mmrp_init(int mmrp_enable);
@@ -74,5 +73,5 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);
 int mmrp_reclaim(void);
 void mmrp_bye(struct sockaddr_in *client);
 int mmrp_recv_msg(void);
-void mmrp_increment_macaddr(uint8_t *macaddr);
+void mmrp_increment_macaddr(uint8_t * macaddr);
 int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify);

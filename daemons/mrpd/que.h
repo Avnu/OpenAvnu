@@ -38,31 +38,31 @@
 #ifndef _QUE_H_
 #define _QUE_H_
 
-#include <stdint.h> // for uint8_t etc
+#include <stdint.h>		// for uint8_t etc
 #include <windows.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct que_def {
-	HANDLE space_avail; // at least one slot empty
-    HANDLE data_avail;  // at least one slot full
-    CRITICAL_SECTION mutex; // protect buffer, in_pos, out_pos
+	struct que_def {
+		HANDLE space_avail;	// at least one slot empty
+		HANDLE data_avail;	// at least one slot full
+		CRITICAL_SECTION mutex;	// protect buffer, in_pos, out_pos
 
-    uint8_t *buffer;
-    int	in_pos;
-    int out_pos;
-    int entry_count;
-    int entry_size;
-};
+		uint8_t *buffer;
+		int in_pos;
+		int out_pos;
+		int entry_count;
+		int entry_size;
+	};
 
-struct que_def *que_new(int count, int entry_size);
-void que_delete(struct que_def *q);
-void que_push(struct que_def *q, void *d);
-void que_pop_nowait(struct que_def *q, void *d);
-void que_pop_wait(struct que_def *q, void *d);
-HANDLE que_data_available_object(struct que_def *q);
+	struct que_def *que_new(int count, int entry_size);
+	void que_delete(struct que_def *q);
+	void que_push(struct que_def *q, void *d);
+	void que_pop_nowait(struct que_def *q, void *d);
+	void que_pop_wait(struct que_def *q, void *d);
+	HANDLE que_data_available_object(struct que_def *q);
 
 #ifdef __cplusplus
 }

@@ -31,7 +31,6 @@
 
 ******************************************************************************/
 
-
 #define MSRP_ETYPE	0x22EA
 #define MSRP_PROT_VER	0x00
 #define MSRP_SR_PVID_DEFAULT	2
@@ -56,42 +55,42 @@
  * FirstValue structure definition for MSRP Attributes
  */
 typedef struct msrpdu_listen {
-	uint8_t	StreamID[8];	/* MSB bytes are talker MAC address */
+	uint8_t StreamID[8];	/* MSB bytes are talker MAC address */
 } msrpdu_listen_t;
 
 typedef struct msrpdu_talker_advertise {
-	uint8_t	StreamID[8];
+	uint8_t StreamID[8];
 	struct {
-		uint8_t	Dest_Addr[6];
-		uint16_t	Vlan_ID;
+		uint8_t Dest_Addr[6];
+		uint16_t Vlan_ID;
 	} DataFrameParameters;
 	struct {
-		uint16_t	MaxFrameSize;
-		uint16_t	MaxIntervalFrames;
+		uint16_t MaxFrameSize;
+		uint16_t MaxIntervalFrames;
 	} TSpec;
-	uint8_t	PriorityAndRank;
+	uint8_t PriorityAndRank;
 	/*
 	 * PriorityAndRank := (3-bit priority | 1 bit rank | 4-bits reserved)
 	 * 'rank=0 means emergency traffic, =1 otherwise
 	 */
-	unsigned	AccumulatedLatency; /* unsigned 32 bit nsec latency */
+	unsigned AccumulatedLatency;	/* unsigned 32 bit nsec latency */
 } msrpdu_talker_advertise_t;
 
 typedef struct msrpdu_talker_fail {
-	uint8_t	StreamID[8];
+	uint8_t StreamID[8];
 	struct {
-		uint8_t	Dest_Addr[6];
-		uint16_t	Vlan_ID;
+		uint8_t Dest_Addr[6];
+		uint16_t Vlan_ID;
 	} DataFrameParameters;
 	struct {
-		uint16_t	MaxFrameSize;
-		uint16_t	MaxIntervalFrames;
+		uint16_t MaxFrameSize;
+		uint16_t MaxIntervalFrames;
 	} TSpec;
-	uint8_t	PriorityAndRank;
-	unsigned	AccumulatedLatency;
+	uint8_t PriorityAndRank;
+	unsigned AccumulatedLatency;
 	struct {
-		uint8_t	BridgeID[8];
-		uint8_t	FailureCode;
+		uint8_t BridgeID[8];
+		uint8_t FailureCode;
 	} FailureInformation;
 } msrpdu_talker_fail_t;
 
@@ -119,9 +118,9 @@ typedef struct msrpdu_talker_fail {
 
 /* Domain Discovery FirstValue definition */
 typedef struct msrpdu_domain {
-	uint8_t	SRclassID;
-	uint8_t	SRclassPriority;
-	uint16_t	SRclassVID;
+	uint8_t SRclassID;
+	uint8_t SRclassPriority;
+	uint16_t SRclassVID;
 } msrpdu_domain_t;
 
 /* Class ID defitions */
@@ -136,22 +135,22 @@ typedef struct msrpdu_domain {
 #define MSRP_DIRECTION_LISTENER	1
 
 struct msrp_attribute {
-	struct msrp_attribute		*prev;
-	struct msrp_attribute		*next;
-	uint32_t			type;
+	struct msrp_attribute *prev;
+	struct msrp_attribute *next;
+	uint32_t type;
 	union {
-		msrpdu_talker_fail_t		talk_listen;
-		msrpdu_domain_t			domain;
+		msrpdu_talker_fail_t talk_listen;
+		msrpdu_domain_t domain;
 	} attribute;
-	uint32_t			substate;	/*for listener events*/
-	uint32_t			direction;	/*for listener events*/
-	mrp_applicant_attribute_t	applicant;
-	mrp_registrar_attribute_t	registrar;
+	uint32_t substate;	/*for listener events */
+	uint32_t direction;	/*for listener events */
+	mrp_applicant_attribute_t applicant;
+	mrp_registrar_attribute_t registrar;
 };
 
 struct msrp_database {
-	struct mrp_database	mrp_db;
-	struct msrp_attribute	*attrib_list;
+	struct mrp_database mrp_db;
+	struct msrp_attribute *attrib_list;
 };
 
 int msrp_init(int msrp_enable);

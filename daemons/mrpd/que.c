@@ -44,17 +44,18 @@ struct que_def *que_new(int entry_count, int entry_size)
 	q = (struct que_def *)calloc(1, sizeof(struct que_def));
 	if (!q)
 		return q;
-	q->buffer = (uint8_t *)calloc(entry_count, entry_size);
+	q->buffer = (uint8_t *) calloc(entry_count, entry_size);
 	if (!q->buffer) {
-		free (q);
+		free(q);
 		return NULL;
 	}
 	q->entry_count = entry_count;
 	q->entry_size = entry_size;
-	q->space_avail = CreateSemaphore(NULL, q->entry_count, q->entry_count, NULL);
+	q->space_avail =
+	    CreateSemaphore(NULL, q->entry_count, q->entry_count, NULL);
 	q->data_avail = CreateSemaphore(NULL, 0, q->entry_count, NULL);
 	InitializeCriticalSection(&q->mutex);
-	
+
 	return q;
 }
 
@@ -67,7 +68,7 @@ void que_delete(struct que_def *q)
 
 void que_push(struct que_def *q, void *d)
 {
-	WaitForSingleObject(q->space_avail, INFINITE);       
+	WaitForSingleObject(q->space_avail, INFINITE);
 	EnterCriticalSection(&q->mutex);
 	memcpy(&q->buffer[q->in_pos * q->entry_size], d, q->entry_size);
 	q->in_pos = (q->in_pos + 1) % q->entry_count;

@@ -35,17 +35,17 @@
 #define MRP_ENCODE_OPTIONAL	1	/* send if smaller */
 
 typedef struct mrp_applicant_attribute {
-	int	mrp_state;
-	int	tx;		/* tx=1 means transmit on next TX event */
-	int	sndmsg;		/* sndmsg={NEW,IN,JOININ,JOINMT,MT, or LV} */
-	int	encode; 	/* when tx=1, NO, YES or OPTIONAL */
+	int mrp_state;
+	int tx;			/* tx=1 means transmit on next TX event */
+	int sndmsg;		/* sndmsg={NEW,IN,JOININ,JOINMT,MT, or LV} */
+	int encode;		/* when tx=1, NO, YES or OPTIONAL */
 } mrp_applicant_attribute_t;
 
 typedef struct mrp_registrar_attribute {
-	int	mrp_state;
-	int	notify;
-	short	rsvd;
-	unsigned char	macaddr[6];	/* mac address of last registration */
+	int mrp_state;
+	int notify;
+	short rsvd;
+	unsigned char macaddr[6];	/* mac address of last registration */
 } mrp_registrar_attribute_t;
 
 /* MRP Application Notifications */
@@ -76,8 +76,8 @@ typedef struct mrp_registrar_attribute {
 
 /* Registrar States */
 #define MRP_IN_STATE	16	/* when Registrar state is IN */
-#define MRP_LV_STATE	17 	/* registrar state - leaving */
-#define MRP_MT_STATE	18 	/* whe Registrar state is MT or LV */
+#define MRP_LV_STATE	17	/* registrar state - leaving */
+#define MRP_MT_STATE	18	/* whe Registrar state is MT or LV */
 
 /* MRP Events */
 #define MRP_EVENT_BEGIN	100	/*  Initialize state machine (10.7.5.1) */
@@ -118,9 +118,9 @@ typedef struct mrp_registrar_attribute {
 #define MRP_PERIODTIMER_VAL	1000	/* periodic timeout in msec */
 
 typedef struct mrp_timer {
-	int	state;
-	int	tx;		/* tx=1 means transmit on next TX event */
-	int	sndmsg;		/* sndmsg={NEW,JOIN,or LV}  */
+	int state;
+	int tx;			/* tx=1 means transmit on next TX event */
+	int sndmsg;		/* sndmsg={NEW,JOIN,or LV}  */
 } mrp_timer_t;
 
 #define MRP_TIMER_PASSIVE	0
@@ -150,31 +150,31 @@ typedef struct mrp_timer {
 						((y) * 4) + (z))
 
 typedef struct mrpdu_vectorattrib {
-	uint16_t	VectorHeader;	/* LVA << 13 | NumberOfValues */
-	uint8_t	FirstValue_VectorEvents[];
+	uint16_t VectorHeader;	/* LVA << 13 | NumberOfValues */
+	uint8_t FirstValue_VectorEvents[];
 } mrpdu_vectorattrib_t;
 
 #define MRPDU_VECT_NUMVALUES(x)	((x) & ((1 << 13) - 1))
 #define MRPDU_VECT_LVA(x)	((x) & (1 << 13))
 
 typedef struct client {
-	struct client		*next;
-	struct sockaddr_in	client;
+	struct client *next;
+	struct sockaddr_in client;
 } client_t;
 
 struct mrp_database {
-	mrp_timer_t	lva;
-	mrp_timer_t	periodic;
-	HTIMER		join_timer;
-	HTIMER		lv_timer;
-	HTIMER		lva_timer;
-	client_t	*clients;
-	int		registration;
-	int		participant;
+	mrp_timer_t lva;
+	mrp_timer_t periodic;
+	HTIMER join_timer;
+	HTIMER lv_timer;
+	HTIMER lva_timer;
+	client_t *clients;
+	int registration;
+	int participant;
 };
 
-int mrp_client_add(client_t **list, struct sockaddr_in *newclient);
-int mrp_client_delete(client_t **list, struct sockaddr_in *newclient);
+int mrp_client_add(client_t ** list, struct sockaddr_in *newclient);
+int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient);
 
 int mrp_init(void);
 int mrp_jointimer_stop(struct mrp_database *mrp_db);
@@ -184,9 +184,9 @@ int mrp_lvtimer_stop(struct mrp_database *mrp_db);
 int mrp_lvatimer_start(struct mrp_database *mrp_db);
 int mrp_lvatimer_stop(struct mrp_database *mrp_db);
 int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event);
-int mrp_applicant_fsm(mrp_applicant_attribute_t *attrib, int event);
-int mrp_registrar_fsm(mrp_registrar_attribute_t *attrib,
-		  struct mrp_database *mrp_db, int event);
-int mrp_decode_state(mrp_registrar_attribute_t *rattrib,
-	mrp_applicant_attribute_t *aattrib, char *str, int strlen);
-
+int mrp_applicant_fsm(mrp_applicant_attribute_t * attrib, int event);
+int mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
+		      struct mrp_database *mrp_db, int event);
+int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
+		     mrp_applicant_attribute_t * aattrib, char *str,
+		     int strlen);
