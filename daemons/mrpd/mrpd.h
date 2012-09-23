@@ -84,8 +84,8 @@ typedef struct eth_hdr {
 typedef struct mrpdu_message {
 	uint8_t AttributeType;
 	uint8_t AttributeLength;	/* length of FirstValue */
-	/* Microsoft does not support 0 length arrays
-	 * uint8_t      Data[];
+	uint8_t      Data[0];
+	/*
 	 * parsing of the data field is application specific - either
 	 * a ushort with an attribute list length followed by vector
 	 * attributes, or just a list of vector attributes ...
@@ -93,15 +93,10 @@ typedef struct mrpdu_message {
 
 	/* table should have a trailing NULL (0x0000) indicating the ENDMARK */
 } mrpdu_message_t;
-#define MRPD_GET_MRPDU_MESSAGE_VECTOR(a,n) (mrpdu_vectorattrib_t *) \
-	((unsigned char *)&((a)->AttributeType) + 2 + n)
-
-#define MRPD_SET_MRPDU_MESSAGE_DATA(a, n, d) \
-	*(&a->AttributeLength + 1 + n) = d
 
 typedef struct mrpdu {
 	uint8_t ProtocolVersion;
-	/* Microsoft does not support 0 length arrays
+	/* Microsoft does not support embedded arrays of 0 length
 	 * mrpdu_message_t      MessageList[];
 	 * mrpdu should have trailing NULL (0x0000) indicating the ENDMARK */
 } mrpdu_t;

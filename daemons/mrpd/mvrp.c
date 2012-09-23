@@ -410,7 +410,7 @@ int mvrp_recv_msg(void)
 			 * Data points to the beginning of the VectorAttributes
 			 */
 			mrpdu_vectorptr =
-			    MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
+			    (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 
 			while (!((mrpdu_msg_ptr[0] == 0)
@@ -571,7 +571,7 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	attrib = MVRP_db->attrib_list;
 
-	mrpdu_vectorptr = MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0);
+	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
@@ -744,7 +744,7 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
 	}
 
-	if (mrpdu_vectorptr == MRPD_GET_MRPDU_MESSAGE_VECTOR(mrpdu_msg, 0)) {
+	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) mrpdu_msg->Data) {
 		*bytes_used = 0;
 		return 0;
 	}
