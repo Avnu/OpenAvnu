@@ -2355,6 +2355,26 @@ int msrp_dumptable(struct sockaddr_in *client)
 
 }
 
+/*
+Future
+
+int msrp_cmd_parse_join_stream();
+int msrp_cmd_parse_new_stream();
+int msrp_cmd_parse_leave_stream();
+int msrp_cmd_parse_report_listener_status();
+int msrp_cmd_parse_withdraw_listener_status();
+int msrp_cmd_parse_report_domain_status();
+int msrp_cmd_parse_withdraw_domain_status();
+
+int msrp_cmd_join_stream();
+int msrp_cmd_new_stream();
+int msrp_cmd_leave_stream();
+int msrp_cmd_report_listener_status();
+int msrp_cmd_withdraw_listener_status();
+int msrp_cmd_report_domain_status();
+int msrp_cmd_withdraw_domain_status();
+*/
+
 int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
