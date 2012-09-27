@@ -3,13 +3,15 @@ OPT=-O2
 CFLAGS=$(OPT) -Wall -W -Wno-parentheses -ggdb -D_GNU_SOURCE
 
 CC=gcc
-#INCFLAGS=-I../lib
+INCFLAGS=-I../common
 #LDLIBS=-ligb -lpci
 #LDFLAGS=-L../lib
 
 all: mrpd mrpctl
 
-mrpd: mrpd.o mvrp.o msrp.o mmrp.o mrp.o
+VPATH = ../common
+
+mrpd: mrpd.o mvrp.o msrp.o mmrp.o mrp.o parse.o
 
 mrpctl: mrpctl.o
 

@@ -38,6 +38,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "parse.h"
 #include "mrpd.h"
 #include "mrp.h"
 #include "msrp.h"
@@ -2355,19 +2356,284 @@ int msrp_dumptable(struct sockaddr_in *client)
 
 }
 
+
+int msrp_test_cmd_parse_join_or_new_stream(
+		char *buf, int buflen,
+		struct msrpdu_talker_fail *talker_ad
+)
+{
+	int err, err_index;
+
+	struct parse_param specs[] = {
+		{"S" PARSE_ASSIGN, parse_c64, talker_ad->StreamID},
+		{"A" PARSE_ASSIGN, parse_mac, talker_ad->DataFrameParameters.Dest_Addr},
+		{"V" PARSE_ASSIGN, parse_u16, &talker_ad->DataFrameParameters.Vlan_ID},
+		{"Z" PARSE_ASSIGN, parse_u16, &talker_ad->TSpec.MaxFrameSize},
+		{"I" PARSE_ASSIGN, parse_u16, &talker_ad->TSpec.MaxIntervalFrames},
+		{"P" PARSE_ASSIGN, parse_u8, &talker_ad->PriorityAndRank},
+		{"L" PARSE_ASSIGN, parse_u32, &talker_ad->AccumulatedLatency},
+		{0, parse_null, 0}
+	};
+	memset(talker_ad, 0, sizeof(*talker_ad));
+	return parse(buf, specs, &err_index);
+}
+
+/* S+? - (re)JOIN a stream */
+/* S++ - NEW a stream      */
+
+int msrp_cmd_parse_join_or_new_stream(
+		char *buf, int buflen,
+		struct msrpdu_talker_fail *talker_ad
+)
+{
+	char *stream_str = NULL;
+	char *daddr_str = NULL;
+	char *vlan_str = NULL;
+	char *size_str = NULL;
+	char *interval_str = NULL;
+	char *prio_str = NULL;
+	char *latency_str = NULL;
+	uint8_t streamid_firstval[8];
+	uint8_t macvec_firstval[6];
+	uint8_t macvec_parsestr[64];
+	unsigned vlan, size, interval, prio, latency;
+	int i, rc;
+
+	memset(talker_ad, 0, sizeof(*talker_ad));
+		/*
+		 * create or join a stream
+		 * interesting to note the spec doesn't talk about
+		 * what happens if two talkers attempt to define the identical
+		 * stream twice  - does the bridge report STREAM_CHANGE error?
+		 */
+
+		if (buflen < 22) {
+			return -1;
+		}
+		/*
+		   buf[] should look similar to "S:%02x%02x%02x%02x%02x%02x%02x%02x"
+		   ":A:%02x%02x%02x%02x%02x%02x"
+		   ":V:%04x" \
+		   ":Z:%d" \
+		   ":I:%d" \
+		   ":P:%d" \
+		   ":L:%d" \
+		 */
+
+		i = 0;
+
+		while (i < buflen) {
+			if (buf[i] == ':') {
+				stream_str = &(buf[i + 1]);
+				i++;
+				break;
+			}
+			i++;
+		}
+
+		if (i >= buflen) {
+			return -1;
+		}
+
+		while (i < (buflen - 3)) {
+			if ((buf[i] == ':') && (buf[i + 1] == 'A')
+			    && (buf[i + 2] == ':')) {
+				buf[i] = '\0';
+				daddr_str = &(buf[i + 3]);
+				i += 4;
+				break;
+			}
+			i++;
+		}
+
+		if (i >= (buflen - 3)) {
+			return -1;
+		}
+
+		while (i < (buflen - 3)) {
+			if ((buf[i] == ':') && (buf[i + 1] == 'V')
+			    && (buf[i + 2] == ':')) {
+				buf[i] = '\0';
+				vlan_str = &(buf[i + 3]);
+				i += 4;
+				break;
+			}
+			i++;
+		}
+
+		if (i >= (buflen - 3)) {
+			return -1;
+		}
+
+		while (i < (buflen - 3)) {
+			if ((buf[i] == ':') && (buf[i + 1] == 'Z')
+			    && (buf[i + 2] == ':')) {
+				buf[i] = '\0';
+				size_str = &(buf[i + 3]);
+				i += 4;
+				break;
+			}
+			i++;
+		}
+
+		if (i >= (buflen - 3)) {
+			return -1;
+		}
+
+		while (i < (buflen - 3)) {
+			if ((buf[i] == ':') && (buf[i + 1] == 'I')
+			    && (buf[i + 2] == ':')) {
+				buf[i] = '\0';
+				interval_str = &(buf[i + 3]);
+				i += 4;
+				break;
+			}
+			i++;
+		}
+
+		if (i >= (buflen - 3)) {
+			return -1;
+		}
+
+		while (i < (buflen - 3)) {
+			if ((buf[i] == ':') && (buf[i + 1] == 'P')
+			    && (buf[i + 2] == ':')) {
+				buf[i] = '\0';
+				prio_str = &(buf[i + 3]);
+				i += 4;
+				break;
+			}
+			i++;
+		}
+
+		if (i >= (buflen - 3)) {
+			return -1;
+		}
+
+		while (i < (buflen - 3)) {
+			if ((buf[i] == ':') && (buf[i + 1] == 'L')
+			    && (buf[i + 2] == ':')) {
+				buf[i] = '\0';
+				latency_str = &(buf[i + 3]);
+				i += 4;
+				break;
+			}
+			i++;
+		}
+
+		if (i >= (buflen - 3)) {
+			return -1;
+		}
+
+		memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
+
+		for (i = 0; i < 8; i++) {
+			macvec_parsestr[0] = stream_str[i * 2];
+			macvec_parsestr[1] = stream_str[i * 2 + 1];
+
+			rc = sscanf((char *)macvec_parsestr, "%hhx",
+				    &streamid_firstval[i]);
+			if (0 == rc) {
+				return -1;
+			}
+		}
+
+		memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
+		for (i = 0; i < 6; i++) {
+			macvec_parsestr[0] = daddr_str[i * 2];
+			macvec_parsestr[1] = daddr_str[i * 2 + 1];
+
+			rc = sscanf((char *)macvec_parsestr, "%hhx",
+				    &macvec_firstval[i]);
+			if (0 == rc) {
+				return -1;
+			}
+		}
+
+		rc = sscanf((char *)vlan_str, "%x", &vlan);
+		if (0 == rc) {
+			return -1;
+		}
+
+		rc = sscanf((char *)size_str, "%d", &size);
+		if (0 == rc) {
+			return -1;
+		}
+
+		rc = sscanf((char *)interval_str, "%d", &interval);
+		if (0 == rc) {
+			return -1;
+		}
+
+		rc = sscanf((char *)prio_str, "%d", &prio);
+		if (0 == rc) {
+			return -1;
+		}
+
+		rc = sscanf((char *)latency_str, "%d", &latency);
+		if (0 == rc) {
+			return -1;
+		}
+
+		memcpy(talker_ad->StreamID,
+		       streamid_firstval, 8);
+		memcpy(talker_ad->DataFrameParameters.Dest_Addr, macvec_firstval,
+		       6);
+		talker_ad->DataFrameParameters.Vlan_ID = vlan;
+		talker_ad->TSpec.MaxFrameSize = size;
+		talker_ad->TSpec.MaxIntervalFrames = interval;
+		talker_ad->PriorityAndRank = prio;
+		talker_ad->AccumulatedLatency = latency;
+
+
+	return 0;
+}
+
+/*
+ * Required fields are:
+ * talker_ad->StreamID
+ * talker_ad->DataFrameParameters.Dest_Addr
+ * talker_ad->DataFrameParameters.Vlan_ID
+ * talker_ad->TSpec.MaxFrameSize
+ * talker_ad->TSpec.MaxIntervalFrames
+ * talker_ad->PriorityAndRank
+ * talker_ad->AccumulatedLatency
+ *
+ */
+
+int msrp_cmd_join_or_new_stream(
+		int join,
+		struct msrpdu_talker_fail *talker_ad
+)
+{
+	struct msrp_attribute *attrib;
+
+	attrib = msrp_alloc();
+	if (NULL == attrib) {
+		return -1;
+	}
+	attrib->type = MSRP_TALKER_ADV_TYPE;
+	attrib->attribute.talk_listen = *talker_ad;
+	memset(attrib->registrar.macaddr, 0, 6);
+
+	if (join)
+		msrp_event(MRP_EVENT_JOIN, attrib);
+	else
+		msrp_event(MRP_EVENT_NEW, attrib);
+
+	return 0;
+}
+
 /*
 Future
 
-int msrp_cmd_parse_join_stream();
-int msrp_cmd_parse_new_stream();
+
 int msrp_cmd_parse_leave_stream();
 int msrp_cmd_parse_report_listener_status();
 int msrp_cmd_parse_withdraw_listener_status();
 int msrp_cmd_parse_report_domain_status();
 int msrp_cmd_parse_withdraw_domain_status();
 
-int msrp_cmd_join_stream();
-int msrp_cmd_new_stream();
 int msrp_cmd_leave_stream();
 int msrp_cmd_report_listener_status();
 int msrp_cmd_withdraw_listener_status();
@@ -2393,6 +2659,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	uint8_t macvec_parsestr[64];
 	unsigned vlan, size, interval, prio, latency;
 	int i;
+	//struct msrpdu_talker_fail t0,t1;
 
 	if (NULL == MSRP_db) {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
@@ -2477,8 +2744,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			if (buflen < 18) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
+				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
 			/* buf[] should look similar to 'S-D:C:%d:P:%d:V:%04x" */
@@ -3024,6 +3290,16 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			attrib->attribute.talk_listen.PriorityAndRank = prio;
 			attrib->attribute.talk_listen.AccumulatedLatency =
 			    latency;
+
+			/*
+			msrp_cmd_parse_join_or_new_stream(buf, buflen, &t0);
+			msrp_test_cmd_parse_join_or_new_stream(buf+3, buflen, &t1);
+
+			if(memcmp(&t0, &t1, sizeof(t0))==0)
+				printf("parse match\n");
+			if(memcmp(&t0,&attrib->attribute.talk_listen,sizeof(t0)))
+				printf("old and new parse match\n");
+			*/
 
 			if (join)
 				msrp_event(MRP_EVENT_JOIN, attrib);
