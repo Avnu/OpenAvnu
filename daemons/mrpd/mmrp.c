@@ -38,6 +38,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "parse.h"
 #include "mrpd.h"
 #include "mrp.h"
 #include "mmrp.h"
@@ -1462,15 +1463,48 @@ int mmrp_dumptable(struct sockaddr_in *client)
 
 }
 
+int mmrp_cmd_parse_mac(
+		char *buf, int buflen,
+		uint8_t * mac,
+		int * err_index
+)
+{
+	struct parse_param specs[] = {
+		{"M" PARSE_ASSIGN, parse_mac, mac},
+		{0, parse_null, 0}
+	};
+	memset(mac, 0, 6);
+	return parse(buf + 3, buflen - 3, specs, err_index);
+}
+
+int mmrp_cmd_parse_service(
+		char *buf, int buflen,
+		uint8_t * service,
+		int * err_index
+)
+{
+	struct parse_param specs[] = {
+		{"S" PARSE_ASSIGN, parse_u8, service},
+		{0, parse_null, 0}
+	};
+	*service = 0;
+	return parse(buf + 3, buflen - 3, specs, err_index);
+}
+
+
 int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
+	int err_index;
 	char respbuf[8];
 	struct mmrp_attribute *attrib;
 	uint8_t svcreq_firstval;
 	uint8_t macvec_firstval[6];
 	uint8_t macvec_parsestr[8];
 	int i;
+	uint8_t test_svcreq;
+	uint8_t test_macvec[6];
+
 
 	if (NULL == MMRP_db) {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
@@ -1506,8 +1540,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		switch (buf[3]) {
 		case 's':
 		case 'S':
-			/* buf[] should look similar to 'M--s1' */
-			svcreq_firstval = buf[4] - '0';
+			/* buf[] should look similar to 'M--s:1' */
+			svcreq_firstval = buf[5] - '0';
 			if (svcreq_firstval > 1) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
@@ -1515,6 +1549,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 						  sizeof(respbuf));
 				goto out;
 			}
+			rc = mmrp_cmd_parse_service(buf, buflen, &test_svcreq,
+					&err_index);
 
 			attrib = mmrp_alloc();
 			if (NULL == attrib) {
@@ -1528,6 +1564,9 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			attrib->attribute.svcreq = svcreq_firstval;
 			memset(attrib->registrar.macaddr, 0, 6);
 
+			if (svcreq_firstval != test_svcreq)
+				printf("ERR parsing mmrp_cmd_parse_service\n");
+
 			mmrp_event(MRP_EVENT_LV, attrib);
 			break;
 		case 'm':
@@ -1537,8 +1576,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			 * support more than one Spanning Tree context
 			 */
 
-			/* buf[] should look similar to 'M--m010203040506' */
-			if (buflen < 16) {
+			/* buf[] should look similar to 'M--M:010203040506' */
+			if (buflen < 17) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
 				mrpd_send_ctl_msg(client, respbuf,
@@ -1546,11 +1585,16 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 				goto out;
 			}
 
+			rc = mmrp_cmd_parse_mac(buf, buflen, test_macvec,
+					&err_index);
+			if (rc)
+				printf("ERROR mmrp_cmd_parse_mac\n");
+
 			memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
 
 			for (i = 0; i < 6; i++) {
-				macvec_parsestr[0] = buf[4 + i * 2];
-				macvec_parsestr[1] = buf[5 + i * 2];
+				macvec_parsestr[0] = buf[5 + i * 2];
+				macvec_parsestr[1] = buf[6 + i * 2];
 
 				rc = sscanf((char *)macvec_parsestr, "%hhx",
 					    &macvec_firstval[i]);
@@ -1575,6 +1619,12 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			memcpy(attrib->attribute.macaddr, macvec_firstval, 6);
 			memset(attrib->registrar.macaddr, 0, 6);
 
+			if(0 == memcmp(test_macvec, macvec_firstval, sizeof(macvec_firstval)))
+				printf("M--M, old and new parse match\n");
+			else
+				printf("M--M, old and new parse DO NOT match\n");
+
+
 			mmrp_event(MRP_EVENT_LV, attrib);
 			break;
 		default:
@@ -1593,8 +1643,7 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		switch (buf[3]) {
 		case 's':
 		case 'S':
-			/* buf[] should look similar to 'M+?s1'
-			 * or buf[] should look similar to 'M++s1'
+			/* buf[] should look similar to 'M+?s:1' or 'M++s:1'
 			 */
 			if (('?' != buf[2]) && ('+' != buf[2])) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s",
@@ -1603,7 +1652,7 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 						  sizeof(respbuf));
 				goto out;
 			}
-			svcreq_firstval = buf[4] - '0';
+			svcreq_firstval = buf[5] - '0';
 			if (svcreq_firstval > 1) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
@@ -1628,8 +1677,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			break;
 		case 'm':
 		case 'M':
-			/* buf[] should look similar to 'M+?m010203040506' */
-			if (buflen < 16) {
+			/* buf[] should look similar to 'M+?m:010203040506' */
+			if (buflen < 17) {
 				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
 					 buf);
 				mrpd_send_ctl_msg(client, respbuf,
@@ -1640,8 +1689,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
 
 			for (i = 0; i < 6; i++) {
-				macvec_parsestr[0] = buf[4 + i * 2];
-				macvec_parsestr[1] = buf[5 + i * 2];
+				macvec_parsestr[0] = buf[5 + i * 2];
+				macvec_parsestr[1] = buf[6 + i * 2];
 
 				rc = sscanf((char *)macvec_parsestr, "%hhx",
 					    &macvec_firstval[i]);

@@ -41,6 +41,7 @@
 #include "mrpd.h"
 #include "mrp.h"
 #include "mvrp.h"
+#include "parse.h"
 
 int mvrp_send_notifications(struct mvrp_attribute *attrib, int notify);
 int mvrp_txpdu(void);
@@ -1024,6 +1025,21 @@ int mvrp_dumptable(struct sockaddr_in *client)
 
 }
 
+/* S-L   Withdraw a listener status */
+int mvrp_cmd_parse_vid(
+		char *buf, int buflen,
+		uint16_t * attribute,
+		int * err_index
+)
+{
+	struct parse_param specs[] = {
+		{"I" PARSE_ASSIGN, parse_u16_04x, attribute},
+		{0, parse_null, 0}
+	};
+	*attribute = 0;
+	return parse(buf + 3, buflen - 3, specs, err_index);
+}
+
 int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
@@ -1031,6 +1047,8 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	struct mvrp_attribute *attrib;
 	unsigned int vid_firstval;
 	uint8_t vid_parsestr[8];
+	uint16_t test_vid;
+	int err_index;
 
 	if (NULL == MVRP_db) {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
@@ -1057,23 +1075,22 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		mvrp_dumptable(client);
 		break;
 	case '-':
-		if (buflen < 5) {
+		/* buf[] should look similar to 'V--I:0001' where VID is in hex */
+		if (buflen < 9) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
 			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
-		/* buf[] should look similar to 'V--0001' where VID is in hex */
-		if (buflen < 7) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-			goto out;
-		}
+
+		rc = mvrp_cmd_parse_vid(buf, buflen, &test_vid, &err_index);
+		if (rc)
+			printf("ERR mvrp_cmd_parse_vid\n");
 
 		memset(vid_parsestr, 0, sizeof(vid_parsestr));
 
-		rc = sscanf((char *)&buf[3], "%04x", &vid_firstval);
+		rc = sscanf((char *)&buf[5], "%04x", &vid_firstval);
 		if (0 == rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", &buf[5]);
 			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
@@ -1085,26 +1102,34 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			goto out;	/* oops - internal error */
 		}
 		attrib->attribute = vid_firstval;
+
+		if (test_vid != vid_firstval)
+			printf("ERR parsing mvrp_cmd_parse_vid\n");
+
 		memset(attrib->registrar.macaddr, 0, 6);
 
 		mvrp_event(MRP_EVENT_LV, attrib);
 		break;
 	case '+':
-		/* buf[] should look similar to 'V+?0001' where VID is in hex */
+		/* buf[] should look similar to 'V+?I:0001' where VID is in hex */
 		if (('?' != buf[2]) && ('+' != buf[2])) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
 			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
-		if (buflen < 7) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
+		if (buflen < 9) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP0 %s", buf);
 			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
-		rc = sscanf((char *)&buf[3], "%04x", &vid_firstval);
+		rc = mvrp_cmd_parse_vid(buf, buflen, &test_vid, &err_index);
+		if (rc)
+			printf("ERR mvrp_cmd_parse_vid\n");
+
+		rc = sscanf((char *)&buf[5], "%04x", &vid_firstval);
 
 		if (0 == rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP1 %s", &buf[5]);
 			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
@@ -1117,6 +1142,9 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		}
 		attrib->attribute = vid_firstval;
 		memset(attrib->registrar.macaddr, 0, 6);
+
+		if (test_vid != vid_firstval)
+			printf("ERR parsing mvrp_cmd_parse_vid\n");
 
 		if ('?' == buf[2]) {
 			mvrp_event(MRP_EVENT_JOIN, attrib);

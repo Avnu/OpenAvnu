@@ -232,23 +232,42 @@ main(int argc, char *argv[]) {
 	sprintf(msgbuf,"M++m010203040506");
 	rc = send_control_msg(msgbuf, 1500 );
 	
-	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"M++m060504030201");
-	rc = send_control_msg(msgbuf, 1500 );
 	
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"M++mffffffffffff");
 	rc = send_control_msg(msgbuf, 1500 );
 
-	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"M++s1");
-	rc = send_control_msg(msgbuf, 1500 );
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"V++0002");
 	rc = send_control_msg(msgbuf, 1500 );
 
 #endif
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"M++M:060504030201");
+	rc = send_control_msg(msgbuf, 1500 );
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"M++s:1");
+	rc = send_control_msg(msgbuf, 1500 );
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"M--M:060504030201");
+	rc = send_control_msg(msgbuf, 1500 );
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"M--S:1");
+	rc = send_control_msg(msgbuf, 1500 );
+
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"V++I:0002");
+	rc = send_control_msg(msgbuf, 1500 );
+
+	sprintf(msgbuf,"V--I:0002");
+	rc = send_control_msg(msgbuf, 1500 );
+
+
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S++S:DEADBEEFBADFCA11:A:112233445566:V:0002:Z:576:I:8000:P:96:L:1000");
 	rc = send_control_msg(msgbuf, 1500);
