@@ -37,6 +37,7 @@ enum parse_types {
 	parse_null,
 	parse_u8,	/* uint8_t v */
 	parse_u16,	/* uint16_t v */
+	parse_u16_04x,	/* uint16_t v as 0002 (hex string of 4 digits) */
 	parse_u32,	/* uint32_t v */
 	parse_u64,	/* uint64_t v */
 	parse_h64,	/* uint64_t v */
@@ -53,6 +54,6 @@ struct parse_param {
 	void *v;
 };
 
-int parse(const char *s, struct parse_param *specs, int *err_index);
+int parse(char *s, int len, struct parse_param *specs, int *err_index);
 
 #endif				/* PARSE_H_ */

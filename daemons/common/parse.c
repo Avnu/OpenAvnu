@@ -37,29 +37,34 @@
 
 #include "parse.h"
 
-int parse(const char *s, struct parse_param *specs, int *err_index)
+int parse(char *s, int len, struct parse_param *specs, int *err_index)
 {
 	int err = 0;
 	char *param;
 	char *data;
 	char *delimiter;
-	char *guard;
-	int v_int;
+	const char *guard;
 	unsigned int v_uint;
 	uint64_t v_uint64;
 	int result;
 	int count = 0;
 
+	/* make sure string is null terminated */
+	s[len-1] = 0;
 	guard = s + strlen(s);
 
 	while (specs->name && !err) {
 		param = strstr(s, specs->name);
+		if (NULL == param) {
+			*err_index = count + 1;
+			return -1;
+		}
 		data = param + strlen(specs->name);
 
 		/* temporarily terminate string at next delimiter */
 		delimiter = data;
 		while ((*delimiter != PARSE_DELIMITER) && (delimiter < guard))
-			*delimiter++;
+			delimiter++;
 		if (delimiter < guard)
 			*delimiter = 0;
 
@@ -70,6 +75,12 @@ int parse(const char *s, struct parse_param *specs, int *err_index)
 			result = sscanf(data, "%d", &v_uint);
 			if (result == 1)
 				*(uint8_t *) specs->v = (uint8_t) v_uint;
+			break;
+		case parse_u16_04x:
+			result = sscanf(data, "%04x", &v_uint);
+			if (result == 1)
+				*(uint16_t *) specs->v = (uint16_t) v_uint;
+			break;
 			break;
 		case parse_u16:
 			result = sscanf(data, "%d", &v_uint);
@@ -121,8 +132,10 @@ int parse(const char *s, struct parse_param *specs, int *err_index)
 			return -1;
 		}
 
-		if (delimiter < guard)
+		if (delimiter < guard) {
+			*delimiter = PARSE_DELIMITER;
 			s = delimiter + 1;
+		}
 		specs++;
 		count++;
 	}
