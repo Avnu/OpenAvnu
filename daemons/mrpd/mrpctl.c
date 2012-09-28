@@ -254,6 +254,11 @@ main(int argc, char *argv[]) {
 	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"S--S:DEADBEEFBADFCA11");
+	rc = send_control_msg(msgbuf, 1500);
+
+
+	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S++S:FFEEDDCCBBAA9988:A:112233445567:V:0002:Z:576:I:8000:P:96:L:1000");
 	rc = send_control_msg(msgbuf, 1500);
 
@@ -263,6 +268,18 @@ main(int argc, char *argv[]) {
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S+L:F00F00F00F00F000:D:2");
+	rc = send_control_msg(msgbuf, 1500);
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf, "S+D:C:6:P:3:V:0002");
+	rc = send_control_msg(msgbuf, 1500);
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf, "S-D:C:6:P:3:V:0002");
+	rc = send_control_msg(msgbuf, 1500);
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"S-L:F00F00F00F00F000");
 	rc = send_control_msg(msgbuf, 1500);
 
 	

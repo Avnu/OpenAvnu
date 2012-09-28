@@ -2358,7 +2358,7 @@ int msrp_dumptable(struct sockaddr_in *client)
 
 /* S+? - (re)JOIN a stream */
 /* S++ - NEW a stream      */
-int msrp_test_cmd_parse_join_or_new_stream(
+int msrp_cmd_parse_join_or_new_stream(
 		char *buf, int buflen,
 		struct msrpdu_talker_fail *talker_ad,
 		int *err_index
@@ -2413,7 +2413,7 @@ int msrp_cmd_join_or_new_stream(
 	return 0;
 }
 
-/* * S-- - LV a stream */
+/* S-- - LV a stream */
 int msrp_cmd_parse_leave_stream(
 		char *buf, int buflen,
 		struct msrpdu_talker_fail *talker_ad,
@@ -2498,8 +2498,7 @@ int msrp_cmd_parse_withdraw_listener_status(
 }
 
 int msrp_cmd_withdraw_listener_status(
-		struct msrpdu_talker_fail *talker_ad,
-		uint32_t substate
+		struct msrpdu_talker_fail *talker_ad
 )
 {
 	struct msrp_attribute *attrib;
@@ -2571,6 +2570,8 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	uint8_t macvec_parsestr[64];
 	unsigned vlan, size, interval, prio, latency;
 	int i;
+	unsigned int substate;
+	struct msrpdu_domain t0;
 	struct msrpdu_talker_fail t1;
 	int err_index;
 
@@ -2619,6 +2620,9 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 						  sizeof(respbuf));
 				goto out;
 			}
+			rc = msrp_cmd_parse_withdraw_listener_status(buf, buflen, &t1, &err_index);
+			if (rc)
+				printf("error msrp_cmd_parse_withdraw_listener_status\n");
 			/* buf[] should look similar to 'S-L:xxyyzz...' */
 			attrib = msrp_alloc();
 			if (NULL == attrib) {
@@ -2650,6 +2654,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			memcpy(attrib->attribute.talk_listen.StreamID,
 			       streamid_firstval, 8);
 			memset(attrib->registrar.macaddr, 0, 6);
+			if(0 == memcmp(&t1, &attrib->attribute.talk_listen, sizeof(t1)))
+				printf("S-L, old and new parse match\n");
+			else
+				printf("S-L, old and new parse DO NOT match\n");
 
 			msrp_event(MRP_EVENT_LV, attrib);
 			break;
@@ -2660,6 +2668,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 				goto out;
 			}
+			rc = msrp_cmd_parse_domain_status(buf, buflen, &t0, &err_index);
+			if (rc)
+				printf("error msrp_test_cmd_parse_domain_status\n");
+
 			/* buf[] should look similar to 'S-D:C:%d:P:%d:V:%04x" */
 			attrib = msrp_alloc();
 			if (NULL == attrib) {
@@ -2737,6 +2749,11 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 
 			memset(attrib->registrar.macaddr, 0, 6);
 
+			if(0 == memcmp(&t0, &attrib->attribute.domain, sizeof(t0)))
+				printf("S-D, old and new parse match\n");
+			else
+				printf("S-D, old and new parse DO NOT match\n");
+
 			msrp_event(MRP_EVENT_LV, attrib);
 			break;
 		case '-':
@@ -2751,6 +2768,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 						  sizeof(respbuf));
 				goto out;
 			}
+			rc = msrp_cmd_parse_leave_stream(buf, buflen, &t1, &err_index);
+			if (rc)
+				printf("error msrp_cmd_parse_leave_stream\n");
+
 			/* buf[] should look similar to 'S--S:xxyyzz...' */
 			attrib = msrp_alloc();
 			if (NULL == attrib) {
@@ -2782,6 +2803,11 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			       streamid_firstval, 8);
 			memset(attrib->registrar.macaddr, 0, 6);
 
+			if(0 == memcmp(&t1, &attrib->attribute.talk_listen, sizeof(t1)))
+				printf("S--, old and new parse match\n");
+			else
+				printf("S--, old and new parse DO NOT match\n");
+
 			msrp_event(MRP_EVENT_LV, attrib);
 			break;
 		default:
@@ -2807,6 +2833,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 						  sizeof(respbuf));
 				goto out;
 			}
+			rc = msrp_cmd_parse_report_listener_status(buf, buflen, &t1, &substate, &err_index);
+			if (rc)
+				printf("error msrp_cmd_parse_report_listener_status\n");
+
 			/* buf[] should look similar to 'S+L:xxyyzz...:D:a' */
 			attrib = msrp_alloc();
 			if (NULL == attrib) {
@@ -2850,6 +2880,11 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			}
 
 			memset(attrib->registrar.macaddr, 0, 6);
+			if((0 == memcmp(&t1, &attrib->attribute.talk_listen, sizeof(t1))) &&
+					(attrib->substate == substate))
+				printf("S+L, old and new parse match\n");
+			else
+				printf("S+L, old and new parse DO NOT match\n");
 
 			msrp_event(MRP_EVENT_JOIN, attrib);
 			break;
@@ -2861,6 +2896,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 						  sizeof(respbuf));
 				goto out;
 			}
+			rc = msrp_cmd_parse_domain_status(buf, buflen, &t0, &err_index);
+			if (rc)
+				printf("error msrp_cmd_parse_domain_status\n");
+
 			/* buf[] should look similar to 'S+D:C:%d:P:%d:V:%04x" */
 			attrib = msrp_alloc();
 			if (NULL == attrib) {
@@ -2937,6 +2976,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			}
 
 			memset(attrib->registrar.macaddr, 0, 6);
+			if(0 == memcmp(&t0, &attrib->attribute.domain, sizeof(t0)))
+				printf("S+D, old and new parse match\n");
+			else
+				printf("S+D, old and new parse DO NOT match\n");
 
 			msrp_event(MRP_EVENT_JOIN, attrib);
 			break;
@@ -2967,9 +3010,9 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			   ":P:%d" \
 			   ":L:%d" \
 			 */
-			rc = msrp_test_cmd_parse_join_or_new_stream(buf, buflen, &t1, &err_index);
+			rc = msrp_cmd_parse_join_or_new_stream(buf, buflen, &t1, &err_index);
 			if (rc)
-				printf("error 2\n");
+				printf("error msrp_cmd_parse_join_or_new_stream\n");
 
 			i = 0;
 
@@ -3208,9 +3251,9 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			    latency;
 
 			if(0 == memcmp(&t1, &attrib->attribute.talk_listen, sizeof(t1)))
-				printf("old and new parse match\n");
+				printf("S+? or S++, old and new parse match\n");
 			else
-				printf("old and new parse DO NOT match\n");
+				printf("S+? or S++, old and new parse DO NOT match\n");
 
 			if (join)
 				msrp_event(MRP_EVENT_JOIN, attrib);
