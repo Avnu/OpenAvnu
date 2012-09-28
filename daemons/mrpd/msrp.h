@@ -58,6 +58,7 @@ typedef struct msrpdu_listen {
 	uint8_t StreamID[8];	/* MSB bytes are talker MAC address */
 } msrpdu_listen_t;
 
+#if 0
 typedef struct msrpdu_talker_advertise {
 	uint8_t StreamID[8];
 	struct {
@@ -75,6 +76,7 @@ typedef struct msrpdu_talker_advertise {
 	 */
 	unsigned AccumulatedLatency;	/* unsigned 32 bit nsec latency */
 } msrpdu_talker_advertise_t;
+#endif
 
 typedef struct msrpdu_talker_fail {
 	uint8_t StreamID[8];
