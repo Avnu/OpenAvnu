@@ -14,7 +14,7 @@ mrpd: mrpd.o mvrp.o msrp.o mmrp.o mrp.o
 mrpctl: mrpctl.o
 
 %.o: %.c
-	gcc -c $(INCFLAGS) $(CFLAGS) -o $@  $<
+	$(CC) -c $(INCFLAGS) $(CFLAGS) -o $@  $<
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 

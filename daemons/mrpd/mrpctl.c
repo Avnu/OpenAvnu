@@ -68,9 +68,12 @@ init_local_ctl( void ) {
 	struct sockaddr_in	addr;
 	socklen_t addr_len;
 	int sock_fd = -1;
+	int sock_flags;
 
-	sock_fd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
+	sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sock_fd < 0) goto out;
+	sock_flags = fcntl(sock_fd, F_GETFL, 0);
+	fcntl(sock_fd, F_SETFL, sock_flags | O_NONBLOCK);
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
