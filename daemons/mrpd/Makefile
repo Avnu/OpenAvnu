@@ -1,6 +1,6 @@
 OPT=-O2
 #CFLAGS=$(OPT) -Wall -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -ggdb
-CFLAGS=$(OPT) -Wall -W -Wno-parentheses -ggdb
+CFLAGS=$(OPT) -Wall -W -Wno-parentheses -ggdb -D_GNU_SOURCE
 
 CC=gcc
 #INCFLAGS=-I../lib
