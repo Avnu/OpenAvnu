@@ -2599,6 +2599,14 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	 * S+D   Report a domain status
 	 * S-D   Withdraw a domain status
 	 */
+
+	/*
+	if (strncmp(buf, "S??", 3)==0) {
+		msrp_dumptable(client);
+
+	}
+	*/
+
 	switch (buf[1]) {
 	case '?':
 		msrp_dumptable(client);
