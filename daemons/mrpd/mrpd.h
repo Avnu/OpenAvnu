@@ -84,7 +84,7 @@ typedef struct eth_hdr {
 typedef struct mrpdu_message {
 	uint8_t AttributeType;
 	uint8_t AttributeLength;	/* length of FirstValue */
-	uint8_t      Data[0];
+	uint8_t Data[0];
 	/*
 	 * parsing of the data field is application specific - either
 	 * a ushort with an attribute list length followed by vector

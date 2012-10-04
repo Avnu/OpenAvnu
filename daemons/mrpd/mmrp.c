@@ -460,8 +460,7 @@ int mmrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->
-							  VectorHeader));
+							 (mrpdu_vectorptr->VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -485,8 +484,8 @@ int mmrp_recv_msg()
 				     vectidx <= (numvectorbytes + 1);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->
-					    FirstValue_VectorEvents[vectidx];
+					    mrpdu_vectorptr->FirstValue_VectorEvents
+					    [vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -512,9 +511,9 @@ int mmrp_recv_msg()
 						attrib->attribute.svcreq =
 						    svcreq_firstval;
 						svcreq_firstval++;
-						memcpy(attrib->registrar.
-						       macaddr, eth->srcaddr,
-						       6);
+						memcpy(attrib->
+						       registrar.macaddr,
+						       eth->srcaddr, 6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -588,8 +587,7 @@ int mmrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->
-							  VectorHeader));
+							 (mrpdu_vectorptr->VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -614,8 +612,8 @@ int mmrp_recv_msg()
 				     vectidx <= (numvectorbytes + 6);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->
-					    FirstValue_VectorEvents[vectidx];
+					    mrpdu_vectorptr->FirstValue_VectorEvents
+					    [vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -635,15 +633,15 @@ int mmrp_recv_msg()
 							goto out;	/* oops - internal error */
 
 						attrib->type = MMRP_MACVEC_TYPE;
-						memcpy(attrib->attribute.
-						       macaddr, macvec_firstval,
-						       6);
+						memcpy(attrib->
+						       attribute.macaddr,
+						       macvec_firstval, 6);
 						mmrp_increment_macaddr
 						    (macvec_firstval);
 
-						memcpy(attrib->registrar.
-						       macaddr, eth->srcaddr,
-						       6);
+						memcpy(attrib->
+						       registrar.macaddr,
+						       eth->srcaddr, 6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -1463,11 +1461,7 @@ int mmrp_dumptable(struct sockaddr_in *client)
 
 }
 
-int mmrp_cmd_parse_mac(
-		char *buf, int buflen,
-		uint8_t * mac,
-		int * err_index
-)
+int mmrp_cmd_parse_mac(char *buf, int buflen, uint8_t * mac, int *err_index)
 {
 	struct parse_param specs[] = {
 		{"M" PARSE_ASSIGN, parse_mac, mac},
@@ -1478,9 +1472,8 @@ int mmrp_cmd_parse_mac(
 	memset(mac, 0, 6);
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
-int mmrp_cmd_mac(
-		uint8_t * mac,
-		int mrp_event)
+
+int mmrp_cmd_mac(uint8_t * mac, int mrp_event)
 {
 	struct mmrp_attribute *attrib;
 	attrib = mmrp_alloc();
@@ -1491,11 +1484,9 @@ int mmrp_cmd_mac(
 	mmrp_event(mrp_event, attrib);
 	return 0;
 }
-int mmrp_cmd_parse_service(
-		char *buf, int buflen,
-		uint8_t * service,
-		int * err_index
-)
+
+int mmrp_cmd_parse_service(char *buf, int buflen,
+			   uint8_t * service, int *err_index)
 {
 	struct parse_param specs[] = {
 		{"S" PARSE_ASSIGN, parse_u8, service},
@@ -1507,9 +1498,7 @@ int mmrp_cmd_parse_service(
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
-int mmrp_cmd_service(
-		uint8_t service,
-		int mrp_event)
+int mmrp_cmd_service(uint8_t service, int mrp_event)
 {
 	struct mmrp_attribute *attrib;
 	attrib = mmrp_alloc();
@@ -1553,40 +1542,39 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		mmrp_dumptable(client);
 	} else if (strncmp(buf, "M--:S", 5) == 0) {
 		rc = mmrp_cmd_parse_service(buf, buflen, &svcreq_param,
-				&err_index);
+					    &err_index);
 		if (rc)
 			goto out_ERP;
 		rc = mmrp_cmd_service(svcreq_param, MRP_EVENT_LV);
 		if (rc)
 			goto out_ERI;
-	} else if ( strncmp(buf, "M--:M", 5) == 0) {
+	} else if (strncmp(buf, "M--:M", 5) == 0) {
 		/*
 		 * XXX note could also register VID with mac address if we ever wanted to
 		 * support more than one Spanning Tree context
 		 */
 
 		/* buf[] should look similar to 'M--:M=010203040506' */
-		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param,
-				&err_index);
+		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param, &err_index);
 		if (rc)
 			goto out_ERP;
 		rc = mmrp_cmd_mac(macvec_param, MRP_EVENT_LV);
 		if (rc)
 			goto out_ERI;
-	} else if ((strncmp(buf, "M++:S", 5) == 0) || (strncmp(buf, "M+?S", 4) == 0)){
+	} else if ((strncmp(buf, "M++:S", 5) == 0)
+		   || (strncmp(buf, "M+?S", 4) == 0)) {
 		/* buf[] should look similar to 'M+?:S=1' or 'M++:S=1'
 		 */
 		rc = mmrp_cmd_parse_service(buf, buflen, &svcreq_param,
-				&err_index);
+					    &err_index);
 		if (rc)
 			goto out_ERP;
 		rc = mmrp_cmd_service(svcreq_param, MRP_EVENT_JOIN);
 		if (rc)
 			goto out_ERI;
-	} else if ( strncmp(buf, "M++:M", 5) == 0) {
+	} else if (strncmp(buf, "M++:M", 5) == 0) {
 		/* buf[] should look similar to 'M+?:M=010203040506' */
-		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param,
-				&err_index);
+		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param, &err_index);
 		if (rc)
 			goto out_ERP;
 		rc = mmrp_cmd_mac(macvec_param, MRP_EVENT_JOIN);
@@ -1599,13 +1587,12 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	}
 	return 0;
 
-
-out_ERI:
+ out_ERI:
 	snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
 	mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 	goto out;
 
-out_ERP:
+ out_ERP:
 	snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
 	mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 	goto out;

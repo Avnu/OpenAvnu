@@ -232,7 +232,8 @@ mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 		return 0;
 
 	if (logging_enable)
-		printf("CTL MSG:%s to CLNT %d\n", notify_data, client_addr->sin_port);
+		printf("CTL MSG:%s to CLNT %d\n", notify_data,
+		       client_addr->sin_port);
 
 	rc = sendto(control_socket, notify_data, notify_len,
 		    0, (struct sockaddr *)client_addr, sizeof(struct sockaddr));

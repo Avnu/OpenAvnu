@@ -418,8 +418,7 @@ int mvrp_recv_msg(void)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->
-							  VectorHeader));
+							 (mrpdu_vectorptr->VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -431,11 +430,10 @@ int mvrp_recv_msg(void)
 					goto out;
 
 				vid_firstval = (((uint16_t)
-						 mrpdu_vectorptr->
-						 FirstValue_VectorEvents[0]) <<
-						8)
-				    | mrpdu_vectorptr->
-				    FirstValue_VectorEvents[1];
+						 mrpdu_vectorptr->FirstValue_VectorEvents
+						 [0]) << 8)
+				    |
+				    mrpdu_vectorptr->FirstValue_VectorEvents[1];
 
 				/* if not an even multiple ... */
 				if (numvalues != ((numvalues / 3) * 3))
@@ -447,8 +445,8 @@ int mvrp_recv_msg(void)
 				     vectidx <= (numvectorbytes + 2);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->
-					    FirstValue_VectorEvents[vectidx];
+					    mrpdu_vectorptr->FirstValue_VectorEvents
+					    [vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -473,9 +471,9 @@ int mvrp_recv_msg(void)
 						attrib->attribute =
 						    vid_firstval;
 						vid_firstval++;
-						memcpy(attrib->registrar.
-						       macaddr, eth->srcaddr,
-						       6);
+						memcpy(attrib->
+						       registrar.macaddr,
+						       eth->srcaddr, 6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -1026,11 +1024,8 @@ int mvrp_dumptable(struct sockaddr_in *client)
 }
 
 /* S-L   Withdraw a listener status */
-int mvrp_cmd_parse_vid(
-		char *buf, int buflen,
-		uint16_t * attribute,
-		int * err_index
-)
+int mvrp_cmd_parse_vid(char *buf, int buflen,
+		       uint16_t * attribute, int *err_index)
 {
 	struct parse_param specs[] = {
 		{"I" PARSE_ASSIGN, parse_u16_04x, attribute},
@@ -1091,7 +1086,8 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		rc = mvrp_cmd_vid(vid_param, MRP_EVENT_LV);
 		if (rc)
 			goto out_ERI;
-	} else if ((strncmp(buf, "V++", 3) == 0) || (strncmp(buf, "V+?", 3) == 0)){
+	} else if ((strncmp(buf, "V++", 3) == 0)
+		   || (strncmp(buf, "V+?", 3) == 0)) {
 		rc = mvrp_cmd_parse_vid(buf, buflen, &vid_param, &err_index);
 		if (rc)
 			goto out_ERP;
@@ -1110,12 +1106,12 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	}
 	return 0;
 
-out_ERI:
+ out_ERI:
 	snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
 	mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 	goto out;
 
-out_ERP:
+ out_ERP:
 	snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
 	mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 	goto out;
