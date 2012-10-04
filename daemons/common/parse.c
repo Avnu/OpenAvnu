@@ -37,6 +37,12 @@
 
 #include "parse.h"
 
+#if 0
+#define parse_log(a,b) printf(a,b)
+#else
+#define parse_log(a,b)
+#endif
+
 int parse(char *s, int len, struct parse_param *specs, int *err_index)
 {
 	int err = 0;
@@ -53,10 +59,13 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 	s[len-1] = 0;
 	guard = s + strlen(s);
 
+	parse_log("PARSE: %s\n", s);
+
 	while (specs->name && !err) {
 		param = strstr(s, specs->name);
 		if (NULL == param) {
 			*err_index = count + 1;
+			parse_log("PARSE: ERROR - could not find %s\n", specs->name);
 			return -1;
 		}
 		data = param + strlen(specs->name);
@@ -73,34 +82,51 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 			break;
 		case parse_u8:
 			result = sscanf(data, "%d", &v_uint);
-			if (result == 1)
+			if (result == 1) {
 				*(uint8_t *) specs->v = (uint8_t) v_uint;
+			} else {
+				parse_log("PARSE: ERROR - parse_u8 %s\n", data);
+			}
 			break;
 		case parse_u16_04x:
 			result = sscanf(data, "%04x", &v_uint);
-			if (result == 1)
+			if (result == 1) {
 				*(uint16_t *) specs->v = (uint16_t) v_uint;
-			break;
+			} else {
+				parse_log("PARSE: ERROR - parse_u16_04x %s\n", data);
+			}
 			break;
 		case parse_u16:
 			result = sscanf(data, "%d", &v_uint);
-			if (result == 1)
+			if (result == 1) {
 				*(uint16_t *) specs->v = (uint16_t) v_uint;
+			} else {
+				parse_log("PARSE: ERROR - parse_u16 %s\n", data);
+			}
 			break;
 		case parse_u32:
 			result = sscanf(data, "%d", &v_uint);
-			if (result == 1)
+			if (result == 1) {
 				*(uint32_t *) specs->v = v_uint;
+			} else {
+				parse_log("PARSE: ERROR - parse_u32 %s\n", data);
+			}
 			break;
 		case parse_u64:
 			result = sscanf(data, "%" SCNu64, &v_uint64);
-			if (result == 1)
+			if (result == 1) {
 				*(uint64_t *) specs->v = v_uint64;
+			} else {
+				parse_log("PARSE: ERROR - parse_h64 %s\n", data);
+			}
 			break;
 		case parse_h64:
 			result = sscanf(data, "%" SCNx64, &v_uint64);
-			if (result == 1)
+			if (result == 1) {
 				*(uint64_t *) specs->v = v_uint64;
+			} else {
+				parse_log("PARSE: ERROR - parse_h64 %s\n", data);
+			}
 			break;
 		case parse_c64:
 			/* read as uint64_t, then unpack to array */
@@ -112,6 +138,8 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 					int shift = (7 - i) * 8;
 					p[i] = (uint8_t) (v_uint64 >> shift);
 				}
+			} else {
+				parse_log("PARSE: ERROR - parse_c64 %s\n", data);
 			}
 			break;
 		case parse_mac:
@@ -124,6 +152,8 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 					int shift = (5 - i) * 8;
 					p[i] = (uint8_t) (v_uint64 >> shift);
 				}
+			} else {
+				parse_log("PARSE: ERROR - parse_mac %s\n", data);
 			}
 			break;
 		}
