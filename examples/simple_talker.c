@@ -161,7 +161,7 @@ int mrp_register_domain(int *class_id, int *priority, u_int16_t *vid) {
 		return -1;
 
 	memset(msgbuf,0,64);
-	sprintf(msgbuf,"S+D:C:%d:P:%d:V:%04x",
+	sprintf(msgbuf,"S+D:C=%d,P=%d,V=%04x",
 			*class_id,
 			*priority,
 			*vid);
@@ -277,12 +277,12 @@ next_line:
 		i = k;
 		while (buf[i] != 'D') 
 			i++;
-		i+=2; /* skip the ':' */
+		i+=2; /* skip the '=' */
 		sscanf(&(buf[i]),"%d",&substate);
 
 		while (buf[i] != 'S') 
 			i++;
-		i+=2; /* skip the ':' */
+		i+=2; /* skip the '=' */
 
 		for (j = 0; j < 8; j++) {
 			sscanf(&(buf[i+2*j]),"%02x",&id);
@@ -345,11 +345,11 @@ next_line:
 		sscanf(&(buf[i]),"%d",&id);
 		while (buf[i] != 'P') 
 			i++;
-		i+=2; /* skip the ':' */
+		i+=2; /* skip the '=' */
 		sscanf(&(buf[i]),"%d",&priority);
 		while (buf[i] != 'V') 
 			i++;
-		i+=2; /* skip the ':' */
+		i+=2; /* skip the '=' */
 		sscanf(&(buf[i]),"%x",&vid);
 		if (id == 6) {
 			domain_class_a_id = id;
@@ -392,12 +392,12 @@ next_line:
 			i = k+5;
 			while (buf[i] != 'D') 
 				i++;
-			i+=2; /* skip the ':' */
+			i+=2; /* skip the '=' */
 			sscanf(&(buf[i]),"%d",&substate);
 	
 			while (buf[i] != 'S') 
 				i++;
-			i+=2; /* skip the ':' */
+			i+=2; /* skip the '=' */
 	
 			for (j = 0; j < 8; j++) {
 				sscanf(&(buf[i+2*j]),"%02x",&id);
@@ -540,8 +540,8 @@ mrp_join_listener(uint8_t *streamid) {
 		return -1;
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S+L:%02X%02X%02X%02X%02X%02X%02X%02X"
-			":D:2",
+	sprintf(msgbuf,"S+L:L=%02X%02X%02X%02X%02X%02X%02X%02X"
+			",D=2",
 			streamid[0],
 			streamid[1],
 			streamid[2],
@@ -575,13 +575,13 @@ mrp_advertise_stream(
 		return -1;
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S++S:%02X%02X%02X%02X%02X%02X%02X%02X"
-			":A:%02X%02X%02X%02X%02X%02X"
-			":V:%04X"
-			":Z:%d"
-			":I:%d"
-			":P:%d"
-			":L:%d",
+	sprintf(msgbuf,"S++:S=%02X%02X%02X%02X%02X%02X%02X%02X"
+			",A=%02X%02X%02X%02X%02X%02X"
+			",V=%04X"
+			",Z=%d"
+			",I=%d"
+			",P=%d"
+			",L=%d",
 			streamid[0],
 			streamid[1],
 			streamid[2],
@@ -626,13 +626,13 @@ mrp_unadvertise_stream(
 		return -1;
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S--S:%02X%02X%02X%02X%02X%02X%02X%02X"
-			":A:%02X%02X%02X%02X%02X%02X"
-			":V:%04X"
-			":Z:%d"
-			":I:%d"
-			":P:%d"
-			":L:%d",
+	sprintf(msgbuf,"S--:S=%02X%02X%02X%02X%02X%02X%02X%02X"
+			",A=%02X%02X%02X%02X%02X%02X"
+			",V=%04X"
+			",Z=%d"
+			",I=%d"
+			",P=%d"
+			",L=%d",
 			streamid[0],
 			streamid[1],
 			streamid[2],
@@ -926,7 +926,7 @@ main(int argc, char *argv[]) {
 		 * you get pre-empted between fetching the time
 		 * and programming the packet and get a late packet
 		 */
-		tmp_packet->attime = last_time + PACKET_IPG;
+		tmp_packet->attime = tmp_packet->attime + PACKET_IPG;
 		*(u_int64_t *)(tmp_packet->vaddr + 32) = tmp_packet->attime;
 		err = igb_xmit(&igb_dev, 0, tmp_packet);
 

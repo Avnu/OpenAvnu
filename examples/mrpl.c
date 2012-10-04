@@ -148,15 +148,15 @@ int main(int argc, char *argv[])
 	msgbuf = malloc(1500);
 
 	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "S+D:C:6:P:3:V:0002");
+	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
 
 	rc = mprdclient_sendto(msgbuf, 1500);
 
 	memset(msgbuf, 0, 1500);
 	if (leave)
-		sprintf(msgbuf, "S-L:A0369F022EEE0000:D:2");
+		sprintf(msgbuf, "S-L:L=A0369F022EEE0000,D=2");
 	else
-		sprintf(msgbuf, "S+L:A0369F022EEE0000:D:2");
+		sprintf(msgbuf, "S+L:L=A0369F022EEE0000,D=2");
 
 	rc = mprdclient_sendto(msgbuf, 1500);
 
