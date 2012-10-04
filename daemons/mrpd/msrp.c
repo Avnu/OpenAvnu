@@ -2108,7 +2108,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 	memset(msgbuf, 0, MAX_MRPD_CMDSZ);
 
 	if (MSRP_LISTENER_TYPE == attrib->type) {
-		sprintf(variant, "L:D:%d:S:%02x%02x%02x%02x%02x%02x%02x%02x",
+		sprintf(variant, "L:D=%d,S=%02x%02x%02x%02x%02x%02x%02x%02x",
 			attrib->substate,
 			attrib->attribute.talk_listen.StreamID[0],
 			attrib->attribute.talk_listen.StreamID[1],
@@ -2119,20 +2119,20 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			attrib->attribute.talk_listen.StreamID[6],
 			attrib->attribute.talk_listen.StreamID[7]);
 	} else if (MSRP_DOMAIN_TYPE == attrib->type) {
-		sprintf(variant, "D:C:%d:P:%d:V:%04x",
+		sprintf(variant, "D:C=%d,P=%d,V=%04x",
 			attrib->attribute.domain.SRclassID,
 			attrib->attribute.domain.SRclassPriority,
 			attrib->attribute.domain.SRclassVID);
 	} else {
-		sprintf(variant, "T:S:%02x%02x%02x%02x%02x%02x%02x%02x"
-			":A:%02x%02x%02x%02x%02x%02x"
-			":V:%04x"
-			":Z:%d"
-			":I:%d"
-			":P:%d"
-			":L:%d"
-			":B:%02x%02x%02x%02x%02x%02x%02x%02x"
-			":C:%d",
+		sprintf(variant, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
+			",A=%02x%02x%02x%02x%02x%02x"
+			",V=%04x"
+			",Z=%d"
+			",I=%d"
+			",P=%d"
+			",L=%d"
+			",B=%02x%02x%02x%02x%02x%02x%02x%02x"
+			",C=%d",
 			attrib->attribute.talk_listen.StreamID[0],
 			attrib->attribute.talk_listen.StreamID[1],
 			attrib->attribute.talk_listen.StreamID[2],
@@ -2179,7 +2179,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			FailureCode);
 	}
 
-	sprintf(regsrc, "R%02x%02x%02x%02x%02x%02x",
+	sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
 		attrib->registrar.macaddr[0],
 		attrib->registrar.macaddr[1],
 		attrib->registrar.macaddr[2],

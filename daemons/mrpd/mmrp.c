@@ -1414,7 +1414,7 @@ int mmrp_dumptable(struct sockaddr_in *client)
 
 	while (NULL != attrib) {
 		if (MMRP_SVCREQ_TYPE == attrib->type) {
-			sprintf(variant, "S%d", attrib->attribute.svcreq);
+			sprintf(variant, "S=%d", attrib->attribute.svcreq);
 		} else {
 			sprintf(variant, "M=%02x%02x%02x%02x%02x%02x",
 				attrib->attribute.macaddr[0],
