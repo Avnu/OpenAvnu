@@ -479,10 +479,10 @@ int msrp_recv_msg()
 
 	/*
 	 * ProtocolVersion handling - a receiver must process received frames with a lesser
-	 * protcol version consistent with the older protocol processing requirements (e.g. a V2
-	 * agent receives a V1 message, the V1 message shoudl be parsed with V1 rules).
+	 * protocol version consistent with the older protocol processing requirements (e.g. a V2
+	 * agent receives a V1 message, the V1 message should be parsed with V1 rules).
 	 *
-	 * However - if an agent receives a NEWER protocol, the agent shoudl still attempt
+	 * However - if an agent receives a NEWER protocol, the agent should still attempt
 	 * to parse the frame. If the agent finds an AttributeType not recognized
 	 * the agent discards the current message including any associated trailing vectors
 	 * up to the end-mark, and resumes with the next message or until the end of the PDU
@@ -726,8 +726,7 @@ int msrp_recv_msg()
 
 				if (&
 				    (mrpdu_vectorptr->FirstValue_VectorEvents
-				     [listener_endbyte])
->= mrpdu_msg_eof)
+				     [listener_endbyte]) >= mrpdu_msg_eof)
 					goto out;
 
 				if (NULL == listener_vectevt) {
@@ -2604,7 +2603,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 
 	} else if (strncmp(buf, "S-L", 3) == 0) {
 
-		/* buf[] should look similar to 'S-L:xxyyzz...' */
+		/* buf[] should look similar to 'S-L:L=xxyyzz...' */
 		rc = msrp_cmd_parse_withdraw_listener_status(buf, buflen, &talker_param, &err_index);
 		if (rc)
 			goto out_ERP;
@@ -2613,7 +2612,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			goto out_ERI;	/* oops - internal error */
 	} else if (strncmp(buf, "S-D", 3) == 0) {
 
-		/* buf[] should look similar to 'S-D:C:%d:P:%d:V:%04x" */
+		/* buf[] should look similar to 'S-D:C=%d,P=%d,V:%04x" */
 		rc = msrp_cmd_parse_domain_status(buf, buflen, &domain_param, &err_index);
 		if (rc)
 			goto out_ERP;
@@ -2621,7 +2620,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		if (rc)
 			goto out_ERI;	/* oops - internal error */
 	} else if (strncmp(buf, "S--", 3) == 0) {
-		/* buf[] should look similar to 'S--S:xxyyzz...' */
+		/* buf[] should look similar to 'S--:S=xxyyzz...' */
 		rc = msrp_cmd_parse_leave_stream(buf, buflen, &talker_param, &err_index);
 		if (rc)
 			goto out_ERP;
@@ -2629,7 +2628,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		if (rc)
 			goto out_ERI;	/* oops - internal error */
 	} else if (strncmp(buf, "S+L", 3) == 0) {
-		/* buf[] should look similar to 'S+L:L:xxyyzz...:D:a' */
+		/* buf[] should look similar to 'S+L:L=xxyyzz...:D=a' */
 		rc = msrp_cmd_parse_report_listener_status(buf, buflen, &talker_param, &substate, &err_index);
 		if (rc)
 			goto out_ERP;
@@ -2637,7 +2636,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		if (rc)
 			goto out_ERI;	/* oops - internal error */
 	} else if (strncmp(buf, "S+D", 3) == 0) {
-		/* buf[] should look similar to 'S+D:C:%d:P:%d:V:%04x" */
+		/* buf[] should look similar to 'S+D:C=%d,P=%d,V=%04x" */
 		rc = msrp_cmd_parse_domain_status(buf, buflen, &domain_param, &err_index);
 		if (rc)
 			goto out_ERP;

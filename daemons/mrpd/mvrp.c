@@ -351,10 +351,10 @@ int mvrp_recv_msg(void)
 
 	/*
 	 * ProtocolVersion handling - a receiver must process received frames with a lesser
-	 * protcol version consistent with the older protocol processing requirements (e.g. a V2
-	 * agent receives a V1 message, the V1 message shoudl be parsed with V1 rules).
+	 * protocol version consistent with the older protocol processing requirements (e.g. a V2
+	 * agent receives a V1 message, the V1 message should be parsed with V1 rules).
 	 *
-	 * However - if an agent receives a NEWER protocol, the agent shoudl still attempt
+	 * However - if an agent receives a NEWER protocol, the agent should still attempt
 	 * to parse the frame. If the agent finds an AttributeType not recognized
 	 * the agent discards the current message including any associated trailing vectors
 	 * up to the end-mark, and resumes with the next message or until the end of the PDU
@@ -796,10 +796,10 @@ int mvrp_txpdu(void)
 
 	/*
 	 * ProtocolVersion handling - a receiver must process received frames with a lesser
-	 * protcol version consistent with the older protocol processing requirements (e.g. a V2
-	 * agent receives a V1 message, the V1 message shoudl be parsed with V1 rules).
+	 * protocol version consistent with the older protocol processing requirements (e.g. a V2
+	 * agent receives a V1 message, the V1 message should be parsed with V1 rules).
 	 *
-	 * However - if an agent receives a NEWER protocol, the agent shoudl still attempt
+	 * However - if an agent receives a NEWER protocol, the agent should still attempt
 	 * to parse the frame. If the agent finds an AttributeType not recognized
 	 * the agent discards the current message including any associated trailing vectors
 	 * up to the end-mark, and resumes with the next message or until the end of the PDU
