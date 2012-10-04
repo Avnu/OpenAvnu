@@ -229,76 +229,76 @@ main(int argc, char *argv[]) {
 	}
 #ifdef XXX
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"M++m010203040506");
+	sprintf(msgbuf,"M++:M=010203040506");
 	rc = send_control_msg(msgbuf, 1500 );
 	
 	
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"M++mffffffffffff");
+	sprintf(msgbuf,"M++:M=ffffffffffff");
 	rc = send_control_msg(msgbuf, 1500 );
 
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"V++0002");
+	sprintf(msgbuf,"V++:I=0002");
 	rc = send_control_msg(msgbuf, 1500 );
 
 #endif
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"M++M:060504030201");
+	sprintf(msgbuf,"M++:M=060504030201");
 	rc = send_control_msg(msgbuf, 1500 );
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"M++s:1");
+	sprintf(msgbuf,"M++:S=1");
 	rc = send_control_msg(msgbuf, 1500 );
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"M--M:060504030201");
+	sprintf(msgbuf,"M--:M=060504030201");
 	rc = send_control_msg(msgbuf, 1500 );
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"M--S:1");
-	rc = send_control_msg(msgbuf, 1500 );
-
-
-	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"V++I:0002");
-	rc = send_control_msg(msgbuf, 1500 );
-
-	sprintf(msgbuf,"V--I:0002");
+	sprintf(msgbuf,"M--:S=1");
 	rc = send_control_msg(msgbuf, 1500 );
 
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S++S:DEADBEEFBADFCA11:A:112233445566:V:0002:Z:576:I:8000:P:96:L:1000");
+	sprintf(msgbuf,"V++:I=0002");
+	rc = send_control_msg(msgbuf, 1500 );
+
+	sprintf(msgbuf,"V--:I=0002");
+	rc = send_control_msg(msgbuf, 1500 );
+
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"S++:S=DEADBEEFBADFCA11,A=112233445566,V=0002,Z=576,I=8000,P=96,L=1000");
 	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S--S:DEADBEEFBADFCA11");
+	sprintf(msgbuf,"S--:S=DEADBEEFBADFCA11");
 	rc = send_control_msg(msgbuf, 1500);
 
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S++S:FFEEDDCCBBAA9988:A:112233445567:V:0002:Z:576:I:8000:P:96:L:1000");
+	sprintf(msgbuf,"S++:S=FFEEDDCCBBAA9988,A=112233445567,V=0002,Z=576,I=8000,P=96,L=1000");
 	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S+L:DEADBEEFBADFCA11:D:2");
+	sprintf(msgbuf,"S+L:L=DEADBEEFBADFCA11,D=2");
 	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S+L:F00F00F00F00F000:D:2");
+	sprintf(msgbuf,"S+L:L=F00F00F00F00F000,D=2");
 	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf, "S+D:C:6:P:3:V:0002");
+	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
 	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf, "S-D:C:6:P:3:V:0002");
+	sprintf(msgbuf, "S-D:C=6,P=3,V=0002");
 	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S-L:F00F00F00F00F000");
+	sprintf(msgbuf,"S-L:L=F00F00F00F00F000");
 	rc = send_control_msg(msgbuf, 1500);
 
 	

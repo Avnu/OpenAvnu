@@ -1416,7 +1416,7 @@ int mmrp_dumptable(struct sockaddr_in *client)
 		if (MMRP_SVCREQ_TYPE == attrib->type) {
 			sprintf(variant, "S%d", attrib->attribute.svcreq);
 		} else {
-			sprintf(variant, "M%02x%02x%02x%02x%02x%02x",
+			sprintf(variant, "M=%02x%02x%02x%02x%02x%02x",
 				attrib->attribute.macaddr[0],
 				attrib->attribute.macaddr[1],
 				attrib->attribute.macaddr[2],
@@ -1424,7 +1424,7 @@ int mmrp_dumptable(struct sockaddr_in *client)
 				attrib->attribute.macaddr[4],
 				attrib->attribute.macaddr[5]);
 		}
-		sprintf(regsrc, "R%02x%02x%02x%02x%02x%02x",
+		sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
 			attrib->registrar.macaddr[0],
 			attrib->registrar.macaddr[1],
 			attrib->registrar.macaddr[2],
@@ -1476,9 +1476,21 @@ int mmrp_cmd_parse_mac(
 	if (buflen < 17)
 		return -1;
 	memset(mac, 0, 6);
-	return parse(buf + 3, buflen - 3, specs, err_index);
+	return parse(buf + 4, buflen - 4, specs, err_index);
 }
-
+int mmrp_cmd_mac(
+		uint8_t * mac,
+		int mrp_event)
+{
+	struct mmrp_attribute *attrib;
+	attrib = mmrp_alloc();
+	if (NULL == attrib)
+		return -1;
+	attrib->type = MMRP_MACVEC_TYPE;
+	memcpy(attrib->attribute.macaddr, mac, 6);
+	mmrp_event(mrp_event, attrib);
+	return 0;
+}
 int mmrp_cmd_parse_service(
 		char *buf, int buflen,
 		uint8_t * service,
@@ -1492,16 +1504,28 @@ int mmrp_cmd_parse_service(
 	*service = 0;
 	if (buflen < 5)
 		return -1;
-	return parse(buf + 3, buflen - 3, specs, err_index);
+	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
+int mmrp_cmd_service(
+		uint8_t service,
+		int mrp_event)
+{
+	struct mmrp_attribute *attrib;
+	attrib = mmrp_alloc();
+	if (NULL == attrib)
+		return -1;
+	attrib->type = MMRP_SVCREQ_TYPE;
+	attrib->attribute.svcreq = service;
+	mmrp_event(mrp_event, attrib);
+	return 0;
+}
 
 int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
 	int err_index;
 	char respbuf[8];
-	struct mmrp_attribute *attrib;
 	uint8_t svcreq_param;
 	uint8_t macvec_param[6];
 
@@ -1527,106 +1551,65 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	 */
 	if (strncmp(buf, "M??", 3) == 0) {
 		mmrp_dumptable(client);
-	} else if (strncmp(buf, "M--S", 4) == 0) {
+	} else if (strncmp(buf, "M--:S", 5) == 0) {
 		rc = mmrp_cmd_parse_service(buf, buflen, &svcreq_param,
 				&err_index);
-		if (rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-				 buf);
-			mrpd_send_ctl_msg(client, respbuf,
-					  sizeof(respbuf));
-			goto out;
-		}
-		attrib = mmrp_alloc();
-		if (NULL == attrib) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-				 buf);
-			mrpd_send_ctl_msg(client, respbuf,
-					  sizeof(respbuf));
-			goto out;	/* oops - internal error */
-		}
-		attrib->type = MMRP_SVCREQ_TYPE;
-		attrib->attribute.svcreq = svcreq_param;
-		mmrp_event(MRP_EVENT_LV, attrib);
-	} else if ( strncmp(buf, "M--M", 4) == 0) {
+		if (rc)
+			goto out_ERP;
+		rc = mmrp_cmd_service(svcreq_param, MRP_EVENT_LV);
+		if (rc)
+			goto out_ERI;
+	} else if ( strncmp(buf, "M--:M", 5) == 0) {
 		/*
 		 * XXX note could also register VID with mac address if we ever wanted to
 		 * support more than one Spanning Tree context
 		 */
 
-		/* buf[] should look similar to 'M--M:010203040506' */
+		/* buf[] should look similar to 'M--:M=010203040506' */
 		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param,
 				&err_index);
-		if (rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-				 buf);
-			mrpd_send_ctl_msg(client, respbuf,
-					  sizeof(respbuf));
-			goto out;
-		}
-		attrib = mmrp_alloc();
-		if (NULL == attrib) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-				 buf);
-			mrpd_send_ctl_msg(client, respbuf,
-					  sizeof(respbuf));
-			goto out;	/* oops - internal error */
-		}
-		attrib->type = MMRP_MACVEC_TYPE;
-		memcpy(attrib->attribute.macaddr, macvec_param, 6);
-		mmrp_event(MRP_EVENT_LV, attrib);
-	} else if ((strncmp(buf, "M++S", 4) == 0) || (strncmp(buf, "M+?S", 4) == 0)){
-		/* buf[] should look similar to 'M+?s:1' or 'M++s:1'
+		if (rc)
+			goto out_ERP;
+		rc = mmrp_cmd_mac(macvec_param, MRP_EVENT_LV);
+		if (rc)
+			goto out_ERI;
+	} else if ((strncmp(buf, "M++:S", 5) == 0) || (strncmp(buf, "M+?S", 4) == 0)){
+		/* buf[] should look similar to 'M+?:S=1' or 'M++:S=1'
 		 */
 		rc = mmrp_cmd_parse_service(buf, buflen, &svcreq_param,
 				&err_index);
-		if (rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-				 buf);
-			mrpd_send_ctl_msg(client, respbuf,
-					  sizeof(respbuf));
-			goto out;
-		}
-		attrib = mmrp_alloc();
-		if (NULL == attrib) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-				 buf);
-			mrpd_send_ctl_msg(client, respbuf,
-					  sizeof(respbuf));
-			goto out;	/* oops - internal error */
-		}
-		attrib->type = MMRP_SVCREQ_TYPE;
-		attrib->attribute.svcreq = svcreq_param;
-		mmrp_event(MRP_EVENT_JOIN, attrib);
-	} else if ( strncmp(buf, "M++M", 4) == 0) {
-		/* buf[] should look similar to 'M+?m:010203040506' */
+		if (rc)
+			goto out_ERP;
+		rc = mmrp_cmd_service(svcreq_param, MRP_EVENT_JOIN);
+		if (rc)
+			goto out_ERI;
+	} else if ( strncmp(buf, "M++:M", 5) == 0) {
+		/* buf[] should look similar to 'M+?:M=010203040506' */
 		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param,
 				&err_index);
-		if (rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-				 buf);
-			mrpd_send_ctl_msg(client, respbuf,
-					  sizeof(respbuf));
-			goto out;
-		}
-
-		attrib = mmrp_alloc();
-		if (NULL == attrib) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-				 buf);
-			mrpd_send_ctl_msg(client, respbuf,
-					  sizeof(respbuf));
-			goto out;	/* oops - internal error */
-		}
-		attrib->type = MMRP_MACVEC_TYPE;
-		memcpy(attrib->attribute.macaddr, macvec_param, 6);
-		mmrp_event(MRP_EVENT_JOIN, attrib);
+		if (rc)
+			goto out_ERP;
+		rc = mmrp_cmd_mac(macvec_param, MRP_EVENT_JOIN);
+		if (rc)
+			goto out_ERI;
 	} else {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
 	return 0;
+
+
+out_ERI:
+	snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
+	mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+	goto out;
+
+out_ERP:
+	snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
+	mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+	goto out;
+
  out:
 	return -1;
 }

@@ -45,8 +45,8 @@ enum parse_types {
 	parse_mac	/* uint8_t m[6] */
 };
 
-#define PARSE_DELIMITER ':'
-#define PARSE_ASSIGN ":"
+#define PARSE_DELIMITER ','
+#define PARSE_ASSIGN "="
 
 struct parse_param {
 	char *name;

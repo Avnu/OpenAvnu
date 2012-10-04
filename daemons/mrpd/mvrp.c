@@ -904,7 +904,7 @@ int mvrp_send_notifications(struct mvrp_attribute *attrib, int notify)
 
 	sprintf(variant, "%04x", attrib->attribute);
 
-	sprintf(regsrc, "R%02x%02x%02x%02x%02x%02x",
+	sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
 		attrib->registrar.macaddr[0],
 		attrib->registrar.macaddr[1],
 		attrib->registrar.macaddr[2],
@@ -986,7 +986,7 @@ int mvrp_dumptable(struct sockaddr_in *client)
 
 	while (NULL != attrib) {
 		sprintf(variant, "%04x", attrib->attribute);
-		sprintf(regsrc, "R%02x%02x%02x%02x%02x%02x",
+		sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
 			attrib->registrar.macaddr[0],
 			attrib->registrar.macaddr[1],
 			attrib->registrar.macaddr[2],
@@ -1039,14 +1039,26 @@ int mvrp_cmd_parse_vid(
 	*attribute = 0;
 	if (buflen < 9)
 		return -1;
-	return parse(buf + 3, buflen - 3, specs, err_index);
+	return parse(buf + 4, buflen - 4, specs, err_index);
+}
+
+int mvrp_cmd_vid(uint16_t attribute, int mrp_event)
+{
+	struct mvrp_attribute *attrib;
+
+	attrib = mvrp_alloc();
+	if (NULL == attrib)
+		return -1;
+	attrib->attribute = attribute;
+	mvrp_event(mrp_event, attrib);
+	return 0;
 }
 
 int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
+	int mrp_event;
 	char respbuf[8];
-	struct mvrp_attribute *attrib;
 	uint16_t vid_param;
 	int err_index;
 
@@ -1074,44 +1086,40 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		mvrp_dumptable(client);
 	} else if (strncmp(buf, "V--", 3)) {
 		rc = mvrp_cmd_parse_vid(buf, buflen, &vid_param, &err_index);
-		if (rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-			goto out;
-		}
-		attrib = mvrp_alloc();
-		if (NULL == attrib) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-			goto out;	/* oops - internal error */
-		}
-		attrib->attribute = vid_param;
-		mvrp_event(MRP_EVENT_LV, attrib);
+		if (rc)
+			goto out_ERP;
+		rc = mvrp_cmd_vid(vid_param, MRP_EVENT_LV);
+		if (rc)
+			goto out_ERI;
 	} else if ((strncmp(buf, "V++", 3) == 0) || (strncmp(buf, "V+?", 3) == 0)){
 		rc = mvrp_cmd_parse_vid(buf, buflen, &vid_param, &err_index);
-		if (rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-			goto out;
-		}
-		attrib = mvrp_alloc();
-		if (NULL == attrib) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-			goto out;	/* oops - internal error */
-		}
-		attrib->attribute = vid_param;
+		if (rc)
+			goto out_ERP;
 		if ('?' == buf[2]) {
-			mvrp_event(MRP_EVENT_JOIN, attrib);
+			mrp_event = MRP_EVENT_JOIN;
 		} else {
-			mvrp_event(MRP_EVENT_NEW, attrib);
+			mrp_event = MRP_EVENT_NEW;
 		}
+		rc = mvrp_cmd_vid(vid_param, mrp_event);
+		if (rc)
+			goto out_ERI;
 	} else {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
 	return 0;
+
+out_ERI:
+	snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
+	mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+	goto out;
+
+out_ERP:
+	snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
+	mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+	goto out;
+
  out:
 	return -1;
 }
