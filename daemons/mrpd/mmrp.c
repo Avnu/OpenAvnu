@@ -1317,9 +1317,9 @@ int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify)
 	memset(msgbuf, 0, MAX_MRPD_CMDSZ);
 
 	if (MMRP_SVCREQ_TYPE == attrib->type) {
-		sprintf(variant, "S%d", attrib->attribute.svcreq);
+		sprintf(variant, "S=%d", attrib->attribute.svcreq);
 	} else {
-		sprintf(variant, "M%02x%02x%02x%02x%02x%02x",
+		sprintf(variant, "M=%02x%02x%02x%02x%02x%02x",
 			attrib->attribute.macaddr[0],
 			attrib->attribute.macaddr[1],
 			attrib->attribute.macaddr[2],
@@ -1328,7 +1328,7 @@ int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify)
 			attrib->attribute.macaddr[5]);
 	}
 
-	sprintf(regsrc, "R%02x%02x%02x%02x%02x%02x",
+	sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
 		attrib->registrar.macaddr[0],
 		attrib->registrar.macaddr[1],
 		attrib->registrar.macaddr[2],
