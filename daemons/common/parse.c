@@ -33,7 +33,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#ifdef __linux__
 #include <inttypes.h>
+#else
+#define SCNu64       "I64u"
+#define SCNx64       "I64x"
+#endif
+
 
 #include "parse.h"
 
