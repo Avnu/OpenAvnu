@@ -1037,6 +1037,8 @@ int mvrp_cmd_parse_vid(
 		{0, parse_null, 0}
 	};
 	*attribute = 0;
+	if (buflen < 9)
+		return -1;
 	return parse(buf + 3, buflen - 3, specs, err_index);
 }
 
@@ -1045,9 +1047,7 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	int rc;
 	char respbuf[8];
 	struct mvrp_attribute *attrib;
-	unsigned int vid_firstval;
-	uint8_t vid_parsestr[8];
-	uint16_t test_vid;
+	uint16_t vid_param;
 	int err_index;
 
 	if (NULL == MVRP_db) {
@@ -1070,93 +1070,46 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	 * V++   NEW a VID (XXX: note network disturbance)
 	 * V-- - LV a VID
 	 */
-	switch (buf[1]) {
-	case '?':
+	if (strncmp(buf, "V??", 3) == 0) {
 		mvrp_dumptable(client);
-		break;
-	case '-':
-		/* buf[] should look similar to 'V--I:0001' where VID is in hex */
-		if (buflen < 9) {
+	} else if (strncmp(buf, "V--", 3)) {
+		rc = mvrp_cmd_parse_vid(buf, buflen, &vid_param, &err_index);
+		if (rc) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
 			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
-
-		rc = mvrp_cmd_parse_vid(buf, buflen, &test_vid, &err_index);
-		if (rc)
-			printf("ERR mvrp_cmd_parse_vid\n");
-
-		memset(vid_parsestr, 0, sizeof(vid_parsestr));
-
-		rc = sscanf((char *)&buf[5], "%04x", &vid_firstval);
-		if (0 == rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", &buf[5]);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-			goto out;
-		}
-
 		attrib = mvrp_alloc();
 		if (NULL == attrib) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
 			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;	/* oops - internal error */
 		}
-		attrib->attribute = vid_firstval;
-
-		if (test_vid != vid_firstval)
-			printf("ERR parsing mvrp_cmd_parse_vid\n");
-
-		memset(attrib->registrar.macaddr, 0, 6);
-
+		attrib->attribute = vid_param;
 		mvrp_event(MRP_EVENT_LV, attrib);
-		break;
-	case '+':
-		/* buf[] should look similar to 'V+?I:0001' where VID is in hex */
-		if (('?' != buf[2]) && ('+' != buf[2])) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
+	} else if ((strncmp(buf, "V++", 3) == 0) || (strncmp(buf, "V+?", 3) == 0)){
+		rc = mvrp_cmd_parse_vid(buf, buflen, &vid_param, &err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
 			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;
 		}
-		if (buflen < 9) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP0 %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-			goto out;
-		}
-		rc = mvrp_cmd_parse_vid(buf, buflen, &test_vid, &err_index);
-		if (rc)
-			printf("ERR mvrp_cmd_parse_vid\n");
-
-		rc = sscanf((char *)&buf[5], "%04x", &vid_firstval);
-
-		if (0 == rc) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP1 %s", &buf[5]);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-			goto out;
-		}
-
 		attrib = mvrp_alloc();
 		if (NULL == attrib) {
 			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s", buf);
 			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 			goto out;	/* oops - internal error */
 		}
-		attrib->attribute = vid_firstval;
-		memset(attrib->registrar.macaddr, 0, 6);
-
-		if (test_vid != vid_firstval)
-			printf("ERR parsing mvrp_cmd_parse_vid\n");
-
+		attrib->attribute = vid_param;
 		if ('?' == buf[2]) {
 			mvrp_event(MRP_EVENT_JOIN, attrib);
 		} else {
 			mvrp_event(MRP_EVENT_NEW, attrib);
 		}
-		break;
-	default:
+	} else {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
-		break;
 	}
 	return 0;
  out:

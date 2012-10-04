@@ -2374,6 +2374,8 @@ int msrp_cmd_parse_join_or_new_stream(
 		{"L" PARSE_ASSIGN, parse_u32, &talker_ad->AccumulatedLatency},
 		{0, parse_null, 0}
 	};
+	if (buflen < 22)
+		return -1;
 	memset(talker_ad, 0, sizeof(*talker_ad));
 	return parse(buf + 3, buflen - 3, specs, err_index);
 }
@@ -2424,6 +2426,8 @@ int msrp_cmd_parse_leave_stream(
 		{"S" PARSE_ASSIGN, parse_c64, talker_ad->StreamID},
 		{0, parse_null, 0}
 	};
+	if (buflen < 22)
+		return -1;
 	memset(talker_ad, 0, sizeof(*talker_ad));
 	return parse(buf + 3, buflen - 3, specs, err_index);
 }
@@ -2458,6 +2462,8 @@ int msrp_cmd_parse_report_listener_status(
 		{"D" PARSE_ASSIGN, parse_u32, substate},
 		{0, parse_null, 0}
 	};
+	if (buflen < 26)
+		return -1;
 	memset(talker_ad, 0, sizeof(*talker_ad));
 	return parse(buf + 2, buflen - 2, specs, err_index);
 }
@@ -2493,6 +2499,9 @@ int msrp_cmd_parse_withdraw_listener_status(
 		{"L" PARSE_ASSIGN, parse_c64, talker_ad->StreamID},
 		{0, parse_null, 0}
 	};
+	if (buflen < 22)
+		return -1;
+
 	memset(talker_ad, 0, sizeof(*talker_ad));
 	return parse(buf + 2, buflen - 2, specs, err_index);
 }
@@ -2529,6 +2538,8 @@ int msrp_cmd_parse_domain_status(
 		{"V" PARSE_ASSIGN, parse_u16_04x, &domain->SRclassVID},
 		{0, parse_null, 0}
 	};
+	if (buflen < 18)
+		return -1;
 	memset(domain, 0, sizeof(*domain));
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
@@ -2557,22 +2568,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	int rc;
 	char respbuf[8];
 	struct msrp_attribute *attrib;
-	char *stream_str = NULL;
-	char *daddr_str = NULL;
-	char *vlan_str = NULL;
-	char *size_str = NULL;
-	char *interval_str = NULL;
-	char *prio_str = NULL;
-	char *latency_str = NULL;
-	int join = 0;
-	uint8_t streamid_firstval[8];
-	uint8_t macvec_firstval[6];
-	uint8_t macvec_parsestr[64];
-	unsigned vlan, size, interval, prio, latency;
-	int i;
+	int join;
 	unsigned int substate;
-	struct msrpdu_domain t0;
-	struct msrpdu_talker_fail t1;
+	struct msrpdu_domain domain_param;
+	struct msrpdu_talker_fail talker_param;
 	int err_index;
 
 	if (NULL == MSRP_db) {
@@ -2600,685 +2599,163 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	 * S-D   Withdraw a domain status
 	 */
 
-	/*
+
 	if (strncmp(buf, "S??", 3)==0) {
 		msrp_dumptable(client);
 
-	}
-	*/
+	} else if (strncmp(buf, "S-L", 3) == 0) {
 
-	switch (buf[1]) {
-	case '?':
-		msrp_dumptable(client);
-		break;
-	case '-':
-		/* parse the type - either talker, listener or domain */
-		if (buflen < 5) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+		/* buf[] should look similar to 'S-L:xxyyzz...' */
+		rc = msrp_cmd_parse_withdraw_listener_status(buf, buflen, &talker_param, &err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
 			goto out;
 		}
-		switch (buf[2]) {
-		case 'l':
-		case 'L':
-			if (buflen < 22) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-			rc = msrp_cmd_parse_withdraw_listener_status(buf, buflen, &t1, &err_index);
-			if (rc)
-				printf("error msrp_cmd_parse_withdraw_listener_status\n");
-			/* buf[] should look similar to 'S-L:xxyyzz...' */
-			attrib = msrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-			attrib->type = MSRP_LISTENER_TYPE;
-			memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
+		attrib = msrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->attribute.talk_listen = talker_param;
+		msrp_event(MRP_EVENT_LV, attrib);
 
-			for (i = 0; i < 8; i++) {
-				macvec_parsestr[0] = buf[4 + i * 2];
-				macvec_parsestr[1] = buf[5 + i * 2];
+	} else if (strncmp(buf, "S-D", 3) == 0) {
 
-				rc = sscanf((char *)macvec_parsestr, "%hhx",
-					    &streamid_firstval[i]);
-				if (0 == rc) {
-					snprintf(respbuf, sizeof(respbuf) - 1,
-						 "ERP %s", buf);
-					mrpd_send_ctl_msg(client, respbuf,
-							  sizeof(respbuf));
-					free(attrib);
-					goto out;
-				}
-			}
-
-			memcpy(attrib->attribute.talk_listen.StreamID,
-			       streamid_firstval, 8);
-			memset(attrib->registrar.macaddr, 0, 6);
-			if(0 == memcmp(&t1, &attrib->attribute.talk_listen, sizeof(t1)))
-				printf("S-L, old and new parse match\n");
-			else
-				printf("S-L, old and new parse DO NOT match\n");
-
-			msrp_event(MRP_EVENT_LV, attrib);
-			break;
-		case 'D':
-			if (buflen < 18) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-				goto out;
-			}
-			rc = msrp_cmd_parse_domain_status(buf, buflen, &t0, &err_index);
-			if (rc)
-				printf("error msrp_test_cmd_parse_domain_status\n");
-
-			/* buf[] should look similar to 'S-D:C:%d:P:%d:V:%04x" */
-			attrib = msrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-			attrib->type = MSRP_DOMAIN_TYPE;
-
-			i = 6;
-			rc = sscanf((char *)&(buf[6]), "%d", &prio);
-
-			attrib->attribute.domain.SRclassID = (uint8_t) prio;
-
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-			while ((i < buflen) && (buf[i] != 'P'))
-				i++;
-
-			i += 2;
-			if (i >= buflen) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-
-			rc = sscanf((char *)&(buf[i]), "%d", &prio);
-
-			attrib->attribute.domain.SRclassPriority =
-			    (uint8_t) prio;
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-
-			while ((i < buflen) && (buf[i] != 'V'))
-				i++;
-
-			i += 2;
-			if (i >= buflen) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-
-			rc = sscanf((char *)&(buf[i]), "%04x", &vlan);
-			attrib->attribute.domain.SRclassVID = (uint16_t) vlan;
-
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-
-			memset(attrib->registrar.macaddr, 0, 6);
-
-			if(0 == memcmp(&t0, &attrib->attribute.domain, sizeof(t0)))
-				printf("S-D, old and new parse match\n");
-			else
-				printf("S-D, old and new parse DO NOT match\n");
-
-			msrp_event(MRP_EVENT_LV, attrib);
-			break;
-		case '-':
-			/*
-			 * leave a stream - only need the stream ID
-			 */
-
-			if (buflen < 22) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-			rc = msrp_cmd_parse_leave_stream(buf, buflen, &t1, &err_index);
-			if (rc)
-				printf("error msrp_cmd_parse_leave_stream\n");
-
-			/* buf[] should look similar to 'S--S:xxyyzz...' */
-			attrib = msrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-			attrib->type = MSRP_TALKER_ADV_TYPE;
-			memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
-
-			for (i = 0; i < 8; i++) {
-				macvec_parsestr[0] = buf[5 + i * 2];
-				macvec_parsestr[1] = buf[6 + i * 2];
-
-				rc = sscanf((char *)macvec_parsestr, "%hhx",
-					    &streamid_firstval[i]);
-				if (0 == rc) {
-					snprintf(respbuf, sizeof(respbuf) - 1,
-						 "ERP %s", buf);
-					mrpd_send_ctl_msg(client, respbuf,
-							  sizeof(respbuf));
-					goto out;
-				}
-			}
-
-			memcpy(attrib->attribute.talk_listen.StreamID,
-			       streamid_firstval, 8);
-			memset(attrib->registrar.macaddr, 0, 6);
-
-			if(0 == memcmp(&t1, &attrib->attribute.talk_listen, sizeof(t1)))
-				printf("S--, old and new parse match\n");
-			else
-				printf("S--, old and new parse DO NOT match\n");
-
-			msrp_event(MRP_EVENT_LV, attrib);
-			break;
-		default:
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+		/* buf[] should look similar to 'S-D:C:%d:P:%d:V:%04x" */
+		rc = msrp_cmd_parse_domain_status(buf, buflen, &domain_param, &err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
 			goto out;
 		}
-		break;
-	case '+':
-		/* parse the type - either talker or listener */
-		if (buflen < 5) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+
+		attrib = msrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->type = MSRP_DOMAIN_TYPE;
+		attrib->attribute.domain = domain_param;
+		msrp_event(MRP_EVENT_LV, attrib);
+	} else if (strncmp(buf, "S--", 3) == 0) {
+		/* buf[] should look similar to 'S--S:xxyyzz...' */
+		rc = msrp_cmd_parse_leave_stream(buf, buflen, &talker_param, &err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
 			goto out;
 		}
-		switch (buf[2]) {
-		case 'l':
-		case 'L':
-			if (buflen < 26) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-			rc = msrp_cmd_parse_report_listener_status(buf, buflen, &t1, &substate, &err_index);
-			if (rc)
-				printf("error msrp_cmd_parse_report_listener_status\n");
+		attrib = msrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->type = MSRP_TALKER_ADV_TYPE;
+		attrib->attribute.talk_listen = talker_param;
+		msrp_event(MRP_EVENT_LV, attrib);
+	} else if (strncmp(buf, "S+L", 3) == 0) {
+		/* buf[] should look similar to 'S+L:L:xxyyzz...:D:a' */
+		rc = msrp_cmd_parse_report_listener_status(buf, buflen, &talker_param, &substate, &err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;
+		}
+		attrib = msrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->type = MSRP_LISTENER_TYPE;
+		attrib->direction = MSRP_DIRECTION_LISTENER;
+		attrib->attribute.talk_listen = talker_param;
+		msrp_event(MRP_EVENT_JOIN, attrib);
+	} else if (strncmp(buf, "S+D", 3) == 0) {
+		/* buf[] should look similar to 'S+D:C:%d:P:%d:V:%04x" */
+		rc = msrp_cmd_parse_domain_status(buf, buflen, &domain_param, &err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;
+		}
+		attrib = msrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->type = MSRP_DOMAIN_TYPE;
+		attrib->attribute.domain = domain_param;
+		msrp_event(MRP_EVENT_JOIN, attrib);
+	} else if ((strncmp(buf, "S+?", 3) == 0) || (strncmp(buf, "S++", 3) == 0) ){
+		join = (buf[2] == '?');
+		/*
+		 * create or join a stream
+		 * interesting to note the spec doesn't talk about
+		 * what happens if two talkers attempt to define the identical
+		 * stream twice  - does the bridge report STREAM_CHANGE error?
+		 */
 
-			/* buf[] should look similar to 'S+L:xxyyzz...:D:a' */
-			attrib = msrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-
-			attrib->type = MSRP_LISTENER_TYPE;
-			attrib->direction = MSRP_DIRECTION_LISTENER;
-
-			memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
-
-			for (i = 0; i < 8; i++) {
-				macvec_parsestr[0] = buf[4 + i * 2];
-				macvec_parsestr[1] = buf[5 + i * 2];
-
-				rc = sscanf((char *)macvec_parsestr, "%hhx",
-					    &streamid_firstval[i]);
-				if (0 == rc) {
-					snprintf(respbuf, sizeof(respbuf) - 1,
-						 "ERP %s", buf);
-					mrpd_send_ctl_msg(client, respbuf,
-							  sizeof(respbuf));
-					goto out;
-				}
-			}
-
-			memcpy(attrib->attribute.talk_listen.StreamID,
-			       streamid_firstval, 8);
-			rc = sscanf((char *)&buf[23], "%d",
-				    &(attrib->substate));
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			memset(attrib->registrar.macaddr, 0, 6);
-			if((0 == memcmp(&t1, &attrib->attribute.talk_listen, sizeof(t1))) &&
-					(attrib->substate == substate))
-				printf("S+L, old and new parse match\n");
-			else
-				printf("S+L, old and new parse DO NOT match\n");
-
+		/*
+		   buf[] should look similar to "S:%02x%02x%02x%02x%02x%02x%02x%02x"
+		   ":A:%02x%02x%02x%02x%02x%02x"
+		   ":V:%04x" \
+		   ":Z:%d" \
+		   ":I:%d" \
+		   ":P:%d" \
+		   ":L:%d" \
+		 */
+		rc = msrp_cmd_parse_join_or_new_stream(buf, buflen, &talker_param, &err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;
+		}
+		attrib = msrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->type = MSRP_TALKER_ADV_TYPE;
+		attrib->attribute.talk_listen = talker_param;
+		if (join)
 			msrp_event(MRP_EVENT_JOIN, attrib);
-			break;
-		case 'D':
-			if (buflen < 18) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-			rc = msrp_cmd_parse_domain_status(buf, buflen, &t0, &err_index);
-			if (rc)
-				printf("error msrp_cmd_parse_domain_status\n");
-
-			/* buf[] should look similar to 'S+D:C:%d:P:%d:V:%04x" */
-			attrib = msrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-			attrib->type = MSRP_DOMAIN_TYPE;
-
-			i = 6;
-			rc = sscanf((char *)&(buf[6]), "%d", &prio);
-
-			attrib->attribute.domain.SRclassID = (uint8_t) prio;
-
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-			while ((i < buflen) && (buf[i] != 'P'))
-				i++;
-
-			i += 2;
-			if (i >= buflen) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-
-			rc = sscanf((char *)&(buf[i]), "%d", &prio);
-
-			attrib->attribute.domain.SRclassPriority =
-			    (uint8_t) prio;
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-
-			while ((i < buflen) && (buf[i] != 'V'))
-				i++;
-
-			i += 2;
-			if (i >= buflen) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-
-			rc = sscanf((char *)&(buf[i]), "%04x", &vlan);
-			attrib->attribute.domain.SRclassVID = (uint8_t) vlan;
-
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1,
-					 "ERP %s", buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				free(attrib);
-				goto out;
-			}
-
-			memset(attrib->registrar.macaddr, 0, 6);
-			if(0 == memcmp(&t0, &attrib->attribute.domain, sizeof(t0)))
-				printf("S+D, old and new parse match\n");
-			else
-				printf("S+D, old and new parse DO NOT match\n");
-
-			msrp_event(MRP_EVENT_JOIN, attrib);
-			break;
-		case '?':
-			join = 1;
-			/* fallthru */
-		case '+':
-			/*
-			 * create or join a stream
-			 * interesting to note the spec doesn't talk about
-			 * what happens if two talkers attempt to define the identical
-			 * stream twice  - does the bridge report STREAM_CHANGE error?
-			 */
-
-			if (buflen < 22) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-			/*
-			   buf[] should look similar to "S:%02x%02x%02x%02x%02x%02x%02x%02x"
-			   ":A:%02x%02x%02x%02x%02x%02x"
-			   ":V:%04x" \
-			   ":Z:%d" \
-			   ":I:%d" \
-			   ":P:%d" \
-			   ":L:%d" \
-			 */
-			rc = msrp_cmd_parse_join_or_new_stream(buf, buflen, &t1, &err_index);
-			if (rc)
-				printf("error msrp_cmd_parse_join_or_new_stream\n");
-
-			i = 0;
-
-			while (i < buflen) {
-				if (buf[i] == ':') {
-					stream_str = &(buf[i + 1]);
-					i++;
-					break;
-				}
-				i++;
-			}
-
-			if (i >= buflen) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			while (i < (buflen - 3)) {
-				if ((buf[i] == ':') && (buf[i + 1] == 'A')
-				    && (buf[i + 2] == ':')) {
-					buf[i] = '\0';
-					daddr_str = &(buf[i + 3]);
-					i += 4;
-					break;
-				}
-				i++;
-			}
-
-			if (i >= (buflen - 3)) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			while (i < (buflen - 3)) {
-				if ((buf[i] == ':') && (buf[i + 1] == 'V')
-				    && (buf[i + 2] == ':')) {
-					buf[i] = '\0';
-					vlan_str = &(buf[i + 3]);
-					i += 4;
-					break;
-				}
-				i++;
-			}
-
-			if (i >= (buflen - 3)) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			while (i < (buflen - 3)) {
-				if ((buf[i] == ':') && (buf[i + 1] == 'Z')
-				    && (buf[i + 2] == ':')) {
-					buf[i] = '\0';
-					size_str = &(buf[i + 3]);
-					i += 4;
-					break;
-				}
-				i++;
-			}
-
-			if (i >= (buflen - 3)) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			while (i < (buflen - 3)) {
-				if ((buf[i] == ':') && (buf[i + 1] == 'I')
-				    && (buf[i + 2] == ':')) {
-					buf[i] = '\0';
-					interval_str = &(buf[i + 3]);
-					i += 4;
-					break;
-				}
-				i++;
-			}
-
-			if (i >= (buflen - 3)) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			while (i < (buflen - 3)) {
-				if ((buf[i] == ':') && (buf[i + 1] == 'P')
-				    && (buf[i + 2] == ':')) {
-					buf[i] = '\0';
-					prio_str = &(buf[i + 3]);
-					i += 4;
-					break;
-				}
-				i++;
-			}
-
-			if (i >= (buflen - 3)) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			while (i < (buflen - 3)) {
-				if ((buf[i] == ':') && (buf[i + 1] == 'L')
-				    && (buf[i + 2] == ':')) {
-					buf[i] = '\0';
-					latency_str = &(buf[i + 3]);
-					i += 4;
-					break;
-				}
-				i++;
-			}
-
-			if (i >= (buflen - 3)) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
-
-			for (i = 0; i < 8; i++) {
-				macvec_parsestr[0] = stream_str[i * 2];
-				macvec_parsestr[1] = stream_str[i * 2 + 1];
-
-				rc = sscanf((char *)macvec_parsestr, "%hhx",
-					    &streamid_firstval[i]);
-				if (0 == rc) {
-					snprintf(respbuf, sizeof(respbuf) - 1,
-						 "ERP %s", buf);
-					mrpd_send_ctl_msg(client, respbuf,
-							  sizeof(respbuf));
-					goto out;
-				}
-			}
-
-			memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
-			for (i = 0; i < 6; i++) {
-				macvec_parsestr[0] = daddr_str[i * 2];
-				macvec_parsestr[1] = daddr_str[i * 2 + 1];
-
-				rc = sscanf((char *)macvec_parsestr, "%hhx",
-					    &macvec_firstval[i]);
-				if (0 == rc) {
-					snprintf(respbuf, sizeof(respbuf) - 1,
-						 "ERP %s", buf);
-					mrpd_send_ctl_msg(client, respbuf,
-							  sizeof(respbuf));
-					goto out;
-				}
-			}
-
-			rc = sscanf((char *)vlan_str, "%x", &vlan);
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			rc = sscanf((char *)size_str, "%d", &size);
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			rc = sscanf((char *)interval_str, "%d", &interval);
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			rc = sscanf((char *)prio_str, "%d", &prio);
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			rc = sscanf((char *)latency_str, "%d", &latency);
-			if (0 == rc) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			attrib = msrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-			attrib->type = MSRP_TALKER_ADV_TYPE;
-			memcpy(attrib->attribute.talk_listen.StreamID,
-			       streamid_firstval, 8);
-			memcpy(attrib->attribute.talk_listen.
-			       DataFrameParameters.Dest_Addr, macvec_firstval,
-			       6);
-			memset(attrib->registrar.macaddr, 0, 6);
-
-			attrib->attribute.talk_listen.DataFrameParameters.
-			    Vlan_ID = vlan;
-			attrib->attribute.talk_listen.TSpec.MaxFrameSize = size;
-			attrib->attribute.talk_listen.TSpec.MaxIntervalFrames =
-			    interval;
-			attrib->attribute.talk_listen.PriorityAndRank = prio;
-			attrib->attribute.talk_listen.AccumulatedLatency =
-			    latency;
-
-			if(0 == memcmp(&t1, &attrib->attribute.talk_listen, sizeof(t1)))
-				printf("S+? or S++, old and new parse match\n");
-			else
-				printf("S+? or S++, old and new parse DO NOT match\n");
-
-			if (join)
-				msrp_event(MRP_EVENT_JOIN, attrib);
-			else
-				msrp_event(MRP_EVENT_NEW, attrib);
-			break;
-		default:
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
-			goto out;
-		}
-		break;
-	default:
+		else
+			msrp_event(MRP_EVENT_NEW, attrib);
+	} else {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
-		break;
 	}
 	return 0;
  out:

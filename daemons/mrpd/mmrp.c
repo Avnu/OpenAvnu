@@ -1473,6 +1473,8 @@ int mmrp_cmd_parse_mac(
 		{"M" PARSE_ASSIGN, parse_mac, mac},
 		{0, parse_null, 0}
 	};
+	if (buflen < 17)
+		return -1;
 	memset(mac, 0, 6);
 	return parse(buf + 3, buflen - 3, specs, err_index);
 }
@@ -1488,6 +1490,8 @@ int mmrp_cmd_parse_service(
 		{0, parse_null, 0}
 	};
 	*service = 0;
+	if (buflen < 5)
+		return -1;
 	return parse(buf + 3, buflen - 3, specs, err_index);
 }
 
@@ -1498,13 +1502,8 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	int err_index;
 	char respbuf[8];
 	struct mmrp_attribute *attrib;
-	uint8_t svcreq_firstval;
-	uint8_t macvec_firstval[6];
-	uint8_t macvec_parsestr[8];
-	int i;
-	uint8_t test_svcreq;
-	uint8_t test_macvec[6];
-
+	uint8_t svcreq_param;
+	uint8_t macvec_param[6];
 
 	if (NULL == MMRP_db) {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
@@ -1526,208 +1525,106 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	 * M++   NEW a MAC Address (XXX: MMRP doesn't use 'New' though?)
 	 * M-- - LV a MAC address or service declaration
 	 */
-	switch (buf[1]) {
-	case '?':
+	if (strncmp(buf, "M??", 3) == 0) {
 		mmrp_dumptable(client);
-		break;
-	case '-':
-		/* parse the type - service request or MACVEC */
-		if (buflen < 5) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+	} else if (strncmp(buf, "M--S", 4) == 0) {
+		rc = mmrp_cmd_parse_service(buf, buflen, &svcreq_param,
+				&err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
 			goto out;
 		}
-		switch (buf[3]) {
-		case 's':
-		case 'S':
-			/* buf[] should look similar to 'M--s:1' */
-			svcreq_firstval = buf[5] - '0';
-			if (svcreq_firstval > 1) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-			rc = mmrp_cmd_parse_service(buf, buflen, &test_svcreq,
-					&err_index);
+		attrib = mmrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->type = MMRP_SVCREQ_TYPE;
+		attrib->attribute.svcreq = svcreq_param;
+		mmrp_event(MRP_EVENT_LV, attrib);
+	} else if ( strncmp(buf, "M--M", 4) == 0) {
+		/*
+		 * XXX note could also register VID with mac address if we ever wanted to
+		 * support more than one Spanning Tree context
+		 */
 
-			attrib = mmrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-			attrib->type = MMRP_SVCREQ_TYPE;
-			attrib->attribute.svcreq = svcreq_firstval;
-			memset(attrib->registrar.macaddr, 0, 6);
-
-			if (svcreq_firstval != test_svcreq)
-				printf("ERR parsing mmrp_cmd_parse_service\n");
-
-			mmrp_event(MRP_EVENT_LV, attrib);
-			break;
-		case 'm':
-		case 'M':
-			/*
-			 * XXX note could also register VID with mac address if we ever wanted to
-			 * support more than one Spanning Tree context
-			 */
-
-			/* buf[] should look similar to 'M--M:010203040506' */
-			if (buflen < 17) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			rc = mmrp_cmd_parse_mac(buf, buflen, test_macvec,
-					&err_index);
-			if (rc)
-				printf("ERROR mmrp_cmd_parse_mac\n");
-
-			memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
-
-			for (i = 0; i < 6; i++) {
-				macvec_parsestr[0] = buf[5 + i * 2];
-				macvec_parsestr[1] = buf[6 + i * 2];
-
-				rc = sscanf((char *)macvec_parsestr, "%hhx",
-					    &macvec_firstval[i]);
-				if (0 == rc) {
-					snprintf(respbuf, sizeof(respbuf) - 1,
-						 "ERP %s", buf);
-					mrpd_send_ctl_msg(client, respbuf,
-							  sizeof(respbuf));
-					goto out;
-				}
-			}
-
-			attrib = mmrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-			attrib->type = MMRP_MACVEC_TYPE;
-			memcpy(attrib->attribute.macaddr, macvec_firstval, 6);
-			memset(attrib->registrar.macaddr, 0, 6);
-
-			if(0 == memcmp(test_macvec, macvec_firstval, sizeof(macvec_firstval)))
-				printf("M--M, old and new parse match\n");
-			else
-				printf("M--M, old and new parse DO NOT match\n");
-
-
-			mmrp_event(MRP_EVENT_LV, attrib);
-			break;
-		default:
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+		/* buf[] should look similar to 'M--M:010203040506' */
+		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param,
+				&err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
 			goto out;
 		}
-		break;
-	case '+':
-		/* parse the type - service request or MACVEC */
-		if (buflen < 5) {
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+		attrib = mmrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->type = MMRP_MACVEC_TYPE;
+		memcpy(attrib->attribute.macaddr, macvec_param, 6);
+		mmrp_event(MRP_EVENT_LV, attrib);
+	} else if ((strncmp(buf, "M++S", 4) == 0) || (strncmp(buf, "M+?S", 4) == 0)){
+		/* buf[] should look similar to 'M+?s:1' or 'M++s:1'
+		 */
+		rc = mmrp_cmd_parse_service(buf, buflen, &svcreq_param,
+				&err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
 			goto out;
 		}
-		switch (buf[3]) {
-		case 's':
-		case 'S':
-			/* buf[] should look similar to 'M+?s:1' or 'M++s:1'
-			 */
-			if (('?' != buf[2]) && ('+' != buf[2])) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-			svcreq_firstval = buf[5] - '0';
-			if (svcreq_firstval > 1) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			attrib = mmrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-			attrib->type = MMRP_SVCREQ_TYPE;
-			attrib->attribute.svcreq = svcreq_firstval;
-			memset(attrib->registrar.macaddr, 0, 6);
-
-			mmrp_event(MRP_EVENT_JOIN, attrib);
-			break;
-		case 'm':
-		case 'M':
-			/* buf[] should look similar to 'M+?m:010203040506' */
-			if (buflen < 17) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;
-			}
-
-			memset(macvec_parsestr, 0, sizeof(macvec_parsestr));
-
-			for (i = 0; i < 6; i++) {
-				macvec_parsestr[0] = buf[5 + i * 2];
-				macvec_parsestr[1] = buf[6 + i * 2];
-
-				rc = sscanf((char *)macvec_parsestr, "%hhx",
-					    &macvec_firstval[i]);
-				if (0 == rc) {
-					snprintf(respbuf, sizeof(respbuf) - 1,
-						 "ERP %s", buf);
-					mrpd_send_ctl_msg(client, respbuf,
-							  sizeof(respbuf));
-					goto out;
-				}
-			}
-
-			attrib = mmrp_alloc();
-			if (NULL == attrib) {
-				snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
-					 buf);
-				mrpd_send_ctl_msg(client, respbuf,
-						  sizeof(respbuf));
-				goto out;	/* oops - internal error */
-			}
-			attrib->type = MMRP_MACVEC_TYPE;
-			memcpy(attrib->attribute.macaddr, macvec_firstval, 6);
-			memset(attrib->registrar.macaddr, 0, 6);
-
-			mmrp_event(MRP_EVENT_JOIN, attrib);
-			break;
-		default:
-			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s", buf);
-			mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
+		attrib = mmrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->type = MMRP_SVCREQ_TYPE;
+		attrib->attribute.svcreq = svcreq_param;
+		mmrp_event(MRP_EVENT_JOIN, attrib);
+	} else if ( strncmp(buf, "M++M", 4) == 0) {
+		/* buf[] should look similar to 'M+?m:010203040506' */
+		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param,
+				&err_index);
+		if (rc) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERP %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
 			goto out;
 		}
-		break;
-	default:
+
+		attrib = mmrp_alloc();
+		if (NULL == attrib) {
+			snprintf(respbuf, sizeof(respbuf) - 1, "ERI %s",
+				 buf);
+			mrpd_send_ctl_msg(client, respbuf,
+					  sizeof(respbuf));
+			goto out;	/* oops - internal error */
+		}
+		attrib->type = MMRP_MACVEC_TYPE;
+		memcpy(attrib->attribute.macaddr, macvec_param, 6);
+		mmrp_event(MRP_EVENT_JOIN, attrib);
+	} else {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
-		break;
 	}
 	return 0;
  out:
