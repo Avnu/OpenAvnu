@@ -2373,7 +2373,7 @@ int msrp_dumptable(struct sockaddr_in *client)
 
 /* S+? - (re)JOIN a stream */
 /* S++ - NEW a stream      */
-int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
+static int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
 				      struct msrpdu_talker_fail *talker_ad,
 				      int *err_index)
 {
@@ -2408,7 +2408,7 @@ int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
  *
  */
 
-int msrp_cmd_join_or_new_stream(int join, struct msrpdu_talker_fail *talker_ad)
+static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad, int mrp_event)
 {
 	struct msrp_attribute *attrib;
 
@@ -2418,17 +2418,12 @@ int msrp_cmd_join_or_new_stream(int join, struct msrpdu_talker_fail *talker_ad)
 	}
 	attrib->type = MSRP_TALKER_ADV_TYPE;
 	attrib->attribute.talk_listen = *talker_ad;
-
-	if (join)
-		msrp_event(MRP_EVENT_JOIN, attrib);
-	else
-		msrp_event(MRP_EVENT_NEW, attrib);
-
+	msrp_event(mrp_event, attrib);
 	return 0;
 }
 
 /* S-- - LV a stream */
-int msrp_cmd_parse_leave_stream(char *buf, int buflen,
+static int msrp_cmd_parse_leave_stream(char *buf, int buflen,
 				struct msrpdu_talker_fail *talker_ad,
 				int *err_index)
 {
@@ -2442,7 +2437,7 @@ int msrp_cmd_parse_leave_stream(char *buf, int buflen,
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
-int msrp_cmd_leave_stream(struct msrpdu_talker_fail *talker_ad)
+static int msrp_cmd_leave_stream(struct msrpdu_talker_fail *talker_ad)
 {
 	struct msrp_attribute *attrib;
 
@@ -2458,7 +2453,7 @@ int msrp_cmd_leave_stream(struct msrpdu_talker_fail *talker_ad)
 }
 
 /* S+L   Report a listener status */
-int msrp_cmd_parse_report_listener_status(char *buf, int buflen,
+static int msrp_cmd_parse_report_listener_status(char *buf, int buflen,
 					  struct msrpdu_talker_fail *talker_ad,
 					  uint32_t * substate, int *err_index)
 {
@@ -2473,7 +2468,7 @@ int msrp_cmd_parse_report_listener_status(char *buf, int buflen,
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
-int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
+static int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
 				    uint32_t substate)
 {
 	struct msrp_attribute *attrib;
@@ -2492,7 +2487,7 @@ int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
 }
 
 /* S-L   Withdraw a listener status */
-int msrp_cmd_parse_withdraw_listener_status(char *buf, int buflen,
+static int msrp_cmd_parse_withdraw_listener_status(char *buf, int buflen,
 					    struct msrpdu_talker_fail
 					    *talker_ad, int *err_index)
 {
@@ -2507,7 +2502,7 @@ int msrp_cmd_parse_withdraw_listener_status(char *buf, int buflen,
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
-int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail *talker_ad)
+static int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail *talker_ad)
 {
 	struct msrp_attribute *attrib;
 
@@ -2524,7 +2519,7 @@ int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail *talker_ad)
 
 /* S+D   Report a domain status */
 /* S-D   Withdraw a domain status */
-int msrp_cmd_parse_domain_status(char *buf, int buflen,
+static int msrp_cmd_parse_domain_status(char *buf, int buflen,
 				 struct msrpdu_domain *domain, int *err_index)
 {
 	struct parse_param specs[] = {
@@ -2539,7 +2534,7 @@ int msrp_cmd_parse_domain_status(char *buf, int buflen,
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
-int msrp_cmd_report_domain_status(struct msrpdu_domain *domain, int report)
+static int msrp_cmd_report_domain_status(struct msrpdu_domain *domain, int report)
 {
 	struct msrp_attribute *attrib;
 
@@ -2560,7 +2555,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
 	char respbuf[8];
-	int join;
+	int mrp_event;
 	unsigned int substate;
 	struct msrpdu_domain domain_param;
 	struct msrpdu_talker_fail talker_param;
@@ -2646,7 +2641,6 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			goto out_ERI;	/* oops - internal error */
 	} else if ((strncmp(buf, "S+?", 3) == 0)
 		   || (strncmp(buf, "S++", 3) == 0)) {
-		join = (buf[2] == '?');
 		/*
 		 * create or join a stream
 		 * interesting to note the spec doesn't talk about
@@ -2668,7 +2662,12 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 						       &err_index);
 		if (rc)
 			goto out_ERP;
-		rc = msrp_cmd_join_or_new_stream(join, &talker_param);
+		if ('?' == buf[2]) {
+			mrp_event = MRP_EVENT_JOIN;
+		} else {
+			mrp_event = MRP_EVENT_NEW;
+		}
+		rc = msrp_cmd_join_or_new_stream(&talker_param, mrp_event);
 		if (rc)
 			goto out_ERI;	/* oops - internal error */
 	} else {
