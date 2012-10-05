@@ -259,6 +259,21 @@ main(int argc, char *argv[]) {
 	sprintf(msgbuf,"M--:S=1");
 	rc = send_control_msg(msgbuf, 1500 );
 
+	sprintf(msgbuf,"M+?:M=060504030201");
+	rc = send_control_msg(msgbuf, 1500 );
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"M+?:S=1");
+	rc = send_control_msg(msgbuf, 1500 );
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"M--:M=060504030201");
+	rc = send_control_msg(msgbuf, 1500 );
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"M--:S=1");
+	rc = send_control_msg(msgbuf, 1500 );
+
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"V++:I=0002");
@@ -267,9 +282,14 @@ main(int argc, char *argv[]) {
 	sprintf(msgbuf,"V--:I=0002");
 	rc = send_control_msg(msgbuf, 1500 );
 
+	sprintf(msgbuf,"V+?:I=0002");
+	rc = send_control_msg(msgbuf, 1500 );
+
+	sprintf(msgbuf,"V--:I=0002");
+	rc = send_control_msg(msgbuf, 1500 );
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"S++:S=DEADBEEFBADFCA11,A=112233445566,V=0002,Z=576,I=8000,P=96,L=1000");
+	sprintf(msgbuf,"S+?:S=DEADBEEFBADFCA11,A=112233445566,V=0002,Z=576,I=8000,P=96,L=1000");
 	rc = send_control_msg(msgbuf, 1500);
 
 	memset(msgbuf,0,1500);
