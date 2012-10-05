@@ -1515,6 +1515,7 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	int rc;
 	int err_index;
 	char respbuf[8];
+	int mrp_event;
 	uint8_t svcreq_param;
 	uint8_t macvec_param[6];
 
@@ -1562,22 +1563,33 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		if (rc)
 			goto out_ERI;
 	} else if ((strncmp(buf, "M++:S", 5) == 0)
-		   || (strncmp(buf, "M+?S", 4) == 0)) {
+		   || (strncmp(buf, "M+?:S", 5) == 0)) {
 		/* buf[] should look similar to 'M+?:S=1' or 'M++:S=1'
 		 */
 		rc = mmrp_cmd_parse_service(buf, buflen, &svcreq_param,
 					    &err_index);
 		if (rc)
 			goto out_ERP;
-		rc = mmrp_cmd_service(svcreq_param, MRP_EVENT_JOIN);
+		if ('?' == buf[2]) {
+			mrp_event = MRP_EVENT_JOIN;
+		} else {
+			mrp_event = MRP_EVENT_NEW;
+		}
+		rc = mmrp_cmd_service(svcreq_param, mrp_event);
 		if (rc)
 			goto out_ERI;
-	} else if (strncmp(buf, "M++:M", 5) == 0) {
+	} else if ((strncmp(buf, "M++:M", 5) == 0)
+			   || (strncmp(buf, "M+?:M", 5) == 0)) {
 		/* buf[] should look similar to 'M+?:M=010203040506' */
 		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param, &err_index);
 		if (rc)
 			goto out_ERP;
-		rc = mmrp_cmd_mac(macvec_param, MRP_EVENT_JOIN);
+		if ('?' == buf[2]) {
+			mrp_event = MRP_EVENT_JOIN;
+		} else {
+			mrp_event = MRP_EVENT_NEW;
+		}
+		rc = mmrp_cmd_mac(macvec_param, mrp_event);
 		if (rc)
 			goto out_ERI;
 	} else {
