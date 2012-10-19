@@ -600,7 +600,8 @@ int mrpd_send_ctl_msg(struct sockaddr_in *client_addr,
 	if (INVALID_SOCKET == control_socket)
 		return 0;
 
-	printf("mrpd_send_ctl_msg :%s\n", notify_data);
+	printf("CTL MSG:%s to CLNT %d\n", notify_data,
+		       client_addr->sin_port);
 	rc = sendto(control_socket, notify_data, notify_len,
 		    0, (struct sockaddr *)client_addr, sizeof(struct sockaddr));
 	return rc;
@@ -868,7 +869,6 @@ void process_events(void)
 			break;
 
 		case WAIT_OBJECT_0 + pkt_event_localhost:
-			printf("pkt_event_localhost\n");
 			que_pop_nowait(que_localhost, &localhost_pkt);
 			process_ctl_msg(localhost_pkt.msgbuf,
 					localhost_pkt.bytes,
