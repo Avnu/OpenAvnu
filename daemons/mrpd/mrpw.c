@@ -775,7 +775,7 @@ void process_events(void)
 				0,	// default creation flags
 				&dwThreadID2);	// receive thread identifier
 
-	if (hThread1 == NULL) {
+	if (hThread2 == NULL) {
 		fprintf(stderr, "CreateThread error: %d\n", GetLastError());
 		ExitProcess(0);
 	}
