@@ -102,6 +102,7 @@ extern SOCKET msrp_socket;
 
 int periodic_timer;
 int gc_timer;
+unsigned int gc_ctl_msg_count = 0;
 
 extern struct mmrp_database *MMRP_db;
 extern struct mvrp_database *MVRP_db;
@@ -231,9 +232,11 @@ mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 	if (-1 == control_socket)
 		return 0;
 
-	if (logging_enable)
-		printf("CTL MSG:%s to CLNT %d\n", notify_data,
-		       client_addr->sin_port);
+	if (logging_enable) {
+		printf("[%02d] CTL MSG:%s to CLNT %d\n", 
+		       gc_ctl_msg_count, notify_data, client_addr->sin_port);
+		gc_ctl_msg_count = (gc_ctl_msg_count + 1) % 100;
+	}		      
 
 	rc = sendto(control_socket, notify_data, notify_len,
 		    0, (struct sockaddr *)client_addr, sizeof(struct sockaddr));
