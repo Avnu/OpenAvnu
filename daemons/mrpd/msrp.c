@@ -2542,6 +2542,8 @@ static int msrp_cmd_report_domain_status(struct msrpdu_domain *domain, int repor
 	if (NULL == attrib) {
 		return -1;
 	}
+
+	attrib->type = MSRP_DOMAIN_TYPE;
 	attrib->attribute.domain = *domain;
 	if (report)
 		msrp_event(MRP_EVENT_JOIN, attrib);
