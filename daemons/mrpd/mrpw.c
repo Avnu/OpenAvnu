@@ -831,7 +831,6 @@ void process_events(void)
 			break;
 
 		case WAIT_OBJECT_0 + pkt_event_wpcap:
-			printf("pkt_event_wpcap\n");
 			que_pop_nowait(que_wpcap, &wpcap_pkt);
 			proto = &wpcap_pkt.frame[12];
 			protocol =
