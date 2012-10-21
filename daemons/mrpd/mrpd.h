@@ -81,6 +81,11 @@ typedef struct eth_hdr {
  * operates on the (FirstEvent) attribute, the second encoded event
  * operates on the (FirstEvent+1) attribute, and so forth.
  */
+#if defined WIN32
+/* disable warning C4200: nonstandard extension used : zero-sized array in struct/union */
+#pragma warning(push)
+#pragma warning(disable: 4200)
+#endif
 typedef struct mrpdu_message {
 	uint8_t AttributeType;
 	uint8_t AttributeLength;	/* length of FirstValue */
@@ -93,6 +98,11 @@ typedef struct mrpdu_message {
 
 	/* table should have a trailing NULL (0x0000) indicating the ENDMARK */
 } mrpdu_message_t;
+#if defined WIN32
+#pragma warning(pop)
+#endif
+
+
 
 typedef struct mrpdu {
 	uint8_t ProtocolVersion;
