@@ -1023,7 +1023,8 @@ int mvrp_dumptable(struct sockaddr_in *client)
 
 }
 
-/* S-L   Withdraw a listener status */
+/* V+? - JOIN a VID
+ * V++   NEW a VID (XXX: note network disturbance) */
 int mvrp_cmd_parse_vid(char *buf, int buflen,
 		       uint16_t * attribute, int *err_index)
 {
@@ -1079,7 +1080,7 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	 */
 	if (strncmp(buf, "V??", 3) == 0) {
 		mvrp_dumptable(client);
-	} else if (strncmp(buf, "V--", 3)) {
+	} else if (strncmp(buf, "V--", 3) == 0) {
 		rc = mvrp_cmd_parse_vid(buf, buflen, &vid_param, &err_index);
 		if (rc)
 			goto out_ERP;
