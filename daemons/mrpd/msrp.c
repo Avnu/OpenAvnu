@@ -1411,6 +1411,246 @@ int msrp_recv_msg()
 }
 
 int
+msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
+		      int *bytes_used, int lva)
+{
+	mrpdu_vectorattrib_t *mrpdu_vectorptr;
+	uint16_t numvalues;
+	uint8_t vect_3pack;
+	int vectidx;
+	int vectevt[3];
+	int vectevt_idx;
+	uint8_t srclassID_firstval;
+	uint8_t srclassprio_firstval;
+	uint16_t srclassvid_firstval;
+	int attriblistlen;
+	struct msrp_attribute *attrib, *vattrib;
+	mrpdu_message_t *mrpdu_msg;
+	unsigned char *mrpdu_msg_ptr = msgbuf;
+	unsigned char *mrpdu_msg_eof = msgbuf_eof;
+
+	/* need at least 5 bytes for a single vector */
+	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 5))
+		goto oops;
+
+	mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
+	mrpdu_msg->AttributeType = MSRP_DOMAIN_TYPE;
+	mrpdu_msg->AttributeLength = 4;
+
+	attrib = MSRP_db->attrib_list;
+
+	mrpdu_vectorptr = (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2]);
+
+	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
+
+		if (MSRP_DOMAIN_TYPE != attrib->type) {
+			attrib = attrib->next;
+			continue;
+		}
+
+		if (0 == attrib->applicant.tx) {
+			attrib = attrib->next;
+			continue;
+		}
+		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
+			attrib->applicant.tx = 0;
+			attrib = attrib->next;
+			continue;
+		}
+
+		/* pointing to at least one attribute which needs to be transmitted */
+		srclassID_firstval = attrib->attribute.domain.SRclassID;
+		srclassprio_firstval = attrib->attribute.domain.SRclassPriority;
+		srclassvid_firstval = attrib->attribute.domain.SRclassVID;
+
+
+		mrpdu_vectorptr->FirstValue_VectorEvents[0] = srclassID_firstval;
+		mrpdu_vectorptr->FirstValue_VectorEvents[1] = srclassprio_firstval;
+		mrpdu_vectorptr->FirstValue_VectorEvents[2] = (uint8_t)(srclassvid_firstval >> 8);
+		mrpdu_vectorptr->FirstValue_VectorEvents[3] = (uint8_t)srclassvid_firstval;
+
+		switch (attrib->applicant.sndmsg) {
+		case MRP_SND_IN:
+			/*
+			 * If 'In' in indicated by the applicant attribute, the
+			 * look at the registrar state to determine whether to
+			 * send an In (if registrar is also In) or an Mt if the
+			 * registrar is either Mt or Lv.
+			 */
+			if (MRP_IN_STATE == attrib->registrar.mrp_state)
+				vectevt[0] = MRPDU_IN;
+			else
+				vectevt[0] = MRPDU_MT;
+			break;
+		case MRP_SND_NEW:
+			vectevt[0] = MRPDU_NEW;
+			break;
+		case MRP_SND_LV:
+			vectevt[0] = MRPDU_LV;
+			break;
+		case MRP_SND_JOIN:
+			/* IF 'Join' in indicated by the applicant, look at
+			 * the corresponding registrar state to determine whether
+			 * to send a JoinIn (if the registar state is 'In') or
+			 * a JoinMt if the registrar state is MT or LV.
+			 */
+			if (MRP_IN_STATE == attrib->registrar.mrp_state)
+				vectevt[0] = MRPDU_JOININ;
+			else
+				vectevt[0] = MRPDU_JOINMT;
+			break;
+		default:
+			/* huh? */
+			goto oops;
+			break;
+		}
+
+		vectevt_idx = 1;
+		numvalues = 1;
+		vectevt[1] = 0;
+		vectevt[2] = 0;
+
+		/* now attempt to vectorize contiguous other attributes
+		 * which also need to be transmitted
+		 */
+
+		vectidx = 4;
+		vattrib = attrib->next;
+
+		while (NULL != vattrib) {
+			if (MSRP_DOMAIN_TYPE != vattrib->type)
+				break;
+
+			if (0 == vattrib->applicant.tx)
+				break;
+
+			srclassID_firstval++;
+			srclassprio_firstval++;
+
+			if (srclassID_firstval != vattrib->attribute.domain.SRclassID)
+				break;
+
+			vattrib->applicant.tx = 0;
+
+			switch (vattrib->applicant.sndmsg) {
+			case MRP_SND_IN:
+				/*
+				 * If 'In' in indicated by the applicant attribute, the
+				 * look at the registrar state to determine whether to
+				 * send an In (if registrar is also In) or an Mt if the
+				 * registrar is either Mt or Lv.
+				 */
+				if (MRP_IN_STATE ==
+				    vattrib->registrar.mrp_state)
+					vectevt[vectevt_idx] = MRPDU_IN;
+				else
+					vectevt[vectevt_idx] = MRPDU_MT;
+				break;
+			case MRP_SND_NEW:
+				vectevt[vectevt_idx] = MRPDU_NEW;
+				break;
+			case MRP_SND_LV:
+				vectevt[vectevt_idx] = MRPDU_LV;
+				break;
+			case MRP_SND_JOIN:
+				/* IF 'Join' in indicated by the applicant, look at
+				 * the corresponding registrar state to determine whether
+				 * to send a JoinIn (if the registar state is 'In') or
+				 * a JoinMt if the registrar state is MT or LV.
+				 */
+				if (MRP_IN_STATE == attrib->registrar.mrp_state)
+					vectevt[vectevt_idx] = MRPDU_JOININ;
+				else
+					vectevt[vectevt_idx] = MRPDU_JOINMT;
+				break;
+			default:
+				/* huh? */
+				goto oops;
+				break;
+			}
+
+			vectevt_idx++;
+			numvalues++;
+
+			if (vectevt_idx > 2) {
+				vect_3pack = MRPDU_3PACK_ENCODE(vectevt[0],
+								vectevt[1],
+								vectevt[2]);
+
+				mrpdu_vectorptr->
+				    FirstValue_VectorEvents[vectidx] =
+				    vect_3pack;
+				vectidx++;
+				vectevt[0] = 0;
+				vectevt[1] = 0;
+				vectevt[2] = 0;
+				vectevt_idx = 0;
+			}
+
+			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
+			    > (mrpdu_msg_eof - 2))
+				goto oops;
+
+			vattrib = vattrib->next;
+		}
+
+		/* handle any trailers */
+		if (vectevt_idx > 0) {
+			vect_3pack = MRPDU_3PACK_ENCODE(vectevt[0],
+							vectevt[1], vectevt[2]);
+
+			mrpdu_vectorptr->FirstValue_VectorEvents[vectidx] =
+			    vect_3pack;
+			vectidx++;
+		}
+
+		if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx]) >
+		    (mrpdu_msg_eof - 2))
+			goto oops;
+
+		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
+
+		if (lva)
+			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA(0xFFFF);
+
+		mrpdu_vectorptr->VectorHeader =
+		    htons(mrpdu_vectorptr->VectorHeader);
+
+		mrpdu_msg_ptr =
+		    &(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx]);
+		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
+
+		attrib = attrib->next;
+
+	}
+
+	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2])) {
+		*bytes_used = 0;
+		return 0;
+	}
+
+	/* endmark */
+	*mrpdu_msg_ptr = 0;
+	mrpdu_msg_ptr++;
+	*mrpdu_msg_ptr = 0;
+	mrpdu_msg_ptr++;
+
+	*bytes_used = (mrpdu_msg_ptr - msgbuf);
+
+	attriblistlen = mrpdu_msg_ptr - &(mrpdu_msg->Data[2]);
+	mrpdu_msg->Data[0] = (uint8_t) (attriblistlen >> 8);
+	mrpdu_msg->Data[1] = (uint8_t) attriblistlen;
+	return 0;
+ oops:
+	/* an internal error - caller should assume TXLAF */
+	*bytes_used = 0;
+	return -1;
+}
+
+
+
+
+int
 msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		      int *bytes_used, int lva)
 {
@@ -2064,6 +2304,12 @@ int msrp_txpdu(void)
 		goto out;
 
 	rc = msrp_emit_listenvectors(mrpdu_msg_ptr, mrpdu_msg_eof, &bytes, lva);
+	if (-1 == rc)
+		goto out;
+
+	mrpdu_msg_ptr += bytes;
+
+	rc = msrp_emit_domainvectors(mrpdu_msg_ptr, mrpdu_msg_eof, &bytes, lva);
 	if (-1 == rc)
 		goto out;
 
