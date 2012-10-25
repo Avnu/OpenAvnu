@@ -229,7 +229,7 @@ int mrp_jointimer_start(struct mrp_database *mrp_db)
 	/* 10.7.4.1 - interval between transmit opportunities
 	 * for applicant state machine
 	 */
-	return mrpd_timer_start(mrp_db->join_timer, MRP_LVTIMER_VAL);
+	return mrpd_timer_start(mrp_db->join_timer, MRP_JOINTIMER_VAL);
 }
 
 int mrp_jointimer_stop(struct mrp_database *mrp_db)
