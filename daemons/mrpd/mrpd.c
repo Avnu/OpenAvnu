@@ -110,10 +110,11 @@ extern struct mmrp_database *MMRP_db;
 extern struct mvrp_database *MVRP_db;
 extern struct msrp_database *MSRP_db;
 
-void mrp_schedule_tx_event(void)
+void mrp_schedule_tx_event(struct mrp_database *mrp_db)
 {
 	uint64_t one = 1;
 	write(txnowevt_fd, &one, sizeof(one));
+	mrp_db->schedule_tx_flag = 1;
 }
 
 int mrpd_timer_create(void)
@@ -718,13 +719,16 @@ void process_events(void)
 			if (FD_ISSET(txnowevt_fd, &sel_fds)) {
 				uint64_t count;
 				read(txnowevt_fd, &count, sizeof(count));
-				if (mmrp_enable) {
+				if (mmrp_enable && MMRP_db->mrp_db.schedule_tx_flag) {
+					MMRP_db->mrp_db.schedule_tx_flag = 0;
 					mmrp_event(MRP_EVENT_TX, NULL);
 				}
-				if (mvrp_enable) {
+				if (mvrp_enable && MVRP_db->mrp_db.schedule_tx_flag) {
+					MVRP_db->mrp_db.schedule_tx_flag = 0;
 					mvrp_event(MRP_EVENT_TX, NULL);
 				}
-				if (msrp_enable) {
+				if (msrp_enable && MSRP_db->mrp_db.schedule_tx_flag) {
+					MSRP_db->mrp_db.schedule_tx_flag = 0;
 					msrp_event(MRP_EVENT_TX, NULL);
 				}
 			}

@@ -153,7 +153,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(attrib->applicant), MRP_EVENT_TXLA);
+			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MVRP_db->mrp_db), MRP_EVENT_TXLA);
 			attrib = attrib->next;
@@ -172,7 +172,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(attrib->applicant), MRP_EVENT_RLA);
+			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_RLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MVRP_db->mrp_db), MRP_EVENT_RLA);
 			attrib = attrib->next;
@@ -189,7 +189,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(attrib->applicant), MRP_EVENT_TX);
+			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
 		}
 
@@ -216,7 +216,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(attrib->applicant),
+			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
 			attrib = attrib->next;
 		}
@@ -248,7 +248,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 		printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-		mrp_applicant_fsm(&(attrib->applicant), event);
+		mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), event);
 		/* remap local requests into registrar events */
 		switch (event) {
 		case MRP_EVENT_NEW:

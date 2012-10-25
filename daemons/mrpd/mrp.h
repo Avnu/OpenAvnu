@@ -177,6 +177,7 @@ struct mrp_database {
 	client_t *clients;
 	int registration;
 	int participant;
+	int schedule_tx_flag;
 };
 
 int mrp_client_add(client_t ** list, struct sockaddr_in *newclient);
@@ -190,10 +191,10 @@ int mrp_lvtimer_stop(struct mrp_database *mrp_db);
 int mrp_lvatimer_start(struct mrp_database *mrp_db);
 int mrp_lvatimer_stop(struct mrp_database *mrp_db);
 int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event);
-int mrp_applicant_fsm(mrp_applicant_attribute_t * attrib, int event);
+int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * attrib, int event);
 int mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		      struct mrp_database *mrp_db, int event);
 int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
 		     mrp_applicant_attribute_t * aattrib, char *str,
 		     int strlen);
-void mrp_schedule_tx_event(void);
+void mrp_schedule_tx_event(struct mrp_database *mrp_db);

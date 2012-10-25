@@ -361,7 +361,7 @@ int mrp_periodictimer_fsm(struct mrp_database *mrp_db, int event)
  * per-attribute MRP FSM
  */
 
-int mrp_applicant_fsm(mrp_applicant_attribute_t * attrib, int event)
+int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * attrib, int event)
 {
 	int tx = 0;
 	int optional = 0;
@@ -713,7 +713,7 @@ int mrp_applicant_fsm(mrp_applicant_attribute_t * attrib, int event)
 		case  MRP_LA_STATE:
 		case  MRP_AP_STATE:
 		case  MRP_LO_STATE:
-			mrp_schedule_tx_event();
+			mrp_schedule_tx_event(mrp_db);
 			break;
 		default:
 			break;
