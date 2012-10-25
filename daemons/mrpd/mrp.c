@@ -704,7 +704,7 @@ int mrp_applicant_fsm(mrp_applicant_attribute_t * attrib, int event)
 	/*
 	See note 6, table 10.3
 	*/
-	if ((attrib->mrp_state != mrp_state) && (event != MRP_EVENT_TX)	) {
+	if ((attrib->mrp_state != mrp_state) && (event != MRP_EVENT_TX) && (event != MRP_EVENT_TXLA)) {
 		switch (mrp_state) {
 		case  MRP_VP_STATE:
 		case  MRP_VN_STATE:

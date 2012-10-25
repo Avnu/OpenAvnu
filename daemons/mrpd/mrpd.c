@@ -54,6 +54,7 @@
 #include <arpa/inet.h>
 #include <net/ethernet.h>
 #include <sys/un.h>
+#include <sys/eventfd.h>
 
 #include "mrpd.h"
 #include "mrp.h"
@@ -103,10 +104,17 @@ extern SOCKET msrp_socket;
 int periodic_timer;
 int gc_timer;
 unsigned int gc_ctl_msg_count = 0;
+int txnowevt_fd = -1;
 
 extern struct mmrp_database *MMRP_db;
 extern struct mvrp_database *MVRP_db;
 extern struct msrp_database *MSRP_db;
+
+void mrp_schedule_tx_event(void)
+{
+	uint64_t one = 1;
+	write(txnowevt_fd, &one, sizeof(one));
+}
 
 int mrpd_timer_create(void)
 {
@@ -629,6 +637,11 @@ void process_events(void)
 	if (gc_timer > max_fd)
 		max_fd = gc_timer;
 
+	txnowevt_fd = eventfd(0, 0);
+	FD_SET(txnowevt_fd, &fds);
+	if (txnowevt_fd > max_fd)
+		max_fd = txnowevt_fd;
+
 	do {
 
 		sel_fds = fds;
@@ -701,6 +714,19 @@ void process_events(void)
 			}
 			if (FD_ISSET(gc_timer, &sel_fds)) {
 				mrpd_reclaim();
+			}
+			if (FD_ISSET(txnowevt_fd, &sel_fds)) {
+				uint64_t count;
+				read(txnowevt_fd, &count, sizeof(count));
+				if (mmrp_enable) {
+					mmrp_event(MRP_EVENT_TX, NULL);
+				}
+				if (mvrp_enable) {
+					mvrp_event(MRP_EVENT_TX, NULL);
+				}
+				if (msrp_enable) {
+					msrp_event(MRP_EVENT_TX, NULL);
+				}
 			}
 		}
 	} while (1);
