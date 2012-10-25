@@ -2202,6 +2202,10 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		/* handle any trailers */
 		vectevt_idx = 0;
+		vectevt[0] = 0;
+		vectevt[1] = 0;
+		vectevt[2] = 0;
+		vectevt[3] = 0;
 		while (listen_declare_idx < listen_declare_end) {
 			vectevt[vectevt_idx] =
 			    listen_declare[listen_declare_idx];
