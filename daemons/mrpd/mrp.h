@@ -31,6 +31,12 @@
 
 ******************************************************************************/
 
+#define LOG_MRP 1
+#define LOG_MVRP 1
+#define LOG_MMRP 1
+#define LOG_MSRP 1
+
+
 #define MRP_ENCODE_YES		0	/* must send */
 #define MRP_ENCODE_OPTIONAL	1	/* send if smaller */
 
@@ -190,3 +196,4 @@ int mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
 		     mrp_applicant_attribute_t * aattrib, char *str,
 		     int strlen);
+void mrp_schedule_tx_event(void);

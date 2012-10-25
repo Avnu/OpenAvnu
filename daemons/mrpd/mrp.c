@@ -44,6 +44,95 @@
 /* state machine controls */
 int p2pmac;
 
+static char *mrp_event_string(int e)
+{
+	switch (e) {
+	case MRP_EVENT_BEGIN:
+		return "BEGIN";
+	case MRP_EVENT_NEW:
+		return "NEW";
+	case MRP_EVENT_JOIN:
+		return "JOIN";
+	case MRP_EVENT_LV:
+		return "LV";
+	case MRP_EVENT_TX:
+		return "TX";
+	case MRP_EVENT_TXLA:
+		return "TXLA";
+	case MRP_EVENT_TXLAF:
+		return "TXLAF";
+	case MRP_EVENT_RNEW:
+		return "RNEW";
+	case MRP_EVENT_RJOININ:
+		return "RJOININ";
+	case MRP_EVENT_RIN:
+		return "RIN";
+	case MRP_EVENT_RJOINMT:
+		return "RJOINMT";
+	case MRP_EVENT_RMT:
+		return "RMT";
+	case MRP_EVENT_RLV:
+		return "RLV";
+	case MRP_EVENT_RLA:
+		return "RLA";
+	case MRP_EVENT_FLUSH:
+		return "FLUSH";
+	case MRP_EVENT_REDECLARE:
+		return "REDECLARE";
+	case MRP_EVENT_PERIODIC:
+		return "PERIODIC";
+	case MRP_EVENT_PERIODIC_ENABLE:
+		return "ENABLE";
+	case MRP_EVENT_PERIODIC_DISABLE:
+		return "DISABLE";
+	case MRP_EVENT_LVTIMER:
+		return "LVTIMER";
+	case MRP_EVENT_LVATIMER:
+		return "LVATIMER";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static char *mrp_state_string(int s)
+{
+	switch (s) {
+	case MRP_VO_STATE:
+		return "VO";
+	case MRP_VP_STATE:
+		return "VO";
+	case MRP_VN_STATE:
+		return "VO";
+	case MRP_AN_STATE:
+		return "VO";
+	case MRP_AA_STATE:
+		return "VO";
+	case MRP_QA_STATE:
+		return "VO";
+	case MRP_LA_STATE:
+		return "VO";
+	case MRP_AO_STATE:
+		return "VO";
+	case MRP_QO_STATE:
+		return "VO";
+	case MRP_AP_STATE:
+		return "VO";
+	case MRP_QP_STATE:
+		return "VO";
+	case MRP_LO_STATE:
+		return "VO";
+
+	case MRP_IN_STATE:
+		return "VO";
+	case MRP_LV_STATE:
+		return "VO";
+	case MRP_MT_STATE:
+		return "VO";
+	default:
+		return"??";
+	}
+}
+
 static int client_lookup(client_t * list, struct sockaddr_in *newclient)
 {
 	client_t *client_item;
@@ -279,6 +368,9 @@ int mrp_applicant_fsm(mrp_applicant_attribute_t * attrib, int event)
 	int mrp_state = attrib->mrp_state;
 	int sndmsg = MRP_SND_NULL;
 
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
+	printf("APP FSM evt %s, state %s\n", mrp_event_string(event), mrp_state_string(mrp_state));
+#endif
 	switch (event) {
 	case MRP_EVENT_BEGIN:
 		mrp_state = MRP_VO_STATE;
@@ -609,6 +701,27 @@ int mrp_applicant_fsm(mrp_applicant_attribute_t * attrib, int event)
 	}
 
 	attrib->tx = tx;
+	/*
+	See note 6, table 10.3
+	*/
+	if ((attrib->mrp_state != mrp_state) && (event != MRP_EVENT_TX)	) {
+		switch (mrp_state) {
+		case  MRP_VP_STATE:
+		case  MRP_VN_STATE:
+		case  MRP_AN_STATE:
+		case  MRP_AA_STATE:
+		case  MRP_LA_STATE:
+		case  MRP_AP_STATE:
+		case  MRP_LO_STATE:
+			mrp_schedule_tx_event();
+			break;
+		default:
+			break;
+		}
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
+		printf("APP FSM state transition to %s\n", mrp_state_string(mrp_state));
+#endif
+	}
 	attrib->mrp_state = mrp_state;
 	attrib->sndmsg = sndmsg;
 	attrib->encode = (optional ? MRP_ENCODE_OPTIONAL : MRP_ENCODE_YES);

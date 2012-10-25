@@ -84,6 +84,7 @@ enum {
 	pkt_event_wpcap_timeout,
 	pkt_event_localhost_timeout,
 	app_event_kill_all,
+	tx_request_event,
 	loop_time_tick
 };
 
@@ -94,7 +95,7 @@ int mvrp_enable;
 int msrp_enable;
 int logging_enable;
 int mrpd_port;
-HANDLE pkt_events[6];
+HANDLE pkt_events[7];
 HANDLE sem_kill_wpcap_thread;
 HANDLE sem_kill_localhost_thread;
 struct que_def *que_wpcap;
@@ -722,6 +723,13 @@ int mrpd_reclaim()
 
 }
 
+void mrp_schedule_tx_event(void)
+{
+	if (!SetEvent(pkt_events[tx_request_event]))
+		printf("SetEvent tx_request_event failed (%d)\n", GetLastError());
+}
+
+
 HANDLE kill_packet_capture;
 
 void process_events(void)
@@ -754,7 +762,8 @@ void process_events(void)
 			ExitProcess(0);
 		}
 	}
-	pkt_events[pkt_event_wpcap] = que_data_available_object(que_wpcap);
+	pkt_events[pkt_event_wpcap] =
+		que_data_available_object(que_wpcap);
 	pkt_events[pkt_event_localhost] =
 	    que_data_available_object(que_localhost);
 
@@ -793,6 +802,11 @@ void process_events(void)
 			break;
 
 		switch (dwEvent) {
+		case WAIT_OBJECT_0 + tx_request_event:
+			mmrp_event(MRP_EVENT_TX, NULL);
+			mvrp_event(MRP_EVENT_TX, NULL);
+			msrp_event(MRP_EVENT_TX, NULL);
+			break;
 		case WAIT_TIMEOUT:
 		case WAIT_OBJECT_0 + loop_time_tick:
 			/* timeout - run protocols */

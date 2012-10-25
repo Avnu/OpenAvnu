@@ -252,6 +252,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
+#if LOG_MSRP
+			printf("MSRP -> mrp_applicant_fsm\n");
+#endif
 			mrp_applicant_fsm(&(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_TXLA);
@@ -268,6 +271,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
+#if LOG_MSRP
+			printf("MSRP -> mrp_applicant_fsm\n");
+#endif
 			mrp_applicant_fsm(&(attrib->applicant), MRP_EVENT_RLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_RLA);
@@ -282,6 +288,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
+#if LOG_MSRP
+			printf("MSRP -> mrp_applicant_fsm\n");
+#endif
 			mrp_applicant_fsm(&(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
 		}
@@ -306,6 +315,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
+#if LOG_MSRP
+			printf("MSRP -> mrp_applicant_fsm\n");
+#endif
 			mrp_applicant_fsm(&(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
 			attrib = attrib->next;
