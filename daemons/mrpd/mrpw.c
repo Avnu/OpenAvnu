@@ -803,9 +803,18 @@ void process_events(void)
 
 		switch (dwEvent) {
 		case WAIT_OBJECT_0 + tx_request_event:
-			mmrp_event(MRP_EVENT_TX, NULL);
-			mvrp_event(MRP_EVENT_TX, NULL);
-			msrp_event(MRP_EVENT_TX, NULL);
+			if (MMRP_db->mrp_db.schedule_tx_flag) {
+				MMRP_db->mrp_db.schedule_tx_flag = 0;
+				mmrp_event(MRP_EVENT_TX, NULL);
+			}
+			if (MVRP_db->mrp_db.schedule_tx_flag) {
+				MVRP_db->mrp_db.schedule_tx_flag = 0;
+				mvrp_event(MRP_EVENT_TX, NULL);
+			}
+			if (MSRP_db->mrp_db.schedule_tx_flag) {
+				MSRP_db->mrp_db.schedule_tx_flag = 0;
+				msrp_event(MRP_EVENT_TX, NULL);
+			}
 			break;
 		case WAIT_TIMEOUT:
 		case WAIT_OBJECT_0 + loop_time_tick:
