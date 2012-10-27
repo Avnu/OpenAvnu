@@ -116,7 +116,10 @@ process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client) {
 	 */
 
 	/* XXX */
-	printf("RESP:%s from SRV %d (bytes=%d)\n", buf, client->sin_port, buflen);
+	if (buf[1] == ':')
+		printf("?? RESP:\n%s", buf);
+	else
+		printf("MRPD ---> %s", buf);
 	fflush(stdout);
 	return(0);
 }
@@ -142,12 +145,11 @@ recv_ctl_msg() {
 	msg.msg_namelen = sizeof(client_addr);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-	printf("recv msg ... \n");
 	bytes = recvmsg(control_socket, &msg, 0); 	if (bytes < 0) goto out;
 
 	return(process_ctl_msg(msgbuf, bytes, &client_addr) );
 out:
-	printf("recv'd bad msg ... \n");
+	//printf("recv'd bad msg ... \n");
 	free (msgbuf);
 	
 	return(-1);
@@ -164,7 +166,7 @@ send_control_msg( char *notify_data, int notify_len) {
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	addr_len = sizeof(addr);
 
-printf("sending message\n");
+	//printf("sending message\n");
 
 	if (control_socket != -1)
 		return(sendto(control_socket, notify_data, notify_len, 0, (struct sockaddr *)&addr, addr_len));
@@ -204,6 +206,7 @@ main(int argc, char *argv[]) {
 	int	c;
 	int	rc = 0;
 	char	*msgbuf;
+	int	status;
 
 	for (;;) {
 		c = getopt(argc, argv, "hdlmvsi:");
@@ -232,17 +235,14 @@ main(int argc, char *argv[]) {
 	sprintf(msgbuf,"M++:M=010203040506");
 	rc = send_control_msg(msgbuf, 1500 );
 	
-	
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"M++:M=ffffffffffff");
 	rc = send_control_msg(msgbuf, 1500 );
-
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"V++:I=0002");
 	rc = send_control_msg(msgbuf, 1500 );
 
-#endif
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"M++:M=060504030201");
 	rc = send_control_msg(msgbuf, 1500 );
@@ -274,11 +274,6 @@ main(int argc, char *argv[]) {
 	sprintf(msgbuf,"M--:S=1");
 	rc = send_control_msg(msgbuf, 1500 );
 
-
-	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"V++:I=0002");
-	rc = send_control_msg(msgbuf, 1500 );
-
 	sprintf(msgbuf,"V--:I=0002");
 	rc = send_control_msg(msgbuf, 1500 );
 
@@ -295,7 +290,6 @@ main(int argc, char *argv[]) {
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S--:S=DEADBEEFBADFCA11");
 	rc = send_control_msg(msgbuf, 1500);
-
 
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S++:S=FFEEDDCCBBAA9988,A=112233445567,V=0002,Z=576,I=8000,P=96,L=1000");
@@ -321,6 +315,15 @@ main(int argc, char *argv[]) {
 	sprintf(msgbuf,"S-L:L=F00F00F00F00F000");
 	rc = send_control_msg(msgbuf, 1500);
 
+#endif
+
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"V++:I=0002");
+	rc = send_control_msg(msgbuf, 1500 );
+	
+	memset(msgbuf,0,1500);
+	sprintf(msgbuf,"S+L:L=0050c24edb0a0001,D=2");
+	rc = send_control_msg(msgbuf, 1500);
 	
 	do {
 		memset(msgbuf,0,1500);
@@ -332,7 +335,10 @@ main(int argc, char *argv[]) {
 		memset(msgbuf,0,1500);
 		sprintf(msgbuf,"S??");
 		rc = send_control_msg(msgbuf, 1500 );
-		recv_ctl_msg();
+		status = 0;
+		while (status >= 0) {
+			status = recv_ctl_msg();
+		}
 		sleep(1);
 	} while (1);
 out:

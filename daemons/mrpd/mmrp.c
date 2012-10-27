@@ -1363,13 +1363,13 @@ int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify)
 
 	switch (notify) {
 	case MRP_NOTIFY_NEW:
-		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MNE %s", stage);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MNE %s\n", stage);
 		break;
 	case MRP_NOTIFY_JOIN:
-		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MJO %s", stage);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MJO %s\n", stage);
 		break;
 	case MRP_NOTIFY_LV:
-		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MLE %s", stage);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MLE %s\n", stage);
 		break;
 	default:
 		goto free_msgbuf;
@@ -1422,7 +1422,7 @@ int mmrp_dumptable(struct sockaddr_in *client)
 	attrib = MMRP_db->attrib_list;
 
 	if (attrib == NULL) {
-		sprintf(msgbuf, "Empty");
+		sprintf(msgbuf, "MMRP:Empty\n");
 	}
 
 	while (NULL != attrib) {

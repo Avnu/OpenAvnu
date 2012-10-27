@@ -2169,6 +2169,8 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		listen_declare_end = listen_declare_idx;
 
+		printf("######listen_declare_end %d\n", listen_declare_end);
+
 		for (listen_declare_idx = 0;
 		     listen_declare_idx < ((listen_declare_end / 4) * 4);
 		     listen_declare_idx += 4) {
@@ -2465,13 +2467,13 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 
 	switch (notify) {
 	case MRP_NOTIFY_NEW:
-		sprintf(msgbuf, "SNE %s %s", variant, regsrc);
+		sprintf(msgbuf, "SNE %s %s\n", variant, regsrc);
 		break;
 	case MRP_NOTIFY_JOIN:
-		sprintf(msgbuf, "SJO %s %s", variant, regsrc);
+		sprintf(msgbuf, "SJO %s %s\n", variant, regsrc);
 		break;
 	case MRP_NOTIFY_LV:
-		sprintf(msgbuf, "SLE %s %s", variant, regsrc);
+		sprintf(msgbuf, "SLE %s %s\n", variant, regsrc);
 		break;
 	default:
 		goto free_msgbuf;
@@ -2523,6 +2525,9 @@ int msrp_dumptable(struct sockaddr_in *client)
 	msgbuf_wrptr = msgbuf;
 
 	attrib = MSRP_db->attrib_list;
+	if (attrib == NULL) {
+		sprintf(msgbuf, "MSRP:Empty\n");
+	}
 
 	while (NULL != attrib) {
 		if (MSRP_LISTENER_TYPE == attrib->type) {

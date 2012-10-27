@@ -922,16 +922,18 @@ int mvrp_send_notifications(struct mvrp_attribute *attrib, int notify)
 		attrib->registrar.macaddr[1],
 		attrib->registrar.macaddr[2],
 		attrib->registrar.macaddr[3],
-		attrib->registrar.macaddr[4], attrib->registrar.macaddr[5]);
+		attrib->registrar.macaddr[4],
+		attrib->registrar.macaddr[5]);
+
 	switch (attrib->registrar.mrp_state) {
 	case MRP_IN_STATE:
-		sprintf(stage, "VIN %s %s\n", variant, regsrc);
+		sprintf(stage, "VIN %s %s", variant, regsrc);
 		break;
 	case MRP_LV_STATE:
-		sprintf(stage, "VLV %s %s\n", variant, regsrc);
+		sprintf(stage, "VLV %s %s", variant, regsrc);
 		break;
 	case MRP_MT_STATE:
-		sprintf(stage, "VMT %s %s\n", variant, regsrc);
+		sprintf(stage, "VMT %s %s", variant, regsrc);
 		break;
 	default:
 		break;
@@ -939,13 +941,13 @@ int mvrp_send_notifications(struct mvrp_attribute *attrib, int notify)
 
 	switch (notify) {
 	case MRP_NOTIFY_NEW:
-		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "VNE %s", stage);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "VNE %s\n", stage);
 		break;
 	case MRP_NOTIFY_JOIN:
-		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "VJO %s", stage);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "VJO %s\n", stage);
 		break;
 	case MRP_NOTIFY_LV:
-		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "VLE %s", stage);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "VLE %s\n", stage);
 		break;
 	default:
 		goto free_msgbuf;
@@ -977,6 +979,7 @@ int mvrp_dumptable(struct sockaddr_in *client)
 	char *variant;
 	char *regsrc;
 	struct mvrp_attribute *attrib;
+	char mrp_state[8];
 
 	msgbuf = (char *)malloc(MAX_MRPD_CMDSZ);
 	if (NULL == msgbuf)
@@ -996,29 +999,26 @@ int mvrp_dumptable(struct sockaddr_in *client)
 	msgbuf_wrptr = msgbuf;
 
 	attrib = MVRP_db->attrib_list;
+	if (attrib == NULL) {
+		sprintf(msgbuf, "MVRP:Empty\n");
+	}
 
 	while (NULL != attrib) {
-		sprintf(variant, "%04x", attrib->attribute);
-		sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
+		sprintf(variant, "V:I=%04x", attrib->attribute);
+
+		mrp_decode_state(&attrib->registrar, &attrib->applicant,
+				 mrp_state, sizeof(mrp_state));
+
+		sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x %s",
 			attrib->registrar.macaddr[0],
 			attrib->registrar.macaddr[1],
 			attrib->registrar.macaddr[2],
 			attrib->registrar.macaddr[3],
 			attrib->registrar.macaddr[4],
-			attrib->registrar.macaddr[5]);
-		switch (attrib->registrar.mrp_state) {
-		case MRP_IN_STATE:
-			sprintf(stage, "VIN %s %s\n", variant, regsrc);
-			break;
-		case MRP_LV_STATE:
-			sprintf(stage, "VLV %s %s\n", variant, regsrc);
-			break;
-		case MRP_MT_STATE:
-			sprintf(stage, "VMT %s %s\n", variant, regsrc);
-			break;
-		default:
-			break;
-		}
+			attrib->registrar.macaddr[5],
+			mrp_state);
+
+		sprintf(stage, "%s %s\n", variant, regsrc);
 		sprintf(msgbuf_wrptr, "%s", stage);
 		msgbuf_wrptr += strnlen(stage, 128);
 		attrib = attrib->next;
