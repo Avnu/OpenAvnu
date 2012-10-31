@@ -13,10 +13,6 @@ test: test.o
 
 simple_talker: simple_talker.o
 
-mrpl: mrpl.o
-
-mrpq: mrpq.o
-
 latency_test: latency_test.o
 
 latency_test.o: latency_test.c
@@ -28,11 +24,13 @@ test.o: test.c
 simple_talker.o: simple_talker.c
 	gcc -c $(INCFLAGS) -I../daemons/mrpd $(CFLAGS) simple_talker.c
 
-mrpl.o: mrpl.c
+mrpl: mrpl.c
 	gcc -c $(INCFLAGS) -I../daemons/mrpd $(CFLAGS) mrpl.c
+	$(CC) mrpl.o -o $@
 
-mrpq.o: mrpq.c
+mrpq: mrpq.c
 	gcc -c $(INCFLAGS) -I../daemons/mrpd $(CFLAGS) mrpq.c
+	$(CC) mrpq.o -o $@
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
