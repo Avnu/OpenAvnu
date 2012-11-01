@@ -86,7 +86,7 @@ void	igb_dma_free_page(device_t *dev, struct igb_dma_alloc *page);
 int	igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet);
 void	igb_clean(device_t *dev, struct igb_packet **cleaned_packets);
 int	igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc);
-int	igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_int32_t tpktsz);
+int	igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_int32_t tpktsz_a, u_int32_t tpktsz_b);
 
 void	igb_trigger(device_t *dev, u_int32_t data);
 void	igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data);

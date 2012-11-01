@@ -981,7 +981,11 @@ igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 	return(0);
 } 
 int	
-igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_int32_t tpktsz) 
+igb_set_class_bandwidth(device_t *dev, 
+	u_int32_t class_a,
+	u_int32_t class_b,
+	u_int32_t tpktsz_a,
+	u_int32_t tpktsz_b) 
 {
 	u_int32_t	tqavctrl;
 	u_int32_t	tqavcc0, tqavcc1;
@@ -992,6 +996,7 @@ igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_i
 	struct e1000_hw *hw;
 	struct igb_link_cmd	link;
 	int	err;
+	float		class_a_percent, class_b_percent;
 
 	if (NULL == dev) return EINVAL;
 	adapter = (struct adapter *)dev->private_data;
@@ -1011,9 +1016,17 @@ igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_i
 
 	if (link.duplex != FULL_DUPLEX ) return EINVAL;
 
-	if ((class_a + class_b) > 75 ) return EINVAL;
+	if (tpktsz_a < 64) 
+		tpktsz_a = 64; /* minimum ethernet frame size */
 
-	if ((tpktsz < 64) || (tpktsz > 2000)) return EINVAL;
+	if (tpktsz_a > 1500)
+		return EINVAL;
+
+	if (tpktsz_b < 64) 
+		tpktsz_b = 64; /* minimum ethernet frame size */
+
+	if (tpktsz_b > 1500)
+		return EINVAL;
 
 	tqavctrl = E1000_READ_REG(hw, E1000_TQAVCTRL);
 
@@ -1032,24 +1045,59 @@ igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_i
 	else
 	    linkrate = E1000_TQAVCC_LINKRATE;
 
-	/* XXX convert to fixed point or floating point percents */
-	class_a_idle = (class_a * 2 * linkrate / 100); /* 'class_a' is a percent */
-	class_b_idle = (class_b * 2  * linkrate / 100);
+	/* 
+	 * class_a and class_b are the packets-per-(respective)observation
+	 * interval (125 usec for class A, 250 usec for class B)
+	 * these parameters are also used when establishing the MSRP
+	 * talker advertise attribute (as well as the tpktsize)
+	 *
+	 * note that class_a and class_b are independent of the media
+	 * rate. For our idle slope calculation, we need to scale the
+	 * (tpktsz + (media overhead)) * rate -> percentage of media rate.
+	 */
+
+	/* 12=Ethernet IPG, 8=Preamble+Start of Frame, 18=Mac Header with VLAN+Etype, 4=CRC */
+	class_a_percent = (float)((tpktsz_a + (12 + 8 + 18 + 4)) * class_a) ;
+	class_b_percent = (float)((tpktsz_b + (12 + 8 + 18 + 4)) * class_b) ;
+
+	class_a_percent /= 0.000125; /* class A observation window */
+	class_b_percent /= 0.000250; /* class B observation window */
+
+	if (link.speed == 100) {
+		class_a_percent /= (100000000.0 / 8); /* bytes-per-sec @ 100Mbps */
+		class_b_percent /= (100000000.0 / 8); 
+		class_a_idle = (u_int32_t)(class_a_percent * 0.2 * (float)linkrate + 0.5);
+		class_b_idle = (u_int32_t)(class_b_percent * 0.2 * (float)linkrate + 0.5);
+	} else {
+		class_a_percent /= (1000000000.0 / 8); /* bytes-per-sec @ 1Gbps */
+		class_b_percent /= (1000000000.0 / 8); 
+		class_a_idle = (u_int32_t)(class_a_percent * 2.0 * (float)linkrate + 0.5);
+		class_b_idle = (u_int32_t)(class_b_percent * 2.0 * (float)linkrate + 0.5);
+	}
+
+	if ((class_a_percent + class_b_percent) > 0.75)
+		return EINVAL;
 	tqavcc0 |= class_a_idle;
 	tqavcc1 |= class_b_idle;
 
 	/* 
-	 * The datasheet lists a formula for configuring the high credit threshold,
-	 * however it is only relevant in the conditions the high priority SR queues
-	 * are internally pre-empted by manageability traffic or low power proxy modes -
-	 * and if the SR queues are pre-empted, they would burst more packets than expected.
-	 * So - if you enable manageability or proxy modes while running AVB traffic, you
-	 * should program the high credit thresholds to prevent non-compliant packet bursts. 
-	 * But be aware the stream didn't stream as much bandwidth as it reserved,
-	 * and you may have had an underrun on the listener.
+	 * hiCredit is the number of idleslope credits accumulated due to delay T
+	 *
+	 * we assume the maxInterferenceSize is 18 + 4 + 1500 (1522).
+	 * Note: if EEE is enabled, we should use for maxInterferenceSize
+	 * the overhead of link recovery (a media-specific quantity).
 	 */
-	tqavhc0 = 0xFFFFFFFF;
-	tqavhc1 = 0xFFFFFFFF;
+	tqavhc0 = 0x80000000 + (class_a_idle * 1522 / linkrate ); /* L.10 */
+
+	/* 
+	 * Class B high credit is is the same, except the delay
+	 * is the MaxBurstSize of Class A + maxInterferenceSize of non-SR traffic
+	 *
+	 * L.41
+	 * max Class B delay = (1522 + tpktsz_a) / (linkrate - class_a_idle)
+	 */
+
+	tqavhc1 = 0x80000000 + (class_b_idle * ((1522 + tpktsz_a)/ (linkrate - class_a_idle)));
 
 	/* implicitly enable the Qav shaper */
 	tqavctrl |= E1000_TQAVCTRL_TX_ARB;

@@ -1,0 +1,1718 @@
+/******************************************************************************
+
+  Copyright (c) 2009-2012, Intel Corporation 
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions are met:
+  
+   1. Redistributions of source code must retain the above copyright notice, 
+      this list of conditions and the following disclaimer.
+  
+   2. Redistributions in binary form must reproduce the above copyright 
+      notice, this list of conditions and the following disclaimer in the 
+      documentation and/or other materials provided with the distribution.
+  
+   3. Neither the name of the Intel Corporation nor the names of its 
+      contributors may be used to endorse or promote products derived from 
+      this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE.
+
+******************************************************************************/
+
+#include <ieee1588.hpp>
+#include <avbts_clock.hpp>
+#include <avbts_message.hpp>
+#include <avbts_port.hpp>
+#include <avbts_ostimer.hpp>
+
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+
+#include <time.h>
+
+PTPMessageCommon::PTPMessageCommon(IEEE1588Port * port)
+{
+	// Fill in fields using port/clock dataset as a template
+	versionPTP = GPTP_VERSION;
+	versionNetwork = PTP_NETWORK_VERSION;
+	domainNumber = port->getClock()->getDomain();
+	// Set flags as necessary
+	memset(flags, 0, PTP_FLAGS_LENGTH);
+	correctionField = 0;
+	_gc = false;
+	sourcePortIdentity = new PortIdentity();
+
+	return;
+}
+
+// Determine whether the message was sent by given communication technology, uuid, and port id fields
+bool PTPMessageCommon::isSenderEqual(PortIdentity portIdentity)
+{
+	return portIdentity == *sourcePortIdentity;
+}
+
+PTPMessageCommon *buildPTPMessage(char *buf, int size,
+				  LinkLayerAddress * remote,
+				  IEEE1588Port * port)
+{
+	OSTimer *timer = port->getTimerFactory()->createTimer();
+	PTPMessageCommon *msg = NULL;
+	MessageType messageType;
+	unsigned char tspec_msg_t = 0;
+
+	uint16_t sequenceId;
+	PortIdentity *sourcePortIdentity;
+	Timestamp timestamp(0, 0, 0);
+	unsigned counter_value = 0;
+
+#if PTP_DEBUG
+	{
+		int i;
+		XPTPD_INFO("Packet Dump:\n");
+		for (i = 0; i < size; ++i) {
+			fprintf(stderr, "%hhx\t", buf[i]);
+			if (i % 8 == 7)
+				fprintf(stderr, "\n");
+		}
+		if (i % 8 != 0)
+			fprintf(stderr, "\n");
+	}
+#endif
+
+	memcpy(&tspec_msg_t,
+	       buf + PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(PTP_COMMON_HDR_OFFSET),
+	       sizeof(tspec_msg_t));
+	messageType = (MessageType) (tspec_msg_t & 0xF);
+
+	sourcePortIdentity = new PortIdentity((uint8_t *) (buf +
+				      PTP_COMMON_HDR_SOURCE_CLOCK_ID
+				      (PTP_COMMON_HDR_OFFSET)),
+			 (uint16_t *) (buf +
+				       PTP_COMMON_HDR_SOURCE_PORT_ID
+				       (PTP_COMMON_HDR_OFFSET)));
+
+	memcpy(&(sequenceId),
+	       buf + PTP_COMMON_HDR_SEQUENCE_ID(PTP_COMMON_HDR_OFFSET),
+	       sizeof(sequenceId));
+	sequenceId = PLAT_ntohs(sequenceId);
+
+	//fprintf( stderr, "Captured Sequence Id: %u\n", sequenceId );
+	XPTPD_INFO("Captured Sequence Id: %u", sequenceId);
+
+	if (!(messageType >> 3)) {
+		int iter = 2;
+		long req = 1000;	// = 1 ms
+		int ts_good =
+		    port->getRxTimestamp(sourcePortIdentity, sequenceId,
+					 timestamp, counter_value, false);
+		while (ts_good != 0 && iter-- != 0) {
+			// Waits at least 1 time slice regardless of size of 'req'
+			timer->sleep(req);
+			if (ts_good != 72)
+				fprintf(stderr,
+					"Error (RX) timestamping RX event packet (Retrying), error=%d\n",
+					ts_good);
+			ts_good =
+			    port->getRxTimestamp(sourcePortIdentity, sequenceId,
+						 timestamp, counter_value,
+						 iter == 0);
+			req *= 2;
+		}
+		if (ts_good != 0) {
+			char msg[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
+			port->getExtendedError(msg);
+			XPTPD_ERROR
+			    ("*** Received an event packet but cannot retrieve timestamp, discarding. messageType=%u,error=%d\n%s",
+			     messageType, ts_good, msg);
+			//_exit(-1);
+			return NULL;
+		}
+
+		else {
+			XPTPD_INFO("Timestamping event packet");
+		}
+
+	}
+
+	switch (messageType) {
+	case SYNC_MESSAGE:
+
+		//fprintf( stderr, "*** Received Sync message\n" );
+		//printf( "Sync RX timestamp = %hu,%u,%u\n", timestamp.seconds_ms, timestamp.seconds_ls, timestamp.nanoseconds );
+		XPTPD_INFO("*** Received Sync message");
+
+		// Be sure buffer is the correction size
+		if (size < PTP_COMMON_HDR_LENGTH + PTP_SYNC_LENGTH) {
+			goto done;
+		}
+		{
+			PTPMessageSync *sync_msg = new PTPMessageSync();
+			sync_msg->messageType = messageType;
+			// Copy in v2 sync specific fields
+			memcpy(&(sync_msg->originTimestamp.seconds_ms),
+			       buf + PTP_SYNC_SEC_MS(PTP_SYNC_OFFSET),
+			       sizeof(sync_msg->originTimestamp.seconds_ms));
+			memcpy(&(sync_msg->originTimestamp.seconds_ls),
+			       buf + PTP_SYNC_SEC_LS(PTP_SYNC_OFFSET),
+			       sizeof(sync_msg->originTimestamp.seconds_ls));
+			memcpy(&(sync_msg->originTimestamp.nanoseconds),
+			       buf + PTP_SYNC_NSEC(PTP_SYNC_OFFSET),
+			       sizeof(sync_msg->originTimestamp.nanoseconds));
+			msg = sync_msg;
+		}
+		break;
+	case FOLLOWUP_MESSAGE:
+
+		XPTPD_INFO("*** Received Follow Up message");
+
+		// Be sure buffer is the correction size
+		if (size < PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH) {
+			goto done;
+		}
+		{
+			PTPMessageFollowUp *followup_msg =
+			    new PTPMessageFollowUp();
+			followup_msg->messageType = messageType;
+			// Copy in v2 sync specific fields
+			memcpy(&
+			       (followup_msg->
+				preciseOriginTimestamp.seconds_ms),
+			       buf + PTP_FOLLOWUP_SEC_MS(PTP_FOLLOWUP_OFFSET),
+			       sizeof(followup_msg->
+				      preciseOriginTimestamp.seconds_ms));
+			memcpy(&
+			       (followup_msg->
+				preciseOriginTimestamp.seconds_ls),
+			       buf + PTP_FOLLOWUP_SEC_LS(PTP_FOLLOWUP_OFFSET),
+			       sizeof(followup_msg->
+				      preciseOriginTimestamp.seconds_ls));
+			memcpy(&
+			       (followup_msg->
+				preciseOriginTimestamp.nanoseconds),
+			       buf + PTP_FOLLOWUP_NSEC(PTP_FOLLOWUP_OFFSET),
+			       sizeof(followup_msg->
+				      preciseOriginTimestamp.nanoseconds));
+
+			followup_msg->preciseOriginTimestamp.seconds_ms =
+			    PLAT_ntohs(followup_msg->
+				       preciseOriginTimestamp.seconds_ms);
+			followup_msg->preciseOriginTimestamp.seconds_ls =
+			    PLAT_ntohl(followup_msg->
+				       preciseOriginTimestamp.seconds_ls);
+			followup_msg->preciseOriginTimestamp.nanoseconds =
+			    PLAT_ntohl(followup_msg->
+				       preciseOriginTimestamp.nanoseconds);
+
+			msg = followup_msg;
+		}
+		break;
+	case PATH_DELAY_REQ_MESSAGE:
+
+		XPTPD_INFO("*** Received PDelay Request message");
+
+		// Be sure buffer is the correction size
+		if (size < PTP_COMMON_HDR_LENGTH + PTP_PDELAY_REQ_LENGTH
+		    && /* For Broadcom compatibility */ size != 46) {
+			goto done;
+		}
+		{
+			PTPMessagePathDelayReq *pdelay_req_msg =
+			    new PTPMessagePathDelayReq();
+			pdelay_req_msg->messageType = messageType;
+
+#if 0
+			// The origin timestamp for PDelay Request packets has been eliminated since it is unused
+			// Copy in v2 PDelay Request specific fields
+			memcpy(&(pdelay_req_msg->originTimestamp.seconds_ms),
+			       buf +
+			       PTP_PDELAY_REQ_SEC_MS(PTP_PDELAY_REQ_OFFSET),
+			       sizeof(pdelay_req_msg->
+				      originTimestamp.seconds_ms));
+			memcpy(&(pdelay_req_msg->originTimestamp.seconds_ls),
+			       buf +
+			       PTP_PDELAY_REQ_SEC_LS(PTP_PDELAY_REQ_OFFSET),
+			       sizeof(pdelay_req_msg->
+				      originTimestamp.seconds_ls));
+			memcpy(&(pdelay_req_msg->originTimestamp.nanoseconds),
+			       buf + PTP_PDELAY_REQ_NSEC(PTP_PDELAY_REQ_OFFSET),
+			       sizeof(pdelay_req_msg->
+				      originTimestamp.nanoseconds));
+
+			pdelay_req_msg->originTimestamp.seconds_ms =
+			    PLAT_ntohs(pdelay_req_msg->
+				       originTimestamp.seconds_ms);
+			pdelay_req_msg->originTimestamp.seconds_ls =
+			    PLAT_ntohl(pdelay_req_msg->
+				       originTimestamp.seconds_ls);
+			pdelay_req_msg->originTimestamp.nanoseconds =
+			    PLAT_ntohl(pdelay_req_msg->
+				       originTimestamp.nanoseconds);
+#endif
+
+			msg = pdelay_req_msg;
+		}
+		break;
+	case PATH_DELAY_RESP_MESSAGE:
+
+		XPTPD_INFO("*** Received PDelay Response message, %u, %u, %u",
+			   timestamp.seconds_ls, timestamp.nanoseconds,
+			   sequenceId);
+
+		// Be sure buffer is the correction size
+		if (size < PTP_COMMON_HDR_LENGTH + PTP_PDELAY_RESP_LENGTH) {
+			goto done;
+		}
+		{
+			PTPMessagePathDelayResp *pdelay_resp_msg =
+			    new PTPMessagePathDelayResp();
+			pdelay_resp_msg->messageType = messageType;
+			// Copy in v2 PDelay Response specific fields
+			pdelay_resp_msg->requestingPortIdentity =
+			    new PortIdentity((uint8_t *) buf +
+					     PTP_PDELAY_RESP_REQ_CLOCK_ID
+					     (PTP_PDELAY_RESP_OFFSET),
+					     (uint16_t *) (buf +
+							   PTP_PDELAY_RESP_REQ_PORT_ID
+							   (PTP_PDELAY_RESP_OFFSET)));
+
+#ifdef DEBUG
+			for (int n = 0; n < PTP_CLOCK_IDENTITY_LENGTH; ++n) {	// MMM
+				fprintf(stderr, "%c",
+					pdelay_resp_msg->
+					requestingPortIdentity.clockIdentity
+					[n]);
+			}
+#endif
+
+			memcpy(&
+			       (pdelay_resp_msg->
+				requestReceiptTimestamp.seconds_ms),
+			       buf +
+			       PTP_PDELAY_RESP_SEC_MS(PTP_PDELAY_RESP_OFFSET),
+			       sizeof(pdelay_resp_msg->
+				      requestReceiptTimestamp.seconds_ms));
+			memcpy(&
+			       (pdelay_resp_msg->
+				requestReceiptTimestamp.seconds_ls),
+			       buf +
+			       PTP_PDELAY_RESP_SEC_LS(PTP_PDELAY_RESP_OFFSET),
+			       sizeof(pdelay_resp_msg->
+				      requestReceiptTimestamp.seconds_ls));
+			memcpy(&
+			       (pdelay_resp_msg->
+				requestReceiptTimestamp.nanoseconds),
+			       buf +
+			       PTP_PDELAY_RESP_NSEC(PTP_PDELAY_RESP_OFFSET),
+			       sizeof(pdelay_resp_msg->
+				      requestReceiptTimestamp.nanoseconds));
+
+			pdelay_resp_msg->requestReceiptTimestamp.seconds_ms =
+			    PLAT_ntohs(pdelay_resp_msg->requestReceiptTimestamp.seconds_ms);
+			pdelay_resp_msg->requestReceiptTimestamp.seconds_ls =
+			    PLAT_ntohl(pdelay_resp_msg->requestReceiptTimestamp.seconds_ls);
+			pdelay_resp_msg->requestReceiptTimestamp.nanoseconds =
+			    PLAT_ntohl(pdelay_resp_msg->requestReceiptTimestamp.nanoseconds);
+
+			msg = pdelay_resp_msg;
+		}
+		break;
+	case PATH_DELAY_FOLLOWUP_MESSAGE:
+
+		XPTPD_INFO("*** Received PDelay Response FollowUp message");
+
+		// Be sure buffer is the correction size
+//     if( size < PTP_COMMON_HDR_LENGTH + PTP_PDELAY_FOLLOWUP_LENGTH ) {
+//       goto done;
+//     }
+		{
+			PTPMessagePathDelayRespFollowUp *pdelay_resp_fwup_msg =
+			    new PTPMessagePathDelayRespFollowUp();
+			pdelay_resp_fwup_msg->messageType = messageType;
+			// Copy in v2 PDelay Response specific fields
+			pdelay_resp_fwup_msg->requestingPortIdentity =
+			    new PortIdentity((uint8_t *) buf +
+					     PTP_PDELAY_FOLLOWUP_REQ_CLOCK_ID
+					     (PTP_PDELAY_RESP_OFFSET),
+					     (uint16_t *) (buf +
+							   PTP_PDELAY_FOLLOWUP_REQ_PORT_ID
+							   (PTP_PDELAY_FOLLOWUP_OFFSET)));
+
+			memcpy(&
+			       (pdelay_resp_fwup_msg->
+				responseOriginTimestamp.seconds_ms),
+			       buf +
+			       PTP_PDELAY_FOLLOWUP_SEC_MS
+			       (PTP_PDELAY_FOLLOWUP_OFFSET),
+			       sizeof
+			       (pdelay_resp_fwup_msg->responseOriginTimestamp.
+				seconds_ms));
+			memcpy(&
+			       (pdelay_resp_fwup_msg->
+				responseOriginTimestamp.seconds_ls),
+			       buf +
+			       PTP_PDELAY_FOLLOWUP_SEC_LS
+			       (PTP_PDELAY_FOLLOWUP_OFFSET),
+			       sizeof
+			       (pdelay_resp_fwup_msg->responseOriginTimestamp.
+				seconds_ls));
+			memcpy(&
+			       (pdelay_resp_fwup_msg->
+				responseOriginTimestamp.nanoseconds),
+			       buf +
+			       PTP_PDELAY_FOLLOWUP_NSEC
+			       (PTP_PDELAY_FOLLOWUP_OFFSET),
+			       sizeof
+			       (pdelay_resp_fwup_msg->responseOriginTimestamp.
+				nanoseconds));
+
+			pdelay_resp_fwup_msg->
+			    responseOriginTimestamp.seconds_ms =
+			    PLAT_ntohs
+			    (pdelay_resp_fwup_msg->responseOriginTimestamp.
+			     seconds_ms);
+			pdelay_resp_fwup_msg->
+			    responseOriginTimestamp.seconds_ls =
+			    PLAT_ntohl
+			    (pdelay_resp_fwup_msg->responseOriginTimestamp.
+			     seconds_ls);
+			pdelay_resp_fwup_msg->
+			    responseOriginTimestamp.nanoseconds =
+			    PLAT_ntohl
+			    (pdelay_resp_fwup_msg->responseOriginTimestamp.
+			     nanoseconds);
+
+			msg = pdelay_resp_fwup_msg;
+		}
+		break;
+	case ANNOUNCE_MESSAGE:
+		{
+			PTPMessageAnnounce *annc = new PTPMessageAnnounce();
+			annc->messageType = messageType;
+
+			memcpy(&(annc->currentUtcOffset),
+			       buf +
+			       PTP_ANNOUNCE_CURRENT_UTC_OFFSET
+			       (PTP_ANNOUNCE_OFFSET),
+			       sizeof(annc->currentUtcOffset));
+			annc->currentUtcOffset =
+			    PLAT_ntohs(annc->currentUtcOffset);
+			memcpy(&(annc->grandmasterPriority1),
+			       buf +
+			       PTP_ANNOUNCE_GRANDMASTER_PRIORITY1
+			       (PTP_ANNOUNCE_OFFSET),
+			       sizeof(annc->grandmasterPriority1));
+			memcpy(annc->clockQuality,
+			       buf +
+			       PTP_ANNOUNCE_GRANDMASTER_CLOCK_QUALITY
+			       (PTP_ANNOUNCE_OFFSET),
+			       sizeof(annc->clockQuality));
+			annc->clockQuality->offsetScaledLogVariance =
+			    PLAT_ntohs(annc->
+				       clockQuality->offsetScaledLogVariance);
+			memcpy(&(annc->grandmasterPriority2),
+			       buf +
+			       PTP_ANNOUNCE_GRANDMASTER_PRIORITY2
+			       (PTP_ANNOUNCE_OFFSET),
+			       sizeof(annc->grandmasterPriority2));
+			memcpy(&(annc->grandmasterIdentity),
+			       buf +
+			       PTP_ANNOUNCE_GRANDMASTER_IDENTITY
+			       (PTP_ANNOUNCE_OFFSET),
+			       PTP_CLOCK_IDENTITY_LENGTH);
+			memcpy(&(annc->stepsRemoved),
+			       buf +
+			       PTP_ANNOUNCE_STEPS_REMOVED(PTP_ANNOUNCE_OFFSET),
+			       sizeof(annc->stepsRemoved));
+			annc->stepsRemoved = PLAT_ntohs(annc->stepsRemoved);
+			memcpy(&(annc->timeSource),
+			       buf +
+			       PTP_ANNOUNCE_TIME_SOURCE(PTP_ANNOUNCE_OFFSET),
+			       sizeof(annc->timeSource));
+
+			msg = annc;
+		}
+		break;
+	default:
+
+		XPTPD_ERROR("Received unsupported message type, %d",
+			    (int)messageType);
+
+		goto done;
+	}
+
+	msg->_gc = false;
+
+	// Copy in common header fields
+	memcpy(&(msg->versionPTP),
+	       buf + PTP_COMMON_HDR_PTP_VERSION(PTP_COMMON_HDR_OFFSET),
+	       sizeof(msg->versionPTP));
+	memcpy(&(msg->messageLength),
+	       buf + PTP_COMMON_HDR_MSG_LENGTH(PTP_COMMON_HDR_OFFSET),
+	       sizeof(msg->messageLength));
+	msg->messageLength = PLAT_ntohs(msg->messageLength);
+	memcpy(&(msg->domainNumber),
+	       buf + PTP_COMMON_HDR_DOMAIN_NUMBER(PTP_COMMON_HDR_OFFSET),
+	       sizeof(msg->domainNumber));
+	memcpy(&(msg->flags), buf + PTP_COMMON_HDR_FLAGS(PTP_COMMON_HDR_OFFSET),
+	       PTP_FLAGS_LENGTH);
+	memcpy(&(msg->correctionField),
+	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
+	       sizeof(msg->correctionField));
+	msg->correctionField = bswap_64(msg->correctionField);	// Assume LE machine
+	msg->sourcePortIdentity = sourcePortIdentity;
+	msg->sequenceId = sequenceId;
+	memcpy(&(msg->control),
+	       buf + PTP_COMMON_HDR_CONTROL(PTP_COMMON_HDR_OFFSET),
+	       sizeof(msg->control));
+	memcpy(&(msg->logMeanMessageInterval),
+	       buf + PTP_COMMON_HDR_LOG_MSG_INTRVL(PTP_COMMON_HDR_OFFSET),
+	       sizeof(msg->logMeanMessageInterval));
+
+	port->addSockAddrMap(msg->sourcePortIdentity, remote);
+
+	msg->_timestamp = timestamp;
+	msg->_timestamp_counter_value = counter_value;
+
+ done:
+	return msg;
+}
+
+void PTPMessageCommon::processMessage(IEEE1588Port * port)
+{
+	_gc = true;
+	return;
+}
+
+void PTPMessageCommon::buildCommonHeader(uint8_t * buf)
+{
+	unsigned char tspec_msg_t;
+	tspec_msg_t = messageType | 0x10;
+	//tspec_msg_t = messageType;
+	long long correctionField_BE = bswap_64(correctionField);	// Assume LE machine
+	uint16_t messageLength_NO = PLAT_htons(messageLength);
+
+	memcpy(buf + PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(PTP_COMMON_HDR_OFFSET),
+	       &tspec_msg_t, sizeof(tspec_msg_t));
+	memcpy(buf + PTP_COMMON_HDR_PTP_VERSION(PTP_COMMON_HDR_OFFSET),
+	       &versionPTP, sizeof(versionPTP));
+	memcpy(buf + PTP_COMMON_HDR_MSG_LENGTH(PTP_COMMON_HDR_OFFSET),
+	       &messageLength_NO, sizeof(messageLength_NO));
+	memcpy(buf + PTP_COMMON_HDR_DOMAIN_NUMBER(PTP_COMMON_HDR_OFFSET),
+	       &domainNumber, sizeof(domainNumber));
+	memcpy(buf + PTP_COMMON_HDR_FLAGS(PTP_COMMON_HDR_OFFSET), &flags,
+	       PTP_FLAGS_LENGTH);
+	memcpy(buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
+	       &correctionField_BE, sizeof(correctionField));
+
+	sourcePortIdentity->getClockIdentityString((char *)buf +
+						   PTP_COMMON_HDR_SOURCE_CLOCK_ID
+						   (PTP_COMMON_HDR_OFFSET));
+	sourcePortIdentity->getPortNumberNO((uint16_t *) (buf +
+							  PTP_COMMON_HDR_SOURCE_PORT_ID
+							  (PTP_COMMON_HDR_OFFSET)));
+
+	XPTPD_INFO("Sending Sequence Id: %u", sequenceId);
+	sequenceId = PLAT_htons(sequenceId);
+	memcpy(buf + PTP_COMMON_HDR_SEQUENCE_ID(PTP_COMMON_HDR_OFFSET),
+	       &sequenceId, sizeof(sequenceId));
+	sequenceId = PLAT_ntohs(sequenceId);
+	memcpy(buf + PTP_COMMON_HDR_CONTROL(PTP_COMMON_HDR_OFFSET), &control,
+	       sizeof(control));
+	memcpy(buf + PTP_COMMON_HDR_LOG_MSG_INTRVL(PTP_COMMON_HDR_OFFSET),
+	       &logMeanMessageInterval, sizeof(logMeanMessageInterval));
+
+	return;
+}
+
+void PTPMessageCommon::getPortIdentity(PortIdentity * identity)
+{
+	*identity = *sourcePortIdentity;
+}
+
+void PTPMessageCommon::setPortIdentity(PortIdentity * identity)
+{
+	*sourcePortIdentity = *identity;
+}
+
+PTPMessageCommon::~PTPMessageCommon(void)
+{
+	delete sourcePortIdentity;
+	return;
+}
+
+PTPMessageAnnounce::PTPMessageAnnounce(void)
+{
+	clockQuality = new ClockQuality();
+}
+
+PTPMessageAnnounce::~PTPMessageAnnounce(void)
+{
+	delete clockQuality;
+}
+
+bool PTPMessageAnnounce::isBetterThan(PTPMessageAnnounce * msg)
+{
+	unsigned char this1[14];
+	unsigned char that1[14];
+	uint16_t tmp;
+
+	this1[0] = grandmasterPriority1;
+	that1[0] = msg->getGrandmasterPriority1();
+
+	this1[1] = clockQuality->cq_class;
+	that1[1] = msg->getGrandmasterClockQuality()->cq_class;
+
+	this1[2] = clockQuality->clockAccuracy;
+	that1[2] = msg->getGrandmasterClockQuality()->clockAccuracy;
+
+	tmp = clockQuality->offsetScaledLogVariance;
+	tmp = PLAT_htons(tmp);
+	memcpy(this1 + 3, &tmp, sizeof(tmp));
+	tmp = msg->getGrandmasterClockQuality()->offsetScaledLogVariance;
+	tmp = PLAT_htons(tmp);
+	memcpy(that1 + 3, &tmp, sizeof(tmp));
+
+	this1[5] = grandmasterPriority2;
+	that1[5] = msg->getGrandmasterPriority2();
+
+	this->getGrandmasterIdentity((char *)this1 + 6);
+	msg->getGrandmasterIdentity((char *)that1 + 6);
+
+#if 0
+	fprintf(stderr, "Us: ");
+	for (int i = 0; i < 14; ++i)
+		fprintf(stderr, "%hhx", this1[i]);
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Them: ");
+	for (int i = 0; i < 14; ++i)
+		fprintf(stderr, "%hhx", that1[i]);
+	fprintf(stderr, "\n");
+#endif
+
+	return (memcmp(this1, that1, 14) < 0) ? true : false;
+}
+
+ PTPMessageSync::PTPMessageSync(IEEE1588Port * port):PTPMessageCommon(port)
+{
+	messageType = SYNC_MESSAGE;	// This is an event message
+	sequenceId = port->getNextSyncSequenceId();
+	control = SYNC;
+
+	flags[PTP_ASSIST_BYTE] |= (0x1 << PTP_ASSIST_BIT);
+
+	originTimestamp = port->getClock()->getTime();
+
+	logMeanMessageInterval = port->getSyncInterval();
+	return;
+}
+
+void PTPMessageSync::sendPort(IEEE1588Port * port, PortIdentity * destIdentity)
+{
+	uint8_t buf_t[256];
+	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
+	unsigned char tspec_msg_t = 0x0;
+	Timestamp originTimestamp_BE;
+	memset(buf_t, 0, 256);
+	// Create packet in buf
+	// Copy in common header
+	messageLength = PTP_COMMON_HDR_LENGTH + PTP_SYNC_LENGTH;
+	tspec_msg_t |= messageType & 0xF;
+	buildCommonHeader(buf_ptr);
+	// Get timestamp
+	originTimestamp = port->getClock()->getTime();
+	originTimestamp_BE.seconds_ms = PLAT_htons(originTimestamp.seconds_ms);
+	originTimestamp_BE.seconds_ls = PLAT_htonl(originTimestamp.seconds_ls);
+	originTimestamp_BE.nanoseconds =
+	    PLAT_htonl(originTimestamp.nanoseconds);
+	// Copy in v2 sync specific fields
+	memcpy(buf_ptr + PTP_SYNC_SEC_MS(PTP_SYNC_OFFSET),
+	       &(originTimestamp_BE.seconds_ms),
+	       sizeof(originTimestamp.seconds_ms));
+	memcpy(buf_ptr + PTP_SYNC_SEC_LS(PTP_SYNC_OFFSET),
+	       &(originTimestamp_BE.seconds_ls),
+	       sizeof(originTimestamp.seconds_ls));
+	memcpy(buf_ptr + PTP_SYNC_NSEC(PTP_SYNC_OFFSET),
+	       &(originTimestamp_BE.nanoseconds),
+	       sizeof(originTimestamp.nanoseconds));
+
+	port->sendEventPort(buf_t, messageLength, MCAST_OTHER, destIdentity);
+
+	return;
+}
+
+ PTPMessageAnnounce::PTPMessageAnnounce(IEEE1588Port * port):PTPMessageCommon
+    (port)
+{
+	messageType = ANNOUNCE_MESSAGE;	// This is an event message
+	sequenceId = port->getNextAnnounceSequenceId();
+	ClockIdentity id;
+	control = MESSAGE_OTHER;
+
+	id = port->getClock()->getClockIdentity();
+	tlv.setClockIdentity(&id);
+
+	currentUtcOffset = port->getClock()->getCurrentUtcOffset();
+	grandmasterPriority1 = port->getClock()->getPriority1();
+	grandmasterPriority2 = port->getClock()->getPriority2();
+	clockQuality = new ClockQuality();
+	*clockQuality = port->getClock()->getClockQuality();
+	stepsRemoved = 0;
+	timeSource = port->getClock()->getTimeSource();
+	ClockIdentity clock_identity;
+	clock_identity = port->getClock()->getClockIdentity();
+	clock_identity.getIdentityString(grandmasterIdentity);
+
+	logMeanMessageInterval = port->getAnnounceInterval();
+	return;
+}
+
+void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
+				  PortIdentity * destIdentity)
+{
+	uint8_t buf_t[256];
+	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
+	unsigned char tspec_msg_t = 0x0;
+
+	uint16_t currentUtcOffset_l = PLAT_htons(currentUtcOffset);
+	uint16_t stepsRemoved_l = PLAT_htons(stepsRemoved);
+	ClockQuality clockQuality_l = *clockQuality;
+	clockQuality_l.offsetScaledLogVariance =
+	    PLAT_htons(clockQuality_l.offsetScaledLogVariance);
+
+	memset(buf_t, 0, 256);
+	// Create packet in buf
+	// Copy in common header
+	messageLength =
+	    PTP_COMMON_HDR_LENGTH + PTP_ANNOUNCE_LENGTH + sizeof(tlv);
+	tspec_msg_t |= messageType & 0xF;
+	buildCommonHeader(buf_ptr);
+	memcpy(buf_ptr + PTP_ANNOUNCE_CURRENT_UTC_OFFSET(PTP_ANNOUNCE_OFFSET),
+	       &currentUtcOffset_l, sizeof(currentUtcOffset));
+	memcpy(buf_ptr +
+	       PTP_ANNOUNCE_GRANDMASTER_PRIORITY1(PTP_ANNOUNCE_OFFSET),
+	       &grandmasterPriority1, sizeof(grandmasterPriority1));
+	memcpy(buf_ptr +
+	       PTP_ANNOUNCE_GRANDMASTER_CLOCK_QUALITY(PTP_ANNOUNCE_OFFSET),
+	       &clockQuality_l, sizeof(clockQuality));
+	memcpy(buf_ptr +
+	       PTP_ANNOUNCE_GRANDMASTER_PRIORITY2(PTP_ANNOUNCE_OFFSET),
+	       &grandmasterPriority2, sizeof(grandmasterPriority2));
+	port->getClock()->getGrandmasterIdentity((char *)buf_ptr +
+						 PTP_ANNOUNCE_GRANDMASTER_IDENTITY
+						 (PTP_ANNOUNCE_OFFSET));
+	memcpy(buf_ptr + PTP_ANNOUNCE_STEPS_REMOVED(PTP_ANNOUNCE_OFFSET),
+	       &stepsRemoved_l, sizeof(stepsRemoved));
+	memcpy(buf_ptr + PTP_ANNOUNCE_TIME_SOURCE(PTP_ANNOUNCE_OFFSET),
+	       &timeSource, sizeof(timeSource));
+	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_ANNOUNCE_LENGTH);
+
+	port->sendGeneralPort(buf_t, messageLength, MCAST_OTHER, destIdentity);
+
+	return;
+}
+
+void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
+{
+	// Delete announce receipt timeout
+	port->getClock()->deleteEventTimer(port,
+					   ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES);
+
+	// Add message to the list
+	port->addQualifiedAnnounce(this);
+
+	port->getClock()->addEventTimer(port, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
+					(unsigned long long)
+					(ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER *
+					 (pow
+					  ((double)2,
+					   port->getAnnounceInterval()) *
+					  1000000000.0)));
+	port->getClock()->addEventTimer(port, STATE_CHANGE_EVENT, 16000000);
+}
+
+void PTPMessageSync::processMessage(IEEE1588Port * port)
+{
+	Timestamp system_time;
+	Timestamp device_time;
+	int64_t delay;
+
+	signed long long local_system_offset;
+	signed long long scalar_offset;
+
+	int32_t local_clock_adjustment;
+	int32_t local_system_freq_offset;
+
+	// Expire any SYNC_RECEIPT timers that exist
+	port->getClock()->deleteEventTimer(port, SYNC_RECEIPT_TIMEOUT_EXPIRES);
+	if (port->getPortState() == PTP_INITIALIZING
+	    || port->getPortState() == PTP_DISABLED) {
+		// Do nothing Sync messages should be ignored when in this state
+		return;
+	}
+	if (port->getPortState() == PTP_FAULTY) {
+		// According to spec recovery is implementation specific
+		port->recoverPort();
+		return;
+	}
+
+	XPTPD_INFO("PTP assist flag is not set, FLAGS[0,1] = %u,%u", flags[0],
+		   flags[1]);
+
+//   if( flags[PTP_ASSIST_BYTE] & (0x1<<PTP_ASSIST_BIT)) {
+	if (true) {
+		// If PTP_ASSIST flag is set, expect a follow-up message and do nothing
+		PTPMessageSync *old_sync = port->getLastSync();
+		if (old_sync != NULL) {
+			delete old_sync;
+		}
+		port->setLastSync(this);
+		_gc = false;
+		goto done;
+	} else {
+		_gc = true;
+	}
+
+	// Indicates invalid link delay, wait until link delay had been calculated
+	if ((delay = port->getLinkDelay()) == 3600000000000) {
+		printf
+		    ("Got Sync/Follow-Up but Link Delay has not been computed\n");
+		goto done;
+	}
+#if 0
+	scalar_offset = _timestamp.nanoseconds +
+	    (((unsigned long long)_timestamp.seconds_ms <<
+	      sizeof(_timestamp.seconds_ls) * 8) +
+	     _timestamp.seconds_ls) * 1000000000LL;
+	scalar_offset -=
+	    originTimestamp.nanoseconds +
+	    (((unsigned long long)originTimestamp.seconds_ms <<
+	      sizeof(originTimestamp.seconds_ls) * 8) +
+	     originTimestamp.seconds_ls) * 1000000000LL;
+#endif
+	scalar_offset =
+	    TIMESTAMP_TO_NS(_timestamp) - TIMESTAMP_TO_NS(originTimestamp);
+	scalar_offset -= delay;
+#if 0
+	scalar_offset -= delay.nanoseconds +
+	    (((unsigned long long)delay.seconds_ms << sizeof(delay.seconds_ls) *
+	      8) + delay.seconds_ls) * 1000000000LL;
+#endif
+	scalar_offset -= correctionField >> 16;	// Fractional nanoseconds are dropped
+
+	// Otherwise synchronize clock with approximate time from Sync message
+	uint32_t local_clock;
+	uint32_t nominal_clock_rate;
+	uint32_t device_sync_time_offset;
+
+#if 0
+	Timestamp crstamp_device_time;
+	int64_t external_local_offset;
+	int32_t external_local_freq_offset;
+#endif
+
+	port->getDeviceTime(system_time, device_time, local_clock,
+			    nominal_clock_rate);
+
+	// Adjust local_clock to correspond to _timestamp
+	device_sync_time_offset =
+	    TIMESTAMP_TO_NS(device_time) - TIMESTAMP_TO_NS(_timestamp);
+	local_clock -=
+	    device_sync_time_offset / (1000000000 / nominal_clock_rate);
+
+	XPTPD_INFO
+	    ("ptp_message::sync::processMessage System time: %u,%u Device Time: %u,%u",
+	     system_time.seconds_ls, system_time.nanoseconds,
+	     device_time.seconds_ls, device_time.nanoseconds);
+
+	local_clock_adjustment =
+	    port->calcMasterLocalClockRateDifference(scalar_offset, _timestamp);
+	port->setMasterRateOffset(local_clock_adjustment);
+
+	local_system_offset =
+	    TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(device_time);
+#if 0
+	local_system_offset = system_time.nanoseconds +
+	    (((unsigned long long)system_time.seconds_ms <<
+	      sizeof(system_time.seconds_ls) * 8) +
+	     system_time.seconds_ls) * 1000000000LL;
+	local_system_offset -=
+	    device_time.nanoseconds +
+	    (((unsigned long long)device_time.seconds_ms <<
+	      sizeof(device_time.seconds_ls) * 8) +
+	     device_time.seconds_ls) * 1000000000LL;
+#endif
+
+	local_system_freq_offset =
+	    port->calcLocalSystemClockRateDifference(local_system_offset,
+						     system_time);
+
+	TIMESTAMP_SUB_NS(system_time,
+			 (device_sync_time_offset *
+			  (1000000000000ULL +
+			   local_system_freq_offset)) / 1000000000000ULL);
+
+	//port->getExternalClockRate( crstamp_device_time, external_local_offset, external_local_freq_offset );
+
+#if 0
+	port->getClock()->setMasterOffset(scalar_offset, _timestamp,
+					  local_clock_adjustment,
+					  local_system_offset, system_time,
+					  local_system_freq_offset,
+					  external_local_offset,
+					  crstamp_device_time,
+					  external_local_freq_offset);
+#endif
+	port->getClock()->setMasterOffset(scalar_offset, _timestamp,
+					  local_clock_adjustment,
+					  local_system_offset, system_time,
+					  local_system_freq_offset,
+					  nominal_clock_rate, local_clock);
+	//fprintf( stderr, "Master-Local Offset=%d\n", local_clock_adjustment );
+
+	if (port->doSyntonization()) {
+		port->adjustClockRate(local_clock_adjustment,
+				      _timestamp_counter_value, originTimestamp,
+				      scalar_offset, false);
+	}
+
+ done:
+	// Restart the SYNC_RECEIPT timer
+	port->getClock()->addEventTimer(port, SYNC_RECEIPT_TIMEOUT_EXPIRES,
+					(unsigned long long)
+					(SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+					 ((double)
+					  pow((double)2,
+					      port->getSyncInterval()) *
+					  1000000000.0)));
+
+	return;
+}
+
+ PTPMessageFollowUp::PTPMessageFollowUp(IEEE1588Port * port):PTPMessageCommon
+    (port)
+{
+	messageType = FOLLOWUP_MESSAGE;	// This is an event message
+	control = FOLLOWUP;
+
+	logMeanMessageInterval = port->getSyncInterval();
+
+	return;
+}
+
+void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
+				  PortIdentity * destIdentity)
+{
+	uint8_t buf_t[256];
+	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
+	unsigned char tspec_msg_t = 0x0;
+	Timestamp preciseOriginTimestamp_BE;
+	memset(buf_t, 0, 256);
+	// Create packet in buf
+	// Copy in common header
+	messageLength =
+	    PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH + sizeof(tlv);
+	tspec_msg_t |= messageType & 0xF;
+	buildCommonHeader(buf_ptr);
+	preciseOriginTimestamp_BE.seconds_ms =
+	    PLAT_htons(preciseOriginTimestamp.seconds_ms);
+	preciseOriginTimestamp_BE.seconds_ls =
+	    PLAT_htonl(preciseOriginTimestamp.seconds_ls);
+	preciseOriginTimestamp_BE.nanoseconds =
+	    PLAT_htonl(preciseOriginTimestamp.nanoseconds);
+	// Copy in v2 sync specific fields
+	memcpy(buf_ptr + PTP_FOLLOWUP_SEC_MS(PTP_FOLLOWUP_OFFSET),
+	       &(preciseOriginTimestamp_BE.seconds_ms),
+	       sizeof(preciseOriginTimestamp.seconds_ms));
+	memcpy(buf_ptr + PTP_FOLLOWUP_SEC_LS(PTP_FOLLOWUP_OFFSET),
+	       &(preciseOriginTimestamp_BE.seconds_ls),
+	       sizeof(preciseOriginTimestamp.seconds_ls));
+	memcpy(buf_ptr + PTP_FOLLOWUP_NSEC(PTP_FOLLOWUP_OFFSET),
+	       &(preciseOriginTimestamp_BE.nanoseconds),
+	       sizeof(preciseOriginTimestamp.nanoseconds));
+	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH);
+
+	XPTPD_INFO("Follow-Up Time: %u seconds(hi)",
+		   preciseOriginTimestamp.seconds_ms);
+	XPTPD_INFO("Follow-Up Time: %u seconds",
+		   preciseOriginTimestamp.seconds_ls);
+	XPTPD_INFO("F-UP Time: %u nanoseconds",
+		   preciseOriginTimestamp.nanoseconds);
+	XPTPD_INFO("F-UP Time: %x seconds", preciseOriginTimestamp.seconds_ls);
+	XPTPD_INFO("F-UP Time: %x nanoseconds",
+		   preciseOriginTimestamp.nanoseconds);
+#if 0
+	XPTPD_INFO("Follow-up Dump:\n");
+#ifdef DEBUG
+	for (int i = 0; i < messageLength; ++i) {
+		fprintf(stderr, "%d:%02x ", i, (unsigned char)buf[i]);
+	}
+	fprintf(stderr, "\n");
+#endif
+#endif
+
+	port->sendGeneralPort(buf_t, messageLength, MCAST_OTHER, destIdentity);
+
+	return;
+}
+
+void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
+{
+	int64_t delay;
+	Timestamp sync_arrival;
+	Timestamp system_time(0, 0, 0);
+	Timestamp device_time(0, 0, 0);
+
+	signed long long local_system_offset;
+	signed long long scalar_offset;
+
+	int32_t local_clock_adjustment;
+	int32_t local_system_freq_offset;
+
+	XPTPD_INFO("Processing a follow-up message");
+
+	if (port->getPortState() == PTP_INITIALIZING
+	    || port->getPortState() == PTP_DISABLED) {
+		// Do nothing Sync messages should be ignored when in this state
+		return;
+	}
+	if (port->getPortState() == PTP_FAULTY) {
+		// According to spec recovery is implementation specific
+		port->recoverPort();
+		return;
+	}
+
+	PortIdentity sync_id;
+	PTPMessageSync *sync = port->getLastSync();
+	if (sync == NULL) {
+
+		XPTPD_ERROR("Received Follow Up but there is no sync message");
+
+		return;
+	}
+	sync->getPortIdentity(&sync_id);
+
+	if (sync->getSequenceId() != sequenceId
+	    || sync_id != *sourcePortIdentity) {
+
+		XPTPD_ERROR
+		    ("Received Follow Up but cannot find corresponding Sync");
+
+		goto done;
+	}
+
+	sync_arrival = sync->getTimestamp();
+
+	XPTPD_INFO("Sync Arrival: %u seconds", sync_arrival.seconds_ls);
+	XPTPD_INFO("Sync Arrival: %u nanoseconds", sync_arrival.nanoseconds);
+	XPTPD_INFO("Sync Depart: %u seconds",
+		   preciseOriginTimestamp.seconds_ls);
+	XPTPD_INFO("Sync Depart: %u nanoseconds",
+		   preciseOriginTimestamp.nanoseconds);
+	XPTPD_INFO("Sync Depart: %x seconds",
+		   preciseOriginTimestamp.seconds_ls);
+	XPTPD_INFO("Sync Depart: %x nanoseconds",
+		   preciseOriginTimestamp.nanoseconds);
+
+	delay = port->getLinkDelay();
+	if ((delay = port->getLinkDelay()) == 3600000000000) {
+		goto done;
+	}
+	//fprintf( stderr, "Local Time = %llu,Master Time = %llu\n", TIMESTAMP_TO_NS(sync_arrival)-delay, TIMESTAMP_TO_NS( preciseOriginTimestamp));
+
+	scalar_offset =
+	    TIMESTAMP_TO_NS(sync_arrival) -
+	    TIMESTAMP_TO_NS(preciseOriginTimestamp);
+
+	//printf( "Followup timestamp: %u,%u,%u\n", preciseOriginTimestamp.seconds_ms, preciseOriginTimestamp.seconds_ls, preciseOriginTimestamp.nanoseconds );
+	//printf( "Sync Arrival timestamp: %u,%u,%u\n", sync_arrival.seconds_ms, sync_arrival.seconds_ls, sync_arrival.nanoseconds );
+	//printf( "FollowUp Scalar = %Ld\n", scalar_offset );
+
+	scalar_offset -= delay;
+	scalar_offset -= correctionField >> 16;	// Fractional nanoseconds are dropped
+	//fprintf( stderr, "Scalar offset = %lld\n", scalar_offset );
+	//scalar_offset -= sync->getCorrectionField() >> 16; // Fractional nanoseconds are dropped
+	//fprintf( stderr, "Correction Field (ns): %lld\n", correctionField >> 16 );
+	//fprintf( stderr, "Link Delay (ns): %lld(%llu,%llu)\n", delay, TIMESTAMP_TO_NS( sync_arrival), TIMESTAMP_TO_NS(preciseOriginTimestamp) );
+
+	XPTPD_INFO("Followup Correction Field: %Ld,%lu", correctionField >> 16,
+		   delay);
+	XPTPD_INFO("FollowUp Scalar = %lld", scalar_offset);
+
+	// Otherwise synchronize clock with approximate time from Sync message
+	uint32_t local_clock, nominal_clock_rate;
+	uint32_t device_sync_time_offset;
+
+#if 0
+	Timestamp crstamp_device_time;
+	int64_t external_local_offset;
+	int32_t external_local_freq_offset;
+#endif
+
+	port->getDeviceTime(system_time, device_time, local_clock,
+			    nominal_clock_rate);
+	//fprintf( stderr, "Device Time = %llu,System Time = %llu\n", TIMESTAMP_TO_NS(device_time), TIMESTAMP_TO_NS(system_time));
+
+	// Adjust local_clock to correspond to sync_arrival
+	device_sync_time_offset =
+	    TIMESTAMP_TO_NS(device_time) - TIMESTAMP_TO_NS(sync_arrival);
+	//local_clock -= device_sync_time_offset/(1000000000/nominal_clock_rate);
+
+	XPTPD_INFO
+	    ("ptp_message::FollowUp::processMessage System time: %u,%u Device Time: %u,%u",
+	     system_time.seconds_ls, system_time.nanoseconds,
+	     device_time.seconds_ls, device_time.nanoseconds);
+
+	local_system_offset =
+	    TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(device_time);
+
+#if 0
+	local_system_offset = system_time.nanoseconds +
+	    (((unsigned long long)system_time.seconds_ms <<
+	      sizeof(system_time.seconds_ls) * 8) +
+	     system_time.seconds_ls) * 1000000000LL;
+	local_system_offset -=
+	    device_time.nanoseconds +
+	    (((unsigned long long)device_time.seconds_ms <<
+	      sizeof(device_time.seconds_ls) * 8) +
+	     device_time.seconds_ls) * 1000000000LL;
+#endif
+
+	local_clock_adjustment =
+	    port->calcMasterLocalClockRateDifference(scalar_offset,
+						     sync_arrival);
+	port->setMasterRateOffset(local_clock_adjustment);
+
+	local_system_freq_offset =
+	    port->calcLocalSystemClockRateDifference(local_system_offset,
+						     system_time);
+	//fprintf( stderr, "Master-Local Freq Offset = %d\n", local_clock_adjustment );
+	//fprintf( stderr, "Local-System Freq Offset = %d\n", local_system_freq_offset );
+
+	TIMESTAMP_SUB_NS(system_time,
+			 (device_sync_time_offset *
+			  (1000000000000ULL +
+			   local_system_freq_offset)) / 1000000000000ULL);
+
+	//port->getExternalClockRate( crstamp_device_time, external_local_offset, external_local_freq_offset );
+
+#if 0
+	port->getClock()->setMasterOffset(scalar_offset, sync_arrival,
+					  local_clock_adjustment,
+					  local_system_offset, system_time,
+					  local_system_freq_offset,
+					  external_local_offset,
+					  crstamp_device_time,
+					  external_local_freq_offset);
+#endif
+	port->getClock()->setMasterOffset(scalar_offset, sync_arrival,
+					  local_clock_adjustment,
+					  local_system_offset, system_time,
+					  local_system_freq_offset,
+					  nominal_clock_rate, local_clock);
+	//fprintf( stderr, "Master-Local Offset=%lld,%d,%llu\n", scalar_offset, local_clock_adjustment, TIMESTAMP_TO_NS(sync_arrival) );
+
+	if (port->doSyntonization()) {
+		port->adjustClockRate(local_clock_adjustment,
+				      sync->getTimestampCounterValue(),
+				      preciseOriginTimestamp, scalar_offset,
+				      false);
+	}
+
+ done:
+	_gc = true;
+	delete sync;
+	port->setLastSync(NULL);
+
+	return;
+}
+
+ PTPMessagePathDelayReq::PTPMessagePathDelayReq(IEEE1588Port * port):PTPMessageCommon
+    (port)
+{
+	logMeanMessageInterval = 0;
+	control = MESSAGE_OTHER;
+	messageType = PATH_DELAY_REQ_MESSAGE;
+	sequenceId = port->getNextPDelaySequenceId();
+	return;
+}
+
+void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
+{
+	OSTimer *timer = port->getTimerFactory()->createTimer();
+
+	if (port->getPortState() == PTP_INITIALIZING
+	    || port->getPortState() == PTP_DISABLED) {
+		// Do nothing all messages should be ignored when in this state
+		return;
+	}
+
+	if (port->getPortState() == PTP_FAULTY) {
+		// According to spec recovery is implementation specific
+		port->recoverPort();
+		return;
+	}
+
+	port->getClock()->deleteEventTimer(port,
+					   PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES);
+	port->getClock()->addEventTimer(port,
+					PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,
+					(unsigned long long)
+					(PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER
+					 *
+					 (pow
+					  ((double)2,
+					   port->getPDelayInterval()) *
+					  1000000000.0)));
+	// Generate and send message
+	PTPMessagePathDelayResp *resp = new PTPMessagePathDelayResp(port);
+	PortIdentity resp_id;
+	port->getPortIdentity(resp_id);
+	resp->setPortIdentity(&resp_id);
+	resp->setSequenceId(sequenceId);
+
+	XPTPD_INFO("Process PDelay Request SeqId: %u\t", sequenceId);
+	//XPTPD_INFO( "Process PDelay Request Port: %u\t", );
+	//XPTPD_INFO( "Process PDelay Request Identity: \"" );
+
+#ifdef DEBUG
+	for (int n = 0; n < PTP_CLOCK_IDENTITY_LENGTH; ++n) {
+		fprintf(stderr, "%c", resp_id.clockIdentity[n]);
+	}
+	fprintf(stderr, "\"\n");
+#endif
+
+	PortIdentity requestingPortIdentity_p;
+	this->getPortIdentity(&requestingPortIdentity_p);
+	resp->setRequestingPortIdentity(&requestingPortIdentity_p);
+	resp->setRequestReceiptTimestamp(_timestamp);
+	port->getTxLock();
+	resp->sendPort(port, sourcePortIdentity);
+
+	XPTPD_INFO("Sent path delay response");
+
+	int ts_good;
+	int iter = 2;
+	Timestamp resp_timestamp;
+	unsigned resp_timestamp_counter_value;
+	unsigned req = 1000;	// = 1 ms
+
+	XPTPD_INFO("Start TS Read");
+	ts_good =
+	    port->getTxTimestamp(resp, resp_timestamp,
+				 resp_timestamp_counter_value, false);
+
+	XPTPD_INFO("Done TS Read");
+
+	while (ts_good != 0 && iter-- != 0) {
+		timer->sleep(req);
+		if (ts_good == -72 && iter < 1)
+			fprintf(stderr,
+				"Error (TX) timestamping PDelay Response (Retrying-%d), error=%d\n",
+				iter, ts_good);
+		ts_good =
+		    port->getTxTimestamp(resp, resp_timestamp,
+					 resp_timestamp_counter_value,
+					 iter == 0);
+		req *= 2;
+	}
+	port->putTxLock();
+
+	if (ts_good != 0) {
+		char msg[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
+		port->getExtendedError(msg);
+		fprintf(stderr,
+			"Error (TX) timestamping PDelay Response, error=%d\n%s",
+			ts_good, msg);
+		delete resp;
+		return;
+	}
+
+	PTPMessagePathDelayRespFollowUp *resp_fwup =
+	    new PTPMessagePathDelayRespFollowUp(port);
+	PortIdentity resp_fwup_id;
+	port->getPortIdentity(resp_fwup_id);
+	resp_fwup->setPortIdentity(&resp_fwup_id);
+	resp_fwup->setSequenceId(sequenceId);
+	resp_fwup->setRequestingPortIdentity(sourcePortIdentity);
+	resp_fwup->setResponseOriginTimestamp(resp_timestamp);
+	long long turnaround;
+	turnaround =
+	    (resp_timestamp.seconds_ls - _timestamp.seconds_ls) * 1000000000LL;
+
+	XPTPD_INFO("Response Depart(sec): %u", resp_timestamp.seconds_ls);
+	XPTPD_INFO("Request Arrival(sec): %u", _timestamp.seconds_ls);
+	XPTPD_INFO("#1 Correction Field: %Ld", turnaround);
+
+	turnaround += resp_timestamp.nanoseconds;
+
+	XPTPD_INFO("#2 Correction Field: %Ld", turnaround);
+
+	turnaround -= _timestamp.nanoseconds;
+
+	XPTPD_INFO("#3 Correction Field: %Ld", turnaround);
+
+	//resp_fwup->setCorrectionField( turnaround << 16 );
+	resp_fwup->setCorrectionField(0);	// MMM
+	resp_fwup->sendPort(port, sourcePortIdentity);
+
+	XPTPD_INFO("Sent path delay response fwup");
+
+	delete resp;
+	delete resp_fwup;
+
+	_gc = true;
+}
+
+void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
+				      PortIdentity * destIdentity)
+{
+	uint8_t buf_t[256];
+	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
+	unsigned char tspec_msg_t = 0;
+	memset(buf_t, 0, 256);
+	// Create packet in buf
+	// Copy in common header
+	messageLength = PTP_COMMON_HDR_LENGTH + PTP_PDELAY_REQ_LENGTH;
+	tspec_msg_t |= messageType & 0xF;
+	buildCommonHeader(buf_ptr);
+	// Get timestamp
+	//originTimestamp = port->getClock()->getTime();
+	// These fields are not used
+//   memcpy( buf+PTP_PDELAY_REQ_SEC_MS(PTP_PDELAY_REQ_OFFSET), &(originTimestamp.seconds_ms), sizeof(originTimestamp.seconds_ms));
+//   memcpy( buf+PTP_PDELAY_REQ_SEC_LS(PTP_PDELAY_REQ_OFFSET), &(originTimestamp.seconds_ls), sizeof(originTimestamp.seconds_ls));
+//   memcpy( buf+PTP_PDELAY_REQ_NSEC(PTP_PDELAY_REQ_OFFSET), &(originTimestamp.nanoseconds), sizeof(originTimestamp.nanoseconds));
+//   memcpy( buf+PTP_PDELAY_REQ_TS_OFFSET(PTP_PDELAY_REQ_OFFSET), &(originTimestamp.timescaleOffset), sizeof(originTimestamp.timescaleOffset));
+
+	port->sendEventPort(buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	return;
+}
+
+ PTPMessagePathDelayResp::PTPMessagePathDelayResp(IEEE1588Port * port):
+PTPMessageCommon(port)
+{
+	logMeanMessageInterval = 0;
+	control = MESSAGE_OTHER;
+	messageType = PATH_DELAY_RESP_MESSAGE;
+	versionPTP = GPTP_VERSION;
+	requestingPortIdentity = new PortIdentity();
+
+	flags[PTP_ASSIST_BYTE] |= (0x1 << PTP_ASSIST_BIT);
+
+	return;
+}
+
+PTPMessagePathDelayResp::~PTPMessagePathDelayResp()
+{
+	delete requestingPortIdentity;
+}
+
+void PTPMessagePathDelayResp::processMessage(IEEE1588Port * port)
+{
+	if (port->getPortState() == PTP_INITIALIZING
+	    || port->getPortState() == PTP_DISABLED) {
+		// Do nothing all messages should be ignored when in this state
+		return;
+	}
+	if (port->getPortState() == PTP_FAULTY) {
+		// According to spec recovery is implementation specific
+		port->recoverPort();
+		return;
+	}
+
+	if (port->tryPDelayRxLock() != true) {
+		fprintf(stderr, "Failed to get PDelay RX Lock\n");
+		return;
+	}
+
+	port->getClock()->deleteEventTimer(port,
+					   PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES);
+	port->getClock()->addEventTimer(port,
+					PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,
+					(unsigned long long)
+					(PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER
+					 *
+					 (pow
+					  ((double)2,
+					   port->getPDelayInterval()) *
+					  1000000000.0)));
+	PTPMessagePathDelayResp *old_pdelay_resp = port->getLastPDelayResp();
+	if (old_pdelay_resp != NULL) {
+		delete old_pdelay_resp;
+	}
+	port->setLastPDelayResp(this);
+
+	port->putPDelayRxLock();
+	_gc = false;
+
+	return;
+}
+
+void PTPMessagePathDelayResp::sendPort(IEEE1588Port * port,
+				       PortIdentity * destIdentity)
+{
+	uint8_t buf_t[256];
+	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
+	unsigned char tspec_msg_t = 0;
+	Timestamp requestReceiptTimestamp_BE;
+	memset(buf_t, 0, 256);
+	// Create packet in buf
+	// Copy in common header
+	messageLength = PTP_COMMON_HDR_LENGTH + PTP_PDELAY_RESP_LENGTH;
+	tspec_msg_t |= messageType & 0xF;
+	buildCommonHeader(buf_ptr);
+	requestReceiptTimestamp_BE.seconds_ms =
+	    PLAT_htons(requestReceiptTimestamp.seconds_ms);
+	requestReceiptTimestamp_BE.seconds_ls =
+	    PLAT_htonl(requestReceiptTimestamp.seconds_ls);
+	requestReceiptTimestamp_BE.nanoseconds =
+	    PLAT_htonl(requestReceiptTimestamp.nanoseconds);
+
+	// Copy in v2 PDelay_Req specific fields
+	requestingPortIdentity->getClockIdentityString((char *)buf_ptr +
+						       PTP_PDELAY_RESP_REQ_CLOCK_ID
+						       (PTP_PDELAY_RESP_OFFSET));
+	requestingPortIdentity->getPortNumberNO((uint16_t *) (buf_ptr +
+							      PTP_PDELAY_RESP_REQ_PORT_ID
+							      (PTP_PDELAY_RESP_OFFSET)));
+	memcpy(buf_ptr + PTP_PDELAY_RESP_SEC_MS(PTP_PDELAY_RESP_OFFSET),
+	       &(requestReceiptTimestamp_BE.seconds_ms),
+	       sizeof(requestReceiptTimestamp.seconds_ms));
+	memcpy(buf_ptr + PTP_PDELAY_RESP_SEC_LS(PTP_PDELAY_RESP_OFFSET),
+	       &(requestReceiptTimestamp_BE.seconds_ls),
+	       sizeof(requestReceiptTimestamp.seconds_ls));
+	memcpy(buf_ptr + PTP_PDELAY_RESP_NSEC(PTP_PDELAY_RESP_OFFSET),
+	       &(requestReceiptTimestamp_BE.nanoseconds),
+	       sizeof(requestReceiptTimestamp.nanoseconds));
+
+	XPTPD_INFO("PDelay Resp Timestamp: %u,%u",
+		   requestReceiptTimestamp.seconds_ls,
+		   requestReceiptTimestamp.nanoseconds);
+
+	port->sendEventPort(buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	return;
+}
+
+void PTPMessagePathDelayResp::setRequestingPortIdentity(PortIdentity * identity)
+{
+	*requestingPortIdentity = *identity;
+}
+
+void PTPMessagePathDelayResp::getRequestingPortIdentity(PortIdentity * identity)
+{
+	*identity = *requestingPortIdentity;
+}
+
+ PTPMessagePathDelayRespFollowUp::PTPMessagePathDelayRespFollowUp(IEEE1588Port * port):
+PTPMessageCommon
+    (port)
+{
+	logMeanMessageInterval = 0;
+	control = MESSAGE_OTHER;
+	messageType = PATH_DELAY_FOLLOWUP_MESSAGE;
+	versionPTP = GPTP_VERSION;
+	requestingPortIdentity = new PortIdentity();
+
+	return;
+}
+
+PTPMessagePathDelayRespFollowUp::~PTPMessagePathDelayRespFollowUp()
+{
+	delete requestingPortIdentity;
+}
+
+void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
+{
+	Timestamp remote_resp_tx_timestamp(0, 0, 0);
+	Timestamp request_tx_timestamp(0, 0, 0);
+	Timestamp remote_req_rx_timestamp(0, 0, 0);
+	Timestamp response_rx_timestamp(0, 0, 0);
+
+	if (port->getPortState() == PTP_INITIALIZING
+	    || port->getPortState() == PTP_DISABLED) {
+		// Do nothing all messages should be ignored when in this state
+		return;
+	}
+	if (port->getPortState() == PTP_FAULTY) {
+		// According to spec recovery is implementation specific
+		port->recoverPort();
+		return;
+	}
+
+	if (port->tryPDelayRxLock() != true)
+		return;
+
+	PTPMessagePathDelayReq *req = port->getLastPDelayReq();
+	PTPMessagePathDelayResp *resp = port->getLastPDelayResp();
+
+	PortIdentity req_id;
+	PortIdentity resp_id;
+
+	if (req == NULL) {
+		// Shouldn't happen
+		XPTPD_ERROR
+		    (">>> Received PDelay followup but no REQUEST exists");
+		goto abort;
+	}
+
+	if (resp == NULL) {
+		// Probably shouldn't happen either
+		XPTPD_ERROR
+		    (">>> Received PDelay followup but no RESPONSE exists");
+		goto abort;
+	}
+
+	req->getPortIdentity(&req_id);
+	resp->getRequestingPortIdentity(&resp_id);
+
+	// Check if we have sent a request
+//   if( req->getSequenceId() != sequenceId || req_id.portNumber != requestingPortIdentity.portNumber || 
+//       memcmp( req_id.clockIdentity, requestingPortIdentity.clockIdentity, PTP_CLOCK_IDENTITY_LENGTH ) != 0 ) {
+	if (req->getSequenceId() != sequenceId) {
+
+		XPTPD_ERROR
+		    ("Received PDelay Response Follow Up but cannot find corresponding request");
+		//     XPTPD_INFO( "Requesting SeqId: %u ", req->getSequenceId() );
+		//     XPTPD_INFO( "Requesting SeqId: %u ", sequenceId );
+		XPTPD_ERROR("My SeqId: %u ", req->getSequenceId());
+		XPTPD_ERROR("Their SeqId: %u ", sequenceId);
+		//XPTPD_INFO( "Requesting Port: %u ", requestingPortIdentity.portNumber );
+		XPTPD_INFO("Requesting Identity: \"");
+
+#ifdef DEBUG
+		for (int n = 0; n < PTP_CLOCK_IDENTITY_LENGTH; ++n) {
+			fprintf(stderr, "%u: %x ", n,
+				requestingPortIdentity.clockIdentity[n]);
+		}
+		fprintf(stderr, " \"\n");
+#endif
+
+		//XPTPD_INFO( "Requesting SeqId: %u ", req->getSequenceId() );
+		//XPTPD_INFO( "Requesting Port: %u ", req_id.portNumber );
+		XPTPD_INFO("Requesting Identity: \"");
+
+#ifdef DEBUG
+		for (int n = 0; n < PTP_CLOCK_IDENTITY_LENGTH; ++n) {
+			fprintf(stderr, "%u:%x ", n, req_id.clockIdentity[n]);
+		}
+		fprintf(stderr, " \"\n");
+#endif
+
+		goto abort;
+	}
+	//fprintf( stderr, "PDelay Follow-Up OK\n" );
+
+	// Check if we have received a response
+	if (resp->getSequenceId() != sequenceId
+	    || resp_id != *requestingPortIdentity) {
+		uint16_t resp_port_number;
+		uint16_t req_port_number;
+		resp_id.getPortNumber(&resp_port_number);
+		requestingPortIdentity->getPortNumber(&req_port_number);
+		XPTPD_ERROR
+		    ("Received PDelay Response Follow Up but cannot find corresponding response");
+		XPTPD_ERROR("%hu, %hu, %hu, %hu", resp->getSequenceId(),
+			    sequenceId, resp_port_number, req_port_number);
+
+		goto abort;
+	}
+
+	XPTPD_INFO("Request Sequence Id: %u", req->getSequenceId());
+	XPTPD_INFO("Response Sequence Id: %u", resp->getSequenceId());
+	XPTPD_INFO("Follow-Up Sequence Id: %u", req->getSequenceId());
+
+	port->setAsCapable(true);
+
+	int64_t link_delay;
+	unsigned long long turn_around;
+
+	// Assume that we are a two step clock, otherwise originTimestamp may be used
+	request_tx_timestamp = req->getTimestamp();
+	if (request_tx_timestamp.nanoseconds ==
+	    PDELAY_PENDING_TIMESTAMP.nanoseconds) {
+		// Defer processing
+		if (port->getLastPDelayRespFollowUp() != NULL) {
+			delete port->getLastPDelayRespFollowUp();
+		}
+		port->setLastPDelayRespFollowUp(this);
+		port->getClock()->addEventTimer(port,
+						PDELAY_DEFERRED_PROCESSING,
+						1000000);
+		goto defer;
+	}
+	if (request_tx_timestamp.nanoseconds == INVALID_TIMESTAMP.nanoseconds) {
+		// Stop processing the packet
+		goto abort;
+	}
+	remote_req_rx_timestamp = resp->getRequestReceiptTimestamp();
+	response_rx_timestamp = resp->getTimestamp();
+	remote_resp_tx_timestamp = responseOriginTimestamp;
+
+#if 0
+	fprintf(stderr, "@REQT,%u,%u,%u,%hu\n", request_tx_timestamp.seconds_ms,
+		request_tx_timestamp.seconds_ls,
+		request_tx_timestamp.nanoseconds, req->getSequenceId());
+	fprintf(stderr, "@REQR,%u,%u,%u,%hu\n",
+		remote_req_rx_timestamp.seconds_ms,
+		remote_req_rx_timestamp.seconds_ls,
+		remote_req_rx_timestamp.nanoseconds, resp->getSequenceId());
+	fprintf(stderr, "@RESR,%u,%u,%u,%hu\n",
+		response_rx_timestamp.seconds_ms,
+		response_rx_timestamp.seconds_ls,
+		response_rx_timestamp.nanoseconds, resp->getSequenceId());
+	fprintf(stderr, "@REST,%u,%u,%u,%hu\n",
+		remote_resp_tx_timestamp.seconds_ms,
+		remote_resp_tx_timestamp.seconds_ls,
+		remote_resp_tx_timestamp.nanoseconds, sequenceId);
+#endif
+
+	link_delay =
+	    ((response_rx_timestamp.seconds_ms * 1LL -
+	      request_tx_timestamp.seconds_ms) << 32) * 1000000000;
+	link_delay +=
+	    (response_rx_timestamp.seconds_ls * 1LL -
+	     request_tx_timestamp.seconds_ls) * 1000000000;
+	link_delay +=
+	    (response_rx_timestamp.nanoseconds * 1LL -
+	     request_tx_timestamp.nanoseconds);
+	//fprintf( stderr, "Send/Recv Delay is %lld\n", link_delay );
+
+	turn_around =
+	    ((remote_resp_tx_timestamp.seconds_ms * 1LL -
+	      remote_req_rx_timestamp.seconds_ms) << 32) * 1000000000;
+	turn_around +=
+	    (remote_resp_tx_timestamp.seconds_ls * 1LL -
+	     remote_req_rx_timestamp.seconds_ls) * 1000000000;
+	turn_around +=
+	    (remote_resp_tx_timestamp.nanoseconds * 1LL -
+	     remote_req_rx_timestamp.nanoseconds);
+	//fprintf( stderr, "Unadjusted Turn Around is %llu\n", turn_around );
+	//fprintf( stderr, "Unadjusted Link Delay *2 %lld\n", link_delay - turn_around );
+
+	//fprintf( stderr, "Peer Rate Offset: %d", port->getPeerRateOffset() );
+
+	// Adjust turn-around time for peer to local clock rate difference
+	turn_around +=
+	    (((long long)turn_around) * port->getPeerRateOffset()) /
+	    1000000000000LL;
+
+	XPTPD_INFO("Turn Around Adjustment %Ld",
+		   ((long long)turn_around * port->getPeerRateOffset()) /
+		   1000000000000LL);
+	XPTPD_INFO("Step #1: Turn Around Adjustment %Ld",
+		   ((long long)turn_around * port->getPeerRateOffset()));
+	XPTPD_INFO("Adjusted Peer turn around is %Lu", turn_around);
+
+	// Subtract turn-around time from link delay after rate adjustment
+	link_delay -= turn_around;
+
+	link_delay /= 2;
+
+	{
+		uint64_t mine_elapsed;
+		uint64_t theirs_elapsed;
+		Timestamp prev_peer_ts_mine;
+		Timestamp prev_peer_ts_theirs;
+		int32_t rate_offset;
+		if (port->getPeerOffset(prev_peer_ts_mine, prev_peer_ts_theirs)) {
+			mine_elapsed =
+			    TIMESTAMP_TO_NS(request_tx_timestamp) -
+			    TIMESTAMP_TO_NS(prev_peer_ts_mine);
+			theirs_elapsed =
+			    TIMESTAMP_TO_NS(remote_req_rx_timestamp) -
+			    TIMESTAMP_TO_NS(prev_peer_ts_theirs);
+#if 0
+			rate_offset =
+			    (int32_t) ((mine_elapsed * 1000000000ULL) /
+				       theirs_elapsed);
+			rate_offset -= 1000000000;
+#endif
+			theirs_elapsed -= port->getLinkDelay() - link_delay;
+			rate_offset =
+			    (int32_t) ((mine_elapsed * 1000000000ULL) /
+				       theirs_elapsed);
+			rate_offset -= 1000000000;
+			rate_offset *= 1000;
+			port->setPeerRateOffset(rate_offset);
+			//fprintf( stderr, "(2)PDelay rate offset: %d\n", rate_offset );
+		}
+	}
+	port->setLinkDelay(link_delay);
+	port->setPeerOffset(request_tx_timestamp, remote_req_rx_timestamp);
+
+ abort:
+	delete req;
+	port->setLastPDelayReq(NULL);
+	delete resp;
+	port->setLastPDelayResp(NULL);
+
+	_gc = true;
+
+ defer:
+	port->putPDelayRxLock();
+
+	return;
+}
+
+void PTPMessagePathDelayRespFollowUp::sendPort(IEEE1588Port * port,
+					       PortIdentity * destIdentity)
+{
+	uint8_t buf_t[256];
+	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
+	unsigned char tspec_msg_t = 0;
+	Timestamp responseOriginTimestamp_BE;
+	memset(buf_t, 0, 256);
+	// Create packet in buf
+	// Copy in common header
+	messageLength = PTP_COMMON_HDR_LENGTH + PTP_PDELAY_RESP_LENGTH;
+	tspec_msg_t |= messageType & 0xF;
+	buildCommonHeader(buf_ptr);
+	responseOriginTimestamp_BE.seconds_ms =
+	    PLAT_htons(responseOriginTimestamp.seconds_ms);
+	responseOriginTimestamp_BE.seconds_ls =
+	    PLAT_htonl(responseOriginTimestamp.seconds_ls);
+	responseOriginTimestamp_BE.nanoseconds =
+	    PLAT_htonl(responseOriginTimestamp.nanoseconds);
+
+	// Copy in v2 PDelay_Req specific fields
+	requestingPortIdentity->getClockIdentityString((char *)buf_ptr +
+						       PTP_PDELAY_FOLLOWUP_REQ_CLOCK_ID
+						       (PTP_PDELAY_FOLLOWUP_OFFSET));
+	requestingPortIdentity->getPortNumberNO((uint16_t *) (buf_ptr +
+							      PTP_PDELAY_FOLLOWUP_REQ_PORT_ID
+							      (PTP_PDELAY_FOLLOWUP_OFFSET)));
+	memcpy(buf_ptr + PTP_PDELAY_FOLLOWUP_SEC_MS(PTP_PDELAY_FOLLOWUP_OFFSET),
+	       &(responseOriginTimestamp_BE.seconds_ms),
+	       sizeof(responseOriginTimestamp.seconds_ms));
+	memcpy(buf_ptr + PTP_PDELAY_FOLLOWUP_SEC_LS(PTP_PDELAY_FOLLOWUP_OFFSET),
+	       &(responseOriginTimestamp_BE.seconds_ls),
+	       sizeof(responseOriginTimestamp.seconds_ls));
+	memcpy(buf_ptr + PTP_PDELAY_FOLLOWUP_NSEC(PTP_PDELAY_FOLLOWUP_OFFSET),
+	       &(responseOriginTimestamp_BE.nanoseconds),
+	       sizeof(responseOriginTimestamp.nanoseconds));
+
+	XPTPD_INFO("PDelay Resp Timestamp: %u,%u",
+		   responseOriginTimestamp.seconds_ls,
+		   responseOriginTimestamp.nanoseconds);
+
+	port->sendGeneralPort(buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	return;
+}
+
+void PTPMessagePathDelayRespFollowUp::setRequestingPortIdentity(PortIdentity *
+								identity)
+{
+	*requestingPortIdentity = *identity;
+}

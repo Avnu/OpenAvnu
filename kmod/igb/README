@@ -1,0 +1,31 @@
+INTRODUCTION
+
+This component demonstrates various features of the Intel I210 Ethernet 
+controller. These features can be used for developing Audio/Video Bridging 
+applications, Industrial Ethernet applications which require precise timing 
+control over frame transmission, or test harnesses for measuring system 
+latencies and sampling events.
+
+This component - igb_avb - is limited to the Intel I210 Ethernet controller.  
+The kernel module can be loaded in parallel to existing in-kernel igb modules 
+which may be used on other supported Intel LAN controllers. Modifications are 
+required to the in-kernel drivers if the existing in-kernel igb driver has 
+support for the Intel I210.
+
+BUILDING
+
+The kernel igb module can be built which supports the latest Linux kernel
+3.x PTP clock support - to enable, modify kmod/Makefile and enable -DCONFIG_PTP
+as a build option (e.g. EXTRA_CFLAGS += -DCONFIG_PTP).
+
+RUNNING
+
+To install the kernel mode driver, you must have root permissions. Typically,
+the driver is loaded by:
+	<optional> sudo modprobe dca
+	<optional> sudo modprobe ptp
+	sudo insmod ./igb_avb.ko
+
+As 3.4 and later kernels include support for the I210, you may need to 'rmmod 
+igb' before loading the igb_avb module.
+

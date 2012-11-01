@@ -1,0 +1,11 @@
+INTRODUCTION
+
+The MRP daemon is required to establish stream reservations with compatible AVB
+infrastructure devices. The command line selectively enables MMRP (via the 
+-m option), MVRP (via the -v option), and MSRP (via the -s option). You must 
+also specify the interface on which you want to bind the daemon to 
+(e.g. -i eth2). The full command line typically appears as follows:
+	sudo ./mrpd -mvs -i eth2
+
+Sample client applications - mrpctl, mrpq, mrpl - illustrate how to connect, 
+query and add attributes to the MRP daemon.
