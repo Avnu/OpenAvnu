@@ -1,9 +1,0 @@
-﻿Build started 9/5/2012 6:17:28 PM.
-     1>Project "\\datagrovejf\STG\USERS\Chrish\gptp_bzr\main\windows\gptp\named_pipe_test\named_pipe_test.vcxproj" on node 2 (clean target(s)).
-     1>_PrepareForClean:
-         Deleting file "x64\Release\named_pipe_test.lastbuildstate".
-     1>Done Building Project "\\datagrovejf\STG\USERS\Chrish\gptp_bzr\main\windows\gptp\named_pipe_test\named_pipe_test.vcxproj" (clean target(s)).
-
-Build succeeded.
-
-Time Elapsed 00:00:00.30
