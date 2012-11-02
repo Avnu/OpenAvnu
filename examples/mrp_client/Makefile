@@ -8,15 +8,18 @@ LDFLAGS=-L../../lib/igb
 
 all: mrpq mrpl
 
-mrpl: mrpl.o
+mrpl: mrpl.o mrpdclient.o
 
-mrpq: mrpq.o
+mrpq: mrpq.o mrpdclient.o
 
 mrpl.o: mrpl.c
 	gcc -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpl.c
 
 mrpq.o: mrpq.c
 	gcc -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpq.c
+
+mrpdclient.o: mrpdclient.c
+	gcc -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpdclient.c
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
