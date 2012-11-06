@@ -200,6 +200,7 @@
 #define E1000_RXD_SPC_CFI_MASK	0x1000  /* CFI is bit 12 */
 #define E1000_RXD_SPC_CFI_SHIFT	12
 
+#define E1000_RXDEXT_STATERR_TST	0x00000100 /* Time Stamp taken */
 #define E1000_RXDEXT_STATERR_LB		0x00040000
 #define E1000_RXDEXT_STATERR_CE		0x01000000
 #define E1000_RXDEXT_STATERR_SE		0x02000000
@@ -225,6 +226,9 @@
 	E1000_RXDEXT_STATERR_CXE |	\
 	E1000_RXDEXT_STATERR_RXE)
 
+/* Packet Types as indicated in the Adv/Ext receive descriptor. */
+#define E1000_RXD_PKTTYPE_MASK			0x000F0000
+#define E1000_RXD_PKTTYPE_PTP			0x000E0000
 #define E1000_MRQC_ENABLE_MASK			0x00000007
 #define E1000_MRQC_ENABLE_RSS_2Q		0x00000001
 #define E1000_MRQC_ENABLE_RSS_INT		0x00000004
@@ -584,6 +588,7 @@
 #define E1000_TXD_CMD_TSE	0x04000000 /* TCP Seg enable */
 #define E1000_TXD_STAT_TC	0x00000004 /* Tx Underrun */
 /* Extended desc bits for Linksec and timesync */
+#define E1000_TXD_EXTCMD_TSTAMP	0x00000010 /* IEEE1588 Timestamp packet */
 
 /* Transmit Control */
 #define E1000_TCTL_RST		0x00000001 /* software reset */
@@ -698,7 +703,7 @@
 #define E1000_PBA_48K		0x0030    /* 48KB */
 #define E1000_PBA_64K		0x0040    /* 64KB */
 
-#define E1000_PBA_RXA_MASK	0xFFFF;
+#define E1000_PBA_RXA_MASK	0xFFFF
 
 #define E1000_PBS_16K		E1000_PBA_16K
 #define E1000_PBS_24K		E1000_PBA_24K
@@ -736,8 +741,8 @@
 #define E1000_ICR_SRPD		0x00010000
 #define E1000_ICR_ACK		0x00020000 /* Receive Ack frame */
 #define E1000_ICR_MNG		0x00040000 /* Manageability event */
-#define E1000_ICR_TS            0x00080000 /* Time Sync Interrupt */
 #define E1000_ICR_DOCK		0x00080000 /* Dock/Undock */
+#define E1000_ICR_TS		0x00080000 /* Time Sync Interrupt */
 #define E1000_ICR_DRSTA		0x40000000 /* Device Reset Asserted */
 /* If this bit asserted, the driver should claim the interrupt */
 #define E1000_ICR_INT_ASSERTED	0x80000000
@@ -811,7 +816,6 @@
 #define E1000_IMS_TXQE		E1000_ICR_TXQE    /* Transmit Queue empty */
 #define E1000_IMS_LSC		E1000_ICR_LSC     /* Link Status Change */
 #define E1000_IMS_VMMB		E1000_ICR_VMMB    /* Mail box activity */
-#define E1000_IMS_TS        E1000_ICR_TS        /* Time Sync Interrupt */
 #define E1000_IMS_RXSEQ		E1000_ICR_RXSEQ   /* Rx sequence error */
 #define E1000_IMS_RXDMT0	E1000_ICR_RXDMT0  /* Rx desc min. threshold */
 #define E1000_IMS_RXO		E1000_ICR_RXO     /* Rx overrun */
@@ -827,6 +831,7 @@
 #define E1000_IMS_ACK		E1000_ICR_ACK     /* Receive Ack frame */
 #define E1000_IMS_MNG		E1000_ICR_MNG     /* Manageability event */
 #define E1000_IMS_DOCK		E1000_ICR_DOCK    /* Dock/Undock */
+#define E1000_IMS_TS		E1000_ICR_TS      /* Time Sync Interrupt */
 #define E1000_IMS_DRSTA		E1000_ICR_DRSTA   /* Device Reset Asserted */
 /* Q0 Rx desc FIFO parity error */
 #define E1000_IMS_RXD_FIFO_PAR0	E1000_ICR_RXD_FIFO_PAR0
@@ -1023,6 +1028,7 @@
 #define E1000_TSYNCRXCTL_TYPE_ALL	0x08
 #define E1000_TSYNCRXCTL_TYPE_EVENT_V2	0x0A
 #define E1000_TSYNCRXCTL_ENABLED	0x00000010 /* enable Rx timestamping */
+#define E1000_TSYNCRXCTL_SYSCFI		0x00000020 /* Sys clock frequency */
 
 #define E1000_TSYNCRXCFG_PTP_V1_CTRLT_MASK		0x000000FF
 #define E1000_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE		0x00
@@ -1044,6 +1050,8 @@
 #define E1000_TSYNCRXCFG_PTP_V2_MANAGEMENT_MESSAGE	0x0D00
 
 #define E1000_TIMINCA_16NS_SHIFT	24
+#define E1000_TIMINCA_INCPERIOD_SHIFT	24
+#define E1000_TIMINCA_INCVALUE_MASK	0x00FFFFFF
 
 #define E1000_TSICR_TXTS 0x00000002
 #define E1000_TSIM_TXTS 0x00000002
@@ -1089,6 +1097,7 @@
 #define E1000_EEER_RX_LPI_STATUS	0x40000000 /* Rx in LPI state */
 #define E1000_EEER_TX_LPI_STATUS	0x80000000 /* Tx in LPI state */
 
+#define E1000_EEE_SU_LPI_CLK_STP	0x00800000 /* EEE LPI Clock Stop */
 /* PCI Express Control */
 #define E1000_GCR_RXD_NO_SNOOP		0x00000001
 #define E1000_GCR_RXDSCW_NO_SNOOP	0x00000002
@@ -1262,6 +1271,7 @@
 #define E1000_EECD_SEC1VAL_VALID_MASK	(E1000_EECD_AUTO_RD | E1000_EECD_PRES)
 #define E1000_EECD_FLUPD_I210		0x00800000 /* Update FLASH */
 #define E1000_EECD_FLUDONE_I210		0x04000000 /* Update FLASH done*/
+#define E1000_EECD_FLASH_DETECTED_I210	0x00080000 /* FLASH detected */
 #define E1000_FLUDONE_ATTEMPTS		20000
 #define E1000_EERD_EEWR_MAX_COUNT	512 /* buffered EEPROM words rw */
 #define E1000_I210_FIFO_SEL_RX		0x00
@@ -1286,6 +1296,18 @@
 #define NVM_VERSION			0x0005
 #define NVM_SERDES_AMPLITUDE		0x0006 /* SERDES output amplitude */
 #define NVM_PHY_CLASS_WORD		0x0007
+#define NVM_ETRACK_WORD			0x0042
+#define NVM_COMB_VER_OFF		0x0083
+#define NVM_COMB_VER_PTR		0x003d
+
+/* NVM version defines */
+#define NVM_MAJOR_MASK			0xF000
+#define NVM_MINOR_MASK			0x000F
+#define NVM_COMB_VER_MASK		0x00FF
+#define NVM_MAJOR_SHIFT			12
+#define NVM_COMB_VER_SHFT		8
+#define NVM_VER_INVALID			0xFFFF
+#define NVM_ETRACK_SHIFT		16
 
 #define NVM_MAC_ADDR			0x0000
 #define NVM_SUB_DEV_ID			0x000B
@@ -1439,7 +1461,6 @@
 #define M88E1000_I_PHY_ID	0x01410C30
 #define M88E1011_I_PHY_ID	0x01410C20
 #define IGP01E1000_I_PHY_ID	0x02A80380
-#define M88E1145_E_PHY_ID	0x01410CD0
 #define M88E1011_I_REV_4	0x04
 #define M88E1111_I_PHY_ID	0x01410CC0
 #define M88E1112_E_PHY_ID	0x01410C90
@@ -1731,11 +1752,9 @@
 /* Lx power decision based on DMA coal */
 #define E1000_PCIEMISC_LX_DECISION	0x00000080
 
+#define E1000_RXPBS_CFG_TS_EN		0x80000000 /* Timestamp in Rx buffer */
 #define E1000_RXPBS_SIZE_I210_MASK	0x0000003F /* Rx packet buffer size */
 #define E1000_TXPB0S_SIZE_I210_MASK	0x0000003F /* Tx packet buffer 0 size */
-
-/* Timestamp in Rx buffer */
-#define E1000_RXPBS_CFG_TS_EN           0x80000000
 
 /* Proxy Filer Control */
 #define E1000_PROXYFC_D0		0x00000001 /* Enable offload in D0 */

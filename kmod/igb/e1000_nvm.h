@@ -28,6 +28,20 @@
 #ifndef _E1000_NVM_H_
 #define _E1000_NVM_H_
 
+struct e1000_fw_version {
+	u32 etrack_id;
+	u16 eep_major;
+	u16 eep_minor;
+
+	u8 invm_major;
+	u8 invm_minor;
+	u8 invm_img_type;
+
+	bool or_valid;
+	u16 or_major;
+	u16 or_build;
+	u16 or_patch;
+};
 void e1000_init_nvm_ops_generic(struct e1000_hw *hw);
 s32  e1000_null_read_nvm(struct e1000_hw *hw, u16 a, u16 b, u16 *c);
 void e1000_null_nvm_generic(struct e1000_hw *hw);
@@ -49,29 +63,9 @@ s32  e1000_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words,
 			 u16 *data);
 s32  e1000_update_nvm_checksum_generic(struct e1000_hw *hw);
 void e1000_release_nvm_generic(struct e1000_hw *hw);
+void e1000_get_fw_version(struct e1000_hw *hw,
+			  struct e1000_fw_version *fw_vers);
 
 #define E1000_STM_OPCODE	0xDB00
 
-s32 e1000_get_protected_block_size_generic(struct e1000_hw *hw,
-			struct e1000_nvm_protected_block *block,
-			u16 *eeprom_buffer, u32 eeprom_buffer_size);
-s32 e1000_read_protected_block_generic(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *block,
-				u16 *eeprom_buffer, u32 eeprom_buffer_size);
-s32 e1000_read_protected_blocks_generic(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *blocks,
-				u16 blocks_number, u16 *eeprom_buffer,
-				u32 eeprom_buffer_size);
-s32 e1000_write_protected_block_generic(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *block,
-				u16 *eeprom_buffer, u32 eeprom_buffer_size);
-s32 e1000_write_protected_blocks_generic(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *blocks,
-				u16 blocks_number, u16 *eeprom_buffer,
-				u32 eeprom_buffer_size);
-s32 e1000_get_protected_blocks_from_table(struct e1000_hw *hw,
-		struct e1000_nvm_protected_block *protected_blocks_table,
-		u16 protected_blocks_table_size,
-		struct e1000_nvm_protected_block *blocks, u16 *blocks_size,
-		u32 block_type_mask, u16 *eeprom_buffer, u32 eeprom_size);
 #endif

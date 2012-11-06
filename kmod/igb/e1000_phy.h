@@ -147,8 +147,9 @@ s32  e1000_read_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 *data);
 #define I82577_PHY_STATUS2_SPEED_100MBPS	0x0100
 
 /* I82577 PHY Control 2 */
-#define I82577_PHY_CTRL2_AUTO_MDIX		0x0400
-#define I82577_PHY_CTRL2_FORCE_MDI_MDIX		0x0200
+#define I82577_PHY_CTRL2_MANUAL_MDIX		0x0200
+#define I82577_PHY_CTRL2_AUTO_MDI_MDIX		0x0400
+#define I82577_PHY_CTRL2_MDIX_CFG_MASK		0x0600
 
 /* I82577 PHY Diagnostics Status */
 #define I82577_DSTATUS_CABLE_LENGTH		0x03FC
@@ -159,6 +160,7 @@ s32  e1000_read_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 *data);
 #define E1000_82580_PM_SPD		0x0001 /* Smart Power Down */
 #define E1000_82580_PM_D0_LPLU		0x0002 /* For D0a states */
 #define E1000_82580_PM_D3_LPLU		0x0004 /* For all other states */
+#define E1000_82580_PM_GO_LINKD		0x0020 /* Go Link Disconnect */
 
 #define IGP01E1000_PHY_PCS_INIT_REG	0x00B4
 #define IGP01E1000_PHY_POLARITY_MASK	0x0078

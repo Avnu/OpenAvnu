@@ -27,7 +27,6 @@
 
 #include "e1000_api.h"
 
-static void e1000_stop_nvm(struct e1000_hw *hw);
 static void e1000_reload_nvm_generic(struct e1000_hw *hw);
 
 /**
@@ -51,10 +50,6 @@ void e1000_init_nvm_ops_generic(struct e1000_hw *hw)
 	nvm->ops.valid_led_default = e1000_null_led_default;
 	nvm->ops.validate = e1000_null_ops_generic;
 	nvm->ops.write = e1000_null_write_nvm;
-	nvm->ops.get_protected_block_size =
-					e1000_get_protected_block_size_generic;
-	nvm->ops.read_protected_blocks = e1000_read_protected_blocks_generic;
-	nvm->ops.write_protected_blocks = e1000_write_protected_blocks_generic;
 }
 
 /**
@@ -623,8 +618,8 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 	if (nvm_data != NVM_PBA_PTR_GUARD) {
 		DEBUGOUT("NVM PBA number is not stored as string\n");
 
-		/* we will need 11 characters to store the PBA */
-		if (pba_num_size < 11) {
+		/* make sure callers buffer is big enough to store the PBA */
+		if (pba_num_size < E1000_PBANUM_LENGTH) {
 			DEBUGOUT("PBA string buffer too small\n");
 			return E1000_ERR_NO_SPACE;
 		}
@@ -725,7 +720,7 @@ s32 e1000_read_pba_length_generic(struct e1000_hw *hw, u32 *pba_num_size)
 
 	 /* if data is not ptr guard the PBA must be in legacy format */
 	if (nvm_data != NVM_PBA_PTR_GUARD) {
-		*pba_num_size = 11;
+		*pba_num_size = E1000_PBANUM_LENGTH;
 		return E1000_SUCCESS;
 	}
 
@@ -863,404 +858,79 @@ static void e1000_reload_nvm_generic(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_get_protected_block_size_generic - Get the size of EEPROM block
- *  @hw: pointer to hardware structure
- *  @block: pointer to the protected block structure describing our block
- *  @eeprom_buffer: pointer to eeprom image buffer.
- *  @eeprom_buffer_size: size of eeprom_buffer
+ *  e1000_get_fw_version - Get firmware version information
+ *  @hw: pointer to the HW structure
+ *  @fw_vers: pointer to output version structure
  *
- *  This function reads the size of protected EEPROM block from the EEPROM
- *  content (if eeprom_buffer = NULL) or from eeprom_buffer.
+ *  unsupported/not present features return 0 in version structure
  **/
-s32 e1000_get_protected_block_size_generic(struct e1000_hw *hw,
-			struct e1000_nvm_protected_block *block,
-			u16 *eeprom_buffer, u32 eeprom_buffer_size)
+void e1000_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 {
-	s32 status;
-	u16 pointer, size_word;
+	u16 eeprom_verh, eeprom_verl, fw_version;
+	u16 comb_verh, comb_verl, comb_offset;
 
-	DEBUGFUNC("e1000_get_protected_block_size_generic");
+	memset(fw_vers, 0, sizeof(struct e1000_fw_version));
 
-	if ( (!block) || (0 == block->pointer) )  {
-		status = -E1000_ERR_INVALID_ARGUMENT;
-		goto out;
-	}
-
-	if (block->block_size) {
-		status = E1000_SUCCESS;
-		goto out;
-	}
-
-	if (block->pointer) {
-		if (eeprom_buffer) {
-			if (block->word_address > eeprom_buffer_size) {
-				status = -E1000_ERR_INVALID_ARGUMENT;
-				goto out;
-			}
-			pointer = eeprom_buffer[block->word_address];
-			status = E1000_SUCCESS;
-		} else
-			status = e1000_read_nvm(hw, block->word_address, 1,
-							&pointer);
-		if (status != E1000_SUCCESS)
-			goto out;
-
-		if (pointer == 0xFFFF) {
-			block->block_size = 0;
-			goto out;
-		}
-	}
-
-	switch (block->block_type) {
-	case e1000_block_iscsi_boot_config:
-		/* size of the 'iSCSI Module Structure' is in 'Block Size'
-		 * at word offset [0x01] */
-		pointer += E1000_ISCSI_BLOCK_SIZE_WORD_OFFSET;
-		if (eeprom_buffer) {
-			if ((u32)pointer + 1 > eeprom_buffer_size) {
-				status = -E1000_ERR_INVALID_ARGUMENT;
-				goto out;
-			}
-			size_word = eeprom_buffer[pointer];
-			status = E1000_SUCCESS;
-		} else {
-			status = e1000_read_nvm(hw, pointer, 1, &size_word);
-			if (status != E1000_SUCCESS)
-				goto out;
-		}
-
-		/* Block size is in bytes, so we need to conver it to words */
-		block->block_size = size_word / 2;
+	/* this code only applies to certain mac types */
+	switch (hw->mac.type) {
+	case e1000_i211:
+		e1000_read_invm_version(hw, fw_vers);
+		return;
+	case e1000_82575:
+	case e1000_82576:
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
 		break;
 	default:
-		status = -E1000_ERR_INVALID_ARGUMENT;
+		return;
+}
+
+	/* basic eeprom version numbers */
+	hw->nvm.ops.read(hw, NVM_VERSION, 1, &fw_version);
+	fw_vers->eep_major = (fw_version & NVM_MAJOR_MASK) >> NVM_MAJOR_SHIFT;
+	fw_vers->eep_minor = (fw_version & NVM_MINOR_MASK);
+
+	/* etrack id */
+	hw->nvm.ops.read(hw, NVM_ETRACK_WORD, 1, &eeprom_verl);
+	hw->nvm.ops.read(hw, (NVM_ETRACK_WORD + 1), 1, &eeprom_verh);
+	fw_vers->etrack_id = (eeprom_verh << NVM_ETRACK_SHIFT) | eeprom_verl;
+
+	switch (hw->mac.type) {
+	case e1000_i210:
+	case e1000_i350:
+		/* find combo image version */
+		hw->nvm.ops.read(hw, NVM_COMB_VER_PTR, 1, &comb_offset);
+		if ((comb_offset != 0x0) &&
+		    (comb_offset != NVM_VER_INVALID)) {
+
+			hw->nvm.ops.read(hw, (NVM_COMB_VER_OFF + comb_offset
+					 + 1), 1, &comb_verh);
+			hw->nvm.ops.read(hw, (NVM_COMB_VER_OFF + comb_offset),
+					 1, &comb_verl);
+
+			/* get Option Rom version if it exists and is valid */
+			if ((comb_verh && comb_verl) &&
+			    ((comb_verh != NVM_VER_INVALID) &&
+			     (comb_verl != NVM_VER_INVALID))) {
+
+				fw_vers->or_valid = true;
+				fw_vers->or_major =
+					comb_verl >> NVM_COMB_VER_SHFT;
+				fw_vers->or_build =
+					(comb_verl << NVM_COMB_VER_SHFT)
+					| (comb_verh >> NVM_COMB_VER_SHFT);
+				fw_vers->or_patch =
+					comb_verh & NVM_COMB_VER_MASK;
+			}
+
+		}
 		break;
-	}
-out:
-	return status;
-}
 
-/**
- *  e1000_read_protected_block_generic - Read EEPROM protected block
- *  @hw: pointer to hardware structure
- *  @block: pointer to the protected block to read
- *  @eeprom_buffer: pointer to eeprom image buffer.
- *  @eeprom_buffer_size: size of eeprom_buffer
- *
- *  This function reads the content of EEPROM protected block from buffer (if
- *  provided) or EEPROM.
- **/
-s32 e1000_read_protected_block_generic(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *block,
-				u16 *eeprom_buffer, u32 eeprom_buffer_size)
-{
-	s32 status;
-	u32 max_address;
-	u16 pointer;
-
-	DEBUGFUNC("e1000_read_eeprom_protected_block_generic");
-
-	if (!block || !block->buffer) {
-		status = -E1000_ERR_INVALID_ARGUMENT;
-		goto out;
-	}
-
-	/* Read raw word */
-	if (!block->pointer) {
-		max_address = block->block_size + block->word_address;
-		if (eeprom_buffer) {
-			if (max_address > eeprom_buffer_size) {
-				status = -E1000_ERR_INVALID_ARGUMENT;
-				goto out;
-			}
-			memcpy(block->buffer,
-				eeprom_buffer + block->word_address,
-				2 * (max_address - block->word_address));
-			status = E1000_SUCCESS;
-		} else
-			status = e1000_read_nvm(hw, block->word_address,
-					block->block_size, block->buffer);
-	}
-	/* Read pointer */
-	else {
-		if (eeprom_buffer) {
-			if (block->word_address > eeprom_buffer_size) {
-				status = -E1000_ERR_INVALID_ARGUMENT;
-				goto out;
-			}
-			pointer = eeprom_buffer[block->word_address];
-			status = E1000_SUCCESS;
-		} else
-			status = e1000_read_nvm(hw, block->word_address, 1,
-							&pointer);
-		if (status != E1000_SUCCESS)
-			goto out;
-
-		pointer += block->pointed_word_offset;
-		max_address = block->block_size + pointer;
-		if (eeprom_buffer) {
-			if (max_address > eeprom_buffer_size) {
-				status = -E1000_ERR_INVALID_ARGUMENT;
-				goto out;
-			}
-			memcpy(block->buffer, eeprom_buffer + pointer,
-				2 * (max_address - pointer));
-			status = E1000_SUCCESS;
-		} else
-			status = e1000_read_nvm(hw, pointer, block->block_size,
-						block->buffer);
-	}
-out:
-	return status;
-}
-
-/**
- *  e1000_read_protected_blocks_generic - Read EEPROM protected blocks
- *  @hw: pointer to hardware structure
- *  @blocks: pointer to the protected blocks to read
- *  @blocks_number: number of blocks to read
- *  @eeprom_buffer: pointer to eeprom image buffer.
- *  @eeprom_buffer_size: size of eeprom_buffer
- *
- *  This function reads the content of EEPROM protected blocks from buffer (if
- *  provided) or EEPROM.
- **/
-s32 e1000_read_protected_blocks_generic(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *blocks,
-				u16 blocks_number, u16 *eeprom_buffer,
-				u32 eeprom_buffer_size)
-{
-	s32 status = E1000_SUCCESS;
-	u16 i;
-
-	DEBUGFUNC("e1000_read_protected_blocks_generic");
-
-	if (!blocks) {
-		status = -E1000_ERR_INVALID_ARGUMENT;
-		goto out;
-	}
-
-	/* Check if all buffers are allocated */
-	for (i = 0; i < blocks_number; i++) {
-		if (!blocks[i].buffer) {
-			status = -E1000_ERR_INVALID_ARGUMENT;
-			goto out;
-		}
-	}
-
-	/* Read all protected blocks */
-	for (i = 0; i < blocks_number; i++) {
-		status = e1000_read_protected_block_generic(hw,
-				blocks + i, eeprom_buffer, eeprom_buffer_size);
-		if (status != E1000_SUCCESS)
-			goto out;
-	}
-out:
-	return status;
-}
-
-/**
- *  e1000_write_eeprom_protected_block_generic - Write EEPROM protected block
- *  @hw: pointer to hardware structure
- *  @block: pointer to the protected block to write
- *  @eeprom_buffer: pointer to eeprom image buffer.
- *  @eeprom_buffer_size: size of eeprom_buffer
- *
- *  This function writes the content of EEPROM protected block to buffer (if
- *  provided) or EEPROM.
- **/
-s32 e1000_write_protected_block_generic(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *block,
-				u16 *eeprom_buffer, u32 eeprom_buffer_size)
-{
-	s32 status = E1000_SUCCESS;
-	u32 start_address, end_address, address;
-	u16 pointer, word;
-
-	DEBUGFUNC("e1000_write_eeprom_protected_block_generic");
-
-	if (!block || !block->buffer) {
-		status = -E1000_ERR_INVALID_ARGUMENT;
-		goto out;
-	}
-
-	/* Write raw word */
-	if (!block->pointer) {
-		start_address = block->word_address;
-		end_address = start_address + block->block_size;
-		if (eeprom_buffer) {
-			if (end_address > eeprom_buffer_size) {
-				status = -E1000_ERR_INVALID_ARGUMENT;
-				goto out;
-			}
-			status = E1000_SUCCESS;
-		}
-	}
-	/* Write pointer */
-	else {
-		if (eeprom_buffer) {
-			if (block->word_address > eeprom_buffer_size) {
-				status = -E1000_ERR_INVALID_ARGUMENT;
-				goto out;
-			}
-			pointer = eeprom_buffer[block->word_address];
-			status = E1000_SUCCESS;
-		} else
-			status = e1000_read_nvm(hw, block->word_address, 1,
-							&pointer);
-		if (status != E1000_SUCCESS)
-			goto out;
-		/* Check if current pointer isn't 0xFFFF (not allocated) */
-		if (pointer == 0xFFFF) {
-			status = -E1000_ERR_NVM;
-			DEBUGOUT1("Error. Cannot merge record %d",
-					block->word_address);
-			goto out;
-		}
-		start_address = pointer + block->pointed_word_offset;
-		end_address = start_address + block->block_size;
-		if (eeprom_buffer) {
-			if (end_address > eeprom_buffer_size) {
-				status = -E1000_ERR_INVALID_ARGUMENT;
-				goto out;
-			}
-		}
-	}
-
-	/* Finally write the changes to the EEPROM */
-	for (address = start_address; address < end_address; address++) {
-		status = e1000_read_nvm(hw, address, 1, &word);
-		if (status != E1000_SUCCESS)
-			break;
-		/* apply the mask */
-		word &= ~block->word_mask;
-		word |= (block->buffer[address - start_address] &
-				block->word_mask);
-		if (eeprom_buffer)
-			eeprom_buffer[address] = word;
-		else
-			status = e1000_write_nvm(hw, address, 1, &word);
-		if (status != E1000_SUCCESS)
+	default:
 			break;
 	}
-out:
-	return status;
+	return;
 }
 
-/**
- *  e1000_write_protected_blocks_generic - Read EEPROM protected blocks
- *  @hw: pointer to hardware structure
- *  @blocks: pointer to the protected blocks to write
- *  @blocks_number: number of blocks to read
- *  @eeprom_buffer: pointer to eeprom image buffer.
- *  @eeprom_buffer_size: size of eeprom_buffer
- *
- *  This function writes the content of EEPROM protected blocks from buffer (if
- *  provided) or EEPROM.
- **/
-s32 e1000_write_protected_blocks_generic(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *blocks,
-				u16 blocks_number, u16 *eeprom_buffer,
-				u32 eeprom_buffer_size)
-{
-	s32 status = E1000_SUCCESS;
-	u16 i;
-
-	DEBUGFUNC("ixgbe_write_protected_blocks_generic");
-
-	if (!blocks) {
-		status = -E1000_ERR_INVALID_ARGUMENT;
-		goto out;
-	}
-
-	/* Check if all buffers are allocated */
-	for (i = 0; i < blocks_number; i++) {
-		if (!blocks[i].buffer) {
-			status = -E1000_ERR_INVALID_ARGUMENT;
-			goto out;
-		}
-	}
-
-	/* Write all protected blocks */
-	for (i = 0; i < blocks_number; i++) {
-		status = e1000_write_protected_block_generic(hw, blocks + i,
-					eeprom_buffer, eeprom_buffer_size);
-		if (status != E1000_SUCCESS)
-			break;
-	}
-out:
-	return status;
-}
-
-/**
- *  e1000_get_protected_blocks_from_table - Get the masked list of protected
- *                                   EEPROM words from device specific table
- *  @hw: pointer to hardware structure
- *  @protected_blocks_table: pointer to device-specific list of protected blocks
- *  @protected_blocks_table_size: size of protected_blocks_table list
- *  @blocks: buffer to contain the list of protected blocks
- *  @blocks_size: size of the blocks buffer
- *  @block_type_mask: any combination of e1000_nvm_block_type types.
- *
- *  This function gets masked list of protected EEPROM blocks from device
- *  specific list. If blocks is set to NULL, the function return the size
- *  of blocks buffer required to hold masked list
- **/
-s32 e1000_get_protected_blocks_from_table(struct e1000_hw *hw,
-		struct e1000_nvm_protected_block *protected_blocks_table,
-		u16 protected_blocks_table_size,
-		struct e1000_nvm_protected_block *blocks, u16 *blocks_size,
-		u32 block_type_mask, u16 *eeprom_buffer, u32 eeprom_size)
-{
-	struct e1000_nvm_protected_block *current_block;
-	s32 status = E1000_SUCCESS;
-	u16 i, pointer_value, masked_blocks_count;
-
-	DEBUGFUNC("e1000_get_protected_blocks_from_table");
-
-	masked_blocks_count = 0;
-
-	/* get the number of blocks to copy */
-	for (i = 0; i < protected_blocks_table_size; i++) {
-		current_block = &protected_blocks_table[i];
-		if ((current_block->block_type & block_type_mask) == 0)
-			continue;
-
-		/* If it's a pointer read its value */
-		if (current_block->pointer) {
-			status = e1000_read_nvm(hw,
-						current_block->word_address, 1,
-						&pointer_value);
-			if (status != E1000_SUCCESS)
-				goto out;
-			/* Skip empty pointers */
-			if (pointer_value == 0xFFFF)
-				continue;
-		}
-
-		/* Copy blocks listed in table to the provided buffer */
-		if (blocks) {
-			if (masked_blocks_count >= *blocks_size) {
-				status = -E1000_ERR_NO_SPACE;
-				goto out;
-			}
-			status = e1000_get_protected_block_size(hw,
-								current_block,
-								eeprom_buffer,
-								eeprom_size);
-			memcpy(&blocks[masked_blocks_count], current_block,
-				sizeof(struct e1000_nvm_protected_block));
-			if (status != E1000_SUCCESS)
-				goto out;
-		}
-		masked_blocks_count++;
-	}
-
-	if (!blocks) {
-		*blocks_size = masked_blocks_count;
-		status = E1000_SUCCESS;
-	}
-out:
-	return status;
-}
 

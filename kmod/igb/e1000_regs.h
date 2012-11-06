@@ -49,8 +49,10 @@
 #define E1000_FCAL	0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH	0x0002C  /* Flow Control Address High -RW */
 #define E1000_FEXT	0x0002C  /* Future Extended - RW */
-#define E1000_FEXTNVM4	0x00024  /* Future Extended NVM 4 - RW */
 #define E1000_FEXTNVM	0x00028  /* Future Extended NVM - RW */
+#define E1000_FEXTNVM2	0x00030  /* Future Extended NVM 2 - RW */
+#define E1000_FEXTNVM3	0x0003C  /* Future Extended NVM 3 - RW */
+#define E1000_FEXTNVM4	0x00024  /* Future Extended NVM 4 - RW */
 #define E1000_FCT	0x00030  /* Flow Control Type - RW */
 #define E1000_CONNSW	0x00034  /* Copper/Fiber switch control - RW */
 #define E1000_VET	0x00038  /* VLAN Ether Type - RW */
@@ -152,6 +154,25 @@
 #define E1000_TQAVARBCTRL   0x03574
 #define E1000_TQAVHC(_n)    (0x0300C + ((_n) * 0x40))
 #define E1000_TQAVCC(_n)    (0x03004 + ((_n) * 0x40))
+
+/* QAV Tx mode control register */
+#define E1000_I210_TQAVCTRL	0x3570
+
+/* High credit registers where _n can be 0 or 1. */
+#define E1000_I210_TQAVHC(_n)			(0x300C + 0x40 * (_n))
+
+/* Queues fetch arbitration priority control register */
+#define E1000_I210_TQAVARBCTRL			0x3574
+/* Queues priority masks where _n and _p can be 0-3. */
+#define E1000_TQAVARBCTRL_QUEUE_PRI(_n, _p)	((_p) << (2 * _n))
+/* QAV Tx mode control registers where _n can be 0 or 1. */
+#define E1000_I210_TQAVCC(_n)			(0x3004 + 0x40 * (_n))
+
+/* Good transmitted packets counter registers */
+#define E1000_PQGPTC(_n)		(0x010014 + (0x100 * (_n)))
+
+/* Queues packet buffer size masks where _n can be 0-3 and _s 0-63 [kB] */
+#define E1000_I210_TXPBS_SIZE(_n, _s)	((_s) << (6 * _n))
 
 /*
  * Convenience macros
@@ -523,6 +544,8 @@
 #define E1000_SYSTIML	0x0B600 /* System time register Low - RO */
 #define E1000_SYSTIMH	0x0B604 /* System time register High - RO */
 #define E1000_TIMINCA	0x0B608 /* Increment attributes register - RW */
+#define E1000_TIMADJL	0x0B60C /* Time sync time adjustment offset Low - RW */
+#define E1000_TIMADJH	0x0B610 /* Time sync time adjustment offset High - RW */
 #define E1000_TSAUXC	0x0B640 /* Timesync Auxiliary Control register */
 #define E1000_SYSTIMR	0x0B6F8 /* System time register Residue */
 #define E1000_TSICR      0x0B66C /* Interrupt Cause Register */
@@ -590,10 +613,6 @@
 
 /* PCIe Parity Status Register */
 #define E1000_PCIEERRSTS	0x05BA8
-
-#define E1000_LTRMINV	0x5BB0 /* LTR Minimum Value */
-#define E1000_LTRMAXV	0x5BB4 /* LTR Maximum Value */
-#define E1000_DOBFFCTL	0x3F24 /* DMA OBFF Control Register */
 
 #define E1000_PROXYS	0x5F64 /* Proxying Status */
 #define E1000_PROXYFC	0x5F60 /* Proxying Filter Control */

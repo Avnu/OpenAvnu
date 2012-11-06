@@ -56,6 +56,9 @@ struct e1000_hw;
 #define E1000_DEV_ID_I350_SERDES		0x1523
 #define E1000_DEV_ID_I350_SGMII			0x1524
 #define E1000_DEV_ID_I350_DA4			0x1546
+#if defined(QV_RELEASE) && defined(SPRINGVILLE_FLASHLESS_HW)
+#define E1000_DEV_ID_I210_NVMLESS		0x1531
+#endif /* QV_RELEASE && SPRINGVILLE_FLASHLESS_HW */
 #define E1000_DEV_ID_I210_COPPER		0x1533
 #define E1000_DEV_ID_I210_COPPER_OEM1		0x1534
 #define E1000_DEV_ID_I210_COPPER_IT		0x1535
@@ -477,35 +480,6 @@ struct e1000_host_mng_command_info {
 	u8 command_data[E1000_HI_MAX_MNG_DATA_LENGTH];
 };
 
-enum e1000_nvm_block_type {
-	e1000_block_undefined		= 0x00000000,
-	e1000_block_mac_address		= 0x00000001,
-	e1000_block_alt_mac_address	= 0x00000002,
-	e1000_block_fcoe_config		= 0x00000004,
-	e1000_block_wol_config		= 0x00000008,
-	e1000_block_pointer		= 0x00000010,
-	e1000_block_general_config	= 0x00000020,
-	e1000_block_preboot_data	= 0x00000040,
-	e1000_block_iscsi_boot_config	= 0x00000080,
-	e1000_block_flash_config	= 0x00000100,
-	e1000_type_lan_core_module	= 0x00000200,
-	e1000_type_san_mac		= 0x00000400,
-	e1000_type_alt_san_mac		= 0x00000800,
-	e1000_block_user		= 0x80000000,
-	e1000_block_all			= 0xFFFFFFFF,
-};
-
-struct e1000_nvm_protected_block {
-	u32 word_address;
-	enum e1000_nvm_block_type block_type;
-	bool pointer;
-	u32 pointed_word_offset;
-	u32 block_size;
-	u16 word_mask;
-	u16 *buffer;
-};
-
-#define E1000_ISCSI_BLOCK_SIZE_WORD_OFFSET 0x01
 
 #include "e1000_mac.h"
 #include "e1000_phy.h"
@@ -604,14 +578,6 @@ struct e1000_nvm_operations {
 	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
 	s32  (*validate)(struct e1000_hw *);
 	s32  (*write)(struct e1000_hw *, u16, u16, u16 *);
-	s32 (*get_protected_block_size)(struct e1000_hw *,
-				struct e1000_nvm_protected_block *, u16 *, u32);
-	s32 (*get_protected_blocks)(struct e1000_hw *,
-		struct e1000_nvm_protected_block *, u16 *, u32, u16 *, u32);
-	s32 (*read_protected_blocks)(struct e1000_hw *,
-			struct e1000_nvm_protected_block *, u16, u16 *, u32);
-	s32 (*write_protected_blocks)(struct e1000_hw *,
-			struct e1000_nvm_protected_block *, u16, u16 *, u32);
 };
 
 #define E1000_MAX_SENSORS		3
@@ -668,7 +634,6 @@ struct e1000_mac_info {
 	enum e1000_serdes_link_state serdes_link_state;
 	bool serdes_has_link;
 	bool tx_pkt_filtering;
-	u32 max_frame_size;
 	struct e1000_thermal_sensor_data thermal_sensor_data;
 };
 
@@ -775,6 +740,7 @@ struct e1000_dev_spec_82575 {
 	bool eee_disable;
 	bool module_plugged;
 	u32 mtu;
+	struct sfp_e1000_flags eth_flags;
 };
 
 struct e1000_dev_spec_vf {

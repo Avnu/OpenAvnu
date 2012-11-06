@@ -68,9 +68,15 @@ bool igb_thermal_present(struct igb_adapter *adapter)
 		return false;
 	hw = &adapter->hw;
 
-	status = e1000_set_i2c_bb(hw);
-	if (status != E1000_SUCCESS)
-		return false;
+	/*
+	 * Only set I2C bit-bang mode if an external thermal sensor is
+	 * supported on this device.
+	 */
+	if (adapter->ets) {
+		status = e1000_set_i2c_bb(hw);
+		if (status != E1000_SUCCESS)
+			return false;
+	}
 
 	status = hw->mac.ops.init_thermal_sensor_thresh(hw);
 	if (status != E1000_SUCCESS)
@@ -86,10 +92,7 @@ static int igb_fwbanner(char *page, char **start, off_t off, int count,
 	if (adapter == NULL)
 		return snprintf(page, count, "error: no adapter\n");
 
-	return snprintf(page, count, "%d.%d-%d\n", 
-			(adapter->fw_version & 0xF000) >> 12,
-			(adapter->fw_version & 0x0FF0) >> 4,
-			adapter->fw_version & 0x000F);
+	return snprintf(page, count, "0x%08x\n", adapter->etrack_id);
 }
 
 static int igb_numeports(char *page, char **start, off_t off, int count, 

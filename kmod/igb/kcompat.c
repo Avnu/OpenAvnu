@@ -601,6 +601,42 @@ size_t _kc_strlcpy(char *dest, const char *src, size_t size)
 	return ret;
 }
 
+#ifndef do_div
+#if BITS_PER_LONG == 32
+uint32_t __attribute__((weak)) _kc__div64_32(uint64_t *n, uint32_t base)
+{
+	uint64_t rem = *n;
+	uint64_t b = base;
+	uint64_t res, d = 1;
+	uint32_t high = rem >> 32;
+
+	/* Reduce the thing a bit first */
+	res = 0;
+	if (high >= base) {
+		high /= base;
+		res = (uint64_t) high << 32;
+		rem -= (uint64_t) (high*base) << 32;
+	}
+
+	while ((int64_t)b > 0 && b < rem) {
+		b = b+b;
+		d = d+d;
+	}
+
+	do {
+		if (rem >= b) {
+			rem -= b;
+			res += d;
+		}
+		b >>= 1;
+		d >>= 1;
+	} while (d);
+
+	*n = res;
+	return rem;
+}
+#endif /* BITS_PER_LONG == 32 */
+#endif /* do_div */
 #endif /* 2.6.0 => 2.4.6 */
 
 /*****************************************************************************/
@@ -1024,19 +1060,33 @@ _kc_pci_wake_from_d3(struct pci_dev *dev, bool enable)
 out:
 	return err;
 }
-
-void _kc_skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
-			 int off, int size)
-{
-	skb_fill_page_desc(skb, i, page, off, size);
-	skb->len += size;
-	skb->data_len += size;
-	skb->truesize += size;
-}
 #endif /* < 2.6.28 */
+
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,34) )
+#if (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(6,0))
+int _kc_pci_num_vf(struct pci_dev *dev)
+{
+	int num_vf = 0;
+#ifdef CONFIG_PCI_IOV
+	struct pci_dev *vfdev;
+
+	/* loop through all ethernet devices starting at PF dev */
+	vfdev = pci_get_class(PCI_CLASS_NETWORK_ETHERNET << 8, NULL);
+	while (vfdev) {
+		if (vfdev->is_virtfn && vfdev->physfn == dev)
+			num_vf++;
+
+		vfdev = pci_get_class(PCI_CLASS_NETWORK_ETHERNET << 8, vfdev);
+}
+#endif
+	return num_vf;
+}
+#endif /* RHEL_RELEASE_CODE */
+#endif /* < 2.6.34 */
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35) )
 #ifdef HAVE_TX_MQ
+#if (!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0)))
 #ifndef CONFIG_NETDEVICES_MULTIQUEUE
 void _kc_netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 {
@@ -1061,6 +1111,7 @@ void _kc_netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 	}
 }
 #endif /* CONFIG_NETDEVICES_MULTIQUEUE */
+#endif /* !(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0)) */
 #endif /* HAVE_TX_MQ */
 #endif /* < 2.6.35 */
 
@@ -1130,3 +1181,6 @@ u16 ___kc_skb_tx_hash(struct net_device *dev, const struct sk_buff *skb,
 #if (!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,0)))
 #endif /* !(RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,0)) */
 #endif /* < 2.6.39 */
+/******************************************************************************/
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0) )
+#endif /* < 3.4.0 */

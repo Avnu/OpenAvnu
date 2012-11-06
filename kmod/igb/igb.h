@@ -46,13 +46,6 @@
 #include <linux/ethtool.h>
 #endif
 
-#include <linux/clocksource.h>
-#include <linux/net_tstamp.h>
-#ifdef CONFIG_PTP
-#include <linux/ptp_clock_kernel.h>
-#endif
-#include <linux/bitops.h>
-#include <linux/if_vlan.h>
 
 struct igb_adapter;
 
@@ -91,6 +84,11 @@ struct igb_user_page {
 	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
 		__FUNCTION__ , ## args))
 
+#ifdef CONFIG_IGB_PTP
+#include <linux/clocksource.h>
+#include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
+#endif /* CONFIG_IGB_PTP */
 /* Interrupt defines */
 #define IGB_START_ITR                    648 /* ~6000 ints/sec */
 #define IGB_4K_ITR                       980
@@ -104,9 +102,9 @@ struct igb_user_page {
 
 /* TX/RX descriptor defines */
 #define IGB_DEFAULT_TXD                  256
-#define IGB_DEFAULT_TX_WORK		 128
 #define IGB_MIN_TXD                       80
 #define IGB_MAX_TXD                     4096
+#define IGB_DEFAULT_TX_WORK		 128
 
 #define IGB_DEFAULT_RXD                  256
 #define IGB_MIN_RXD                       80
@@ -131,7 +129,6 @@ struct igb_user_page {
 #define OUI_LEN                            3
 #define IGB_MAX_VMDQ_QUEUES                8
 
-#define E1000_DMACDC	0x3F1C
 
 struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
@@ -187,8 +184,6 @@ struct vf_data_storage {
  */
 /* Supported Rx Buffer Sizes */
 #define IGB_RXBUFFER_512   512
-#define IGB_RXBUFFER_2048  2048
-#define IGB_RXBUFFER_256   256
 #define IGB_RXBUFFER_16384 16384
 #define IGB_RX_HDR_LEN     IGB_RXBUFFER_512
 
@@ -206,9 +201,7 @@ struct vf_data_storage {
 #define IGB_RX_BUFFER_WRITE	16	/* Must be power of 2 */
 
 #define IGB_EEPROM_APME         0x0400
-#ifndef ETH_TP_MDI_X
 #define AUTO_ALL_MODES          0
-#endif
 
 #ifndef IGB_MASTER_SLAVE
 /* Switch to override PHY master/slave setting */
@@ -309,10 +302,6 @@ struct igb_rx_queue_stats {
 	u64 drops;
 	u64 csum_err;
 	u64 alloc_failed;
-	u64 csum_good;
-	u64 rx_hdr_split;
-	u64 lli_int;
-	u64 pif_count;
 };
 
 struct igb_ring_container {
@@ -332,7 +321,6 @@ struct igb_q_vector {
 	struct igb_ring_container rx, tx;
 
 	struct napi_struct napi;
-	int numa_node;
 
 	u16 itr_val;
 	u8 set_itr;
@@ -387,7 +375,6 @@ struct igb_ring {
 #endif
 	/* Items past this point are only used during ring alloc / free */
 	dma_addr_t dma;                 /* phys address of the ring */
-	int numa_node;                  /* node to alloc ring memory on */
 
 } ____cacheline_internodealigned_in_smp;
 
@@ -510,6 +497,10 @@ struct igb_adapter {
 	bool fc_autoneg;
 	u8  tx_timeout_factor;
 
+#ifdef DEBUG
+	bool tx_hang_detected;
+	bool disable_hw_reset;
+#endif
 	u32 max_frame_size;
 
 	/* OS defined structs */
@@ -543,7 +534,7 @@ struct igb_adapter {
 	u32 eims_other;
 
 	/* to not mess up cache alignment, always add to the bottom */
-	u32 eeprom_wol;
+	bool wol_supported;
 
 	u32 *config_space;
 	u16 tx_ring_count;
@@ -560,8 +551,7 @@ struct igb_adapter {
 	int int_mode;
 	u32 rss_queues;
 	u32 vmdq_pools;
-	u16 fw_version;
-	int node;
+	char fw_version[32];
 	u32 wvbr;
 	struct igb_mac_addr *mac_table;
 #ifdef CONFIG_IGB_VMDQ_NETDEV
@@ -569,20 +559,7 @@ struct igb_adapter {
 #endif
 	int vferr_refcount;
 	int dmac;
-	u64 dmac_entries;
-	int count;
 	u32 *shadow_vfta;
-
-#ifdef CONFIG_PTP
-	struct ptp_clock *ptp_clock;
-	struct ptp_clock_info ptp_caps;
-	struct delayed_work ptp_overflow_work;
-	struct work_struct ptp_tx_work;
-	struct sk_buff *ptp_tx_skb;
-	spinlock_t tmreg_lock;
-	struct cyclecounter cc;
-	struct timecounter tc;
-#endif /* CONFIG_PTP */
 
 	/* External Thermal Sensor support flag */
 	bool ets;
@@ -597,6 +574,18 @@ struct igb_adapter {
 	struct igb_therm_proc_data therm_data[E1000_MAX_SENSORS];
 #endif /* IGB_PROCFS */
 #endif /* IGB_SYSFS */
+	u32 etrack_id;
+
+#ifdef CONFIG_IGB_PTP
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_caps;
+	struct delayed_work ptp_overflow_work;
+	struct work_struct ptp_tx_work;
+	struct sk_buff *ptp_tx_skb;
+	spinlock_t tmreg_lock;
+	struct cyclecounter cc;
+	struct timecounter tc;
+#endif /* CONFIG_IGB_PTP */
 };
 
 #ifdef CONFIG_IGB_VMDQ_NETDEV
@@ -625,6 +614,7 @@ struct igb_vmdq_adapter {
 #define IGB_FLAG_EEE               (1 << 6)
 #define IGB_FLAG_DMAC              (1 << 7)
 #define IGB_FLAG_DETECT_BAD_DMA    (1 << 8)
+#define IGB_FLAG_PTP               (1 << 9)
 
 #define IGB_MIN_TXPBSIZE           20408
 #define IGB_TX_BUF_4096            4096
@@ -674,6 +664,7 @@ struct e1000_fw_hdr {
 	} cmd_or_resp;
 	u8 checksum;
 };
+#pragma pack(push,1)
 struct e1000_fw_drv_info {
 	struct e1000_fw_hdr hdr;
 	u8 port_num;
@@ -681,6 +672,7 @@ struct e1000_fw_drv_info {
 	u16 pad; /* end spacing to ensure length is mult. of dword */
 	u8  pad2; /* end spacing to ensure length is mult. of dword2 */
 };
+#pragma pack(pop)
 enum e1000_state_t {
 	__IGB_TESTING,
 	__IGB_RESETTING,
@@ -716,6 +708,7 @@ extern void igb_power_up_link(struct igb_adapter *);
 #ifdef CONFIG_PTP
 extern void igb_ptp_init(struct igb_adapter *adapter);
 extern void igb_ptp_stop(struct igb_adapter *adapter);
+extern void igb_ptp_reset(struct igb_adapter *adapter);
 extern void igb_ptp_tx_work(struct work_struct *work);
 extern void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
 extern void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
@@ -737,24 +730,6 @@ extern void igb_enable_vlan_tags(struct igb_adapter *adapter);
 #ifndef HAVE_VLAN_RX_REGISTER
 extern void igb_vlan_mode(struct net_device *, u32);
 #endif
-
-/* TLP Processing Hints (TPH) definitions */
-#define E1000_DCA_CTRL_TPH_READ_DISABLE (1 << 8) /* TPH Read Hint disable */
-#define E1000_DCA_CTRL_TPH_DATA_PH 0x00001000 /* TPH Data hint mode */
-
-#define E1000_TPH_RXCTRL_CPUID_MASK 0xFF000000 /* Rx CPUID Mask */
-#define E1000_TPH_RXCTRL_FTCH_DCA_EN (1 << 0) /* TPH Rx Desc fetch enable */
-#define E1000_TPH_RXCTRL_DESC_DCA_EN (1 << 1) /* TPH Rx Desc writeback enable */
-#define E1000_TPH_RXCTRL_HEAD_DCA_EN (1 << 2) /* TPH Rx Data header enable */
-#define E1000_TPH_RXCTRL_DATA_DCA_EN (1 << 3) /* TPH Rx Data payload enable */
-#define E1000_TPH_RXCTRL_AUTOLEARN_EN (1 << 23) /* TPH Rx Autolearn enable */
-
-#define E1000_TPH_TXCTRL_CPUID_MASK 0xFF000000 /* Tx CPUID Mask */
-#define E1000_TPH_TXCTRL_FTCH_DCA_EN (1 << 0) /* TPH Tx Desc fetch enable */
-#define E1000_TPH_TXCTRL_DESC_DCA_EN (1 << 1) /* TPH Tx Desc writeback enable */
-#define E1000_TPH_TXCTRL_DATA_DCA_EN (1 << 3) /* TPH Tx Data payload enable */
-#define E1000_TPH_TXCTRL_AUTOLEARN_EN (1 << 23) /* TPH Tx Autolearn enable */
-
 
 #ifdef IGB_SYSFS
 void igb_sysfs_exit(struct igb_adapter *adapter);

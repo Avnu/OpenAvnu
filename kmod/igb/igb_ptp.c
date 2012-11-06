@@ -1,30 +1,42 @@
-/*
- * PTP Hardware Clock (PHC) driver for the Intel 82576 and 82580
- *
- * Copyright (C) 2011 Richard Cochran <richardcochran@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
+/*******************************************************************************
 
-#ifdef CONFIG_PTP
+  Intel(R) Gigabit Ethernet Linux driver
+  Copyright(c) 2007-2012 Intel Corporation.
 
+  This program is free software; you can redistribute it and/or modify it
+  under the terms and conditions of the GNU General Public License,
+  version 2, as published by the Free Software Foundation.
+
+  This program is distributed in the hope it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+  more details.
+
+  You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+
+  The full GNU General Public License is included in this distribution in
+  the file called "COPYING".
+
+  Contact Information:
+  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+
+*******************************************************************************/
+
+/******************************************************************************
+ Copyright(c) 2011 Richard Cochran <richardcochran@gmail.com> for some of the
+ 82576 and 82580 code
+******************************************************************************/
+
+#include "igb.h"
+
+#ifdef CONFIG_IGB_PTP
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/pci.h>
 
-#include "igb.h"
 
 #define INCVALUE_MASK		0x7fffffff
 #define ISGN			0x80000000
@@ -535,18 +547,6 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	case HWTSTAMP_FILTER_NONE:
 		tsync_rx_ctl = 0;
 		break;
-	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
-	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
-	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
-	case HWTSTAMP_FILTER_ALL:
-		/*
-		 * register TSYNCRXCFG must be set, therefore it is not
-		 * possible to time stamp both Sync and Delay_Req messages
-		 * => fall back to time stamping all packets
-		 */
-		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
-		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L4_V1;
 		tsync_rx_cfg = E1000_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE;
@@ -557,31 +557,34 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 		tsync_rx_cfg = E1000_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE;
 		is_l4 = true;
 		break;
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
-		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
-		tsync_rx_cfg = E1000_TSYNCRXCFG_PTP_V2_SYNC_MESSAGE;
-		is_l2 = true;
-		is_l4 = true;
-		config.rx_filter = HWTSTAMP_FILTER_SOME;
-		break;
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
-		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
-		tsync_rx_cfg = E1000_TSYNCRXCFG_PTP_V2_DELAY_REQ_MESSAGE;
-		is_l2 = true;
-		is_l4 = true;
-		config.rx_filter = HWTSTAMP_FILTER_SOME;
-		break;
-	case HWTSTAMP_FILTER_PTP_V2_EVENT:
-	case HWTSTAMP_FILTER_PTP_V2_SYNC:
-	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_EVENT_V2;
 		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		is_l2 = true;
 		is_l4 = true;
 		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_ALL:
+		/*
+		 * 82576 cannot timestamp all packets, which it needs to do to
+		 * support both V1 Sync and Delay_Req messages
+		 */
+		if (hw->mac.type != e1000_82576) {
+			tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
+			config.rx_filter = HWTSTAMP_FILTER_ALL;
+			break;
+		}
+		/* fall through */
 	default:
+		config.rx_filter = HWTSTAMP_FILTER_NONE;
 		return -ERANGE;
 	}
 
@@ -599,6 +602,9 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	if ((hw->mac.type >= e1000_82580) && tsync_rx_ctl) {
 		tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
+		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		is_l2 = true;
+		is_l4 = true;
 
 		if ((hw->mac.type == e1000_i210) ||
 		    (hw->mac.type == e1000_i211)) {
@@ -687,7 +693,8 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->cc.mult = 1;
 		adapter->cc.shift = IGB_82576_TSYNC_SHIFT;
 		/* Dial the nominal frequency. */
-		E1000_WRITE_REG(hw,E1000_TIMINCA, INCPERIOD_82576 | INCVALUE_82576);
+		E1000_WRITE_REG(hw, E1000_TIMINCA, INCPERIOD_82576 |
+						   INCVALUE_82576);
 		break;
 	case e1000_82580:
 	case e1000_i350:
@@ -729,6 +736,8 @@ void igb_ptp_init(struct igb_adapter *adapter)
 	}
 
 	E1000_WRITE_FLUSH(hw);
+	spin_lock_init(&adapter->tmreg_lock);
+	INIT_WORK(&adapter->ptp_tx_work, igb_ptp_tx_work);
 
 	/* Initialize the clock and overflow work for devices that need it. */
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211)) {
@@ -742,10 +751,6 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		INIT_DELAYED_WORK(&adapter->ptp_overflow_work,
 				  igb_ptp_overflow_check);
 
-		spin_lock_init(&adapter->tmreg_lock);
-
-		if (hw->mac.type == e1000_82576)
-			INIT_WORK(&adapter->ptp_tx_work, igb_ptp_tx_work);
 
 		schedule_delayed_work(&adapter->ptp_overflow_work,
 				      IGB_SYSTIM_OVERFLOW_PERIOD);
@@ -764,6 +769,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 	} else {
 		dev_info(&adapter->pdev->dev, "added PHC on %s\n",
 			 adapter->netdev->name);
+		adapter->flags |= IGB_FLAG_PTP;
 	}
 }
 
@@ -777,24 +783,68 @@ void igb_ptp_stop(struct igb_adapter *adapter)
 {
 	switch (adapter->hw.mac.type) {
 	case e1000_82576:
-		cancel_work_sync(&adapter->ptp_tx_work);
-		/* fall through */
 	case e1000_82580:
 	case e1000_i350:
 		cancel_delayed_work_sync(&adapter->ptp_overflow_work);
 		break;
 	case e1000_i210:
 	case e1000_i211:
-		/* No work to cancel, but we need to unregister the clock. */
+		/* No delayed work to cancel. */
+		break;
 	default:
 		return;
 	}
+	cancel_work_sync(&adapter->ptp_tx_work);
 
 	if (adapter->ptp_clock) {
 		ptp_clock_unregister(adapter->ptp_clock);
 		dev_info(&adapter->pdev->dev, "removed PHC on %s\n",
 			 adapter->netdev->name);
+		adapter->flags &= ~IGB_FLAG_PTP;
 	}
 }
-#endif
 
+/**
+ * igb_ptp_reset - Re-enable the adapter for PTP following a reset.
+ * @adapter: Board private structure.
+ *
+ * This function handles the reset work required to re-enable the PTP device.
+ **/
+void igb_ptp_reset(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (!(adapter->flags & IGB_FLAG_PTP))
+		return;
+
+	switch (adapter->hw.mac.type) {
+	case e1000_82576:
+		/* Dial the nominal frequency. */
+		E1000_WRITE_REG(hw, E1000_TIMINCA, INCPERIOD_82576 |
+						   INCVALUE_82576);
+		break;
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
+		/* Enable the timer functions and interrupts. */
+		E1000_WRITE_REG(hw, E1000_TSAUXC, 0x0);
+		E1000_WRITE_REG(hw, E1000_TSIM, E1000_TSIM_TXTS);
+		E1000_WRITE_REG(hw, E1000_IMS, E1000_IMS_TS);
+		break;
+	default:
+		/* No work to do. */
+		return;
+	}
+
+	/* Re-initialize the timer. */
+	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211)) {
+		struct timespec ts = ktime_to_timespec(ktime_get_real());
+
+		igb_ptp_settime_i210(&adapter->ptp_caps, &ts);
+	} else {
+		timecounter_init(&adapter->tc, &adapter->cc,
+				 ktime_to_ns(ktime_get_real()));
+	}
+}
+#endif /* CONFIG_IGB_PTP */

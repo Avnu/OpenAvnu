@@ -75,7 +75,7 @@ s32 e1000_mng_enable_host_if_generic(struct e1000_hw *hw)
 
 	/* Check that the host interface is enabled. */
 	hicr = E1000_READ_REG(hw, E1000_HICR);
-	if ((hicr & E1000_HICR_EN) == 0) {
+	if (!(hicr & E1000_HICR_EN)) {
 		DEBUGOUT("E1000_HOST_EN bit disabled.\n");
 		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
@@ -398,7 +398,7 @@ s32 e1000_host_interface_command(struct e1000_hw *hw, u8 *buffer, u32 length)
 
 	/* Check that the host interface is enabled. */
 	hicr = E1000_READ_REG(hw, E1000_HICR);
-	if ((hicr & E1000_HICR_EN) == 0) {
+	if (!(hicr & E1000_HICR_EN)) {
 		DEBUGOUT("E1000_HOST_EN bit disabled.\n");
 		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
@@ -461,11 +461,11 @@ s32 e1000_load_firmware(struct e1000_hw *hw, u8 *buffer, u32 length)
 
 	/* Check that the host interface is enabled. */
 	hicr = E1000_READ_REG(hw, E1000_HICR);
-	if ((hicr & E1000_HICR_EN) == 0) {
+	if (!(hicr & E1000_HICR_EN)) {
 		DEBUGOUT("E1000_HOST_EN bit disabled.\n");
 		return -E1000_ERR_CONFIG;
 	}
-	if ((hicr & E1000_HICR_MEMORY_BASE_EN) == 0) {
+	if (!(hicr & E1000_HICR_MEMORY_BASE_EN)) {
 		DEBUGOUT("E1000_HICR_MEMORY_BASE_EN bit disabled.\n");
 		return -E1000_ERR_CONFIG;
 	}

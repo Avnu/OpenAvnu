@@ -1035,6 +1035,31 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
+	/* Set MDI/MDIX mode */
+	ret_val = hw->phy.ops.read_reg(hw, I82577_PHY_CTRL_2, &phy_data);
+	if (ret_val)
+		return ret_val;
+	phy_data &= ~I82577_PHY_CTRL2_MDIX_CFG_MASK;
+	/*
+	 * Options:
+	 *   0 - Auto (default)
+	 *   1 - MDI mode
+	 *   2 - MDI-X mode
+	 */
+	switch (hw->phy.mdix) {
+	case 1:
+		break;
+	case 2:
+		phy_data |= I82577_PHY_CTRL2_MANUAL_MDIX;
+		break;
+	case 0:
+	default:
+		phy_data |= I82577_PHY_CTRL2_AUTO_MDI_MDIX;
+		break;
+	}
+	ret_val = hw->phy.ops.write_reg(hw, I82577_PHY_CTRL_2, phy_data);
+	if (ret_val)
+		return ret_val;
 	return e1000_set_master_slave_mode(hw);
 }
 
@@ -1097,7 +1122,7 @@ s32 e1000_copper_link_setup_m88(struct e1000_hw *hw)
 	 *   1 - Enabled
 	 */
 	phy_data &= ~M88E1000_PSCR_POLARITY_REVERSAL;
-	if (phy->disable_polarity_correction == 1)
+	if (phy->disable_polarity_correction)
 		phy_data |= M88E1000_PSCR_POLARITY_REVERSAL;
 
 	ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
@@ -1210,7 +1235,7 @@ s32 e1000_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 	 *   1 - Enabled
 	 */
 	phy_data &= ~M88E1000_PSCR_POLARITY_REVERSAL;
-	if (phy->disable_polarity_correction == 1)
+	if (phy->disable_polarity_correction)
 		phy_data |= M88E1000_PSCR_POLARITY_REVERSAL;
 
 	/* Enable downshift and setting it to X6 */
@@ -1519,7 +1544,7 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	 * If autoneg_advertised is zero, we assume it was not defaulted
 	 * by the calling code so we set to advertise full capability.
 	 */
-	if (phy->autoneg_advertised == 0)
+	if (!phy->autoneg_advertised)
 		phy->autoneg_advertised = phy->autoneg_mask;
 
 	DEBUGOUT("Reconfiguring auto-neg advertisement params\n");
@@ -1701,18 +1726,23 @@ s32 e1000_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_phy_force_speed_duplex_m88");
 
+	/* I210 and I211 devices support Auto-Crossover in forced operation. */
+	if (phy->type != e1000_phy_i210) {
 	/*
-	 * Clear Auto-Crossover to force MDI manually.  M88E1000 requires MDI
-	 * forced whenever speed and duplex are forced.
+		 * Clear Auto-Crossover to force MDI manually.  M88E1000
+		 * requires MDI forced whenever speed and duplex are forced.
 	 */
-	ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
+		ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL,
+					    &phy_data);
 	if (ret_val)
 		return ret_val;
 
 	phy_data &= ~M88E1000_PSCR_AUTO_X_MODE;
-	ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
+		ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL,
+					     phy_data);
 	if (ret_val)
 		return ret_val;
+	}
 
 	DEBUGOUT1("M88E1000 PSCR: %X\n", phy_data);
 
@@ -2737,9 +2767,11 @@ s32 e1000_phy_hw_reset_generic(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_phy_hw_reset_generic");
 
+	if (phy->ops.check_reset_block) {
 	ret_val = phy->ops.check_reset_block(hw);
 	if (ret_val)
 		return E1000_SUCCESS;
+	}
 
 	ret_val = phy->ops.acquire(hw);
 	if (ret_val)
@@ -2873,7 +2905,6 @@ enum e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id)
 	enum e1000_phy_type phy_type = e1000_phy_unknown;
 
 	switch (phy_id) {
-	case M88E1145_E_PHY_ID:
 	case M88E1000_I_PHY_ID:
 	case M88E1000_E_PHY_ID:
 	case M88E1111_I_PHY_ID:

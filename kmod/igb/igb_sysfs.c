@@ -91,9 +91,15 @@ bool igb_thermal_present(struct kobject *kobj)
 	if (adapter == NULL)
 		return false;
 
+	/*
+	 * Only set I2C bit-bang mode if an external thermal sensor is
+	 * supported on this device.
+	 */
+	if (adapter->ets) {
 	status = e1000_set_i2c_bb(&(adapter->hw));
 	if (status != E1000_SUCCESS)
 		return false; 
+	}
 
 	status = e1000_init_thermal_sensor_thresh(&(adapter->hw));
 	if (status != E1000_SUCCESS)
@@ -135,13 +141,11 @@ static ssize_t igb_fwbanner(struct kobject *kobj,
 			    struct kobj_attribute *attr, char *buf)
 {
 	struct igb_adapter *adapter = igb_get_adapter(kobj);	
-	u16 nvm_ver;
 
 	if (adapter == NULL)
 		return snprintf(buf, PAGE_SIZE, "error: no adapter\n");
-	nvm_ver = adapter->fw_version;
 
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", nvm_ver);
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", adapter->etrack_id);
 }
 
 static ssize_t igb_numeports(struct kobject *kobj,
@@ -157,7 +161,7 @@ static ssize_t igb_numeports(struct kobject *kobj,
 	if (hw == NULL)
 		return snprintf(buf, PAGE_SIZE, "error: no hw data\n");
 
- 	/* CMW taking the original out so and assigning ports generally
+ 	/* CMW taking the original out so assigning ports generally
 	 * by mac type for now.  Want to have the daemon handle this some
 	 * other way due to the variability of the 1GB parts.
 	 */
@@ -766,10 +770,6 @@ static ssize_t igb_sysfs_location(struct kobject *kobj,
 		return snprintf(buf, PAGE_SIZE,
 			"error: invalid sensor name %s\n", kobj->name);
 
-	if (idx >= E1000_MAX_SENSORS)
-		return snprintf(buf, PAGE_SIZE,
-			"error: invalid sensor name %s\n", kobj->name);
-
 	return snprintf(buf, PAGE_SIZE, "%d\n", 
 			adapter->hw.mac.thermal_sensor_data.sensor[idx].location);
 }
@@ -787,15 +787,9 @@ static ssize_t igb_sysfs_temp(struct kobject *kobj,
 	        return snprintf(buf, PAGE_SIZE, "error: status %d returned", 
 				status);
 
-	if (NULL == adapter)
-	        return snprintf(buf, PAGE_SIZE, "error: failed to map adapter from kobj");
 
 	idx = igb_name_to_idx(kobj->name);
 	if (idx == -1)
-		return snprintf(buf, PAGE_SIZE,
-			"error: invalid sensor name %s\n", kobj->name);
-
-	if (idx >= E1000_MAX_SENSORS)
 		return snprintf(buf, PAGE_SIZE,
 			"error: invalid sensor name %s\n", kobj->name);
 
@@ -814,10 +808,6 @@ static ssize_t igb_sysfs_maxopthresh(struct kobject *kobj,
 
 	idx = igb_name_to_idx(kobj->name);
 	if (idx == -1)
-		return snprintf(buf, PAGE_SIZE,
-			"error: invalid sensor name %s\n", kobj->name);
-
-	if (idx >= E1000_MAX_SENSORS)
 		return snprintf(buf, PAGE_SIZE,
 			"error: invalid sensor name %s\n", kobj->name);
 

@@ -27,17 +27,16 @@
 
 ###########################################################################
 # Driver files
-FAMILYC = e1000_82575.c
-FAMILYH = e1000_82575.h
+FAMILYC = e1000_82575.c e1000_i210.c
+FAMILYH = e1000_82575.h e1000_i210.h
 
 # core driver files
 CFILES = igb_main.c $(FAMILYC) e1000_mac.c e1000_nvm.c e1000_phy.c \
 	 e1000_manage.c igb_param.c igb_ethtool.c kcompat.c e1000_api.c \
-	 e1000_mbx.c igb_vmdq.c e1000_i210.c igb_sysfs.c igb_procfs.c \
-	 igb_ptp.c
+	 e1000_mbx.c igb_vmdq.c igb_sysfs.c igb_procfs.c igb_ptp.c
 HFILES = igb.h e1000_hw.h e1000_osdep.h e1000_defines.h e1000_mac.h \
 	 e1000_nvm.h e1000_manage.h $(FAMILYH) kcompat.h e1000_regs.h \
-	 e1000_api.h igb_regtest.h e1000_mbx.h igb_vmdq.h e1000_i210.h
+	 e1000_api.h igb_regtest.h e1000_mbx.h igb_vmdq.h
 ifeq (,$(BUILD_KERNEL))
 BUILD_KERNEL=$(shell uname -r)
 endif
@@ -247,7 +246,7 @@ else
 endif
 endif
 
-else # ifeq ($(K_VERSION),2.6)
+else # ifeq (1,$(shell [ $(KVER_CODE) -ge 132352 ] && echo 1 || echo 0))
 
 # Makefile for 2.4.x kernel
 TARGET = $(DRIVER_NAME).o
@@ -284,7 +283,7 @@ $(CFILES:.c=.o): $(HFILES) Makefile
 default:
 	$(MAKE)
 
-endif # ifeq ($(K_VERSION),2.6)
+endif # ifeq (1,$(shell [ $(KVER_CODE) -ge 132352 ] && echo 1 || echo 0))
 
 ifeq (,$(MANDIR))
   # find the best place to install the man page

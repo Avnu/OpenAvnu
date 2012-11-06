@@ -182,6 +182,9 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_I350_DA4:
 		mac->type = e1000_i350;
 		break;
+#if defined(QV_RELEASE) && defined(SPRINGVILLE_FLASHLESS_HW)
+	case E1000_DEV_ID_I210_NVMLESS:
+#endif /* QV_RELEASE && SPRINGVILLE_FLASHLESS_HW */
 	case E1000_DEV_ID_I210_COPPER:
 	case E1000_DEV_ID_I210_COPPER_OEM1:
 	case E1000_DEV_ID_I210_COPPER_IT:
@@ -1076,99 +1079,7 @@ s32 e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		return hw->nvm.ops.write(hw, offset, words, data);
 
 	return E1000_SUCCESS;
-}
 
-/**
- *  e1000_get_protected_block_size - Get the size of protected EEPROM block
- *  @hw: pointer to hardware structure
- *  @block: pointer to the protected block structure describing our block
- *  @eeprom_buffer: pointer to eeprom image buffer
- *  @eeprom_buffer_size: size of eeprom_buffer
- *
- *  This function reads the size of protected EEPROM block from the EEPROM
- *  content or the eeprom_buffer (if provided)
- **/
-s32 e1000_get_protected_block_size(struct e1000_hw *hw,
-			  struct e1000_nvm_protected_block *block,
-			  u16 *eeprom_buffer, u32 eeprom_buffer_size)
-{
-	if (hw->nvm.ops.get_protected_block_size)
-		return hw->nvm.ops.get_protected_block_size(hw, block,
-					eeprom_buffer, eeprom_buffer_size);
-	return -E1000_ERR_CONFIG;
-}
-
-/**
- *  e1000_get_protected_blocks - Get the list of protected EEPROM words
- *  @hw: pointer to hardware structure
- *  @blocks: buffer to contain the list of protected words
- *  @blocks_number: size of the words buffer
- *  @block_type_mask: any combination of e1000_nvm_block_type values
- *  @eeprom_buffer: pointer to eeprom image buffer
- *  @eeprom_buffer_size: size of eeprom_buffer
- *
- *  This function reads masked list of protected EEPROM blocks from device
- *  specific e1000_nvm_protected_block list. If words is set to NULL the
- *  function returns the size of buffer required to hold masked list of EEPROM
- *  blocks. If eeprom_buffer is not specified the function will read data from
- *  onboard EEPROM.
- **/
-s32 e1000_get_protected_blocks(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *blocks,
-				u16 *blocks_number, u32 block_type_mask,
-				u16 *eeprom_buffer, u32 eeprom_buffer_size)
-{
-	if (hw->nvm.ops.get_protected_blocks)
-		return hw->nvm.ops.get_protected_blocks(hw, blocks,
-					blocks_number, block_type_mask,
-					eeprom_buffer, eeprom_buffer_size);
-	return -E1000_ERR_CONFIG;
-}
-
-/**
- *  e1000_read_protected_blocks - Read EEPROM protected blocks
- *  @hw: pointer to hardware structure
- *  @blocks: pointer to the protected blocks to read
- *  @blocks_number: number of blocks to read
- *  @eeprom_buffer: pointer to eeprom image buffer
- *  @eeprom_buffer_size: size of eeprom_buffer
- *
- *  This function reads the content of EEPROM protected blocks from
- *  eeprom_buffer (if provided) or onboard EEPROM.
- **/
-s32 e1000_read_protected_blocks(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *blocks,
-				u16 blocks_number, u16 *eeprom_buffer,
-				u32 eeprom_buffer_size)
-{
-	if (hw->nvm.ops.read_protected_blocks)
-		return hw->nvm.ops.read_protected_blocks(hw, blocks,
-						blocks_number, eeprom_buffer,
-						eeprom_buffer_size);
-	return -E1000_ERR_CONFIG;
-}
-
-/**
- *  e1000_write_protected_blocks - Read EEPROM protected blocks
- *  @hw: pointer to hardware structure
- *  @blocks: pointer to the protected blocks to write
- *  @blocks_number: number of blocks to write
- *  @eeprom_buffer: pointer to eeprom image buffer
- *  @eeprom_buffer_size: size of eeprom_buffer
- *
- *  This function writes the content of EEPROM protected blocks from
- *  eeprom_buffer (if provided) or onboard EEPROM.
- **/
-s32 e1000_write_protected_blocks(struct e1000_hw *hw,
-				struct e1000_nvm_protected_block *blocks,
-				u16 blocks_number, u16 *eeprom_buffer,
-				u32 eeprom_buffer_size)
-{
-	if (hw->nvm.ops.write_protected_blocks)
-		return hw->nvm.ops.write_protected_blocks(hw, blocks,
-						blocks_number, eeprom_buffer,
-						eeprom_buffer_size);
-	return -E1000_ERR_CONFIG;
 }
 
 /**

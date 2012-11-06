@@ -373,15 +373,40 @@ static s32 e1000_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
 		if (ret_val != E1000_SUCCESS)
 			DEBUGOUT("MAC Addr not found in iNVM\n");
 		break;
-	case NVM_ID_LED_SETTINGS:
 	case NVM_INIT_CTRL_2:
-	case NVM_INIT_CTRL_4:
-	case NVM_LED_1_CFG:
-	case NVM_LED_0_2_CFG:
-		e1000_read_invm_i211(hw, (u8)offset, data);
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_INIT_CTRL_2_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
 		break;
-	case NVM_COMPAT:
-		*data = ID_LED_DEFAULT_I210;
+	case NVM_INIT_CTRL_4:
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_INIT_CTRL_4_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_LED_1_CFG:
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_LED_1_CFG_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_LED_0_2_CFG:
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_LED_0_2_CFG_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_ID_LED_SETTINGS:
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = ID_LED_RESERVED_FFFF;
+			ret_val = E1000_SUCCESS;
+		}
 		break;
 	case NVM_SUB_DEV_ID:
 		*data = hw->subsystem_device_id;
@@ -444,6 +469,105 @@ s32 e1000_read_invm_i211(struct e1000_hw *hw, u8 address, u16 *data)
 	}
 	if (status != E1000_SUCCESS)
 		DEBUGOUT1("Requested word 0x%02x not found in OTP\n", address);
+	return status;
+}
+
+/**
+ *  e1000_read_invm_version - Reads iNVM version and image type
+ *  @hw: pointer to the HW structure
+ *  @invm_ver: version structure for the version read
+ *
+ *  Reads iNVM version and image type.
+ **/
+s32 e1000_read_invm_version(struct e1000_hw *hw,
+			    struct e1000_fw_version *invm_ver)
+{
+	u32 *record = NULL;
+	u32 *next_record = NULL;
+	u32 i = 0;
+	u32 invm_dword = 0;
+	u32 invm_blocks = E1000_INVM_SIZE - (E1000_INVM_ULT_BYTES_SIZE /
+					     E1000_INVM_RECORD_SIZE_IN_BYTES);
+	u32 buffer[E1000_INVM_SIZE];
+	s32 status = -E1000_ERR_INVM_VALUE_NOT_FOUND;
+	u16 version = 0;
+
+	DEBUGFUNC("e1000_read_invm_version");
+
+	/* Read iNVM memory */
+	for (i = 0; i < E1000_INVM_SIZE; i++) {
+		invm_dword = E1000_READ_REG(hw, E1000_INVM_DATA_REG(i));
+		buffer[i] = invm_dword;
+	}
+
+	/* Read version number */
+	for (i = 1; i < invm_blocks; i++) {
+		record = &buffer[invm_blocks - i];
+		next_record = &buffer[invm_blocks - i + 1];
+
+		/* Check if we have first version location used */
+		if ((i == 1) && ((*record & E1000_INVM_VER_FIELD_ONE) == 0)) {
+			version = 0;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/* Check if we have second version location used */
+		else if ((i == 1) &&
+			 ((*record & E1000_INVM_VER_FIELD_TWO) == 0)) {
+			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/*
+		 * Check if we have odd version location
+		 * used and it is the last one used
+		 */
+		else if ((((*record & E1000_INVM_VER_FIELD_ONE) == 0) &&
+			 ((*record & 0x3) == 0)) || (((*record & 0x3) != 0) &&
+			 (i != 1))) {
+			version = (*next_record & E1000_INVM_VER_FIELD_TWO)
+				  >> 13;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/*
+		 * Check if we have even version location
+		 * used and it is the last one used
+		 */
+		else if (((*record & E1000_INVM_VER_FIELD_TWO) == 0) &&
+			 ((*record & 0x3) == 0)) {
+			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			status = E1000_SUCCESS;
+			break;
+		}
+	}
+
+	if (status == E1000_SUCCESS) {
+		invm_ver->invm_major = (version & E1000_INVM_MAJOR_MASK)
+					>> E1000_INVM_MAJOR_SHIFT;
+		invm_ver->invm_minor = version & E1000_INVM_MINOR_MASK;
+	}
+	/* Read Image Type */
+	for (i = 1; i < invm_blocks; i++) {
+		record = &buffer[invm_blocks - i];
+		next_record = &buffer[invm_blocks - i + 1];
+
+		/* Check if we have image type in first location used */
+		if ((i == 1) && ((*record & E1000_INVM_IMGTYPE_FIELD) == 0)) {
+			invm_ver->invm_img_type = 0;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/* Check if we have image type in first location used */
+		else if ((((*record & 0x3) == 0) &&
+			 ((*record & E1000_INVM_IMGTYPE_FIELD) == 0)) ||
+			 ((((*record & 0x3) != 0) && (i != 1)))) {
+			invm_ver->invm_img_type =
+				(*next_record & E1000_INVM_IMGTYPE_FIELD) >> 23;
+			status = E1000_SUCCESS;
+			break;
+		}
+	}
 	return status;
 }
 
@@ -547,6 +671,28 @@ out:
 	return ret_val;
 }
 
+#if defined(QV_RELEASE) && defined(SPRINGVILLE_FLASHLESS_HW)
+/**
+ *  e1000_get_flash_presence_i210 - Check if flash device is detected.
+ *  @hw: pointer to the HW structure
+ *
+ **/
+static bool e1000_get_flash_presence_i210(struct e1000_hw *hw)
+{
+	u32 eec = 0;
+	bool ret_val = false;
+
+	DEBUGFUNC("e1000_get_flash_presence_i210");
+
+	eec = E1000_READ_REG(hw, E1000_EECD);
+
+	if (eec & E1000_EECD_FLASH_DETECTED_I210)
+		ret_val = true;
+
+	return ret_val;
+}
+
+#endif /* QV_RELEASE && SPRINGVILLE_FLASHLESS_HW */
 /**
  *  e1000_update_flash_i210 - Commit EEPROM to the flash
  *  @hw: pointer to the HW structure
@@ -663,7 +809,14 @@ void e1000_init_function_pointers_i210(struct e1000_hw *hw)
 
 	switch (hw->mac.type) {
 	case e1000_i210:
+#if defined(QV_RELEASE) && defined(SPRINGVILLE_FLASHLESS_HW)
+		if (e1000_get_flash_presence_i210(hw))
+			hw->nvm.ops.init_params = e1000_init_nvm_params_i210;
+		else
+			hw->nvm.ops.init_params = e1000_init_nvm_params_i211;
+#else
 		hw->nvm.ops.init_params = e1000_init_nvm_params_i210;
+#endif /* QV_RELEASE && SPRINGVILLE_FLASHLESS_HW */
 		break;
 	case e1000_i211:
 		hw->nvm.ops.init_params = e1000_init_nvm_params_i211;

@@ -65,6 +65,7 @@ s32  e1000_set_fc_watermarks_generic(struct e1000_hw *hw);
 s32  e1000_setup_fiber_serdes_link_generic(struct e1000_hw *hw);
 s32  e1000_setup_led_generic(struct e1000_hw *hw);
 s32  e1000_setup_link_generic(struct e1000_hw *hw);
+s32  e1000_validate_mdi_setting_crossover_generic(struct e1000_hw *hw);
 s32  e1000_write_8bit_ctrl_reg_generic(struct e1000_hw *hw, u32 reg,
 				       u32 offset, u8 data);
 
@@ -75,7 +76,6 @@ void e1000_clear_vfta_generic(struct e1000_hw *hw);
 void e1000_init_rx_addrs_generic(struct e1000_hw *hw, u16 rar_count);
 void e1000_pcix_mmrbc_workaround_generic(struct e1000_hw *hw);
 void e1000_put_hw_semaphore_generic(struct e1000_hw *hw);
-void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index);
 s32  e1000_check_alt_mac_addr_generic(struct e1000_hw *hw);
 void e1000_reset_adaptive_generic(struct e1000_hw *hw);
 void e1000_set_pcie_no_snoop_generic(struct e1000_hw *hw, u32 no_snoop);
