@@ -21,6 +21,9 @@ illustrate the flow - but a professional AVB system requires a full media stack
 various graphical user interfaces. Various companies provide such integrated 
 solutions.
 
+For more information about AVB, see also the AVnu Alliance webpage at
+www.avnu.org.
+
 LICENSING AND CONTRIBUTION GUIDELINES
 ======================================
 To the extent possible, content is licensed under BSD licensing terms. Linux 
@@ -44,6 +47,9 @@ leaks, buffer overflows and usage of uninitialized variables. The submitter
 will be asked to correct any detected issues prior to a commit. Owners
 of submitted third-party content are free to apply changes without supervision
 by Intel.
+
+The Open AVB project has a development mailing list. To subscribe, visit
+https://lists.sourceforge.net/lists/listinfo/open-avb-devel to sign up.
 
 RELATED OPEN SOURCE PROJECTS
 ============================
