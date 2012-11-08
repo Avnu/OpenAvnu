@@ -61,6 +61,8 @@
 
 #include "igb.h"
 #include "mrpd.h"
+#include "mrp.h"
+#include "msrp.h"
 #include <math.h>
 #include <endian.h>
 #include <stdint.h>
@@ -333,7 +335,7 @@ int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid)
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 64);
-	sprintf(msgbuf, "S+D:C:%d:P:%d:V:%04x", *class_id, *priority, *vid);
+	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", *class_id, *priority, *vid);
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);
 
@@ -678,7 +680,7 @@ int mrp_join_listener(uint8_t * streamid)
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S+L:%02X%02X%02X%02X%02X%02X%02X%02X"
-		":D:2", streamid[0], streamid[1], streamid[2], streamid[3],
+		",D=2", streamid[0], streamid[1], streamid[2], streamid[3],
 		streamid[4], streamid[5], streamid[6], streamid[7]);
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);
@@ -700,13 +702,13 @@ mrp_advertise_stream(uint8_t * streamid,
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "S++S:%02X%02X%02X%02X%02X%02X%02X%02X"
-		":A:%02X%02X%02X%02X%02X%02X"
-		":V:%04X"
-		":Z:%d"
-		":I:%d"
-		":P:%d"
-		":L:%d", streamid[0], streamid[1], streamid[2],
+	sprintf(msgbuf, "S++:S=%02X%02X%02X%02X%02X%02X%02X%02X"
+		",A=%02X%02X%02X%02X%02X%02X"
+		",V=%04X"
+		",Z=%d"
+		",I=%d"
+		",P=%d"
+		",L=%d", streamid[0], streamid[1], streamid[2],
 		streamid[3], streamid[4], streamid[5], streamid[6],
 		streamid[7], destaddr[0], destaddr[1], destaddr[2],
 		destaddr[3], destaddr[4], destaddr[5], vlan, pktsz,
@@ -731,13 +733,13 @@ mrp_unadvertise_stream(uint8_t * streamid,
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "S--S:%02X%02X%02X%02X%02X%02X%02X%02X"
-		":A:%02X%02X%02X%02X%02X%02X"
-		":V:%04X"
-		":Z:%d"
-		":I:%d"
-		":P:%d"
-		":L:%d", streamid[0], streamid[1], streamid[2],
+	sprintf(msgbuf, "S--:S=%02X%02X%02X%02X%02X%02X%02X%02X"
+		",A=%02X%02X%02X%02X%02X%02X"
+		",V=%04X"
+		",Z=%d"
+		",I=%d"
+		",P=%d"
+		",L=%d", streamid[0], streamid[1], streamid[2],
 		streamid[3], streamid[4], streamid[5], streamid[6],
 		streamid[7], destaddr[0], destaddr[1], destaddr[2],
 		destaddr[3], destaddr[4], destaddr[5], vlan, pktsz,
@@ -852,12 +854,13 @@ int main(int argc, char *argv[])
 	int class_a_id = 0;
 	int a_priority = 0;
 	u_int16_t a_vid = 0;
+#ifdef DOMAIN_QUERY
 	int class_b_id = 0;
 	int b_priority = 0;
 	u_int16_t b_vid = 0;
+#endif
 	int seqnum;
 	int time_stamp;
-	int16_t data_length;
 	unsigned total_samples = 0;
 	int TEN_USEC_COUNT;
 	gPtpTimeData td;
@@ -865,8 +868,6 @@ int main(int argc, char *argv[])
 	seventeen22_header *header0;
 	six1883_header *header1;
 	six1883_sample *sample;
-	FILE *freqfile;
-	char freqstring[8];
 	uint64_t now_tscns, now_8021as;
 	uint64_t update_tscns, update_8021as;
 	unsigned delta_tscns, delta_8021as, delta_local;
@@ -925,27 +926,14 @@ int main(int argc, char *argv[])
 		usage();
 	}
 
-	freqfile = fopen(SYSTEM_FREQ_FILENAME, "r");
-	if (freqfile == NULL) {
-		printf("Failed to open kernel module parameter: %s\n",
-		       strerror(errno));
-		return errno;
-	}
-
-	if (fscanf(freqfile, "%7s", freqstring) != 1) {
-		printf("Failed to read kernel module parameter: %s\n",
-		       strerror(errno));
-		return errno;
-	}
-
-	TEN_USEC_COUNT = atoi(freqstring);
-	/* fprintf(stderr, "TEN_USEC_COUNT = %d\n", TEN_USEC_COUNT); */
+	TEN_USEC_COUNT = 2300; /* xxx fix me */
 
 	mrp_monitor();
-
+#ifdef DOMAIN_QUERY
 	/* 
 	 * should use mrp_get_domain() above but this is a simplification 
 	 */
+#endif
 	domain_a_valid = 1;
 	class_a_id = MSRP_SR_CLASS_A;
 	a_priority = MSRP_SR_CLASS_A_PRIO;

@@ -20,3 +20,10 @@ provide the 802.1AS presentation times included in the 1722 frames. This
 application also requires the mrpd daemon to be running to detect and 
 establish various stream reservation parameters.
 
+Lastly, to build the application, you need to have the pciutils library
+installed. the latest version can be downloaded from:
+
+	< ftp://ftp.kernel.org/pub/software/utils/pciutils/ >.
+
+Download and extract the library, and run 'make;make install;make install-lib'.
+

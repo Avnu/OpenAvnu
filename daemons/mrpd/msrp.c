@@ -222,8 +222,10 @@ int msrp_merge(struct msrp_attribute *rattrib)
 		       FailureInformation.BridgeID,
 		       rattrib->attribute.talk_listen.
 		       FailureInformation.BridgeID, 8);
+#ifdef ENABLE_MERGED_LATENCY
 		attrib->attribute.talk_listen.AccumulatedLatency =
 		    rattrib->attribute.talk_listen.AccumulatedLatency;
+#endif
 		break;
 	case MSRP_LISTENER_TYPE:
 		if (attrib->substate != rattrib->substate) {
