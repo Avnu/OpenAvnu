@@ -233,7 +233,7 @@ void IEEE1588Port::sendGeneralPort(uint8_t * buf, int size,
 {
 	net_result rtx = port_send(buf, size, mcast_type, destIdentity, false);
 	if (rtx != net_succeed) {
-		XPTPD_ERROR("sendEventPort(): failure");
+		XPTPD_ERROR("sendGeneralPort(): failure");
 	}
 
 	return;
@@ -361,7 +361,6 @@ void IEEE1588Port::processEvent(Event e)
 				}
 				if (clock->isBetterThan(EBest)) {
 					// We are the GrandMaster, all ports are master
-					fprintf(stderr, "\n");
 					EBest = NULL;	// EBest == NULL : we were grandmaster
 					ports[j]->recommendState(PTP_MASTER,
 								 changed_master);
@@ -559,7 +558,6 @@ void IEEE1588Port::processEvent(Event e)
 			Timestamp device_time;
 			int32_t local_system_freq_offset;
 			int64_t local_system_offset;
-			static bool adj_up = true;
 
 #if 0
 			Timestamp crstamp_device_time;
@@ -568,63 +566,6 @@ void IEEE1588Port::processEvent(Event e)
 #endif
 			uint32_t local_clock, nominal_clock_rate;
 
-			getDeviceTime(system_time, device_time, local_clock,
-				      nominal_clock_rate);
-			//fprintf( stderr, "Device Time = %llu,System Time = %llu\n", TIMESTAMP_TO_NS(device_time), TIMESTAMP_TO_NS(system_time));
-
-			XPTPD_INFO
-			    ("port::processEvent(): System time: %u,%u Device Time: %u,%u",
-			     system_time.seconds_ls, system_time.nanoseconds,
-			     device_time.seconds_ls, device_time.nanoseconds);
-
-			local_system_offset =
-			    TIMESTAMP_TO_NS(system_time) -
-			    TIMESTAMP_TO_NS(device_time);
-#if 0
-			local_system_offset = device_time.nanoseconds +
-			    (((unsigned long long)device_time.seconds_ms <<
-			      sizeof(device_time.seconds_ls) * 8) +
-			     device_time.seconds_ls) * 1000000000LL;
-			local_system_offset -=
-			    system_time.nanoseconds +
-			    (((unsigned long long)system_time.seconds_ms <<
-			      sizeof(system_time.seconds_ls) * 8) +
-			     system_time.seconds_ls) * 1000000000LL;
-#endif
-
-			local_system_freq_offset =
-			    calcLocalSystemClockRateDifference
-			    (local_system_offset, system_time);
-
-			//getExternalClockRate( crstamp_device_time, external_local_offset, external_local_freq_offset );
-
-			clock->setMasterOffset(0, device_time, 0,
-					       local_system_offset, system_time,
-					       local_system_freq_offset,
-					       nominal_clock_rate, local_clock);
-			if (this->doSyntonization()) {
-				this->adjustClockRate(0, local_clock,
-						      device_time, 0, false);
-			}
-
-			if (_hw_timestamper != NULL
-			    && _initial_clock_offset != 0) {
-				if (adj_up) {
-					_hw_timestamper->HWTimestamper_adjclockrate2
-					    (_current_clock_offset += 2500);
-				} else {
-					_hw_timestamper->HWTimestamper_adjclockrate2
-					    (_current_clock_offset -= 2500);
-				}
-				XPTPD_INFO("Adjust clock rate current: %d",
-					   _current_clock_offset);
-			}
-			if (_current_clock_offset >
-			    _initial_clock_offset + 5000000
-			    || _current_clock_offset <
-			    _initial_clock_offset - 5000000) {
-				adj_up = !adj_up;
-			}
 			// Send a sync message and then a followup to broadcast
 			if (asCapable) {
 				PTPMessageSync *sync = new PTPMessageSync(this);
@@ -640,12 +581,10 @@ void IEEE1588Port::processEvent(Event e)
 				Timestamp sync_timestamp;
 				unsigned sync_timestamp_counter_value;
 				long req = 1000;	// = 1 ms
-				XPTPD_INFO("Start TS Read");
 				ts_good =
 				    getTxTimestamp(sync, sync_timestamp,
 						   sync_timestamp_counter_value,
 						   false);
-				XPTPD_INFO("Done TS Read");
 				while (ts_good != 0 && iter-- != 0) {
 					timer->sleep(req);
 					if (ts_good != -72 && iter < 1)
@@ -693,17 +632,38 @@ void IEEE1588Port::processEvent(Event e)
 					follow_up->sendPort(this, NULL);
 					delete follow_up;
 				} else {
-					// Re-add the timer, since we failed re-send sooner?
-					//clock->addEventTimer( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, (unsigned long long) (pow(2,getSyncInterval())*1000000000.0));
 				}
 				delete sync;
 			}
+                        // Do getDeviceTime() after transmitting sync frame causing an update to local/system timestamp
+                        //fprintf( stderr, "getDeviceTime() @%llu\n", ST_rdtsc() );
+                        getDeviceTime(system_time, device_time, local_clock,
+                                      nominal_clock_rate);
+			
+                        XPTPD_INFO
+			  ("port::processEvent(): System time: %u,%u Device Time: %u,%u",
+			   system_time.seconds_ls, system_time.nanoseconds,
+			   device_time.seconds_ls, device_time.nanoseconds);
+			
+                        local_system_offset =
+			  TIMESTAMP_TO_NS(system_time) -
+			  TIMESTAMP_TO_NS(device_time);
+                        local_system_freq_offset =
+			  calcLocalSystemClockRateDifference
+			  (local_system_offset, system_time);
+                        clock->setMasterOffset(0, device_time, 0,
+                                               local_system_offset, system_time,
+                                               local_system_freq_offset,
+                                               nominal_clock_rate, local_clock);
+
+                        clock->addEventTimer(this,
+                                             SYNC_INTERVAL_TIMEOUT_EXPIRES,
+                                             (unsigned long
+                                              long)(pow((double)2,
+                                                        getSyncInterval()) *
+                                                    1000000000.0));
+			
 		}
-		clock->addEventTimer(this, SYNC_INTERVAL_TIMEOUT_EXPIRES,
-				     (unsigned long
-				      long)(pow((double)2,
-						getSyncInterval()) *
-					    1000000000.0));
 		break;
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
 		if (asCapable) {

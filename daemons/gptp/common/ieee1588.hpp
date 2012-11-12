@@ -132,8 +132,9 @@ class Timestamp {
 #define INVALID_TIMESTAMP (Timestamp( 0xC0000000, 0, 0 ))
 #define PDELAY_PENDING_TIMESTAMP (Timestamp( 0xC0000001, 0, 0 ))
 
-#define TIMESTAMP_TO_NS(ts) (((static_cast<long long int>(ts.seconds_ms) << sizeof(ts.seconds_ls)*8) + ts.seconds_ls)*1000000000LL + \
-			     ts.nanoseconds)
+#define TIMESTAMP_TO_NS(ts) (((static_cast<long long int>((ts).seconds_ms) \
+			       << sizeof((ts).seconds_ls)*8) + \
+			      (ts).seconds_ls)*1000000000LL + (ts).nanoseconds)
 
 static inline uint64_t bswap_64(uint64_t in)
 {

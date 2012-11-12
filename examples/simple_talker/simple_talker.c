@@ -87,8 +87,6 @@ typedef struct {
 #define SAMPLES_PER_CYCLE (SAMPLES_PER_SECOND/FREQUENCY)
 #define GAIN (.5)
 
-#define SYSTEM_FREQ_FILENAME "/sys/module/igb_avb/parameters/TEN_USEC_COUNT"
-
 //1722 header
 #define ETH_TYPE 0x22F0
 
@@ -472,7 +470,6 @@ int process_mrp_msg(char *buf, int buflen)
 			if (memcmp
 			    (recovered_streamid, monitor_stream_id,
 			     sizeof(recovered_streamid)) == 0) {
-				mrp_join_listener(recovered_streamid);
 				listeners = 1;
 				printf("added listener\n");
 			}
@@ -593,9 +590,7 @@ int process_mrp_msg(char *buf, int buflen)
 					    (recovered_streamid,
 					     monitor_stream_id,
 					     sizeof(recovered_streamid)) == 0)
-						mrp_join_listener
-						    (recovered_streamid);
-					listeners = 1;
+						listeners = 1;
 				}
 				break;
 			}
@@ -679,7 +674,7 @@ int mrp_join_listener(uint8_t * streamid)
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "S+L:%02X%02X%02X%02X%02X%02X%02X%02X"
+	sprintf(msgbuf, "S+L:S=%02X%02X%02X%02X%02X%02X%02X%02X"
 		",D=2", streamid[0], streamid[1], streamid[2], streamid[3],
 		streamid[4], streamid[5], streamid[6], streamid[7]);
 	mrp_okay = 0;
@@ -862,16 +857,15 @@ int main(int argc, char *argv[])
 	int seqnum;
 	int time_stamp;
 	unsigned total_samples = 0;
-	int TEN_USEC_COUNT;
 	gPtpTimeData td;
 	int32_t sample_buffer[SAMPLES_PER_FRAME * SRC_CHANNELS];
 	seventeen22_header *header0;
 	six1883_header *header1;
 	six1883_sample *sample;
-	uint64_t now_tscns, now_8021as;
-	uint64_t update_tscns, update_8021as;
-	unsigned delta_tscns, delta_8021as, delta_local;
-	long double ml_ratio, ls_ratio;
+	uint64_t now_local, now_8021as;
+	uint64_t update_8021as;
+	unsigned delta_8021as, delta_local;
+	long double ml_ratio;
 
 	for (;;) {
 		c = getopt(argc, argv, "hi:");
@@ -925,8 +919,6 @@ int main(int argc, char *argv[])
 		printf("failed to open interface\n");
 		usage();
 	}
-
-	TEN_USEC_COUNT = 2300; /* xxx fix me */
 
 	mrp_monitor();
 #ifdef DOMAIN_QUERY
@@ -1008,7 +1000,7 @@ int main(int argc, char *argv[])
 		header1->app_control = 0x0;
 		header1->reserved0 = 0;
 		header1->source_id = 0x3F;
-		header1->data_block_size = CHANNELS;
+		header1->data_block_size = 1;
 		header1->fraction_number = 0;
 		header1->quadlet_padding_count = 0;
 		header1->source_packet_header = 0;
@@ -1040,17 +1032,17 @@ int main(int argc, char *argv[])
 	gptpinit();
 	gptpscaling(&td);
 
-	now_tscns = ST_rdtsc() * 10000 / TEN_USEC_COUNT;
-	update_tscns = td.local_time + td.ls_phoffset;
+	if( igb_get_wallclock( &igb_dev, &now_local, NULL ) != 0 ) {
+	  fprintf( stderr, "Failed to get wallclock time\n" );
+	  return -1;
+	}
 	update_8021as = td.local_time - td.ml_phoffset;
-	delta_tscns = (unsigned)(now_tscns - update_tscns);
+	delta_local = (unsigned)(now_local - td.local_time);
 	ml_ratio = -1 * (((long double)td.ml_freqoffset) / 1000000000000) + 1;
-	ls_ratio = -1 * (((long double)td.ls_freqoffset) / 1000000000000) + 1;
-	delta_local = (unsigned)(ls_ratio * delta_tscns);
-	delta_8021as = (unsigned)(ml_ratio * ls_ratio * delta_tscns);
+	delta_8021as = (unsigned)(ml_ratio * delta_local);
 	now_8021as = update_8021as + delta_8021as;
-	last_time = td.local_time + delta_local + XMIT_DELAY;
 
+	last_time = now_local + XMIT_DELAY;
 	time_stamp = now_8021as + RENDER_DELAY;
 
 	rc = nice(-20);
@@ -1084,7 +1076,7 @@ int main(int argc, char *argv[])
 		time_stamp = ntohl(time_stamp);
 		time_stamp += PACKET_IPG;
 		header1->data_block_continuity = total_samples;
-		total_samples += SAMPLES_PER_FRAME;
+		total_samples += SAMPLES_PER_FRAME*CHANNELS;
 		sample =
 		    (six1883_sample *) (((char *)tmp_packet->vaddr) +
 					(18 + sizeof(seventeen22_header) +

@@ -238,7 +238,6 @@ struct WindowsTimerQueueHandlerArg {
 };
 
 typedef std::list<WindowsTimerQueueHandlerArg *> TimerArgList_t;
-
 struct TimerQueue_t {
     TimerArgList_t arg_list;
     HANDLE queue_handle;
@@ -316,12 +315,17 @@ public:
 
 VOID CALLBACK WindowsTimerQueueHandler( PVOID arg_in, BOOLEAN ignore ) {
     WindowsTimerQueueHandlerArg *arg = (WindowsTimerQueueHandlerArg *) arg_in;
-    arg->func( arg->inner_arg );
+    size_t diff;
 
     // Remove myself from unexpired timer queue
     AcquireSRWLockExclusive( &arg->timer_queue->lock );
+    diff  = arg->timer_queue->arg_list.size();
     arg->timer_queue->arg_list.remove( arg );
+    diff -= arg->timer_queue->arg_list.size();
     ReleaseSRWLockExclusive( &arg->timer_queue->lock );
+
+    if( diff == 0 ) return;
+    arg->func( arg->inner_arg );
 
     // Add myself to the expired timer queue
     AcquireSRWLockExclusive( &arg->queue->retiredTimersLock );
@@ -473,6 +477,9 @@ public:
         if( miniport == INVALID_HANDLE_VALUE ) return false;
 
         tsc_hz.QuadPart = getTSCFrequency( 1000 );
+	if( tsc_hz.QuadPart == 0 ) {
+	  return false;
+	}
 
         return true;
     }

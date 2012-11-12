@@ -177,8 +177,8 @@ int mrpd_timer_stop(int timerfd)
 
 int gctimer_start()
 {
-	/* reclaim memory every 30 minutes */
-	return mrpd_timer_start(gc_timer, 30 * 60 * 1000);
+	/* reclaim memory every 30 seconds */
+	return mrpd_timer_start(gc_timer, 30 * 1000);
 }
 
 int periodictimer_start()

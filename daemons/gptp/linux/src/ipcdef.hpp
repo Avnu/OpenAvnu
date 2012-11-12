@@ -30,64 +30,18 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
+#ifndef IPCDEF_HPP
+#define IPCDEF_HPP
 
-#include "ieee1588.hpp"
-#include "avbts_clock.hpp"
-#include "avbts_osnet.hpp"
-#include "avbts_oslock.hpp"
-#include "linux_hal.hpp"
+typedef struct {
+	int64_t ml_phoffset;
+	int64_t ls_phoffset;
+	int32_t ml_freqoffset;
+	int32_t ls_freqoffset;
+	int64_t local_time;
+} gPtpTimeData;
 
-int main(int argc, char **argv)
-{
-	sigset_t set;
-	InterfaceName *ifname;
-	int sig;
+#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t)	/* 3 - 64 bit and 2 - 32 bits */
+#define SHM_NAME  "/ptp"
 
-	LinuxPCAPNetworkInterfaceFactory *default_factory =
-	    new LinuxPCAPNetworkInterfaceFactory;
-	OSNetworkInterfaceFactory::registerFactory(factory_name_t("default"),
-						   default_factory);
-	LinuxThreadFactory *thread_factory = new LinuxThreadFactory();
-	LinuxTimerQueueFactory *timerq_factory = new LinuxTimerQueueFactory();
-	LinuxLockFactory *lock_factory = new LinuxLockFactory();
-	LinuxTimerFactory *timer_factory = new LinuxTimerFactory();
-	LinuxConditionFactory *condition_factory = new LinuxConditionFactory();
-	LinuxNamedPipeIPC *ipc = new LinuxNamedPipeIPC();
-	if (!ipc->init()) {
-		delete ipc;
-		ipc = NULL;
-	}
-
-	if (argc < 2)
-		return -1;
-	ifname = new InterfaceName(argv[1], strlen(argv[1]));
-
-	IEEE1588Clock *clock = new IEEE1588Clock(false, timerq_factory, ipc);
-	HWTimestamper *timestamper = new LinuxTimestamper();
-	IEEE1588Port *port =
-	    new IEEE1588Port(clock, 1, false, timestamper, false, 0, ifname,
-			     condition_factory, thread_factory, timer_factory,
-			     lock_factory);
-
-	if (!port->init_port()) {
-		printf("failed to initialize port \n");
-		return -1;
-	}
-	port->processEvent(POWERUP);
-
-	sigemptyset(&set);
-	sigaddset(&set, SIGINT);
-	if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0) {
-		perror("pthread_sigmask()");
-		return -1;
-	}
-
-	if (sigwait(&set, &sig) != 0) {
-		perror("sigwait()");
-		return -1;
-	}
-
-	fprintf(stderr, "Exiting on %d\n", sig);
-
-	return 0;
-}
+#endif				/*IPCDEF_HPP */

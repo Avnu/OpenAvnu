@@ -949,34 +949,41 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 	return;
 }
 
-#define rdtscll(val)    __asm__ __volatile__("rdtsc" : "=A" (val))
+#define MAX_WALLCLOCK_WINDOW 1000
+#define rdtscpll(val)    __asm__ __volatile__("rdtsc" : "=A" (val))
 
 int
 igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 {
-	u_int64_t	t0, t1;
+	u_int64_t	t0 = 0, t1 = -1;
 	u_int32_t	timh, timl;
 	struct adapter	*adapter;
 	struct e1000_hw *hw;
+	int iter = 0;
 
 	if (NULL == dev) return EINVAL;
 	adapter = (struct adapter *)dev->private_data;
 	if (NULL == adapter) return ENXIO;
-	if (NULL == curtime) return EINVAL;
-	if (NULL == rdtsc) return EINVAL;
 
 	hw = &adapter->hw;
 
 	/* sample the timestamp bracketed by the RDTSC */
-	rdtscll(t0);
+	while( t1 - t0 > MAX_WALLCLOCK_WINDOW && iter < 8 ) {
+	  rdtscpll(t0);
 	E1000_WRITE_REG(hw, E1000_TSAUXC, E1000_TSAUXC_SAMP_AUTO);
-	rdtscll(t1);
+	  rdtscpll(t1);
+	  ++iter;
+	}
+
+	if( t1 - t0 > MAX_WALLCLOCK_WINDOW ) {
+	  return ;
+	}
 
 	timl = E1000_READ_REG(hw, E1000_AUXSTMPL0);
 	timh = E1000_READ_REG(hw, E1000_AUXSTMPH0);
 
-	*curtime = (u_int64_t)timh * 1000000000 + (u_int64_t)timl;
-	*rdtsc = (t1 - t0) / 2 + t0; /* average */
+	if( curtime ) *curtime = (u_int64_t)timh * 1000000000 + (u_int64_t)timl;
+	if( rdtsc ) *rdtsc = (t1 - t0) / 2 + t0; /* average */
 	
 	return(0);
 } 

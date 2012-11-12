@@ -1543,7 +1543,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	if (request_tx_timestamp.nanoseconds ==
 	    PDELAY_PENDING_TIMESTAMP.nanoseconds) {
 		// Defer processing
-		if (port->getLastPDelayRespFollowUp() != NULL) {
+		if (port->getLastPDelayRespFollowUp() != NULL
+		    && port->getLastPDelayRespFollowUp() != this) {
 			delete port->getLastPDelayRespFollowUp();
 		}
 		port->setLastPDelayRespFollowUp(this);

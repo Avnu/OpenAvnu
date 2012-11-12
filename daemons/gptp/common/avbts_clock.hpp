@@ -186,10 +186,6 @@ class IEEE1588Clock {
 			   unsigned long long time_ns);
 	void deleteEventTimer(IEEE1588Port * target, Event e);
 
-#define SHM_SIZE  2*sizeof( int64_t )					\
-    + 2*(sizeof( last_sync_time.seconds_ms ) + sizeof( last_sync_time.seconds_ls ) + sizeof( last_sync_time.nanoseconds )) \
-    + 4*sizeof(uint32_t) + sizeof( uint16_t )
-
 	void setMasterOffset(int64_t master_local_offset, Timestamp local_time,
 			     int32_t master_local_freq_offset,
 			     int64_t local_system_offset, Timestamp system_time,

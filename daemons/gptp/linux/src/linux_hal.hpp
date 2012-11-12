@@ -62,6 +62,10 @@
 #include <sys/select.h>
 #include <linux/net_tstamp.h>
 #include <linux/sockios.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <ipcdef.hpp>
 
 #define ONE_WAY_PHY_DELAY 400
 #define P8021AS_MULTICAST "\x01\x80\xC2\x00\x00\x0E"
@@ -69,15 +73,16 @@
 static inline Timestamp tsToTimestamp(struct timespec *ts)
 {
 	Timestamp ret;
-	if (sizeof(ts->tv_sec) > sizeof(ret.seconds_ls)) {
-		ret.seconds_ms = ts->tv_sec >> (sizeof(ret.seconds_ls) * 8);
+	int seclen = sizeof(ts->tv_sec) - sizeof(ret.seconds_ls);
+	if (seclen > 0) {
+		ret.seconds_ms =
+		    ts->tv_sec >> (sizeof(ts->tv_sec) - seclen) * 8;
 		ret.seconds_ls = ts->tv_sec & 0xFFFFFFFF;
-		ret.nanoseconds = ts->tv_nsec;
 	} else {
 		ret.seconds_ms = 0;
 		ret.seconds_ls = ts->tv_sec;
-		ret.nanoseconds = ts->tv_nsec;
 	}
+	ret.nanoseconds = ts->tv_nsec;
 	return ret;
 }
 
@@ -126,7 +131,7 @@ class LinuxTimestamper:public HWTimestamper {
 
 		device.ifr_data = (char *)&hwconfig;
 		memset(&hwconfig, 0, sizeof(hwconfig));
-		hwconfig.rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		hwconfig.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		hwconfig.tx_type = HWTSTAMP_TX_ON;
 		printf("TX type = %u\n", hwconfig.tx_type);
 		printf("RX filter = %u\n", hwconfig.rx_filter);
@@ -250,22 +255,21 @@ class LinuxLock:public OSLock {
  private:
 	 OSLockType type;
 	pthread_t thread_id;
-	int lock_c;
 	pthread_mutexattr_t mta;
 	pthread_mutex_t mutex;
 	pthread_cond_t port_ready_signal;
  protected:
-	LinuxLock() {
-		lock_c = NULL;
+	 LinuxLock() {
 	} 
 	bool initialize(OSLockType type) {
+		int lock_c;
 		pthread_mutexattr_init(&mta);
 		if (type == oslock_recursive)
 			pthread_mutexattr_settype(&mta,
 						  PTHREAD_MUTEX_RECURSIVE);
 		lock_c = pthread_mutex_init(&mutex, &mta);
 		if (lock_c != 0) {
-			XPTPD_ERROR("Mutex initialization faile - %s\n",
+			XPTPD_ERROR("Mutex initialization failed - %s\n",
 				    strerror(errno));
 			return oslock_fail;
 		}
@@ -273,18 +277,21 @@ class LinuxLock:public OSLock {
 
 	}
 	OSLockResult lock() {
+		int lock_c;
 		lock_c = pthread_mutex_lock(&mutex);
 		if (lock_c != 0)
 			return oslock_fail;
 		return oslock_ok;
 	}
 	OSLockResult trylock() {
+		int lock_c;
 		lock_c = pthread_mutex_trylock(&mutex);
 		if (lock_c != 0)
 			return oslock_fail;
 		return oslock_ok;
 	}
 	OSLockResult unlock() {
+		int lock_c;
 		lock_c = pthread_mutex_unlock(&mutex);
 		if (lock_c != 0)
 			return oslock_fail;
@@ -486,11 +493,13 @@ class LinuxTimerQueue:public OSTimerQueue {
 			LinuxTimerQueueHandlerArg *del_arg =
 			    timerQueueMap[type].arg_list.front();
 			timerQueueMap[type].arg_list.pop_front();
-			timer_delete(del_arg->timer_handle);
+			pthread_attr_destroy((pthread_attr_t *) del_arg->sevp.
+					     sigev_notify_attributes);
 			delete(pthread_attr_t *) del_arg->sevp.
 			    sigev_notify_attributes;
 			if (del_arg->rm)
 				delete del_arg->inner_arg;
+			timer_delete(del_arg->timer_handle);
 			delete del_arg;
 		}
 		pthread_mutex_unlock(&timerQueueMap[type].lock);
@@ -523,7 +532,11 @@ void LinuxTimerQueueHandler(union sigval arg_in)
 		arg->func(arg->inner_arg);
 		if (arg->rm)
 			delete arg->inner_arg;
+		pthread_attr_destroy((pthread_attr_t *) arg->sevp.
+				     sigev_notify_attributes);
 		delete(pthread_attr_t *) arg->sevp.sigev_notify_attributes;
+		timer_delete(arg->timer_handle);
+		delete arg;
 	}
 }
 
@@ -539,7 +552,7 @@ class LinuxTimer:public OSTimer {
 	friend class LinuxTimerFactory;
  public:
 	virtual unsigned long sleep(unsigned long micros) {
-		struct timespec req = { 0, micros };	/* Should be micros*1000 -Chris */
+		struct timespec req = { 0, micros * 1000 };
 		nanosleep(&req, NULL);
 		return micros;
 	}
@@ -590,7 +603,7 @@ class LinuxThread:public OSThread {
 			return false;
 		}
 		err = pthread_create(&thread_id, NULL, OSThreadCallback,
-				   arg_inner);
+				     arg_inner);
 		if (err != 0)
 			return false;
 		sigdelset(&oset, SIGALRM);
@@ -645,10 +658,10 @@ class LinuxPCAPNetworkInterface:public OSNetworkInterface {
 		addr->toOctetArray(remote->sll_addr);
 		if (timestamp) {
 			err = sendto(sd_event, payload, length, 0,
-				   (sockaddr *) remote, sizeof(*remote));
+				     (sockaddr *) remote, sizeof(*remote));
 		} else {
 			err = sendto(sd_general, payload, length, 0,
-				   (sockaddr *) remote, sizeof(*remote));
+				     (sockaddr *) remote, sizeof(*remote));
 		}
 		delete remote;
 		if (err == -1) {
@@ -704,8 +717,15 @@ class LinuxPCAPNetworkInterface:public OSNetworkInterface {
 		msg.msg_controllen = sizeof(control);
 
 		err = recvmsg(sd_event, &msg, 0);
-		if (err < 0)
+		if (err < 0) {
+			if (errno == ENOMSG) {
+				fprintf(stderr, "Got ENOMSG: %s:%d\n", __FILE__,
+					__LINE__);
+				return net_trfail;
+			}
+			XPTPD_ERROR("recvmsg() failed: %s", strerror(errno));
 			return net_fatal;
+		}
 		*addr = LinkLayerAddress(remote.sll_addr);
 
 		if (err > 0 && !(payload[0] & 0x8)) {
@@ -812,8 +832,8 @@ class LinuxPCAPNetworkInterfaceFactory:public OSNetworkInterfaceFactory {
 		memcpy(mr_8021as.mr_address, P8021AS_MULTICAST,
 		       mr_8021as.mr_alen);
 		err = setsockopt(net_iface_l->sd_event, SOL_PACKET,
-			       PACKET_ADD_MEMBERSHIP, &mr_8021as,
-			       sizeof(mr_8021as));
+				 PACKET_ADD_MEMBERSHIP, &mr_8021as,
+				 sizeof(mr_8021as));
 		if (err == -1) {
 			XPTPD_ERROR
 			    ("Unable to add PTP multicast addresses to port id: %u",
@@ -826,7 +846,7 @@ class LinuxPCAPNetworkInterfaceFactory:public OSNetworkInterfaceFactory {
 		ifsock_addr.sll_ifindex = ifindex;
 		ifsock_addr.sll_protocol = htons(PTP_ETHERTYPE);
 		err = bind(net_iface_l->sd_event, (sockaddr *) & ifsock_addr,
-			 sizeof(ifsock_addr));
+			   sizeof(ifsock_addr));
 		if (err == -1) {
 			XPTPD_ERROR("Call to bind() failed: %s",
 				    strerror(errno));
@@ -845,6 +865,88 @@ class LinuxPCAPNetworkInterfaceFactory:public OSNetworkInterfaceFactory {
 		}
 		*net_iface = net_iface_l;
 
+		return true;
+	}
+};
+
+class LinuxNamedPipeIPC:public OS_IPC {
+ private:
+	int shm_fd;
+	char *master_offset_buffer;
+	int err;
+	pthread_mutexattr_t mta;
+	pthread_mutex_t mutex;
+ public:
+	LinuxNamedPipeIPC() {
+		shm_fd = 0;
+		err = 0;
+	};
+	~LinuxNamedPipeIPC() {
+		munmap(master_offset_buffer, SHM_SIZE);
+		shm_unlink(SHM_NAME);
+	}
+	virtual bool init() {
+		shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0777);
+		if (shm_fd == -1) {
+			XPTPD_ERROR("shm_open()");
+			return false;
+		}
+		if (ftruncate(shm_fd, SHM_SIZE) == -1) {
+			XPTPD_ERROR("ftruncate()");
+			return false;
+		}
+		master_offset_buffer =
+		    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
+				 MAP_LOCKED | MAP_SHARED, shm_fd, 0);
+		if (master_offset_buffer == (char *)-1) {
+			XPTPD_ERROR("mmap()");
+			master_offset_buffer = NULL;
+			shm_unlink(SHM_NAME);
+			return false;
+		}
+		//create a mutex
+		err = pthread_mutexattr_init(&mta);
+		if (err != 0) {
+			XPTPD_ERROR("sharedmem - mutexattr_init()");
+			return false;
+		}
+		//pthread_mutexattr_settype(&mta, PTHREAD_MUTEX_NORMAL);
+		if (pthread_mutexattr_setpshared(&mta, PTHREAD_PROCESS_SHARED)
+		    != 0) {
+			fprintf(stderr, "Set pshared failed\n");
+			exit(-1);
+		}
+
+		err =
+		    pthread_mutex_init((pthread_mutex_t *) master_offset_buffer,
+				       &mta);
+
+		if (err != 0) {
+			XPTPD_ERROR
+			    ("sharedmem - Mutex initialization failed - %s\n",
+			     strerror(errno));
+			return false;
+		}
+
+		return true;
+	}
+	virtual bool update(int64_t ml_phoffset, int64_t ls_phoffset,
+			    int32_t ml_freqoffset, int32_t ls_freqoffset,
+			    uint64_t local_time) {
+		int buf_offset = 0;
+		char *shm_buffer = master_offset_buffer;
+		gPtpTimeData *ptimedata;
+		// lock
+		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
+		buf_offset += sizeof(pthread_mutex_t);
+		ptimedata = (gPtpTimeData *) (shm_buffer + buf_offset);
+		ptimedata->ml_phoffset = ml_phoffset;
+		ptimedata->ls_phoffset = ls_phoffset;
+		ptimedata->ml_freqoffset = ml_freqoffset;
+		ptimedata->ls_freqoffset = ls_freqoffset;
+		ptimedata->local_time = local_time;
+		// unlock
+		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 		return true;
 	}
 };
