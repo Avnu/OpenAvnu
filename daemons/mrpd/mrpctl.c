@@ -66,7 +66,6 @@ static const char *version_str =
 int
 init_local_ctl( void ) {
 	struct sockaddr_in	addr;
-	socklen_t addr_len;
 	int sock_fd = -1;
 	int sock_flags;
 
@@ -79,7 +78,6 @@ init_local_ctl( void ) {
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	inet_aton("127.0.0.1", &addr.sin_addr);
-	addr_len = sizeof(addr);
 
 	/* rc = bind(sock_fd, (struct sockaddr *)&addr, addr_len); */
 	
@@ -114,6 +112,10 @@ process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client) {
 	 * V+? - JOIN_MT a VID (VLAN ID)
 	 * V-- - LV a VID (VLAN ID)
 	 */
+
+	/* Unused parameters */
+	(void)buflen;
+	(void)client;
 
 	/* XXX */
 	if (buf[1] == ':')
