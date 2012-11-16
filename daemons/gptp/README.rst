@@ -12,9 +12,13 @@ is "gptp-update". A Windows example is in the project named_pipe_test.
 The message format is:
 
 	Integer64	<master-local phase offset>
+
 	Integer64	<local-system phase offset>
+
 	Integer32	<master-local frequency offset>
+
 	Integer32	<local-system frequency offset>
+
 	UInteger64	<local time of last update>
 
 Meaning of IPC provided values
@@ -37,7 +41,10 @@ Linux Specific
 
 To build, execute the linux/build makefile.
 
-To execute, run ./daemon_cl <interface-name>, such as './daemon_cl eth0'
+To execute, run 
+	./daemon_cl <interface-name>
+such as
+	./daemon_cl eth0
 
 Windows Version
 +++++++++++++++
