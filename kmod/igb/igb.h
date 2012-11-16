@@ -765,7 +765,7 @@ struct igb_pci_lookup {
 
 /* used with both map/unmap ring & buf ioctls */
 struct igb_buf_cmd {
-	dma_addr_t 	physaddr;
+	u64	 	physaddr;
 	u32		queue;
 	u32		mmap_size;
 };
