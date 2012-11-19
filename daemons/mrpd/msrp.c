@@ -255,7 +255,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MSRP
-			printf("MSRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MSRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
@@ -274,7 +274,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MSRP
-			printf("MSRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MSRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_RLA);
 			mrp_registrar_fsm(&(attrib->registrar),
@@ -291,7 +291,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MSRP
-			printf("MSRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MSRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
@@ -318,7 +318,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MSRP
-			printf("MSRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MSRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
@@ -2171,8 +2171,6 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		listen_declare_end = listen_declare_idx;
 
-		printf("######listen_declare_end %d\n", listen_declare_end);
-
 		for (listen_declare_idx = 0;
 		     listen_declare_idx < ((listen_declare_end / 4) * 4);
 		     listen_declare_idx += 4) {
@@ -2351,6 +2349,9 @@ int msrp_txpdu(void)
 	msgbuf_len = mrpdu_msg_ptr - msgbuf;
 
 	bytes = mrpd_send(msrp_socket, msgbuf, msgbuf_len, 0);
+#if LOG_MSRP
+	mrpd_log_printf("MSRP send PDU\n");
+#endif
 	if (bytes <= 0)
 		goto out;
 
@@ -2825,7 +2826,7 @@ static int msrp_cmd_report_domain_status(struct msrpdu_domain *domain, int repor
 int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
-	char respbuf[8];
+	char respbuf[12];
 	int mrp_event;
 	unsigned int substate;
 	struct msrpdu_domain domain_param;
@@ -2833,7 +2834,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	int err_index;
 
 	if (NULL == MSRP_db) {
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s\n", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}

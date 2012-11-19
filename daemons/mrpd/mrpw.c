@@ -726,9 +726,9 @@ int mrpd_reclaim()
 void mrp_schedule_tx_event(void)
 {
 	if (!SetEvent(pkt_events[tx_request_event]))
-		printf("SetEvent tx_request_event failed (%d)\n", GetLastError());
+		printf("SetEvent tx_request_event failed (%d)\n",
+		       GetLastError());
 }
-
 
 HANDLE kill_packet_capture;
 

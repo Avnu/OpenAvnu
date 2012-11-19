@@ -48,47 +48,47 @@ static char *mrp_event_string(int e)
 {
 	switch (e) {
 	case MRP_EVENT_BEGIN:
-		return "BEGIN";
+		return "Begin!";
 	case MRP_EVENT_NEW:
-		return "NEW";
+		return "New!";
 	case MRP_EVENT_JOIN:
-		return "JOIN";
+		return "Join!";
 	case MRP_EVENT_LV:
-		return "LV";
+		return "Lv!";
 	case MRP_EVENT_TX:
-		return "TX";
+		return "tx!";
 	case MRP_EVENT_TXLA:
-		return "TXLA";
+		return "txLA!";
 	case MRP_EVENT_TXLAF:
-		return "TXLAF";
+		return "txLAF!";
 	case MRP_EVENT_RNEW:
-		return "RNEW";
+		return "rNew!";
 	case MRP_EVENT_RJOININ:
-		return "RJOININ";
+		return "rJoinIn!";
 	case MRP_EVENT_RIN:
-		return "RIN";
+		return "rIn!";
 	case MRP_EVENT_RJOINMT:
-		return "RJOINMT";
+		return "rJoinMt!";
 	case MRP_EVENT_RMT:
-		return "RMT";
+		return "rMt!";
 	case MRP_EVENT_RLV:
-		return "RLV";
+		return "rLv!";
 	case MRP_EVENT_RLA:
-		return "RLA";
+		return "rLA!";
 	case MRP_EVENT_FLUSH:
-		return "FLUSH";
+		return "Flush!";
 	case MRP_EVENT_REDECLARE:
-		return "REDECLARE";
+		return "Re-Declare!";
 	case MRP_EVENT_PERIODIC:
-		return "PERIODIC";
+		return "periodic!";
 	case MRP_EVENT_PERIODIC_ENABLE:
 		return "ENABLE";
 	case MRP_EVENT_PERIODIC_DISABLE:
 		return "DISABLE";
 	case MRP_EVENT_LVTIMER:
-		return "LVTIMER";
+		return "leavetimer!";
 	case MRP_EVENT_LVATIMER:
-		return "LVATIMER";
+		return "leavealltimer!";
 	default:
 		return "UNKNOWN";
 	}
@@ -100,37 +100,47 @@ static char *mrp_state_string(int s)
 	case MRP_VO_STATE:
 		return "VO";
 	case MRP_VP_STATE:
-		return "VO";
+		return "VP";
 	case MRP_VN_STATE:
-		return "VO";
+		return "VN";
 	case MRP_AN_STATE:
-		return "VO";
+		return "AN";
 	case MRP_AA_STATE:
-		return "VO";
+		return "AA";
 	case MRP_QA_STATE:
-		return "VO";
+		return "QA";
 	case MRP_LA_STATE:
-		return "VO";
+		return "LA";
 	case MRP_AO_STATE:
-		return "VO";
+		return "AO";
 	case MRP_QO_STATE:
-		return "VO";
+		return "QO";
 	case MRP_AP_STATE:
-		return "VO";
+		return "AP";
 	case MRP_QP_STATE:
-		return "VO";
+		return "QP";
 	case MRP_LO_STATE:
-		return "VO";
+		return "LO";
 
 	case MRP_IN_STATE:
-		return "VO";
+		return "IN";
 	case MRP_LV_STATE:
-		return "VO";
+		return "LV";
 	case MRP_MT_STATE:
-		return "VO";
+		return "MT";
 	default:
-		return"??";
+		return "??";
 	}
+}
+
+static char *mrp_lvatimer_state_string(int s)
+{
+	if (s == MRP_TIMER_PASSIVE)
+		return "PASSIVE";
+	else if (s == MRP_TIMER_ACTIVE)
+		return "ACTIVE";
+	else
+		return "??";
 }
 
 static int client_lookup(client_t * list, struct sockaddr_in *newclient)
@@ -229,11 +239,17 @@ int mrp_jointimer_start(struct mrp_database *mrp_db)
 	/* 10.7.4.1 - interval between transmit opportunities
 	 * for applicant state machine
 	 */
+#if LOG_TIMERS
+	mrpd_log_printf("MRP start join timer\n");
+#endif
 	return mrpd_timer_start(mrp_db->join_timer, MRP_JOINTIMER_VAL);
 }
 
 int mrp_jointimer_stop(struct mrp_database *mrp_db)
 {
+#if LOG_TIMERS
+	mrpd_log_printf("MRP stop join timer\n");
+#endif
 	return mrpd_timer_stop(mrp_db->join_timer);
 }
 
@@ -243,11 +259,17 @@ int mrp_lvtimer_start(struct mrp_database *mrp_db)
 	 * controls how long the Registrar state machine stays in the
 	 * LV state before transitioning to the MT state.
 	 */
+#if LOG_TIMERS
+	mrpd_log_printf("MRP start leave timer\n");
+#endif
 	return mrpd_timer_start(mrp_db->lv_timer, MRP_LVTIMER_VAL);
 }
 
 int mrp_lvtimer_stop(struct mrp_database *mrp_db)
 {
+#if LOG_TIMERS
+	mrpd_log_printf("MRP stop leave timer\n");
+#endif
 	return mrpd_timer_stop(mrp_db->lv_timer);
 }
 
@@ -255,19 +277,25 @@ static unsigned long lva_next;
 
 int mrp_lvatimer_start(struct mrp_database *mrp_db)
 {
+	int timeout = 0;
 	/* leavealltimer has expired. (10.7.5.22)
 	 * on expire, sends a LEAVEALL message
 	 * value is RANDOM in range (LeaveAllTime , 1.5xLeaveAllTime)
 	 * timer is for all attributes of a given application and port, but
 	 * expires each listed attribute individually (per application)
 	 */
-	return mrpd_timer_start(mrp_db->lva_timer,
-				MRP_LVATIMER_VAL +
-				(random() % (MRP_LVATIMER_VAL / 2)));
+	timeout = MRP_LVATIMER_VAL + (random() % (MRP_LVATIMER_VAL / 2));
+#if LOG_TIMERS
+	mrpd_log_printf("MRP start leaveAll timer (%d ms)\n", timeout);
+#endif
+	return mrpd_timer_start(mrp_db->lva_timer, timeout);
 }
 
 int mrp_lvatimer_stop(struct mrp_database *mrp_db)
 {
+#if LOG_TIMERS
+	mrpd_log_printf("MRP stop leaveAll timer\n");
+#endif
 	return mrpd_timer_stop(mrp_db->lva_timer);
 }
 
@@ -307,6 +335,18 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 		return -1;
 		break;
 	}
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
+	if (mrp_db->lva.state != la_state) {
+		mrpd_log_printf("mrp_lvatimer_fsm event %s state %s -> %s\n",
+				mrp_event_string(event),
+				mrp_lvatimer_state_string(mrp_db->lva.state),
+				mrp_lvatimer_state_string(la_state));
+	} else {
+		mrpd_log_printf("mrp_lvatimer_fsm event %s state %s\n",
+				mrp_event_string(event),
+				mrp_lvatimer_state_string(la_state));
+	}
+#endif
 	mrp_db->lva.state = la_state;
 	mrp_db->lva.sndmsg = sndmsg;
 	mrp_db->lva.tx = tx;
@@ -368,9 +408,6 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * a
 	int mrp_state = attrib->mrp_state;
 	int sndmsg = MRP_SND_NULL;
 
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP
-	printf("APP FSM evt %s, state %s\n", mrp_event_string(event), mrp_state_string(mrp_state));
-#endif
 	switch (event) {
 	case MRP_EVENT_BEGIN:
 		mrp_state = MRP_VO_STATE;
@@ -718,10 +755,20 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * a
 		default:
 			break;
 		}
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP
-		printf("APP FSM state transition to %s\n", mrp_state_string(mrp_state));
-#endif
 	}
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
+	if (attrib->mrp_state != mrp_state) {
+		mrpd_log_printf("mrp_applicant_fsm event %s, state %s -> %s\n",
+				mrp_event_string(event),
+				mrp_state_string(attrib->mrp_state),
+				mrp_state_string(mrp_state));
+	} else {
+		mrpd_log_printf("mrp_applicant_fsm event %s, state %s\n",
+				mrp_event_string(event),
+				mrp_state_string(mrp_state));
+	}
+#endif
+
 	attrib->mrp_state = mrp_state;
 	attrib->sndmsg = sndmsg;
 	attrib->encode = (optional ? MRP_ENCODE_OPTIONAL : MRP_ENCODE_YES);
@@ -788,7 +835,7 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 			break;
 		case MRP_LV_STATE:
 			/* should stop leavetimer - but we have only 1 lvtimer
-			 * for all attributes, and recieving a LVTIMER event
+			 * for all attributes, and receiving a LVTIMER event
 			 * is a don't-care if the attribute is in the IN state.
 			 */
 			notify = MRP_NOTIFY_JOIN;
@@ -834,7 +881,19 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		return -1;
 		break;
 	}
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
+	if (attrib->mrp_state != mrp_state) {
+		mrpd_log_printf("mrp_registrar_fsm event %s, state %s -> %s\n",
+				mrp_event_string(event),
+				mrp_state_string(attrib->mrp_state),
+				mrp_state_string(mrp_state));
 
+	} else {
+		mrpd_log_printf("mrp_registrar_fsm event %s, state %s\n",
+				mrp_event_string(event),
+				mrp_state_string(mrp_state));
+	}
+#endif
 	attrib->mrp_state = mrp_state;
 	attrib->notify = notify;
 	return 0;

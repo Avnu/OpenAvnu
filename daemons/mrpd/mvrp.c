@@ -151,7 +151,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MVRP
-			printf("MVRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
@@ -170,7 +170,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MVRP
-			printf("MVRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_RLA);
 			mrp_registrar_fsm(&(attrib->registrar),
@@ -187,7 +187,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MVRP
-			printf("MVRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
@@ -214,7 +214,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MVRP
-			printf("MVRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
@@ -246,7 +246,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		}
 
 #if LOG_MVRP
-		printf("MVRP -> mrp_applicant_fsm\n");
+		mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
 		mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), event);
 		/* remap local requests into registrar events */
@@ -878,6 +878,9 @@ int mvrp_txpdu(void)
 	msgbuf_len = mrpdu_msg_ptr - msgbuf;
 
 	bytes = mrpd_send(mvrp_socket, msgbuf, msgbuf_len, 0);
+#if LOG_MVRP
+	mrpd_log_printf("MVRP send PDU\n");
+#endif
 	if (bytes <= 0)
 		goto out;
 
@@ -1069,12 +1072,12 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
 	int mrp_event;
-	char respbuf[8];
+	char respbuf[12];
 	uint16_t vid_param;
 	int err_index;
 
 	if (NULL == MVRP_db) {
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s\n", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
