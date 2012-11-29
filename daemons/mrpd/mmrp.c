@@ -199,6 +199,7 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 
 	switch (event) {
 	case MRP_EVENT_LVATIMER:
+		mrp_lvatimer_stop(&(MMRP_db->mrp_db));
 		mrp_jointimer_stop(&(MMRP_db->mrp_db));
 		/* update state */
 		attrib = MMRP_db->attrib_list;

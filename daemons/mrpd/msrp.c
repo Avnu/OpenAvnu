@@ -249,6 +249,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 	switch (event) {
 	case MRP_EVENT_LVATIMER:
+		mrp_lvatimer_stop(&(MSRP_db->mrp_db));
 		mrp_jointimer_stop(&(MSRP_db->mrp_db));
 		/* update state */
 		attrib = MSRP_db->attrib_list;
