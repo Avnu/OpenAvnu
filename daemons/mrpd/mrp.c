@@ -44,6 +44,7 @@
 /* state machine controls */
 int p2pmac;
 
+#if LOG_MRP
 static char *mrp_event_string(int e)
 {
 	switch (e) {
@@ -142,6 +143,7 @@ static char *mrp_lvatimer_state_string(int s)
 	else
 		return "??";
 }
+#endif /* #if LOG_MRP */
 
 static int client_lookup(client_t * list, struct sockaddr_in *newclient)
 {
@@ -236,13 +238,20 @@ int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient)
 
 int mrp_jointimer_start(struct mrp_database *mrp_db)
 {
+	int ret;
 	/* 10.7.4.1 - interval between transmit opportunities
 	 * for applicant state machine
 	 */
 #if LOG_TIMERS
-	mrpd_log_printf("MRP start join timer\n");
+	if (mrp_db->join_timer_running)
+		mrpd_log_printf("MRP start join timer *ALREADY RUNNING*\n");
+	else
+		mrpd_log_printf("MRP start join timer\n");
 #endif
-	return mrpd_timer_start(mrp_db->join_timer, MRP_JOINTIMER_VAL);
+	ret = mrpd_timer_start(mrp_db->join_timer, MRP_JOINTIMER_VAL);
+	if (ret >= 0)
+		mrp_db->join_timer_running = 1;
+	return ret;
 }
 
 int mrp_jointimer_stop(struct mrp_database *mrp_db)
@@ -250,19 +259,27 @@ int mrp_jointimer_stop(struct mrp_database *mrp_db)
 #if LOG_TIMERS
 	mrpd_log_printf("MRP stop join timer\n");
 #endif
+	mrp_db->join_timer_running = 0;
 	return mrpd_timer_stop(mrp_db->join_timer);
 }
 
 int mrp_lvtimer_start(struct mrp_database *mrp_db)
 {
+	int ret;
 	/* leavetimer has expired (10.7.5.21)
 	 * controls how long the Registrar state machine stays in the
 	 * LV state before transitioning to the MT state.
 	 */
 #if LOG_TIMERS
-	mrpd_log_printf("MRP start leave timer\n");
+	if (mrp_db->lv_timer_running)
+		mrpd_log_printf("MRP start leave timer *ALREADY RUNNING*\n");
+	else
+		mrpd_log_printf("MRP start leave timer\n");
 #endif
-	return mrpd_timer_start(mrp_db->lv_timer, MRP_LVTIMER_VAL);
+	ret = mrpd_timer_start(mrp_db->lv_timer, MRP_LVTIMER_VAL);
+	if (ret >= 0)
+		mrp_db->lv_timer_running = 1;
+	return ret;
 }
 
 int mrp_lvtimer_stop(struct mrp_database *mrp_db)
@@ -270,6 +287,7 @@ int mrp_lvtimer_stop(struct mrp_database *mrp_db)
 #if LOG_TIMERS
 	mrpd_log_printf("MRP stop leave timer\n");
 #endif
+	mrp_db->lv_timer_running = 0;
 	return mrpd_timer_stop(mrp_db->lv_timer);
 }
 
@@ -277,6 +295,7 @@ static unsigned long lva_next;
 
 int mrp_lvatimer_start(struct mrp_database *mrp_db)
 {
+	int ret;
 	int timeout = 0;
 	/* leavealltimer has expired. (10.7.5.22)
 	 * on expire, sends a LEAVEALL message
@@ -286,9 +305,15 @@ int mrp_lvatimer_start(struct mrp_database *mrp_db)
 	 */
 	timeout = MRP_LVATIMER_VAL + (random() % (MRP_LVATIMER_VAL / 2));
 #if LOG_TIMERS
-	mrpd_log_printf("MRP start leaveAll timer (%d ms)\n", timeout);
+	if (mrp_db->lva_timer_running)
+		mrpd_log_printf("MRP start leaveAll timer (%d ms) *ALREADY RUNNING* \n", timeout);
+	else
+		mrpd_log_printf("MRP start leaveAll timer (%d ms)\n", timeout);
 #endif
-	return mrpd_timer_start(mrp_db->lva_timer, timeout);
+	ret =  mrpd_timer_start(mrp_db->lva_timer, timeout);
+	if (ret >= 0)
+		mrp_db->lva_timer_running = 1;
+	return ret;
 }
 
 int mrp_lvatimer_stop(struct mrp_database *mrp_db)
@@ -296,6 +321,7 @@ int mrp_lvatimer_stop(struct mrp_database *mrp_db)
 #if LOG_TIMERS
 	mrpd_log_printf("MRP stop leaveAll timer\n");
 #endif
+	mrp_db->lva_timer_running = 0;
 	return mrpd_timer_stop(mrp_db->lva_timer);
 }
 
