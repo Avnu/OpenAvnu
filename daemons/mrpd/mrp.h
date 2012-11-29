@@ -176,8 +176,11 @@ struct mrp_database {
 	mrp_timer_t lva;
 	mrp_timer_t periodic;
 	HTIMER join_timer;
+	int join_timer_running;
 	HTIMER lv_timer;
+	int lv_timer_running;
 	HTIMER lva_timer;
+	int lva_timer_running;
 	client_t *clients;
 	int registration;
 	int participant;

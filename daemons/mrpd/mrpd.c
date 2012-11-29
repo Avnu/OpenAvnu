@@ -497,6 +497,9 @@ int mrpd_init_timers(struct mrp_database *mrp_db)
 	mrp_db->join_timer = mrpd_timer_create();
 	mrp_db->lv_timer = mrpd_timer_create();
 	mrp_db->lva_timer = mrpd_timer_create();
+	mrp_db->join_timer_running = 0;
+	mrp_db->lv_timer_running = 0;
+	mrp_db->lva_timer_running = 0;
 
 	if (-1 == mrp_db->join_timer)
 		goto out;
