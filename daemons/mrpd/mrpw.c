@@ -723,8 +723,9 @@ int mrpd_reclaim()
 
 }
 
-void mrp_schedule_tx_event(void)
+void mrp_schedule_tx_event(struct mrp_database *mrp_db)
 {
+	mrp_db->schedule_tx_flag = 1;
 	if (!SetEvent(pkt_events[tx_request_event]))
 		printf("SetEvent tx_request_event failed (%d)\n",
 		       GetLastError());
