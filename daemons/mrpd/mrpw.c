@@ -979,3 +979,23 @@ int main(int argc, char *argv[])
 	return rc;
 
 }
+
+void mrpd_log_printf(const char *fmt, ...)
+{
+	LARGE_INTEGER count;
+	LARGE_INTEGER freq;
+	unsigned int ms;
+	va_list arglist;
+
+	/* get time stamp in ms */
+	QueryPerformanceCounter(&count);
+	QueryPerformanceFrequency(&freq);
+	ms = (unsigned int)((count.QuadPart * 1000/freq.QuadPart) & 0xfffffff);
+
+	printf("MRPD %03d.%03d ", ms / 1000, ms % 1000);
+
+	va_start(arglist, fmt);
+	vprintf(fmt, arglist);
+	va_end(arglist);
+
+}
