@@ -238,17 +238,19 @@ int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient)
 
 int mrp_jointimer_start(struct mrp_database *mrp_db)
 {
-	int ret;
+	int ret = 0;
 	/* 10.7.4.1 - interval between transmit opportunities
 	 * for applicant state machine
 	 */
 #if LOG_TIMERS
 	if (mrp_db->join_timer_running)
-		mrpd_log_printf("MRP start join timer *ALREADY RUNNING*\n");
+		mrpd_log_printf("MRP join timer running\n");
 	else
-		mrpd_log_printf("MRP start join timer\n");
+		mrpd_log_printf("MRP join timer start \n");
 #endif
-	ret = mrpd_timer_start(mrp_db->join_timer, MRP_JOINTIMER_VAL);
+	if (!mrp_db->join_timer_running ) {
+		ret = mrpd_timer_start(mrp_db->join_timer, MRP_JOINTIMER_VAL);
+	}
 	if (ret >= 0)
 		mrp_db->join_timer_running = 1;
 	return ret;
