@@ -31,18 +31,19 @@
 
 ******************************************************************************/
 
-/* control debug output on stdout */
-#define LOG_MRP 0
+/* control debug logging output on stdout */
+#define LOG_MRP 1
 #define LOG_MVRP 0
 #define LOG_MMRP 0
-#define LOG_MSRP 0
+#define LOG_MSRP 1
 #define LOG_TIMERS 0
-#define LOG_TXNOW 0
+#define LOG_TXNOW 1
 #define LOG_CLIENT_RECV 0
 #define LOG_CLIENT_SEND 0
 
 #define MRP_ENCODE_YES		0	/* must send */
 #define MRP_ENCODE_OPTIONAL	1	/* send if smaller */
+#define MRP_USE_TXNOW		0	/* use TXNOW (join timer shortcut) */
 
 typedef struct mrp_applicant_attribute {
 	int mrp_state;

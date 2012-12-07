@@ -55,6 +55,24 @@ extern unsigned char STATION_ADDR[];
 SOCKET msrp_socket;
 struct msrp_database *MSRP_db;
 
+static char *msrp_attrib_type_string(int t)
+{
+	switch (t) {
+	case MSRP_TALKER_ADV_TYPE:
+		return "Talker Advertise";
+	case MSRP_TALKER_FAILED_TYPE:
+		return "Talker Failed";
+	case MSRP_LISTENER_TYPE:
+		return "Listener";
+	case MSRP_DOMAIN_TYPE:
+		return "Domain";
+	default:
+		return "TYPE ???";
+	}
+}
+
+
+
 struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
 {
 	struct msrp_attribute *attrib;
@@ -376,9 +394,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 			rc = mrp_registrar_fsm(&(attrib->registrar),
 					       &(MSRP_db->mrp_db), event);
 			if (-1 == rc) {
-				printf
-				    ("MSRP registrar error on attrib->type = %d\n",
-				     attrib->type);
+				printf("MSRP registrar error on attrib->type = %s (%d)\n",
+						msrp_attrib_type_string(attrib->type),
+						attrib->type);
 			}
 			break;
 		}
@@ -519,6 +537,10 @@ int msrp_recv_msg()
 
 	endmarks = 0;
 
+#if LOG_MSRP
+	mrpd_log_printf("MSRP msrp_recv_msg() START\n");
+#endif
+
 	while (mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) {
 		mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
 		if ((mrpdu_msg->AttributeType == 0) &&
@@ -533,6 +555,11 @@ int msrp_recv_msg()
 		}
 
 		endmarks = 0;
+
+#if LOG_MSRP
+	mrpd_log_printf("MSRP msrp_recv_msg() msg addr 0x%X\n", ((int)mrpdu_msg_ptr) & 0x3);
+#endif
+
 		switch (mrpdu_msg->AttributeType) {
 		case MSRP_DOMAIN_TYPE:
 			if (mrpdu_msg->AttributeLength != 4) {
@@ -694,6 +721,15 @@ int msrp_recv_msg()
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
 							 (mrpdu_vectorptr->VectorHeader));
+
+#if LOG_MSRP
+				mrpd_log_printf("MSRP msrp_recv_msg() LISTENER vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+						((int)mrpdu_vectorptr) & 0x3, numvalues,
+						ntohs(mrpdu_vectorptr->VectorHeader),
+						((uint8_t *)mrpdu_vectorptr)[0] << 8 | ((uint8_t *)mrpdu_vectorptr)[1]);
+#endif
+
+
 
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 8 byte FirstValue + (0) vector bytes */
@@ -863,6 +899,13 @@ int msrp_recv_msg()
 						memcpy(attrib->
 						       registrar.macaddr,
 						       eth->srcaddr, 6);
+
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() Listener[%d][%d] attrib %d\n",
+								vectidx,
+								vectevt_idx,
+								vectevt[vectevt_idx]);
+#endif
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -1111,6 +1154,13 @@ int msrp_recv_msg()
 						memcpy(attrib->
 						       registrar.macaddr,
 						       eth->srcaddr, 6);
+
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() TalkerAdv[%d][%d] attrib %d\n",
+								vectidx,
+								vectevt_idx,
+								vectevt[vectevt_idx]);
+#endif
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -1405,7 +1455,7 @@ int msrp_recv_msg()
 			 * we can seek for an endmark to recover .. but this version
 			 * dumps the entire packet as malformed
 			 */
-			printf("unrecognized attribute type (%d)\n",
+			printf("################## unrecognized attribute type (%d)\n",
 			       mrpdu_msg->AttributeType);
 			goto out;
 		}
@@ -1655,8 +1705,15 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	attriblistlen = mrpdu_msg_ptr - &(mrpdu_msg->Data[2]);
 	mrpdu_msg->Data[0] = (uint8_t) (attriblistlen >> 8);
 	mrpdu_msg->Data[1] = (uint8_t) attriblistlen;
+
+#if LOG_MSRP
+	mrpd_log_printf("MSRP msrp_recv_msg() DONE (OK)\n");
+#endif
 	return 0;
  oops:
+#if LOG_MSRP
+	mrpd_log_printf("MSRP msrp_recv_msg() DONE (OOPS)\n");
+#endif
 	/* an internal error - caller should assume TXLAF */
 	*bytes_used = 0;
 	return -1;

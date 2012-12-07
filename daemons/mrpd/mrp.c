@@ -44,7 +44,6 @@
 /* state machine controls */
 int p2pmac;
 
-#if LOG_MRP
 static char *mrp_event_string(int e)
 {
 	switch (e) {
@@ -95,6 +94,7 @@ static char *mrp_event_string(int e)
 	}
 }
 
+#if LOG_MRP
 static char *mrp_state_string(int s)
 {
 	switch (s) {
@@ -297,7 +297,7 @@ static unsigned long lva_next;
 
 int mrp_lvatimer_start(struct mrp_database *mrp_db)
 {
-	int ret;
+	int ret = 0;
 	int timeout = 0;
 	/* leavealltimer has expired. (10.7.5.22)
 	 * on expire, sends a LEAVEALL message
@@ -308,11 +308,12 @@ int mrp_lvatimer_start(struct mrp_database *mrp_db)
 	timeout = MRP_LVATIMER_VAL + (random() % (MRP_LVATIMER_VAL / 2));
 #if LOG_TIMERS
 	if (mrp_db->lva_timer_running)
-		mrpd_log_printf("MRP start leaveAll timer (%d ms) *ALREADY RUNNING* \n", timeout);
+		mrpd_log_printf("MRP leaveAll timer already running \n", timeout);
 	else
 		mrpd_log_printf("MRP start leaveAll timer (%d ms)\n", timeout);
 #endif
-	ret =  mrpd_timer_start(mrp_db->lva_timer, timeout);
+	if (!mrp_db->lva_timer_running)
+		ret =  mrpd_timer_start(mrp_db->lva_timer, timeout);
 	if (ret >= 0)
 		mrp_db->lva_timer_running = 1;
 	return ret;
@@ -436,6 +437,7 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * a
 	int optional = 0;
 	int mrp_state = attrib->mrp_state;
 	int sndmsg = MRP_SND_NULL;
+	(void)mrp_db;
 
 	switch (event) {
 	case MRP_EVENT_BEGIN:
@@ -761,7 +763,7 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * a
 		break;
 
 	default:
-		printf("mrp_applicant_fsm:unexpected event (%d)\n", event);
+		printf("mrp_applicant_fsm:unexpected event %s (%d)\n", mrp_event_string(event), event);
 		return -1;
 		break;
 	}
@@ -770,6 +772,7 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * a
 	/*
 	See note 6, table 10.3
 	*/
+#if MRP_USE_TXNOW
 	if ((attrib->mrp_state != mrp_state) && (event != MRP_EVENT_TX) && (event != MRP_EVENT_TXLA)) {
 		switch (mrp_state) {
 		case  MRP_VP_STATE:
@@ -785,6 +788,8 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * a
 			break;
 		}
 	}
+#endif
+
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP
 	if (attrib->mrp_state != mrp_state) {
 		mrpd_log_printf("mrp_applicant_fsm event %s, state %s -> %s\n",
@@ -906,7 +911,7 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		/* ignore on soon to be deleted attributes */
 		break;
 	default:
-		printf("mrp_registrar_fsm:unexpected event (%d)\n", event);
+		printf("mrp_registrar_fsm:unexpected event %s (%d)\n", mrp_event_string(event), event);
 		return -1;
 		break;
 	}
