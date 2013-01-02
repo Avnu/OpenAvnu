@@ -2,7 +2,11 @@ OPT=-O2
 #CFLAGS=$(OPT) -Wall -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -ggdb
 CFLAGS=$(OPT) -Wall -W -Wno-parentheses -ggdb -D_GNU_SOURCE
 
+ifeq ($(ARCH),arm)
+CC=arm-none-linux-gnueabi-gcc
+else
 CC=gcc
+endif
 INCFLAGS=-I../common
 #LDLIBS=-ligb -lpci
 #LDFLAGS=-L../lib
