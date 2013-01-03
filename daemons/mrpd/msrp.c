@@ -2604,7 +2604,7 @@ int msrp_dumptable(struct sockaddr_in *client)
 				attrib->attribute.talk_listen.StreamID[6],
 				attrib->attribute.talk_listen.StreamID[7]);
 		} else if (MSRP_DOMAIN_TYPE == attrib->type) {
-			sprintf(variant, "D:C=%d,P=%d,V:%04x",
+			sprintf(variant, "D:C=%d,P=%d,V=%04x",
 				attrib->attribute.domain.SRclassID,
 				attrib->attribute.domain.SRclassPriority,
 				attrib->attribute.domain.SRclassVID);
