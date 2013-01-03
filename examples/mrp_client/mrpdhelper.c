@@ -52,18 +52,18 @@ struct app_state_to_enum {
 	char *s;
 	enum mrpdhelper_applicant_state value;
 } mrp_app_state_mapping[12] = {
-	"VO", mrpdhelper_applicant_state_VO,
-	"VP", mrpdhelper_applicant_state_VP,
-	"VN", mrpdhelper_applicant_state_VN,
-	"AN", mrpdhelper_applicant_state_AN,
-	"AA", mrpdhelper_applicant_state_AA,
-	"QA", mrpdhelper_applicant_state_QA,
-	"LA", mrpdhelper_applicant_state_LA,
-	"AO", mrpdhelper_applicant_state_AO,
-	"QO", mrpdhelper_applicant_state_QO,
-	"AP", mrpdhelper_applicant_state_AP,
-	"QP", mrpdhelper_applicant_state_QP,
-	"LO", mrpdhelper_applicant_state_LO
+	{"VO", mrpdhelper_applicant_state_VO},
+	{"VP", mrpdhelper_applicant_state_VP},
+	{"VN", mrpdhelper_applicant_state_VN},
+	{"AN", mrpdhelper_applicant_state_AN},
+	{"AA", mrpdhelper_applicant_state_AA},
+	{"QA", mrpdhelper_applicant_state_QA},
+	{"LA", mrpdhelper_applicant_state_LA},
+	{"AO", mrpdhelper_applicant_state_AO},
+	{"QO", mrpdhelper_applicant_state_QO},
+	{"AP", mrpdhelper_applicant_state_AP},
+	{"QP", mrpdhelper_applicant_state_QP},
+	{"LO", mrpdhelper_applicant_state_LO}
 };
 
 
