@@ -32,12 +32,12 @@
 ******************************************************************************/
 
 /* control debug logging output on stdout */
-#define LOG_MRP 1
+#define LOG_MRP 0
 #define LOG_MVRP 0
 #define LOG_MMRP 0
-#define LOG_MSRP 1
+#define LOG_MSRP 0
 #define LOG_TIMERS 0
-#define LOG_TXNOW 1
+#define LOG_TXNOW 0
 #define LOG_CLIENT_RECV 0
 #define LOG_CLIENT_SEND 0
 
