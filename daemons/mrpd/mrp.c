@@ -353,6 +353,7 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 		break;
 	case MRP_EVENT_RLA:
 		la_state = MRP_TIMER_PASSIVE;
+		mrp_lvatimer_stop(mrp_db);
 		mrp_lvatimer_start(mrp_db);
 		break;
 	case MRP_EVENT_LVATIMER:
