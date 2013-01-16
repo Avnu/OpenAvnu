@@ -192,6 +192,7 @@ int mrp_client_add(client_t ** list, struct sockaddr_in *newclient);
 int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient);
 
 int mrp_init(void);
+char *mrp_event_string(int e);
 int mrp_jointimer_stop(struct mrp_database *mrp_db);
 int mrp_jointimer_start(struct mrp_database *mrp_db);
 int mrp_lvtimer_start(struct mrp_database *mrp_db);

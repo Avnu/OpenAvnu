@@ -44,7 +44,7 @@
 /* state machine controls */
 int p2pmac;
 
-static char *mrp_event_string(int e)
+char *mrp_event_string(int e)
 {
 	switch (e) {
 	case MRP_EVENT_BEGIN:

@@ -143,6 +143,11 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 	struct mvrp_attribute *attrib;
 	int rc;
 
+
+#if LOG_MVRP
+	mrpd_log_printf("MVRP event %s\n", mrp_event_string(event));
+#endif
+
 	switch (event) {
 	case MRP_EVENT_LVATIMER:
 		mrp_lvatimer_stop(&(MVRP_db->mrp_db));
