@@ -287,7 +287,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		msrp_txpdu();
 		break;
 	case MRP_EVENT_RLA:
-		mrp_jointimer_stop(&(MSRP_db->mrp_db));
+		mrp_jointimer_start(&(MSRP_db->mrp_db));
 		/* update state */
 		attrib = MSRP_db->attrib_list;
 

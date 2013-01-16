@@ -219,7 +219,7 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		mmrp_txpdu();
 		break;
 	case MRP_EVENT_RLA:
-		mrp_jointimer_stop(&(MMRP_db->mrp_db));
+		mrp_jointimer_start(&(MMRP_db->mrp_db));
 		/* update state */
 		attrib = MMRP_db->attrib_list;
 
