@@ -1002,7 +1002,7 @@ int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
 
 int mrp_init(void)
 {
-	p2pmac = 0;		/* operPointToPointMAC false by default */
+	p2pmac = MRP_DEFAULT_POINT_TO_POINT_MAC;	/* operPointToPointMAC */
 	lva_next = MRP_LVATIMER_VAL;	/* leaveall timeout in msec */
 
 	return 0;
