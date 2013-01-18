@@ -915,6 +915,9 @@ static void mrpd_log_timer_event(char *src, int event)
 	} else if (event == MRP_EVENT_TX) {
 		mrpd_log_printf("%s join timer expires ->\n", src);
 	}
+#else
+	(void)src;
+	(void)event;
 #endif
 }
 
