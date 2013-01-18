@@ -44,7 +44,7 @@
 #define MRP_DEFAULT_POINT_TO_POINT_MAC	1    /* operPointToPointMAC */
 #define MRP_ENCODE_YES		0	/* must send */
 #define MRP_ENCODE_OPTIONAL	1	/* send if smaller */
-  
+
 typedef struct mrp_applicant_attribute {
 	int mrp_state;
 	int tx;			/* tx=1 means transmit on next TX event */
@@ -185,7 +185,6 @@ struct mrp_database {
 	client_t *clients;
 	int registration;
 	int participant;
-	int schedule_tx_flag;
 };
 
 int mrp_client_add(client_t ** list, struct sockaddr_in *newclient);
