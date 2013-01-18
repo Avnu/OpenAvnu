@@ -44,8 +44,7 @@
 #define MRP_DEFAULT_POINT_TO_POINT_MAC	1    /* operPointToPointMAC */
 #define MRP_ENCODE_YES		0	/* must send */
 #define MRP_ENCODE_OPTIONAL	1	/* send if smaller */
-#define MRP_USE_TXNOW		0	/* use TXNOW (join timer shortcut) */
-
+  
 typedef struct mrp_applicant_attribute {
 	int mrp_state;
 	int tx;			/* tx=1 means transmit on next TX event */

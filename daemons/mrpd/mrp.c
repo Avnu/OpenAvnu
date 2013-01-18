@@ -770,26 +770,6 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * a
 	}
 
 	attrib->tx = tx;
-	/*
-	See note 6, table 10.3
-	*/
-#if MRP_USE_TXNOW
-	if ((attrib->mrp_state != mrp_state) && (event != MRP_EVENT_TX) && (event != MRP_EVENT_TXLA)) {
-		switch (mrp_state) {
-		case  MRP_VP_STATE:
-		case  MRP_VN_STATE:
-		case  MRP_AN_STATE:
-		case  MRP_AA_STATE:
-		case  MRP_LA_STATE:
-		case  MRP_AP_STATE:
-		case  MRP_LO_STATE:
-			mrp_schedule_tx_event(mrp_db);
-			break;
-		default:
-			break;
-		}
-	}
-#endif
 
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP
 	if (attrib->mrp_state != mrp_state) {

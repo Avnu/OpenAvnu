@@ -84,7 +84,6 @@ enum {
 	pkt_event_wpcap_timeout,
 	pkt_event_localhost_timeout,
 	app_event_kill_all,
-	tx_request_event,
 	loop_time_tick
 };
 
@@ -95,7 +94,7 @@ int mvrp_enable;
 int msrp_enable;
 int logging_enable;
 int mrpd_port;
-HANDLE pkt_events[7];
+HANDLE pkt_events[6];
 HANDLE sem_kill_wpcap_thread;
 HANDLE sem_kill_localhost_thread;
 struct que_def *que_wpcap;
@@ -727,13 +726,6 @@ int mrpd_reclaim()
 
 }
 
-void mrp_schedule_tx_event(struct mrp_database *mrp_db)
-{
-	mrp_db->schedule_tx_flag = 1;
-	if (!SetEvent(pkt_events[tx_request_event]))
-		printf("SetEvent tx_request_event failed (%d)\n",
-		       GetLastError());
-}
 
 HANDLE kill_packet_capture;
 
@@ -807,20 +799,6 @@ void process_events(void)
 			break;
 
 		switch (dwEvent) {
-		case WAIT_OBJECT_0 + tx_request_event:
-			if (MMRP_db->mrp_db.schedule_tx_flag) {
-				MMRP_db->mrp_db.schedule_tx_flag = 0;
-				mmrp_event(MRP_EVENT_TX, NULL);
-			}
-			if (MVRP_db->mrp_db.schedule_tx_flag) {
-				MVRP_db->mrp_db.schedule_tx_flag = 0;
-				mvrp_event(MRP_EVENT_TX, NULL);
-			}
-			if (MSRP_db->mrp_db.schedule_tx_flag) {
-				MSRP_db->mrp_db.schedule_tx_flag = 0;
-				msrp_event(MRP_EVENT_TX, NULL);
-			}
-			break;
 		case WAIT_TIMEOUT:
 		case WAIT_OBJECT_0 + loop_time_tick:
 			/* timeout - run protocols */
