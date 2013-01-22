@@ -1,10 +1,14 @@
 OPT=-O2
 CFLAGS=$(OPT) -Wall -W -Wno-parentheses -ggdb
 
+ifeq ($(ARCH),arm)
+CC=arm-none-linux-gnueabi-gcc
+else
 CC=gcc
-INCFLAGS=-I../../lib/igb
-LDLIBS=-ligb -lpci -lz -pthread
-LDFLAGS=-L../../lib/igb
+endif
+#INCFLAGS=-I../../lib/igb
+#LDLIBS=-ligb -lpci -lz -pthread
+#LDFLAGS=-L../../lib/igb
 
 all: mrpq mrpl
 
