@@ -716,9 +716,12 @@ int mrpd_reclaim()
 	 * and allowing it to go into the MT state, delete the attribute 
 	 */
 
-	mmrp_reclaim();
-	mvrp_reclaim();
-	msrp_reclaim();
+	if (mmrp_enable)
+		mmrp_reclaim();
+	if (mvrp_enable)
+		mvrp_reclaim();
+	if (msrp_enable)
+		msrp_reclaim();
 
 	gctimer_start();
 
@@ -802,32 +805,41 @@ void process_events(void)
 		case WAIT_TIMEOUT:
 		case WAIT_OBJECT_0 + loop_time_tick:
 			/* timeout - run protocols */
-			if (mrpd_timer_timeout(MMRP_db->mrp_db.lva_timer))
-				mmrp_event(MRP_EVENT_LVATIMER, NULL);
-			if (mrpd_timer_timeout(MMRP_db->mrp_db.lv_timer))
-				mmrp_event(MRP_EVENT_LVTIMER, NULL);
-			if (mrpd_timer_timeout(MMRP_db->mrp_db.join_timer))
-				mmrp_event(MRP_EVENT_TX, NULL);
+			if (mmrp_enable) {
+				if (mrpd_timer_timeout(MMRP_db->mrp_db.lva_timer))
+					mmrp_event(MRP_EVENT_LVATIMER, NULL);
+				if (mrpd_timer_timeout(MMRP_db->mrp_db.lv_timer))
+					mmrp_event(MRP_EVENT_LVTIMER, NULL);
+				if (mrpd_timer_timeout(MMRP_db->mrp_db.join_timer))
+					mmrp_event(MRP_EVENT_TX, NULL);
+			}
 
-			if (mrpd_timer_timeout(MVRP_db->mrp_db.lva_timer))
-				mvrp_event(MRP_EVENT_LVATIMER, NULL);
-			if (mrpd_timer_timeout(MVRP_db->mrp_db.lv_timer))
-				mvrp_event(MRP_EVENT_LVTIMER, NULL);
-			if (mrpd_timer_timeout(MVRP_db->mrp_db.join_timer))
-				mvrp_event(MRP_EVENT_TX, NULL);
+			if (mvrp_enable) {
+				if (mrpd_timer_timeout(MVRP_db->mrp_db.lva_timer))
+					mvrp_event(MRP_EVENT_LVATIMER, NULL);
+				if (mrpd_timer_timeout(MVRP_db->mrp_db.lv_timer))
+					mvrp_event(MRP_EVENT_LVTIMER, NULL);
+				if (mrpd_timer_timeout(MVRP_db->mrp_db.join_timer))
+					mvrp_event(MRP_EVENT_TX, NULL);
+			}
 
-			if (mrpd_timer_timeout(MSRP_db->mrp_db.lva_timer))
-				msrp_event(MRP_EVENT_LVATIMER, NULL);
-			if (mrpd_timer_timeout(MSRP_db->mrp_db.lv_timer))
-				msrp_event(MRP_EVENT_LVTIMER, NULL);
-			if (mrpd_timer_timeout(MSRP_db->mrp_db.join_timer))
-				msrp_event(MRP_EVENT_TX, NULL);
+			if (msrp_enable) {
+				if (mrpd_timer_timeout(MSRP_db->mrp_db.lva_timer))
+					msrp_event(MRP_EVENT_LVATIMER, NULL);
+				if (mrpd_timer_timeout(MSRP_db->mrp_db.lv_timer))
+					msrp_event(MRP_EVENT_LVTIMER, NULL);
+				if (mrpd_timer_timeout(MSRP_db->mrp_db.join_timer))
+					msrp_event(MRP_EVENT_TX, NULL);
+			}
 
 			if (mrpd_timer_timeout(periodic_timer)) {
 				//printf("mrpd_timer_timeout(periodic_timer)\n");
-				mmrp_event(MRP_EVENT_PERIODIC, NULL);
-				mvrp_event(MRP_EVENT_PERIODIC, NULL);
-				msrp_event(MRP_EVENT_PERIODIC, NULL);
+				if (mmrp_enable)
+					mmrp_event(MRP_EVENT_PERIODIC, NULL);
+				if (mvrp_enable)
+					mvrp_event(MRP_EVENT_PERIODIC, NULL);
+				if (msrp_enable)
+					msrp_event(MRP_EVENT_PERIODIC, NULL);
 				mrpd_timer_restart(periodic_timer);
 			}
 			if (mrpd_timer_timeout(gc_timer)) {
@@ -848,15 +860,18 @@ void process_events(void)
 
 			switch (protocol) {
 			case MVRP_ETYPE:
-				mvrp_recv_msg();
+				if (mvrp_enable)
+					mvrp_recv_msg();
 				break;
 
 			case MMRP_ETYPE:
-				mmrp_recv_msg();
+				if (mmrp_enable)
+					mmrp_recv_msg();
 				break;
 
 			case MSRP_ETYPE:
-				msrp_recv_msg();
+				if (msrp_enable)
+					msrp_recv_msg();
 				break;
 			}
 			if (mrpd_timer_timeout(&timer_check_tick)) {
@@ -937,17 +952,23 @@ int main(int argc, char *argv[])
 	if (rc)
 		goto out;
 
-	rc = mmrp_init(mmrp_enable);
-	if (rc)
-		goto out;
+	if (mmrp_enable) {
+		rc = mmrp_init(mmrp_enable);
+		if (rc)
+			goto out;
+	}
 
-	rc = mvrp_init(mvrp_enable);
-	if (rc)
-		goto out;
+	if (mvrp_enable) {
+		rc = mvrp_init(mvrp_enable);
+		if (rc)
+			goto out;
+	}
 
-	rc = msrp_init(msrp_enable);
-	if (rc)
-		goto out;
+	if (msrp_enable) {
+		rc = msrp_init(msrp_enable);
+		if (rc)
+			goto out;
+	}
 
 	rc = init_timers();
 	if (rc)
