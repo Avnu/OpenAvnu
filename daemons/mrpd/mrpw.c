@@ -50,7 +50,7 @@
 
 #include "que.h"
 
-#define TIME_PERIOD_100_MILLISECONDS 100
+#define TIME_PERIOD_25_MILLISECONDS 25
 #define NETIF_TIMEOUT (-2)
 
 /* local structs */
@@ -915,7 +915,7 @@ int main(int argc, char *argv[])
 	WSAStartup(MAKEWORD(1, 1), &wsa_data);
 
 	/* open our network interface and set the capture ethertype to MRP types */
-	net_if = netif_open(TIME_PERIOD_100_MILLISECONDS);	// time out is 100ms
+	net_if = netif_open(TIME_PERIOD_25_MILLISECONDS);	// time out is 25ms
 	if (!net_if) {
 		fprintf(stderr, "ERROR - opening network interface\n");
 		exit(-1);
