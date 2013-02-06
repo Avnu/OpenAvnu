@@ -31,12 +31,17 @@
 
 ******************************************************************************/
 
-#define LOG_MRP 1
-#define LOG_MVRP 1
-#define LOG_MMRP 1
-#define LOG_MSRP 1
+/* control debug logging output on stdout */
+#define LOG_MRP 0
+#define LOG_MVRP 0
+#define LOG_MMRP 0
+#define LOG_MSRP 0
+#define LOG_TIMERS 0
+#define LOG_TXNOW 0
+#define LOG_CLIENT_RECV 0
+#define LOG_CLIENT_SEND 0
 
-
+#define MRP_DEFAULT_POINT_TO_POINT_MAC	1    /* operPointToPointMAC */
 #define MRP_ENCODE_YES		0	/* must send */
 #define MRP_ENCODE_OPTIONAL	1	/* send if smaller */
 
@@ -71,7 +76,7 @@ typedef struct mrp_registrar_attribute {
 #define MRP_VP_STATE	1	/* Very Anxious Passive */
 #define MRP_VN_STATE	2	/* Very Anxious New */
 #define MRP_AN_STATE	3	/* Anxious New */
-#define MRP_AA_STATE	4	/* Anxious New */
+#define MRP_AA_STATE	4	/* Anxious Active */
 #define MRP_QA_STATE	5	/* Quiet Active */
 #define MRP_LA_STATE	6	/* Leaving Active */
 #define MRP_AO_STATE	7	/* Anxious Observer State */
@@ -172,18 +177,21 @@ struct mrp_database {
 	mrp_timer_t lva;
 	mrp_timer_t periodic;
 	HTIMER join_timer;
+	int join_timer_running;
 	HTIMER lv_timer;
+	int lv_timer_running;
 	HTIMER lva_timer;
+	int lva_timer_running;
 	client_t *clients;
 	int registration;
 	int participant;
-	int schedule_tx_flag;
 };
 
 int mrp_client_add(client_t ** list, struct sockaddr_in *newclient);
 int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient);
 
 int mrp_init(void);
+char *mrp_event_string(int e);
 int mrp_jointimer_stop(struct mrp_database *mrp_db);
 int mrp_jointimer_start(struct mrp_database *mrp_db);
 int mrp_lvtimer_start(struct mrp_database *mrp_db);

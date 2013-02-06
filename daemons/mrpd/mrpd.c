@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <stdarg.h>
 #include <string.h>
 #include <syslog.h>
 #include <signal.h>
@@ -61,6 +62,8 @@
 #include "mvrp.h"
 #include "msrp.h"
 #include "mmrp.h"
+
+static void mrpd_log_timer_event(char *src, int event);
 
 /* global mgmt parameters */
 int daemonize;
@@ -104,18 +107,10 @@ extern SOCKET msrp_socket;
 int periodic_timer;
 int gc_timer;
 unsigned int gc_ctl_msg_count = 0;
-int txnowevt_fd = -1;
 
 extern struct mmrp_database *MMRP_db;
 extern struct mvrp_database *MVRP_db;
 extern struct msrp_database *MSRP_db;
-
-void mrp_schedule_tx_event(struct mrp_database *mrp_db)
-{
-	uint64_t one = 1;
-	write(txnowevt_fd, &one, sizeof(one));
-	mrp_db->schedule_tx_flag = 1;
-}
 
 int mrpd_timer_create(void)
 {
@@ -241,12 +236,13 @@ mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 	if (-1 == control_socket)
 		return 0;
 
+#if LOG_CLIENT_SEND
 	if (logging_enable) {
-		printf("[%02d] CTL MSG:%s to CLNT %d\n", 
-		       gc_ctl_msg_count, notify_data, client_addr->sin_port);
+		mrpd_log_printf("[%02d] CLT MSG %05d:%s",
+		       gc_ctl_msg_count, client_addr->sin_port, notify_data);
 		gc_ctl_msg_count = (gc_ctl_msg_count + 1) % 100;
-	}		      
-
+	}
+#endif
 	rc = sendto(control_socket, notify_data, notify_len,
 		    0, (struct sockaddr *)client_addr, sizeof(struct sockaddr));
 	return rc;
@@ -308,8 +304,10 @@ int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
 
 	memset(respbuf, 0, sizeof(respbuf));
 
+#if LOG_CLIENT_RECV
 	if (logging_enable)
-		printf("CMD:%s from CLNT %d\n", buf, client->sin_port);
+		mrpd_log_printf("CMD:%s from CLNT %d\n", buf, client->sin_port);
+#endif
 
 	if (buflen < 3) {
 		printf("buflen = %d!\b", buflen);
@@ -491,6 +489,9 @@ int mrpd_init_timers(struct mrp_database *mrp_db)
 	mrp_db->join_timer = mrpd_timer_create();
 	mrp_db->lv_timer = mrpd_timer_create();
 	mrp_db->lva_timer = mrpd_timer_create();
+	mrp_db->join_timer_running = 0;
+	mrp_db->lv_timer_running = 0;
+	mrp_db->lva_timer_running = 0;
 
 	if (-1 == mrp_db->join_timer)
 		goto out;
@@ -638,11 +639,6 @@ void process_events(void)
 	if (gc_timer > max_fd)
 		max_fd = gc_timer;
 
-	txnowevt_fd = eventfd(0, 0);
-	FD_SET(txnowevt_fd, &fds);
-	if (txnowevt_fd > max_fd)
-		max_fd = txnowevt_fd;
-
 	do {
 
 		sel_fds = fds;
@@ -658,14 +654,20 @@ void process_events(void)
 					(mmrp_socket, &sel_fds) mmrp_recv_msg();
 				if FD_ISSET
 					(MMRP_db->mrp_db.lva_timer, &sel_fds) {
+					mrpd_log_timer_event("MMRP",
+							     MRP_EVENT_LVATIMER);
 					mmrp_event(MRP_EVENT_LVATIMER, NULL);
 					}
 				if FD_ISSET
 					(MMRP_db->mrp_db.lv_timer, &sel_fds) {
+					mrpd_log_timer_event("MMRP",
+							     MRP_EVENT_LVTIMER);
 					mmrp_event(MRP_EVENT_LVTIMER, NULL);
 					}
 				if FD_ISSET
 					(MMRP_db->mrp_db.join_timer, &sel_fds) {
+					mrpd_log_timer_event("MMRP",
+							     MRP_EVENT_TX);
 					mmrp_event(MRP_EVENT_TX, NULL);
 					}
 			}
@@ -674,14 +676,20 @@ void process_events(void)
 					(mvrp_socket, &sel_fds) mvrp_recv_msg();
 				if FD_ISSET
 					(MVRP_db->mrp_db.lva_timer, &sel_fds) {
+					mrpd_log_timer_event("MVRP",
+							     MRP_EVENT_LVATIMER);
 					mvrp_event(MRP_EVENT_LVATIMER, NULL);
 					}
 				if FD_ISSET
 					(MVRP_db->mrp_db.lv_timer, &sel_fds) {
+					mrpd_log_timer_event("MVRP",
+							     MRP_EVENT_LVTIMER);
 					mvrp_event(MRP_EVENT_LVTIMER, NULL);
 					}
 				if FD_ISSET
 					(MVRP_db->mrp_db.join_timer, &sel_fds) {
+					mrpd_log_timer_event("MVRP",
+							     MRP_EVENT_TX);
 					mvrp_event(MRP_EVENT_TX, NULL);
 					}
 			}
@@ -690,14 +698,20 @@ void process_events(void)
 					(msrp_socket, &sel_fds) msrp_recv_msg();
 				if FD_ISSET
 					(MSRP_db->mrp_db.lva_timer, &sel_fds) {
+					mrpd_log_timer_event("MSRP",
+							     MRP_EVENT_LVATIMER);
 					msrp_event(MRP_EVENT_LVATIMER, NULL);
 					}
 				if FD_ISSET
 					(MSRP_db->mrp_db.lv_timer, &sel_fds) {
+					mrpd_log_timer_event("MSRP",
+							     MRP_EVENT_LVTIMER);
 					msrp_event(MRP_EVENT_LVTIMER, NULL);
 					}
 				if FD_ISSET
 					(MSRP_db->mrp_db.join_timer, &sel_fds) {
+					mrpd_log_timer_event("MSRP",
+							     MRP_EVENT_TX);
 					msrp_event(MRP_EVENT_TX, NULL);
 					}
 			}
@@ -715,22 +729,6 @@ void process_events(void)
 			}
 			if (FD_ISSET(gc_timer, &sel_fds)) {
 				mrpd_reclaim();
-			}
-			if (FD_ISSET(txnowevt_fd, &sel_fds)) {
-				uint64_t count;
-				read(txnowevt_fd, &count, sizeof(count));
-				if (mmrp_enable && MMRP_db->mrp_db.schedule_tx_flag) {
-					MMRP_db->mrp_db.schedule_tx_flag = 0;
-					mmrp_event(MRP_EVENT_TX, NULL);
-				}
-				if (mvrp_enable && MVRP_db->mrp_db.schedule_tx_flag) {
-					MVRP_db->mrp_db.schedule_tx_flag = 0;
-					mvrp_event(MRP_EVENT_TX, NULL);
-				}
-				if (msrp_enable && MSRP_db->mrp_db.schedule_tx_flag) {
-					MSRP_db->mrp_db.schedule_tx_flag = 0;
-					msrp_event(MRP_EVENT_TX, NULL);
-				}
 			}
 		}
 	} while (1);
@@ -864,4 +862,38 @@ int main(int argc, char *argv[])
 
 	return rc;
 
+}
+
+static void mrpd_log_timer_event(char *src, int event)
+{
+#if LOG_TIMERS
+	if (event == MRP_EVENT_LVATIMER) {
+		mrpd_log_printf("%s leaveAll timer expires ->\n", src);
+	} else if (event == MRP_EVENT_LVTIMER) {
+		mrpd_log_printf("%s leave timer expires ->\n", src);
+	} else if (event == MRP_EVENT_TX) {
+		mrpd_log_printf("%s join timer expires ->\n", src);
+	}
+#else
+	(void)src;
+	(void)event;
+#endif
+}
+
+void mrpd_log_printf(const char *fmt, ...)
+{
+	struct timeval tv;
+	char sz[512];
+
+	if (logging_enable) {
+		gettimeofday(&tv, NULL);
+		va_list arglist;
+		va_start(arglist, fmt);
+		vsnprintf(sz, 512, fmt, arglist);
+		printf("MRPD %03d.%06d %s",
+			(int)(tv.tv_sec % 1000),
+			(int)tv.tv_usec,
+			sz);
+		va_end(arglist);
+	}
 }

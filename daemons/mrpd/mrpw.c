@@ -50,7 +50,7 @@
 
 #include "que.h"
 
-#define TIME_PERIOD_100_MILLISECONDS 100
+#define TIME_PERIOD_25_MILLISECONDS 25
 #define NETIF_TIMEOUT (-2)
 
 /* local structs */
@@ -84,7 +84,6 @@ enum {
 	pkt_event_wpcap_timeout,
 	pkt_event_localhost_timeout,
 	app_event_kill_all,
-	tx_request_event,
 	loop_time_tick
 };
 
@@ -95,7 +94,7 @@ int mvrp_enable;
 int msrp_enable;
 int logging_enable;
 int mrpd_port;
-HANDLE pkt_events[7];
+HANDLE pkt_events[6];
 HANDLE sem_kill_wpcap_thread;
 HANDLE sem_kill_localhost_thread;
 struct que_def *que_wpcap;
@@ -543,8 +542,10 @@ int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
 
 	memset(respbuf, 0, sizeof(respbuf));
 
+#if LOG_CLIENT_RECV
 	if (logging_enable)
 		printf("CMD:%s from CLNT %d\n", buf, client->sin_port);
+#endif
 
 	if (buflen < 3) {
 		printf("buflen = %d!\b", buflen);
@@ -601,8 +602,10 @@ int mrpd_send_ctl_msg(struct sockaddr_in *client_addr,
 	if (INVALID_SOCKET == control_socket)
 		return 0;
 
+#if LOG_CLIENT_SEND
 	printf("CTL MSG:%s to CLNT %d\n", notify_data,
 		       client_addr->sin_port);
+#endif
 	rc = sendto(control_socket, notify_data, notify_len,
 		    0, (struct sockaddr *)client_addr, sizeof(struct sockaddr));
 	return rc;
@@ -713,20 +716,17 @@ int mrpd_reclaim()
 	 * and allowing it to go into the MT state, delete the attribute 
 	 */
 
-	mmrp_reclaim();
-	mvrp_reclaim();
-	msrp_reclaim();
+	if (mmrp_enable)
+		mmrp_reclaim();
+	if (mvrp_enable)
+		mvrp_reclaim();
+	if (msrp_enable)
+		msrp_reclaim();
 
 	gctimer_start();
 
 	return 0;
 
-}
-
-void mrp_schedule_tx_event(void)
-{
-	if (!SetEvent(pkt_events[tx_request_event]))
-		printf("SetEvent tx_request_event failed (%d)\n", GetLastError());
 }
 
 
@@ -802,49 +802,44 @@ void process_events(void)
 			break;
 
 		switch (dwEvent) {
-		case WAIT_OBJECT_0 + tx_request_event:
-			if (MMRP_db->mrp_db.schedule_tx_flag) {
-				MMRP_db->mrp_db.schedule_tx_flag = 0;
-				mmrp_event(MRP_EVENT_TX, NULL);
-			}
-			if (MVRP_db->mrp_db.schedule_tx_flag) {
-				MVRP_db->mrp_db.schedule_tx_flag = 0;
-				mvrp_event(MRP_EVENT_TX, NULL);
-			}
-			if (MSRP_db->mrp_db.schedule_tx_flag) {
-				MSRP_db->mrp_db.schedule_tx_flag = 0;
-				msrp_event(MRP_EVENT_TX, NULL);
-			}
-			break;
 		case WAIT_TIMEOUT:
 		case WAIT_OBJECT_0 + loop_time_tick:
 			/* timeout - run protocols */
-			if (mrpd_timer_timeout(MMRP_db->mrp_db.lva_timer))
-				mmrp_event(MRP_EVENT_LVATIMER, NULL);
-			if (mrpd_timer_timeout(MMRP_db->mrp_db.lv_timer))
-				mmrp_event(MRP_EVENT_LVTIMER, NULL);
-			if (mrpd_timer_timeout(MMRP_db->mrp_db.join_timer))
-				mmrp_event(MRP_EVENT_TX, NULL);
+			if (mmrp_enable) {
+				if (mrpd_timer_timeout(MMRP_db->mrp_db.lva_timer))
+					mmrp_event(MRP_EVENT_LVATIMER, NULL);
+				if (mrpd_timer_timeout(MMRP_db->mrp_db.lv_timer))
+					mmrp_event(MRP_EVENT_LVTIMER, NULL);
+				if (mrpd_timer_timeout(MMRP_db->mrp_db.join_timer))
+					mmrp_event(MRP_EVENT_TX, NULL);
+			}
 
-			if (mrpd_timer_timeout(MVRP_db->mrp_db.lva_timer))
-				mvrp_event(MRP_EVENT_LVATIMER, NULL);
-			if (mrpd_timer_timeout(MVRP_db->mrp_db.lv_timer))
-				mvrp_event(MRP_EVENT_LVTIMER, NULL);
-			if (mrpd_timer_timeout(MVRP_db->mrp_db.join_timer))
-				mvrp_event(MRP_EVENT_TX, NULL);
+			if (mvrp_enable) {
+				if (mrpd_timer_timeout(MVRP_db->mrp_db.lva_timer))
+					mvrp_event(MRP_EVENT_LVATIMER, NULL);
+				if (mrpd_timer_timeout(MVRP_db->mrp_db.lv_timer))
+					mvrp_event(MRP_EVENT_LVTIMER, NULL);
+				if (mrpd_timer_timeout(MVRP_db->mrp_db.join_timer))
+					mvrp_event(MRP_EVENT_TX, NULL);
+			}
 
-			if (mrpd_timer_timeout(MSRP_db->mrp_db.lva_timer))
-				msrp_event(MRP_EVENT_LVATIMER, NULL);
-			if (mrpd_timer_timeout(MSRP_db->mrp_db.lv_timer))
-				msrp_event(MRP_EVENT_LVTIMER, NULL);
-			if (mrpd_timer_timeout(MSRP_db->mrp_db.join_timer))
-				msrp_event(MRP_EVENT_TX, NULL);
+			if (msrp_enable) {
+				if (mrpd_timer_timeout(MSRP_db->mrp_db.lva_timer))
+					msrp_event(MRP_EVENT_LVATIMER, NULL);
+				if (mrpd_timer_timeout(MSRP_db->mrp_db.lv_timer))
+					msrp_event(MRP_EVENT_LVTIMER, NULL);
+				if (mrpd_timer_timeout(MSRP_db->mrp_db.join_timer))
+					msrp_event(MRP_EVENT_TX, NULL);
+			}
 
 			if (mrpd_timer_timeout(periodic_timer)) {
 				//printf("mrpd_timer_timeout(periodic_timer)\n");
-				mmrp_event(MRP_EVENT_PERIODIC, NULL);
-				mvrp_event(MRP_EVENT_PERIODIC, NULL);
-				msrp_event(MRP_EVENT_PERIODIC, NULL);
+				if (mmrp_enable)
+					mmrp_event(MRP_EVENT_PERIODIC, NULL);
+				if (mvrp_enable)
+					mvrp_event(MRP_EVENT_PERIODIC, NULL);
+				if (msrp_enable)
+					msrp_event(MRP_EVENT_PERIODIC, NULL);
 				mrpd_timer_restart(periodic_timer);
 			}
 			if (mrpd_timer_timeout(gc_timer)) {
@@ -865,15 +860,18 @@ void process_events(void)
 
 			switch (protocol) {
 			case MVRP_ETYPE:
-				mvrp_recv_msg();
+				if (mvrp_enable)
+					mvrp_recv_msg();
 				break;
 
 			case MMRP_ETYPE:
-				mmrp_recv_msg();
+				if (mmrp_enable)
+					mmrp_recv_msg();
 				break;
 
 			case MSRP_ETYPE:
-				msrp_recv_msg();
+				if (msrp_enable)
+					msrp_recv_msg();
 				break;
 			}
 			if (mrpd_timer_timeout(&timer_check_tick)) {
@@ -932,7 +930,7 @@ int main(int argc, char *argv[])
 	WSAStartup(MAKEWORD(1, 1), &wsa_data);
 
 	/* open our network interface and set the capture ethertype to MRP types */
-	net_if = netif_open(TIME_PERIOD_100_MILLISECONDS);	// time out is 100ms
+	net_if = netif_open(TIME_PERIOD_25_MILLISECONDS);	// time out is 25ms
 	if (!net_if) {
 		fprintf(stderr, "ERROR - opening network interface\n");
 		exit(-1);
@@ -954,17 +952,23 @@ int main(int argc, char *argv[])
 	if (rc)
 		goto out;
 
-	rc = mmrp_init(mmrp_enable);
-	if (rc)
-		goto out;
+	if (mmrp_enable) {
+		rc = mmrp_init(mmrp_enable);
+		if (rc)
+			goto out;
+	}
 
-	rc = mvrp_init(mvrp_enable);
-	if (rc)
-		goto out;
+	if (mvrp_enable) {
+		rc = mvrp_init(mvrp_enable);
+		if (rc)
+			goto out;
+	}
 
-	rc = msrp_init(msrp_enable);
-	if (rc)
-		goto out;
+	if (msrp_enable) {
+		rc = msrp_init(msrp_enable);
+		if (rc)
+			goto out;
+	}
 
 	rc = init_timers();
 	if (rc)
@@ -977,5 +981,25 @@ int main(int argc, char *argv[])
 
 	WSACleanup();
 	return rc;
+
+}
+
+void mrpd_log_printf(const char *fmt, ...)
+{
+	LARGE_INTEGER count;
+	LARGE_INTEGER freq;
+	unsigned int ms;
+	va_list arglist;
+
+	/* get time stamp in ms */
+	QueryPerformanceCounter(&count);
+	QueryPerformanceFrequency(&freq);
+	ms = (unsigned int)((count.QuadPart * 1000/freq.QuadPart) & 0xfffffff);
+
+	printf("MRPD %03d.%03d ", ms / 1000, ms % 1000);
+
+	va_start(arglist, fmt);
+	vprintf(fmt, arglist);
+	va_end(arglist);
 
 }
