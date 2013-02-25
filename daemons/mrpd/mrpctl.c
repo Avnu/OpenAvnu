@@ -322,11 +322,13 @@ main(int argc, char *argv[]) {
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"V++:I=0002");
 	rc = send_control_msg(msgbuf, 1500 );
-	
+
+#ifdef YYYY	
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S+L:L=0050c24edb0a0001,D=2");
 	rc = send_control_msg(msgbuf, 1500);
-	
+#endif
+
 	do {
 		memset(msgbuf,0,1500);
 		sprintf(msgbuf,"M??");

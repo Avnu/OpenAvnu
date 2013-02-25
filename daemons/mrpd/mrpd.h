@@ -130,3 +130,5 @@ int mrpd_init_protocol_socket(uint16_t etype, SOCKET * sock,
 			      unsigned char *multicast_addr);
 int mrpd_close_socket(SOCKET sock);
 int mrpd_recvmsgbuf(SOCKET sock, char **buf);
+
+void mrpd_log_printf(const char *fmt, ...);

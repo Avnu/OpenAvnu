@@ -199,13 +199,14 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 
 	switch (event) {
 	case MRP_EVENT_LVATIMER:
+		mrp_lvatimer_stop(&(MMRP_db->mrp_db));
 		mrp_jointimer_stop(&(MMRP_db->mrp_db));
 		/* update state */
 		attrib = MMRP_db->attrib_list;
 
 		while (NULL != attrib) {
 #if LOG_MMRP
-			printf("MMRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
@@ -218,13 +219,13 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		mmrp_txpdu();
 		break;
 	case MRP_EVENT_RLA:
-		mrp_jointimer_stop(&(MMRP_db->mrp_db));
+		mrp_jointimer_start(&(MMRP_db->mrp_db));
 		/* update state */
 		attrib = MMRP_db->attrib_list;
 
 		while (NULL != attrib) {
 #if LOG_MMRP
-			printf("MMRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_RLA);
 			mrp_registrar_fsm(&(attrib->registrar),
@@ -241,7 +242,7 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MMRP
-			printf("MMRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
@@ -268,7 +269,7 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 #if LOG_MMRP
-			printf("MMRP -> mrp_applicant_fsm\n");
+			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
@@ -300,7 +301,7 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		}
 
 #if LOG_MMRP
-		printf("MMRP -> mrp_applicant_fsm\n");
+		mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 		mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant), event);
 		/* remap local requests into registrar events */
@@ -1292,6 +1293,9 @@ int mmrp_txpdu(void)
 	msgbuf_len = mrpdu_msg_ptr - msgbuf;
 
 	bytes = mrpd_send(mmrp_socket, msgbuf, msgbuf_len, 0);
+#if LOG_MMRP
+	mrpd_log_printf("MMRP send PDU\n");
+#endif
 	if (bytes <= 0)
 		goto out;
 
@@ -1529,13 +1533,13 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
 	int err_index;
-	char respbuf[8];
+	char respbuf[12];
 	int mrp_event;
 	uint8_t svcreq_param;
 	uint8_t macvec_param[6];
 
 	if (NULL == MMRP_db) {
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s\n", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
@@ -1682,8 +1686,6 @@ int mmrp_init(int mmrp_enable)
 	mmrp_socket = INVALID_SOCKET;
 	/* XXX */
 	return -1;
-
-	return 0;
 }
 
 int mmrp_reclaim(void)
