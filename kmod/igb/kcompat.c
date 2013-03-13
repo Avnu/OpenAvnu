@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -927,6 +927,50 @@ void _kc_print_hex_dump(const char *level,
 		}
 	}
 }
+#ifdef HAVE_I2C_SUPPORT
+struct i2c_client *
+_kc_i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
+{
+	struct i2c_client	*client;
+	int			status;
+
+	client = kzalloc(sizeof *client, GFP_KERNEL);
+	if (!client)
+		return NULL;
+
+	client->adapter = adap;
+
+	client->dev.platform_data = info->platform_data;
+
+	client->flags = info->flags;
+	client->addr = info->addr;
+
+	strlcpy(client->name, info->type, sizeof(client->name));
+
+	/* Check for address business */
+	status = i2c_check_addr(adap, client->addr);
+	if (status)
+		goto out_err;
+
+	client->dev.parent = &client->adapter->dev;
+	client->dev.bus = &i2c_bus_type;
+
+	status = i2c_attach_client(client);
+	if (status)
+		goto out_err;
+
+	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
+		client->name, dev_name(&client->dev));
+
+	return client;
+
+out_err:
+	dev_err(&adap->dev, "Failed to register i2c client %s at 0x%02x "
+		"(%d)\n", client->name, client->addr, status);
+	kfree(client);
+	return NULL;
+}
+#endif /* HAVE_I2C_SUPPORT */
 #endif /* < 2.6.22 */
 
 /*****************************************************************************/
@@ -1113,6 +1157,25 @@ void _kc_netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 #endif /* CONFIG_NETDEVICES_MULTIQUEUE */
 #endif /* !(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0)) */
 #endif /* HAVE_TX_MQ */
+ssize_t _kc_simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
+				   const void __user *from, size_t count)
+{
+        loff_t pos = *ppos;
+        size_t res;
+
+        if (pos < 0)
+                return -EINVAL;
+        if (pos >= available || !count)
+                return 0;
+        if (count > available - pos)
+                count = available - pos;
+        res = copy_from_user(to + pos, from, count);
+        if (res == count)
+                return -EFAULT;
+        count -= res;
+        *ppos = pos + count;
+        return count;
+}
 #endif /* < 2.6.35 */
 
 /*****************************************************************************/
@@ -1136,51 +1199,183 @@ int _kc_ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported)
 }
 #endif /* < 2.6.36 */
 
-/*****************************************************************************/
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,38) )
-#ifdef HAVE_NETDEV_SELECT_QUEUE
-#include <net/ip.h>
-static u32 _kc_simple_tx_hashrnd;
-static u32 _kc_simple_tx_hashrnd_initialized;
-
-u16 ___kc_skb_tx_hash(struct net_device *dev, const struct sk_buff *skb,
-		      u16 num_tx_queues)
-{
-	u32 hash;
-
-	if (skb_rx_queue_recorded(skb)) {
-		hash = skb_get_rx_queue(skb);
-		while (unlikely(hash >= num_tx_queues))
-			hash -= num_tx_queues;
-		return hash;
-	}
-
-	if (unlikely(!_kc_simple_tx_hashrnd_initialized)) {
-		get_random_bytes(&_kc_simple_tx_hashrnd, 4);
-		_kc_simple_tx_hashrnd_initialized = 1;
-	}
-
-	if (skb->sk && skb->sk->sk_hash)
-		hash = skb->sk->sk_hash;
-	else
-#ifdef NETIF_F_RXHASH
-		hash = (__force u16) skb->protocol ^ skb->rxhash;
-#else
-		hash = skb->protocol;
-#endif
-
-	hash = jhash_1word(hash, _kc_simple_tx_hashrnd);
-
-	return (u16) (((u64) hash * num_tx_queues) >> 32);
-}
-#endif /* HAVE_NETDEV_SELECT_QUEUE */
-#endif /* < 2.6.38 */
-
 /******************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39) )
 #if (!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,0)))
+
 #endif /* !(RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,0)) */
 #endif /* < 2.6.39 */
+
 /******************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0) )
+void _kc_skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
+			 int off, int size, unsigned int truesize)
+{
+	skb_fill_page_desc(skb, i, page, off, size);
+	skb->len += size;
+	skb->data_len += size;
+	skb->truesize += truesize;
+}
+
 #endif /* < 3.4.0 */
+
+/******************************************************************************/
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0) )
+static inline int __kc_pcie_cap_version(struct pci_dev *dev)
+{
+	int pos;
+	u16 reg16;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return 0;
+	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
+	return reg16 & PCI_EXP_FLAGS_VERS;
+	}
+
+static inline bool __kc_pcie_cap_has_devctl(const struct pci_dev __always_unused *dev)
+{
+	return true;
+	}
+
+static inline bool __kc_pcie_cap_has_lnkctl(struct pci_dev *dev)
+{
+	int type = pci_pcie_type(dev);
+
+	return __kc_pcie_cap_version(dev) > 1 ||
+	       type == PCI_EXP_TYPE_ROOT_PORT ||
+	       type == PCI_EXP_TYPE_ENDPOINT ||
+	       type == PCI_EXP_TYPE_LEG_END;
+}
+
+static inline bool __kc_pcie_cap_has_sltctl(struct pci_dev *dev)
+{
+	int type = pci_pcie_type(dev);
+	int pos;
+	u16 pcie_flags_reg;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return 0;
+	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &pcie_flags_reg);
+
+	return __kc_pcie_cap_version(dev) > 1 ||
+	       type == PCI_EXP_TYPE_ROOT_PORT ||
+	       (type == PCI_EXP_TYPE_DOWNSTREAM &&
+		pcie_flags_reg & PCI_EXP_FLAGS_SLOT);
+}
+static inline bool __kc_pcie_cap_has_rtctl(struct pci_dev *dev)
+{
+	int type = pci_pcie_type(dev);
+
+	return __kc_pcie_cap_version(dev) > 1 ||
+	       type == PCI_EXP_TYPE_ROOT_PORT ||
+	       type == PCI_EXP_TYPE_RC_EC;
+}
+
+static bool __kc_pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
+{
+	if (!pci_is_pcie(dev))
+		return false;
+
+	switch (pos) {
+	case PCI_EXP_FLAGS_TYPE:
+		return true;
+	case PCI_EXP_DEVCAP:
+	case PCI_EXP_DEVCTL:
+	case PCI_EXP_DEVSTA:
+		return __kc_pcie_cap_has_devctl(dev);
+	case PCI_EXP_LNKCAP:
+	case PCI_EXP_LNKCTL:
+	case PCI_EXP_LNKSTA:
+		return __kc_pcie_cap_has_lnkctl(dev);
+	case PCI_EXP_SLTCAP:
+	case PCI_EXP_SLTCTL:
+	case PCI_EXP_SLTSTA:
+		return __kc_pcie_cap_has_sltctl(dev);
+	case PCI_EXP_RTCTL:
+	case PCI_EXP_RTCAP:
+	case PCI_EXP_RTSTA:
+		return __kc_pcie_cap_has_rtctl(dev);
+	case PCI_EXP_DEVCAP2:
+	case PCI_EXP_DEVCTL2:
+	case PCI_EXP_LNKCAP2:
+	case PCI_EXP_LNKCTL2:
+	case PCI_EXP_LNKSTA2:
+		return __kc_pcie_cap_version(dev) > 1;
+	default:
+		return false;
+	}
+}
+
+/*
+ * Note that these accessor functions are only for the "PCI Express
+ * Capability" (see PCIe spec r3.0, sec 7.8).  They do not apply to the
+ * other "PCI Express Extended Capabilities" (AER, VC, ACS, MFVC, etc.)
+ */
+int __kc_pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val)
+{
+	int ret;
+
+	*val = 0;
+	if (pos & 1)
+		return -EINVAL;
+
+	if (__kc_pcie_capability_reg_implemented(dev, pos)) {
+		ret = pci_read_config_word(dev, pci_pcie_cap(dev) + pos, val);
+		/*
+		 * Reset *val to 0 if pci_read_config_word() fails, it may
+		 * have been written as 0xFFFF if hardware error happens
+		 * during pci_read_config_word().
+		 */
+		if (ret)
+			*val = 0;
+		return ret;
+	}
+
+	/*
+	 * For Functions that do not implement the Slot Capabilities,
+	 * Slot Status, and Slot Control registers, these spaces must
+	 * be hardwired to 0b, with the exception of the Presence Detect
+	 * State bit in the Slot Status register of Downstream Ports,
+	 * which must be hardwired to 1b.  (PCIe Base Spec 3.0, sec 7.8)
+	 */
+	if (pci_is_pcie(dev) && pos == PCI_EXP_SLTSTA &&
+	    pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM) {
+		*val = PCI_EXP_SLTSTA_PDS;
+	}
+
+	return 0;
+}
+
+int __kc_pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
+{
+	if (pos & 1)
+		return -EINVAL;
+
+	if (!__kc_pcie_capability_reg_implemented(dev, pos))
+		return 0;
+
+	return pci_write_config_word(dev, pci_pcie_cap(dev) + pos, val);
+}
+
+int __kc_pcie_capability_clear_and_set_word(struct pci_dev *dev, int pos,
+					    u16 clear, u16 set)
+{
+	int ret;
+	u16 val;
+
+	ret = __kc_pcie_capability_read_word(dev, pos, &val);
+	if (!ret) {
+		val &= ~clear;
+		val |= set;
+		ret = __kc_pcie_capability_write_word(dev, pos, val);
+	}
+
+	return ret;
+}
+#endif /* < 3.7.0 */
+
+/******************************************************************************/
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0) )
+#endif /* 3.9.0 */

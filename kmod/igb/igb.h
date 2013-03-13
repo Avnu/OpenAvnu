@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -84,11 +84,11 @@ struct igb_user_page {
 	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
 		__FUNCTION__ , ## args))
 
-#ifdef CONFIG_IGB_PTP
+#ifdef HAVE_PTP_1588_CLOCK
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
-#endif /* CONFIG_IGB_PTP */
+#endif /* HAVE_PTP_1588_CLOCK */
 /* Interrupt defines */
 #define IGB_START_ITR                    648 /* ~6000 ints/sec */
 #define IGB_4K_ITR                       980
@@ -534,8 +534,6 @@ struct igb_adapter {
 	u32 eims_other;
 
 	/* to not mess up cache alignment, always add to the bottom */
-	bool wol_supported;
-
 	u32 *config_space;
 	u16 tx_ring_count;
 	u16 rx_ring_count;
@@ -576,7 +574,7 @@ struct igb_adapter {
 #endif /* IGB_SYSFS */
 	u32 etrack_id;
 
-#ifdef CONFIG_IGB_PTP
+#ifdef HAVE_PTP_1588_CLOCK
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	struct delayed_work ptp_overflow_work;
@@ -585,7 +583,7 @@ struct igb_adapter {
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
-#endif /* CONFIG_IGB_PTP */
+#endif /* HAVE_PTP_1588_CLOCK */
 };
 
 #ifdef CONFIG_IGB_VMDQ_NETDEV
@@ -615,6 +613,9 @@ struct igb_vmdq_adapter {
 #define IGB_FLAG_DMAC              (1 << 7)
 #define IGB_FLAG_DETECT_BAD_DMA    (1 << 8)
 #define IGB_FLAG_PTP               (1 << 9)
+#define IGB_FLAG_RSS_FIELD_IPV4_UDP	(1 << 10)
+#define IGB_FLAG_RSS_FIELD_IPV6_UDP	(1 << 11)
+#define IGB_FLAG_WOL_SUPPORTED		(1 << 12)
 
 #define IGB_MIN_TXPBSIZE           20408
 #define IGB_TX_BUF_4096            4096
@@ -705,7 +706,7 @@ extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
 extern void igb_check_options(struct igb_adapter *);
 extern void igb_power_up_link(struct igb_adapter *);
-#ifdef CONFIG_PTP
+#ifdef HAVE_PTP_1588_CLOCK
 extern void igb_ptp_init(struct igb_adapter *adapter);
 extern void igb_ptp_stop(struct igb_adapter *adapter);
 extern void igb_ptp_reset(struct igb_adapter *adapter);
@@ -716,7 +717,7 @@ extern void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
 				struct sk_buff *skb);
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 				  struct ifreq *ifr, int cmd);
-#endif
+#endif /* HAVE_PTP_1588_CLOCK */
 #ifdef ETHTOOL_OPS_COMPAT
 extern int ethtool_ioctl(struct ifreq *);
 #endif
@@ -730,6 +731,7 @@ extern void igb_enable_vlan_tags(struct igb_adapter *adapter);
 #ifndef HAVE_VLAN_RX_REGISTER
 extern void igb_vlan_mode(struct net_device *, u32);
 #endif
+#define E1000_PCS_CFG_IGN_SD	1
 
 #ifdef IGB_SYSFS
 void igb_sysfs_exit(struct igb_adapter *adapter);

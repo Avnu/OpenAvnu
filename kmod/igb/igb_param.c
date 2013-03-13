@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -676,8 +676,8 @@ void __devinit igb_check_options(struct igb_adapter *adapter)
 			struct igb_option opt = {
 				.type = enable_option,
 				.name = "EEE Support",
-				.err  = "defaulting to Enabled",
-				.def  = OPTION_ENABLED
+				.err  = "defaulting to Disabled",
+				.def  = OPTION_DISABLED
 			};
 #ifdef module_param_array
 			if (num_EEE > bd) {

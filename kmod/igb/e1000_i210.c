@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -31,7 +31,6 @@
 static s32 e1000_acquire_nvm_i210(struct e1000_hw *hw);
 static void e1000_release_nvm_i210(struct e1000_hw *hw);
 static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw);
-static void e1000_put_hw_semaphore_i210(struct e1000_hw *hw);
 static s32 e1000_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 				u16 *data);
 static s32 e1000_pool_flash_update_done_i210(struct e1000_hw *hw);
@@ -103,8 +102,9 @@ s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 
 		/*
 		 * Firmware currently using resource (fwmask)
+		 * or other software thread using resource (swmask)
 		 */
-		e1000_put_hw_semaphore_i210(hw);
+		e1000_put_hw_semaphore_generic(hw);
 		msec_delay_irq(5);
 		i++;
 	}
@@ -118,7 +118,7 @@ s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 	swfw_sync |= swmask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_i210(hw);
+	e1000_put_hw_semaphore_generic(hw);
 
 out:
 	return ret_val;
@@ -145,7 +145,7 @@ void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 	swfw_sync &= ~mask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_i210(hw);
+	e1000_put_hw_semaphore_generic(hw);
 }
 
 /**
@@ -157,12 +157,44 @@ void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw)
 {
 	u32 swsm;
-	s32 ret_val = E1000_SUCCESS;
 	s32 timeout = hw->nvm.word_size + 1;
 	s32 i = 0;
 
 	DEBUGFUNC("e1000_get_hw_semaphore_i210");
 
+	/* Get the SW semaphore */
+	while (i < timeout) {
+		swsm = E1000_READ_REG(hw, E1000_SWSM);
+		if (!(swsm & E1000_SWSM_SMBI))
+			break;
+
+		usec_delay(50);
+		i++;
+	}
+
+	if (i == timeout) {
+		/*
+		 * In rare circumstances, the driver may not have released the
+		 * SW semaphore. Clear the semaphore once before giving up.
+		 */
+		if (hw->dev_spec._82575.clear_semaphore_once) {
+			hw->dev_spec._82575.clear_semaphore_once = false;
+			e1000_put_hw_semaphore_generic(hw);
+			for (i = 0; i < timeout; i++) {
+				swsm = E1000_READ_REG(hw, E1000_SWSM);
+				if (!(swsm & E1000_SWSM_SMBI))
+					break;
+
+				usec_delay(50);
+			}
+		}
+
+		/* If we do not have the semaphore here, we have to give up. */
+		if (i == timeout) {
+			DEBUGOUT("Driver can't access device - SMBI bit is set.\n");
+			return -E1000_ERR_NVM;
+		}
+	}
 	/* Get the FW semaphore. */
 	for (i = 0; i < timeout; i++) {
 		swsm = E1000_READ_REG(hw, E1000_SWSM);
@@ -179,31 +211,10 @@ static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw)
 		/* Release semaphores */
 		e1000_put_hw_semaphore_generic(hw);
 		DEBUGOUT("Driver can't access the NVM\n");
-		ret_val = -E1000_ERR_NVM;
-		goto out;
+		return -E1000_ERR_NVM;
 	}
 
-out:
-	return ret_val;
-}
-
-/**
- *  e1000_put_hw_semaphore_i210 - Release hardware semaphore
- *  @hw: pointer to the HW structure
- *
- *  Release hardware semaphore used to access the PHY or NVM
- **/
-static void e1000_put_hw_semaphore_i210(struct e1000_hw *hw)
-{
-	u32 swsm;
-
-	DEBUGFUNC("e1000_put_hw_semaphore_i210");
-
-	swsm = E1000_READ_REG(hw, E1000_SWSM);
-
-	swsm &= ~E1000_SWSM_SWESMBI;
-
-	E1000_WRITE_REG(hw, E1000_SWSM, swsm);
+	return E1000_SUCCESS;
 }
 
 /**

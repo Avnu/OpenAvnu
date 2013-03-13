@@ -81,6 +81,7 @@ endif
 
 # Version file Search Path
 VSP :=  $(KOBJ)/include/generated/utsrelease.h \
+        $(KOBJ)/include/generated/uapi/linux/version.h \
         $(KOBJ)/include/linux/utsrelease.h \
         $(KOBJ)/include/linux/version.h \
         /boot/vmlinuz.version.h
@@ -147,9 +148,9 @@ EXTRA_CFLAGS += -DDRIVER_NAME=$(DRIVER_NAME)
 EXTRA_CFLAGS += -DDRIVER_NAME_CAPS=$(shell echo $(DRIVER_NAME) | tr '[a-z]' '[A-Z]')
 # standard flags for module builds
 EXTRA_CFLAGS += -DLINUX -D__KERNEL__ -DMODULE -O2 -pipe -Wall
+EXTRA_CFLAGS += -DHAVE_PTP_1588_CLOCK
 EXTRA_CFLAGS += -UCONFIG_NETDEVICES_MULTIQUEUE
-EXTRA_CFLAGS += -DCONFIG_PTP
-EXTRA_CFLAGS += -I$(KSRC)/include -I.
+EXTRA_CFLAGS += -I$(KSRC)/generated/uapi -I/include -I.
 EXTRA_CFLAGS += $(shell [ -f $(KSRC)/include/linux/modversions.h ] && \
             echo "-DMODVERSIONS -DEXPORT_SYMTAB \
                   -include $(KSRC)/include/linux/modversions.h")
@@ -181,7 +182,7 @@ KVER_CODE := $(shell $(CC) $(EXTRA_CFLAGS) -E -dM $(VSP) 2>/dev/null |\
 # abort the build on kernels older than 2.4.21
 ifneq (1,$(shell [ $(KVER_CODE) -ge 132117 ] && echo 1 || echo 0))
   $(error *** Aborting the build. \
-          *** This driver is not supported on kernel versions older than 2.4.21, \
+          *** This driver '$(KVER_CODE)' is not supported on kernel versions older than 2.4.21, \
               because this driver requires NAPI support.)
 endif
 

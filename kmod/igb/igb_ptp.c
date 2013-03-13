@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -32,7 +32,7 @@
 
 #include "igb.h"
 
-#ifdef CONFIG_IGB_PTP
+#ifdef HAVE_PTP_1588_CLOCK
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/pci.h>
@@ -762,7 +762,13 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		E1000_WRITE_REG(hw,E1000_IMS, E1000_IMS_TS);
 	}
 
-	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps,
+						&adapter->pdev->dev);
+#else
+ 	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps);
+#endif
+
 	if (IS_ERR(adapter->ptp_clock)) {
 		adapter->ptp_clock = NULL;
 		dev_err(&adapter->pdev->dev, "ptp_clock_register failed\n");
@@ -847,4 +853,4 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 				 ktime_to_ns(ktime_get_real()));
 	}
 }
-#endif /* CONFIG_IGB_PTP */
+#endif /* HAVE_PTP_1588_CLOCK */

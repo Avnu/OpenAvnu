@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -1272,6 +1272,7 @@
 #define E1000_EECD_FLUPD_I210		0x00800000 /* Update FLASH */
 #define E1000_EECD_FLUDONE_I210		0x04000000 /* Update FLASH done*/
 #define E1000_EECD_FLASH_DETECTED_I210	0x00080000 /* FLASH detected */
+#define E1000_EECD_SEC1VAL_I210		0x02000000 /* Sector One Valid */
 #define E1000_FLUDONE_ATTEMPTS		20000
 #define E1000_EERD_EEWR_MAX_COUNT	512 /* buffered EEPROM words rw */
 #define E1000_I210_FIFO_SEL_RX		0x00
@@ -1296,6 +1297,8 @@
 #define NVM_VERSION			0x0005
 #define NVM_SERDES_AMPLITUDE		0x0006 /* SERDES output amplitude */
 #define NVM_PHY_CLASS_WORD		0x0007
+#define NVM_FUTURE_INIT_WORD1		0x0019
+#define NVM_FUTURE_INIT_WORD2		0x001A
 #define NVM_ETRACK_WORD			0x0042
 #define NVM_COMB_VER_OFF		0x0083
 #define NVM_COMB_VER_PTR		0x003d
@@ -1319,6 +1322,8 @@
 #define NVM_LED_1_CFG			0x001C
 #define NVM_LED_0_2_CFG			0x001F
 
+#define NVM_COMPAT_VALID_CSUM		0x0001
+#define NVM_FUTURE_INIT_WORD1_VALID_CSUM	0x0040
 #define NVM_ETS_CFG			0x003E
 #define NVM_ETS_LTHRES_DELTA_MASK	0x07C0
 #define NVM_ETS_LTHRES_DELTA_SHIFT	6
@@ -1756,7 +1761,7 @@
 #define E1000_RXPBS_SIZE_I210_MASK	0x0000003F /* Rx packet buffer size */
 #define E1000_TXPB0S_SIZE_I210_MASK	0x0000003F /* Tx packet buffer 0 size */
 
-/* Proxy Filer Control */
+/* Proxy Filter Control */
 #define E1000_PROXYFC_D0		0x00000001 /* Enable offload in D0 */
 #define E1000_PROXYFC_EX		0x00000004 /* Directed exact proxy */
 #define E1000_PROXYFC_MC		0x00000008 /* Directed MC Proxy */
@@ -1764,7 +1769,7 @@
 #define E1000_PROXYFC_ARP_DIRECTED	0x00000020 /* Directed ARP Proxy Ena */
 #define E1000_PROXYFC_IPV4		0x00000040 /* Directed IPv4 Enable */
 #define E1000_PROXYFC_IPV6		0x00000080 /* Directed IPv6 Enable */
-#define E1000_PROXYFC_NS		0x00000200 /* IPv4 NBRHD Solicitation */
+#define E1000_PROXYFC_NS		0x00000200 /* IPv6 Neighbor Solicitation */
 #define E1000_PROXYFC_ARP		0x00000800 /* ARP Request Proxy Ena */
 /* Proxy Status */
 #define E1000_PROXYS_CLEAR		0xFFFFFFFF /* Clear */

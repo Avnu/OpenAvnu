@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -58,13 +58,11 @@ static struct net_device_stats *sysfs_get_stats(struct net_device *netdev)
 struct net_device *igb_get_netdev(struct kobject *kobj)
 {
 	struct net_device *netdev;
-	struct kobject *parent;
+	struct kobject *parent = kobj->parent;
 	struct device *device_info_kobj;
 
 	if (kobj == NULL)
 	        return NULL;
-
-	parent = kobj->parent;
 
 	device_info_kobj = container_of(parent, struct device, kobj);
 	if (device_info_kobj == NULL)
