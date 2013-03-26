@@ -2028,7 +2028,7 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 	for (j = 0; j < adapter->num_tx_queues; j++) {
-		queue_stat = (u64 *)&adapter->tx_ring[j]->tx_stats;
+		queue_stat = (u64 *)&adapter->tx_ring[3 - j]->tx_stats; /* I210 rebase */
 		for (k = 0; k < IGB_TX_QUEUE_STATS_LEN; k++, i++)
 			data[i] = queue_stat[k];
 	}

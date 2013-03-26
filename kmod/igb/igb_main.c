@@ -8391,66 +8391,66 @@ static int igb_init_avb( struct e1000_hw *hw )
 	E1000_WRITE_REG(hw, E1000_IRPBS, rxpbsize);
 
 	/* reconfigure the tx packet buffer allocation to 5k each */
-	txpbsize = (5);
-	txpbsize |= (5) << E1000_TXPBSIZE_TX1PB_SHIFT;
-	txpbsize |= (5) << E1000_TXPBSIZE_TX2PB_SHIFT;
-	txpbsize |= (5) << E1000_TXPBSIZE_TX3PB_SHIFT;
+	txpbsize = (8);
+	txpbsize |= (8) << E1000_TXPBSIZE_TX1PB_SHIFT;
+	txpbsize |= (4) << E1000_TXPBSIZE_TX2PB_SHIFT;
+	txpbsize |= (4) << E1000_TXPBSIZE_TX3PB_SHIFT;
 
 	E1000_WRITE_REG(hw, E1000_ITPBS, txpbsize);
 
-		/* std sized frames in 64 byte units with VLAN tags applied */	
-		E1000_WRITE_REG(hw, E1000_DTXMXPKTSZ, 1518 / 64);
+	/* std sized frames in 64 byte units with VLAN tags applied */	
+	E1000_WRITE_REG(hw, E1000_DTXMXPKTSZ, 1536 / 64);
 
 #ifdef MAP_1722_TO_QUEUE
-		E1000_WRITE_REG(hw, E1000_ETQF(1),
-						(E1000_ETQF_FILTER_ENABLE | /* enable filter */
-						 E1000_ETQF_QUEUE_ENABLE | /* steer to a queue */
-										((0) << 16 ) | /* which rx queue = queue0 */
-						 0x22F0));	 /* IEEE 1722 eth protocol type */
+	E1000_WRITE_REG(hw, E1000_ETQF(1),
+		(E1000_ETQF_FILTER_ENABLE | /* enable filter */
+		 E1000_ETQF_QUEUE_ENABLE | /* steer to a queue */
+		((0) << 16 ) | /* which rx queue = queue0 */
+		 0x22F0));	 /* IEEE 1722 eth protocol type */
 
 #endif
-		/* 
-		 * this function assumes the 1588/AS function is independently
-		 * enabled - this MUST be done otherwise timed transmits
-		 * won't work.
-		 */
+	/* 
+	 * this function assumes the 1588/AS function is independently
+	 * enabled - this MUST be done otherwise timed transmits
+	 * won't work.
+	 */
 
-		/*
-		 * this function defaults the QAV shaper to OFF (TX_ARB, aka DataTranARB=0).
-		 * user-mode library can reconfigure thresholds and enable
-		 * after the device has started.
-		 */
+	/*
+	 * this function defaults the QAV shaper to OFF (TX_ARB=0)
+	 * user-mode library can reconfigure thresholds and enable
+	 * after the device has started.
+	 */
 
-		tqavcc0 = E1000_TQAVCC_QUEUEMODE; /* no idle slope */
-		tqavcc1 = E1000_TQAVCC_QUEUEMODE; /* no idle slope */
-		tqavhc0 = 0xFFFFFFFF; /* unlimited credits */
-		tqavhc1 = 0xFFFFFFFF; /* unlimited credits */
+	tqavcc0 = E1000_TQAVCC_QUEUEMODE; /* no idle slope */
+	tqavcc1 = E1000_TQAVCC_QUEUEMODE; /* no idle slope */
+	tqavhc0 = 0xFFFFFFFF; /* unlimited credits */
+	tqavhc1 = 0xFFFFFFFF; /* unlimited credits */
 
-		E1000_WRITE_REG(hw, E1000_TQAVCC(0), tqavcc0);
-		E1000_WRITE_REG(hw, E1000_TQAVCC(1), tqavcc1);
-		E1000_WRITE_REG(hw, E1000_TQAVHC(0), tqavhc0);
-		E1000_WRITE_REG(hw, E1000_TQAVHC(1), tqavhc1);
+	E1000_WRITE_REG(hw, E1000_TQAVCC(0), tqavcc0);
+	E1000_WRITE_REG(hw, E1000_TQAVCC(1), tqavcc1);
+	E1000_WRITE_REG(hw, E1000_TQAVHC(0), tqavhc0);
+	E1000_WRITE_REG(hw, E1000_TQAVHC(1), tqavhc1);
 
-		tqavctrl = E1000_TQAVCTRL_TXMODE | \
-						E1000_TQAVCTRL_FETCH_ARB | \
-						E1000_TQAVCTRL_LAUNCH_VALID | \
-						E1000_TQAVCTRL_SP_WAIT_SR | \
-						E1000_TQAVCTRL_1588_STAT_EN;
+	tqavctrl = E1000_TQAVCTRL_TXMODE | \
+			E1000_TQAVCTRL_FETCH_ARB | \
+			E1000_TQAVCTRL_LAUNCH_VALID | \
+			E1000_TQAVCTRL_SP_WAIT_SR | \
+			E1000_TQAVCTRL_1588_STAT_EN;
 
-		/* default to a 4 usec prefetch delta from launch time */
-		tqavctrl |= (4 << 5) << E1000_TQAVCTRL_FETCH_TM_SHIFT ;
+	/* default to a 4 usec prefetch delta from launch time */
+	tqavctrl |= (4 << 5) << E1000_TQAVCTRL_FETCH_TM_SHIFT ;
 
-		E1000_WRITE_REG(hw, E1000_TQAVCTRL, tqavctrl);
+	E1000_WRITE_REG(hw, E1000_TQAVCTRL, tqavctrl);
 
-		/* set Q0 to highest priority, Q3 to the lowest .. */
-		E1000_WRITE_REG(hw, E1000_TQAVARBCTRL, \
-						E1000_TQAVARBCTRL_TXQPRIO(0,3) | \
-						E1000_TQAVARBCTRL_TXQPRIO(1,2) | \
-					E1000_TQAVARBCTRL_TXQPRIO(2,1) | \
-						E1000_TQAVARBCTRL_TXQPRIO(3,0) );
+	/* set Q0 to highest priority, Q3 to the lowest .. */
+	E1000_WRITE_REG(hw, E1000_TQAVARBCTRL, \
+			E1000_TQAVARBCTRL_TXQPRIO(0,3) | \
+			E1000_TQAVARBCTRL_TXQPRIO(1,2) | \
+			E1000_TQAVARBCTRL_TXQPRIO(2,1) | \
+			E1000_TQAVARBCTRL_TXQPRIO(3,0) );
 
 
-		return(0);
+	return(0);
 }
 
 /* user-mode API routines */
