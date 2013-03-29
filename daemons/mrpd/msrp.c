@@ -1580,6 +1580,9 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		 */
 
 		vectidx = 4;
+
+/* pending review and deletion */
+#ifdef MSRP_AGGREGATE_DOMAINS_VECTORS
 		vattrib = attrib->next;
 
 		while (NULL != vattrib) {
@@ -1658,6 +1661,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 			vattrib = vattrib->next;
 		}
+#endif
 
 		/* handle any trailers */
 		if (vectevt_idx > 0) {
@@ -2038,13 +2042,28 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	if (NULL == listen_declare)
 		goto oops;
 
+	/* if we have a listener type registered, always send out an update,
+	 * so mark all as ready.
+	 */
 	attrib = MSRP_db->attrib_list;
+	while(attrib) {
+		if (MSRP_LISTENER_TYPE == attrib->type) {
+			attrib->applicant.tx = 1;
+		}
+		attrib = attrib->next;
+	}
 
+	attrib = MSRP_db->attrib_list;
 	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
 		if (MSRP_LISTENER_TYPE != attrib->type) {
+			attrib = attrib->next;
+			continue;
+		}
+
+		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
 		}
@@ -2237,8 +2256,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			    > (mrpdu_msg_eof - 2))
 				goto oops;
 
-			if (vectevt_idx > 3) {
-				vect_4pack =
+			vect_4pack =
 				    MRPDU_4PACK_ENCODE(listen_declare
 						       [listen_declare_idx],
 						       listen_declare
@@ -2249,15 +2267,13 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 						       [listen_declare_idx +
 							3]);
 
-				mrpdu_vectorptr->FirstValue_VectorEvents
+			mrpdu_vectorptr->FirstValue_VectorEvents
 				    [vectidx] = vect_4pack;
-				vectidx++;
-			}
+			vectidx++;
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
 			    > (mrpdu_msg_eof - 3))
 				goto oops;
-
 		}
 
 		/* handle any trailers */
