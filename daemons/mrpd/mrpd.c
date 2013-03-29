@@ -840,21 +840,30 @@ int main(int argc, char *argv[])
 		goto out;
 
 	rc = mmrp_init(mmrp_enable);
-	if (rc)
+	if (rc) {
+		printf("mmrp_enable failed\n");
 		goto out;
+	}
 
 	rc = mvrp_init(mvrp_enable);
-	if (rc)
+	if (rc) {
+		printf("mvrp_enable failed\n");
 		goto out;
+	}
 
 	rc = msrp_init(msrp_enable);
-	if (rc)
+	if (rc) {
+		printf("msrp_enable failed\n");
 		goto out;
+	}
 
 	rc = init_timers();
-	if (rc)
+	if (rc) {
+		printf("init_timers failed\n");
 		goto out;
+	}
 
+	printf("process_events()\n");
 	process_events();
  out:
 	if (rc)
