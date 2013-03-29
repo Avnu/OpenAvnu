@@ -47,6 +47,7 @@
 #include "mvrp.h"
 #include "msrp.h"
 #include "mmrp.h"
+#include "mrpw.h"
 
 #include "que.h"
 
@@ -729,21 +730,14 @@ int mrpd_reclaim()
 
 }
 
-
 HANDLE kill_packet_capture;
 
-void process_events(void)
+int mrpw_init_threads(void)
 {
 	HANDLE hThread1, hThread2;
 	DWORD dwThreadID1, dwThreadID2;
-	uint16_t length = 0;
-	uint8_t *payload;
-	uint16_t protocol;
-	uint8_t *proto;
 	struct avb_avtpdu *avtpdu = NULL;
 	uint64_t src_mac_address = 0;
-	struct ctl_thread_params localhost_pkt;
-	struct netif_thread_data wpcap_pkt;
 	int i;
 
 	timer_check_tick = mrpd_timer_create();
@@ -776,7 +770,7 @@ void process_events(void)
 
 	if (hThread1 == NULL) {
 		fprintf(stderr, "CreateThread error: %d\n", GetLastError());
-		ExitProcess(0);
+		return -1;
 	}
 
 	hThread2 = CreateThread(NULL,	// default security attributes
@@ -787,134 +781,142 @@ void process_events(void)
 
 	if (hThread2 == NULL) {
 		fprintf(stderr, "CreateThread error: %d\n", GetLastError());
-		ExitProcess(0);
+		return -1;
 	}
-
-	while (1) {
-		DWORD dwEvent =
-		    WaitForMultipleObjects(sizeof(pkt_events) / sizeof(HANDLE),
-					   pkt_events,
-					   FALSE,
-					   100);	/* 100ms wait */
-
-		/* special exit case */
-		if (WAIT_OBJECT_0 + app_event_kill_all == dwEvent)
-			break;
-
-		switch (dwEvent) {
-		case WAIT_TIMEOUT:
-		case WAIT_OBJECT_0 + loop_time_tick:
-			/* timeout - run protocols */
-			if (mmrp_enable) {
-				if (mrpd_timer_timeout(MMRP_db->mrp_db.lva_timer))
-					mmrp_event(MRP_EVENT_LVATIMER, NULL);
-				if (mrpd_timer_timeout(MMRP_db->mrp_db.lv_timer))
-					mmrp_event(MRP_EVENT_LVTIMER, NULL);
-				if (mrpd_timer_timeout(MMRP_db->mrp_db.join_timer))
-					mmrp_event(MRP_EVENT_TX, NULL);
-			}
-
-			if (mvrp_enable) {
-				if (mrpd_timer_timeout(MVRP_db->mrp_db.lva_timer))
-					mvrp_event(MRP_EVENT_LVATIMER, NULL);
-				if (mrpd_timer_timeout(MVRP_db->mrp_db.lv_timer))
-					mvrp_event(MRP_EVENT_LVTIMER, NULL);
-				if (mrpd_timer_timeout(MVRP_db->mrp_db.join_timer))
-					mvrp_event(MRP_EVENT_TX, NULL);
-			}
-
-			if (msrp_enable) {
-				if (mrpd_timer_timeout(MSRP_db->mrp_db.lva_timer))
-					msrp_event(MRP_EVENT_LVATIMER, NULL);
-				if (mrpd_timer_timeout(MSRP_db->mrp_db.lv_timer))
-					msrp_event(MRP_EVENT_LVTIMER, NULL);
-				if (mrpd_timer_timeout(MSRP_db->mrp_db.join_timer))
-					msrp_event(MRP_EVENT_TX, NULL);
-			}
-
-			if (mrpd_timer_timeout(periodic_timer)) {
-				//printf("mrpd_timer_timeout(periodic_timer)\n");
-				if (mmrp_enable)
-					mmrp_event(MRP_EVENT_PERIODIC, NULL);
-				if (mvrp_enable)
-					mvrp_event(MRP_EVENT_PERIODIC, NULL);
-				if (msrp_enable)
-					msrp_event(MRP_EVENT_PERIODIC, NULL);
-				mrpd_timer_restart(periodic_timer);
-			}
-			if (mrpd_timer_timeout(gc_timer)) {
-				mrpd_reclaim();
-			}
-			mrpd_timer_restart(timer_check_tick);
-			break;
-
-		case WAIT_OBJECT_0 + pkt_event_wpcap:
-			que_pop_nowait(que_wpcap, &wpcap_pkt);
-			proto = &wpcap_pkt.frame[12];
-			protocol =
-			    (uint16_t) proto[0] << 8 | (uint16_t) proto[1];
-			payload = proto + 2;
-
-			last_pdu_buffer = wpcap_pkt.frame;
-			last_pdu_buffer_size = wpcap_pkt.length;
-
-			switch (protocol) {
-			case MVRP_ETYPE:
-				if (mvrp_enable)
-					mvrp_recv_msg();
-				break;
-
-			case MMRP_ETYPE:
-				if (mmrp_enable)
-					mmrp_recv_msg();
-				break;
-
-			case MSRP_ETYPE:
-				if (msrp_enable)
-					msrp_recv_msg();
-				break;
-			}
-			if (mrpd_timer_timeout(&timer_check_tick)) {
-				if (!SetEvent(pkt_events[loop_time_tick])) {
-					printf
-					    ("SetEvent loop_time_tick failed (%d)\n",
-					     GetLastError());
-					exit(-1);
-				}
-			}
-			break;
-
-		case WAIT_OBJECT_0 + pkt_event_wpcap_timeout:
-			//printf("pkt_event_wpcap_timeout\n");
-			break;
-
-		case WAIT_OBJECT_0 + pkt_event_localhost:
-			que_pop_nowait(que_localhost, &localhost_pkt);
-			process_ctl_msg(localhost_pkt.msgbuf,
-					localhost_pkt.bytes,
-					(struct sockaddr_in *)
-					&localhost_pkt.client_addr);
-			if (mrpd_timer_timeout(&timer_check_tick)) {
-				if (!SetEvent(pkt_events[loop_time_tick])) {
-					printf
-					    ("SetEvent loop_time_tick failed (%d)\n",
-					     GetLastError());
-					exit(-1);
-				}
-			}
-			break;
-
-		case WAIT_OBJECT_0 + pkt_event_localhost_timeout:
-			//printf("pkt_event_localhost_timeout\n");
-			break;
-
-		default:
-			printf("Unknown event %d\n", dwEvent);
-		}
-	}
+	return 0;
 }
 
-int main(int argc, char *argv[])
+int mrpw_run_once(void)
+{
+	struct netif_thread_data wpcap_pkt;
+	struct ctl_thread_params localhost_pkt;
+	uint16_t length = 0;
+	uint8_t *payload;
+	uint16_t protocol;
+	uint8_t *proto;
+
+	DWORD dwEvent =
+		WaitForMultipleObjects(sizeof(pkt_events) / sizeof(HANDLE),
+					pkt_events,
+					FALSE,
+					100);	/* 100ms wait */
+
+	/* special exit case */
+	if (WAIT_OBJECT_0 + app_event_kill_all == dwEvent)
+		return -1;
+
+	switch (dwEvent) {
+	case WAIT_TIMEOUT:
+	case WAIT_OBJECT_0 + loop_time_tick:
+		/* timeout - run protocols */
+		if (mmrp_enable) {
+			if (mrpd_timer_timeout(MMRP_db->mrp_db.lva_timer))
+				mmrp_event(MRP_EVENT_LVATIMER, NULL);
+			if (mrpd_timer_timeout(MMRP_db->mrp_db.lv_timer))
+				mmrp_event(MRP_EVENT_LVTIMER, NULL);
+			if (mrpd_timer_timeout(MMRP_db->mrp_db.join_timer))
+				mmrp_event(MRP_EVENT_TX, NULL);
+		}
+
+		if (mvrp_enable) {
+			if (mrpd_timer_timeout(MVRP_db->mrp_db.lva_timer))
+				mvrp_event(MRP_EVENT_LVATIMER, NULL);
+			if (mrpd_timer_timeout(MVRP_db->mrp_db.lv_timer))
+				mvrp_event(MRP_EVENT_LVTIMER, NULL);
+			if (mrpd_timer_timeout(MVRP_db->mrp_db.join_timer))
+				mvrp_event(MRP_EVENT_TX, NULL);
+		}
+
+		if (msrp_enable) {
+			if (mrpd_timer_timeout(MSRP_db->mrp_db.lva_timer))
+				msrp_event(MRP_EVENT_LVATIMER, NULL);
+			if (mrpd_timer_timeout(MSRP_db->mrp_db.lv_timer))
+				msrp_event(MRP_EVENT_LVTIMER, NULL);
+			if (mrpd_timer_timeout(MSRP_db->mrp_db.join_timer))
+				msrp_event(MRP_EVENT_TX, NULL);
+		}
+
+		if (mrpd_timer_timeout(periodic_timer)) {
+			//printf("mrpd_timer_timeout(periodic_timer)\n");
+			if (mmrp_enable)
+				mmrp_event(MRP_EVENT_PERIODIC, NULL);
+			if (mvrp_enable)
+				mvrp_event(MRP_EVENT_PERIODIC, NULL);
+			if (msrp_enable)
+				msrp_event(MRP_EVENT_PERIODIC, NULL);
+			mrpd_timer_restart(periodic_timer);
+		}
+		if (mrpd_timer_timeout(gc_timer)) {
+			mrpd_reclaim();
+		}
+		mrpd_timer_restart(timer_check_tick);
+		break;
+
+	case WAIT_OBJECT_0 + pkt_event_wpcap:
+		que_pop_nowait(que_wpcap, &wpcap_pkt);
+		proto = &wpcap_pkt.frame[12];
+		protocol =
+			(uint16_t) proto[0] << 8 | (uint16_t) proto[1];
+		payload = proto + 2;
+
+		last_pdu_buffer = wpcap_pkt.frame;
+		last_pdu_buffer_size = wpcap_pkt.length;
+
+		switch (protocol) {
+		case MVRP_ETYPE:
+			if (mvrp_enable)
+				mvrp_recv_msg();
+			break;
+
+		case MMRP_ETYPE:
+			if (mmrp_enable)
+				mmrp_recv_msg();
+			break;
+
+		case MSRP_ETYPE:
+			if (msrp_enable)
+				msrp_recv_msg();
+			break;
+		}
+		if (mrpd_timer_timeout(&timer_check_tick)) {
+			if (!SetEvent(pkt_events[loop_time_tick])) {
+				printf("SetEvent loop_time_tick failed (%d)\n",
+					GetLastError());
+				exit(-1);
+			}
+		}
+		break;
+
+	case WAIT_OBJECT_0 + pkt_event_wpcap_timeout:
+		//printf("pkt_event_wpcap_timeout\n");
+		break;
+
+	case WAIT_OBJECT_0 + pkt_event_localhost:
+		que_pop_nowait(que_localhost, &localhost_pkt);
+		process_ctl_msg(localhost_pkt.msgbuf,
+				localhost_pkt.bytes,
+				(struct sockaddr_in *)
+				&localhost_pkt.client_addr);
+		if (mrpd_timer_timeout(&timer_check_tick)) {
+			if (!SetEvent(pkt_events[loop_time_tick])) {
+				printf("SetEvent loop_time_tick failed (%d)\n",
+					GetLastError());
+				exit(-1);
+			}
+		}
+		break;
+
+	case WAIT_OBJECT_0 + pkt_event_localhost_timeout:
+		//printf("pkt_event_localhost_timeout\n");
+		break;
+
+	default:
+		printf("Unknown event %d\n", dwEvent);
+	}
+	return 0;
+}
+
+int mrpw_init_protocols(void)
 {
 	uint16_t ether_types[4];
 	WSADATA wsa_data;
@@ -933,7 +935,7 @@ int main(int argc, char *argv[])
 	net_if = netif_open(TIME_PERIOD_25_MILLISECONDS);	// time out is 25ms
 	if (!net_if) {
 		fprintf(stderr, "ERROR - opening network interface\n");
-		exit(-1);
+		return -1;
 	}
 
 	ether_types[0] = MVRP_ETYPE;
@@ -941,7 +943,7 @@ int main(int argc, char *argv[])
 	ether_types[2] = MSRP_ETYPE;
 	if (netif_set_capture_ethertype(net_if, ether_types, 3)) {
 		fprintf(stderr, "ERROR - setting netif capture ethertype\n");
-		exit(-1);
+		return -1;
 	}
 
 	rc = mrp_init();
@@ -974,13 +976,49 @@ int main(int argc, char *argv[])
 	if (rc)
 		goto out;
 
-	process_events();
- out:
-	if (rc)
-		printf("Error starting. Run as sudo?\n");
+	return 0;
 
+out:
+	return -1;
+
+}
+
+void mrpw_cleanup(void)
+{
 	WSACleanup();
-	return rc;
+}
+
+void process_events(void)
+{
+	int status;
+	while (1) {
+		status = mrpw_run_once();
+		if (status < 0)
+			break;
+	}
+}
+
+int main(int argc, char *argv[])
+{
+	int status;
+
+	status = mrpw_init_protocols();
+
+	if (status < 0 ){
+		mrpw_cleanup();
+		return status;
+	}
+
+	status = mrpw_init_threads();
+	if (status < 0 ){
+		mrpw_cleanup();
+		return status;
+	}
+
+	process_events();
+
+	mrpw_cleanup();
+	return status;
 
 }
 
