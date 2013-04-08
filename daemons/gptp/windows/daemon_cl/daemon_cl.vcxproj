@@ -136,7 +136,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\John\src\pcap\Include;$(SolutionDir)\daemon_cl\;..\..\..\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\John\src\pcap\Include;$(SolutionDir)\daemon_cl\;..\..\..\common;..\..\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -152,17 +152,17 @@
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\common\avbts_clock.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_message.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_oscondition.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_osipc.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_oslock.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_osnet.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_osthread.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_ostimer.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_ostimerq.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_port.hpp" />
-    <ClInclude Include="..\..\..\common\ieee1588.hpp" />
+    <ClInclude Include="..\..\common\avbts_clock.hpp" />
+    <ClInclude Include="..\..\common\avbts_message.hpp" />
+    <ClInclude Include="..\..\common\avbts_oscondition.hpp" />
+    <ClInclude Include="..\..\common\avbts_osipc.hpp" />
+    <ClInclude Include="..\..\common\avbts_oslock.hpp" />
+    <ClInclude Include="..\..\common\avbts_osnet.hpp" />
+    <ClInclude Include="..\..\common\avbts_osthread.hpp" />
+    <ClInclude Include="..\..\common\avbts_ostimer.hpp" />
+    <ClInclude Include="..\..\common\avbts_ostimerq.hpp" />
+    <ClInclude Include="..\..\common\avbts_port.hpp" />
+    <ClInclude Include="..\..\common\ieee1588.hpp" />
     <ClInclude Include="ipcdef.hpp" />
     <ClInclude Include="packet.hpp" />
     <ClInclude Include="platform.hpp" />
@@ -172,19 +172,19 @@
     <ClInclude Include="windows_hal.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\common\avbts_osnet.cpp">
+    <ClCompile Include="..\..\common\avbts_osnet.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\..\..\common\ieee1588clock.cpp">
+    <ClCompile Include="..\..\common\ieee1588clock.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\..\..\common\ieee1588port.cpp">
+    <ClCompile Include="..\..\common\ieee1588port.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\..\..\common\ptp_message.cpp">
+    <ClCompile Include="..\..\common\ptp_message.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
