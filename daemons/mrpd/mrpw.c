@@ -604,8 +604,7 @@ int mrpd_send_ctl_msg(struct sockaddr_in *client_addr,
 		return 0;
 
 #if LOG_CLIENT_SEND
-	printf("CTL MSG:%s to CLNT %d\n", notify_data,
-		       client_addr->sin_port);
+	printf("CTL MSG:%s to CLNT %d\n", notify_data, client_addr->sin_port);
 #endif
 	rc = sendto(control_socket, notify_data, notify_len,
 		    0, (struct sockaddr *)client_addr, sizeof(struct sockaddr));
@@ -756,8 +755,7 @@ int mrpw_init_threads(void)
 			ExitProcess(0);
 		}
 	}
-	pkt_events[pkt_event_wpcap] =
-		que_data_available_object(que_wpcap);
+	pkt_events[pkt_event_wpcap] = que_data_available_object(que_wpcap);
 	pkt_events[pkt_event_localhost] =
 	    que_data_available_object(que_localhost);
 
@@ -796,10 +794,10 @@ int mrpw_run_once(void)
 	uint8_t *proto;
 
 	DWORD dwEvent =
-		WaitForMultipleObjects(sizeof(pkt_events) / sizeof(HANDLE),
-					pkt_events,
-					FALSE,
-					100);	/* 100ms wait */
+	    WaitForMultipleObjects(sizeof(pkt_events) / sizeof(HANDLE),
+				   pkt_events,
+				   FALSE,
+				   100);	/* 100ms wait */
 
 	/* special exit case */
 	if (WAIT_OBJECT_0 + app_event_kill_all == dwEvent)
@@ -855,8 +853,7 @@ int mrpw_run_once(void)
 	case WAIT_OBJECT_0 + pkt_event_wpcap:
 		que_pop_nowait(que_wpcap, &wpcap_pkt);
 		proto = &wpcap_pkt.frame[12];
-		protocol =
-			(uint16_t) proto[0] << 8 | (uint16_t) proto[1];
+		protocol = (uint16_t) proto[0] << 8 | (uint16_t) proto[1];
 		payload = proto + 2;
 
 		last_pdu_buffer = wpcap_pkt.frame;
@@ -881,7 +878,7 @@ int mrpw_run_once(void)
 		if (mrpd_timer_timeout(&timer_check_tick)) {
 			if (!SetEvent(pkt_events[loop_time_tick])) {
 				printf("SetEvent loop_time_tick failed (%d)\n",
-					GetLastError());
+				       GetLastError());
 				exit(-1);
 			}
 		}
@@ -894,13 +891,12 @@ int mrpw_run_once(void)
 	case WAIT_OBJECT_0 + pkt_event_localhost:
 		que_pop_nowait(que_localhost, &localhost_pkt);
 		process_ctl_msg(localhost_pkt.msgbuf,
-				localhost_pkt.bytes,
-				(struct sockaddr_in *)
+				localhost_pkt.bytes, (struct sockaddr_in *)
 				&localhost_pkt.client_addr);
 		if (mrpd_timer_timeout(&timer_check_tick)) {
 			if (!SetEvent(pkt_events[loop_time_tick])) {
 				printf("SetEvent loop_time_tick failed (%d)\n",
-					GetLastError());
+				       GetLastError());
 				exit(-1);
 			}
 		}
@@ -978,7 +974,7 @@ int mrpw_init_protocols(void)
 
 	return 0;
 
-out:
+ out:
 	return -1;
 
 }
@@ -1004,13 +1000,13 @@ int main(int argc, char *argv[])
 
 	status = mrpw_init_protocols();
 
-	if (status < 0 ){
+	if (status < 0) {
 		mrpw_cleanup();
 		return status;
 	}
 
 	status = mrpw_init_threads();
-	if (status < 0 ){
+	if (status < 0) {
 		mrpw_cleanup();
 		return status;
 	}
@@ -1032,7 +1028,8 @@ void mrpd_log_printf(const char *fmt, ...)
 	/* get time stamp in ms */
 	QueryPerformanceCounter(&count);
 	QueryPerformanceFrequency(&freq);
-	ms = (unsigned int)((count.QuadPart * 1000/freq.QuadPart) & 0xfffffff);
+	ms = (unsigned int)((count.QuadPart * 1000 / freq.QuadPart) &
+			    0xfffffff);
 
 	printf("MRPD %03d.%03d ", ms / 1000, ms % 1000);
 

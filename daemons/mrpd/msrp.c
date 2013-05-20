@@ -71,8 +71,6 @@ static char *msrp_attrib_type_string(int t)
 	}
 }
 
-
-
 struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
 {
 	struct msrp_attribute *attrib;
@@ -90,10 +88,10 @@ struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
 			} else {
 				/* compare on the stream ID */
 				mac_eq =
-				    memcmp(attrib->attribute.
-					   talk_listen.StreamID,
-					   rattrib->attribute.
-					   talk_listen.StreamID, 8);
+				    memcmp(attrib->attribute.talk_listen.
+					   StreamID,
+					   rattrib->attribute.talk_listen.
+					   StreamID, 8);
 				if (0 == mac_eq)
 					return attrib;
 			}
@@ -155,10 +153,10 @@ int msrp_add(struct msrp_attribute *rattrib)
 				}
 			} else {
 				mac_eq =
-				    memcmp(attrib->attribute.
-					   talk_listen.StreamID,
-					   rattrib->attribute.
-					   talk_listen.StreamID, 8);
+				    memcmp(attrib->attribute.talk_listen.
+					   StreamID,
+					   rattrib->attribute.talk_listen.
+					   StreamID, 8);
 
 				if (mac_eq < 0) {
 					/* possible tail insertion ... */
@@ -234,12 +232,12 @@ int msrp_merge(struct msrp_attribute *rattrib)
 	case MSRP_TALKER_ADV_TYPE:
 	case MSRP_TALKER_FAILED_TYPE:
 		attrib->attribute.talk_listen.FailureInformation.FailureCode =
-		    rattrib->attribute.talk_listen.
-		    FailureInformation.FailureCode;
-		memcpy(attrib->attribute.talk_listen.
-		       FailureInformation.BridgeID,
-		       rattrib->attribute.talk_listen.
-		       FailureInformation.BridgeID, 8);
+		    rattrib->attribute.talk_listen.FailureInformation.
+		    FailureCode;
+		memcpy(attrib->attribute.talk_listen.FailureInformation.
+		       BridgeID,
+		       rattrib->attribute.talk_listen.FailureInformation.
+		       BridgeID, 8);
 #ifdef ENABLE_MERGED_LATENCY
 		attrib->attribute.talk_listen.AccumulatedLatency =
 		    rattrib->attribute.talk_listen.AccumulatedLatency;
@@ -276,7 +274,8 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 			mrpd_log_printf("MSRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TXLA);
+			mrp_applicant_fsm(&(MSRP_db->mrp_db),
+					  &(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_TXLA);
 			attrib = attrib->next;
@@ -295,7 +294,8 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 			mrpd_log_printf("MSRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_RLA);
+			mrp_applicant_fsm(&(MSRP_db->mrp_db),
+					  &(attrib->applicant), MRP_EVENT_RLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_RLA);
 			attrib = attrib->next;
@@ -312,7 +312,8 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 			mrpd_log_printf("MSRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TX);
+			mrp_applicant_fsm(&(MSRP_db->mrp_db),
+					  &(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
 		}
 
@@ -339,7 +340,8 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 			mrpd_log_printf("MSRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant),
+			mrp_applicant_fsm(&(MSRP_db->mrp_db),
+					  &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
 			attrib = attrib->next;
 		}
@@ -368,7 +370,8 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 			free(rattrib);
 		}
 
-		mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant), event);
+		mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant),
+				  event);
 
 		/* remap local requests into registrar events */
 		switch (event) {
@@ -394,9 +397,10 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 			rc = mrp_registrar_fsm(&(attrib->registrar),
 					       &(MSRP_db->mrp_db), event);
 			if (-1 == rc) {
-				printf("MSRP registrar error on attrib->type = %s (%d)\n",
-						msrp_attrib_type_string(attrib->type),
-						attrib->type);
+				printf
+				    ("MSRP registrar error on attrib->type = %s (%d)\n",
+				     msrp_attrib_type_string(attrib->type),
+				     attrib->type);
 			}
 			break;
 		}
@@ -557,7 +561,8 @@ int msrp_recv_msg()
 		endmarks = 0;
 
 #if LOG_MSRP
-	mrpd_log_printf("MSRP msrp_recv_msg() msg addr 0x%X\n", ((int)mrpdu_msg_ptr) & 0x3);
+		mrpd_log_printf("MSRP msrp_recv_msg() msg addr 0x%X\n",
+				((int)mrpdu_msg_ptr) & 0x3);
 #endif
 
 		switch (mrpdu_msg->AttributeType) {
@@ -576,7 +581,8 @@ int msrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				if (0 == numvalues) {
 					/* skip this null attribute ... some switches generate these ... */
@@ -600,7 +606,8 @@ int msrp_recv_msg()
 				srclassprio_firstval =
 				    mrpdu_vectorptr->FirstValue_VectorEvents[1];
 				srclassvid_firstval = ((uint16_t)
-						       mrpdu_vectorptr->FirstValue_VectorEvents
+						       mrpdu_vectorptr->
+						       FirstValue_VectorEvents
 						       [2]) << 8 |
 				    mrpdu_vectorptr->FirstValue_VectorEvents[3];
 
@@ -614,8 +621,8 @@ int msrp_recv_msg()
 				     vectidx <= (numvectorbytes + 4);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -635,22 +642,22 @@ int msrp_recv_msg()
 							goto out;	/* oops - internal error */
 
 						attrib->type = MSRP_DOMAIN_TYPE;
-						attrib->attribute.
-						    domain.SRclassID =
+						attrib->attribute.domain.
+						    SRclassID =
 						    srclassID_firstval;
-						attrib->attribute.
-						    domain.SRclassPriority =
+						attrib->attribute.domain.
+						    SRclassPriority =
 						    srclassprio_firstval;
-						attrib->attribute.
-						    domain.SRclassVID =
+						attrib->attribute.domain.
+						    SRclassVID =
 						    srclassvid_firstval;
 
 						srclassID_firstval++;
 						srclassprio_firstval++;
 
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -720,16 +727,17 @@ int msrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 #if LOG_MSRP
-				mrpd_log_printf("MSRP msrp_recv_msg() LISTENER vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
-						((int)mrpdu_vectorptr) & 0x3, numvalues,
-						ntohs(mrpdu_vectorptr->VectorHeader),
-						((uint8_t *)mrpdu_vectorptr)[0] << 8 | ((uint8_t *)mrpdu_vectorptr)[1]);
+				mrpd_log_printf
+				    ("MSRP msrp_recv_msg() LISTENER vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
+				     ntohs(mrpdu_vectorptr->VectorHeader),
+				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
+				     ((uint8_t *) mrpdu_vectorptr)[1]);
 #endif
-
-
 
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 8 byte FirstValue + (0) vector bytes */
@@ -790,8 +798,8 @@ int msrp_recv_msg()
 
 				for (; vectidx < listener_endbyte; vectidx++) {
 					vect_4pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 
 					vectevt[3] =
 					    vect_4pack -
@@ -841,7 +849,8 @@ int msrp_recv_msg()
 
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				/* if not an even multiple ... */
 				if (numvalues != ((numvalues / 3) * 3))
@@ -855,8 +864,8 @@ int msrp_recv_msg()
 				     vectidx <= (numvectorbytes + 8);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -885,9 +894,8 @@ int msrp_recv_msg()
 						attrib->type =
 						    MSRP_LISTENER_TYPE;
 
-						memcpy(attrib->
-						       attribute.talk_listen.
-						       StreamID,
+						memcpy(attrib->attribute.
+						       talk_listen.StreamID,
 						       streamid_firstval, 8);
 						attrib->substate =
 						    listener_vectevt
@@ -896,15 +904,15 @@ int msrp_recv_msg()
 						    (streamid_firstval);
 						listener_vectevt_idx++;
 
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 #if LOG_MSRP
-						mrpd_log_printf("MSRP msrp_recv_msg() Listener[%d][%d] attrib %d\n",
-								vectidx,
-								vectevt_idx,
-								vectevt[vectevt_idx]);
+						mrpd_log_printf
+						    ("MSRP msrp_recv_msg() Listener[%d][%d] attrib %d\n",
+						     vectidx, vectevt_idx,
+						     vectevt[vectevt_idx]);
 #endif
 
 						switch (vectevt[vectevt_idx]) {
@@ -952,7 +960,8 @@ int msrp_recv_msg()
 
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 				if (numvalues != ((numvalues / 4) * 4))
 					numvectorbytes += (numvalues / 4) + 1;
 				else
@@ -995,7 +1004,8 @@ int msrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 25 byte FirstValue + (0) vector bytes */
@@ -1033,8 +1043,8 @@ int msrp_recv_msg()
 				     vectidx <= (numvectorbytes + 25);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -1060,12 +1070,13 @@ int msrp_recv_msg()
 						attrib->direction =
 						    MSRP_DIRECTION_LISTENER;
 
-						memcpy(attrib->
-						       attribute.talk_listen.
-						       StreamID,
+						memcpy(attrib->attribute.
+						       talk_listen.StreamID,
 						       streamid_firstval, 8);
-						memcpy(attrib->
-						       attribute.talk_listen.DataFrameParameters.Dest_Addr,
+						memcpy(attrib->attribute.
+						       talk_listen.
+						       DataFrameParameters.
+						       Dest_Addr,
 						       destmac_firstval, 6);
 
 						msrp_increment_streamid
@@ -1073,93 +1084,80 @@ int msrp_recv_msg()
 						mmrp_increment_macaddr
 						    (destmac_firstval);
 
-						attrib->attribute.
-						    talk_listen.DataFrameParameters.Vlan_ID
-						    =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [14];
-						attrib->attribute.
-						    talk_listen.DataFrameParameters.Vlan_ID
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.DataFrameParameters.Vlan_ID
-						    |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [15];
+						attrib->attribute.talk_listen.
+						    DataFrameParameters.
+						    Vlan_ID =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[14];
+						attrib->attribute.talk_listen.
+						    DataFrameParameters.
+						    Vlan_ID <<= 8;
+						attrib->attribute.talk_listen.
+						    DataFrameParameters.
+						    Vlan_ID |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[15];
 
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxFrameSize =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [16];
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxFrameSize <<= 8;
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxFrameSize |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [17];
+						attrib->attribute.talk_listen.
+						    TSpec.MaxFrameSize =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[16];
+						attrib->attribute.talk_listen.
+						    TSpec.MaxFrameSize <<= 8;
+						attrib->attribute.talk_listen.
+						    TSpec.MaxFrameSize |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[17];
 
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxIntervalFrames =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [18];
-						attrib->attribute.
-						    talk_listen.TSpec.MaxIntervalFrames
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxIntervalFrames |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [19];
+						attrib->attribute.talk_listen.
+						    TSpec.MaxIntervalFrames =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[18];
+						attrib->attribute.talk_listen.
+						    TSpec.
+						    MaxIntervalFrames <<= 8;
+						attrib->attribute.talk_listen.
+						    TSpec.MaxIntervalFrames |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[19];
 
-						attrib->attribute.
-						    talk_listen.PriorityAndRank
-						    =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [20];
+						attrib->attribute.talk_listen.
+						    PriorityAndRank =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[20];
 
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [21];
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [22];
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [23];
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [24];
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[21];
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency <<= 8;
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[22];
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency <<= 8;
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[23];
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency <<= 8;
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[24];
 
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 #if LOG_MSRP
-						mrpd_log_printf("MSRP msrp_recv_msg() TalkerAdv[%d][%d] attrib %d\n",
-								vectidx,
-								vectevt_idx,
-								vectevt[vectevt_idx]);
+						mrpd_log_printf
+						    ("MSRP msrp_recv_msg() TalkerAdv[%d][%d] attrib %d\n",
+						     vectidx, vectevt_idx,
+						     vectevt[vectevt_idx]);
 #endif
 
 						switch (vectevt[vectevt_idx]) {
@@ -1229,7 +1227,8 @@ int msrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 34 byte FirstValue + (0) vector bytes */
@@ -1264,8 +1263,8 @@ int msrp_recv_msg()
 				     vectidx <= (numvectorbytes + 34);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -1292,12 +1291,13 @@ int msrp_recv_msg()
 						attrib->direction =
 						    MSRP_DIRECTION_LISTENER;
 
-						memcpy(attrib->
-						       attribute.talk_listen.
-						       StreamID,
+						memcpy(attrib->attribute.
+						       talk_listen.StreamID,
 						       streamid_firstval, 8);
-						memcpy(attrib->
-						       attribute.talk_listen.DataFrameParameters.Dest_Addr,
+						memcpy(attrib->attribute.
+						       talk_listen.
+						       DataFrameParameters.
+						       Dest_Addr,
 						       destmac_firstval, 6);
 
 						msrp_increment_streamid
@@ -1305,99 +1305,88 @@ int msrp_recv_msg()
 						mmrp_increment_macaddr
 						    (destmac_firstval);
 
-						attrib->attribute.
-						    talk_listen.DataFrameParameters.Vlan_ID
-						    =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [14];
-						attrib->attribute.
-						    talk_listen.DataFrameParameters.Vlan_ID
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.DataFrameParameters.Vlan_ID
-						    |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [15];
+						attrib->attribute.talk_listen.
+						    DataFrameParameters.
+						    Vlan_ID =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[14];
+						attrib->attribute.talk_listen.
+						    DataFrameParameters.
+						    Vlan_ID <<= 8;
+						attrib->attribute.talk_listen.
+						    DataFrameParameters.
+						    Vlan_ID |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[15];
 
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxFrameSize =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [16];
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxFrameSize <<= 8;
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxFrameSize |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [17];
+						attrib->attribute.talk_listen.
+						    TSpec.MaxFrameSize =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[16];
+						attrib->attribute.talk_listen.
+						    TSpec.MaxFrameSize <<= 8;
+						attrib->attribute.talk_listen.
+						    TSpec.MaxFrameSize |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[17];
 
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxIntervalFrames =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [18];
-						attrib->attribute.
-						    talk_listen.TSpec.MaxIntervalFrames
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.TSpec.
-						    MaxIntervalFrames |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [19];
+						attrib->attribute.talk_listen.
+						    TSpec.MaxIntervalFrames =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[18];
+						attrib->attribute.talk_listen.
+						    TSpec.
+						    MaxIntervalFrames <<= 8;
+						attrib->attribute.talk_listen.
+						    TSpec.MaxIntervalFrames |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[19];
 
-						attrib->attribute.
-						    talk_listen.PriorityAndRank
-						    =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [20];
+						attrib->attribute.talk_listen.
+						    PriorityAndRank =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[20];
 
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [21];
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [22];
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [23];
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    <<= 8;
-						attrib->attribute.
-						    talk_listen.AccumulatedLatency
-						    |=
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [24];
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[21];
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency <<= 8;
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[22];
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency <<= 8;
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[23];
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency <<= 8;
+						attrib->attribute.talk_listen.
+						    AccumulatedLatency |=
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[24];
 
-						memcpy(attrib->
-						       attribute.talk_listen.FailureInformation.BridgeID,
-						       &
-						       (mrpdu_vectorptr->FirstValue_VectorEvents
-							[25]), 8);
+						memcpy(attrib->attribute.
+						       talk_listen.
+						       FailureInformation.
+						       BridgeID,
+						       &(mrpdu_vectorptr->
+							 FirstValue_VectorEvents
+							 [25]), 8);
 
-						attrib->attribute.
-						    talk_listen.FailureInformation.FailureCode
-						    =
-						    mrpdu_vectorptr->FirstValue_VectorEvents
-						    [33];
+						attrib->attribute.talk_listen.
+						    FailureInformation.
+						    FailureCode =
+						    mrpdu_vectorptr->
+						    FirstValue_VectorEvents[33];
 
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -1455,8 +1444,9 @@ int msrp_recv_msg()
 			 * we can seek for an endmark to recover .. but this version
 			 * dumps the entire packet as malformed
 			 */
-			printf("################## unrecognized attribute type (%d)\n",
-			       mrpdu_msg->AttributeType);
+			printf
+			    ("################## unrecognized attribute type (%d)\n",
+			     mrpdu_msg->AttributeType);
 			goto out;
 		}
 	}
@@ -1477,7 +1467,7 @@ int msrp_recv_msg()
 
 int
 msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
-		      int *bytes_used, int lva)
+			int *bytes_used, int lva)
 {
 	mrpdu_vectorattrib_t *mrpdu_vectorptr;
 	uint16_t numvalues;
@@ -1504,7 +1494,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	attrib = MSRP_db->attrib_list;
 
-	mrpdu_vectorptr = (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2]);
+	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
@@ -1528,11 +1518,14 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		srclassprio_firstval = attrib->attribute.domain.SRclassPriority;
 		srclassvid_firstval = attrib->attribute.domain.SRclassVID;
 
-
-		mrpdu_vectorptr->FirstValue_VectorEvents[0] = srclassID_firstval;
-		mrpdu_vectorptr->FirstValue_VectorEvents[1] = srclassprio_firstval;
-		mrpdu_vectorptr->FirstValue_VectorEvents[2] = (uint8_t)(srclassvid_firstval >> 8);
-		mrpdu_vectorptr->FirstValue_VectorEvents[3] = (uint8_t)srclassvid_firstval;
+		mrpdu_vectorptr->FirstValue_VectorEvents[0] =
+		    srclassID_firstval;
+		mrpdu_vectorptr->FirstValue_VectorEvents[1] =
+		    srclassprio_firstval;
+		mrpdu_vectorptr->FirstValue_VectorEvents[2] =
+		    (uint8_t) (srclassvid_firstval >> 8);
+		mrpdu_vectorptr->FirstValue_VectorEvents[3] =
+		    (uint8_t) srclassvid_firstval;
 
 		switch (attrib->applicant.sndmsg) {
 		case MRP_SND_IN:
@@ -1595,7 +1588,8 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			srclassID_firstval++;
 			srclassprio_firstval++;
 
-			if (srclassID_firstval != vattrib->attribute.domain.SRclassID)
+			if (srclassID_firstval !=
+			    vattrib->attribute.domain.SRclassID)
 				break;
 
 			vattrib->applicant.tx = 0;
@@ -1645,9 +1639,8 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 								vectevt[1],
 								vectevt[2]);
 
-				mrpdu_vectorptr->
-				    FirstValue_VectorEvents[vectidx] =
-				    vect_3pack;
+				mrpdu_vectorptr->FirstValue_VectorEvents
+				    [vectidx] = vect_3pack;
 				vectidx++;
 				vectevt[0] = 0;
 				vectevt[1] = 0;
@@ -1693,7 +1686,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	}
 
-	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *)&(mrpdu_msg->Data[2])) {
+	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2])) {
 		*bytes_used = 0;
 		return 0;
 	}
@@ -1722,9 +1715,6 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	*bytes_used = 0;
 	return -1;
 }
-
-
-
 
 int
 msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
@@ -1790,19 +1780,19 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		memcpy(streamid_firstval,
 		       attrib->attribute.talk_listen.StreamID, 8);
 		memcpy(destmac_firstval,
-		       attrib->attribute.talk_listen.
-		       DataFrameParameters.Dest_Addr, 6);
+		       attrib->attribute.talk_listen.DataFrameParameters.
+		       Dest_Addr, 6);
 		memcpy(mrpdu_vectorptr->FirstValue_VectorEvents,
 		       streamid_firstval, 8);
 		memcpy(&(mrpdu_vectorptr->FirstValue_VectorEvents[8]),
 		       destmac_firstval, 6);
 
 		mrpdu_vectorptr->FirstValue_VectorEvents[14] =
-		    attrib->attribute.talk_listen.
-		    DataFrameParameters.Vlan_ID >> 8;
+		    attrib->attribute.talk_listen.DataFrameParameters.
+		    Vlan_ID >> 8;
 		mrpdu_vectorptr->FirstValue_VectorEvents[15] =
-		    (uint8_t) attrib->attribute.talk_listen.DataFrameParameters.
-		    Vlan_ID;
+		    (uint8_t) attrib->attribute.talk_listen.
+		    DataFrameParameters.Vlan_ID;
 
 		mrpdu_vectorptr->FirstValue_VectorEvents[16] =
 		    attrib->attribute.talk_listen.TSpec.MaxFrameSize >> 8;
@@ -1812,8 +1802,8 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		mrpdu_vectorptr->FirstValue_VectorEvents[18] =
 		    attrib->attribute.talk_listen.TSpec.MaxIntervalFrames >> 8;
 		mrpdu_vectorptr->FirstValue_VectorEvents[19] =
-		    (uint8_t) attrib->attribute.talk_listen.TSpec.
-		    MaxIntervalFrames;
+		    (uint8_t) attrib->attribute.talk_listen.
+		    TSpec.MaxIntervalFrames;
 
 		mrpdu_vectorptr->FirstValue_VectorEvents[20] =
 		    attrib->attribute.talk_listen.PriorityAndRank;
@@ -2046,7 +2036,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	 * so mark all as ready.
 	 */
 	attrib = MSRP_db->attrib_list;
-	while(attrib) {
+	while (attrib) {
 		if (MSRP_LISTENER_TYPE == attrib->type) {
 			attrib->applicant.tx = 1;
 		}
@@ -2257,18 +2247,17 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 				goto oops;
 
 			vect_4pack =
-				    MRPDU_4PACK_ENCODE(listen_declare
-						       [listen_declare_idx],
-						       listen_declare
-						       [listen_declare_idx + 1],
-						       listen_declare
-						       [listen_declare_idx + 2],
-						       listen_declare
-						       [listen_declare_idx +
-							3]);
+			    MRPDU_4PACK_ENCODE(listen_declare
+					       [listen_declare_idx],
+					       listen_declare
+					       [listen_declare_idx + 1],
+					       listen_declare
+					       [listen_declare_idx + 2],
+					       listen_declare
+					       [listen_declare_idx + 3]);
 
 			mrpdu_vectorptr->FirstValue_VectorEvents
-				    [vectidx] = vect_4pack;
+			    [vectidx] = vect_4pack;
 			vectidx++;
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
@@ -2497,42 +2486,42 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			attrib->attribute.talk_listen.StreamID[5],
 			attrib->attribute.talk_listen.StreamID[6],
 			attrib->attribute.talk_listen.StreamID[7],
-			attrib->attribute.talk_listen.
-			DataFrameParameters.Dest_Addr[0],
-			attrib->attribute.talk_listen.
-			DataFrameParameters.Dest_Addr[1],
-			attrib->attribute.talk_listen.
-			DataFrameParameters.Dest_Addr[2],
-			attrib->attribute.talk_listen.
-			DataFrameParameters.Dest_Addr[3],
-			attrib->attribute.talk_listen.
-			DataFrameParameters.Dest_Addr[4],
-			attrib->attribute.talk_listen.
-			DataFrameParameters.Dest_Addr[5],
-			attrib->attribute.talk_listen.
-			DataFrameParameters.Vlan_ID,
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[0],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[1],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[2],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[3],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[4],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[5],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Vlan_ID,
 			attrib->attribute.talk_listen.TSpec.MaxFrameSize,
 			attrib->attribute.talk_listen.TSpec.MaxIntervalFrames,
 			attrib->attribute.talk_listen.PriorityAndRank,
 			attrib->attribute.talk_listen.AccumulatedLatency,
-			attrib->attribute.talk_listen.
-			FailureInformation.BridgeID[0],
-			attrib->attribute.talk_listen.
-			FailureInformation.BridgeID[1],
-			attrib->attribute.talk_listen.
-			FailureInformation.BridgeID[2],
-			attrib->attribute.talk_listen.
-			FailureInformation.BridgeID[3],
-			attrib->attribute.talk_listen.
-			FailureInformation.BridgeID[4],
-			attrib->attribute.talk_listen.
-			FailureInformation.BridgeID[5],
-			attrib->attribute.talk_listen.
-			FailureInformation.BridgeID[6],
-			attrib->attribute.talk_listen.
-			FailureInformation.BridgeID[7],
-			attrib->attribute.talk_listen.
-			FailureInformation.FailureCode);
+			attrib->attribute.talk_listen.FailureInformation.
+			BridgeID[0],
+			attrib->attribute.talk_listen.FailureInformation.
+			BridgeID[1],
+			attrib->attribute.talk_listen.FailureInformation.
+			BridgeID[2],
+			attrib->attribute.talk_listen.FailureInformation.
+			BridgeID[3],
+			attrib->attribute.talk_listen.FailureInformation.
+			BridgeID[4],
+			attrib->attribute.talk_listen.FailureInformation.
+			BridgeID[5],
+			attrib->attribute.talk_listen.FailureInformation.
+			BridgeID[6],
+			attrib->attribute.talk_listen.FailureInformation.
+			BridgeID[7],
+			attrib->attribute.talk_listen.FailureInformation.
+			FailureCode);
 	}
 
 	sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
@@ -2642,45 +2631,45 @@ int msrp_dumptable(struct sockaddr_in *client)
 				attrib->attribute.talk_listen.StreamID[5],
 				attrib->attribute.talk_listen.StreamID[6],
 				attrib->attribute.talk_listen.StreamID[7],
-				attrib->attribute.
-				talk_listen.DataFrameParameters.Dest_Addr[0],
-				attrib->attribute.
-				talk_listen.DataFrameParameters.Dest_Addr[1],
-				attrib->attribute.
-				talk_listen.DataFrameParameters.Dest_Addr[2],
-				attrib->attribute.
-				talk_listen.DataFrameParameters.Dest_Addr[3],
-				attrib->attribute.
-				talk_listen.DataFrameParameters.Dest_Addr[4],
-				attrib->attribute.
-				talk_listen.DataFrameParameters.Dest_Addr[5],
-				attrib->attribute.
-				talk_listen.DataFrameParameters.Vlan_ID,
 				attrib->attribute.talk_listen.
-				TSpec.MaxFrameSize,
+				DataFrameParameters.Dest_Addr[0],
 				attrib->attribute.talk_listen.
-				TSpec.MaxIntervalFrames,
+				DataFrameParameters.Dest_Addr[1],
+				attrib->attribute.talk_listen.
+				DataFrameParameters.Dest_Addr[2],
+				attrib->attribute.talk_listen.
+				DataFrameParameters.Dest_Addr[3],
+				attrib->attribute.talk_listen.
+				DataFrameParameters.Dest_Addr[4],
+				attrib->attribute.talk_listen.
+				DataFrameParameters.Dest_Addr[5],
+				attrib->attribute.talk_listen.
+				DataFrameParameters.Vlan_ID,
+				attrib->attribute.talk_listen.TSpec.
+				MaxFrameSize,
+				attrib->attribute.talk_listen.TSpec.
+				MaxIntervalFrames,
 				attrib->attribute.talk_listen.PriorityAndRank,
-				attrib->attribute.
-				talk_listen.AccumulatedLatency,
-				attrib->attribute.
-				talk_listen.FailureInformation.BridgeID[0],
-				attrib->attribute.
-				talk_listen.FailureInformation.BridgeID[1],
-				attrib->attribute.
-				talk_listen.FailureInformation.BridgeID[2],
-				attrib->attribute.
-				talk_listen.FailureInformation.BridgeID[3],
-				attrib->attribute.
-				talk_listen.FailureInformation.BridgeID[4],
-				attrib->attribute.
-				talk_listen.FailureInformation.BridgeID[5],
-				attrib->attribute.
-				talk_listen.FailureInformation.BridgeID[6],
-				attrib->attribute.
-				talk_listen.FailureInformation.BridgeID[7],
-				attrib->attribute.
-				talk_listen.FailureInformation.FailureCode);
+				attrib->attribute.talk_listen.
+				AccumulatedLatency,
+				attrib->attribute.talk_listen.
+				FailureInformation.BridgeID[0],
+				attrib->attribute.talk_listen.
+				FailureInformation.BridgeID[1],
+				attrib->attribute.talk_listen.
+				FailureInformation.BridgeID[2],
+				attrib->attribute.talk_listen.
+				FailureInformation.BridgeID[3],
+				attrib->attribute.talk_listen.
+				FailureInformation.BridgeID[4],
+				attrib->attribute.talk_listen.
+				FailureInformation.BridgeID[5],
+				attrib->attribute.talk_listen.
+				FailureInformation.BridgeID[6],
+				attrib->attribute.talk_listen.
+				FailureInformation.BridgeID[7],
+				attrib->attribute.talk_listen.
+				FailureInformation.FailureCode);
 		}
 
 		mrp_decode_state(&attrib->registrar, &attrib->applicant,
@@ -2718,8 +2707,8 @@ int msrp_dumptable(struct sockaddr_in *client)
 /* S+? - (re)JOIN a stream */
 /* S++ - NEW a stream      */
 static int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
-				      struct msrpdu_talker_fail *talker_ad,
-				      int *err_index)
+					     struct msrpdu_talker_fail
+					     *talker_ad, int *err_index)
 {
 	struct parse_param specs[] = {
 		{"S" PARSE_ASSIGN, parse_c64, talker_ad->StreamID},
@@ -2752,7 +2741,8 @@ static int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
  *
  */
 
-static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad, int mrp_event)
+static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad,
+				       int mrp_event)
 {
 	struct msrp_attribute *attrib;
 
@@ -2768,8 +2758,8 @@ static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad, int
 
 /* S-- - LV a stream */
 static int msrp_cmd_parse_leave_stream(char *buf, int buflen,
-				struct msrpdu_talker_fail *talker_ad,
-				int *err_index)
+				       struct msrpdu_talker_fail *talker_ad,
+				       int *err_index)
 {
 	struct parse_param specs[] = {
 		{"S" PARSE_ASSIGN, parse_c64, talker_ad->StreamID},
@@ -2798,8 +2788,10 @@ static int msrp_cmd_leave_stream(struct msrpdu_talker_fail *talker_ad)
 
 /* S+L   Report a listener status */
 static int msrp_cmd_parse_report_listener_status(char *buf, int buflen,
-					  struct msrpdu_talker_fail *talker_ad,
-					  uint32_t * substate, int *err_index)
+						 struct msrpdu_talker_fail
+						 *talker_ad,
+						 uint32_t * substate,
+						 int *err_index)
 {
 	struct parse_param specs[] = {
 		{"L" PARSE_ASSIGN, parse_c64, talker_ad->StreamID},
@@ -2813,7 +2805,7 @@ static int msrp_cmd_parse_report_listener_status(char *buf, int buflen,
 }
 
 static int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
-				    uint32_t substate)
+					   uint32_t substate)
 {
 	struct msrp_attribute *attrib;
 
@@ -2831,9 +2823,8 @@ static int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
 }
 
 /* S-L   Withdraw a listener status */
-static int msrp_cmd_parse_withdraw_listener_status(char *buf, int buflen,
-					    struct msrpdu_talker_fail
-					    *talker_ad, int *err_index)
+static int msrp_cmd_parse_withdraw_listener_status(char *buf, int buflen, struct msrpdu_talker_fail
+						   *talker_ad, int *err_index)
 {
 	struct parse_param specs[] = {
 		{"L" PARSE_ASSIGN, parse_c64, talker_ad->StreamID},
@@ -2846,7 +2837,8 @@ static int msrp_cmd_parse_withdraw_listener_status(char *buf, int buflen,
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
-static int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail *talker_ad)
+static int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail
+					     *talker_ad)
 {
 	struct msrp_attribute *attrib;
 
@@ -2864,7 +2856,8 @@ static int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail *talker_a
 /* S+D   Report a domain status */
 /* S-D   Withdraw a domain status */
 static int msrp_cmd_parse_domain_status(char *buf, int buflen,
-				 struct msrpdu_domain *domain, int *err_index)
+					struct msrpdu_domain *domain,
+					int *err_index)
 {
 	struct parse_param specs[] = {
 		{"C" PARSE_ASSIGN, parse_u8, &domain->SRclassID},
@@ -2878,7 +2871,8 @@ static int msrp_cmd_parse_domain_status(char *buf, int buflen,
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
-static int msrp_cmd_report_domain_status(struct msrpdu_domain *domain, int report)
+static int msrp_cmd_report_domain_status(struct msrpdu_domain *domain,
+					 int report)
 {
 	struct msrp_attribute *attrib;
 

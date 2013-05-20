@@ -208,7 +208,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 #if LOG_MMRP
 			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TXLA);
+			mrp_applicant_fsm(&(MMRP_db->mrp_db),
+					  &(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MMRP_db->mrp_db), MRP_EVENT_TXLA);
 			attrib = attrib->next;
@@ -227,7 +228,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 #if LOG_MMRP
 			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_RLA);
+			mrp_applicant_fsm(&(MMRP_db->mrp_db),
+					  &(attrib->applicant), MRP_EVENT_RLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MMRP_db->mrp_db), MRP_EVENT_RLA);
 			attrib = attrib->next;
@@ -244,7 +246,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 #if LOG_MMRP
 			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TX);
+			mrp_applicant_fsm(&(MMRP_db->mrp_db),
+					  &(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
 		}
 
@@ -271,7 +274,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 #if LOG_MMRP
 			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant),
+			mrp_applicant_fsm(&(MMRP_db->mrp_db),
+					  &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
 			attrib = attrib->next;
 		}
@@ -303,7 +307,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 #if LOG_MMRP
 		mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
-		mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant), event);
+		mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant),
+				  event);
 		/* remap local requests into registrar events */
 		switch (event) {
 		case MRP_EVENT_NEW:
@@ -476,7 +481,8 @@ int mmrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -500,8 +506,8 @@ int mmrp_recv_msg()
 				     vectidx <= (numvectorbytes + 1);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -527,9 +533,9 @@ int mmrp_recv_msg()
 						attrib->attribute.svcreq =
 						    svcreq_firstval;
 						svcreq_firstval++;
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -603,7 +609,8 @@ int mmrp_recv_msg()
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -628,8 +635,8 @@ int mmrp_recv_msg()
 				     vectidx <= (numvectorbytes + 6);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -649,15 +656,15 @@ int mmrp_recv_msg()
 							goto out;	/* oops - internal error */
 
 						attrib->type = MMRP_MACVEC_TYPE;
-						memcpy(attrib->
-						       attribute.macaddr,
-						       macvec_firstval, 6);
+						memcpy(attrib->attribute.
+						       macaddr, macvec_firstval,
+						       6);
 						mmrp_increment_macaddr
 						    (macvec_firstval);
 
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -1598,7 +1605,7 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		if (rc)
 			goto out_ERI;
 	} else if ((strncmp(buf, "M++:M", 5) == 0)
-			   || (strncmp(buf, "M+?:M", 5) == 0)) {
+		   || (strncmp(buf, "M+?:M", 5) == 0)) {
 		/* buf[] should look similar to 'M+?:M=010203040506' */
 		rc = mmrp_cmd_parse_mac(buf, buflen, macvec_param, &err_index);
 		if (rc)
