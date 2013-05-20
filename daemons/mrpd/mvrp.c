@@ -143,7 +143,6 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 	struct mvrp_attribute *attrib;
 	int rc;
 
-
 #if LOG_MVRP
 	mrpd_log_printf("MVRP event %s\n", mrp_event_string(event));
 #endif
@@ -159,7 +158,8 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TXLA);
+			mrp_applicant_fsm(&(MVRP_db->mrp_db),
+					  &(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MVRP_db->mrp_db), MRP_EVENT_TXLA);
 			attrib = attrib->next;
@@ -178,7 +178,8 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_RLA);
+			mrp_applicant_fsm(&(MVRP_db->mrp_db),
+					  &(attrib->applicant), MRP_EVENT_RLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MVRP_db->mrp_db), MRP_EVENT_RLA);
 			attrib = attrib->next;
@@ -195,7 +196,8 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), MRP_EVENT_TX);
+			mrp_applicant_fsm(&(MVRP_db->mrp_db),
+					  &(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
 		}
 
@@ -222,7 +224,8 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant),
+			mrp_applicant_fsm(&(MVRP_db->mrp_db),
+					  &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
 			attrib = attrib->next;
 		}
@@ -254,7 +257,8 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 		mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
 #endif
-		mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant), event);
+		mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant),
+				  event);
 		/* remap local requests into registrar events */
 		switch (event) {
 		case MRP_EVENT_NEW:
@@ -439,7 +443,8 @@ int mvrp_recv_msg(void)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
-							 (mrpdu_vectorptr->VectorHeader));
+							 (mrpdu_vectorptr->
+							  VectorHeader));
 
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
@@ -451,10 +456,11 @@ int mvrp_recv_msg(void)
 					goto out;
 
 				vid_firstval = (((uint16_t)
-						 mrpdu_vectorptr->FirstValue_VectorEvents
-						 [0]) << 8)
-				    |
-				    mrpdu_vectorptr->FirstValue_VectorEvents[1];
+						 mrpdu_vectorptr->
+						 FirstValue_VectorEvents[0]) <<
+						8)
+				    | mrpdu_vectorptr->
+				    FirstValue_VectorEvents[1];
 
 				/* if not an even multiple ... */
 				if (numvalues != ((numvalues / 3) * 3))
@@ -466,8 +472,8 @@ int mvrp_recv_msg(void)
 				     vectidx <= (numvectorbytes + 2);
 				     vectidx++) {
 					vect_3pack =
-					    mrpdu_vectorptr->FirstValue_VectorEvents
-					    [vectidx];
+					    mrpdu_vectorptr->
+					    FirstValue_VectorEvents[vectidx];
 					vectevt[0] = vect_3pack / 36;
 					vectevt[1] =
 					    (vect_3pack - vectevt[0] * 36) / 6;
@@ -492,9 +498,9 @@ int mvrp_recv_msg(void)
 						attrib->attribute =
 						    vid_firstval;
 						vid_firstval++;
-						memcpy(attrib->
-						       registrar.macaddr,
-						       eth->srcaddr, 6);
+						memcpy(attrib->registrar.
+						       macaddr, eth->srcaddr,
+						       6);
 
 						switch (vectevt[vectevt_idx]) {
 						case MRPDU_NEW:
@@ -931,8 +937,7 @@ int mvrp_send_notifications(struct mvrp_attribute *attrib, int notify)
 		attrib->registrar.macaddr[1],
 		attrib->registrar.macaddr[2],
 		attrib->registrar.macaddr[3],
-		attrib->registrar.macaddr[4],
-		attrib->registrar.macaddr[5]);
+		attrib->registrar.macaddr[4], attrib->registrar.macaddr[5]);
 
 	switch (attrib->registrar.mrp_state) {
 	case MRP_IN_STATE:
@@ -1024,8 +1029,7 @@ int mvrp_dumptable(struct sockaddr_in *client)
 			attrib->registrar.macaddr[2],
 			attrib->registrar.macaddr[3],
 			attrib->registrar.macaddr[4],
-			attrib->registrar.macaddr[5],
-			mrp_state);
+			attrib->registrar.macaddr[5], mrp_state);
 
 		sprintf(stage, "%s %s\n", variant, regsrc);
 		sprintf(msgbuf_wrptr, "%s", stage);

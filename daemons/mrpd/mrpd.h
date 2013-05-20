@@ -102,8 +102,6 @@ typedef struct mrpdu_message {
 #pragma warning(pop)
 #endif
 
-
-
 typedef struct mrpdu {
 	uint8_t ProtocolVersion;
 	/* Microsoft does not support embedded arrays of 0 length
