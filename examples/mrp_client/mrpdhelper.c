@@ -108,9 +108,9 @@ static int parse_state(char *sz, struct mrpdhelper_notify *n)
 
 	if (strncmp(sz, "IN", 2) == 0) {
 		n->state = mrpdhelper_state_in;
-	} else if (strncmp(sz, "LV", 3) == 0) {
+	} else if (strncmp(sz, "LV", 2) == 0) {
 		n->state = mrpdhelper_state_leave;
-	} else if (strncmp(sz, "MT", 3) == 0) {
+	} else if (strncmp(sz, "MT", 2) == 0) {
 		n->state = mrpdhelper_state_empty;
 	} else {
 		return -1;
