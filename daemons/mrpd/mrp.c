@@ -94,7 +94,6 @@ char *mrp_event_string(int e)
 	}
 }
 
-#if LOG_MRP
 static char *mrp_state_string(int s)
 {
 	switch (s) {
@@ -143,7 +142,6 @@ static char *mrp_lvatimer_state_string(int s)
 	else
 		return "??";
 }
-#endif				/* #if LOG_MRP */
 
 static int client_lookup(client_t * list, struct sockaddr_in *newclient)
 {
@@ -363,7 +361,8 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 		mrp_lvatimer_start(mrp_db);
 		break;
 	default:
-		printf("mrp_lvatimer_fsm:unexpected event (%d)\n", event);
+		printf("mrp_lvatimer_fsm:unexpected event (%d), state %s\n",
+			event, mrp_lvatimer_state_string(la_state));
 		return -1;
 		break;
 	}
@@ -419,7 +418,8 @@ int mrp_periodictimer_fsm(struct mrp_database *mrp_db, int event)
 		}
 		break;
 	default:
-		printf("mrp_periodictimer_fsm:unexpected event (%d)\n", event);
+		printf("mrp_periodictimer_fsm:unexpected event (%d), state %s\n",
+			event, mrp_lvatimer_state_string(p_state));
 		return;
 		break;
 	}
@@ -895,8 +895,9 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		/* ignore on soon to be deleted attributes */
 		break;
 	default:
-		printf("mrp_registrar_fsm:unexpected event %s (%d)\n",
-		       mrp_event_string(event), event);
+		printf("mrp_registrar_fsm:unexpected event %s (%d), state %s\n",
+		       mrp_event_string(event), event,
+		       mrp_state_string(mrp_state));
 		return -1;
 		break;
 	}
