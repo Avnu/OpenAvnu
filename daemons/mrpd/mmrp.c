@@ -1317,9 +1317,9 @@ int mmrp_txpdu(void)
 int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify)
 {
 	char *msgbuf;
-	char *stage;
 	char *variant;
 	char *regsrc;
+	char mrp_state[8];
 	client_t *client;
 
 	if (NULL == attrib)
@@ -1329,13 +1329,12 @@ int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify)
 	if (NULL == msgbuf)
 		return -1;
 
-	stage = variant = regsrc = NULL;
+	variant = regsrc = NULL;
 
-	stage = (char *)malloc(128);
 	variant = (char *)malloc(128);
 	regsrc = (char *)malloc(128);
 
-	if ((NULL == stage) || (NULL == variant) || (NULL == regsrc))
+	if ((NULL == variant) || (NULL == regsrc))
 		goto free_msgbuf;
 
 	memset(msgbuf, 0, MAX_MRPD_CMDSZ);
@@ -1358,29 +1357,19 @@ int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify)
 		attrib->registrar.macaddr[2],
 		attrib->registrar.macaddr[3],
 		attrib->registrar.macaddr[4], attrib->registrar.macaddr[5]);
-	switch (attrib->registrar.mrp_state) {
-	case MRP_IN_STATE:
-		sprintf(stage, "MIN %s %s\n", variant, regsrc);
-		break;
-	case MRP_LV_STATE:
-		sprintf(stage, "MLV %s %s\n", variant, regsrc);
-		break;
-	case MRP_MT_STATE:
-		sprintf(stage, "MMT %s %s\n", variant, regsrc);
-		break;
-	default:
-		break;
-	}
+
+	mrp_decode_state(&attrib->registrar, &attrib->applicant,
+				 mrp_state, sizeof(mrp_state));
 
 	switch (notify) {
 	case MRP_NOTIFY_NEW:
-		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MNE %s\n", stage);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MNE %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	case MRP_NOTIFY_JOIN:
-		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MJO %s\n", stage);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MJO %s %s %s\n",  variant, regsrc, mrp_state);
 		break;
 	case MRP_NOTIFY_LV:
-		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MLE %s\n", stage);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "MLE %s %s %s\n",  variant, regsrc, mrp_state);
 		break;
 	default:
 		goto free_msgbuf;
@@ -1396,8 +1385,6 @@ int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify)
  free_msgbuf:
 	if (variant)
 		free(variant);
-	if (stage)
-		free(stage);
 	if (regsrc)
 		free(regsrc);
 	free(msgbuf);

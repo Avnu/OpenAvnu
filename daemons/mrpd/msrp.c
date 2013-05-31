@@ -1479,7 +1479,11 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	uint8_t srclassprio_firstval;
 	uint16_t srclassvid_firstval;
 	int attriblistlen;
-	struct msrp_attribute *attrib, *vattrib;
+	struct msrp_attribute *attrib;
+/* pending review and deletion */
+#ifdef MSRP_AGGREGATE_DOMAINS_VECTORS
+	struct msrp_attribute *vattrib;
+#endif
 	mrpdu_message_t *mrpdu_msg;
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
@@ -2429,9 +2433,9 @@ int msrp_txpdu(void)
 int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 {
 	char *msgbuf;
-	char *stage;
 	char *variant;
 	char *regsrc;
+	char mrp_state[8];
 	client_t *client;
 
 	if (NULL == attrib)
@@ -2441,13 +2445,12 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 	if (NULL == msgbuf)
 		return -1;
 
-	stage = variant = regsrc = NULL;
+	variant = regsrc = NULL;
 
-	stage = (char *)malloc(128);
 	variant = (char *)malloc(128);
 	regsrc = (char *)malloc(128);
 
-	if ((NULL == stage) || (NULL == variant) || (NULL == regsrc))
+	if ((NULL == variant) || (NULL == regsrc))
 		goto free_msgbuf;
 
 	memset(msgbuf, 0, MAX_MRPD_CMDSZ);
@@ -2531,15 +2534,18 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 		attrib->registrar.macaddr[3],
 		attrib->registrar.macaddr[4], attrib->registrar.macaddr[5]);
 
+	mrp_decode_state(&attrib->registrar, &attrib->applicant,
+				 mrp_state, sizeof(mrp_state));
+
 	switch (notify) {
 	case MRP_NOTIFY_NEW:
-		sprintf(msgbuf, "SNE %s %s\n", variant, regsrc);
+		sprintf(msgbuf, "SNE %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	case MRP_NOTIFY_JOIN:
-		sprintf(msgbuf, "SJO %s %s\n", variant, regsrc);
+		sprintf(msgbuf, "SJO %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	case MRP_NOTIFY_LV:
-		sprintf(msgbuf, "SLE %s %s\n", variant, regsrc);
+		sprintf(msgbuf, "SLE %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	default:
 		goto free_msgbuf;
@@ -2557,8 +2563,6 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 		free(regsrc);
 	if (variant)
 		free(variant);
-	if (stage)
-		free(stage);
 	free(msgbuf);
 	return 0;
 }

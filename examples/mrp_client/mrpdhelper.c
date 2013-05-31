@@ -72,6 +72,15 @@ struct app_state_to_enum {
 static int parse_app_state(char *sz, struct mrpdhelper_notify *n)
 {
 	int i;
+	char *r;
+
+	r = strstr(sz, "R=");
+	if (r)
+		r = strchr(r, ' ');
+	if (!r)
+		return -1;
+
+	sz = r + 1;
 
 	/* loop over mrp_app_state_mapping struct */
 	for (i=0; i < 12; i++) {
@@ -88,6 +97,15 @@ static int parse_app_state(char *sz, struct mrpdhelper_notify *n)
 
 static int parse_state(char *sz, struct mrpdhelper_notify *n)
 {
+	char *r;
+
+	r = strstr(sz, "R=");
+	if (r)
+		r = strchr(r, ' ');
+	if (!r)
+		return -1;
+	sz = r + 4;
+
 	if (strncmp(sz, "IN", 2) == 0) {
 		n->state = mrpdhelper_state_in;
 	} else if (strncmp(sz, "LV", 3) == 0) {
@@ -133,7 +151,7 @@ static int parse_registrar(char *sz, struct mrpdhelper_notify *n, char **rpos)
 static int parse_mvrp(char *sz, size_t len, struct mrpdhelper_notify *n)
 {
 	/* format
-	   VIN VJO 1234 R=112233445566
+	   VJO 1234 R=112233445566
 	   len = 28
 	 */
 	if (len < 28)
@@ -142,13 +160,17 @@ static int parse_mvrp(char *sz, size_t len, struct mrpdhelper_notify *n)
 	if (parse_notification(&sz[1], n) < 0)
 		return -1;
 
-	if (parse_state(&sz[5], n) < 0)
+	n->attrib = mrpdhelper_attribtype_mvrp;
+	if (sscanf(&sz[4], "%04x ", &n->u.v.vid) != 1)
 		return -1;
 
-	n->attrib = mrpdhelper_attribtype_mvrp;
-	if (sscanf(&sz[8], "%04x ", &n->u.v.vid) != 1)
+	if (parse_registrar(sz, n, NULL) < 0)
 		return -1;
-	return parse_registrar(sz, n, NULL);
+
+	if (parse_app_state(sz, n) < 0)
+		return -1;
+
+	return parse_state(sz, n);
 }
 
 static int parse_msrp_string(char *sz, size_t len, struct mrpdhelper_notify *n)
@@ -209,7 +231,13 @@ static int parse_msrp(char *sz, size_t len, struct mrpdhelper_notify *n)
 	if (parse_msrp_string(&sz[4], len - 4, n) < 0)
 		return -1;
 
-	return parse_registrar(sz, n, NULL);
+	if (parse_registrar(sz, n, NULL) < 0)
+		return -1;
+
+	if (parse_app_state(sz, n) < 0)
+		return -1;
+
+	return parse_state(sz, n);
 }
 
 
@@ -231,13 +259,6 @@ static int parse_msrp_query(char *sz, size_t len, struct mrpdhelper_notify *n)
 
 static int parse_mmrp(char *sz, size_t len, struct mrpdhelper_notify *n)
 {
-	/* format
-	   MIN MJO M=112233445566 R=112233445566
-	   len = 38
-	 */
-	if (len < 38)
-		return -1;
-
 	if (parse_notification(&sz[1], n) < 0)
 		return -1;
 
