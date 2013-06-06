@@ -41,7 +41,7 @@
 #define LOG_CLIENT_RECV 0
 #define LOG_CLIENT_SEND 0
 
-#define MRP_DEFAULT_POINT_TO_POINT_MAC	1    /* operPointToPointMAC */
+#define MRP_DEFAULT_POINT_TO_POINT_MAC	1	/* operPointToPointMAC */
 #define MRP_ENCODE_YES		0	/* must send */
 #define MRP_ENCODE_OPTIONAL	1	/* send if smaller */
 
@@ -199,7 +199,8 @@ int mrp_lvtimer_stop(struct mrp_database *mrp_db);
 int mrp_lvatimer_start(struct mrp_database *mrp_db);
 int mrp_lvatimer_stop(struct mrp_database *mrp_db);
 int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event);
-int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * attrib, int event);
+int mrp_applicant_fsm(struct mrp_database *mrp_db,
+		      mrp_applicant_attribute_t * attrib, int event);
 int mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		      struct mrp_database *mrp_db, int event);
 int mrp_decode_state(mrp_registrar_attribute_t * rattrib,

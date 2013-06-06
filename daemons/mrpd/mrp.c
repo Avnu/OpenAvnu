@@ -94,7 +94,6 @@ char *mrp_event_string(int e)
 	}
 }
 
-#if LOG_MRP
 static char *mrp_state_string(int s)
 {
 	switch (s) {
@@ -143,7 +142,6 @@ static char *mrp_lvatimer_state_string(int s)
 	else
 		return "??";
 }
-#endif /* #if LOG_MRP */
 
 static int client_lookup(client_t * list, struct sockaddr_in *newclient)
 {
@@ -248,7 +246,7 @@ int mrp_jointimer_start(struct mrp_database *mrp_db)
 	else
 		mrpd_log_printf("MRP join timer start \n");
 #endif
-	if (!mrp_db->join_timer_running ) {
+	if (!mrp_db->join_timer_running) {
 		ret = mrpd_timer_start(mrp_db->join_timer, MRP_JOINTIMER_VAL);
 	}
 	if (ret >= 0)
@@ -308,12 +306,13 @@ int mrp_lvatimer_start(struct mrp_database *mrp_db)
 	timeout = MRP_LVATIMER_VAL + (random() % (MRP_LVATIMER_VAL / 2));
 #if LOG_TIMERS
 	if (mrp_db->lva_timer_running)
-		mrpd_log_printf("MRP leaveAll timer already running \n", timeout);
+		mrpd_log_printf("MRP leaveAll timer already running \n",
+				timeout);
 	else
 		mrpd_log_printf("MRP start leaveAll timer (%d ms)\n", timeout);
 #endif
 	if (!mrp_db->lva_timer_running)
-		ret =  mrpd_timer_start(mrp_db->lva_timer, timeout);
+		ret = mrpd_timer_start(mrp_db->lva_timer, timeout);
 	if (ret >= 0)
 		mrp_db->lva_timer_running = 1;
 	return ret;
@@ -362,7 +361,8 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 		mrp_lvatimer_start(mrp_db);
 		break;
 	default:
-		printf("mrp_lvatimer_fsm:unexpected event (%d)\n", event);
+		printf("mrp_lvatimer_fsm:unexpected event (%d), state %s\n",
+			event, mrp_lvatimer_state_string(la_state));
 		return -1;
 		break;
 	}
@@ -418,7 +418,8 @@ int mrp_periodictimer_fsm(struct mrp_database *mrp_db, int event)
 		}
 		break;
 	default:
-		printf("mrp_periodictimer_fsm:unexpected event (%d)\n", event);
+		printf("mrp_periodictimer_fsm:unexpected event (%d), state %s\n",
+			event, mrp_lvatimer_state_string(p_state));
 		return;
 		break;
 	}
@@ -432,7 +433,8 @@ int mrp_periodictimer_fsm(struct mrp_database *mrp_db, int event)
  * per-attribute MRP FSM
  */
 
-int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * attrib, int event)
+int mrp_applicant_fsm(struct mrp_database *mrp_db,
+		      mrp_applicant_attribute_t * attrib, int event)
 {
 	int tx = 0;
 	int optional = 0;
@@ -764,7 +766,8 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db, mrp_applicant_attribute_t * a
 		break;
 
 	default:
-		printf("mrp_applicant_fsm:unexpected event %s (%d)\n", mrp_event_string(event), event);
+		printf("mrp_applicant_fsm:unexpected event %s (%d)\n",
+		       mrp_event_string(event), event);
 		return -1;
 		break;
 	}
@@ -892,7 +895,9 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		/* ignore on soon to be deleted attributes */
 		break;
 	default:
-		printf("mrp_registrar_fsm:unexpected event %s (%d)\n", mrp_event_string(event), event);
+		printf("mrp_registrar_fsm:unexpected event %s (%d), state %s\n",
+		       mrp_event_string(event), event,
+		       mrp_state_string(mrp_state));
 		return -1;
 		break;
 	}
