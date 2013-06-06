@@ -2821,7 +2821,7 @@ static int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
 	attrib->direction = MSRP_DIRECTION_LISTENER;
 	attrib->substate = substate;
 	attrib->attribute.talk_listen = *talker_ad;
-	msrp_event(MRP_EVENT_NEW, attrib);
+	msrp_event(MRP_EVENT_JOIN, attrib);
 
 	return 0;
 }
