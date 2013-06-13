@@ -51,7 +51,21 @@ Windows Version
 
 Build Dependencies
 
-* WinPCAP Developer's Pack is required for linking - downloadable from http://www.winpcap.org/devel.htm.
+* WinPCAP Developer's Pack (WpdPack) is required for linking - downloadable from http://www.winpcap.org/devel.htm.
+
+Extract WpdPack so the Include folder is in one of the below locations
+
+1- %ProgramData%
+	\WpdPack
+		\Include
+		\Lib
+		\Lib\x64
+
+2- %USERPROFILE%
+	\src\pcap
+		\Include
+		\Lib
+		\Lib\x64
 
 * WinPCAP must also be installed on any machine where the daemon runs.
 
