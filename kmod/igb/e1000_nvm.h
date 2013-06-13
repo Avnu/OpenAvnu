@@ -28,10 +28,12 @@
 #ifndef _E1000_NVM_H_
 #define _E1000_NVM_H_
 
+
 struct e1000_fw_version {
 	u32 etrack_id;
 	u16 eep_major;
 	u16 eep_minor;
+	u16 eep_build;
 
 	u8 invm_major;
 	u8 invm_minor;
@@ -42,6 +44,8 @@ struct e1000_fw_version {
 	u16 or_build;
 	u16 or_patch;
 };
+
+
 void e1000_init_nvm_ops_generic(struct e1000_hw *hw);
 s32  e1000_null_read_nvm(struct e1000_hw *hw, u16 a, u16 b, u16 *c);
 void e1000_null_nvm_generic(struct e1000_hw *hw);

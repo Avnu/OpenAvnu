@@ -59,12 +59,12 @@
  */
 
 #define IGB_PARAM(X, desc) \
-	static const int __devinitdata X[IGB_MAX_NIC+1] = IGB_PARAM_INIT; \
+	static const int X[IGB_MAX_NIC+1] = IGB_PARAM_INIT; \
 	MODULE_PARM(X, "1-" __MODULE_STRING(IGB_MAX_NIC) "i"); \
 	MODULE_PARM_DESC(X, desc);
 #else
 #define IGB_PARAM(X, desc) \
-	static int __devinitdata X[IGB_MAX_NIC+1] = IGB_PARAM_INIT; \
+	static int X[IGB_MAX_NIC+1] = IGB_PARAM_INIT; \
 	static unsigned int num_##X; \
 	module_param_array_named(X, X, int, &num_##X, 0); \
 	MODULE_PARM_DESC(X, desc);
@@ -134,11 +134,11 @@ IGB_PARAM(LLISize, "Low Latency Interrupt on Packet Size (0-1500), default 0=off
  *
  * Default Value:  1
  */
-IGB_PARAM(RSS, "Number of Receive-Side Scaling Descriptor Queues (0-8), default 1, 0=number of cpus");
+IGB_PARAM(RSS, "Number of Receive-Side Scaling Descriptor Queues - must be 4 for AVB");
 
-#define DEFAULT_RSS       1
-#define MAX_RSS           8
-#define MIN_RSS           0
+#define DEFAULT_RSS       4
+#define MAX_RSS           4
+#define MIN_RSS           4
 
 /* VMDQ (Enable VMDq multiqueue receive)
  *
@@ -255,9 +255,9 @@ struct igb_option {
 	} arg;
 };
 
-static int __devinit igb_validate_option(unsigned int *value,
-                                         struct igb_option *opt,
-                                         struct igb_adapter *adapter)
+static int igb_validate_option(unsigned int *value,
+			       struct igb_option *opt,
+			       struct igb_adapter *adapter)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -316,7 +316,7 @@ static int __devinit igb_validate_option(unsigned int *value,
  * in a variable in the adapter structure.
  **/
 
-void __devinit igb_check_options(struct igb_adapter *adapter)
+void igb_check_options(struct igb_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 	struct e1000_hw *hw = &adapter->hw;
@@ -349,7 +349,7 @@ void __devinit igb_check_options(struct igb_adapter *adapter)
 			case 0:
 				DPRINTK(PROBE, INFO, "%s turned off\n",
 				        opt.name);
-				if(hw->mac.type >= e1000_i350)
+				if (hw->mac.type >= e1000_i350)
 					adapter->dmac = IGB_DMAC_DISABLE;
 				adapter->rx_itr_setting = itr;
 				break;
@@ -391,8 +391,8 @@ void __devinit igb_check_options(struct igb_adapter *adapter)
 		struct igb_option opt = {
 			.type = range_option,
 			.name = "Interrupt Mode",
-			.err  = "defaulting to 1 (MSI)",
-			.def  = IGB_INT_MODE_MSI,
+			.err  = "defaulting to 2 (MSI-X)",
+			.def  = IGB_INT_MODE_MSIX,
 			.arg  = { .r = { .min = MIN_INTMODE,
 					 .max = MAX_INTMODE } }
 		};
@@ -565,20 +565,20 @@ void __devinit igb_check_options(struct igb_adapter *adapter)
 			.arg  = { .r = { .min = MIN_RSS,
 					 .max = MAX_RSS } }
 		};
-			switch (hw->mac.type) {
-			case e1000_82575:
+
+		switch (hw->mac.type) {
+		case e1000_82575:
 #ifndef CONFIG_IGB_VMDQ_NETDEV
 			if (!!adapter->vmdq_pools) {
 				if (adapter->vmdq_pools <= 2) {
-				if (adapter->vmdq_pools == 2)
-					opt.arg.r.max = 3;
+					if (adapter->vmdq_pools == 2)
+						opt.arg.r.max = 3;
 				} else {
-				opt.arg.r.max = 1;
-			}
+					opt.arg.r.max = 1;
+				}
 			} else {
 				opt.arg.r.max = 4;
-		}
-
+			}
 #else
 			opt.arg.r.max = !!adapter->vmdq_pools ? 1 : 4;
 #endif /* CONFIG_IGB_VMDQ_NETDEV */
@@ -601,6 +601,12 @@ void __devinit igb_check_options(struct igb_adapter *adapter)
 			if (!!adapter->vmdq_pools)
 				opt.arg.r.max = 1;
 			break;
+		}
+
+		if (adapter->int_mode != IGB_INT_MODE_MSIX) {
+			DPRINTK(PROBE, INFO, "RSS is not supported when in MSI/Legacy Interrupt mode, %s\n",
+				opt.err);
+			opt.arg.r.max = 1;
 		}
 
 #ifdef module_param_array
@@ -643,9 +649,10 @@ void __devinit igb_check_options(struct igb_adapter *adapter)
 			 * However, since I211 only supports 2 queues, we do not
 			 * need to check and override the user option.
 			 */
-				if (qp == OPTION_DISABLED) {
+			if (qp == OPTION_DISABLED) {
 				if (adapter->rss_queues > 4)
 					qp = OPTION_ENABLED;
+
 				if (adapter->vmdq_pools > 4)
 					qp = OPTION_ENABLED;
 
@@ -676,8 +683,8 @@ void __devinit igb_check_options(struct igb_adapter *adapter)
 			struct igb_option opt = {
 				.type = enable_option,
 				.name = "EEE Support",
-				.err  = "defaulting to Disabled",
-				.def  = OPTION_DISABLED
+				.err  = "defaulting to Enabled",
+				.def  = OPTION_ENABLED
 			};
 #ifdef module_param_array
 			if (num_EEE > bd) {

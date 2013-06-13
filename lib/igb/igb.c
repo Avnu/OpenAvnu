@@ -326,7 +326,7 @@ igb_reset(struct adapter *adapter)
 
 	/* Setup the Tx Descriptor Rings, leave queues idle */
 	for (i = 0; i < adapter->num_queues; i++, txr++) {
-		u64 bus_addr = txr[i].txdma.paddr;
+		u64 bus_addr = txr->txdma.paddr;
 
 		/* idle the queue */
 		txdctl |= IGB_TX_PTHRESH;
@@ -756,8 +756,6 @@ igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
 
 	/* 
 	 * for performance monitoring, report the DMA time of the tx desc wb
-	 * which is performed immediately after the tx buffer is read from
-	 * memory 
 	 */
 	olinfo_status |= E1000_TXD_DMA_TXDWB;
 

@@ -91,7 +91,6 @@ s32 e1000_read_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
 s32 e1000_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data);
 s32 e1000_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data);
 s32 e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
-s32 e1000_wait_autoneg(struct e1000_hw *hw);
 s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active);
 s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active);
 bool e1000_check_mng_mode(struct e1000_hw *hw);
@@ -104,6 +103,7 @@ s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
 s32 e1000_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length);
 s32 e1000_get_thermal_sensor_data(struct e1000_hw *hw);
 s32 e1000_init_thermal_sensor_thresh(struct e1000_hw *hw);
+
 
 
 /*

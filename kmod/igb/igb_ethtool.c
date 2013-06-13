@@ -35,10 +35,14 @@
 #ifdef CONFIG_PM_RUNTIME
 #include <linux/pm_runtime.h>
 #endif /* CONFIG_PM_RUNTIME */
+#include <linux/highmem.h>
 
 #include "igb.h"
 #include "igb_regtest.h"
 #include <linux/if_vlan.h>
+#ifdef ETHTOOL_GEEE
+#include <linux/mdio.h>
+#endif
 
 #ifdef ETHTOOL_OPS_COMPAT
 #include "kcompat_ethtool.c"
@@ -91,7 +95,6 @@ static const struct igb_stats igb_gstrings_stats[] = {
 #ifndef IGB_NO_LRO
 	IGB_STAT("lro_aggregated", lro_stats.coal),
 	IGB_STAT("lro_flushed", lro_stats.flushed),
-	IGB_STAT("lro_recycled", lro_stats.recycled),
 #endif /* IGB_LRO */
 	IGB_STAT("tx_smbus", stats.mgptc),
 	IGB_STAT("rx_smbus", stats.mgprc),
@@ -100,6 +103,10 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	IGB_STAT("os2bmc_tx_by_bmc", stats.b2ospc),
 	IGB_STAT("os2bmc_tx_by_host", stats.o2bspc),
 	IGB_STAT("os2bmc_rx_by_host", stats.b2ogprc),
+#ifdef HAVE_PTP_1588_CLOCK
+	IGB_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
+	IGB_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
+#endif /* HAVE_PTP_1588_CLOCK */
 };
 
 #define IGB_NETDEV_STAT(_net_stat) { \
@@ -166,34 +173,20 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			/* the e1000 autoneg seems to match ethtool nicely */
 			ecmd->advertising |= hw->phy.autoneg_advertised;
 		}
-		if (hw->mac.autoneg != 1)
-			ecmd->advertising &= ~(ADVERTISED_Pause |
-					       ADVERTISED_Asym_Pause);
-
-		if (hw->fc.requested_mode == e1000_fc_full)
-			ecmd->advertising |= ADVERTISED_Pause;
-		else if (hw->fc.requested_mode == e1000_fc_rx_pause)
-			ecmd->advertising |= (ADVERTISED_Pause |
-					      ADVERTISED_Asym_Pause);
-		else if (hw->fc.requested_mode == e1000_fc_tx_pause)
-			ecmd->advertising |=  ADVERTISED_Asym_Pause;
-		else
-			ecmd->advertising &= ~(ADVERTISED_Pause |
-					       ADVERTISED_Asym_Pause);
 
 		ecmd->port = PORT_TP;
 		ecmd->phy_address = hw->phy.addr;
 		ecmd->transceiver = XCVR_INTERNAL;
+
 	} else {
-		ecmd->supported   = (SUPPORTED_1000baseT_Full |
+		ecmd->supported = (SUPPORTED_1000baseT_Full |
 				   SUPPORTED_100baseT_Full |
-				     SUPPORTED_FIBRE |
+				   SUPPORTED_FIBRE |
 				   SUPPORTED_Autoneg |
 				   SUPPORTED_Pause);
 
-		ecmd->advertising = (ADVERTISED_FIBRE |
-				     ADVERTISED_Autoneg |
-				     ADVERTISED_Pause);
+		ecmd->advertising = ADVERTISED_FIBRE;
+
 		switch (adapter->link_speed) {
 		case SPEED_1000:
 			ecmd->advertising = ADVERTISED_1000baseT_Full;
@@ -205,15 +198,31 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			break;
 		}
 
+		if (hw->mac.autoneg == 1)
+			ecmd->advertising |= ADVERTISED_Autoneg;
+
 		ecmd->port = PORT_FIBRE;
 		ecmd->transceiver = XCVR_EXTERNAL;
 	} 
 
+	if (hw->mac.autoneg != 1)
+		ecmd->advertising &= ~(ADVERTISED_Pause |
+				       ADVERTISED_Asym_Pause);
+
+	if (hw->fc.requested_mode == e1000_fc_full)
+		ecmd->advertising |= ADVERTISED_Pause;
+	else if (hw->fc.requested_mode == e1000_fc_rx_pause)
+		ecmd->advertising |= (ADVERTISED_Pause |
+				      ADVERTISED_Asym_Pause);
+	else if (hw->fc.requested_mode == e1000_fc_tx_pause)
+		ecmd->advertising |=  ADVERTISED_Asym_Pause;
+	else
+		ecmd->advertising &= ~(ADVERTISED_Pause |
+				       ADVERTISED_Asym_Pause);
 
 	status = E1000_READ_REG(hw, E1000_STATUS);
 
 	if (status & E1000_STATUS_LU) {
-
 		if (status & E1000_STATUS_SPEED_1000)
 			ecmd->speed = SPEED_1000;
 		else if (status & E1000_STATUS_SPEED_100)
@@ -226,6 +235,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			ecmd->duplex = DUPLEX_FULL;
 		else
 			ecmd->duplex = DUPLEX_HALF;
+
 	} else {
 		ecmd->speed = -1;
 		ecmd->duplex = -1;
@@ -240,8 +250,8 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	/* MDI-X => 2; MDI =>1; Invalid =>0 */
 	if (hw->phy.media_type == e1000_media_type_copper)
-	    	ecmd->eth_tp_mdix = hw->phy.is_mdix ? ETH_TP_MDI_X :
-		                                      ETH_TP_MDI;
+		ecmd->eth_tp_mdix = hw->phy.is_mdix ? ETH_TP_MDI_X :
+						      ETH_TP_MDI;
 	else
 		ecmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
 
@@ -293,7 +303,8 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		hw->mac.autoneg = 1;
 		if (hw->phy.media_type == e1000_media_type_fiber) {
-			hw->phy.autoneg_advertised = ADVERTISED_FIBRE |
+			hw->phy.autoneg_advertised = ecmd->advertising |
+						     ADVERTISED_FIBRE |
 						     ADVERTISED_Autoneg;
 			switch (adapter->link_speed) {
 			case SPEED_1000:
@@ -308,9 +319,9 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 				break;
 			}
 		} else {
-		hw->phy.autoneg_advertised = ecmd->advertising |
-					     ADVERTISED_TP |
-					     ADVERTISED_Autoneg;
+			hw->phy.autoneg_advertised = ecmd->advertising |
+						     ADVERTISED_TP |
+						     ADVERTISED_Autoneg;
 		}
 		ecmd->advertising = hw->phy.autoneg_advertised;
 		if (adapter->fc_autoneg)
@@ -322,24 +333,19 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		}
 	}
 
-#ifdef ETH_TP_MDI_X
-	/* MDI-X =>2; MDI=>1; Invalid =>0 */
-	if (hw->phy.media_type == e1000_media_type_copper) {
-		switch (ecmd->eth_tp_mdix) {
-		case ETH_TP_MDI_X:
-			hw->phy.mdix = 2;
-			break;
-		case ETH_TP_MDI:
-			hw->phy.mdix = 1;
-			break;
-		case ETH_TP_MDI_INVALID:
-		default:
-			hw->phy.mdix = 0;
-			break;
-		}
+#ifdef ETH_TP_MDI_AUTO
+	/* MDI-X => 2; MDI => 1; Auto => 3 */
+	if (ecmd->eth_tp_mdix_ctrl) {
+		/* fix up the value for auto (3 => 0) as zero is mapped
+		 * internally to auto
+		 */
+		if (ecmd->eth_tp_mdix_ctrl == ETH_TP_MDI_AUTO)
+			hw->phy.mdix = AUTO_ALL_MODES;
+		else
+			hw->phy.mdix = ecmd->eth_tp_mdix_ctrl;
 	}
 
-#endif /* ETH_TP_MDI_X */
+#endif /* ETH_TP_MDI_AUTO */
 	/* reset the link */
 	if (netif_running(adapter->netdev)) {
 		igb_down(adapter);
@@ -790,7 +796,6 @@ static void igb_get_drvinfo(struct net_device *netdev,
 
 	strncpy(drvinfo->fw_version, adapter->fw_version,
 		sizeof(drvinfo->fw_version) - 1);
-
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), sizeof(drvinfo->bus_info) -1);
 	drvinfo->n_stats = IGB_STATS_LEN;
 	drvinfo->testinfo_len = IGB_TEST_LEN;
@@ -1077,7 +1082,6 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 
 static int igb_eeprom_test(struct igb_adapter *adapter, u64 *data)
 {
-
 	*data = 0;
 
 	/* Validate NVM checksum */
@@ -1281,7 +1285,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	rx_ring->dev = pci_dev_to_dev(adapter->pdev);
 	rx_ring->netdev = adapter->netdev;
 #ifdef CONFIG_IGB_DISABLE_PACKET_SPLIT
-	rx_ring->rx_buffer_len = IGB_RXBUFFER_512;
+	rx_ring->rx_buffer_len = IGB_RX_HDR_LEN;
 #endif
 	rx_ring->reg_idx = adapter->vfs_allocated_count;
 
@@ -1346,7 +1350,6 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 	/* force 1000, set loopback  */
 	e1000_write_phy_reg(hw, PHY_CONTROL, 0x4140);
 
-	ctrl_reg = E1000_READ_REG(hw, E1000_CTRL);
 	/* Now set up the MAC to the same speed/duplex as the PHY. */
 	ctrl_reg = E1000_READ_REG(hw, E1000_CTRL);
 	ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
@@ -1420,19 +1423,15 @@ static int igb_setup_loopback_test(struct igb_adapter *adapter)
 		reg &= ~E1000_CONNSW_ENRGSRC;
 		E1000_WRITE_REG(hw, E1000_CONNSW, reg);
 
-		/* Unset sigdetect for SERDES loopback on 
-		 * 82580 and i350
+		/* Unset sigdetect for SERDES loopback on
+		 * 82580 and newer devices
 		 */
-		switch (hw->mac.type) {
-		case e1000_82580:
-		case e1000_i350:
+		if (hw->mac.type >= e1000_82580) {
 			reg = E1000_READ_REG(hw, E1000_PCS_CFG0);
 			reg |= E1000_PCS_CFG_IGN_SD;
 			E1000_WRITE_REG(hw, E1000_PCS_CFG0, reg);
-			break;
-		default:
-			break;
 		}
+
 		/* Set PCS register for forced speed */
 		reg = E1000_READ_REG(hw, E1000_PCS_LCTL);
 		reg &= ~E1000_PCS_LCTL_AN_ENABLE;     /* Disable Autoneg*/
@@ -1496,16 +1495,30 @@ static void igb_create_lbtest_frame(struct sk_buff *skb,
 	memset(&skb->data[frame_size + 12], 0xAF, 1);
 }
 
-static int igb_check_lbtest_frame(struct sk_buff *skb, unsigned int frame_size)
+static int igb_check_lbtest_frame(struct igb_rx_buffer *rx_buffer,
+				  unsigned int frame_size)
 {
-	frame_size /= 2;
-	if (*(skb->data + 3) == 0xFF) {
-		if ((*(skb->data + frame_size + 10) == 0xBE) &&
-		   (*(skb->data + frame_size + 12) == 0xAF)) {
-			return 0;
-		}
-	}
-	return 13;
+	unsigned char *data;
+	bool match = true;
+
+	frame_size >>= 1;
+
+#ifdef CONFIG_IGB_DISABLE_PACKET_SPLIT
+	data = rx_buffer->skb->data;
+#else
+	data = kmap(rx_buffer->page);
+#endif
+
+	if (data[3] != 0xFF ||
+	    data[frame_size + 10] != 0xBE ||
+	    data[frame_size + 12] != 0xAF)
+		match = false;
+
+#ifndef CONFIG_IGB_DISABLE_PACKET_SPLIT
+	kunmap(rx_buffer->page);
+
+#endif
+	return match;
 }
 
 static u16 igb_clean_test_rings(struct igb_ring *rx_ring,
@@ -1515,11 +1528,6 @@ static u16 igb_clean_test_rings(struct igb_ring *rx_ring,
 	union e1000_adv_rx_desc *rx_desc;
 	struct igb_rx_buffer *rx_buffer_info;
 	struct igb_tx_buffer *tx_buffer_info;
-#ifdef CONFIG_IGB_DISABLE_PACKET_SPLIT
-	const int bufsz = rx_ring->rx_buffer_len;
-#else
-	const int bufsz = IGB_RX_HDR_LEN;
-#endif
 	u16 rx_ntc, tx_ntc, count = 0;
 
 	/* initialize next to clean and descriptor values */
@@ -1531,16 +1539,29 @@ static u16 igb_clean_test_rings(struct igb_ring *rx_ring,
 		/* check rx buffer */
 		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
 
-		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
-		dma_unmap_single(rx_ring->dev,
-		                 rx_buffer_info->dma,
-				 bufsz,
-				 DMA_FROM_DEVICE);
-		rx_buffer_info->dma = 0;
+		/* sync Rx buffer for CPU read */
+		dma_sync_single_for_cpu(rx_ring->dev,
+					rx_buffer_info->dma,
+#ifdef CONFIG_IGB_DISABLE_PACKET_SPLIT
+					IGB_RX_HDR_LEN,
+#else
+					IGB_RX_BUFSZ,
+#endif
+					DMA_FROM_DEVICE);
 
 		/* verify contents of skb */
-		if (!igb_check_lbtest_frame(rx_buffer_info->skb, size))
+		if (igb_check_lbtest_frame(rx_buffer_info, size))
 			count++;
+
+		/* sync Rx buffer for device write */
+		dma_sync_single_for_device(rx_ring->dev,
+					   rx_buffer_info->dma,
+#ifdef CONFIG_IGB_DISABLE_PACKET_SPLIT
+					   IGB_RX_HDR_LEN,
+#else
+					   IGB_RX_BUFSZ,
+#endif
+					   DMA_FROM_DEVICE);
 
 		/* unmap buffer on tx side */
 		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];
@@ -1572,7 +1593,7 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 	struct igb_ring *rx_ring = &adapter->test_rx_ring;
 	u16 i, j, lc, good_cnt;
 	int ret_val = 0;
-	unsigned int size = IGB_RXBUFFER_512;
+	unsigned int size = IGB_RX_HDR_LEN;
 	netdev_tx_t tx_ret_val;
 	struct sk_buff *skb;
 
@@ -1714,7 +1735,7 @@ static void igb_diag_test(struct net_device *netdev,
 		dev_info(pci_dev_to_dev(adapter->pdev), "offline testing starting\n");
 
 		/* power up link for link test */
-		 	igb_power_up_link(adapter);
+	 	igb_power_up_link(adapter);
 		
 		/* Link test performed before hardware reset so autoneg doesn't
 		 * interfere with test result */
@@ -1739,8 +1760,9 @@ static void igb_diag_test(struct net_device *netdev,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		igb_reset(adapter);
+
 		/* power up link for loopback test */
-			igb_power_up_link(adapter);
+		igb_power_up_link(adapter);
 
 		if (igb_loopback_test(adapter, &data[3]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -1817,6 +1839,7 @@ static int igb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	if (!(adapter->flags & IGB_FLAG_WOL_SUPPORTED))
 		return wol->wolopts ? -EOPNOTSUPP : 0;
+
 	/* these settings will always override what we currently have */
 	adapter->wol = 0;
 
@@ -2028,7 +2051,7 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 	for (j = 0; j < adapter->num_tx_queues; j++) {
-		queue_stat = (u64 *)&adapter->tx_ring[3 - j]->tx_stats; /* I210 rebase */
+		queue_stat = (u64 *)&adapter->tx_ring[j]->tx_stats;
 		for (k = 0; k < IGB_TX_QUEUE_STATS_LEN; k++, i++)
 			data[i] = queue_stat[k];
 	}
@@ -2088,18 +2111,27 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 #ifdef HAVE_ETHTOOL_GET_TS_INFO
 static int igb_get_ts_info(struct net_device *dev,
-				   struct ethtool_ts_info *info)
+			   struct ethtool_ts_info *info)
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
 
 	switch (adapter->hw.mac.type) {
 #ifdef HAVE_PTP_1588_CLOCK
+	case e1000_82575:
+		info->so_timestamping =
+			SOF_TIMESTAMPING_TX_SOFTWARE |
+			SOF_TIMESTAMPING_RX_SOFTWARE |
+			SOF_TIMESTAMPING_SOFTWARE;
+		return 0;
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
 	case e1000_i210:
 	case e1000_i211:
 		info->so_timestamping =
+			SOF_TIMESTAMPING_TX_SOFTWARE |
+			SOF_TIMESTAMPING_RX_SOFTWARE |
+			SOF_TIMESTAMPING_SOFTWARE |
 			SOF_TIMESTAMPING_TX_HARDWARE |
 			SOF_TIMESTAMPING_RX_HARDWARE |
 			SOF_TIMESTAMPING_RAW_HARDWARE;
@@ -2133,9 +2165,7 @@ static int igb_get_ts_info(struct net_device *dev,
 	default:
 		return -EOPNOTSUPP;
 	}
-
 }
-
 #endif /* HAVE_ETHTOOL_GET_TS_INFO */
 
 #ifdef CONFIG_PM_RUNTIME
@@ -2198,7 +2228,7 @@ static int igb_set_tx_csum(struct net_device *netdev, u32 data)
 		                      NETIF_F_SCTP_CSUM);
 #else
 		netdev->features |= NETIF_F_IP_CSUM;
-		if (adapter->hw.mac.type == e1000_82576)
+		if (adapter->hw.mac.type >= e1000_82576)
 			netdev->features |= NETIF_F_SCTP_CSUM;
 	} else {
 		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_SCTP_CSUM);
@@ -2352,12 +2382,14 @@ static void igb_get_dmac(struct net_device *netdev,
 	return;
 }
 #endif
+
 #ifdef ETHTOOL_GEEE
 static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 ipcnfg, eeer;
+	u32 ipcnfg, eeer, ret_val;
+	u16 phy_data;
 
 	if ((hw->mac.type < e1000_i350) ||
 	    (hw->phy.media_type != e1000_media_type_copper))
@@ -2375,6 +2407,32 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 
 	if (ipcnfg & E1000_IPCNFG_EEE_100M_AN)
 		edata->advertised |= ADVERTISED_100baseT_Full;
+
+	/* EEE Link Partner Advertised */
+	switch (hw->mac.type) {
+	case e1000_i350:
+		ret_val = e1000_read_emi_reg(hw, E1000_EEE_LP_ADV_ADDR_I350,
+					     &phy_data);
+		if (ret_val)
+			return -ENODATA;
+
+		edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+
+		break;
+	case e1000_i210:
+	case e1000_i211:
+		ret_val = e1000_read_xmdio_reg(hw, E1000_EEE_LP_ADV_ADDR_I210,
+					       E1000_EEE_LP_ADV_DEV_I210,
+					       &phy_data);
+		if (ret_val)
+			return -ENODATA;
+
+		edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+
+		break;
+	default:
+		break;
+	}
 
 	if (eeer & E1000_EEER_EEE_NEG)
 		edata->eee_active = true;
@@ -2445,6 +2503,7 @@ static int igb_set_eee(struct net_device *netdev,
 	if (hw->dev_spec._82575.eee_disable != !edata->eee_enabled) {
 		hw->dev_spec._82575.eee_disable = !edata->eee_enabled;
 		e1000_set_eee_i350(hw);
+
 		/* reset link */
 		if (!netif_running(netdev))
 			igb_reset(adapter);
@@ -2453,6 +2512,7 @@ static int igb_set_eee(struct net_device *netdev,
 	return 0;
 }
 #endif /* ETHTOOL_SEEE */
+
 #ifdef ETHTOOL_GRXRINGS
 static int igb_get_rss_hash_opts(struct igb_adapter *adapter,
 				 struct ethtool_rxnfc *cmd)
@@ -2742,6 +2802,7 @@ void igb_set_ethtool_ops(struct net_device *netdev)
 	/* have to "undeclare" const on this struct to remove warnings */
 	SET_ETHTOOL_OPS(netdev, (struct ethtool_ops *)&igb_ethtool_ops);
 }
-
 #endif /* HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT */
 #endif	/* SIOCETHTOOL */
+
+

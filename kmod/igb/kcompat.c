@@ -205,7 +205,7 @@ int _kc_vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		/* get the precision */
 		precision = -1;
 		if (*fmt == '.') {
-			++fmt;	
+			++fmt;
 			if (isdigit(*fmt))
 				precision = skip_atoi(&fmt);
 			else if (*fmt == '*') {
@@ -692,13 +692,13 @@ void *_kc_kzalloc(size_t size, int flags)
 int _kc_skb_pad(struct sk_buff *skb, int pad)
 {
 	int ntail;
-        
+
         /* If the skbuff is non linear tailroom is always zero.. */
         if(!skb_cloned(skb) && skb_tailroom(skb) >= pad) {
 		memset(skb->data+skb->len, 0, pad);
 		return 0;
         }
-        
+
 	ntail = skb->data_len + pad - (skb->end - skb->tail);
 	if (likely(skb_cloned(skb) || ntail > 0)) {
 		if (pskb_expand_head(skb, 0, ntail, GFP_ATOMIC));
@@ -717,7 +717,7 @@ int _kc_skb_pad(struct sk_buff *skb, int pad)
 free_skb:
 	kfree_skb(skb);
 	return -ENOMEM;
-} 
+}
 
 #if (!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(5,4)))
 int _kc_pci_save_state(struct pci_dev *pdev)
@@ -927,6 +927,7 @@ void _kc_print_hex_dump(const char *level,
 		}
 	}
 }
+
 #ifdef HAVE_I2C_SUPPORT
 struct i2c_client *
 _kc_i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
@@ -1106,6 +1107,33 @@ out:
 }
 #endif /* < 2.6.28 */
 
+/*****************************************************************************/
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29) )
+static void __kc_pci_set_master(struct pci_dev *pdev, bool enable)
+{
+	u16 old_cmd, cmd;
+
+	pci_read_config_word(pdev, PCI_COMMAND, &old_cmd);
+	if (enable)
+		cmd = old_cmd | PCI_COMMAND_MASTER;
+	else
+		cmd = old_cmd & ~PCI_COMMAND_MASTER;
+	if (cmd != old_cmd) {
+		dev_dbg(pci_dev_to_dev(pdev), "%s bus mastering\n",
+			enable ? "enabling" : "disabling");
+		pci_write_config_word(pdev, PCI_COMMAND, cmd);
+	}
+#if ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,7) )
+	pdev->is_busmaster = enable;
+#endif
+}
+
+void _kc_pci_clear_master(struct pci_dev *dev)
+{
+	__kc_pci_set_master(dev, false);
+}
+#endif /* < 2.6.29 */
+
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,34) )
 #if (RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(6,0))
 int _kc_pci_num_vf(struct pci_dev *dev)
@@ -1121,7 +1149,8 @@ int _kc_pci_num_vf(struct pci_dev *dev)
 			num_vf++;
 
 		vfdev = pci_get_class(PCI_CLASS_NETWORK_ETHERNET << 8, vfdev);
-}
+	}
+
 #endif
 	return num_vf;
 }
@@ -1147,7 +1176,7 @@ void _kc_netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 		for (i = txq; i < dev->num_tx_queues; i++) {
 			qdisc = netdev_get_tx_queue(dev, i)->qdisc;
 			if (qdisc) {
-				spin_lock_bh(qdisc_lock(qdisc));	
+				spin_lock_bh(qdisc_lock(qdisc));
 				qdisc_reset(qdisc);
 				spin_unlock_bh(qdisc_lock(qdisc));
 			}
@@ -1157,6 +1186,7 @@ void _kc_netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 #endif /* CONFIG_NETDEVICES_MULTIQUEUE */
 #endif /* !(RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,0)) */
 #endif /* HAVE_TX_MQ */
+
 ssize_t _kc_simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 				   const void __user *from, size_t count)
 {
@@ -1176,6 +1206,7 @@ ssize_t _kc_simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
         *ppos = pos + count;
         return count;
 }
+
 #endif /* < 2.6.35 */
 
 /*****************************************************************************/
@@ -1203,6 +1234,8 @@ int _kc_ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported)
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39) )
 #if (!(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,0)))
 
+
+
 #endif /* !(RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(6,0)) */
 #endif /* < 2.6.39 */
 
@@ -1221,6 +1254,7 @@ void _kc_skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
 
 /******************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0) )
+#if !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(11,3,0))
 static inline int __kc_pcie_cap_version(struct pci_dev *dev)
 {
 	int pos;
@@ -1231,12 +1265,12 @@ static inline int __kc_pcie_cap_version(struct pci_dev *dev)
 		return 0;
 	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
 	return reg16 & PCI_EXP_FLAGS_VERS;
-	}
+}
 
 static inline bool __kc_pcie_cap_has_devctl(const struct pci_dev __always_unused *dev)
 {
 	return true;
-	}
+}
 
 static inline bool __kc_pcie_cap_has_lnkctl(struct pci_dev *dev)
 {
@@ -1264,6 +1298,7 @@ static inline bool __kc_pcie_cap_has_sltctl(struct pci_dev *dev)
 	       (type == PCI_EXP_TYPE_DOWNSTREAM &&
 		pcie_flags_reg & PCI_EXP_FLAGS_SLOT);
 }
+
 static inline bool __kc_pcie_cap_has_rtctl(struct pci_dev *dev)
 {
 	int type = pci_pcie_type(dev);
@@ -1374,8 +1409,56 @@ int __kc_pcie_capability_clear_and_set_word(struct pci_dev *dev, int pos,
 
 	return ret;
 }
+#endif /* !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(11,3,0)) */
 #endif /* < 3.7.0 */
 
 /******************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0) )
 #endif /* 3.9.0 */
+
+/*****************************************************************************/
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0) )
+#ifdef CONFIG_PCI_IOV
+int pci_vfs_assigned(struct pci_dev *dev)
+{
+	unsigned int vfs_assigned = 0;
+#ifdef HAVE_PCI_DEV_FLAGS_ASSIGNED
+	int pos;
+	struct pci_dev *vfdev;
+	unsigned short dev_id;
+
+	/* only search if we are a PF */
+	if (!dev->is_physfn)
+		return -ENODEV;
+
+	/* find SR-IOV capability */
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_SRIOV);
+	if (!pos)
+		return -ENODEV;
+
+	/*
+	 * determine the device ID for the VFs, the vendor ID will be the
+	 * same as the PF so there is no need to check for that one
+	 */
+	pci_read_config_word(dev, pos + PCI_SRIOV_VF_DID, &dev_id);
+
+	/* loop through all the VFs to see if we own any that are assigned */
+	vfdev = pci_get_device(dev->vendor, dev_id, NULL);
+	while (vfdev) {
+		/*
+		 * It is considered assigned if it is a virtual function with
+		 * our dev as the physical function and the assigned bit is set
+		 */
+		if (vfdev->is_virtfn && (vfdev->physfn == dev) &&
+		    (vfdev->dev_flags & PCI_DEV_FLAGS_ASSIGNED))
+			vfs_assigned++;
+
+		vfdev = pci_get_device(dev->vendor, dev_id, vfdev);
+	}
+
+#endif /* HAVE_PCI_DEV_FLAGS_ASSIGNED */
+	return vfs_assigned;
+}
+
+#endif /* CONFIG_PCI_IOV */
+#endif /* 3.10.0 */

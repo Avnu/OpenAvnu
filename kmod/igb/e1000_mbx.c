@@ -31,7 +31,8 @@
  *  e1000_null_mbx_check_for_flag - No-op function, return 0
  *  @hw: pointer to the HW structure
  **/
-static s32 e1000_null_mbx_check_for_flag(struct e1000_hw *hw, u16 mbx_id)
+static s32 e1000_null_mbx_check_for_flag(struct e1000_hw E1000_UNUSEDARG *hw,
+					 u16 E1000_UNUSEDARG mbx_id)
 {
 	DEBUGFUNC("e1000_null_mbx_check_flag");
 
@@ -42,8 +43,10 @@ static s32 e1000_null_mbx_check_for_flag(struct e1000_hw *hw, u16 mbx_id)
  *  e1000_null_mbx_transact - No-op function, return 0
  *  @hw: pointer to the HW structure
  **/
-static s32 e1000_null_mbx_transact(struct e1000_hw *hw, u32 *msg, u16 size,
-				   u16 mbx_id)
+static s32 e1000_null_mbx_transact(struct e1000_hw E1000_UNUSEDARG *hw,
+				   u32 E1000_UNUSEDARG *msg,
+				   u16 E1000_UNUSEDARG size,
+				   u16 E1000_UNUSEDARG mbx_id)
 {
 	DEBUGFUNC("e1000_null_mbx_rw_msg");
 
