@@ -239,7 +239,8 @@ mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 #if LOG_CLIENT_SEND
 	if (logging_enable) {
 		mrpd_log_printf("[%02d] CLT MSG %05d:%s",
-		       gc_ctl_msg_count, client_addr->sin_port, notify_data);
+				gc_ctl_msg_count, client_addr->sin_port,
+				notify_data);
 		gc_ctl_msg_count = (gc_ctl_msg_count + 1) % 100;
 	}
 #endif
@@ -840,21 +841,30 @@ int main(int argc, char *argv[])
 		goto out;
 
 	rc = mmrp_init(mmrp_enable);
-	if (rc)
+	if (rc) {
+		printf("mmrp_enable failed\n");
 		goto out;
+	}
 
 	rc = mvrp_init(mvrp_enable);
-	if (rc)
+	if (rc) {
+		printf("mvrp_enable failed\n");
 		goto out;
+	}
 
 	rc = msrp_init(msrp_enable);
-	if (rc)
+	if (rc) {
+		printf("msrp_enable failed\n");
 		goto out;
+	}
 
 	rc = init_timers();
-	if (rc)
+	if (rc) {
+		printf("init_timers failed\n");
 		goto out;
+	}
 
+	printf("process_events()\n");
 	process_events();
  out:
 	if (rc)
@@ -891,9 +901,7 @@ void mrpd_log_printf(const char *fmt, ...)
 		va_start(arglist, fmt);
 		vsnprintf(sz, 512, fmt, arglist);
 		printf("MRPD %03d.%06d %s",
-			(int)(tv.tv_sec % 1000),
-			(int)tv.tv_usec,
-			sz);
+		       (int)(tv.tv_sec % 1000), (int)tv.tv_usec, sz);
 		va_end(arglist);
 	}
 }
