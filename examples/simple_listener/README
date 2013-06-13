@@ -1,0 +1,11 @@
+Simple libpcap-based AVB listener
+
+Dumps a stereo AVB audio stream to a wav file.
+
+Requirements:
+
+   * running mrpd
+   * libpcap
+
+
+Can be tested against simple_talker.
