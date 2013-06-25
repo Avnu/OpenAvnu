@@ -61,8 +61,7 @@ source code. AVDECC is a management layer, similar to SNMP MIB formats,
 which enables remote devices to detect, enumerate and configure AVB-related 
 devices based on their standardized management properties.
 
-+ https://github.com/jdkoftinoff/avdecc
-+ https://github.com/jdkoftinoff/avdecc-examples
++ https://github.com/jdkoftinoff/jdksavdecc-c
 
 XMOS
 ----
