@@ -346,7 +346,7 @@ igb_reset(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_TDT(i), 0);
 		E1000_WRITE_REG(hw, E1000_TDH(i), 0);
 
-		txr[i].queue_status = IGB_QUEUE_IDLE;
+		txr->queue_status = IGB_QUEUE_IDLE;
 	}
 
 }
