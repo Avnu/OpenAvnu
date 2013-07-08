@@ -42,7 +42,7 @@ BUILD_KERNEL=$(shell uname -r)
 endif
 
 # Use IGB_PTP compile flag to enable IEEE-1588 PTP (documented in README)
-ifeq ($(filter %IGB_PTP,$(CFLAGS_EXTRA)),-DIGB_PTP)
+ifeq ($(filter %IGB_PTP,$(EXTRA_CFLAGS)),-DIGB_PTP)
   CFILES += igb_ptp.c
 endif
 
