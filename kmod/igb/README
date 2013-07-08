@@ -16,7 +16,7 @@ BUILDING
 
 The kernel igb module should be built which supports the latest Linux kernel
 3.x PTP clock support - to enable, execute make with -DIGB_PTP
-as a build option (e.g. make EXTRA_CFLAGS="-DIGB_PTP").
+as a build option (e.g. make CFLAGS_EXTRA="-DIGB_PTP").
 
 RUNNING
 
@@ -29,10 +29,11 @@ the driver is loaded by:
 As 3.4 and later kernels include support for the I210, you may need to 'rmmod 
 igb' before loading the igb_avb module.
 
-As the AVB Transmit queues (0,1) are mapped to a user-space application, you
-need to steer typical LAN traffic away from these queues. The most straight forward
-method is to the the transmit packet steering (XPS) functionality available 
-since 2.6.35. An example script is below
+As the AVB Transmit queues (0,1) are mapped to a user-space application, typical
+LAN traffic must be steered away from these queues. The driver implements one
+method registering an ndo_select_queue handler to map traffic to queue[3]. 
+Another possibly faster method uses the the transmit packet steering (XPS) 
+functionality available since 2.6.35. An example script is below
 
 #!/bin/bash
 

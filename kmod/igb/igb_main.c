@@ -81,8 +81,8 @@
 #define VERSION_SUFFIX "_AVB"
 
 #define MAJ 4
-#define MIN 2
-#define BUILD 16
+#define MIN 3
+#define BUILD 0
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." __stringify(BUILD) VERSION_SUFFIX DRV_DEBUG DRV_HW_PERF
 
 char igb_driver_name[] = "igb_avb";
@@ -129,6 +129,7 @@ static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
 static void igb_dma_err_task(struct work_struct *);
 static void igb_dma_err_timer(unsigned long data);
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb);
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
 static struct net_device_stats *igb_get_stats(struct net_device *);
 static int igb_change_mtu(struct net_device *, int);
@@ -2050,10 +2051,12 @@ static int igb_ndo_fdb_dump(struct sk_buff *skb,
 
 #endif /* HAVE_NDO_SET_FEATURES */
 #ifdef HAVE_NET_DEVICE_OPS
+
 static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
 	.ndo_start_xmit		= igb_xmit_frame,
+        .ndo_select_queue       = igb_select_queue,
 	.ndo_get_stats		= igb_get_stats,
 	.ndo_set_rx_mode	= igb_set_rx_mode,
 	.ndo_set_mac_address	= igb_set_mac,
@@ -5173,6 +5176,13 @@ static inline struct igb_ring *igb_tx_queue_mapping(struct igb_adapter *adapter,
 #else
 #error This driver must have multi-queue transmit support enabled (CONFIG_NETDEVICES_MULTIQUEUE)!
 #endif
+
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb)
+{
+       /* remap normal LAN to best effort queue[3] */
+
+       return (3);
+}
 
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb,
                                   struct net_device *netdev)
