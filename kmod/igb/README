@@ -16,7 +16,7 @@ BUILDING
 
 The kernel igb module should be built which supports the latest Linux kernel
 3.x PTP clock support - to enable, execute make with -DIGB_PTP
-as a build option (e.g. make CFLAGS_EXTRA="-DIGB_PTP").
+as a build option (e.g. make EXTRA_CFLAGS="-DIGB_PTP").
 
 RUNNING
 
