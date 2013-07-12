@@ -954,7 +954,7 @@ int
 igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 {
 	u_int64_t	t0 = 0, t1 = -1;
-	u_int32_t	timh, timl;
+	u_int32_t	timh, timl, tsauxc;
 	struct adapter	*adapter;
 	struct e1000_hw *hw;
 	int iter = 0;
@@ -967,14 +967,18 @@ igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 
 	/* sample the timestamp bracketed by the RDTSC */
 	while( t1 - t0 > MAX_WALLCLOCK_WINDOW && iter < 8 ) {
-	  rdtscpll(t0);
-	E1000_WRITE_REG(hw, E1000_TSAUXC, E1000_TSAUXC_SAMP_AUTO);
-	  rdtscpll(t1);
-	  ++iter;
+	    tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+	    tsauxc &= ~(E1000_TSAUXC_SAMP_AUTO);
+	    E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+	    tsauxc |= E1000_TSAUXC_SAMP_AUTO;
+	    rdtscpll(t0);
+	    E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+	    rdtscpll(t1);
+	    ++iter;
 	}
 
 	if( t1 - t0 > MAX_WALLCLOCK_WINDOW ) {
-	  return ;
+	  return ERESTART;
 	}
 
 	timl = E1000_READ_REG(hw, E1000_AUXSTMPL0);
