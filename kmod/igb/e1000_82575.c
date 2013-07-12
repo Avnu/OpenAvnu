@@ -2130,32 +2130,42 @@ out:
  **/
 void e1000_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf)
 {
-	u32 reg_val, reg_offset;
+	u32 dtxswc;
 
 	switch (hw->mac.type) {
 	case e1000_82576:
-		reg_offset = E1000_DTXSWC;
+		dtxswc = E1000_READ_REG(hw, E1000_DTXSWC);
+		if (enable) {
+			dtxswc |= (E1000_DTXSWC_MAC_SPOOF_MASK |
+				   E1000_DTXSWC_VLAN_SPOOF_MASK);
+			/* The PF can spoof - it has to in order to
+			 * support emulation mode NICs */
+			dtxswc ^= (1 << pf | 1 << (pf +
+				   E1000_DTXSWC_VLAN_SPOOF_SHIFT));
+		} else {
+			dtxswc &= ~(E1000_DTXSWC_MAC_SPOOF_MASK |
+				    E1000_DTXSWC_VLAN_SPOOF_MASK);
+		}
+		E1000_WRITE_REG(hw, E1000_DTXSWC, dtxswc);
 		break;
 	case e1000_i350:
-		reg_offset = E1000_TXSWC;
-		break;
+		dtxswc = E1000_READ_REG(hw, E1000_TXSWC);
+		if (enable) {
+			dtxswc |= (E1000_DTXSWC_MAC_SPOOF_MASK |
+				   E1000_DTXSWC_VLAN_SPOOF_MASK);
+			/* The PF can spoof - it has to in order to
+			 * support emulation mode NICs
+			 */
+			dtxswc ^= (1 << pf | 1 << (pf +
+				   E1000_DTXSWC_VLAN_SPOOF_SHIFT));
+		} else {
+			dtxswc &= ~(E1000_DTXSWC_MAC_SPOOF_MASK |
+				    E1000_DTXSWC_VLAN_SPOOF_MASK);
+		}
+		E1000_WRITE_REG(hw, E1000_TXSWC, dtxswc);
 	default:
-		return;
+		break;
 	}
-
-	reg_val = E1000_READ_REG(hw, reg_offset);
-	if (enable) {
-		reg_val |= (E1000_DTXSWC_MAC_SPOOF_MASK |
-			     E1000_DTXSWC_VLAN_SPOOF_MASK);
-		/* The PF can spoof - it has to in order to
-		 * support emulation mode NICs
-		 */
-		reg_val ^= (1 << pf | 1 << (pf + MAX_NUM_VFS));
-	} else {
-		reg_val &= ~(E1000_DTXSWC_MAC_SPOOF_MASK |
-			     E1000_DTXSWC_VLAN_SPOOF_MASK);
-	}
-	E1000_WRITE_REG(hw, reg_offset, reg_val);
 }
 
 /**
