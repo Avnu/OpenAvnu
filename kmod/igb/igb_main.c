@@ -4122,12 +4122,12 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_VFE);
 
 	if (netdev->flags & IFF_PROMISC) {
-		u32 mrqc = E1000_READ_REG(hw, E1000_MRQC);
-		/* retain VLAN HW filtering if in VT mode */
-		if (mrqc & E1000_MRQC_ENABLE_VMDQ)
-			rctl |= E1000_RCTL_VFE;
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		vmolr |= (E1000_VMOLR_ROPE | E1000_VMOLR_MPME);
+                /* retain VLAN HW filtering if in VT mode */
+		if (adapter->vfs_allocated_count || adapter->vmdq_pools)
+			rctl |= E1000_RCTL_VFE;
+
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			rctl |= E1000_RCTL_MPE;
@@ -4158,7 +4158,7 @@ static void igb_set_rx_mode(struct net_device *netdev)
 			vmolr |= E1000_VMOLR_ROPE;
 		}
 #endif /* HAVE_SET_RX_MODE */
-		rctl |= E1000_RCTL_VFE;
+		/* rctl |= E1000_RCTL_VFE; Disable VLAN filtering */
 	}
 	E1000_WRITE_REG(hw, E1000_RCTL, rctl);
 
