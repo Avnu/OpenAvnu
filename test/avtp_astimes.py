@@ -33,7 +33,7 @@
 #
 ##############################################################################
 #
-# Extracts AVTP AS timestamps from a libpcap captre file and stores them in
+# Extracts AVTP AS timestamps from a libpcap capture file and stores them in
 # a csv format ascii file.
 #
 

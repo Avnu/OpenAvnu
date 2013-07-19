@@ -53,8 +53,6 @@ Fits lines to the a.csv AS presentation sequence and the b.csv presentation time
 sequence. The first 60,000 AS presentation times are used for both lines.
 
 Use the -p option to plot the distrubition of AS time deviations from the fitted line.
-The FFT of the deviations is also plotted if the count option is greater than or equal
-to 32768.
 
 Tested using python 2.6.5.
 
