@@ -33,7 +33,8 @@
 
 #ifndef AVBTS_OSSIGNAL_HPP
 #define AVBTS_OSSIGNAL_HPP
- class OSCondition {
+
+class OSCondition {
 private:
 	int wait_count;
 public:

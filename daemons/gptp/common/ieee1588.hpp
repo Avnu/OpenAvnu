@@ -43,6 +43,7 @@
 #include <stdio.h>
 
 #include <platform.hpp>
+#include <ptptypes.hpp>
 
 #define MAX_PORTS 32
 
@@ -59,6 +60,7 @@ class PTPMessagePathDelayReq;
 class PTPMessagePathDelayResp;
 class PTPMessagePathDelayRespFollowUp;
 class IEEE1588Port;
+class OSNetworkInterface;
 
 typedef enum {
 	NULL_EVENT = 0,
@@ -106,7 +108,7 @@ class ClockIdentity {
 		return memcmp(this->id, cmp.id,
 			      PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
 	}
-	void getIdentityString(char *id) {
+	void getIdentityString(uint8_t *id) {
 		memcpy(id, this->id, PTP_CLOCK_IDENTITY_LENGTH);
 	} 
 	void set(uint8_t * id) {
@@ -127,6 +129,7 @@ class Timestamp {
 	uint32_t nanoseconds;
 	uint32_t seconds_ls;
 	uint16_t seconds_ms;
+        uint8_t _version;
 };
 
 #define INVALID_TIMESTAMP (Timestamp( 0xC0000000, 0, 0 ))
@@ -151,18 +154,47 @@ static inline uint64_t bswap_64(uint64_t in)
 	return in;
 }
 
-static inline void TIMESTAMP_SUB_NS(Timestamp & ts, uint64_t ns)
-{
-	while (ns >= 1000000000) {
-		if (ts.seconds_ls != 0) {
-			--ts.seconds_ls;
-		} else {
-			--ts.seconds_ms;
-			ts.seconds_ls = 0xFFFFFFFF;
-		}
-		ns -= 1000000000;
-	}
-	ts.nanoseconds -= (uint32_t) ns;
+#define NS_PER_SECOND 1000000000
+#define LS_SEC_MAX 0xFFFFFFFF
+
+static inline void TIMESTAMP_SUB_NS( Timestamp &ts, uint64_t ns ) {
+       bool borrow;
+
+       if( (ns % NS_PER_SECOND) > ts.nanoseconds ) {
+              borrow = true;
+              ts.nanoseconds = (NS_PER_SECOND + ts.nanoseconds) - (ns % NS_PER_SECOND);
+       } else {
+              borrow = false;
+              ts.nanoseconds = ts.nanoseconds - (ns % NS_PER_SECOND );
+       }
+       while( borrow || (ns/NS_PER_SECOND > 0) ) {
+              if( ts.seconds_ls != 0 ) {
+                     --ts.seconds_ls;
+              } else {
+                     --ts.seconds_ms;
+                     ts.seconds_ls = LS_SEC_MAX;
+              }
+              if( borrow ) borrow = false;
+              else ns -= NS_PER_SECOND;
+       }
+       return;
+}
+
+static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
+       uint32_t tmp;
+       bool carry = false;
+
+       tmp = ts.nanoseconds;
+       ts.nanoseconds += ns % NS_PER_SECOND;
+       if( ts.nanoseconds < tmp ) carry = true;
+
+       while( carry || (ns/NS_PER_SECOND) >= 1 ) {
+              ts.seconds_ls = (ts.seconds_ls == LS_SEC_MAX) ? 0 : ts.seconds_ls + 1;
+              if( ts.seconds_ls == 0 ) ++ts.seconds_ms;
+              if( carry ) carry = false;
+              else ns -= NS_PER_SECOND;         
+       }
+       return;
 }
 
 #define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
@@ -175,23 +207,19 @@ static inline void TIMESTAMP_SUB_NS(Timestamp & ts, uint64_t ns)
 #define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096
 
 class HWTimestamper {
- public:
-	virtual bool HWTimestamper_init(InterfaceLabel * iface_label) {
-		return true;
-	}
+protected:
+  uint8_t version;
+public:
+  virtual bool HWTimestamper_init
+  ( InterfaceLabel *iface_label, OSNetworkInterface *iface )
+  { return true; }
 	virtual void HWTimestamper_final(void) {
 	}
 
-	virtual bool HWTimestamper_adjclockrate(int32_t frequency_offset,
-						unsigned counter_value,
-						Timestamp master_timestamp,
-						int64_t offset,
-						bool changed_master) {
-		return false;
-	}
-	virtual bool HWTimestamper_adjclockrate2(int32_t ppt_adjustment) {
-		return false;
-	}
+  virtual bool HWTimestamper_adjclockrate( float frequency_offset )
+  { return false; }
+  virtual bool HWTimestamper_adjclockphase( int64_t phase_adjust )
+  { return false; }
 
 	virtual bool HWTimestamper_gettime(Timestamp * system_time,
 					   Timestamp * device_time,
@@ -221,8 +249,15 @@ class HWTimestamper {
 		*msg = '\0';
 	}
 
-	virtual ~ HWTimestamper() {
-	}
+  virtual bool HWTimestamper_PPS_start() { return false; };
+  virtual bool HWTimestamper_PPS_stop() { return true; };
+
+  int getVersion() {
+    return version;
+  }
+  HWTimestamper() { version = 0; }
+  virtual ~ HWTimestamper() {
+  }
 };
 
 PTPMessageCommon *buildPTPMessage(char *buf, int size,

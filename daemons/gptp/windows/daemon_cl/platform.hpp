@@ -31,16 +31,14 @@
 
 ******************************************************************************/
 
+
 #ifndef PLATFORM_HPP
 #define PLATFORM_HPP
 
-#include <Winsock2.h>
-
-#define PLAT_strncpy( dest, src, max ) strncpy_s( dest, max+1, src, _TRUNCATE );
-
-#define PLAT_htons( s ) htons( s )
-#define PLAT_htonl( l ) htonl( l )
-#define PLAT_ntohs( s ) ntohs( s )
-#define PLAT_ntohl( l ) ntohl( l )
+errno_t PLAT_strncpy( char *dest, const char *src, rsize_t max );
+uint16_t PLAT_htons( uint16_t s );
+uint32_t PLAT_htonl( uint32_t l );
+uint16_t PLAT_ntohs( uint16_t s );
+uint32_t PLAT_ntohl( uint32_t l );
 
 #endif

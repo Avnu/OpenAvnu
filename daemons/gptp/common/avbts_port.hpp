@@ -74,36 +74,39 @@ typedef enum {
 } PortType;
 
 class PortIdentity {
- private:
+private:
 	ClockIdentity clock_id;
 	uint16_t portNumber;
- public:
-	 PortIdentity() {
-	};
+public:
+	PortIdentity() { };
 	PortIdentity(uint8_t * clock_id, uint16_t * portNumber) {
 		this->portNumber = *portNumber;
 		this->portNumber = PLAT_ntohs(this->portNumber);
 		this->clock_id.set(clock_id);
 	}
 	bool operator!=(const PortIdentity & cmp) const {
-		return !(this->clock_id == cmp.clock_id)
-		    || this->portNumber != cmp.portNumber ? true : false;
+		return
+			!(this->clock_id == cmp.clock_id) ||
+			this->portNumber != cmp.portNumber ? true : false;
 	}
 	bool operator==(const PortIdentity & cmp)const {
-		return this->clock_id == cmp.clock_id
-		    && this->portNumber == cmp.portNumber ? true : false;
+		return
+			this->clock_id == cmp.clock_id &&
+			this->portNumber == cmp.portNumber ? true : false;
 	}
 	bool operator<(const PortIdentity & cmp)const {
-		return this->clock_id < cmp.clock_id ? true :
-		    this->clock_id == cmp.clock_id
-		    && this->portNumber < cmp.portNumber ? true : false;
+		return
+			this->clock_id < cmp.clock_id ?
+			true : this->clock_id == cmp.clock_id &&
+			this->portNumber < cmp.portNumber ? true : false;
 	}
 	bool operator>(const PortIdentity & cmp)const {
-		return this->clock_id > cmp.clock_id ? true :
-		    this->clock_id == cmp.clock_id
-		    && this->portNumber > cmp.portNumber ? true : false;
+		return
+			this->clock_id > cmp.clock_id ?
+			true : this->clock_id == cmp.clock_id &&
+			this->portNumber > cmp.portNumber ? true : false;
 	}
-	void getClockIdentityString(char *id) {
+	void getClockIdentityString(uint8_t *id) {
 		clock_id.getIdentityString(id);
 	}
 	void setClockIdentity(ClockIdentity clock_id) {
@@ -133,13 +136,13 @@ class IEEE1588Port {
 	static LinkLayerAddress pdelay_multicast;
 
 	PortIdentity port_identity;
-	// directly connected node
+	/* directly connected node */
 	PortIdentity peer_identity;
 
 	OSNetworkInterface *net_iface;
 	LinkLayerAddress local_addr;
 
-	// Port Configuration
+	/* Port Configuration */
 	unsigned char delay_mechanism;
 	PortState port_state;
 	char log_mean_unicast_sync_interval;
@@ -148,9 +151,12 @@ class IEEE1588Port {
 	char log_min_mean_delay_req_interval;
 	char log_min_mean_pdelay_req_interval;
 	bool burst_enabled;
-	int64_t one_way_delay;	// Allow this to be negative result of a large clock skew
-	// Implementation Specific data/methods
-	IEEE1588Clock *clock;	// Pointer to clock object with which the port is associated
+	int _accelerated_sync_count;
+	/* Signed value allows this to be negative result because of inaccurate
+	   timestamp */
+	int64_t one_way_delay;
+	/* Implementation Specific data/methods */
+	IEEE1588Clock *clock;
 
 	bool _syntonize;
 
@@ -161,23 +167,13 @@ class IEEE1588Port {
 	uint32_t rate_offset_count;
 	uint32_t rate_offset_index;
 
-	int32_t _peer_rate_offset;
+	FrequencyRatio _peer_rate_offset;
 	Timestamp _peer_offset_ts_theirs;
 	Timestamp _peer_offset_ts_mine;
 	bool _peer_offset_init;
 
-	int32_t _master_rate_offset;
-
 	int32_t _initial_clock_offset;
 	int32_t _current_clock_offset;
-
-	bool _master_local_freq_offset_init;
-	int64_t _prev_master_local_offset;
-	Timestamp _prev_sync_time;
-
-	bool _local_system_freq_offset_init;
-	int64_t _prev_local_system_offset;
-	Timestamp _prev_system_time;
 
 	AnnounceList_t qualified_announce;
 
@@ -189,8 +185,9 @@ class IEEE1588Port {
 	PTPMessagePathDelayResp *last_pdelay_resp;
 	PTPMessagePathDelayRespFollowUp *last_pdelay_resp_fwup;
 
-	// Network socket description
-	uint16_t ifindex;	// physical interface number that object represents
+	/* Network socket description
+	   physical interface number that object represents */
+	uint16_t ifindex;	
 
 	IdentityMap_t identity_map;
 
@@ -208,16 +205,33 @@ class IEEE1588Port {
 
 	HWTimestamper *_hw_timestamper;
 
-	net_result port_send(uint8_t * buf, int size, MulticastType mcast_type,
-			     PortIdentity * destIdentity, bool timestamp);
+	net_result port_send
+	(uint8_t * buf, int size, MulticastType mcast_type,
+	 PortIdentity * destIdentity, bool timestamp);
 
 	InterfaceLabel *net_label;
-
+	
 	OSLockFactory *lock_factory;
 	OSConditionFactory *condition_factory;
+	
+	bool pdelay_started;
  public:
 	// Added for testing
 	bool forceSlave;
+	
+	bool serializeState( void *buf, off_t *count );
+	bool restoreSerializedState( void *buf, off_t *count );
+	void becomeMaster( bool annc );
+	void becomeSlave( bool );
+	
+	void startPDelay();
+	void startAnnounce();
+	
+	void syncDone() {
+		if( !pdelay_started ) {
+			startPDelay();
+		}
+	}
 
 	OSTimerFactory *getTimerFactory() {
 		return timer_factory;
@@ -225,28 +239,32 @@ class IEEE1588Port {
 	void setAsCapable(bool ascap) {
 		if (ascap != asCapable) {
 			fprintf(stderr, "AsCapable: %s\n",
-				ascap == true ? "Enabled" : "Disabled");
+					ascap == true ? "Enabled" : "Disabled");
 		}
 		asCapable = ascap;
 	}
-
+	
 	~IEEE1588Port();
-	IEEE1588Port(IEEE1588Clock * clock, uint16_t index, bool forceSlave,
-		     HWTimestamper * timestamper, bool syntonize,
-		     int32_t offset, InterfaceLabel * net_label,
-		     OSConditionFactory * condition_factory,
-		     OSThreadFactory * thread_factory,
-		     OSTimerFactory * timer_factory,
-		     OSLockFactory * lock_factory);
+	IEEE1588Port
+	(IEEE1588Clock * clock, uint16_t index,
+	 bool forceSlave, int accelerated_sync_count,
+	 HWTimestamper * timestamper,
+	 int32_t offset, InterfaceLabel * net_label,
+	 OSConditionFactory * condition_factory,
+	 OSThreadFactory * thread_factory,
+	 OSTimerFactory * timer_factory,
+	 OSLockFactory * lock_factory);
 	bool init_port();
 
 	void recoverPort(void);
 	void *openPort(void);
 	unsigned getPayloadOffset();
-	void sendEventPort(uint8_t * buf, int len, MulticastType mcast_type,
-			   PortIdentity * destIdentity);
-	void sendGeneralPort(uint8_t * buf, int len, MulticastType mcast_type,
-			     PortIdentity * destIdentity);
+	void sendEventPort
+	(uint8_t * buf, int len, MulticastType mcast_type,
+	 PortIdentity * destIdentity);
+	void sendGeneralPort
+	(uint8_t * buf, int len, MulticastType mcast_type,
+	 PortIdentity * destIdentity);
 	void processEvent(Event e);
 
 	PTPMessageAnnounce *calculateERBest(void);
@@ -321,7 +339,9 @@ class IEEE1588Port {
 	int putTxLock() {
 		return port_tx_lock->unlock() == oslock_ok ? true : false;
 	}
-
+	int getTimestampVersion() {
+		return _hw_timestamper->getVersion();
+	}
 	void setLastPDelayReq(PTPMessagePathDelayReq * msg) {
 		last_pdelay_req = msg;
 	}
@@ -343,23 +363,10 @@ class IEEE1588Port {
 		return last_pdelay_resp_fwup;
 	}
 
-	int calcMasterLocalClockRateDifference(signed long long offset,
-					       Timestamp sync_time);
-	int calcLocalSystemClockRateDifference(signed long long offset,
-					       Timestamp sync_time);
-
-	int32_t getMasterRateOffset(void) {
-		return _master_rate_offset;
-	}
-	void setMasterRateOffset(int32_t offset
-				 /* parts-per-trillion frequency offset */ ) {
-		_master_rate_offset = offset;
-	}
-	int32_t getPeerRateOffset(void) {
+	FrequencyRatio getPeerRateOffset(void) {
 		return _peer_rate_offset;
 	}
-	void setPeerRateOffset(int32_t offset
-			       /* parts-per-trillion frequency offset */ ) {
+	void setPeerRateOffset( FrequencyRatio offset ) {
 		_peer_rate_offset = offset;
 	}
 	void setPeerOffset(Timestamp mine, Timestamp theirs) {
@@ -373,27 +380,15 @@ class IEEE1588Port {
 		return _peer_offset_init;
 	}
 
-	bool _adjustClockRate(int32_t freq_offset, unsigned counter_value,
-			      Timestamp master_timestamp, int64_t offset,
-			      bool change_master) {
-		if (_hw_timestamper) {
-			return
-			    _hw_timestamper->HWTimestamper_adjclockrate
-			    (freq_offset, counter_value, master_timestamp,
-			     offset, change_master);
+	bool _adjustClockRate( FrequencyRatio freq_offset ) {
+		if( _hw_timestamper ) {
+			return _hw_timestamper->HWTimestamper_adjclockrate((float) freq_offset );
 		}
 		return false;
 	}
-	bool adjustClockRate(int32_t freq_offset, unsigned counter_value,
-			     Timestamp master_timestamp, int64_t offset,
-			     bool change_master) {
-		return _adjustClockRate(freq_offset, counter_value,
-					master_timestamp, offset,
-					change_master);
-	}
 
-	bool doSyntonization(void) {
-		return _syntonize;
+	bool adjustClockRate( FrequencyRatio freq_offset ) {
+		return _adjustClockRate( freq_offset );
 	}
 
 	void getExtendedError(char *msg) {
@@ -404,47 +399,37 @@ class IEEE1588Port {
 		}
 	}
 
-	bool getExternalClockRate(Timestamp & local_time,
-				  int64_t & external_local_offset,
-				  int32_t & external_local_freq_offset) {
-		bool s = false;
-		if (_hw_timestamper) {
-			s = _hw_timestamper->HWTimestamper_get_extclk_offset
-			    (&local_time, &external_local_offset,
-			     &external_local_freq_offset);
-		}
-		return s;
-	}
+	int getRxTimestamp
+	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
+	 Timestamp & timestamp, unsigned &counter_value, bool last);
+	int getTxTimestamp
+	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
+	 Timestamp & timestamp, unsigned &counter_value, bool last);
 
-	int getRxTimestamp(PortIdentity * sourcePortIdentity,
-			   uint16_t sequenceId, Timestamp & timestamp,
-			   unsigned &counter_value, bool last);
-	int getTxTimestamp(PortIdentity * sourcePortIdentity,
-			   uint16_t sequenceId, Timestamp & timestamp,
-			   unsigned &counter_value, bool last);
+	int getTxTimestamp
+	(PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,
+	 bool last);
+	int getRxTimestamp
+	(PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,
+	 bool last);
 
-	int getTxTimestamp(PTPMessageCommon * msg, Timestamp & timestamp,
-			   unsigned &counter_value, bool last);
-	int getRxTimestamp(PTPMessageCommon * msg, Timestamp & timestamp,
-			   unsigned &counter_value, bool last);
+	void getDeviceTime
+	(Timestamp & system_time, Timestamp & device_time, uint32_t & local_clock,
+	 uint32_t & nominal_clock_rate);
 
-	void getDeviceTime(Timestamp & system_time, Timestamp & device_time,
-			   uint32_t & local_clock,
-			   uint32_t & nominal_clock_rate);
-
-	int64_t getLinkDelay(void) {
-		return one_way_delay;
+	uint64_t getLinkDelay(void) {
+		return one_way_delay > 0LL ? one_way_delay : 0LL;
 	}
 	void setLinkDelay(int64_t delay) {
 		one_way_delay = delay;
 	}
 
-	void recommendState(PortState state, bool changed_master);
+	void recommendState(PortState state, bool changed_external_master);
 
-	void mapSocketAddr(PortIdentity * destIdentity,
-			   LinkLayerAddress * remote);
-	void addSockAddrMap(PortIdentity * destIdentity,
-			    LinkLayerAddress * remote);
+	void mapSocketAddr
+	(PortIdentity * destIdentity, LinkLayerAddress * remote);
+	void addSockAddrMap
+	(PortIdentity * destIdentity, LinkLayerAddress * remote);
 };
 
 #endif

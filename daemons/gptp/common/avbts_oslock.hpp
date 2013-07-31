@@ -33,22 +33,24 @@
 
 #ifndef AVBTS_OSLOCK_HPP
 #define AVBTS_OSLOCK_HPP
- typedef enum { oslock_recursive, oslock_nonrecursive } OSLockType;
+typedef enum { oslock_recursive, oslock_nonrecursive } OSLockType;
 typedef enum { oslock_ok, oslock_self, oslock_held, oslock_fail } OSLockResult;
- class OSLock {
- public:virtual OSLockResult lock() = 0;
+
+class OSLock {
+ public:
+	virtual OSLockResult lock() = 0;
 	virtual OSLockResult unlock() = 0;
 	virtual OSLockResult trylock() = 0;
- protected:OSLock() {
-	};
+ protected:
+	OSLock() { }
 	bool initialize(OSLockType type) {
 		return false;
-	};
+	}
 };
 
- class OSLockFactory {
- public:virtual OSLock * createLock(OSLockType type) = 0;
+class OSLockFactory {
+public:
+	virtual OSLock * createLock(OSLockType type) = 0;
 };
-
 
 #endif

@@ -142,28 +142,27 @@ enum MulticastType {
 };
 
 class PTPMessageCommon {
- protected:
+protected:
 	unsigned char versionPTP;
 	uint16_t versionNetwork;
 	MessageType messageType;
-
+	
 	PortIdentity *sourcePortIdentity;
-
+	
 	uint16_t sequenceId;
 	LegacyMessageType control;
 	unsigned char flags[2];
-
+	
 	uint16_t messageLength;
 	char logMeanMessageInterval;
 	long long correctionField;
 	unsigned char domainNumber;
-
+	
 	Timestamp _timestamp;
 	unsigned _timestamp_counter_value;
 	bool _gc;
-
-	 PTPMessageCommon(void) {
-	};
+	
+	PTPMessageCommon(void) { };
  public:
 	PTPMessageCommon(IEEE1588Port * port);
 	virtual ~ PTPMessageCommon(void);
@@ -213,9 +212,8 @@ class PTPMessageCommon {
 
 	void buildCommonHeader(uint8_t * buf);
 
-	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
-						 LinkLayerAddress * remote,
-						 IEEE1588Port * port);
+	friend PTPMessageCommon *buildPTPMessage
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 #pragma pack(push,1)
@@ -242,7 +240,8 @@ class PathTraceTLV {
 
 class PTPMessageAnnounce:public PTPMessageCommon {
  private:
-	char grandmasterIdentity[PTP_CLOCK_IDENTITY_LENGTH];
+	uint8_t grandmasterIdentity[PTP_CLOCK_IDENTITY_LENGTH];
+	ClockQuality *grandmasterClockQuality;
 
 	PathTraceTLV tlv;
 
@@ -268,7 +267,7 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	}
 
 	ClockQuality *getGrandmasterClockQuality(void) {
-		return clockQuality;
+		return grandmasterClockQuality;
 	}
 
 	uint16_t getStepsRemoved(void) {
@@ -276,8 +275,12 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	}
 
 	void getGrandmasterIdentity(char *identity) {
-		memcpy(identity, grandmasterIdentity,
-		       PTP_CLOCK_IDENTITY_LENGTH);
+		memcpy(identity, grandmasterIdentity, PTP_CLOCK_IDENTITY_LENGTH);
+	}
+	ClockIdentity getGrandmasterClockIdentity() {
+		ClockIdentity ret;
+		ret.set( grandmasterIdentity );
+		return ret;
 	}
 
 	void processMessage(IEEE1588Port * port);
@@ -306,9 +309,8 @@ class PTPMessageSync:public PTPMessageCommon {
 
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
 
-	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
-						 LinkLayerAddress * remote,
-						 IEEE1588Port * port);
+	friend PTPMessageCommon *buildPTPMessage
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 #pragma pack(push,1)
@@ -338,7 +340,7 @@ class FollowUpTLV {
 	scaledNs scaledLastGmPhaseChange;
 	int32_t scaledLastGmFreqChange;
  public:
-	 FollowUpTLV() {
+	FollowUpTLV() {
 		tlvType = PLAT_htons(0x3);
 		lengthField = PLAT_htons(28);
 		organizationId[0] = '\x00';
@@ -353,32 +355,34 @@ class FollowUpTLV {
 	void toByteString(uint8_t * byte_str) {
 		memcpy(byte_str, this, sizeof(*this));
 	}
+	int32_t getRateOffset() {
+		return cumulativeScaledRateOffset;
+	}
 };
 
 #pragma pack(pop)
 
 class PTPMessageFollowUp:public PTPMessageCommon {
- private:
+private:
 	Timestamp preciseOriginTimestamp;
-
+	
 	FollowUpTLV tlv;
-
-	 PTPMessageFollowUp(void) {
- } public:
-	 PTPMessageFollowUp(IEEE1588Port * port);
+	
+	PTPMessageFollowUp(void) { }
+public:
+	PTPMessageFollowUp(IEEE1588Port * port);
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
 	void processMessage(IEEE1588Port * port);
-
+	
 	Timestamp getPreciseOriginTimestamp(void) {
 		return preciseOriginTimestamp;
 	}
 	void setPreciseOriginTimestamp(Timestamp & timestamp) {
 		preciseOriginTimestamp = timestamp;
 	}
-
-	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
-						 LinkLayerAddress * remote,
-						 IEEE1588Port * port);
+	
+	friend PTPMessageCommon *buildPTPMessage
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 class PTPMessagePathDelayReq:public PTPMessageCommon {
@@ -389,45 +393,43 @@ class PTPMessagePathDelayReq:public PTPMessageCommon {
 		return;
 	}
  public:
-	 PTPMessagePathDelayReq(IEEE1588Port * port);
+	PTPMessagePathDelayReq(IEEE1588Port * port);
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
 	void processMessage(IEEE1588Port * port);
-
+	
 	Timestamp getOriginTimestamp(void) {
 		return originTimestamp;
 	}
-
-	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
-						 LinkLayerAddress * remote,
-						 IEEE1588Port * port);
+	
+	friend PTPMessageCommon *buildPTPMessage
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 class PTPMessagePathDelayResp:public PTPMessageCommon {
- private:
+private:
 	PortIdentity * requestingPortIdentity;
 	Timestamp requestReceiptTimestamp;
-
-	 PTPMessagePathDelayResp(void) {
- } public:
+	
+	PTPMessagePathDelayResp(void) {	}
+public:
 	~PTPMessagePathDelayResp();
 	PTPMessagePathDelayResp(IEEE1588Port * port);
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
 	void processMessage(IEEE1588Port * port);
-
+	
 	void setRequestReceiptTimestamp(Timestamp timestamp) {
 		requestReceiptTimestamp = timestamp;
 	}
-
+	
 	void setRequestingPortIdentity(PortIdentity * identity);
 	void getRequestingPortIdentity(PortIdentity * identity);
-
+	
 	Timestamp getRequestReceiptTimestamp(void) {
 		return requestReceiptTimestamp;
 	}
-
-	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
-						 LinkLayerAddress * remote,
-						 IEEE1588Port * port);
+	
+	friend PTPMessageCommon *buildPTPMessage
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
@@ -435,8 +437,8 @@ class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
 	Timestamp responseOriginTimestamp;
 	PortIdentity *requestingPortIdentity;
 
-	 PTPMessagePathDelayRespFollowUp(void) {
- } public:
+	PTPMessagePathDelayRespFollowUp(void) { }
+public:
 	 PTPMessagePathDelayRespFollowUp(IEEE1588Port * port);
 	~PTPMessagePathDelayRespFollowUp();
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
@@ -454,9 +456,8 @@ class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
 		return requestingPortIdentity;
 	}
 
-	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
-						 LinkLayerAddress * remote,
-						 IEEE1588Port * port);
+	friend PTPMessageCommon *buildPTPMessage
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 #endif
