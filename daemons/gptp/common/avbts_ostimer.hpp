@@ -35,11 +35,13 @@
 #define AVBTS_OSTIMER_HPP
 
 class OSTimer {
- public:virtual unsigned long sleep(unsigned long micro) = 0;
+public:
+	virtual unsigned long sleep(unsigned long micro) = 0;
 };
 
 class OSTimerFactory {
- public:virtual OSTimer * createTimer() = 0;
+public:
+	virtual OSTimer * createTimer() = 0;
 };
 
 

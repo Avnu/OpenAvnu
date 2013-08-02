@@ -39,6 +39,8 @@
 #include "avbts_oscondition.hpp"
 #include "avbts_ostimerq.hpp"
 #include "avbts_ostimer.hpp"
+#include "avbts_osthread.hpp"
+#include "avbts_osipc.hpp"
 #include "ieee1588.hpp"
 
 #include <unistd.h>
@@ -62,13 +64,27 @@
 #include <sys/select.h>
 #include <linux/net_tstamp.h>
 #include <linux/sockios.h>
+#include <linux/ethtool.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ipcdef.hpp>
+#include <sys/syscall.h>
+#include <math.h>
+#include <grp.h>
+
+#include <list>
+
+extern "C" {
+#include <igb.h>
+}
 
 #define ONE_WAY_PHY_DELAY 400
 #define P8021AS_MULTICAST "\x01\x80\xC2\x00\x00\x0E"
+#define PTP_DEVICE "/dev/ptpXX"
+#define PTP_DEVICE_IDX_OFFS 8
+#define CLOCKFD 3
+#define FD_TO_CLOCKID(fd)       ((~(clockid_t) (fd) << 3) | CLOCKFD)
 
 static inline Timestamp tsToTimestamp(struct timespec *ts)
 {
@@ -86,59 +102,266 @@ static inline Timestamp tsToTimestamp(struct timespec *ts)
 	return ret;
 }
 
-class LinuxTimestamper:public HWTimestamper {
- private:
+class LinuxTimestamper;
+
+class TicketingLock {
+public:
+	bool lock( bool *got = NULL ) {
+		uint8_t ticket;
+		bool yield = false;
+		bool ret = true;
+		if( !init_flag ) return false;
+		
+		if( pthread_mutex_lock( &cond_lock ) != 0 ) {
+			ret = false;
+			goto done;
+		}
+		// Take a ticket
+		ticket = cond_ticket_issue++;
+		while( ticket != cond_ticket_serving ) {
+			if( got != NULL ) {
+				*got = false;
+				--cond_ticket_issue;
+				yield = true;
+				goto unlock;
+			}
+			if( pthread_cond_wait( &condition, &cond_lock ) != 0 ) {
+				ret = false;
+				goto unlock;
+			}
+		}
+
+		if( got != NULL ) *got = true;
+		
+	unlock:
+		if( pthread_mutex_unlock( &cond_lock ) != 0 ) {
+			ret = false;
+			goto done;
+		}
+		
+		if( yield ) pthread_yield();
+		
+	done:
+		return ret;
+	}
+	bool unlock() {
+		bool ret = true;
+		if( !init_flag ) return false;
+		
+		if( pthread_mutex_lock( &cond_lock ) != 0 ) {
+			ret = false;
+			goto done;
+		}
+		++cond_ticket_serving;
+		if( pthread_cond_broadcast( &condition ) != 0 ) {
+			ret = false;
+			goto unlock;
+		}
+
+	unlock:
+		if( pthread_mutex_unlock( &cond_lock ) != 0 ) {
+			ret = false;
+			goto done;
+		}
+
+	done:
+		return ret;
+	}
+	bool init() {
+		int err;
+		if( init_flag ) return false;  // Don't do this more than once
+		err = pthread_mutex_init( &cond_lock, NULL );
+		if( err != 0 ) return false;
+		err = pthread_cond_init( &condition, NULL );
+		if( err != 0 ) return false;
+		in_use = false;
+		cond_ticket_issue = 0;
+		cond_ticket_serving = 0;
+		init_flag = true;
+    
+		return true;
+	}
+	TicketingLock() {
+		init_flag = false;
+	}
+private:
+	bool init_flag;
+	pthread_cond_t condition;
+	pthread_mutex_t cond_lock;      
+	bool in_use;
+	uint8_t cond_ticket_issue;
+	uint8_t cond_ticket_serving;
+};
+
+class LinuxNetworkInterface : public OSNetworkInterface {
+	friend class LinuxNetworkInterfaceFactory;
+private:
+	LinkLayerAddress local_addr;
+	int sd_event;
+	int sd_general;
+	LinuxTimestamper *timestamper;
+	int ifindex;
+
+	TicketingLock net_lock;
+public:
+	virtual net_result send
+	( LinkLayerAddress *addr, uint8_t *payload, size_t length,
+	  bool timestamp );
+
+	virtual net_result recv
+	( LinkLayerAddress *addr, uint8_t *payload, size_t &length );
+
+	void disable_clear_rx_queue();
+	void reenable_rx_queue();
+
+	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
+		*addr = local_addr;
+	}
+
+	// No offset needed for Linux SOCK_DGRAM packet
+	virtual unsigned getPayloadOffset() {
+		return 0;
+	}
+
+	virtual ~LinuxNetworkInterface() {
+		close( sd_event );
+		close( sd_general );
+	}
+
+protected:
+	LinuxNetworkInterface() {};
+};
+
+typedef std::list<LinuxNetworkInterface *> LinuxNetworkInterfaceList;
+
+class LinuxTimestamper : public HWTimestamper {
+private:
 	int sd;
 	Timestamp crstamp_system;
 	Timestamp crstamp_device;
 	pthread_mutex_t cross_stamp_lock;
 	bool cross_stamp_good;
-	 std::list < Timestamp > rxTimestampList;
- public:
-	 virtual bool HWTimestamper_init(InterfaceLabel * iface_label) {
-		pthread_mutex_init(&cross_stamp_lock, NULL);
-		sd = -1;
-		cross_stamp_good = false;
-		return true;
-	} 
-	void setSocketDescriptor(int sd) {
-		this->sd = sd;
-	};
-	void updateCrossStamp(Timestamp * system_time, Timestamp * device_time) {
-		pthread_mutex_lock(&cross_stamp_lock);
-		crstamp_system = *system_time;
-		crstamp_device = *device_time;
-		cross_stamp_good = true;
-		pthread_mutex_unlock(&cross_stamp_lock);
+	std::list<Timestamp> rxTimestampList;
+	clockid_t clockid;
+	LinuxNetworkInterfaceList iface_list;
+
+	TicketingLock *net_lock;
+	
+	device_t igb_dev;
+	bool igb_initd;
+	
+	int findPhcIndex( InterfaceLabel *iface_label ) {
+		int sd;
+		InterfaceName *ifname;
+		struct ethtool_ts_info info;
+		struct ifreq ifr;
+		
+		if(( ifname = dynamic_cast<InterfaceName *>(iface_label)) == NULL ) {
+			fprintf( stderr, "findPTPIndex requires InterfaceName\n" );
+			return -1;
+		}
+
+		sd = socket( AF_UNIX, SOCK_DGRAM, 0 );
+		if( sd < 0 ) {
+			fprintf( stderr, "findPTPIndex: failed to open socket\n" );
+			return -1;
+		}
+
+		memset( &ifr, 0, sizeof(ifr));
+		memset( &info, 0, sizeof(info));
+		info.cmd = ETHTOOL_GET_TS_INFO;
+		ifname->toString( ifr.ifr_name, IFNAMSIZ-1 );
+		ifr.ifr_data = (char *) &info;
+		
+		if( ioctl( sd, SIOCETHTOOL, &ifr ) < 0 ) {
+			fprintf( stderr, "findPTPIndex: ioctl(SIOETHTOOL) failed\n" );
+			return -1;
+		}
+
+		close(sd);
+
+		return info.phc_index;
 	}
-	void pushRXTimestamp(Timestamp * tstamp) {
+public:
+	LinuxTimestamper() {
+		sd = -1;
+	}
+	virtual bool HWTimestamper_init
+	( InterfaceLabel *iface_label, OSNetworkInterface *iface ) {
+		int fd;
+		pthread_mutex_init( &cross_stamp_lock, NULL );
+		cross_stamp_good = false;
+		struct timex tx;
+		int phc_index;
+		char ptp_device[] = PTP_DEVICE;
+
+		// Determine the correct PTP clock interface
+		phc_index = findPhcIndex( iface_label );
+		if( phc_index < 0 ) {
+			fprintf( stderr, "Failed to find PTP device index\n" );
+			return false;
+		}
+		
+		snprintf
+			( ptp_device+PTP_DEVICE_IDX_OFFS,
+			  sizeof(ptp_device)-PTP_DEVICE_IDX_OFFS, "%d", phc_index );
+		fprintf( stderr, "Using clock device: %s\n", ptp_device );
+		fd = open( ptp_device, O_RDWR );
+		if( fd == -1 || (clockid = FD_TO_CLOCKID(fd)) == -1 ) {
+			fprintf( stderr, "Failed to open PTP clock device\n" );
+			return false;
+		}
+    
+		tx.modes = ADJ_FREQUENCY;
+		tx.freq = 0;
+		if( syscall(__NR_clock_adjtime, clockid, &tx) != 0 ) {
+			fprintf( stderr, "Failed to set PTP clock rate to 0\n" );
+			return false;
+		}
+		
+		if( dynamic_cast<LinuxNetworkInterface *>(iface) != NULL ) {
+			iface_list.push_front
+				( (dynamic_cast<LinuxNetworkInterface *>(iface)) );
+		}
+		
+		return true; 
+	}
+	void setSocketDescriptor( int sd ) { this->sd = sd; };
+	void setNetworkLock( TicketingLock *lock ) { net_lock = lock; };
+	void updateCrossStamp( Timestamp *system_time, Timestamp *device_time ) {
+		pthread_mutex_lock( &cross_stamp_lock );
+		crstamp_system = *system_time;
+		crstamp_device  = *device_time;
+		cross_stamp_good = true;
+		pthread_mutex_unlock( &cross_stamp_lock );
+	}
+	void pushRXTimestamp( Timestamp *tstamp ) {
+		tstamp->_version = version;
 		rxTimestampList.push_front(*tstamp);
 	}
-	bool post_init(int ifindex) {
+	bool post_init( int ifindex ) {
 		int timestamp_flags = 0;
 		struct ifreq device;
 		struct hwtstamp_config hwconfig;
 		int err;
 
-		memset(&device, 0, sizeof(device));
+		memset( &device, 0, sizeof(device));
 		device.ifr_ifindex = ifindex;
-		err = ioctl(sd, SIOCGIFNAME, &device);
-		if (err == -1) {
-			XPTPD_ERROR("Failed to get interface name: %s",
-				    strerror(errno));
+		err = ioctl( sd, SIOCGIFNAME, &device );
+		if( err == -1 ) {
+			XPTPD_ERROR
+				( "Failed to get interface name: %s", strerror( errno ));
 			return false;
 		}
 
-		device.ifr_data = (char *)&hwconfig;
-		memset(&hwconfig, 0, sizeof(hwconfig));
+		device.ifr_data = (char *) &hwconfig;
+		memset( &hwconfig, 0, sizeof( hwconfig ));
 		hwconfig.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		hwconfig.tx_type = HWTSTAMP_TX_ON;
-		printf("TX type = %u\n", hwconfig.tx_type);
-		printf("RX filter = %u\n", hwconfig.rx_filter);
-		err = ioctl(sd, SIOCSHWTSTAMP, &device);
-		if (err == -1) {
-			XPTPD_ERROR("Failed to configure timestamping: %s",
-				    strerror(errno));
+		err = ioctl( sd, SIOCSHWTSTAMP, &device );
+		if( err == -1 ) {
+			XPTPD_ERROR
+				( "Failed to configure timestamping: %s", strerror( errno ));
 			return false;
 		}
 
@@ -146,166 +369,240 @@ class LinuxTimestamper:public HWTimestamper {
 		timestamp_flags |= SOF_TIMESTAMPING_RX_HARDWARE;
 		timestamp_flags |= SOF_TIMESTAMPING_SYS_HARDWARE;
 		timestamp_flags |= SOF_TIMESTAMPING_RAW_HARDWARE;
-		err =
-		    setsockopt(sd, SOL_SOCKET, SO_TIMESTAMPING,
-			       &timestamp_flags, sizeof(timestamp_flags));
-		if (err == -1) {
+		err = setsockopt
+			( sd, SOL_SOCKET, SO_TIMESTAMPING, &timestamp_flags,
+			  sizeof(timestamp_flags) );
+		if( err == -1 ) {
 			XPTPD_ERROR
-			    ("Failed to configure timestamping on socket: %s",
-			     strerror(errno));
+				( "Failed to configure timestamping on socket: %s",
+				  strerror( errno ));
 			return false;
 		}
-
+		
 		return true;
-	}
+	}    
 
-	virtual bool HWTimestamper_gettime(Timestamp * system_time,
-					   Timestamp * device_time,
-					   uint32_t * local_clock,
-					   uint32_t * nominal_clock_rate) {
+	virtual bool HWTimestamper_gettime
+	( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
+	  uint32_t *nominal_clock_rate ) {
 		bool ret = false;
-		pthread_mutex_lock(&cross_stamp_lock);
-		if (cross_stamp_good) {
+		pthread_mutex_lock( &cross_stamp_lock );
+		if( cross_stamp_good ) {
 			*system_time = crstamp_system;
 			*device_time = crstamp_device;
 			ret = true;
 		}
-		pthread_mutex_unlock(&cross_stamp_lock);
+		pthread_mutex_unlock( &cross_stamp_lock );
+		
 		return ret;
 	}
 
-	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
-					      uint16_t sequenceId,
-					      Timestamp & timestamp,
-					      unsigned &clock_value,
-					      bool last) {
+	virtual int HWTimestamper_txtimestamp
+	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	  unsigned &clock_value, bool last ) {
 		int err;
 		int ret = -72;
 		struct msghdr msg;
 		struct cmsghdr *cmsg;
-		struct sockaddr_ll remote;
+		struct sockaddr_ll remote;        
 		struct iovec sgentry;
 		struct {
 			struct cmsghdr cm;
 			char control[256];
 		} control;
-
-		if (sd == -1)
-			return -1;
-		memset(&msg, 0, sizeof(msg));
-
+     
+		if( sd == -1 ) return -1;
+		memset( &msg, 0, sizeof( msg ));
+    
 		msg.msg_iov = &sgentry;
 		msg.msg_iovlen = 1;
-
+		
 		sgentry.iov_base = NULL;
 		sgentry.iov_len = 0;
-
-		memset(&remote, 0, sizeof(remote));
-		msg.msg_name = (caddr_t) & remote;
-		msg.msg_namelen = sizeof(remote);
+		
+		memset( &remote, 0, sizeof(remote));
+		msg.msg_name = (caddr_t) &remote;
+		msg.msg_namelen = sizeof( remote );
 		msg.msg_control = &control;
 		msg.msg_controllen = sizeof(control);
 
-		err = recvmsg(sd, &msg, MSG_ERRQUEUE);
-		if (err == -1) {
-			if (errno == EAGAIN)
-				return -72;
-			else
-				return -1;
+		err = recvmsg( sd, &msg, MSG_ERRQUEUE );
+		if( err == -1 ) {
+			if( errno == EAGAIN ) {
+				ret = -72;
+				goto done;
+			}
+			else {
+				ret = -1;
+				goto done;
+			}
 		}
-
+    
+		// Retrieve the timestamp
 		cmsg = CMSG_FIRSTHDR(&msg);
-		while (cmsg != NULL) {
-			if (cmsg->cmsg_level == SOL_SOCKET
-			    && cmsg->cmsg_type == SO_TIMESTAMPING) {
+		while( cmsg != NULL ) {
+			if( cmsg->cmsg_level == SOL_SOCKET &&
+				cmsg->cmsg_type == SO_TIMESTAMPING ) {
 				struct timespec *ts_device, *ts_system;
-				Timestamp device, system;
-				ts_system =
-				    ((struct timespec *)CMSG_DATA(cmsg)) + 1;
-				system = tsToTimestamp(ts_system);
-				ts_device = ts_system + 1;
-				device = tsToTimestamp(ts_device);
-				updateCrossStamp(&system, &device);
+				Timestamp device, system; 
+				ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
+				system = tsToTimestamp( ts_system );
+				ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
+				system._version = version;
+				device._version = version;
+				updateCrossStamp( &system, &device );
 				timestamp = device;
 				ret = 0;
-				break;
+				break;    
 			}
-			cmsg = CMSG_NXTHDR(&msg, cmsg);
+			cmsg = CMSG_NXTHDR(&msg,cmsg);
 		}
-
+		
+	done:
+		if( ret == 0 || last ) net_lock->unlock();
+		
 		return ret;
 	}
 
-	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
-					      uint16_t sequenceId,
-					      Timestamp & timestamp,
-					      unsigned &clock_value,
-					      bool last) {
-		if (rxTimestampList.empty())
-			return -72;
+	virtual int HWTimestamper_rxtimestamp
+	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	  unsigned &clock_value, bool last ) {
+		/* This shouldn't happen. Ever. */
+		if( rxTimestampList.empty() ) return -72;
 		timestamp = rxTimestampList.back();
 		rxTimestampList.pop_back();
-
+		
 		return 0;
 	}
+
+#define ADJ_SETOFFSET           0x0100
+
+	virtual bool HWTimestamper_adjclockphase( int64_t phase_adjust ) {
+		struct timex tx;
+		LinuxNetworkInterfaceList::iterator iface_iter;
+		bool ret = true;
+		int err;
+		
+		/* Walk list of interfaces disabling them all */
+		iface_iter = iface_list.begin();
+		for
+			( iface_iter = iface_list.begin(); iface_iter != iface_list.end();
+			  ++iface_iter ) {
+			(*iface_iter)->disable_clear_rx_queue();
+		}
+		
+		rxTimestampList.clear();
+		
+		{
+			/* Wait 180 ms - This is plenty of time for any time sync frames
+			   to clear the queue */
+			struct timespec wait_time = { 0, 180000000 };
+			err = -1;
+			while( err == -1 && wait_time.tv_nsec > 0 ) {
+				if
+					(( err = nanosleep( &wait_time, &wait_time )) == -1 &&
+					 errno != EINTR ) {
+					XPTPD_ERROR( "HWTimestamper_adjclockphase: "
+								 "nanosleep failed" );
+					exit(-1);
+				}
+			}
+		}
+		
+		++version;
+		
+		tx.modes = ADJ_SETOFFSET | ADJ_NANO;
+		if( phase_adjust >= 0 ) {
+			tx.time.tv_sec  = phase_adjust / 1000000000LL;
+			tx.time.tv_usec = phase_adjust % 1000000000LL;
+		} else {
+			tx.time.tv_sec  = (phase_adjust / 1000000000LL)-1;
+			tx.time.tv_usec = (phase_adjust % 1000000000LL)+1000000000;
+		}
+		if( syscall(__NR_clock_adjtime, clockid, &tx) != 0 ) {
+			fprintf( stderr, "Call to adjust phase failed, %s(%ld)\n",
+					 strerror(errno), tx.time.tv_usec );
+			exit(-1);
+	  }
+		
+		// Walk list of interfaces re-enabling them
+		iface_iter = iface_list.begin();
+	  for( iface_iter = iface_list.begin(); iface_iter != iface_list.end();
+		   ++iface_iter ) {
+		  (*iface_iter)->reenable_rx_queue();
+	  }
+	  
+	  return ret;
+	}
+	
+	virtual bool HWTimestamper_adjclockrate( float freq_offset ) {
+		struct timex tx;
+		tx.modes = ADJ_FREQUENCY;
+		tx.freq  = long(freq_offset) << 16;
+		tx.freq += long(fmodf( freq_offset, 1.0 )*65536.0);
+		if( syscall(__NR_clock_adjtime, clockid, &tx) != 0 ) {
+			XPTPD_ERROR
+				( "Call to adjust frequency failed, %s", strerror(errno) );
+			return false;
+		}
+		return true;
+	}
+	bool HWTimestamper_PPS_start( );
+	bool HWTimestamper_PPS_stop();
 };
 
-class LinuxLock:public OSLock {
-	friend class LinuxLockFactory;
- private:
-	 OSLockType type;
-	pthread_t thread_id;
+
+class LinuxLock : public OSLock {
+    friend class LinuxLockFactory;
+private:
+    OSLockType type;
+    pthread_t thread_id;
 	pthread_mutexattr_t mta;
 	pthread_mutex_t mutex;
 	pthread_cond_t port_ready_signal;
- protected:
-	 LinuxLock() {
-	} 
-	bool initialize(OSLockType type) {
+protected:
+    LinuxLock() {
+    }
+    bool initialize( OSLockType type ) {
 		int lock_c;
 		pthread_mutexattr_init(&mta);
-		if (type == oslock_recursive)
-			pthread_mutexattr_settype(&mta,
-						  PTHREAD_MUTEX_RECURSIVE);
-		lock_c = pthread_mutex_init(&mutex, &mta);
-		if (lock_c != 0) {
-			XPTPD_ERROR("Mutex initialization failed - %s\n",
-				    strerror(errno));
+		if( type == oslock_recursive )
+			pthread_mutexattr_settype(&mta, PTHREAD_MUTEX_RECURSIVE);
+		lock_c = pthread_mutex_init(&mutex,&mta);
+		if(lock_c != 0) {
+			XPTPD_ERROR("Mutex initialization failed - %s\n",strerror(errno));
 			return oslock_fail;
 		}
 		return oslock_ok;
-
-	}
-	OSLockResult lock() {
+		
+    }
+    OSLockResult lock() {
 		int lock_c;
 		lock_c = pthread_mutex_lock(&mutex);
-		if (lock_c != 0)
-			return oslock_fail;
+		if(lock_c != 0) return oslock_fail;
 		return oslock_ok;
-	}
-	OSLockResult trylock() {
+    }
+    OSLockResult trylock() {
 		int lock_c;
-		lock_c = pthread_mutex_trylock(&mutex);
-		if (lock_c != 0)
-			return oslock_fail;
+        lock_c = pthread_mutex_trylock(&mutex);
+		if(lock_c != 0) return oslock_fail;
 		return oslock_ok;
-	}
-	OSLockResult unlock() {
+    }
+    OSLockResult unlock() {
 		int lock_c;
-		lock_c = pthread_mutex_unlock(&mutex);
-		if (lock_c != 0)
-			return oslock_fail;
+        lock_c = pthread_mutex_unlock(&mutex);
+		if(lock_c != 0) return oslock_fail;
 		return oslock_ok;
-	}
+    }
 };
 
 class LinuxLockFactory:public OSLockFactory {
- public:
+public:
 	OSLock * createLock(OSLockType type) {
 		LinuxLock *lock = new LinuxLock();
 		if (lock->initialize(type) != oslock_ok) {
 			delete lock;
-			 lock = NULL;
+			lock = NULL;
 		}
 		return lock;
 	}
@@ -313,20 +610,20 @@ class LinuxLockFactory:public OSLockFactory {
 
 class LinuxCondition:public OSCondition {
 	friend class LinuxConditionFactory;
- private:
-	 pthread_cond_t port_ready_signal;
+private:
+	pthread_cond_t port_ready_signal;
 	pthread_mutex_t port_lock;
- protected:
-	 bool initialize() {
+protected:
+	bool initialize() {
 		int lock_c;
-		 pthread_cond_init(&port_ready_signal, NULL);
-		 lock_c = pthread_mutex_init(&port_lock, NULL);
+		pthread_cond_init(&port_ready_signal, NULL);
+		lock_c = pthread_mutex_init(&port_lock, NULL);
 		if (lock_c != 0)
-			 return false;
-		 return true;
+			return false;
+		return true;
  } 
 public:
-	 bool wait_prelock() {
+	bool wait_prelock() {
 		pthread_mutex_lock(&port_lock);
 		up();
 		return true;
@@ -347,10 +644,10 @@ public:
 };
 
 class LinuxConditionFactory:public OSConditionFactory {
- public:
+public:
 	OSCondition * createCondition() {
 		LinuxCondition *result = new LinuxCondition();
-		 return result->initialize() ? result : NULL;
+		return result->initialize() ? result : NULL;
 	}
 };
 
@@ -382,11 +679,11 @@ void LinuxTimerQueueHandler(union sigval arg_in);
 class LinuxTimerQueue:public OSTimerQueue {
 	friend class LinuxTimerQueueFactory;
 	friend void LinuxTimerQueueHandler(union sigval arg_in);
- private:
+private:
 	TimerQueueMap_t timerQueueMap;
 	TimerArgList_t retiredTimers;
 	bool in_callback;
- protected:
+protected:
 	LinuxTimerQueue() {
 		int err;
 		pthread_mutex_t retiredTimersLock;
@@ -397,15 +694,14 @@ class LinuxTimerQueue:public OSTimerQueue {
 			exit(0);
 		}
 		err =
-		    pthread_mutexattr_settype(&retiredTimersLockAttr,
-					      PTHREAD_MUTEX_NORMAL);
+		    pthread_mutexattr_settype
+			(&retiredTimersLockAttr, PTHREAD_MUTEX_NORMAL);
 		if (err != 0) {
 			XPTPD_ERROR("mutexattr_settype()");
 			exit(0);
 		}
 		err =
-		    pthread_mutex_init(&retiredTimersLock,
-				       &retiredTimersLockAttr);
+		    pthread_mutex_init(&retiredTimersLock, &retiredTimersLockAttr);
 		if (err != 0) {
 			XPTPD_ERROR("mutex_init()");
 			exit(0);
@@ -413,7 +709,7 @@ class LinuxTimerQueue:public OSTimerQueue {
 	};
  public:
 	bool addEvent(unsigned long micros, int type, ostimerq_handler func,
-		      event_descriptor_t * arg, bool rm, unsigned *event) {
+				  event_descriptor_t * arg, bool rm, unsigned *event) {
 		LinuxTimerQueueHandlerArg *outer_arg =
 		    new LinuxTimerQueueHandlerArg();
 		if (timerQueueMap.find(type) == timerQueueMap.end()) {
@@ -428,7 +724,7 @@ class LinuxTimerQueue:public OSTimerQueue {
 		int err;
 		timer_t timerhandle;
 		struct sigevent ev;
-
+		
 		sigemptyset(&set);
 		sigaddset(&set, SIGALRM);
 		err = pthread_sigmask(SIG_BLOCK, &set, &oset);
@@ -446,20 +742,26 @@ class LinuxTimerQueue:public OSTimerQueue {
 			ev.sigev_notify_function = LinuxTimerQueueHandler;
 			ev.sigev_notify_attributes = new pthread_attr_t;
 			pthread_attr_init((pthread_attr_t *) ev.sigev_notify_attributes);
-			pthread_attr_setdetachstate((pthread_attr_t *) ev.sigev_notify_attributes,
-						    PTHREAD_CREATE_DETACHED);
+			pthread_attr_setdetachstate
+				((pthread_attr_t *) ev.sigev_notify_attributes,
+				 PTHREAD_CREATE_DETACHED);
 			if (timer_create(CLOCK_MONOTONIC, &ev, &timerhandle) == -1) {
-				XPTPD_ERROR("timer_create failed - %s\n",
-					    strerror(errno));
+				XPTPD_ERROR("timer_create failed - %s", strerror(errno));
 				exit(0);
 			}
 			outer_arg->timer_handle = timerhandle;
 			outer_arg->sevp = ev;
-
+			
 			memset(&its, 0, sizeof(its));
 			its.it_value.tv_sec = micros / 1000000;
 			its.it_value.tv_nsec = (micros % 1000000) * 1000;
-			timer_settime(outer_arg->timer_handle, 0, &its, NULL);
+			err = timer_settime(outer_arg->timer_handle, 0, &its, NULL);
+			if( err < 0 ) {
+			  fprintf( stderr,
+				   "Failed to arm timer: %s\n",
+				   strerror( errno ));
+			  return false;
+			}
 		}
 		timerQueueMap[type].arg_list.push_front(outer_arg);
 
@@ -513,33 +815,6 @@ class LinuxTimerQueue:public OSTimerQueue {
 	}
 };
 
-void LinuxTimerQueueHandler(union sigval arg_in)
-{
-	LinuxTimerQueueHandlerArg *arg =
-	    (LinuxTimerQueueHandlerArg *) arg_in.sival_ptr;
-	bool runnable = false;
-	unsigned size;
-
-	pthread_mutex_lock(&arg->timer_queue->lock);
-	size = arg->timer_queue->arg_list.size();
-	arg->timer_queue->arg_list.remove(arg);
-	if (arg->timer_queue->arg_list.size() < size) {
-		runnable = true;
-	}
-	pthread_mutex_unlock(&arg->timer_queue->lock);
-
-	if (runnable) {
-		arg->func(arg->inner_arg);
-		if (arg->rm)
-			delete arg->inner_arg;
-		pthread_attr_destroy((pthread_attr_t *) arg->sevp.
-				     sigev_notify_attributes);
-		delete(pthread_attr_t *) arg->sevp.sigev_notify_attributes;
-		timer_delete(arg->timer_handle);
-		delete arg;
-	}
-}
-
 class LinuxTimerQueueFactory:public OSTimerQueueFactory {
  public:
 	virtual OSTimerQueue * createOSTimerQueue() {
@@ -573,12 +848,7 @@ struct OSThreadArg {
 	OSThreadExitCode ret;
 };
 
-void *OSThreadCallback(void *input)
-{
-	OSThreadArg *arg = (OSThreadArg *) input;
-	arg->ret = arg->func(arg->arg);
-	return 0;
-}
+void *OSThreadCallback(void *input);
 
 class LinuxThread:public OSThread {
 	friend class LinuxThreadFactory;
@@ -636,342 +906,224 @@ class LinuxThreadFactory:public OSThreadFactory {
 	}
 };
 
-class LinuxPCAPNetworkInterface:public OSNetworkInterface {
-	friend class LinuxPCAPNetworkInterfaceFactory;
- private:
-	LinkLayerAddress local_addr;
-	int sd_event;
-	int sd_general;
-	LinuxTimestamper *timestamper;
-	int ifindex;
- public:
-	virtual net_result send(LinkLayerAddress * addr, uint8_t * payload,
-				size_t length, bool timestamp) {
-		sockaddr_ll *remote = NULL;
-		int err;
-		remote = new struct sockaddr_ll;
-		memset(remote, 0, sizeof(*remote));
-		remote->sll_family = AF_PACKET;
-		remote->sll_protocol = htons(PTP_ETHERTYPE);
-		remote->sll_ifindex = ifindex;
-		remote->sll_halen = ETH_ALEN;
-		addr->toOctetArray(remote->sll_addr);
-		if (timestamp) {
-			err = sendto(sd_event, payload, length, 0,
-				     (sockaddr *) remote, sizeof(*remote));
-		} else {
-			err = sendto(sd_general, payload, length, 0,
-				     (sockaddr *) remote, sizeof(*remote));
-		}
-		delete remote;
-		if (err == -1) {
-			XPTPD_ERROR("Failed to send: %s(%d)", strerror(errno),
-				    errno);
-			return net_fatal;
-		}
-		return net_succeed;
-	}
-
-	virtual net_result recv(LinkLayerAddress * addr, uint8_t * payload,
-				size_t & length) {
-		fd_set readfds;
-		int err;
-		struct msghdr msg;
-		struct cmsghdr *cmsg;
-		struct {
-			struct cmsghdr cm;
-			char control[256];
-		} control;
-		struct sockaddr_ll remote;
-		struct iovec sgentry;
-
-		struct timeval timeout = { 0, 100000 };
-
-		FD_ZERO(&readfds);
-		FD_SET(sd_event, &readfds);
-
-		err = select(sd_event + 1, &readfds, NULL, NULL, &timeout);
-		if (err == 0) {
-			return net_trfail;
-		} else if (err == -1) {
-			if (err == EINTR) {
-				XPTPD_ERROR("select() recv signal");
-			} else {
-				XPTPD_ERROR("select() failed");
-				return net_fatal;
-			}
-		}
-
-		memset(&msg, 0, sizeof(msg));
-
-		msg.msg_iov = &sgentry;
-		msg.msg_iovlen = 1;
-
-		sgentry.iov_base = payload;
-		sgentry.iov_len = length;
-
-		memset(&remote, 0, sizeof(remote));
-		msg.msg_name = (caddr_t) & remote;
-		msg.msg_namelen = sizeof(remote);
-		msg.msg_control = &control;
-		msg.msg_controllen = sizeof(control);
-
-		err = recvmsg(sd_event, &msg, 0);
-		if (err < 0) {
-			if (errno == ENOMSG) {
-				fprintf(stderr, "Got ENOMSG: %s:%d\n", __FILE__,
-					__LINE__);
-				return net_trfail;
-			}
-			XPTPD_ERROR("recvmsg() failed: %s", strerror(errno));
-			return net_fatal;
-		}
-		*addr = LinkLayerAddress(remote.sll_addr);
-
-		if (err > 0 && !(payload[0] & 0x8)) {
-			cmsg = CMSG_FIRSTHDR(&msg);
-			while (cmsg != NULL) {
-				if (cmsg->cmsg_level == SOL_SOCKET
-				    && cmsg->cmsg_type == SO_TIMESTAMPING) {
-					struct timespec *ts_device, *ts_system;
-					Timestamp device, system;
-					ts_system =
-					    ((struct timespec *)CMSG_DATA(cmsg))
-					    + 1;
-					system = tsToTimestamp(ts_system);
-					ts_device = ts_system + 1;
-					device = tsToTimestamp(ts_device);
-					timestamper->updateCrossStamp(&system,
-								      &device);
-					timestamper->pushRXTimestamp(&device);
-					break;
-				}
-				cmsg = CMSG_NXTHDR(&msg, cmsg);
-			}
-		}
-
-		length = err;
-		return net_succeed;
-	}
-
-	virtual void getLinkLayerAddress(LinkLayerAddress * addr) {
-		*addr = local_addr;
-	}
-
-	virtual unsigned getPayloadOffset() {
-		return 0;
-	}
-
-	virtual ~ LinuxPCAPNetworkInterface() {
-		close(sd_event);
-		close(sd_general);
-	}
-
- protected:
-	LinuxPCAPNetworkInterface() {};
-};
-
-class LinuxPCAPNetworkInterfaceFactory:public OSNetworkInterfaceFactory {
- public:
-	virtual bool createInterface(OSNetworkInterface ** net_iface,
-				     InterfaceLabel * label,
-				     HWTimestamper * timestamper) {
+class LinuxNetworkInterfaceFactory : public OSNetworkInterfaceFactory {
+public:
+	virtual bool createInterface
+	( OSNetworkInterface **net_iface, InterfaceLabel *label,
+	  HWTimestamper *timestamper ) {
 		struct ifreq device;
 		int err;
 		struct sockaddr_ll ifsock_addr;
 		struct packet_mreq mr_8021as;
 		LinkLayerAddress addr;
 		int ifindex;
-
-		LinuxPCAPNetworkInterface *net_iface_l =
-		    new LinuxPCAPNetworkInterface();
-		InterfaceName *ifname = dynamic_cast < InterfaceName * >(label);
-		if (ifname == NULL) {
-			XPTPD_ERROR("ifame == NULL \n");
+		
+		LinuxNetworkInterface *net_iface_l = new LinuxNetworkInterface();
+		
+		if( !net_iface_l->net_lock.init()) {
+			XPTPD_ERROR( "Failed to initialize network lock");
 			return false;
 		}
-
-		net_iface_l->sd_general =
-		    socket(PF_PACKET, SOCK_DGRAM, htons(PTP_ETHERTYPE));
-		if (net_iface_l->sd_general == -1) {
-			XPTPD_ERROR("failed to open general socket: %s \n",
-				    strerror(errno));
+		
+		InterfaceName *ifname = dynamic_cast<InterfaceName *>(label);
+		if( ifname == NULL ){
+			XPTPD_ERROR( "ifname == NULL");
 			return false;
 		}
-		net_iface_l->sd_event =
-		    socket(PF_PACKET, SOCK_DGRAM, htons(PTP_ETHERTYPE));
-		if (net_iface_l->sd_event == -1) {
-			XPTPD_ERROR("failed to open event socket: %s \n",
-				    strerror(errno));
+		
+		net_iface_l->sd_general = socket( PF_PACKET, SOCK_DGRAM, 0 );
+		if( net_iface_l->sd_general == -1 ) {
+			XPTPD_ERROR( "failed to open general socket: %s", strerror(errno));
 			return false;
 		}
-
-		memset(&device, 0, sizeof(device));
-		ifname->toString(device.ifr_name, IFNAMSIZ);
-		err = ioctl(net_iface_l->sd_event, SIOCGIFHWADDR, &device);
-		if (err == -1) {
-			XPTPD_ERROR("Failed to get interface address: %s",
-				    strerror(errno));
+		net_iface_l->sd_event = socket( PF_PACKET, SOCK_DGRAM, 0 );
+		if( net_iface_l->sd_event == -1 ) {
+			XPTPD_ERROR
+				( "failed to open event socket: %s \n", strerror(errno));
 			return false;
 		}
-		addr = LinkLayerAddress(((struct sockaddr_ll *)&device.ifr_hwaddr)->sll_addr);
+		
+		memset( &device, 0, sizeof(device));
+		ifname->toString( device.ifr_name, IFNAMSIZ );
+		err = ioctl( net_iface_l->sd_event, SIOCGIFHWADDR, &device );
+		if( err == -1 ) {
+			XPTPD_ERROR
+				( "Failed to get interface address: %s", strerror( errno ));
+			return false;
+		}
+		
+		addr = LinkLayerAddress( (uint8_t *)&device.ifr_hwaddr.sa_data );
 		net_iface_l->local_addr = addr;
-
-		err = ioctl(net_iface_l->sd_event, SIOCGIFINDEX, &device);
-		if (err == -1) {
-			XPTPD_ERROR("Failed to get interface index: %s",
-				    strerror(errno));
+		err = ioctl( net_iface_l->sd_event, SIOCGIFINDEX, &device );
+		if( err == -1 ) {
+			XPTPD_ERROR
+				( "Failed to get interface index: %s", strerror( errno ));
 			return false;
 		}
 		ifindex = device.ifr_ifindex;
 		net_iface_l->ifindex = ifindex;
-		memset(&mr_8021as, 0, sizeof(mr_8021as));
+		memset( &mr_8021as, 0, sizeof( mr_8021as ));
 		mr_8021as.mr_ifindex = ifindex;
 		mr_8021as.mr_type = PACKET_MR_MULTICAST;
 		mr_8021as.mr_alen = 6;
-		memcpy(mr_8021as.mr_address, P8021AS_MULTICAST,
-		       mr_8021as.mr_alen);
-		err = setsockopt(net_iface_l->sd_event, SOL_PACKET,
-				 PACKET_ADD_MEMBERSHIP, &mr_8021as,
-				 sizeof(mr_8021as));
-		if (err == -1) {
+		memcpy( mr_8021as.mr_address, P8021AS_MULTICAST, mr_8021as.mr_alen );
+		err = setsockopt
+			( net_iface_l->sd_event, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
+			  &mr_8021as, sizeof( mr_8021as ));
+		if( err == -1 ) {
 			XPTPD_ERROR
-			    ("Unable to add PTP multicast addresses to port id: %u",
-			     ifindex);
+				( "Unable to add PTP multicast addresses to port id: %u",
+				  ifindex );
 			return false;
 		}
-
-		memset(&ifsock_addr, 0, sizeof(ifsock_addr));
+		
+		memset( &ifsock_addr, 0, sizeof( ifsock_addr ));
 		ifsock_addr.sll_family = AF_PACKET;
 		ifsock_addr.sll_ifindex = ifindex;
-		ifsock_addr.sll_protocol = htons(PTP_ETHERTYPE);
-		err = bind(net_iface_l->sd_event, (sockaddr *) & ifsock_addr,
-			   sizeof(ifsock_addr));
-		if (err == -1) {
-			XPTPD_ERROR("Call to bind() failed: %s",
-				    strerror(errno));
+		ifsock_addr.sll_protocol = htons( PTP_ETHERTYPE );
+		err = bind
+			( net_iface_l->sd_event, (sockaddr *) &ifsock_addr,
+			  sizeof( ifsock_addr ));	
+		if( err == -1 ) { 
+			XPTPD_ERROR( "Call to bind() failed: %s", strerror(errno) );
 			return false;
 		}
-
-		net_iface_l->timestamper = dynamic_cast < LinuxTimestamper * >(timestamper);
-		if (net_iface_l->timestamper == NULL) {
-			XPTPD_ERROR("timestamper == NULL\n");
+		
+		net_iface_l->timestamper =
+			dynamic_cast <LinuxTimestamper *>(timestamper);
+		if(net_iface_l->timestamper == NULL) {
+			XPTPD_ERROR( "timestamper == NULL\n" );
 			return false;
 		}
-		net_iface_l->timestamper->setSocketDescriptor(net_iface_l->sd_event);
-		if (!net_iface_l->timestamper->post_init(ifindex)) {
-			XPTPD_ERROR("post_init failed\n");
+		net_iface_l->timestamper->setSocketDescriptor( net_iface_l->sd_event );
+		net_iface_l->timestamper->setNetworkLock( &net_iface_l->net_lock );
+		if( !net_iface_l->timestamper->post_init( ifindex )) {
+			XPTPD_ERROR( "post_init failed\n" );
 			return false;
 		}
 		*net_iface = net_iface_l;
-
+		
 		return true;
 	}
 };
 
-class LinuxNamedPipeIPC:public OS_IPC {
- private:
+
+class LinuxIPCArg : public OS_IPC_ARG {
+private:
+	char *group_name;
+public:
+	LinuxIPCArg( char *group_name ) {
+		int len = strnlen(group_name,16);
+		this->group_name = new char[len+1];
+		strncpy( this->group_name, group_name, len+1 );
+		this->group_name[len] = '\0';
+	}
+	virtual ~LinuxIPCArg() {
+		delete group_name;
+	}
+	friend class LinuxSharedMemoryIPC;
+};
+
+#define DEFAULT_GROUPNAME "ptp"
+
+class LinuxSharedMemoryIPC:public OS_IPC {
+private:
 	int shm_fd;
 	char *master_offset_buffer;
 	int err;
 	pthread_mutexattr_t mta;
 	pthread_mutex_t mutex;
- public:
-	LinuxNamedPipeIPC() {
+public:
+	LinuxSharedMemoryIPC() {
 		shm_fd = 0;
 		err = 0;
+		master_offset_buffer = NULL;
 	};
-	~LinuxNamedPipeIPC() {
+	~LinuxSharedMemoryIPC() {
 		munmap(master_offset_buffer, SHM_SIZE);
 		shm_unlink(SHM_NAME);
 	}
-	virtual bool init() {
-		shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0777);
-		if (shm_fd == -1) {
-			XPTPD_ERROR("shm_open()");
-			return false;
+	virtual bool init( OS_IPC_ARG *barg = NULL ) {
+		LinuxIPCArg *arg;
+		struct group *grp;
+		const char *group_name;
+		if( barg == NULL ) {
+			group_name = DEFAULT_GROUPNAME;
+		} else {
+			arg = dynamic_cast<LinuxIPCArg *> (barg);
+			if( arg == NULL ) {
+				XPTPD_ERROR( "Wrong IPC init arg type" );
+				goto exit_error;
+			} else {
+				group_name = arg->group_name;
+			}
 		}
-		if (ftruncate(shm_fd, SHM_SIZE) == -1) {
-			XPTPD_ERROR("ftruncate()");
-			return false;
+		grp = getgrnam( group_name );
+		if( grp == NULL ) {
+			XPTPD_ERROR( "Group %s not found", group_name );
+			goto exit_error;
 		}
-		master_offset_buffer =
-		    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
-				 MAP_LOCKED | MAP_SHARED, shm_fd, 0);
-		if (master_offset_buffer == (char *)-1) {
-			XPTPD_ERROR("mmap()");
-			master_offset_buffer = NULL;
-			shm_unlink(SHM_NAME);
-			return false;
+		
+		shm_fd = shm_open( SHM_NAME, O_RDWR | O_CREAT, 0660 );
+		if( shm_fd == -1 ) {
+			XPTPD_ERROR( "shm_open()" );
+			goto exit_error;
 		}
-		//create a mutex
-		err = pthread_mutexattr_init(&mta);
-		if (err != 0) {
-			XPTPD_ERROR("sharedmem - mutexattr_init()");
-			return false;
+		if (fchown(shm_fd, -1, grp->gr_gid) < 0) {
+			XPTPD_ERROR("fchwon()");
+			goto exit_unlink;
 		}
-		//pthread_mutexattr_settype(&mta, PTHREAD_MUTEX_NORMAL);
-		if (pthread_mutexattr_setpshared(&mta, PTHREAD_PROCESS_SHARED)
-		    != 0) {
-			fprintf(stderr, "Set pshared failed\n");
-			exit(-1);
+		if( ftruncate( shm_fd, SHM_SIZE ) == -1 ) {
+			XPTPD_ERROR( "ftruncate()" );
+			goto exit_unlink;
 		}
-
-		err =
-		    pthread_mutex_init((pthread_mutex_t *) master_offset_buffer,
-				       &mta);
-
-		if (err != 0) {
+		master_offset_buffer = (char *) mmap
+			( NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_LOCKED | MAP_SHARED,
+			  shm_fd, 0 );
+		if( master_offset_buffer == (char *) -1 ) {
+			XPTPD_ERROR( "mmap()" );
+			goto exit_unlink;
+		}
+		/*create a mutex */
+		err = pthread_mutexattr_init( &mta );
+		if(err != 0) {
 			XPTPD_ERROR
-			    ("sharedmem - Mutex initialization failed - %s\n",
-			     strerror(errno));
+				("sharedmem - Mutex initialization failed - %s\n",
+				 strerror(errno));
 			return false;
 		}
-
+                
 		return true;
+	exit_unlink:
+		shm_unlink( SHM_NAME ); 
+	exit_error:
+		return false;
 	}
-	virtual bool update(int64_t ml_phoffset, int64_t ls_phoffset,
-			    int32_t ml_freqoffset, int32_t ls_freqoffset,
-			    uint64_t local_time) {
+	virtual bool update
+	(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
+	 FrequencyRatio ls_freqoffset, uint64_t local_time) {
 		int buf_offset = 0;
 		char *shm_buffer = master_offset_buffer;
 		gPtpTimeData *ptimedata;
-		// lock
+		/* lock */
 		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
 		buf_offset += sizeof(pthread_mutex_t);
-		ptimedata = (gPtpTimeData *) (shm_buffer + buf_offset);
+		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
 		ptimedata->ml_phoffset = ml_phoffset;
 		ptimedata->ls_phoffset = ls_phoffset;
 		ptimedata->ml_freqoffset = ml_freqoffset;
 		ptimedata->ls_freqoffset = ls_freqoffset;
 		ptimedata->local_time = local_time;
-		// unlock
+		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 		return true;
 	}
+	void stop() {
+		munmap( master_offset_buffer, SHM_SIZE );
+		shm_unlink( SHM_NAME );
+	}
 };
 
-class LinuxSimpleIPC:public OS_IPC {
- public:
-	LinuxSimpleIPC() {};
-	~LinuxSimpleIPC() {}
-	virtual bool init() {
-		return true;
-	}
-	virtual bool update(int64_t ml_phoffset, int64_t ls_phoffset,
-			    int32_t ml_freqoffset, int32_t ls_freqoffset,
-			    uint64_t local_time) {
-#ifdef DEBUG
-		fprintf(stderr,
-			"Master-Local Phase Offset: %ld\n"
-			"Master-Local Frequency Offset: %d\n"
-			"Local-System Phase Offset: %ld\n"
-			"Local-System Frequency Offset: %d\n"
-			"Local Time: %lu\n", ml_phoffset, ml_freqoffset,
-			ls_phoffset, ls_freqoffset, local_time);
-#endif
-		return true;
-	}
-};
+
 
 #endif

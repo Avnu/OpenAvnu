@@ -33,12 +33,24 @@
 
 #ifndef AVBTS_OSIPC_HPP
 #define AVBTS_OSIPC_HPP
- class OS_IPC {
- public:virtual bool init() = 0;
-	virtual bool update(int64_t ml_phoffset, int64_t ls_phoffset,
-			     int32_t ml_freqoffset, int32_t ls_freq_offset,
-			     uint64_t local_time) = 0;
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <ptptypes.hpp>
+
+class OS_IPC_ARG {
+public:
+  virtual ~OS_IPC_ARG() = 0;
 };
 
+class OS_IPC {
+public:
+    virtual bool init( OS_IPC_ARG *arg = NULL ) = 0;
+    virtual bool update
+	( int64_t  ml_phoffset,   int64_t ls_phoffset,
+	  FrequencyRatio  ml_freqoffset, FrequencyRatio ls_freq_offset,
+	  uint64_t local_time ) = 0;
+};
 
 #endif
+

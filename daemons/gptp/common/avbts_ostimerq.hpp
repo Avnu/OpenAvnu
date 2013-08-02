@@ -37,15 +37,15 @@
 typedef void (*ostimerq_handler) (void *);
 
 class OSTimerQueue {
- public:
-	virtual bool addEvent(unsigned long micros, int type,
-			      ostimerq_handler func, event_descriptor_t * arg,
-			      bool dynamic, unsigned *event) = 0;
+public:
+	virtual bool addEvent
+	(unsigned long micros, int type, ostimerq_handler func,
+	 event_descriptor_t * arg, bool dynamic, unsigned *event) = 0;
 	virtual bool cancelEvent(int type, unsigned *event) = 0;
 };
 
 class OSTimerQueueFactory {
- public:
+public:
 	virtual OSTimerQueue * createOSTimerQueue() = 0;
 };
 
