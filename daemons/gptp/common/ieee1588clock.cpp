@@ -44,6 +44,7 @@
 #include <stdlib.h>
 
 #include <string.h>
+#include <time.h>
 
 void ClockIdentity::set(LinkLayerAddress * addr)
 {
@@ -59,15 +60,15 @@ void ClockIdentity::set(LinkLayerAddress * addr)
 	memcpy(id, &tmp1, PTP_CLOCK_IDENTITY_LENGTH);
 }
 
-IEEE1588Clock::IEEE1588Clock(bool forceOrdinarySlave,
-			     OSTimerQueueFactory * timerq_factory, OS_IPC * ipc)
+IEEE1588Clock::IEEE1588Clock
+( bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
+  HWTimestamper *timestamper, OSTimerQueueFactory *timerq_factory,
+  OS_IPC *ipc )
 {
 	timerq = timerq_factory->createOSTimerQueue();
 
-	priority1 = 248;
+	this->priority1 = priority1;
 	priority2 = 248;
-
-	master_local_offset_nrst125us_initialized = false;
 
 	number_ports = 0;
 
@@ -81,10 +82,115 @@ IEEE1588Clock::IEEE1588Clock(bool forceOrdinarySlave,
 
 	domain_number = 0;
 
+	_syntonize = syntonize;
+	_new_syntonization_set_point = false;
+	_ppm = 0;
+
+	_master_local_freq_offset_init = false;
+	_local_system_freq_offset_init = false;
+	_timestamper = timestamper;
+
 	this->ipc = ipc;
 
  	memset( &LastEBestIdentity, 0xFF, sizeof( LastEBestIdentity ));
 	return;
+}
+
+bool IEEE1588Clock::serializeState( void *buf, off_t *count ) {
+  bool ret = true;
+  
+  if( buf == NULL ) {
+    *count = sizeof( _master_local_freq_offset ) + sizeof( _local_system_freq_offset ) + sizeof( LastEBestIdentity );
+    return true;
+  }
+  
+  // Master-Local Frequency Offset
+  if( ret && *count >= (off_t) sizeof( _master_local_freq_offset )) {
+	  memcpy
+		  ( buf, &_master_local_freq_offset,
+			sizeof( _master_local_freq_offset ));
+	  *count -= sizeof( _master_local_freq_offset );
+	  buf = ((char *)buf) + sizeof( _master_local_freq_offset );
+  } else if( ret == false ) {
+	  *count += sizeof( _master_local_freq_offset );
+  } else {
+	  *count = sizeof( _master_local_freq_offset )-*count;
+	  ret = false;
+  }
+  
+  // Local-System Frequency Offset
+  if( ret && *count >= (off_t) sizeof( _local_system_freq_offset )) {
+	  memcpy
+		  ( buf, &_local_system_freq_offset,(off_t)
+			sizeof( _local_system_freq_offset ));
+	  *count -= sizeof( _local_system_freq_offset );
+	  buf = ((char *)buf) + sizeof( _local_system_freq_offset );
+  } else if( ret == false ) {
+	  *count += sizeof( _local_system_freq_offset );
+  } else {
+	  *count = sizeof( _local_system_freq_offset )-*count;
+	  ret = false;
+  }
+
+  // LastEBestIdentity
+  if( ret && *count >= (off_t) sizeof( LastEBestIdentity )) {
+    memcpy( buf, &LastEBestIdentity, (off_t) sizeof( LastEBestIdentity ));
+    *count -= sizeof( LastEBestIdentity );
+    buf = ((char *)buf) + sizeof( LastEBestIdentity );
+  } else if( ret == false ) {
+    *count += sizeof( LastEBestIdentity );
+  } else {
+    *count = sizeof( LastEBestIdentity )-*count;
+    ret = false;
+  }
+
+  return ret;
+}
+
+bool IEEE1588Clock::restoreSerializedState( void *buf, off_t *count ) {
+	bool ret = true;
+  
+	/* Master-Local Frequency Offset */
+	if( ret && *count >= (off_t) sizeof( _master_local_freq_offset )) {
+		memcpy
+			( &_master_local_freq_offset, buf, 
+			  sizeof( _master_local_freq_offset ));
+		*count -= sizeof( _master_local_freq_offset );
+		buf = ((char *)buf) + sizeof( _master_local_freq_offset );
+	} else if( ret == false ) {
+		*count += sizeof( _master_local_freq_offset );
+	} else {
+		*count = sizeof( _master_local_freq_offset )-*count;
+		ret = false;
+	}
+	
+	/* Local-System Frequency Offset */
+	if( ret && *count >= (off_t) sizeof( _local_system_freq_offset )) {
+		memcpy
+			( &_local_system_freq_offset, buf,
+			  sizeof( _local_system_freq_offset ));
+		*count -= sizeof( _local_system_freq_offset );
+		buf = ((char *)buf) + sizeof( _local_system_freq_offset );
+	} else if( ret == false ) {
+		*count += sizeof( _local_system_freq_offset );
+	} else {
+		*count = sizeof( _local_system_freq_offset )-*count;
+		ret = false;
+	}
+
+	/* LastEBestIdentity */
+  if( ret && *count >= (off_t) sizeof( LastEBestIdentity )) {
+	  memcpy( &LastEBestIdentity, buf, sizeof( LastEBestIdentity ));
+	  *count -= sizeof( LastEBestIdentity );
+	  buf = ((char *)buf) + sizeof( LastEBestIdentity );
+  } else if( ret == false ) {
+	  *count += sizeof( LastEBestIdentity );
+  } else {
+	  *count = sizeof( LastEBestIdentity )-*count;
+	  ret = false;
+  }
+
+  return ret;
 }
 
 Timestamp IEEE1588Clock::getSystemTime(void)
@@ -94,6 +200,7 @@ Timestamp IEEE1588Clock::getSystemTime(void)
 
 void timerq_handler(void *arg)
 {
+
 	event_descriptor_t *event_descriptor = (event_descriptor_t *) arg;
 	event_descriptor->port->processEvent(event_descriptor->event);
 }
@@ -104,8 +211,9 @@ void IEEE1588Clock::addEventTimer(IEEE1588Port * target, Event e,
 	event_descriptor_t *event_descriptor = new event_descriptor_t();
 	event_descriptor->event = e;
 	event_descriptor->port = target;
-	timerq->addEvent((unsigned)time_ns / 1000, (int)e, timerq_handler,
-			 event_descriptor, true, NULL);
+	timerq->addEvent
+		((unsigned)time_ns / 1000, (int)e, timerq_handler, event_descriptor,
+		 true, NULL);
 }
 
 void IEEE1588Clock::deleteEventTimer(IEEE1588Port * target, Event event)
@@ -113,36 +221,122 @@ void IEEE1588Clock::deleteEventTimer(IEEE1588Port * target, Event event)
 	timerq->cancelEvent((int)event, NULL);
 }
 
-// Sync clock to argument time
-void IEEE1588Clock::setMasterOffset(int64_t master_local_offset,
-				    Timestamp local_time,
-				    int32_t master_local_freq_offset,
-				    int64_t local_system_offset,
-				    Timestamp system_time,
-				    int32_t local_system_freq_offset,
-				    uint32_t nominal_clock_rate,
-				    uint32_t local_clock)
-{
+FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp local_time, Timestamp system_time ) {
+	unsigned long long inter_system_time;
+	unsigned long long inter_local_time;
+	FrequencyRatio ppt_offset;
 
-	if (ipc != NULL)
-		ipc->update(master_local_offset, local_system_offset,
-			    master_local_freq_offset, local_system_freq_offset,
-			    TIMESTAMP_TO_NS(local_time));
+	XPTPD_INFO( "Calculated local to system clock rate difference" );
+
+	if( !_local_system_freq_offset_init ) {
+		_prev_system_time = system_time;
+		_prev_local_time = local_time;
+
+		_local_system_freq_offset_init = true;
+
+		return 1.0;
+	}
+
+	inter_system_time =
+		TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(_prev_system_time);
+	inter_local_time  =
+		TIMESTAMP_TO_NS(local_time) -  TIMESTAMP_TO_NS(_prev_local_time);
+
+	if( inter_system_time != 0 ) {
+		ppt_offset = ((FrequencyRatio)inter_local_time)/inter_system_time;
+	} else {
+		ppt_offset = 1.0;
+	}
+	
+	_prev_system_time = system_time;
+	_prev_local_time = local_time;
+
+  return ppt_offset;
+}
+
+FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp master_time, Timestamp sync_time ) {
+	unsigned long long inter_sync_time;
+	unsigned long long inter_master_time;
+	FrequencyRatio ppt_offset;
+	
+	XPTPD_INFO( "Calculated master to local clock rate difference" );
+
+	if( !_master_local_freq_offset_init ) {
+		_prev_sync_time = sync_time;
+		_prev_master_time = master_time;
+	
+		_master_local_freq_offset_init = true;
+	
+		return 1.0;
+	}
+
+	inter_sync_time =
+		TIMESTAMP_TO_NS(sync_time) - TIMESTAMP_TO_NS(_prev_sync_time);
+	inter_master_time =
+		TIMESTAMP_TO_NS(master_time) -  TIMESTAMP_TO_NS(_prev_master_time);
+
+	if( inter_sync_time != 0 ) {
+		ppt_offset = ((FrequencyRatio)inter_master_time)/inter_sync_time;
+	} else {
+		ppt_offset = 1.0;
+	}
+
+	_prev_sync_time = sync_time;
+	_prev_master_time = master_time;
+
+	return ppt_offset;
+}
+
+void IEEE1588Clock::setMasterOffset
+( int64_t master_local_offset, Timestamp local_time,
+  FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
+  Timestamp system_time, FrequencyRatio local_system_freq_offset,
+  uint32_t nominal_clock_rate, uint32_t local_clock )
+{
+	_master_local_freq_offset = master_local_freq_offset;
+	_local_system_freq_offset = local_system_freq_offset;
+
+	if( ipc != NULL ) ipc->update
+		( master_local_offset, local_system_offset, master_local_freq_offset,
+		  local_system_freq_offset, TIMESTAMP_TO_NS(local_time));
+
+	if( _syntonize ) {
+		if( _new_syntonization_set_point ) {
+			_new_syntonization_set_point = false;
+			if( _timestamper ) {
+				/* Make sure that there are no transmit operations
+				   in progress */
+				getTxLockAll();
+				_timestamper->HWTimestamper_adjclockphase
+					( -master_local_offset );
+				_master_local_freq_offset_init = false;
+				putTxLockAll();
+				master_local_offset = 0;
+			}
+		}
+		// Adjust for frequency offset
+		long double phase_error = (long double) -master_local_offset;
+		_ppm += (float) (INTEGRAL*phase_error +
+			 PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
+		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
+		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
+		if( _timestamper ) {
+			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
+				XPTPD_ERROR( "Failed to adjust clock rate" );
+			}
+		}
+	}
+	
 	return;
 }
 
-void IEEE1588Clock::getGrandmasterIdentity(char *id)
-{
-	grandmaster_port_identity.getClockIdentityString(id);
-}
-
-// Get current time from system clock
+/* Get current time from system clock */
 Timestamp IEEE1588Clock::getTime(void)
 {
 	return getSystemTime();
 }
 
-// Get timestamp from hardware
+/* Get timestamp from hardware */
 Timestamp IEEE1588Clock::getPreciseTime(void)
 {
 	return getSystemTime();
@@ -169,12 +363,11 @@ bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
 	tmp = msg->getGrandmasterClockQuality()->offsetScaledLogVariance;
 	tmp = PLAT_htons(tmp);
 	memcpy(that1 + 3, &tmp, sizeof(tmp));
-
+	
 	this1[5] = priority2;
 	that1[5] = msg->getGrandmasterPriority2();
-
-	clock_identity.getIdentityString((char *)this1 + 6);
-	//memcpy( this1+6, clock_identity, PTP_CLOCK_IDENTITY_LENGTH );
+	
+	clock_identity.getIdentityString(this1 + 6);
 	msg->getGrandmasterIdentity((char *)that1 + 6);
 
 #if 0
@@ -193,5 +386,5 @@ bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
 
 IEEE1588Clock::~IEEE1588Clock(void)
 {
-	// Unmap shared memory
+	// Do nothing
 }

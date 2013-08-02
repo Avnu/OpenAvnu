@@ -61,37 +61,38 @@ class LinkLayerAddress:public InterfaceLabel {
 	LinkLayerAddress(uint8_t * address_octet_array) {
 		uint8_t *ptr;
 		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS;
-		     ++ptr, ++address_octet_array) {
+		     ++ptr, ++address_octet_array)
+		{
 			*ptr = *address_octet_array;
 		}
 	}
 	bool operator==(const LinkLayerAddress & cmp) const {
-		return memcmp(this->addr, cmp.addr,
-			      ETHER_ADDR_OCTETS) == 0 ? true : false;
+		return memcmp
+			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) == 0 ? true : false;
 	}
 	bool operator<(const LinkLayerAddress & cmp)const {
-		return memcmp(this->addr, cmp.addr,
-			      ETHER_ADDR_OCTETS) < 0 ? true : false;
+		return memcmp
+			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) < 0 ? true : false;
 	}
 	bool operator>(const LinkLayerAddress & cmp)const {
-		return memcmp(this->addr, cmp.addr,
-			      ETHER_ADDR_OCTETS) < 0 ? true : false;
+		return memcmp
+			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) < 0 ? true : false;
 	}
 	void toOctetArray(uint8_t * address_octet_array) {
 		uint8_t *ptr;
 		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS;
-		     ++ptr, ++address_octet_array) {
+		     ++ptr, ++address_octet_array)
+		{
 			*address_octet_array = *ptr;
 		}
 	}
 };
 
-class InterfaceName:public InterfaceLabel {
+class InterfaceName: public InterfaceLabel {
  private:
 	char *name;
  public:
-	 InterfaceName() {
-	};
+	InterfaceName() { }
 	InterfaceName(char *name, int length) {
 		this->name = new char[length + 1];
 		PLAT_strncpy(this->name, name, length);
@@ -117,9 +118,9 @@ class InterfaceName:public InterfaceLabel {
 class factory_name_t {
  private:
 	char name[FACTORY_NAME_LENGTH];
-	 factory_name_t();
+	factory_name_t();
  public:
-	 factory_name_t(const char *name_a) {
+	factory_name_t(const char *name_a) {
 		PLAT_strncpy(name, name_a, FACTORY_NAME_LENGTH - 1);
 	} 
 	bool operator==(const factory_name_t & cmp) {
@@ -137,10 +138,11 @@ typedef enum { net_trfail, net_fatal, net_succeed } net_result;
 
 class OSNetworkInterface {
  public:
-	virtual net_result send(LinkLayerAddress * addr, uint8_t * payload,
-				size_t length, bool timestamp) = 0;
-	virtual net_result recv(LinkLayerAddress * addr, uint8_t * payload,
-				size_t & length) = 0;
+	virtual net_result send
+	(LinkLayerAddress * addr, uint8_t * payload, size_t length,
+	 bool timestamp) = 0;
+	virtual net_result recv
+	(LinkLayerAddress * addr, uint8_t * payload, size_t & length) = 0;
 	virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
 	virtual unsigned getPayloadOffset() = 0;
 };
@@ -151,25 +153,24 @@ typedef std::map < factory_name_t, OSNetworkInterfaceFactory * >FactoryMap_t;
 
 class OSNetworkInterfaceFactory {
  public:
-	static bool registerFactory(factory_name_t id,
-				    OSNetworkInterfaceFactory * factory) {
+	static bool registerFactory
+	(factory_name_t id, OSNetworkInterfaceFactory * factory) {
 		FactoryMap_t::iterator iter = factoryMap.find(id);
 		if (iter != factoryMap.end())
 			return false;
 		factoryMap[id] = factory;
 		return true;
 	}
-	static bool buildInterface(OSNetworkInterface ** iface,
-				   factory_name_t id,
-				   InterfaceLabel * iflabel,
-				   HWTimestamper * timestamper) {
-		return factoryMap[id]->createInterface(iface, iflabel,
-						       timestamper);
+	static bool buildInterface
+	(OSNetworkInterface ** iface, factory_name_t id, InterfaceLabel * iflabel,
+	 HWTimestamper * timestamper) {
+		return factoryMap[id]->createInterface
+			(iface, iflabel, timestamper);
 	}
- private:
-	virtual bool createInterface(OSNetworkInterface ** iface,
-				     InterfaceLabel * iflabel,
-				     HWTimestamper * timestamper) = 0;
+private:
+	virtual bool createInterface
+	(OSNetworkInterface ** iface, InterfaceLabel * iflabel,
+	 HWTimestamper * timestamper) = 0;
 	static FactoryMap_t factoryMap;
 };
 

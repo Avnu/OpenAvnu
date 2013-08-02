@@ -37,59 +37,28 @@
 #include <intrin.h>
 #include <stdint.h>
 
-#define NEHALEM_BASE_FREQUENCY       133330000
-#define SANDY_BRIDGE_BASE_FREQUENCY  100000000
-#define IVY_BRIDGE_BASE_FREQUENCY    100000000
+#define BASE_FREQUENCY  100000000
 
 inline unsigned __int64 PLAT_rdtsc()
 {
-  return __rdtsc();
+	return __rdtsc();
 }
 
 inline uint64_t getTSCFrequency( unsigned millis ) {
-	int CPUInfo[4];
-	UINT8 model_msn;
-	UINT16 multiplierx4;
+	UINT16 multiplierx2;
 	uint64_t frequency = 0;
 	DWORD mhz;
 	DWORD mhz_sz = sizeof(mhz);
-	unsigned base_frequency;
-
-	__cpuid( CPUInfo, 1 );
-	model_msn = (CPUInfo[0] >> 16) & 0xF;
-	if( model_msn > 3 || model_msn < 1 ) {
-		printf( "Unknown CPU family: 0x%hhxx\n" );
-		goto done;
-	}
-	fprintf( stderr, "CPU Family msn = 0x%hhx\n", model_msn );
-
-	switch( model_msn ) {
-	case 1:
-		// Nehalem
-		base_frequency = NEHALEM_BASE_FREQUENCY;
-		break;
-	case 2:
-		// Sandy Bridge
-		base_frequency = SANDY_BRIDGE_BASE_FREQUENCY;
-		break;
-	case 3:
-		// Ivy Bridge
-		base_frequency = IVY_BRIDGE_BASE_FREQUENCY;
-		break;
-	default:
-		fprintf( stderr, "Internal Error\n" );
-		abort();
-	}
 
 	if( RegGetValue( HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", "~MHz", RRF_RT_REG_DWORD, NULL, &mhz, &mhz_sz ) != ERROR_SUCCESS ) {
 		goto done;
 	}
-	multiplierx4 = (UINT16)((4*mhz*1000000ULL)/base_frequency);
-	if( multiplierx4 % 4 == 3 ) ++multiplierx4;
-	else if( multiplierx4 % 4 == 1 ) --multiplierx4;
-	fprintf( stderr, "Multiplierx2: %hhu\n", multiplierx4/2 );
+	fprintf( stderr, "mhz: %u\n", mhz );
+	multiplierx2 = (UINT16)((2*mhz*1000000ULL)/BASE_FREQUENCY);
+	if( multiplierx2 % 2 == 1 ) ++multiplierx2;
+	fprintf( stderr, "Multiplier: %hhu\n", multiplierx2/2 );
 
-	frequency = (((uint64_t)multiplierx4)*base_frequency)/4;
+	frequency = (((uint64_t)multiplierx2)*BASE_FREQUENCY)/2;
 	fprintf( stderr, "Frequency: %llu\n", frequency );
 
 done:
