@@ -1489,8 +1489,6 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	link_delay -= turn_around;
 	link_delay /= 2;
 
-	fprintf( stderr, "Link Delay: %lld\n", link_delay );
-
 	{
 		uint64_t mine_elapsed;
 	    uint64_t theirs_elapsed;
