@@ -53,10 +53,12 @@ and parses them into a machine readable structure.
 
 #include "mrpdhelper.h"
 
+#define MRPD_N_APP_STATE_STRINGS 13
+
 struct app_state_to_enum {
 	char *s;
 	enum mrpdhelper_applicant_state value;
-} mrp_app_state_mapping[13] = {
+} mrp_app_state_mapping[MRPD_N_APP_STATE_STRINGS] = {
 	{"nl", mrpdhelper_applicant_state_null},
 	{"VO", mrpdhelper_applicant_state_VO},
 	{"VP", mrpdhelper_applicant_state_VP},
@@ -87,7 +89,7 @@ static int parse_app_state(char *sz, struct mrpdhelper_notify *n)
 	sz = r + 1;
 
 	/* loop over mrp_app_state_mapping struct */
-	for (i=0; i < 12; i++) {
+	for (i=0; i < MRPD_N_APP_STATE_STRINGS; i++) {
 		if (strncmp(sz, mrp_app_state_mapping[i].s, 2) == 0) {
 			n->app_state = mrp_app_state_mapping[i].value;
 			break;
