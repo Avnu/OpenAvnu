@@ -47,6 +47,10 @@ and parses them into a machine readable structure.
 #define SCNx64       "I64x"
 #endif
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
+
 #include "mrpdhelper.h"
 
 struct app_state_to_enum {
@@ -259,6 +263,9 @@ static int parse_msrp_query(char *sz, size_t len, struct mrpdhelper_notify *n)
 
 static int parse_mmrp(char *sz, size_t len, struct mrpdhelper_notify *n)
 {
+	if (len < 9)	/* protect against sscanf(&sz[8],...) runaway */
+		return -1;
+
 	if (parse_notification(&sz[1], n) < 0)
 		return -1;
 
