@@ -160,7 +160,7 @@ void IEEE1588Port::startPDelay() {
 }
 
 void IEEE1588Port::startAnnounce() {
-	clock->addEventTimer( this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES, 32000000 );
+	clock->addEventTimer( this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
 }
 
 bool IEEE1588Port::serializeState( void *buf, off_t *count ) {
@@ -994,10 +994,10 @@ int IEEE1588Port::getTxTimestamp(PortIdentity * sourcePortIdentity,
 	if (_hw_timestamper) {
 		return _hw_timestamper->HWTimestamper_txtimestamp
 		    (sourcePortIdentity, sequenceId, timestamp, counter_value,
-		     last);
+		     last) ? 0 : 1;
 	}
 	timestamp = clock->getSystemTime();
-	return true;
+	return 0;
 }
 
 int IEEE1588Port::getRxTimestamp(PortIdentity * sourcePortIdentity,
@@ -1007,8 +1007,8 @@ int IEEE1588Port::getRxTimestamp(PortIdentity * sourcePortIdentity,
 	if (_hw_timestamper) {
 		return _hw_timestamper->HWTimestamper_rxtimestamp
 		    (sourcePortIdentity, sequenceId, timestamp, counter_value,
-		     last);
+		     last) ? 0 : 1;
 	}
 	timestamp = clock->getSystemTime();
-	return true;
+	return 0;
 }
