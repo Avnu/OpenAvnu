@@ -181,5 +181,5 @@ if __name__ == '__main__':
 		time_astimestamps_diff = np.amax(abs((result1['astimestamps'] - result2['astimestamps']) - adj_time_diff))
 		print "Maximum instaneous offset per AS timestamp is %f ns (%f of sample period)" % \
 				(time_astimestamps_diff, time_astimestamps_diff / (1000000000 / 48000))
- 		print "\tfor reference 0.25 of a sample at 48 kHz is %f ns" % ( 10000000000 / 48000 / 4)
+ 		print "\tfor reference 0.25 of a sample at 48 kHz is %f ns" % ( 1000000000 / 48000 / 4)
 
