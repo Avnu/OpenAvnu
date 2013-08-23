@@ -855,7 +855,7 @@ int main(int argc, char *argv[])
 	u_int16_t b_vid = 0;
 #endif
 	int seqnum;
-	int time_stamp;
+	uint32_t time_stamp;
 	unsigned total_samples = 0;
 	gPtpTimeData td;
 	int32_t sample_buffer[SAMPLES_PER_FRAME * SRC_CHANNELS];

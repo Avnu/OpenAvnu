@@ -41,6 +41,7 @@ public:
 	virtual bool wait() = 0;
 	virtual bool wait_prelock() = 0;
 	virtual bool signal() = 0;
+	virtual ~OSCondition() = 0;
 protected:
 	OSCondition() {
 		wait_count = 0;
@@ -56,9 +57,15 @@ protected:
 	}
 };
 
- class OSConditionFactory {
- public:virtual OSCondition * createCondition() = 0;
+inline OSCondition::~OSCondition() { }
+
+class OSConditionFactory {
+public:
+	virtual OSCondition * createCondition() = 0;
+	virtual ~OSConditionFactory() = 0;
 };
+
+inline OSConditionFactory::~OSConditionFactory() {}
 
 
 #endif

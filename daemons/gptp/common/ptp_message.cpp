@@ -122,10 +122,10 @@ PTPMessageCommon *buildPTPMessage
 		while (ts_good != 0 && iter-- != 0) {
 			// Waits at least 1 time slice regardless of size of 'req'
 			timer->sleep(req);
-			if (ts_good != 72)
-				fprintf(stderr,
-						"Error (RX) timestamping RX event packet (Retrying), error=%d\n",
-					ts_good);
+			if (ts_good != -72)
+				fprintf
+					( stderr, "Error (RX) timestamping RX event packet (Retrying), error=%d\n",
+					  ts_good );
 			ts_good =
 			    port->getRxTimestamp(sourcePortIdentity, sequenceId,
 						 timestamp, counter_value,
@@ -300,13 +300,10 @@ PTPMessageCommon *buildPTPMessage
 			}
 #endif
 
-			memcpy(&
-			       (pdelay_resp_msg->
-				requestReceiptTimestamp.seconds_ms),
-			       buf +
-			       PTP_PDELAY_RESP_SEC_MS(PTP_PDELAY_RESP_OFFSET),
-			       sizeof(pdelay_resp_msg->
-				      requestReceiptTimestamp.seconds_ms));
+			memcpy(& (pdelay_resp_msg->requestReceiptTimestamp.seconds_ms),
+			       buf + PTP_PDELAY_RESP_SEC_MS(PTP_PDELAY_RESP_OFFSET),
+			       sizeof
+				   (pdelay_resp_msg->requestReceiptTimestamp.seconds_ms));
 			memcpy(&
 			       (pdelay_resp_msg->
 				requestReceiptTimestamp.seconds_ls),
@@ -492,6 +489,8 @@ PTPMessageCommon *buildPTPMessage
 	msg->_timestamp_counter_value = counter_value;
 
  done:
+	delete timer;
+
 	return msg;
 }
 
@@ -610,7 +609,14 @@ bool PTPMessageAnnounce::isBetterThan(PTPMessageAnnounce * msg)
 	return (memcmp(this1, that1, 14) < 0) ? true : false;
 }
 
- PTPMessageSync::PTPMessageSync(IEEE1588Port * port):PTPMessageCommon(port)
+
+PTPMessageSync::PTPMessageSync() {
+}
+
+PTPMessageSync::~PTPMessageSync() {
+}
+
+PTPMessageSync::PTPMessageSync(IEEE1588Port * port) : PTPMessageCommon(port)
 {
 	messageType = SYNC_MESSAGE;	// This is an event message
 	sequenceId = port->getNextSyncSequenceId();
@@ -658,7 +664,7 @@ void PTPMessageSync::sendPort(IEEE1588Port * port, PortIdentity * destIdentity)
 	return;
 }
 
- PTPMessageAnnounce::PTPMessageAnnounce(IEEE1588Port * port):PTPMessageCommon
+ PTPMessageAnnounce::PTPMessageAnnounce(IEEE1588Port * port) : PTPMessageCommon
     (port)
 {
 	messageType = ANNOUNCE_MESSAGE;	// This is an event message
@@ -1070,21 +1076,31 @@ done:
 void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 {
 	OSTimer *timer = port->getTimerFactory()->createTimer();
+	PortIdentity resp_fwup_id;
+	PortIdentity requestingPortIdentity_p;
+	PTPMessagePathDelayResp *resp;
+	PortIdentity resp_id;
+	PTPMessagePathDelayRespFollowUp *resp_fwup;
+
+	int ts_good;
+	int iter = 2;
+	Timestamp resp_timestamp;
+	unsigned resp_timestamp_counter_value;
+	unsigned req = 1000;	// = 1 ms
 
 	if (port->getPortState() == PTP_DISABLED) {
 		// Do nothing all messages should be ignored when in this state
-		return;
+		goto done;
 	}
 
 	if (port->getPortState() == PTP_FAULTY) {
 		// According to spec recovery is implementation specific
 		port->recoverPort();
-		return;
+		goto done;
 	}
 
 	/* Generate and send message */
-	PTPMessagePathDelayResp *resp = new PTPMessagePathDelayResp(port);
-	PortIdentity resp_id;
+	resp = new PTPMessagePathDelayResp(port);
 	port->getPortIdentity(resp_id);
 	resp->setPortIdentity(&resp_id);
 	resp->setSequenceId(sequenceId);
@@ -1098,24 +1114,17 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	fprintf(stderr, "\"\n");
 #endif
 
-	PortIdentity requestingPortIdentity_p;
 	this->getPortIdentity(&requestingPortIdentity_p);
 	resp->setRequestingPortIdentity(&requestingPortIdentity_p);
 	resp->setRequestReceiptTimestamp(_timestamp);
 	if( port->getTimestampVersion() != _timestamp._version ) {
 		delete resp;
-		return;
+		goto done;
 	}
 	port->getTxLock();
 	resp->sendPort(port, sourcePortIdentity);
 
 	XPTPD_INFO("Sent path delay response");
-
-	int ts_good;
-	int iter = 2;
-	Timestamp resp_timestamp;
-	unsigned resp_timestamp_counter_value;
-	unsigned req = 1000;	// = 1 ms
 
 	XPTPD_INFO("Start TS Read");
 	ts_good = port->getTxTimestamp
@@ -1141,12 +1150,10 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 			( "Error (TX) timestamping PDelay Response, error=%d\t%s",
 			  ts_good, msg);
 		delete resp;
-		return;
+		goto done;
 	}
 
-	PTPMessagePathDelayRespFollowUp *resp_fwup =
-	    new PTPMessagePathDelayRespFollowUp(port);
-	PortIdentity resp_fwup_id;
+	resp_fwup = new PTPMessagePathDelayRespFollowUp(port);
 	port->getPortIdentity(resp_fwup_id);
 	resp_fwup->setPortIdentity(&resp_fwup_id);
 	resp_fwup->setSequenceId(sequenceId);
@@ -1176,7 +1183,10 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	delete resp;
 	delete resp_fwup;
 
+done:
+	delete timer;
 	_gc = true;
+	return;
 }
 
 void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
@@ -1196,8 +1206,8 @@ void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
 	return;
 }
 
- PTPMessagePathDelayResp::PTPMessagePathDelayResp(IEEE1588Port * port):
-PTPMessageCommon(port)
+ PTPMessagePathDelayResp::PTPMessagePathDelayResp(IEEE1588Port * port) :
+	 PTPMessageCommon(port)
 {
 	logMeanMessageInterval = 0;
 	control = MESSAGE_OTHER;
@@ -1371,26 +1381,6 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 			 "corresponding request");
 		XPTPD_ERROR("My SeqId: %u ", req->getSequenceId());
 		XPTPD_ERROR("Their SeqId: %u ", sequenceId);
-		XPTPD_INFO("Requesting Identity: \"");
-
-#ifdef DEBUG
-		for (int n = 0; n < PTP_CLOCK_IDENTITY_LENGTH; ++n) {
-			fprintf(stderr, "%u: %x ", n,
-				requestingPortIdentity.clockIdentity[n]);
-		}
-		fprintf(stderr, " \"\n");
-#endif
-
-		//XPTPD_INFO( "Requesting SeqId: %u ", req->getSequenceId() );
-		//XPTPD_INFO( "Requesting Port: %u ", req_id.portNumber );
-		XPTPD_INFO("Requesting Identity: \"");
-
-#ifdef DEBUG
-		for (int n = 0; n < PTP_CLOCK_IDENTITY_LENGTH; ++n) {
-			fprintf(stderr, "%u:%x ", n, req_id.clockIdentity[n]);
-		}
-		fprintf(stderr, " \"\n");
-#endif
 
 		goto abort;
 	}
@@ -1448,6 +1438,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	}
 
 	port->setAsCapable( true );
+
 
 	link_delay =
 		((response_rx_timestamp.seconds_ms * 1LL -

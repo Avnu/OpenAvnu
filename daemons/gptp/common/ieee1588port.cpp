@@ -66,6 +66,7 @@ IEEE1588Port::~IEEE1588Port()
 {
 	delete port_ready_condition;
 	delete [] rate_offset_array;
+	if( qualified_announce != NULL ) delete qualified_announce;
 }
 
 IEEE1588Port::IEEE1588Port
@@ -76,7 +77,6 @@ IEEE1588Port::IEEE1588Port
  OSLockFactory * lock_factory)
 {
 	sync_sequence_id = 0;
-	last_pdelay_req = NULL;
 
 	clock->registerPort(this, index);
 	this->clock = clock;
@@ -114,6 +114,8 @@ IEEE1588Port::IEEE1588Port
 	last_pdelay_req = NULL;
 	last_pdelay_resp = NULL;
 	last_pdelay_resp_fwup = NULL;
+
+	qualified_announce = NULL;
 
 	this->net_label = net_label;
 
@@ -576,12 +578,9 @@ void IEEE1588Port::processEvent(Event e)
 				(void) clock->calcLocalSystemClockRateDifference
 				  ( device_time, system_time );
 
-				/* "Expire" all previously received announce messages on
-				   this port */
-				while (!qualified_announce.empty()) {
-					delete qualified_announce.back();
-					qualified_announce.pop_back();
-				}
+				delete qualified_announce;
+				qualified_announce = NULL;
+
 				// Add timers for Announce and Sync, this is as close to immediately as we get
 				clock->addEventTimer
 					( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
@@ -644,6 +643,7 @@ void IEEE1588Port::processEvent(Event e)
 				} else {
 				  Timestamp failed = INVALID_TIMESTAMP;
 				  pdelay_req->setTimestamp(failed);
+				 fprintf( stderr, "Invalid TX\n" );
 				}
 
 				if (ts_good != 0) {
@@ -841,28 +841,14 @@ void IEEE1588Port::processEvent(Event e)
 		     e);
 		break;
 	}
+
+	delete timer;
 	return;
 }
 
 PTPMessageAnnounce *IEEE1588Port::calculateERBest(void)
 {
-	if (qualified_announce.empty()) {
-		return NULL;
-	}
-	if (qualified_announce.size() == 1) {
-		return qualified_announce.front();
-	}
-
-	AnnounceList_t::iterator iter_l = qualified_announce.begin();
-	PTPMessageAnnounce *best = *iter_l;
-	++iter_l;
-	while (iter_l != qualified_announce.end()) {
-		if ((*iter_l)->isBetterThan(best))
-			best = *iter_l;
-		iter_l = qualified_announce.erase(iter_l);
-	}
-	
-	return best;
+	return qualified_announce;
 }
 
 void IEEE1588Port::recoverPort(void)
@@ -994,7 +980,7 @@ int IEEE1588Port::getTxTimestamp(PortIdentity * sourcePortIdentity,
 	if (_hw_timestamper) {
 		return _hw_timestamper->HWTimestamper_txtimestamp
 		    (sourcePortIdentity, sequenceId, timestamp, counter_value,
-		     last) ? 0 : 1;
+		     last);
 	}
 	timestamp = clock->getSystemTime();
 	return 0;
@@ -1007,7 +993,7 @@ int IEEE1588Port::getRxTimestamp(PortIdentity * sourcePortIdentity,
 	if (_hw_timestamper) {
 		return _hw_timestamper->HWTimestamper_rxtimestamp
 		    (sourcePortIdentity, sequenceId, timestamp, counter_value,
-		     last) ? 0 : 1;
+		     last);
 	}
 	timestamp = clock->getSystemTime();
 	return 0;

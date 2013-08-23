@@ -574,8 +574,13 @@ protected:
 			return oslock_fail;
 		}
 		return oslock_ok;
-		
     }
+	~LinuxLock() {
+		int lock_c = pthread_mutex_lock(&mutex);
+		if(lock_c == 0) {
+			pthread_mutex_destroy( &mutex );
+		}
+	}
     OSLockResult lock() {
 		int lock_c;
 		lock_c = pthread_mutex_lock(&mutex);
@@ -719,6 +724,7 @@ protected:
 		outer_arg->func = func;
 		outer_arg->type = type;
 		outer_arg->timer_queue = &timerQueueMap[type];
+		outer_arg->rm = rm;
 		sigset_t set;
 		sigset_t oset;
 		int err;

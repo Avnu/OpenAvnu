@@ -42,11 +42,17 @@ public:
 	(unsigned long micros, int type, ostimerq_handler func,
 	 event_descriptor_t * arg, bool dynamic, unsigned *event) = 0;
 	virtual bool cancelEvent(int type, unsigned *event) = 0;
+	virtual ~OSTimerQueue() = 0;
 };
+
+inline OSTimerQueue::~OSTimerQueue() { }
 
 class OSTimerQueueFactory {
 public:
-	virtual OSTimerQueue * createOSTimerQueue() = 0;
+	virtual OSTimerQueue *createOSTimerQueue() = 0;
+	virtual ~OSTimerQueueFactory() = 0;
 };
+
+inline OSTimerQueueFactory::~OSTimerQueueFactory() { }
 
 #endif
