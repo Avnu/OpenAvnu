@@ -46,11 +46,17 @@ class OSLock {
 	bool initialize(OSLockType type) {
 		return false;
 	}
+	virtual ~OSLock() = 0;
 };
+
+inline OSLock::~OSLock() {}
 
 class OSLockFactory {
 public:
 	virtual OSLock * createLock(OSLockType type) = 0;
+	virtual ~OSLockFactory() = 0;
 };
+
+inline OSLockFactory::~OSLockFactory () {}
 
 #endif

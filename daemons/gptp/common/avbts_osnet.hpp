@@ -145,7 +145,10 @@ class OSNetworkInterface {
 	(LinkLayerAddress * addr, uint8_t * payload, size_t & length) = 0;
 	virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
 	virtual unsigned getPayloadOffset() = 0;
+	virtual ~OSNetworkInterface() = 0;
 };
+
+inline OSNetworkInterface::~OSNetworkInterface() {}
 
 class OSNetworkInterfaceFactory;
 
@@ -167,11 +170,14 @@ class OSNetworkInterfaceFactory {
 		return factoryMap[id]->createInterface
 			(iface, iflabel, timestamper);
 	}
+	virtual ~OSNetworkInterfaceFactory() = 0;
 private:
 	virtual bool createInterface
 	(OSNetworkInterface ** iface, InterfaceLabel * iflabel,
 	 HWTimestamper * timestamper) = 0;
 	static FactoryMap_t factoryMap;
 };
+
+inline OSNetworkInterfaceFactory::~OSNetworkInterfaceFactory() { }
 
 #endif

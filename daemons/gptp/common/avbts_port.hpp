@@ -129,8 +129,6 @@ public:
 
 typedef std::map < PortIdentity, LinkLayerAddress > IdentityMap_t;
 
-typedef std::list < PTPMessageAnnounce * >AnnounceList_t;
-
 class IEEE1588Port {
 	static LinkLayerAddress other_multicast;
 	static LinkLayerAddress pdelay_multicast;
@@ -175,7 +173,7 @@ class IEEE1588Port {
 	int32_t _initial_clock_offset;
 	int32_t _current_clock_offset;
 
-	AnnounceList_t qualified_announce;
+	PTPMessageAnnounce *qualified_announce;
 
 	uint16_t announce_sequence_id;
 	uint16_t sync_sequence_id;
@@ -274,11 +272,8 @@ class IEEE1588Port {
 	void removeForeignMasterAll(void);
 
 	void addQualifiedAnnounce(PTPMessageAnnounce * msg) {
-		qualified_announce.push_front(msg);
-	}
-
-	void removeQualifiedAnnounce(PTPMessageAnnounce * msg) {
-		qualified_announce.remove(msg);
+		if( qualified_announce != NULL ) delete qualified_announce;
+		qualified_announce = msg;
 	}
 
 	char getSyncInterval(void) {

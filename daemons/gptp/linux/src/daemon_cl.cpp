@@ -100,8 +100,8 @@ int main(int argc, char **argv)
 			else if( toupper( argv[i][1] ) == 'F' ) {
 				// Open file
 				if( i+1 < argc ) {
-					restorefd = open( argv[++i],
-									  O_RDWR|O_CREAT, S_IRUSR|S_IWUSR );
+					restorefd = open
+						( argv[i], O_RDWR|O_CREAT, S_IRUSR|S_IWUSR ); ++i;
 					if( restorefd == -1 ) printf
 						( "Failed to open restore file\n" );
 				} else {
@@ -136,7 +136,7 @@ int main(int argc, char **argv)
 					printf( "Priority 1 value must be specified on "
 							"command line, using default value\n" );
 				} else {
-					unsigned long tmp = strtoul( argv[++i], NULL, 0 );
+					unsigned long tmp = strtoul( argv[i], NULL, 0 ); ++i;
 					if( tmp > 254 ) {
 						printf( "Invalid priority 1 value, using "
 								"default value\n" );

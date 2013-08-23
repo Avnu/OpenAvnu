@@ -37,12 +37,17 @@
 class OSTimer {
 public:
 	virtual unsigned long sleep(unsigned long micro) = 0;
+	virtual ~OSTimer() = 0;
 };
+
+inline OSTimer::~OSTimer() {}
 
 class OSTimerFactory {
 public:
 	virtual OSTimer * createTimer() = 0;
+	virtual ~OSTimerFactory() = 0;
 };
 
+inline OSTimerFactory::~OSTimerFactory() {}
 
 #endif
