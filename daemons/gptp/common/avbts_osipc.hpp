@@ -40,8 +40,10 @@
 
 class OS_IPC_ARG {
 public:
-  virtual ~OS_IPC_ARG() = 0;
+	virtual ~OS_IPC_ARG() = 0;
 };
+
+inline OS_IPC_ARG::~OS_IPC_ARG () { }
 
 class OS_IPC {
 public:
@@ -50,7 +52,10 @@ public:
 	( int64_t  ml_phoffset,   int64_t ls_phoffset,
 	  FrequencyRatio  ml_freqoffset, FrequencyRatio ls_freq_offset,
 	  uint64_t local_time ) = 0;
+	virtual ~OS_IPC() = 0;
 };
+
+inline OS_IPC::~OS_IPC () { }
 
 #endif
 

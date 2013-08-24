@@ -290,6 +290,7 @@ public:
 		outer_arg->func = func;
 		outer_arg->queue = this;
 		outer_arg->type = type;
+		outer_arg->rm = rm;
 		outer_arg->timer_queue = &timerQueueMap[type];
 		AcquireSRWLockExclusive( &timerQueueMap[type].lock );
 		CreateTimerQueueTimer( &outer_arg->timer_handle, timerQueueMap[type].queue_handle, WindowsTimerQueueHandler, (void *) outer_arg, micros/1000, 0, 0 );
@@ -457,7 +458,7 @@ public:
 
 	virtual int HWTimestamper_txtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, unsigned &clock_value, bool last )
 	{
-		DWORD buf[8], buf_tmp[8];
+		DWORD buf[4], buf_tmp[4];
 		DWORD returned = 0;
 		uint64_t tx_r,tx_s;
 		DWORD result;
@@ -465,7 +466,7 @@ public:
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
 		if( result != ERROR_GEN_FAILURE ) return -1;
-		if( returned == 0 ) return -72;
+		if( returned != sizeof(buf_tmp) ) return -72;
 		tx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		tx_s = scaleNativeClockToNanoseconds( tx_r );
 		tx_s += ONE_WAY_PHY_DELAY;
@@ -486,7 +487,7 @@ public:
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
 		if( result != ERROR_GEN_FAILURE ) return -1;
-		if( returned == 0 ) return -72;
+		if( returned != sizeof(buf_tmp) ) return -72;
 		packet_sequence_id = *((uint32_t *) buf+3) >> 16;
 		if( PLAT_ntohs( packet_sequence_id ) != sequenceId ) return -72;
 		rx_r = (((uint64_t)buf[1]) << 32) | buf[0];

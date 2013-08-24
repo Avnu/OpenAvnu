@@ -34,9 +34,9 @@ IGB_LIB_INCPATH=../../../../lib/igb/
 IGB_LIB_PATH=../../../../lib/igb/
 ALTERNATE_LINUX_INCPATH=/home/chris/headers/include/
 
-CFLAGS_G = -Wall -g -I. -I../../common -I../src -I$(IGB_LIB_INCPATH)\
-	-I$(ALTERNATE_LINUX_INCPATH)
-LDFLAGS_G = -L$(IGB_LIB_PATH) -lpthread -lrt -lpci -ligb 
+CFLAGS_G = -Wall -g -Wnon-virtual-dtor -I. -I../../common -I../src \
+	-I$(IGB_LIB_INCPATH) -I$(ALTERNATE_LINUX_INCPATH)
+LDFLAGS_G = -L$(IGB_LIB_PATH) -lpthread -lrt -lpci -ligb -lz
 
 CFLAGS = $(CFLAGS_G)
 LDFLAGS = $(LDFLAGS_G)
@@ -48,7 +48,6 @@ OBJ_DIR = obj
 
 OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/avbts_osnet.o\
-		 $(OBJ_DIR)/avbts_osipc.o\
 		 $(OBJ_DIR)/ieee1588port.o\
 		 $(OBJ_DIR)/ieee1588clock.o \
 		 $(OBJ_DIR)/linux_hal.o
@@ -88,9 +87,6 @@ $(OBJ_DIR)/ptp_message.o: $(COMMON_DIR)/ptp_message.cpp $(HEADER_FILES)
 
 $(OBJ_DIR)/avbts_osnet.o: $(COMMON_DIR)/avbts_osnet.cpp $(HEADER_FILES)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/avbts_osnet.cpp -o $(OBJ_DIR)/avbts_osnet.o
-
-$(OBJ_DIR)/avbts_osipc.o: $(COMMON_DIR)/avbts_osipc.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/avbts_osipc.cpp -o $(OBJ_DIR)/avbts_osipc.o
 
 clean:
 	/bin/rm -f *~ $(OBJ_DIR)/*.o  $(OBJ_DIR)/daemon_cl 

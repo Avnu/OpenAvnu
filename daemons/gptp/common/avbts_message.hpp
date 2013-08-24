@@ -165,7 +165,7 @@ protected:
 	PTPMessageCommon(void) { };
  public:
 	PTPMessageCommon(IEEE1588Port * port);
-	virtual ~ PTPMessageCommon(void);
+	virtual ~PTPMessageCommon(void);
 
 	unsigned char *getFlags(void) {
 		return flags;
@@ -292,15 +292,14 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 						 IEEE1588Port * port);
 };
 
-class PTPMessageSync:public PTPMessageCommon {
+class PTPMessageSync : public PTPMessageCommon {
  private:
 	Timestamp originTimestamp;
 
-	PTPMessageSync() {
-		return;
-	}
+	PTPMessageSync();
  public:
-	 PTPMessageSync(IEEE1588Port * port);
+	PTPMessageSync(IEEE1588Port * port);
+	~PTPMessageSync();
 	void processMessage(IEEE1588Port * port);
 
 	Timestamp getOriginTimestamp(void) {
@@ -385,7 +384,7 @@ public:
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
-class PTPMessagePathDelayReq:public PTPMessageCommon {
+class PTPMessagePathDelayReq : public PTPMessageCommon {
  private:
 	Timestamp originTimestamp;
 
@@ -393,6 +392,8 @@ class PTPMessagePathDelayReq:public PTPMessageCommon {
 		return;
 	}
  public:
+	~PTPMessagePathDelayReq() {
+	}
 	PTPMessagePathDelayReq(IEEE1588Port * port);
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
 	void processMessage(IEEE1588Port * port);
@@ -410,7 +411,8 @@ private:
 	PortIdentity * requestingPortIdentity;
 	Timestamp requestReceiptTimestamp;
 	
-	PTPMessagePathDelayResp(void) {	}
+	PTPMessagePathDelayResp(void) {	
+	}
 public:
 	~PTPMessagePathDelayResp();
 	PTPMessagePathDelayResp(IEEE1588Port * port);
