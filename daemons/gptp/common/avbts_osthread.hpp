@@ -33,16 +33,25 @@
 
 #ifndef AVBTS_OSTHREAD_HPP
 #define AVBTS_OSTHREAD_HPP
- typedef enum { osthread_ok, osthread_error } OSThreadExitCode;
+typedef enum { osthread_ok, osthread_error } OSThreadExitCode;
 typedef OSThreadExitCode(*OSThreadFunction) (void *);
- class OSThread {
- public:virtual bool start(OSThreadFunction function, void *arg) = 0;
+
+class OSThread {
+public:
+	virtual bool start(OSThreadFunction function, void *arg) = 0;
 	virtual bool join(OSThreadExitCode & exit_code) = 0;
+	virtual ~OSThread() = 0;
 };
 
- class OSThreadFactory {
- public:virtual OSThread * createThread() = 0;
+inline OSThread::~OSThread() {}
+
+class OSThreadFactory {
+public:
+	virtual OSThread * createThread() = 0;
+	virtual ~OSThreadFactory() = 0;
 };
+
+inline OSThreadFactory::~OSThreadFactory() {}
 
 
 #endif

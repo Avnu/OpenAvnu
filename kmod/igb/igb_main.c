@@ -81,8 +81,8 @@
 #define VERSION_SUFFIX "_AVB"
 
 #define MAJ 4
-#define MIN 2
-#define BUILD 16
+#define MIN 3
+#define BUILD 1.1
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." __stringify(BUILD) VERSION_SUFFIX DRV_DEBUG DRV_HW_PERF
 
 char igb_driver_name[] = "igb_avb";
@@ -129,6 +129,7 @@ static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
 static void igb_dma_err_task(struct work_struct *);
 static void igb_dma_err_timer(unsigned long data);
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb);
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
 static struct net_device_stats *igb_get_stats(struct net_device *);
 static int igb_change_mtu(struct net_device *, int);
@@ -153,8 +154,15 @@ static void igb_reset_task(struct work_struct *);
 static void igb_vlan_mode(struct net_device *, struct vlan_group *);
 #endif
 #ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+static int igb_vlan_rx_add_vid(struct net_device *,
+			       __always_unused __be16 proto, u16);
+static int igb_vlan_rx_kill_vid(struct net_device *,
+			        __always_unused __be16 proto, u16);
+#else
 static int igb_vlan_rx_add_vid(struct net_device *, u16);
 static int igb_vlan_rx_kill_vid(struct net_device *, u16);
+#endif
 #else
 static void igb_vlan_rx_add_vid(struct net_device *, u16);
 static void igb_vlan_rx_kill_vid(struct net_device *, u16);
@@ -1930,8 +1938,13 @@ static netdev_features_t igb_fix_features(struct net_device *netdev,
 	 * Since there is no support for separate tx vlan accel
 	 * enabled make sure tx flag is cleared if rx is.
 	 */
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+	if (!(features & NETIF_F_HW_VLAN_CTAG_RX))
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
+#else
 	if (!(features & NETIF_F_HW_VLAN_RX))
 		features &= ~NETIF_F_HW_VLAN_TX;
+#endif
 
 	/* If Rx checksum is disabled, then LRO should also be disabled */
 	if (!(features & NETIF_F_RXCSUM))
@@ -1945,7 +1958,11 @@ static int igb_set_features(struct net_device *netdev,
 {
 	u32 changed = netdev->features ^ features;
 
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
+#else
 	if (changed & NETIF_F_HW_VLAN_RX)
+#endif
 		igb_vlan_mode(netdev, features);
 
 	return 0;
@@ -2050,10 +2067,12 @@ static int igb_ndo_fdb_dump(struct sk_buff *skb,
 
 #endif /* HAVE_NDO_SET_FEATURES */
 #ifdef HAVE_NET_DEVICE_OPS
+
 static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
 	.ndo_start_xmit		= igb_xmit_frame,
+    .ndo_select_queue       = igb_select_queue,
 	.ndo_get_stats		= igb_get_stats,
 	.ndo_set_rx_mode	= igb_set_rx_mode,
 	.ndo_set_mac_address	= igb_set_mac,
@@ -2128,7 +2147,7 @@ void igb_assign_vmdq_netdev_ops(struct net_device *vnetdev)
 #ifdef HAVE_TX_TIMEOUT
 	dev->tx_timeout = &igb_vmdq_tx_timeout;
 #endif
-#ifdef NETIF_F_HW_VLAN_TX
+#if defined(NETIF_F_HW_VLAN_TX) || defined(NETIF_F_HW_VLAN_CTAG_TX)
 	dev->vlan_rx_register = &igb_vmdq_vlan_rx_register;
 	dev->vlan_rx_add_vid = &igb_vmdq_vlan_rx_add_vid;
 	dev->vlan_rx_kill_vid = &igb_vmdq_vlan_rx_kill_vid;
@@ -2413,9 +2432,14 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 #ifdef HAVE_NDO_SET_FEATURES
 			    NETIF_F_RXCSUM |
 #endif
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+			    NETIF_F_HW_VLAN_CTAG_RX |
+			    NETIF_F_HW_VLAN_CTAG_TX;
+#else
 			    NETIF_F_HW_VLAN_RX |
 			    NETIF_F_HW_VLAN_TX;
 
+#endif
 #ifdef HAVE_NDO_SET_FEATURES
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
@@ -2433,7 +2457,11 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 #endif
 
 	/* set this bit last since it cannot be part of hw_features */
+#ifdef NETIF_F_HW_VLAN_CTAG_FILTER
+	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+#else
 	netdev->features |= NETIF_F_HW_VLAN_FILTER;
+#endif
 
 #ifdef HAVE_NETDEV_VLAN_FEATURES
 	netdev->vlan_features |= NETIF_F_TSO |
@@ -4094,12 +4122,12 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_VFE);
 
 	if (netdev->flags & IFF_PROMISC) {
-		u32 mrqc = E1000_READ_REG(hw, E1000_MRQC);
-		/* retain VLAN HW filtering if in VT mode */
-		if (mrqc & E1000_MRQC_ENABLE_VMDQ)
-			rctl |= E1000_RCTL_VFE;
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		vmolr |= (E1000_VMOLR_ROPE | E1000_VMOLR_MPME);
+                /* retain VLAN HW filtering if in VT mode */
+		if (adapter->vfs_allocated_count || adapter->vmdq_pools)
+			rctl |= E1000_RCTL_VFE;
+
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			rctl |= E1000_RCTL_MPE;
@@ -4130,7 +4158,7 @@ static void igb_set_rx_mode(struct net_device *netdev)
 			vmolr |= E1000_VMOLR_ROPE;
 		}
 #endif /* HAVE_SET_RX_MODE */
-		rctl |= E1000_RCTL_VFE;
+		/* rctl |= E1000_RCTL_VFE; Disable VLAN filtering */
 	}
 	E1000_WRITE_REG(hw, E1000_RCTL, rctl);
 
@@ -5173,6 +5201,13 @@ static inline struct igb_ring *igb_tx_queue_mapping(struct igb_adapter *adapter,
 #else
 #error This driver must have multi-queue transmit support enabled (CONFIG_NETDEVICES_MULTIQUEUE)!
 #endif
+
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb)
+{
+       /* remap normal LAN to best effort queue[3] */
+
+       return (3);
+}
 
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb,
                                   struct net_device *netdev)
@@ -7601,7 +7636,11 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 	igb_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
 #endif /* HAVE_PTP_1588_CLOCK */
 
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
+#else
 	if ((dev->features & NETIF_F_HW_VLAN_RX) &&
+#endif
 	    igb_test_staterr(rx_desc, E1000_RXD_STAT_VP)) {
 		u16 vid = 0;
 		if (igb_test_staterr(rx_desc, E1000_RXDEXT_STATERR_LB) &&
@@ -7614,7 +7653,7 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 	} else {
 		IGB_CB(skb)->vid = 0;
 #else
-		__vlan_hwaccel_put_tag(skb, vid);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 #endif
 	}
 
@@ -8319,7 +8358,11 @@ void igb_vlan_mode(struct net_device *netdev, u32 features)
 	if (!test_bit(__IGB_DOWN, &adapter->state))
 		igb_irq_enable(adapter);
 #else
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+	bool enable = !!(features & NETIF_F_HW_VLAN_CTAG_RX);
+#else
 	bool enable = !!(features & NETIF_F_HW_VLAN_RX);
+#endif
 #endif
 
 	if (enable) {
@@ -8359,7 +8402,11 @@ void igb_vlan_mode(struct net_device *netdev, u32 features)
 #else
 		struct net_device *vnetdev;
 		vnetdev = adapter->vmdq_netdev[i-1];
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+		enable = !!(vnetdev->features & NETIF_F_HW_VLAN_CTAG_RX);
+#else
 		enable = !!(vnetdev->features & NETIF_F_HW_VLAN_RX);
+#endif
 #endif
 		igb_set_vf_vlan_strip(adapter,
 				      adapter->vfs_allocated_count + i,
@@ -8371,7 +8418,12 @@ void igb_vlan_mode(struct net_device *netdev, u32 features)
 }
 
 #ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+static int igb_vlan_rx_add_vid(struct net_device *netdev,
+			       __always_unused __be16 proto, u16 vid)
+#else
 static int igb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+#endif
 #else
 static void igb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 #endif
@@ -8410,7 +8462,12 @@ static void igb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 }
 
 #ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+static int igb_vlan_rx_kill_vid(struct net_device *netdev,
+				__always_unused __be16 proto, u16 vid)
+#else
 static int igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+#endif
 #else
 static void igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 #endif
@@ -8453,7 +8510,12 @@ static void igb_restore_vlan(struct igb_adapter *adapter)
 		for (vid = 0; vid < VLAN_N_VID; vid++) {
 			if (!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+			igb_vlan_rx_add_vid(adapter->netdev,
+					    htons(ETH_P_8021Q), vid);
+#else
 			igb_vlan_rx_add_vid(adapter->netdev, vid);
+#endif
 		}
 	}
 #else
@@ -8462,7 +8524,12 @@ static void igb_restore_vlan(struct igb_adapter *adapter)
 	igb_vlan_mode(adapter->netdev, adapter->netdev->features);
 
 	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+		igb_vlan_rx_add_vid(adapter->netdev,
+				    htons(ETH_P_8021Q), vid);
+#else
 		igb_vlan_rx_add_vid(adapter->netdev, vid);
+#endif
 #endif
 }
 

@@ -814,6 +814,14 @@ void *_kc_kmemdup(const void *src, size_t len, unsigned gfp)
 #endif /* <= 2.6.19 */
 
 /*****************************************************************************/
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21) )
+struct pci_dev *_kc_netdev_to_pdev(struct net_device *netdev)
+{
+	return ((struct adapter_struct *)netdev_priv(netdev))->pdev;
+}
+#endif /* < 2.6.21 */
+
+/*****************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22) )
 /* hexdump code taken from lib/hexdump.c */
 static void _kc_hex_dump_to_buffer(const void *buf, size_t len, int rowsize,
@@ -977,7 +985,7 @@ out_err:
 /*****************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24) )
 #ifdef NAPI
-struct net_device *napi_to_poll_dev(struct napi_struct *napi)
+struct net_device *napi_to_poll_dev(const struct napi_struct *napi)
 {
 	struct adapter_q_vector *q_vector = container_of(napi,
 	                                                struct adapter_q_vector,
@@ -1250,6 +1258,14 @@ void _kc_skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
 	skb->truesize += truesize;
 }
 
+int _kc_simple_open(struct inode *inode, struct file *file)
+{
+        if (inode->i_private)
+                file->private_data = inode->i_private;
+
+        return 0;
+}
+
 #endif /* < 3.4.0 */
 
 /******************************************************************************/
@@ -1419,7 +1435,7 @@ int __kc_pcie_capability_clear_and_set_word(struct pci_dev *dev, int pos,
 /*****************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0) )
 #ifdef CONFIG_PCI_IOV
-int pci_vfs_assigned(struct pci_dev *dev)
+int __kc_pci_vfs_assigned(struct pci_dev *dev)
 {
 	unsigned int vfs_assigned = 0;
 #ifdef HAVE_PCI_DEV_FLAGS_ASSIGNED
@@ -1429,12 +1445,12 @@ int pci_vfs_assigned(struct pci_dev *dev)
 
 	/* only search if we are a PF */
 	if (!dev->is_physfn)
-		return -ENODEV;
+		return 0;
 
 	/* find SR-IOV capability */
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_SRIOV);
 	if (!pos)
-		return -ENODEV;
+		return 0;
 
 	/*
 	 * determine the device ID for the VFs, the vendor ID will be the

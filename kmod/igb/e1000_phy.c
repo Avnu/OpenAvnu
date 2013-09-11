@@ -1172,12 +1172,6 @@ s32 e1000_copper_link_setup_m88(struct e1000_hw *hw)
 		return ret_val;
 	}
 
-	if (phy->type == e1000_phy_i210) {
-		ret_val = e1000_set_master_slave_mode(hw);
-		if (ret_val)
-			return ret_val;
-	}
-
 	return E1000_SUCCESS;
 }
 
@@ -1256,6 +1250,12 @@ s32 e1000_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 	if (ret_val) {
 		DEBUGOUT("Error committing the PHY changes\n");
 		return ret_val;
+	}
+
+	if (phy->type == e1000_phy_i210) {
+		ret_val = e1000_set_master_slave_mode(hw);
+		if (ret_val)
+			return ret_val;
 	}
 
 	return E1000_SUCCESS;
