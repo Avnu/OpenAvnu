@@ -31,14 +31,9 @@
 
 ******************************************************************************/
 
+#ifndef WINPTP_TYPES_HPP
+#define WINPTP_TYPES_HPP
 
-#ifndef PLATFORM_HPP
-#define PLATFORM_HPP
+typedef long double FrequencyRatio;
 
-errno_t PLAT_strncpy( char *dest, const char *src, rsize_t max );
-uint16_t PLAT_htons( uint16_t s );
-uint32_t PLAT_htonl( uint32_t l );
-uint16_t PLAT_ntohs( uint16_t s );
-uint32_t PLAT_ntohl( uint32_t l );
-
-#endif
+#endif/*WINPTP_TYPES_HPP*/

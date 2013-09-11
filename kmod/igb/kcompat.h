@@ -305,7 +305,7 @@ struct msix_entry {
 #define IS_ENABLED(option) \
 	(config_enabled(option) || config_enabled(option##_MODULE))
 
-#ifndef NETIF_F_HW_VLAN_TX
+#if !defined(NETIF_F_HW_VLAN_TX) && !defined(NETIF_F_HW_VLAN_CTAG_TX)
 struct _kc_vlan_ethhdr {
 	unsigned char	h_dest[ETH_ALEN];
 	unsigned char	h_source[ETH_ALEN];
@@ -321,7 +321,7 @@ struct _kc_vlan_hdr {
 #define vlan_hdr _kc_vlan_hdr
 #define vlan_tx_tag_present(_skb) 0
 #define vlan_tx_tag_get(_skb) 0
-#endif
+#endif /* NETIF_F_HW_VLAN_TX && NETIF_F_HW_VLAN_CTAG_TX */
 
 #ifndef VLAN_PRIO_SHIFT
 #define VLAN_PRIO_SHIFT 13
@@ -1814,6 +1814,12 @@ static inline unsigned _kc_compare_ether_addr(const u8 *addr1, const u8 *addr2)
 #else /* 2.6.16 and above */
 #undef HAVE_PCI_ERS
 #define HAVE_PCI_ERS
+#if ( SLE_VERSION_CODE && SLE_VERSION_CODE == SLE_VERSION(10,4,0) )
+#ifdef device_can_wakeup
+#undef device_can_wakeup
+#endif /* device_can_wakeup */
+#define device_can_wakeup(dev) 1
+#endif /* SLE_VERSION(10,4,0) */
 #endif /* < 2.6.16 */
 
 /*****************************************************************************/
@@ -2072,8 +2078,9 @@ static inline __wsum csum_unfold(__sum16 n)
 #define __aligned(x)			__attribute__((aligned(x)))
 #endif
 
+extern struct pci_dev *_kc_netdev_to_pdev(struct net_device *netdev);
 #define netdev_to_dev(netdev)	\
-	pci_dev_to_dev(((struct adapter_struct *)(netdev_priv(netdev)))->pdev)
+	pci_dev_to_dev(_kc_netdev_to_pdev(netdev))
 #else
 static inline struct device *netdev_to_dev(struct net_device *netdev)
 {
@@ -2219,7 +2226,7 @@ struct napi_struct {
 
 #ifdef NAPI
 extern int __kc_adapter_clean(struct net_device *, int *);
-extern struct net_device *napi_to_poll_dev(struct napi_struct *napi);
+extern struct net_device *napi_to_poll_dev(const struct napi_struct *napi);
 #define netif_napi_add(_netdev, _napi, _poll, _weight) \
 	do { \
 		struct napi_struct *__napi = (_napi); \
@@ -2250,6 +2257,19 @@ extern struct net_device *napi_to_poll_dev(struct napi_struct *napi);
 	} while (0)
 #define napi_enable(_napi) netif_poll_enable(napi_to_poll_dev(_napi))
 #define napi_disable(_napi) netif_poll_disable(napi_to_poll_dev(_napi))
+#ifdef CONFIG_SMP
+static inline void napi_synchronize(const struct napi_struct *n)
+{
+	struct net_device *dev = napi_to_poll_dev(n);
+
+	while (test_bit(__LINK_STATE_RX_SCHED, &dev->state)) {
+		/* No hurry. */
+		msleep(1);
+	}
+}
+#else
+#define napi_synchronize(n)	barrier()
+#endif /* CONFIG_SMP */
 #define __napi_schedule(_napi) __netif_rx_schedule(napi_to_poll_dev(_napi))
 #ifndef NETIF_F_GRO
 #define napi_complete(_napi) netif_rx_complete(napi_to_poll_dev(_napi))
@@ -2377,6 +2397,9 @@ extern void _kc_pci_disable_link_state(struct pci_dev *dev, int state);
 #else /* < 2.6.26 */
 #include <linux/pci-aspm.h>
 #define HAVE_NETDEV_VLAN_FEATURES
+#ifndef PCI_EXP_LNKCAP_ASPMS
+#define PCI_EXP_LNKCAP_ASPMS 0x00000c00 /* ASPM Support */
+#endif /* PCI_EXP_LNKCAP_ASPMS */
 #endif /* < 2.6.26 */
 /*****************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27) )
@@ -2489,11 +2512,13 @@ extern void __kc_warn_slowpath(const char *file, const int line,
 })
 #endif /* WARN */
 #undef HAVE_IXGBE_DEBUG_FS
+#undef HAVE_IGB_DEBUG_FS
 #else /* < 2.6.27 */
 #define HAVE_TX_MQ
 #define HAVE_NETDEV_SELECT_QUEUE
 #ifdef CONFIG_DEBUG_FS
 #define HAVE_IXGBE_DEBUG_FS
+#define HAVE_IGB_DEBUG_FS
 #endif /* CONFIG_DEBUG_FS */
 #endif /* < 2.6.27 */
 
@@ -2775,7 +2800,10 @@ static inline bool pci_is_pcie(struct pci_dev *dev)
 #endif /* RHEL_RELEASE_CODE */
 
 #ifndef __always_unused
-#define __always_unused
+#define __always_unused __attribute__((__unused__))
+#endif
+#ifndef __maybe_unused
+#define __maybe_unused __attribute__((__unused__))
 #endif
 
 #if (!(RHEL_RELEASE_CODE && \
@@ -2856,15 +2884,13 @@ static inline const char *_kc_netdev_name(const struct net_device *dev)
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) )
 #define netdev_printk(level, netdev, format, args...)		\
 do {								\
-	struct adapter_struct *kc_adapter = netdev_priv(netdev);\
-	struct pci_dev *pdev = kc_adapter->pdev;		\
+	struct pci_dev *pdev = _kc_netdev_to_pdev(netdev);	\
 	printk(level "%s: " format, pci_name(pdev), ##args);	\
 } while(0)
 #elif ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21) )
 #define netdev_printk(level, netdev, format, args...)		\
 do {								\
-	struct adapter_struct *kc_adapter = netdev_priv(netdev);\
-	struct pci_dev *pdev = kc_adapter->pdev;		\
+	struct pci_dev *pdev = _kc_netdev_to_pdev(netdev);	\
 	struct device *dev = pci_dev_to_dev(pdev);		\
 	dev_printk(level, dev, "%s: " format,			\
 		   netdev_name(netdev), ##args);		\
@@ -2943,6 +2969,9 @@ do {								\
 #undef netif_info
 #define netif_info(priv, type, dev, fmt, args...)		\
 	netif_level(info, priv, type, dev, fmt, ##args)
+#undef netif_dbg
+#define netif_dbg(priv, type, dev, fmt, args...)		\
+	netif_level(dbg, priv, type, dev, fmt, ##args)
 
 #ifdef SET_SYSTEM_SLEEP_PM_OPS
 #define HAVE_SYSTEM_SLEEP_PM_OPS
@@ -3093,6 +3122,15 @@ do {								\
 #undef usleep_range
 #define usleep_range(min, max)	msleep(DIV_ROUND_UP(min, 1000))
 
+#define u64_stats_update_begin(a) do { } while(0)
+#define u64_stats_update_end(a) do { } while(0)
+#define u64_stats_fetch_begin(a) do { } while(0)
+#define u64_stats_fetch_retry_bh(a) (0)
+#define u64_stats_fetch_begin_bh(a) (0)
+
+#if (RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6,1))
+#define HAVE_8021P_SUPPORT
+#endif
 #else /* < 2.6.36 */
 
 
@@ -3218,6 +3256,9 @@ static inline int _kc_skb_checksum_start_offset(const struct sk_buff *skb)
 
 /*****************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39) )
+#ifndef NETIF_F_RXCSUM
+#define NETIF_F_RXCSUM		(1 << 29)
+#endif
 #ifndef skb_queue_reverse_walk_safe
 #define skb_queue_reverse_walk_safe(queue, skb, tmp)				\
 		for (skb = (queue)->prev, tmp = skb->prev;			\
@@ -3407,6 +3448,14 @@ static inline void __kc_skb_frag_unref(skb_frag_t *frag)
 typedef u32 netdev_features_t;
 #undef PCI_EXP_TYPE_RC_EC
 #define  PCI_EXP_TYPE_RC_EC	0xa	/* Root Complex Event Collector */
+#ifndef CONFIG_BQL
+#define netdev_tx_completed_queue(_q, _p, _b) do {} while (0)
+#define netdev_completed_queue(_n, _p, _b) do {} while (0)
+#define netdev_tx_sent_queue(_q, _b) do {} while (0)
+#define netdev_sent_queue(_n, _b) do {} while (0)
+#define netdev_tx_reset_queue(_q) do {} while (0)
+#define netdev_reset_queue(_n) do {} while (0)
+#endif
 #else /* ! < 3.3.0 */
 #define HAVE_INT_NDO_VLAN_RX_ADD_VID
 #ifdef ETHTOOL_SRXNTUPLE
@@ -3423,10 +3472,12 @@ typedef u32 netdev_features_t;
 #define NETIF_F_RXALL	0
 #endif /* NETIF_F_RXALL */
 
+#if !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(11,3,0))
 #define NUMTCS_RETURNS_U8
 
 int _kc_simple_open(struct inode *inode, struct file *file);
 #define simple_open _kc_simple_open
+#endif /* !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(11,3,0)) */
 
 
 #ifndef skb_add_rx_frag
@@ -3447,13 +3498,13 @@ extern void _kc_skb_add_rx_frag(struct sk_buff *, int, struct page *,
 #endif /* >= 3.4.0 */
 
 /*****************************************************************************/
-#if defined(E1000E_PTP) || defined(IGB_PTP) || defined(IXGBE_PTP)
+#if defined(E1000E_PTP) || defined(IGB_PTP) || defined(IXGBE_PTP) || defined(I40E_PTP)
 #if ( LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0) ) && IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 #define HAVE_PTP_1588_CLOCK
 #else
 #error Cannot enable PTP Hardware Clock support due to a pre-3.0 kernel version or CONFIG_PTP_1588_CLOCK not enabled in the kernel
 #endif /* > 3.0.0 && IS_ENABLED(CONFIG_PTP_1588_CLOCK) */
-#endif /* E1000E_PTP || IGB_PTP || IXGBE_PTP */
+#endif /* E1000E_PTP || IGB_PTP || IXGBE_PTP || I40E_PTP */
 
 /*****************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0) )
@@ -3612,6 +3663,9 @@ static inline int pcie_capability_clear_word(struct pci_dev *dev, int pos,
 	return __kc_pcie_capability_clear_and_set_word(dev, pos, clear, 0);
 }
 #endif /* !(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(11,3,0)) */
+#if (SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(11,3,0))
+#define USE_CONST_DEV_UC_CHAR
+#endif
 
 #else /* >= 3.7.0 */
 #define HAVE_CONST_STRUCT_PCI_ERROR_HANDLERS
@@ -3643,6 +3697,7 @@ static inline bool is_link_local_ether_addr(const u8 *addr)
 #else /* >= 3.8.0 */
 #ifndef __devinit
 #define __devinit
+#define HAVE_ENCAP_CSUM_OFFLOAD
 #endif
 
 #ifndef __devinitdata
@@ -3660,6 +3715,13 @@ static inline bool is_link_local_ether_addr(const u8 *addr)
 #ifndef HAVE_SRIOV_CONFIGURE
 #define HAVE_SRIOV_CONFIGURE
 #endif
+#define HAVE_BRIDGE_ATTRIBS
+#ifndef BRIDGE_MODE_VEB
+#define BRIDGE_MODE_VEB		0	/* Default loopback mode */
+#endif /* BRIDGE_MODE_VEB */
+#ifndef BRIDGE_MODE_VEPA
+#define BRIDGE_MODE_VEPA	1	/* 802.1Qbg defined VEPA mode */
+#endif /* BRIDGE_MODE_VEPA */
 #endif /* >= 3.8.0 */
 
 /*****************************************************************************/
@@ -3697,6 +3759,7 @@ extern u16 __kc_netdev_pick_tx(struct net_device *dev, struct sk_buff *skb);
 #define __netdev_pick_tx __kc_netdev_pick_tx
 #endif /* HAVE_NETDEV_SELECT_QUEUE */
 #else
+#define HAVE_BRIDGE_FILTER
 #define USE_DEFAULT_FDB_DEL_DUMP
 #endif /* < 3.9.0 */
 
@@ -3711,6 +3774,22 @@ static inline int __kc_pci_vfs_assigned(struct pci_dev *dev)
 }
 #endif
 #define pci_vfs_assigned(dev) __kc_pci_vfs_assigned(dev)
-#endif /* < 3.10.0 */
+#ifndef VLAN_TX_COOKIE_MAGIC
+static inline struct sk_buff *__kc__vlan_hwaccel_put_tag(struct sk_buff *skb,
+							 u16 vlan_tci)
+{
+#ifdef VLAN_TAG_PRESENT
+	vlan_tci |= VLAN_TAG_PRESENT;
+#endif
+	skb->vlan_tci = vlan_tci;
+        return skb;
+}
+#define __vlan_hwaccel_put_tag(skb, vlan_proto, vlan_tci) \
+	__kc__vlan_hwaccel_put_tag(skb, vlan_tci)
+#endif
+
+#else /* >= 3.10.0 */
+#define HAVE_ENCAP_TSO_OFFLOAD
+#endif /* >= 3.10.0 */
 
 #endif /* _KCOMPAT_H_ */
