@@ -179,7 +179,7 @@ pthread_t packetizer_id;
  * FIXME: move to thread argument struct */
 u_int64_t last_time;
 int seqnum;
-int time_stamp;
+uint32_t time_stamp;
 seventeen22_header *header0;
 six1883_header *header1;
 struct igb_packet *tmp_packet;
