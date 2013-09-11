@@ -77,8 +77,8 @@
 typedef struct { 
   int64_t ml_phoffset;
   int64_t ls_phoffset;
-  int32_t ml_freqoffset;
-  int32_t ls_freqoffset;
+  long double ml_freqoffset;
+  long double ls_freqoffset;
   int64_t local_time;
 } gPtpTimeData;
 
@@ -241,7 +241,7 @@ int gptpscaling(gPtpTimeData * td)
 
 	fprintf(stderr, "ml_phoffset = %lld, ls_phoffset = %lld\n",
 		td->ml_phoffset, td->ls_phoffset);
-	fprintf(stderr, "ml_freqffset = %d, ls_freqoffset = %d\n",
+	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
 		td->ml_freqoffset, td->ls_freqoffset);
 
 	return true;
@@ -1119,8 +1119,7 @@ int main(int argc, char *argv[])
 	}
 	update_8021as = td.local_time - td.ml_phoffset;
 	delta_local = (unsigned)(now_local - td.local_time);
-	ml_ratio = -1 * (((long double)td.ml_freqoffset) / 1000000000000) + 1;
-	delta_8021as = (unsigned)(ml_ratio * delta_local);
+	delta_8021as = (unsigned)(td.ml_freqoffset * delta_local);
 	now_8021as = update_8021as + delta_8021as;
 
 	last_time = now_local + XMIT_DELAY;
