@@ -388,8 +388,10 @@ int mrpdhelper_to_string(struct mrpdhelper_notify *mrpd_data,
 	status = snprintf(szString, 128, "R=%" SCNx64 " %s,%s,%s",
 		mrpd_data->registrar,
 		szNotify, szState, szAppState);
-	if (status < 0)
+	if (status < 0) {
+		free(szString);
 		return status;
+	}
 
 	switch (mrpd_data->attrib) {
 	case mrpdhelper_attribtype_mmrp:
