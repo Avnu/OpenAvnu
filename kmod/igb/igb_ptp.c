@@ -119,14 +119,13 @@ static cycle_t igb_ptp_read_82580(const struct cyclecounter *cc)
 	struct igb_adapter *igb = container_of(cc, struct igb_adapter, cc);
 	struct e1000_hw *hw = &igb->hw;
 	u64 val;
-	u32 lo, hi, jk;
+	u32 lo, hi;
 
-	/*
-	 * The timestamp latches on lowest register read. For the 82580
+	/* The timestamp latches on lowest register read. For the 82580
 	 * the lowest register is SYSTIMR instead of SYSTIML.  However we only
 	 * need to provide nanosecond resolution, so we just ignore it.
 	 */
-	jk = E1000_READ_REG(hw, E1000_SYSTIMR);
+	E1000_READ_REG(hw, E1000_SYSTIMR);
 	lo = E1000_READ_REG(hw, E1000_SYSTIML);
 	hi = E1000_READ_REG(hw, E1000_SYSTIMH);
 
@@ -143,14 +142,13 @@ static cycle_t igb_ptp_read_82580(const struct cyclecounter *cc)
 static void igb_ptp_read_i210(struct igb_adapter *adapter, struct timespec *ts)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 sec, nsec, jk;
+	u32 sec, nsec;
 
-	/*
-	 * The timestamp latches on lowest register read. For I210/I211, the
+	/* The timestamp latches on lowest register read. For I210/I211, the
 	 * lowest register is SYSTIMR. Since we only need to provide nanosecond
 	 * resolution, we can ignore it.
 	 */
-	jk = E1000_READ_REG(hw, E1000_SYSTIMR);
+	E1000_READ_REG(hw, E1000_SYSTIMR);
 	nsec = E1000_READ_REG(hw, E1000_SYSTIML);
 	sec = E1000_READ_REG(hw, E1000_SYSTIMH);
 
@@ -199,6 +197,7 @@ static void igb_ptp_systim_to_hwtstamp(struct igb_adapter *adapter,
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 		spin_lock_irqsave(&adapter->tmreg_lock, flags);
 
 		ns = timecounter_cyc2time(&adapter->tc, systim);
@@ -270,6 +269,18 @@ static int igb_ptp_adjfreq_82580(struct ptp_clock_info *ptp, s32 ppb)
 	rate <<= 26;
 	rate = div_u64(rate, 1953125);
 
+	/* At 2.5G speeds, the TIMINCA register on I354 updates the clock 2.5x
+	 * as quickly. Account for this by dividing the adjustment by 2.5.
+	 */
+	if (hw->mac.type == e1000_i354) {
+		u32 status = E1000_READ_REG(hw, E1000_STATUS);
+
+		if ((status & E1000_STATUS_2P5_SKU) &&
+		    !(status & E1000_STATUS_2P5_SKU_OVER)) {
+			rate <<= 1;
+			rate = div_u64(rate, 5);
+		}
+	}
 	inca = rate & INCVALUE_MASK;
 	if (neg_adj)
 		inca |= ISGN;
@@ -772,6 +783,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		break;
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
 		adapter->ptp_caps.owner = THIS_MODULE;
 		adapter->ptp_caps.max_adj = 62499999;
@@ -860,6 +872,7 @@ void igb_ptp_stop(struct igb_adapter *adapter)
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 		cancel_delayed_work_sync(&adapter->ptp_overflow_work);
 		break;
 	case e1000_i210:
@@ -905,6 +918,7 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 		break;
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
 		/* Enable the timer functions and interrupts. */

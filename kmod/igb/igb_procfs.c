@@ -80,7 +80,7 @@ static int igb_macburn(char *page, char **start, off_t off, int count,
 	if (hw == NULL)
 		return snprintf(page, count, "error: no hw data\n");
 
-	return snprintf(page, count, "0x%X%X%X%X%X%X\n",
+	return snprintf(page, count, "0x%02X%02X%02X%02X%02X%02X\n",
 		       (unsigned int)hw->mac.perm_addr[0],
 		       (unsigned int)hw->mac.perm_addr[1],
 		       (unsigned int)hw->mac.perm_addr[2],
@@ -101,7 +101,7 @@ static int igb_macadmn(char *page, char **start, off_t off,
 	if (hw == NULL)
 		return snprintf(page, count, "error: no hw data\n");
 
-	return snprintf(page, count, "0x%X%X%X%X%X%X\n",
+	return snprintf(page, count, "0x%02X%02X%02X%02X%02X%02X\n",
 		       (unsigned int)hw->mac.addr[0],
 		       (unsigned int)hw->mac.addr[1],
 		       (unsigned int)hw->mac.addr[2],

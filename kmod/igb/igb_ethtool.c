@@ -184,10 +184,15 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 				   SUPPORTED_FIBRE |
 				   SUPPORTED_Autoneg |
 				   SUPPORTED_Pause);
+		if (hw->mac.type == e1000_i354)
+			ecmd->supported |= (SUPPORTED_2500baseX_Full);
 
 		ecmd->advertising = ADVERTISED_FIBRE;
 
 		switch (adapter->link_speed) {
+		case SPEED_2500:
+			ecmd->advertising = ADVERTISED_2500baseX_Full;
+			break;
 		case SPEED_1000:
 			ecmd->advertising = ADVERTISED_1000baseT_Full;
 			break;
@@ -223,7 +228,11 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	status = E1000_READ_REG(hw, E1000_STATUS);
 
 	if (status & E1000_STATUS_LU) {
-		if (status & E1000_STATUS_SPEED_1000)
+		if ((hw->mac.type == e1000_i354) &&
+		    (status & E1000_STATUS_2P5_SKU) &&
+		    !(status & E1000_STATUS_2P5_SKU_OVER))
+			ecmd->speed = SPEED_2500;
+		else if (status & E1000_STATUS_SPEED_1000)
 			ecmd->speed = SPEED_1000;
 		else if (status & E1000_STATUS_SPEED_100)
 			ecmd->speed = SPEED_100;
@@ -270,6 +279,15 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	if (ecmd->duplex  == DUPLEX_HALF) {
+		if (!hw->dev_spec._82575.eee_disable)
+			dev_info(pci_dev_to_dev(adapter->pdev), "EEE disabled: not supported with half duplex\n");
+		hw->dev_spec._82575.eee_disable = true;
+	} else {
+		if (hw->dev_spec._82575.eee_disable)
+			dev_info(pci_dev_to_dev(adapter->pdev), "EEE enabled\n");
+		hw->dev_spec._82575.eee_disable = false;
+	}
 
 	/* When SoL/IDER sessions are active, autoneg/speed/duplex
 	 * cannot be changed */
@@ -307,6 +325,10 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 						     ADVERTISED_FIBRE |
 						     ADVERTISED_Autoneg;
 			switch (adapter->link_speed) {
+			case SPEED_2500:
+				hw->phy.autoneg_advertised =
+					ADVERTISED_2500baseX_Full;
+				break;
 			case SPEED_1000:
 				hw->phy.autoneg_advertised =
 					ADVERTISED_1000baseT_Full;
@@ -426,9 +448,18 @@ static int igb_set_pauseparam(struct net_device *netdev,
 
 		hw->fc.current_mode = hw->fc.requested_mode;
 
+		if (hw->phy.media_type == e1000_media_type_fiber) {
 		retval = hw->mac.ops.setup_link(hw);
+			/* implicit goto out */
+		} else {
+			retval = e1000_force_mac_fc(hw);
+			if (retval)
+				goto out;
+			e1000_set_fc_watermarks_generic(hw);
+		}
 	}
 
+out:
 	clear_bit(__IGB_RESETTING, &adapter->state);
 	return retval;
 }
@@ -778,8 +809,7 @@ static int igb_set_eeprom(struct net_device *netdev,
 				  last_word - first_word + 1, eeprom_buff);
 
 	/* Update the checksum if write succeeded.
-	 * and flush shadow RAM for 82573 controllers
-	 */
+	 * and flush shadow RAM for 82573 controllers */
 	if (ret_val == 0)
 		e1000_update_nvm_checksum(hw);
 
@@ -994,6 +1024,7 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 
 	switch (adapter->hw.mac.type) {
 	case e1000_i350:
+	case e1000_i354:
 		test = reg_test_i350;
 		toggle = 0x7FEFF3FF;
 		break;
@@ -1153,6 +1184,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 		ics_mask = 0x77DCFED5;
 		break;
 	case e1000_i350:
+	case e1000_i354:
 		ics_mask = 0x77DCFED5;
 		break;
 	case e1000_i210:
@@ -1662,6 +1694,12 @@ static int igb_loopback_test(struct igb_adapter *adapter, u64 *data)
 		*data = 0;
 		goto out;
 	}
+	if (adapter->hw.mac.type == e1000_i354) {
+		dev_info(&adapter->pdev->dev,
+			"Loopback test not supported on i354.\n");
+		*data = 0;
+		goto out;
+	}
 	*data = igb_setup_desc_rings(adapter);
 	if (*data)
 		goto out;
@@ -2104,6 +2142,22 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rx_queue_%u_alloc_failed", i);
 			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_ipv4_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_ipv4e_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_ipv6_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_ipv6e_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_tcp_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_udp_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_sctp_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_nfs_packets", i);
+			p += ETH_GSTRING_LEN;
 		}
 /*		BUG_ON(p - data != IGB_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
@@ -2127,6 +2181,7 @@ static int igb_get_ts_info(struct net_device *dev,
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
 		info->so_timestamping =
@@ -2190,51 +2245,36 @@ static void igb_ethtool_complete(struct net_device *netdev)
 #ifndef HAVE_NDO_SET_FEATURES
 static u32 igb_get_rx_csum(struct net_device *netdev)
 {
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	return test_bit(IGB_RING_FLAG_RX_CSUM, &adapter->rx_ring[0]->flags);
+	return !!(netdev->features & NETIF_F_RXCSUM);
 }
 
 static int igb_set_rx_csum(struct net_device *netdev, u32 data)
 {
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	int i;
+	const u32 feature_list = NETIF_F_RXCSUM;
 
-	for (i = 0; i < adapter->rss_queues; i++) {
-		struct igb_ring *ring = adapter->rx_ring[i];
-		if (data)
-			set_bit(IGB_RING_FLAG_RX_CSUM, &ring->flags);
-		else
-			clear_bit(IGB_RING_FLAG_RX_CSUM, &ring->flags);
-	}
+	if (data)
+		netdev->features |= feature_list;
+	else
+		netdev->features &= ~feature_list;
 
 	return 0;
-}
-
-static u32 igb_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_IP_CSUM) != 0;
 }
 
 static int igb_set_tx_csum(struct net_device *netdev, u32 data)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-
-	if (data) {
 #ifdef NETIF_F_IPV6_CSUM
-		netdev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-		if (adapter->hw.mac.type >= e1000_82576)
-			netdev->features |= NETIF_F_SCTP_CSUM;
-	} else {
-		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		                      NETIF_F_SCTP_CSUM);
+	u32 feature_list = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 #else
-		netdev->features |= NETIF_F_IP_CSUM;
-		if (adapter->hw.mac.type >= e1000_82576)
-			netdev->features |= NETIF_F_SCTP_CSUM;
-	} else {
-		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_SCTP_CSUM);
+	u32 feature_list = NETIF_F_IP_CSUM;
 #endif
-	}
+	if (adapter->hw.mac.type >= e1000_82576)
+		feature_list |= NETIF_F_SCTP_CSUM;
+
+	if (data)
+		netdev->features |= feature_list;
+	else
+		netdev->features &= ~feature_list;
 
 	return 0;
 }
@@ -2242,23 +2282,20 @@ static int igb_set_tx_csum(struct net_device *netdev, u32 data)
 #ifdef NETIF_F_TSO
 static int igb_set_tso(struct net_device *netdev, u32 data)
 {
-	struct igb_adapter *adapter = netdev_priv(netdev);
-#ifndef HAVE_NETDEV_VLAN_FEATURES
-	int i;
-	struct net_device *v_netdev;
-#endif
-
-	if (data) {
-		netdev->features |= NETIF_F_TSO;
 #ifdef NETIF_F_TSO6
-		netdev->features |= NETIF_F_TSO6;
+	const u32 feature_list = NETIF_F_TSO | NETIF_F_TSO6;
+#else
+	const u32 feature_list = NETIF_F_TSO;
 #endif
-	} else {
-		netdev->features &= ~NETIF_F_TSO;
-#ifdef NETIF_F_TSO6
-		netdev->features &= ~NETIF_F_TSO6;
-#endif
+	if (data)
+		netdev->features |= feature_list;
+	else 
+		netdev->features &= ~feature_list;
 #ifndef HAVE_NETDEV_VLAN_FEATURES
+	if (!data) {
+		struct igb_adapter *adapter = netdev_priv(netdev);
+		struct net_device *v_netdev;
+		int i;
 		/* disable TSO on all VLANs if they're present */
 		if (!adapter->vlgrp)
 			goto tso_out;
@@ -2267,20 +2304,14 @@ static int igb_set_tso(struct net_device *netdev, u32 data)
 			if (!v_netdev)
 				continue;
 
-			v_netdev->features &= ~NETIF_F_TSO;
-#ifdef NETIF_F_TSO6
-			v_netdev->features &= ~NETIF_F_TSO6;
-#endif
+			v_netdev->features &= ~feature_list;
 			vlan_group_set_device(adapter->vlgrp, i, v_netdev);
 		}
-#endif /* HAVE_NETDEV_VLAN_FEATURES */
 	}
 
-#ifndef HAVE_NETDEV_VLAN_FEATURES
 tso_out:
+
 #endif /* HAVE_NETDEV_VLAN_FEATURES */
-	dev_info(pci_dev_to_dev(adapter->pdev), "TSO is %s\n",
-		 data ? "Enabled" : "Disabled");
 	return 0;
 }
 
@@ -2389,7 +2420,7 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 ipcnfg, eeer, ret_val;
+	u32 ret_val;
 	u16 phy_data;
 
 	if ((hw->mac.type < e1000_i350) ||
@@ -2399,15 +2430,24 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 	edata->supported = (SUPPORTED_1000baseT_Full |
 			    SUPPORTED_100baseT_Full);
 
-	ipcnfg = E1000_READ_REG(hw, E1000_IPCNFG);
+	if (!hw->dev_spec._82575.eee_disable)
+		edata->advertised = 
+			mmd_eee_adv_to_ethtool_adv_t(adapter->eee_advert);
+
+	/* The IPCNFG and EEER registers are not supported on I354. */
+	if (hw->mac.type == e1000_i354) {
+		e1000_get_eee_status_i354(hw, (bool *)&edata->eee_active);
+	} else {
+		u32 eeer;
 	eeer = E1000_READ_REG(hw, E1000_EEER);
 
 	/* EEE status on negotiated link */
-	if (ipcnfg & E1000_IPCNFG_EEE_1G_AN)
-		edata->advertised = ADVERTISED_1000baseT_Full;
+		if (eeer & E1000_EEER_EEE_NEG)
+			edata->eee_active = true;
 
-	if (ipcnfg & E1000_IPCNFG_EEE_100M_AN)
-		edata->advertised |= ADVERTISED_100baseT_Full;
+		if (eeer & E1000_EEER_TX_LPI_EN)
+			edata->tx_lpi_enabled = true;
+	}
 
 	/* EEE Link Partner Advertised */
 	switch (hw->mac.type) {
@@ -2420,6 +2460,7 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 		edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
 
 		break;
+	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
 		ret_val = e1000_read_xmdio_reg(hw, E1000_EEE_LP_ADV_ADDR_I210,
@@ -2435,12 +2476,10 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 		break;
 	}
 
-	if (eeer & E1000_EEER_EEE_NEG)
-		edata->eee_active = true;
-
 	edata->eee_enabled = !hw->dev_spec._82575.eee_disable;
 
-	if (eeer & E1000_EEER_TX_LPI_EN)
+	if ((hw->mac.type == e1000_i354) &&
+	    (edata->eee_enabled))
 		edata->tx_lpi_enabled = true;
 
 	/*
@@ -2489,9 +2528,10 @@ static int igb_set_eee(struct net_device *netdev,
 			return -EINVAL;
 		}
 
-		if (eee_curr.advertised != edata->advertised) {
+		if (edata->advertised &
+		    ~(ADVERTISE_100_FULL | ADVERTISE_1000_FULL)) {
 			dev_err(pci_dev_to_dev(adapter->pdev),
-				"Setting EEE Advertisement is not supported\n");
+				"EEE Advertisement supports only 100Tx and or 100T full duplex\n");
 			return -EINVAL;
 		}
 
@@ -2500,13 +2540,15 @@ static int igb_set_eee(struct net_device *netdev,
 			"Setting EEE options is not supported with EEE disabled\n");
 			return -EINVAL;
 		}
+	adapter->eee_advert = ethtool_adv_to_mmd_eee_adv_t(edata->advertised);
 
 	if (hw->dev_spec._82575.eee_disable != !edata->eee_enabled) {
 		hw->dev_spec._82575.eee_disable = !edata->eee_enabled;
-		e1000_set_eee_i350(hw);
 
 		/* reset link */
-		if (!netif_running(netdev))
+		if (netif_running(netdev))
+			igb_reinit_locked(adapter);
+		else
 			igb_reset(adapter);
 	}
 
@@ -2752,7 +2794,7 @@ static const struct ethtool_ops igb_ethtool_ops = {
 #ifndef HAVE_NDO_SET_FEATURES
 	.get_rx_csum            = igb_get_rx_csum,
 	.set_rx_csum            = igb_set_rx_csum,
-	.get_tx_csum            = igb_get_tx_csum,
+	.get_tx_csum            = ethtool_op_get_tx_csum,
 	.set_tx_csum            = igb_set_tx_csum,
 	.get_sg                 = ethtool_op_get_sg,
 	.set_sg                 = ethtool_op_set_sg,

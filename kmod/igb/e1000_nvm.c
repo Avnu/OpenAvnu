@@ -904,6 +904,7 @@ void e1000_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 		}
 		/* fall through */
 	case e1000_i350:
+	case e1000_i354:
 		/* find combo image version */
 		hw->nvm.ops.read(hw, NVM_COMB_VER_PTR, 1, &comb_offset);
 		if ((comb_offset != 0x0) &&

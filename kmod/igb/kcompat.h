@@ -1376,7 +1376,8 @@ extern uint32_t _kc__div64_32(uint64_t *dividend, uint32_t divisor);
 
 #undef HAVE_I2C_SUPPORT
 #else /* 2.6.0 */
-#if IS_ENABLED(CONFIG_I2C_ALGOBIT)
+#if IS_ENABLED(CONFIG_I2C_ALGOBIT) && \
+	(RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(4,9)))
 #define HAVE_I2C_SUPPORT
 #endif /* IS_ENABLED(CONFIG_I2C_ALGOBIT) */
 
@@ -2567,6 +2568,9 @@ extern void _kc_pci_clear_master(struct pci_dev *dev);
 #define pci_clear_master(dev)	_kc_pci_clear_master(dev)
 #endif
 
+#ifndef PCI_EXP_LNKCTL_ASPMC
+#define  PCI_EXP_LNKCTL_ASPMC	0x0003	/* ASPM Control */
+#endif
 #else /* < 2.6.29 */
 #ifndef HAVE_NET_DEVICE_OPS
 #define HAVE_NET_DEVICE_OPS
@@ -3542,6 +3546,19 @@ extern void _kc_skb_add_rx_frag(struct sk_buff *, int, struct page *,
 
 /******************************************************************************/
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0) )
+#ifndef ADVERTISED_40000baseKR4_Full
+/* these defines were all added in one commit, so should be safe
+ * to trigger activiation on one define
+ */
+#define SUPPORTED_40000baseKR4_Full	(1 << 23)
+#define SUPPORTED_40000baseCR4_Full	(1 << 24)
+#define SUPPORTED_40000baseSR4_Full	(1 << 25)
+#define SUPPORTED_40000baseLR4_Full	(1 << 26)
+#define ADVERTISED_40000baseKR4_Full	(1 << 23)
+#define ADVERTISED_40000baseCR4_Full	(1 << 24)
+#define ADVERTISED_40000baseSR4_Full	(1 << 25)
+#define ADVERTISED_40000baseLR4_Full	(1 << 26)
+#endif
 /**
  * mmd_eee_cap_to_ethtool_sup_t
  * @eee_cap: value of the MMD EEE Capability register
