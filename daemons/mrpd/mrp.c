@@ -361,8 +361,10 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 		mrp_lvatimer_start(mrp_db);
 		break;
 	default:
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
 		printf("mrp_lvatimer_fsm:unexpected event (%d), state %s\n",
 			event, mrp_lvatimer_state_string(la_state));
+#endif
 		return -1;
 		break;
 	}
@@ -766,8 +768,10 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db,
 		break;
 
 	default:
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
 		printf("mrp_applicant_fsm:unexpected event %s (%d)\n",
 		       mrp_event_string(event), event);
+#endif
 		return -1;
 		break;
 	}
@@ -895,9 +899,11 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		/* ignore on soon to be deleted attributes */
 		break;
 	default:
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
 		printf("mrp_registrar_fsm:unexpected event %s (%d), state %s\n",
 		       mrp_event_string(event), event,
 		       mrp_state_string(mrp_state));
+#endif
 		return -1;
 		break;
 	}
