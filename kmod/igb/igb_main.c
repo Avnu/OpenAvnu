@@ -2978,7 +2978,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	}
 
 	/* send driver version info to firmware */
-	if (hw->mac.type >= e1000_i350)
+	if ((hw->mac.type >= e1000_i350) &&
+		(e1000_get_flash_presence_i210(hw)))
 		igb_init_fw(adapter);
 
 #ifndef IGB_NO_LRO
