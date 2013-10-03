@@ -948,7 +948,16 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 }
 
 #define MAX_WALLCLOCK_WINDOW 1000
-#define rdtscpll(val)    __asm__ __volatile__("rdtsc" : "=A" (val))
+
+static __inline__ u_int64_t rdtscpll(void)
+{
+	u_int32_t lo, hi;
+
+	__asm__ __volatile__ ("cpuid");
+	__asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+	return (u_int64_t) hi << 32 | lo;
+}
+
 
 int
 igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
@@ -971,9 +980,9 @@ igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 	    tsauxc &= ~(E1000_TSAUXC_SAMP_AUTO);
 	    E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
 	    tsauxc |= E1000_TSAUXC_SAMP_AUTO;
-	    rdtscpll(t0);
+	    t0 = rdtscpll();
 	    E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
-	    rdtscpll(t1);
+	    t1 = rdtscpll();
 	    ++iter;
 	}
 
