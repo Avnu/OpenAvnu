@@ -6,3 +6,5 @@ simple_listener: simple_listener.c
 
 all: simple_listener
 
+clean:
+	rm -f `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"` simple_listener
