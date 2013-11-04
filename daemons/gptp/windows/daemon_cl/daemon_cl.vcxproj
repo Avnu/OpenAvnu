@@ -28,6 +28,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -40,6 +41,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -66,44 +68,48 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(ALLUSERSPROFILE)\WpdPack\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(ALLUSERSPROFILE)\WpdPack\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(PcapDir)\include;..\..\common;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\src\pcap\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(PcapDir)\Lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ALLUSERSPROFILE)\WpdPack\Lib;$(USERPROFILE)\src\pcap\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\John\src\pcap\Include;C:\Users\John\src\gptp\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\src\pcap\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Users\John\src\pcap\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ALLUSERSPROFILE)\WpdPack\Lib\x64;$(USERPROFILE)\src\pcap\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -114,14 +120,14 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(PcapDir)\include;..\..\common;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\src\pcap\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(PcapDir)\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ALLUSERSPROFILE)\WpdPack\Lib;$(USERPROFILE)\src\pcap\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>true</GenerateMapFile>
     </Link>
@@ -134,14 +140,14 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\John\src\pcap\Include;$(SolutionDir)\daemon_cl\;..\..\..\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\src\pcap\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Users\John\src\pcap\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ALLUSERSPROFILE)\WpdPack\Lib\x64;$(USERPROFILE)\src\pcap\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>true</GenerateMapFile>
     </Link>
@@ -150,17 +156,18 @@
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\common\avbts_clock.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_message.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_oscondition.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_osipc.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_oslock.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_osnet.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_osthread.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_ostimer.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_ostimerq.hpp" />
-    <ClInclude Include="..\..\..\common\avbts_port.hpp" />
-    <ClInclude Include="..\..\..\common\ieee1588.hpp" />
+    <ClInclude Include="..\..\common\avbts_clock.hpp" />
+    <ClInclude Include="..\..\common\avbts_message.hpp" />
+    <ClInclude Include="..\..\common\avbts_oscondition.hpp" />
+    <ClInclude Include="..\..\common\avbts_osipc.hpp" />
+    <ClInclude Include="..\..\common\avbts_oslock.hpp" />
+    <ClInclude Include="..\..\common\avbts_osnet.hpp" />
+    <ClInclude Include="..\..\common\avbts_osthread.hpp" />
+    <ClInclude Include="..\..\common\avbts_ostimer.hpp" />
+    <ClInclude Include="..\..\common\avbts_ostimerq.hpp" />
+    <ClInclude Include="..\..\common\avbts_port.hpp" />
+    <ClInclude Include="..\..\common\ieee1588.hpp" />
+    <ClInclude Include="..\..\common\ptptypes.hpp" />
     <ClInclude Include="ipcdef.hpp" />
     <ClInclude Include="packet.hpp" />
     <ClInclude Include="platform.hpp" />
@@ -190,12 +197,14 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="platform.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="windows_hal.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

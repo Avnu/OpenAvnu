@@ -28,10 +28,6 @@
 #ifndef _E1000_MAC_H_
 #define _E1000_MAC_H_
 
-/*
- * Functions that should not be called directly from drivers but can be used
- * by other files in this 'shared code'
- */
 void e1000_init_mac_ops_generic(struct e1000_hw *hw);
 void e1000_null_mac_generic(struct e1000_hw *hw);
 s32  e1000_null_ops_generic(struct e1000_hw *hw);
@@ -74,7 +70,6 @@ u32  e1000_hash_mc_addr_generic(struct e1000_hw *hw, u8 *mc_addr);
 void e1000_clear_hw_cntrs_base_generic(struct e1000_hw *hw);
 void e1000_clear_vfta_generic(struct e1000_hw *hw);
 void e1000_init_rx_addrs_generic(struct e1000_hw *hw, u16 rar_count);
-void e1000_pcix_mmrbc_workaround_generic(struct e1000_hw *hw);
 void e1000_put_hw_semaphore_generic(struct e1000_hw *hw);
 s32  e1000_check_alt_mac_addr_generic(struct e1000_hw *hw);
 void e1000_reset_adaptive_generic(struct e1000_hw *hw);

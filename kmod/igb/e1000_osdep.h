@@ -41,6 +41,7 @@
 #include "kcompat.h"
 
 #define usec_delay(x) udelay(x)
+#define usec_delay_irq(x) udelay(x)
 #ifndef msec_delay
 #define msec_delay(x) do { \
 	/* Don't mdelay in interrupt context! */ \

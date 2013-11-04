@@ -33,5 +33,6 @@
 
 #include <avbts_osnet.hpp>
 
-std::map < factory_name_t,
-    OSNetworkInterfaceFactory * >OSNetworkInterfaceFactory::factoryMap;
+std::map
+< factory_name_t, OSNetworkInterfaceFactory * >
+OSNetworkInterfaceFactory::factoryMap;

@@ -326,7 +326,7 @@ igb_reset(struct adapter *adapter)
 
 	/* Setup the Tx Descriptor Rings, leave queues idle */
 	for (i = 0; i < adapter->num_queues; i++, txr++) {
-		u64 bus_addr = txr[i].txdma.paddr;
+		u64 bus_addr = txr->txdma.paddr;
 
 		/* idle the queue */
 		txdctl |= IGB_TX_PTHRESH;
@@ -346,7 +346,7 @@ igb_reset(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_TDT(i), 0);
 		E1000_WRITE_REG(hw, E1000_TDH(i), 0);
 
-		txr[i].queue_status = IGB_QUEUE_IDLE;
+		txr->queue_status = IGB_QUEUE_IDLE;
 	}
 
 }
@@ -756,8 +756,6 @@ igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
 
 	/* 
 	 * for performance monitoring, report the DMA time of the tx desc wb
-	 * which is performed immediately after the tx buffer is read from
-	 * memory 
 	 */
 	olinfo_status |= E1000_TXD_DMA_TXDWB;
 
@@ -950,13 +948,22 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 }
 
 #define MAX_WALLCLOCK_WINDOW 1000
-#define rdtscpll(val)    __asm__ __volatile__("rdtsc" : "=A" (val))
+
+static __inline__ u_int64_t rdtscpll(void)
+{
+	u_int32_t lo, hi;
+
+	__asm__ __volatile__ ("cpuid");
+	__asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+	return (u_int64_t) hi << 32 | lo;
+}
+
 
 int
 igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 {
 	u_int64_t	t0 = 0, t1 = -1;
-	u_int32_t	timh, timl;
+	u_int32_t	timh, timl, tsauxc;
 	struct adapter	*adapter;
 	struct e1000_hw *hw;
 	int iter = 0;
@@ -969,14 +976,18 @@ igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 
 	/* sample the timestamp bracketed by the RDTSC */
 	while( t1 - t0 > MAX_WALLCLOCK_WINDOW && iter < 8 ) {
-	  rdtscpll(t0);
-	E1000_WRITE_REG(hw, E1000_TSAUXC, E1000_TSAUXC_SAMP_AUTO);
-	  rdtscpll(t1);
-	  ++iter;
+	    tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+	    tsauxc &= ~(E1000_TSAUXC_SAMP_AUTO);
+	    E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+	    tsauxc |= E1000_TSAUXC_SAMP_AUTO;
+	    t0 = rdtscpll();
+	    E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+	    t1 = rdtscpll();
+	    ++iter;
 	}
 
 	if( t1 - t0 > MAX_WALLCLOCK_WINDOW ) {
-	  return ;
+	  return ERESTART;
 	}
 
 	timl = E1000_READ_REG(hw, E1000_AUXSTMPL0);
