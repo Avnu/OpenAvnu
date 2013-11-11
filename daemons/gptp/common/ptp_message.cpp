@@ -51,6 +51,7 @@ PTPMessageCommon::PTPMessageCommon(IEEE1588Port * port)
 	domainNumber = port->getClock()->getDomain();
 	// Set flags as necessary
 	memset(flags, 0, PTP_FLAGS_LENGTH);
+	flags[PTP_PTPTIMESCALE_BYTE] |= (0x1 << PTP_PTPTIMESCALE_BIT);
 	correctionField = 0;
 	_gc = false;
 	sourcePortIdentity = new PortIdentity();
