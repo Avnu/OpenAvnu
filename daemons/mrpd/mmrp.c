@@ -749,6 +749,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	mrpdu_message_t *mrpdu_msg;
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
+	unsigned int attrib_found_flag = 0;
 
 	/* need at least 6 bytes for a single vector */
 	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 6))
@@ -769,6 +770,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
+		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -935,6 +937,22 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
 
+	}
+
+	/*
+	 * If no attributes are declared, send a LeaveAll with an all 0
+	 * FirstValue, Number of Values set to 0 and not attribute event.
+	 */
+	if (0 == attrib_found_flag) {
+
+		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
+						MRPDU_VECT_LVA(0xFFFF);
+		mrpdu_vectorptr->VectorHeader =
+		    htons(mrpdu_vectorptr->VectorHeader);
+
+		mrpdu_msg_ptr =
+		    &(mrpdu_vectorptr->FirstValue_VectorEvents[mrpdu_msg->AttributeLength]);
+		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
 	}
 
 	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) mrpdu_msg->Data) {
