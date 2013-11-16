@@ -167,7 +167,9 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 
 		mrp_lvatimer_fsm(&(MVRP_db->mrp_db), MRP_EVENT_LVATIMER);
 
+		MVRP_db->send_empty_LeaveAll_flag = 1;
 		mvrp_txpdu();
+		MVRP_db->send_empty_LeaveAll_flag = 0;
 		break;
 	case MRP_EVENT_RLA:
 		mrp_jointimer_start(&(MVRP_db->mrp_db));
@@ -776,7 +778,7 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	 * If no attributes are declared, send a LeaveAll with an all 0
 	 * FirstValue, Number of Values set to 0 and not attribute event.
 	 */
-	if (0 == attrib_found_flag) {
+	if ((0 == attrib_found_flag) && MVRP_db->send_empty_LeaveAll_flag) {
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
 						MRPDU_VECT_LVA(0xFFFF);

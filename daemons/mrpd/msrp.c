@@ -283,7 +283,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_LVATIMER);
 
+		MSRP_db->send_empty_LeaveAll_flag = 1;
 		msrp_txpdu();
+		MSRP_db->send_empty_LeaveAll_flag = 0;
 		break;
 	case MRP_EVENT_RLA:
 		mrp_jointimer_start(&(MSRP_db->mrp_db));
@@ -1696,7 +1698,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	 * If no attributes are declared, send a LeaveAll with an all 0
 	 * FirstValue, Number of Values set to 0 and not attribute event.
 	 */
-	if (0 == attrib_found_flag) {
+	if ((0 == attrib_found_flag) && MSRP_db->send_empty_LeaveAll_flag) {
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
 						MRPDU_VECT_LVA(0xFFFF);
@@ -2020,7 +2022,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	 * If no attributes are declared, send a LeaveAll with an all 0
 	 * FirstValue, Number of Values set to 0 and not attribute event.
 	 */
-	if (0 == attrib_found_flag) {
+	if ((0 == attrib_found_flag) && MSRP_db->send_empty_LeaveAll_flag) {
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
 						MRPDU_VECT_LVA(0xFFFF);
@@ -2371,7 +2373,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	 * If no attributes are declared, send a LeaveAll with an all 0
 	 * FirstValue, Number of Values set to 0 and not attribute event.
 	 */
-	if (0 == attrib_found_flag) {
+	if ((0 == attrib_found_flag) && MSRP_db->send_empty_LeaveAll_flag) {
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
 						MRPDU_VECT_LVA(0xFFFF);
