@@ -106,12 +106,14 @@
 #define PTP_PDELAY_FOLLOWUP_REQ_CLOCK_ID(x) x+10
 #define PTP_PDELAY_FOLLOWUP_REQ_PORT_ID(x) x+18
 
-#define PTP_LI_61_BYTE 0
+#define PTP_LI_61_BYTE 1
 #define PTP_LI_61_BIT 0
-#define PTP_LI_59_BYTE 0
+#define PTP_LI_59_BYTE 1
 #define PTP_LI_59_BIT 1
 #define PTP_ASSIST_BYTE 0
 #define PTP_ASSIST_BIT 1
+#define PTP_PTPTIMESCALE_BYTE 1
+#define PTP_PTPTIMESCALE_BIT 3
 
 enum MessageType {
 	SYNC_MESSAGE = 0,
