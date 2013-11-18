@@ -1437,8 +1437,6 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	  goto abort;
 	}
 
-	port->setAsCapable( true );
-
 
 	link_delay =
 		((response_rx_timestamp.seconds_ms * 1LL -
@@ -1493,6 +1491,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 			theirs_elapsed += link_delay;
 			rate_offset =  ((FrequencyRatio) mine_elapsed)/theirs_elapsed;
 			port->setPeerRateOffset(rate_offset);
+			port->setAsCapable( true );
 		}
 	}
 	port->setLinkDelay( link_delay );
