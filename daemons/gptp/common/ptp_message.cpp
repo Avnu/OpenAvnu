@@ -1219,7 +1219,7 @@ void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
  PTPMessagePathDelayResp::PTPMessagePathDelayResp(IEEE1588Port * port) :
 	 PTPMessageCommon(port)
 {
-	logMeanMessageInterval = 0;
+	logMeanMessageInterval = 0x7F;
 	control = MESSAGE_OTHER;
 	messageType = PATH_DELAY_RESP_MESSAGE;
 	versionPTP = GPTP_VERSION;
@@ -1327,7 +1327,7 @@ void PTPMessagePathDelayResp::getRequestingPortIdentity
 PTPMessagePathDelayRespFollowUp::PTPMessagePathDelayRespFollowUp
 (IEEE1588Port * port) : PTPMessageCommon (port)
 {
-	logMeanMessageInterval = 0;
+	logMeanMessageInterval = 0x7F;
 	control = MESSAGE_OTHER;
 	messageType = PATH_DELAY_FOLLOWUP_MESSAGE;
 	versionPTP = GPTP_VERSION;
