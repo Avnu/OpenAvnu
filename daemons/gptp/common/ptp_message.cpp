@@ -748,9 +748,13 @@ void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 	port->getClock()->deleteEventTimer(port,
 					   ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES);
 
+	if( stepsRemoved >= 255 ) goto bail;
 	// Add message to the list
 	port->addQualifiedAnnounce(this);
 
+	port->getClock()->addEventTimer(port, STATE_CHANGE_EVENT, 16000000);
+
+bail:
 	port->getClock()->addEventTimer(port, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
 					(unsigned long long)
 					(ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER *
@@ -758,7 +762,6 @@ void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 					  ((double)2,
 					   port->getAnnounceInterval()) *
 					  1000000000.0)));
-	port->getClock()->addEventTimer(port, STATE_CHANGE_EVENT, 16000000);
 }
 
 void PTPMessageSync::processMessage(IEEE1588Port * port)
