@@ -72,6 +72,7 @@ PTPMessageCommon *buildPTPMessage
 	PTPMessageCommon *msg = NULL;
 	MessageType messageType;
 	unsigned char tspec_msg_t = 0;
+	unsigned char transportSpecific = 0;
 	
 	uint16_t sequenceId;
 	PortIdentity *sourcePortIdentity;
@@ -96,6 +97,7 @@ PTPMessageCommon *buildPTPMessage
 	       buf + PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(PTP_COMMON_HDR_OFFSET),
 	       sizeof(tspec_msg_t));
 	messageType = (MessageType) (tspec_msg_t & 0xF);
+	transportSpecific = (tspec_msg_t >> 4) & 0x0F;
 
 	sourcePortIdentity = new PortIdentity
 		((uint8_t *)
@@ -146,6 +148,11 @@ PTPMessageCommon *buildPTPMessage
 			XPTPD_INFO("Timestamping event packet");
 		}
 
+	}
+
+	if (transportSpecific!=1) {
+		XPTPD_INFO("*** Received message with unsupported transportSpecific type=%d",transportSpecific);
+		return NULL;
 	}
 
 	switch (messageType) {
