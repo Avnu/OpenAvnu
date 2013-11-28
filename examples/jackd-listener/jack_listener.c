@@ -73,7 +73,7 @@ struct ethernet_header{
 };
 
 // global
-unsigned char stream_id[8];
+unsigned char stream_id[STREAM_ID_SIZE];
 volatile int talker = 0;
 int control_socket;
 pcap_t* handle;
@@ -284,7 +284,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 	}
 
 	test_stream_id = (unsigned char*)(packet + ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE);
-	if (0 != memcmp(test_stream_id, stream_id, sizeof(STREAM_ID_SIZE))) {
+	if (0 != memcmp(test_stream_id, stream_id, STREAM_ID_SIZE)) {
 		return;
 	}
 		
