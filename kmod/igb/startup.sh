@@ -1,9 +1,7 @@
 #!/bin/bash
 
-# Use the following for Fedora (/sys/class/net/p2p1)
+# Network interface name (e.g. Fedora=p2p1, Ubuntu=eth2, OpenSUSE=ens01)
 INTERFACE=p2p1
-# Use the following for Ubuntu (/sys/class/net/eth2)
-#INTERFACE=eth2
 export INTERFACE
 
 rmmod igb
