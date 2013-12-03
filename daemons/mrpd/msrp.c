@@ -283,7 +283,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_LVATIMER);
 
+		MSRP_db->send_empty_LeaveAll_flag = 1;
 		msrp_txpdu();
+		MSRP_db->send_empty_LeaveAll_flag = 0;
 		break;
 	case MRP_EVENT_RLA:
 		mrp_jointimer_start(&(MSRP_db->mrp_db));
@@ -1487,6 +1489,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	mrpdu_message_t *mrpdu_msg;
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
+	unsigned int attrib_found_flag = 0;
 
 	/* need at least 5 bytes for a single vector */
 	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 5))
@@ -1507,6 +1510,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
+		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -1690,6 +1694,22 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	}
 
+	/*
+	 * If no attributes are declared, send a LeaveAll with an all 0
+	 * FirstValue, Number of Values set to 0 and not attribute event.
+	 */
+	if ((0 == attrib_found_flag) && MSRP_db->send_empty_LeaveAll_flag) {
+
+		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
+						MRPDU_VECT_LVA(0xFFFF);
+		mrpdu_vectorptr->VectorHeader =
+		    htons(mrpdu_vectorptr->VectorHeader);
+
+		mrpdu_msg_ptr =
+		    &(mrpdu_vectorptr->FirstValue_VectorEvents[mrpdu_msg->AttributeLength]);
+		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
+	}
+
 	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2])) {
 		*bytes_used = 0;
 		return 0;
@@ -1721,8 +1741,8 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 }
 
 int
-msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
-		      int *bytes_used, int lva)
+msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
+		      int *bytes_used, int lva, unsigned int type)
 {
 	mrpdu_vectorattrib_t *mrpdu_vectorptr;
 	uint16_t numvalues;
@@ -1738,9 +1758,21 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
 	int mac_eq;
+	unsigned int attrib_found_flag = 0;
+	unsigned int vector_size = 0;
+	unsigned int attrib_len = 0;
+
+	/* MSRP_TALKER_ADV_TYPE */
+	vector_size = 28;
+	attrib_len = 25;
+	if (MSRP_TALKER_FAILED_TYPE == type) {
+		/* talker failed */
+		vector_size += 9;
+		attrib_len += 9;		
+	}
 
 	/* need at least 28 bytes for a single vector */
-	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 28))
+	if (mrpdu_msg_ptr > (mrpdu_msg_eof - vector_size))
 		goto oops;
 
 	/*
@@ -1751,8 +1783,8 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	 * not those we know about as a listener ...
 	 */
 	mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
-	mrpdu_msg->AttributeType = MSRP_TALKER_ADV_TYPE;
-	mrpdu_msg->AttributeLength = 25;
+	mrpdu_msg->AttributeType = type;
+	mrpdu_msg->AttributeLength = attrib_len;
 
 	attrib = MSRP_db->attrib_list;
 
@@ -1760,7 +1792,7 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
-		if (MSRP_TALKER_ADV_TYPE != attrib->type) {
+		if (type != attrib->type) {
 			attrib = attrib->next;
 			continue;
 		}
@@ -1770,6 +1802,7 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 #endif
+		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -1821,6 +1854,13 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		mrpdu_vectorptr->FirstValue_VectorEvents[24] =
 		    attrib->attribute.talk_listen.AccumulatedLatency;
 
+		if (MSRP_TALKER_FAILED_TYPE == type) {
+			memcpy(&mrpdu_vectorptr->FirstValue_VectorEvents[25],
+			       attrib->attribute.talk_listen.FailureInformation.BridgeID, 8);
+			mrpdu_vectorptr->FirstValue_VectorEvents[33] =
+			       attrib->attribute.talk_listen.FailureInformation.FailureCode;
+		}
+
 		switch (attrib->applicant.sndmsg) {
 		case MRP_SND_IN:
 			/*
@@ -1866,11 +1906,11 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		 * which also need to be transmitted
 		 */
 
-		vectidx = 25;
+		vectidx = attrib_len;
 		vattrib = attrib->next;
 
 		while (NULL != vattrib) {
-			if (MSRP_TALKER_ADV_TYPE != vattrib->type)
+			if (type != vattrib->type)
 				break;
 
 			if (0 == vattrib->applicant.tx)
@@ -1978,6 +2018,22 @@ msrp_emit_talkvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	}
 
+	/*
+	 * If no attributes are declared, send a LeaveAll with an all 0
+	 * FirstValue, Number of Values set to 0 and not attribute event.
+	 */
+	if ((0 == attrib_found_flag) && MSRP_db->send_empty_LeaveAll_flag) {
+
+		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
+						MRPDU_VECT_LVA(0xFFFF);
+		mrpdu_vectorptr->VectorHeader =
+		    htons(mrpdu_vectorptr->VectorHeader);
+
+		mrpdu_msg_ptr =
+		    &(mrpdu_vectorptr->FirstValue_VectorEvents[mrpdu_msg->AttributeLength]);
+		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
+	}
+
 	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2])) {
 		*bytes_used = 0;
 		return 0;
@@ -2023,6 +2079,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	uint8_t streamid_firstval[8];
 	struct msrp_attribute *attrib, *vattrib;
 	int mac_eq;
+	unsigned int attrib_found_flag = 0;
 
 	/* need at least 13 bytes for a single vector */
 	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 13))
@@ -2057,6 +2114,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
+		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -2311,6 +2369,23 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
 	}
 
+	/*
+	 * If no attributes are declared, send a LeaveAll with an all 0
+	 * FirstValue, Number of Values set to 0 and not attribute event.
+	 */
+	if ((0 == attrib_found_flag) && MSRP_db->send_empty_LeaveAll_flag) {
+
+		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
+						MRPDU_VECT_LVA(0xFFFF);
+		mrpdu_vectorptr->VectorHeader =
+		    htons(mrpdu_vectorptr->VectorHeader);
+
+		mrpdu_msg_ptr =
+		    &(mrpdu_vectorptr->FirstValue_VectorEvents[mrpdu_msg->AttributeLength]);
+		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
+	}
+
+
 	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2])) {
 		if (listen_declare)
 			free(listen_declare);
@@ -2355,6 +2430,7 @@ int msrp_txpdu(void)
 	msgbuf = (unsigned char *)malloc(MAX_FRAME_SIZE);
 	if (NULL == msgbuf)
 		return -1;
+	memset(msgbuf, 0, MAX_FRAME_SIZE);
 	msgbuf_len = 0;
 
 	msgbuf_wrptr = msgbuf;
@@ -2379,7 +2455,13 @@ int msrp_txpdu(void)
 		MSRP_db->mrp_db.lva.tx = 0;
 	}
 
-	rc = msrp_emit_talkvectors(mrpdu_msg_ptr, mrpdu_msg_eof, &bytes, lva);
+	rc = msrp_emit_talkervectors(mrpdu_msg_ptr, mrpdu_msg_eof, &bytes, lva, MSRP_TALKER_ADV_TYPE);
+	if (-1 == rc)
+		goto out;
+
+	mrpdu_msg_ptr += bytes;
+
+	rc = msrp_emit_talkervectors(mrpdu_msg_ptr, mrpdu_msg_eof, &bytes, lva, MSRP_TALKER_FAILED_TYPE);
 	if (-1 == rc)
 		goto out;
 
