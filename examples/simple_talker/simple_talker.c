@@ -107,6 +107,9 @@ unsigned char GATEWAY_INFO[] =
 #define CHANNELS 2
 #define PAYLOAD_SIZE SAMPLE_SIZE*SAMPLES_PER_FRAME*CHANNELS	/* 6*4 * 2 channels  = 48 bytes */
 
+#define RTP_SUBNS_SCALE_NUM 20000000
+#define RTP_SUBNS_SCALE_DEN  4656613
+
 #define IGB_BIND_NAMESZ 24
 
 #define XMIT_DELAY (200000000)	/* us */
@@ -1372,7 +1375,15 @@ int main(int argc, char *argv[])
 			l4_headers->seconds[0] = tmp[2];
 			l4_headers->seconds[1] = tmp[1];
 			l4_headers->seconds[2] = tmp[0];
-			l4_headers->nanoseconds = htonl(time_stamp % 1000000000);
+			{
+				uint64_t tmp;
+				tmp  = time_stamp % 1000000000;
+				tmp *= RTP_SUBNS_SCALE_NUM;
+				tmp /= RTP_SUBNS_SCALE_DEN;
+				l4_headers->nanoseconds = (uint32_t) tmp;
+			}
+			l4_headers->nanoseconds = htons(l4_headers->nanoseconds);
+
 
 			time_stamp += L4_PACKET_IPG;
 
