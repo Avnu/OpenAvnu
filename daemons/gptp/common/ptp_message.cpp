@@ -72,6 +72,7 @@ PTPMessageCommon *buildPTPMessage
 	PTPMessageCommon *msg = NULL;
 	MessageType messageType;
 	unsigned char tspec_msg_t = 0;
+	unsigned char transportSpecific = 0;
 	
 	uint16_t sequenceId;
 	PortIdentity *sourcePortIdentity;
@@ -96,6 +97,7 @@ PTPMessageCommon *buildPTPMessage
 	       buf + PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(PTP_COMMON_HDR_OFFSET),
 	       sizeof(tspec_msg_t));
 	messageType = (MessageType) (tspec_msg_t & 0xF);
+	transportSpecific = (tspec_msg_t >> 4) & 0x0F;
 
 	sourcePortIdentity = new PortIdentity
 		((uint8_t *)
@@ -146,6 +148,11 @@ PTPMessageCommon *buildPTPMessage
 			XPTPD_INFO("Timestamping event packet");
 		}
 
+	}
+
+	if (transportSpecific!=1) {
+		XPTPD_INFO("*** Received message with unsupported transportSpecific type=%d",transportSpecific);
+		return NULL;
 	}
 
 	switch (messageType) {
@@ -741,9 +748,13 @@ void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 	port->getClock()->deleteEventTimer(port,
 					   ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES);
 
+	if( stepsRemoved >= 255 ) goto bail;
 	// Add message to the list
 	port->addQualifiedAnnounce(this);
 
+	port->getClock()->addEventTimer(port, STATE_CHANGE_EVENT, 16000000);
+
+bail:
 	port->getClock()->addEventTimer(port, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
 					(unsigned long long)
 					(ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER *
@@ -751,7 +762,6 @@ void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 					  ((double)2,
 					   port->getAnnounceInterval()) *
 					  1000000000.0)));
-	port->getClock()->addEventTimer(port, STATE_CHANGE_EVENT, 16000000);
 }
 
 void PTPMessageSync::processMessage(IEEE1588Port * port)
@@ -1209,7 +1219,7 @@ void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
  PTPMessagePathDelayResp::PTPMessagePathDelayResp(IEEE1588Port * port) :
 	 PTPMessageCommon(port)
 {
-	logMeanMessageInterval = 0;
+	logMeanMessageInterval = 0x7F;
 	control = MESSAGE_OTHER;
 	messageType = PATH_DELAY_RESP_MESSAGE;
 	versionPTP = GPTP_VERSION;
@@ -1317,7 +1327,7 @@ void PTPMessagePathDelayResp::getRequestingPortIdentity
 PTPMessagePathDelayRespFollowUp::PTPMessagePathDelayRespFollowUp
 (IEEE1588Port * port) : PTPMessageCommon (port)
 {
-	logMeanMessageInterval = 0;
+	logMeanMessageInterval = 0x7F;
 	control = MESSAGE_OTHER;
 	messageType = PATH_DELAY_FOLLOWUP_MESSAGE;
 	versionPTP = GPTP_VERSION;
@@ -1437,8 +1447,6 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	  goto abort;
 	}
 
-	port->setAsCapable( true );
-
 
 	link_delay =
 		((response_rx_timestamp.seconds_ms * 1LL -
@@ -1493,6 +1501,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 			theirs_elapsed += link_delay;
 			rate_offset =  ((FrequencyRatio) mine_elapsed)/theirs_elapsed;
 			port->setPeerRateOffset(rate_offset);
+			port->setAsCapable( true );
 		}
 	}
 	port->setLinkDelay( link_delay );
