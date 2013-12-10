@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Network interface name (e.g. Fedora=p2p1, Ubuntu=eth2, OpenSUSE=ens01)
 INTERFACE=p2p1
 export INTERFACE
 

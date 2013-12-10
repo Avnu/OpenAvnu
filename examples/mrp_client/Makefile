@@ -10,17 +10,22 @@ endif
 #LDLIBS=-ligb -lpci -lz -pthread
 #LDFLAGS=-L../../lib/igb
 
-all: mrpq mrpl
+all: mrpq mrpl mrpValidate
 
 mrpl: mrpl.o mrpdclient.o
 
 mrpq: mrpq.o mrpdclient.o
+
+mrpValidate: mrpValidate.o mrpdclient.o
 
 mrpl.o: mrpl.c
 	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpl.c
 
 mrpq.o: mrpq.c
 	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpq.c
+
+mrpValidate.o: mrpValidate.c
+	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpValidate.c
 
 mrpdclient.o: mrpdclient.c
 	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpdclient.c

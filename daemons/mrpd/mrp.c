@@ -898,6 +898,11 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 	case MRP_EVENT_RMT:
 		/* ignore on soon to be deleted attributes */
 		break;
+	case MRP_EVENT_RIN:
+		/* rIn! event processing is not specified in section 10.7.8 of IEEE802.1Q-2011,
+		 * table 10.4, so ignore it here.
+		 */
+		break;
 	default:
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP
 		printf("mrp_registrar_fsm:unexpected event %s (%d), state %s\n",
