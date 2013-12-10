@@ -666,6 +666,21 @@ int mrp_monitor()
 	return (0);
 }
 
+int mrp_join_vlan()
+{
+	char *msgbuf;
+	int rc;
+	msgbuf = malloc(1500);
+	if (NULL == msgbuf)
+		return -1;
+	memset(msgbuf, 0, 1500);
+	sprintf(msgbuf, "V++:I=0002");
+	rc = send_mrp_msg(msgbuf, 1500);
+
+	free(msgbuf);
+	return rc;
+}
+
 int mrp_join_listener(uint8_t * streamid)
 {
 	char *msgbuf;
@@ -936,6 +951,7 @@ int main(int argc, char *argv[])
 #define PKT_SZ	100
 
 	mrp_register_domain(&class_a_id, &a_priority, &a_vid);
+	mrp_join_vlan();
 	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, PKT_SZ - 22,
 				0);
 
