@@ -46,6 +46,8 @@ To execute, run
 such as
 	./daemon_cl eth0
 
+The daemon creates a shared memory segment with the 'ptp' group. Some distributions may not have this group installed. The apparent effect is client applications will segfault after attempting to connect and use the shared memory segment. One suggested workaround is to execute 'sudo groupadd ptp' or similar to fix this issue.
+
 Windows Version
 +++++++++++++++
 
