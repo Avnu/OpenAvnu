@@ -63,9 +63,13 @@ devices based on their standardized management properties.
 
 + https://github.com/jdkoftinoff/jdksavdecc-c
 
+AudioScience has created a 1722.1 C++ controller library which builds on jdkadvecc-c.
+
++ https://github.com/audioscience/avdecc-lib
+
 XMOS
 ----
 XMOS is a semiconductor company providing a reference design for AVB 
-endpoints in pro audio and automotive. Our source code is open source 
+endpoints in pro audio and automotive. XMOS endpoint source code is open source 
 and available on Github - https://github.com/xcore/sw_avb
 
