@@ -1,0 +1,91 @@
+Files: Find the plugin code in src directory under gst-plugin folder.
+
+1.gstavbsink.c
+2.gstavbsink.h
+3.gst_avb_playbin.c
+4.gst_avb_playbin.h
+5.gst_app_src.c
+
+To Compile the plugin:
+
+1.Install autoconf tool.
+  zypper in autoconf
+
+2. Install libtool
+
+  zypper in libtool
+
+Prerequisites:
+
+igb driver must be installed.
+
+
+Building plugins:
+
+In a weston terminal use following command to compile the plugin:
+
+Listener Side:
+
+Go to folder: cd /Open-AVB-master/examples/gstreamer-avb-plugins/gst-plugin/src 
+
+and in Makefile.am file set
+libgstplugin_la_SOURCES = gst_avb_playbin.c gst_avb_playbin.h ../../../common/avb.c ../../../common/avb.h ../../../../lib/igb/igb.h gst_app_src.c
+
+
+
+Talker Side:
+Go to folder: cd /Open-AVB-master/examples/gstreamer-avb-plugins/gst-plugin/src
+and in Makefile.am file set
+libgstplugin_la_SOURCES = gstavbsink.c gstavbsink.h ../../../common/avb.c ../../../common/avb.h ../../../../lib/igb/igb.h
+
+
+To test the plugins:
+
+Listener Side:
+Go to folder: cd /Open-AVB-master/examples/gstreamer-avb-plugins/gst-plugin/ and type following commands in a weston terminal:
+
+
+LDFLAGS='-L/Open-AVB-master/lib/igb' CPPFLAGS='-I/Open-AVB-master/lib/igb' LIBS='-ligb -lpci -lrt -lpthread -lm -lgstapp-1.0' ./configure
+
+LDFLAGS='-L/Open-AVB-master/lib/igb' CPPFLAGS='-I/Open-AVB-master/lib/igb' LIBS='-ligb -lpci -lrt -lpthread -lm -lgstapp-1.0' ./autogen.sh
+
+make
+
+export GST_PLUGIN_PATH=/Open-AVB-master/examples/gstreamer-avb-plugins/gst-plugin/src/.libs
+
+Check weather gstreamer has installed the plugin or not:
+gst-inspect-1.0 avbplaybin
+
+
+Talker Side:
+Go to folder: cd /Open-AVB-master/examples/gstreamer-avb-plugins/gst-plugin/ and type following commands in a weston terminal:
+
+LDFLAGS='-L/Open-AVB-master/lib/igb' CPPFLAGS='-I/Open-AVB-master/lib/igb' LIBS='-ligb -lpci -lrt -lpthread -lm' ./configure
+
+LDFLAGS='-L/Open-AVB-master/lib/igb' CPPFLAGS='-I/Open-AVB-master/lib/igb' LIBS='-ligb -lpci -lrt -lpthread -lm' ./autogen.sh
+
+make
+
+export GST_PLUGIN_PATH=/Open-AVB-master/examples/gstreamer-avb-plugins/gst-plugin/src/.libs
+
+Check weather gstreamer has installed the plugin or not:
+gst-inspect-1.0 avbsink
+
+
+To launch commands using gst-launch:
+
+After following above steps 
+
+At listner end: 
+	gst-launch-1.0 avbplaybin talkerip=<talker ip> port=7600 interface=<interface name>
+
+	eg: gst-launch-1.0 avbplaybin talkerip=192.168.1.101 port=7600 interface=eth0
+
+(Default port is 7600)
+
+At talker end:
+
+	gst-launch-1.0 filesrc location=test.mp4 blocksize=1024 ! avbsink interface=<interface name>
+
+	eg:  gst-launch-1.0 filesrc location=test.mp4 blocksize=1024 ! avbsink interface=eth0
+

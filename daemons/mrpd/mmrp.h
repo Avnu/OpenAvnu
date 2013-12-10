@@ -65,6 +65,7 @@ struct mmrp_attribute {
 struct mmrp_database {
 	struct mrp_database mrp_db;
 	struct mmrp_attribute *attrib_list;
+	int send_empty_LeaveAll_flag;
 };
 
 int mmrp_init(int mmrp_enable);

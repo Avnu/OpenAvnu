@@ -40,8 +40,9 @@ struct mvrp_attribute {
 };
 
 struct mvrp_database {
-	struct mrp_database mrp_db;
-	struct mvrp_attribute *attrib_list;
+        struct mrp_database mrp_db;
+        struct mvrp_attribute *attrib_list;
+        int send_empty_LeaveAll_flag;
 };
 
 #define MVRP_ETYPE	0x88F5

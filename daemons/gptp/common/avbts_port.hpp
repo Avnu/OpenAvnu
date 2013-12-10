@@ -53,8 +53,8 @@
 #define OTHER_MULTICAST GPTP_MULTICAST
 
 #define PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER 3
-#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER 10
-#define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 10
+#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER 3
+#define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3
 
 typedef enum {
 	PTP_MASTER,
@@ -238,6 +238,9 @@ class IEEE1588Port {
 		if (ascap != asCapable) {
 			fprintf(stderr, "AsCapable: %s\n",
 					ascap == true ? "Enabled" : "Disabled");
+		}
+		if(!ascap){
+			_peer_offset_init = false;
 		}
 		asCapable = ascap;
 	}

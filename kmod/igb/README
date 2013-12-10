@@ -15,13 +15,14 @@ support for the Intel I210.
 BUILDING
 
 The kernel igb module should be built which supports the latest Linux kernel
-3.x PTP clock support - to enable, execute make with -DIGB_PTP
-as a build option (e.g. make EXTRA_CFLAGS="-DIGB_PTP").
+3.x PTP clock support. Unlike the standard igb driver, this version enables
+PTP by default (and will fail to build without kernel PTP support enabled).
 
 RUNNING
 
 To install the kernel mode driver, you must have root permissions. Typically,
 the driver is loaded by:
+	<optional> sudo modprobe i2c_algo_bit
 	<optional> sudo modprobe dca
 	<optional> sudo modprobe ptp
 	sudo insmod ./igb_avb.ko

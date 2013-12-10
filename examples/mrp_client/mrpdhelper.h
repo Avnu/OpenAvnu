@@ -79,6 +79,13 @@ enum mrpdhelper_applicant_state {
 	mrpdhelper_applicant_state_LO
 };
 
+enum mrpdhelper_listener_declaration_type {
+	mrpdhelper_listener_declaration_type_ignore,
+	mrpdhelper_listener_declaration_type_asking_failed,
+	mrpdhelper_listener_declaration_type_ready,
+	mrpdhelper_listener_declaration_type_ready_failed
+};
+
 struct mrpdhelper_mmrp_notify {
 	uint64_t mac;
 };

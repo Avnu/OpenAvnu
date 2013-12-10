@@ -65,6 +65,9 @@ struct e1000_hw;
 #define E1000_DEV_ID_I210_COPPER_FLASHLESS	0x157B
 #define E1000_DEV_ID_I210_SERDES_FLASHLESS	0x157C
 #define E1000_DEV_ID_I211_COPPER		0x1539
+#define E1000_DEV_ID_I354_BACKPLANE_1GBPS	0x1F40
+#define E1000_DEV_ID_I354_SGMII			0x1F41
+#define E1000_DEV_ID_I354_BACKPLANE_2_5GBPS	0x1F45
 #define E1000_DEV_ID_DH89XXCC_SGMII		0x0438
 #define E1000_DEV_ID_DH89XXCC_SERDES		0x043A
 #define E1000_DEV_ID_DH89XXCC_BACKPLANE		0x043C
@@ -92,6 +95,7 @@ enum e1000_mac_type {
 	e1000_82576,
 	e1000_82580,
 	e1000_i350,
+	e1000_i354,
 	e1000_i210,
 	e1000_i211,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
@@ -250,6 +254,8 @@ union e1000_rx_desc_extended {
 };
 
 #define MAX_PS_BUFFERS 4
+/* Number of packet split data buffers (not including the header buffer) */
+#define PS_PAGE_BUFFERS	(MAX_PS_BUFFERS - 1)
 /* Receive Descriptor - Packet Split */
 union e1000_rx_desc_packet_split {
 	struct {
@@ -274,7 +280,8 @@ union e1000_rx_desc_packet_split {
 		} middle;
 		struct {
 			__le16 header_status;
-			__le16 length[3];     /* length of buffers 1-3 */
+			/* length of buffers 1-3 */
+			__le16 length[PS_PAGE_BUFFERS];
 		} upper;
 		__le64 reserved;
 	} wb; /* writeback */
@@ -737,6 +744,8 @@ struct e1000_dev_spec_82575 {
 	bool clear_semaphore_once;
 	u32 mtu;
 	struct sfp_e1000_flags eth_flags;
+	u8 media_port;
+	bool media_changed;
 };
 
 struct e1000_dev_spec_vf {

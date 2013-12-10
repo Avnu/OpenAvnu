@@ -361,8 +361,10 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 		mrp_lvatimer_start(mrp_db);
 		break;
 	default:
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
 		printf("mrp_lvatimer_fsm:unexpected event (%d), state %s\n",
 			event, mrp_lvatimer_state_string(la_state));
+#endif
 		return -1;
 		break;
 	}
@@ -766,8 +768,10 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db,
 		break;
 
 	default:
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
 		printf("mrp_applicant_fsm:unexpected event %s (%d)\n",
 		       mrp_event_string(event), event);
+#endif
 		return -1;
 		break;
 	}
@@ -894,10 +898,17 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 	case MRP_EVENT_RMT:
 		/* ignore on soon to be deleted attributes */
 		break;
+	case MRP_EVENT_RIN:
+		/* rIn! event processing is not specified in section 10.7.8 of IEEE802.1Q-2011,
+		 * table 10.4, so ignore it here.
+		 */
+		break;
 	default:
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP
 		printf("mrp_registrar_fsm:unexpected event %s (%d), state %s\n",
 		       mrp_event_string(event), event,
 		       mrp_state_string(mrp_state));
+#endif
 		return -1;
 		break;
 	}

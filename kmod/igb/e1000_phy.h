@@ -96,6 +96,10 @@ s32  e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw);
 s32  e1000_get_cable_length_82577(struct e1000_hw *hw);
 s32  e1000_write_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 data);
 s32  e1000_read_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 *data);
+s32 e1000_read_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 *data);
+s32 e1000_write_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 data,
+			     bool line_override);
+bool e1000_is_mphy_ready(struct e1000_hw *hw);
 
 #define E1000_MAX_PHY_ADDR		8
 
@@ -156,6 +160,11 @@ s32  e1000_read_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 *data);
 #define E1000_82580_PM_D0_LPLU		0x0002 /* For D0a states */
 #define E1000_82580_PM_D3_LPLU		0x0004 /* For all other states */
 #define E1000_82580_PM_GO_LINKD		0x0020 /* Go Link Disconnect */
+#define E1000_MPHY_DIS_ACCESS		0x80000000 /* disable_access bit */
+#define E1000_MPHY_ENA_ACCESS		0x40000000 /* enable_access bit */
+#define E1000_MPHY_BUSY			0x00010000 /* busy bit */
+#define E1000_MPHY_ADDRESS_FNC_OVERRIDE	0x20000000 /* fnc_override bit */
+#define E1000_MPHY_ADDRESS_MASK		0x0000FFFF /* address mask */
 
 #define IGP01E1000_PHY_PCS_INIT_REG	0x00B4
 #define IGP01E1000_PHY_POLARITY_MASK	0x0078

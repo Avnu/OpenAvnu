@@ -1,0 +1,59 @@
+ /*
+  * Copyright (c) <2013>, Intel Corporation.
+  *
+  * This program is free software; you can redistribute it and/or modify it
+  * under the terms and conditions of the GNU Lesser General Public License,
+  * version 2.1, as published by the Free Software Foundation.
+  *
+  * This program is distributed in the hope it will be useful, but WITHOUT
+  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+  * more details.
+  *
+  * You should have received a copy of the GNU Lesser General Public License along with
+  * this program; if not, write to the Free Software Foundation, Inc.,
+  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  *
+ */
+
+Files:--
+
+1: talker.c: Reads from STDIN, creates AVB packet and sends it to a multicast mac address.
+2: listener.c: Binds to a multicast address, reads the AVB packets depacketize it.
+
+Daemons Required: MRPD (sudo mrpd -i eth0 -mvs)
+
+Application Usage:
+------------------
+
+Note:- This application is tested on tizen OS with Realtime Video/Audio with gstreamer-1.0 and MRPD
+	daemon running on both the sides.
+
+Usage:
+On Talker: ./talker <interface name> <payload_size>
+On Listener: ./listener <interface name> <payload_size>
+
+For Real-time Video:-
+---------------------------------------------
+Tested with USB Webcam for yuy2(yuyv) format:-
+----------------------------------------------
+
+@talker side do:
+gst-launch-1.0 v4l2src do-timestamp=true ! queue !  avenc_mpeg4 bitrate=50000 me-method=5 gop-size=0 ! queue ! fdsink | ./talker eth0 1024
+
+@listener side do:
+./listener eth0 1024 | gst-launch-1.0 fdsrc fd=0 ! queue ! decodebin ! queue ! vaapisink sync=false
+
+
+For Realtime Audio:-
+---------------------
+A> Example Usage
+@talker side: gst-launch-1.0 -v -e alsasrc device=hw:1,0 do-timestamp=true ! audioconvert ! audioresample ! wavenc ! fdsink | ./talker eth0 256
+@listener side: ./listener eth0 256 | gst-launch-1.0 fdsrc fd=0 ! audioparse rate=32000 channels=2 ! alsasink sync=false async=false
+
+Note:- The rate and channels in audioparse should be set appropriately depending on your microphone, you can see it by giving -v -e
+       option in the alsasrc.
+
+B> Example Usage
+@talker end: gst-launch audiotestsrc ! fdsink fd=1 | ./talker eth2 512
+@listener end: ./listener eth2 512 | gst-launch fdsrc fd=0 ! audioparse ! alsasink

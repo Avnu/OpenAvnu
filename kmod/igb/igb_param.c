@@ -510,6 +510,7 @@ void igb_check_options(struct igb_adapter *adapter)
 			case e1000_82580:
 			case e1000_i210:
 			case e1000_i211:
+			case e1000_i354:
 				adapter->vfs_allocated_count = 0;
 				DPRINTK(PROBE, INFO, "SR-IOV option max_vfs not supported.\n");
 			default:
@@ -526,7 +527,8 @@ void igb_check_options(struct igb_adapter *adapter)
 			.arg  = { .r = { .min = MIN_VMDQ,
 					 .max = (MAX_VMDQ - adapter->vfs_allocated_count) } }
 		};
-		if (hw->mac.type < e1000_i210) {
+		if ((hw->mac.type != e1000_i210) ||
+		    (hw->mac.type != e1000_i211)) {
 #ifdef module_param_array
 		if (num_VMDQ > bd) {
 #endif
@@ -597,6 +599,7 @@ void igb_check_options(struct igb_adapter *adapter)
 #endif /* CONFIG_IGB_VMDQ_NETDEV */
 		case e1000_82580:
 		case e1000_i350:
+		case e1000_i354:
 		default:
 			if (!!adapter->vmdq_pools)
 				opt.arg.r.max = 1;

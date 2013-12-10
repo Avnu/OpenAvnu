@@ -36,6 +36,8 @@
 /* Wake Up Control */
 #define E1000_WUC_APME		0x00000001 /* APM Enable */
 #define E1000_WUC_PME_EN	0x00000002 /* PME Enable */
+#define E1000_WUC_PME_STATUS	0x00000004 /* PME Status */
+#define E1000_WUC_APMPME	0x00000008 /* Assert PME on APM Wakeup */
 #define E1000_WUC_PHY_WAKE	0x00000100 /* if PHY supports wakeup */
 
 /* Wake Up Filter Control */
@@ -264,7 +266,10 @@
 
 #define E1000_CONNSW_ENRGSRC		0x4
 #define E1000_CONNSW_PHYSD		0x400
+#define E1000_CONNSW_PHY_PDN		0x800
 #define E1000_CONNSW_SERDESD		0x200
+#define E1000_CONNSW_AUTOSENSE_CONF	0x2
+#define E1000_CONNSW_AUTOSENSE_EN	0x1
 #define E1000_PCS_CFG_PCS_EN		8
 #define E1000_PCS_LCTL_FLV_LINK_UP	1
 #define E1000_PCS_LCTL_FSV_10		0
@@ -300,10 +305,13 @@
 #define E1000_STATUS_LAN_INIT_DONE	0x00000200 /* Lan Init Compltn by NVM */
 #define E1000_STATUS_PHYRA		0x00000400 /* PHY Reset Asserted */
 #define E1000_STATUS_GIO_MASTER_ENABLE	0x00080000 /* Master request status */
+#define E1000_STATUS_2P5_SKU		0x00001000 /* Val of 2.5GBE SKU strap */
+#define E1000_STATUS_2P5_SKU_OVER	0x00002000 /* Val of 2.5GBE SKU Over */
 
 #define SPEED_10	10
 #define SPEED_100	100
 #define SPEED_1000	1000
+#define SPEED_2500	2500
 #define HALF_DUPLEX	1
 #define FULL_DUPLEX	2
 
@@ -579,6 +587,7 @@
 #define E1000_EITR_ITR_INT_MASK	0x0000FFFF
 /* E1000_EITR_CNT_IGNR is only for 82576 and newer */
 #define E1000_EITR_CNT_IGNR	0x80000000 /* Don't reset counters on write */
+#define E1000_EITR_INTERVAL 0x00007FFC
 
 /* Transmit Descriptor Control */
 #define E1000_TXDCTL_PTHRESH	0x0000003F /* TXDCTL Prefetch Threshold */
@@ -728,6 +737,16 @@
 #define E1000_MDICNFG_PHY_MASK		0x03E00000
 #define E1000_MDICNFG_PHY_SHIFT		21
 
+#define E1000_MEDIA_PORT_COPPER			1
+#define E1000_MEDIA_PORT_OTHER			2
+#define E1000_M88E1112_AUTO_COPPER_SGMII	0x2
+#define E1000_M88E1112_AUTO_COPPER_BASEX	0x3
+#define E1000_M88E1112_STATUS_LINK		0x0004 /* Interface Link Bit */
+#define E1000_M88E1112_MAC_CTRL_1		0x10
+#define E1000_M88E1112_MAC_CTRL_1_MODE_MASK	0x0380 /* Mode Select */
+#define E1000_M88E1112_MAC_CTRL_1_MODE_SHIFT	7
+#define E1000_M88E1112_PAGE_ADDR		0x16
+#define E1000_M88E1112_STATUS			0x01
 #define E1000_THSTAT_LOW_EVENT		0x20000000 /* Low thermal threshold */
 #define E1000_THSTAT_MID_EVENT		0x00200000 /* Mid thermal threshold */
 #define E1000_THSTAT_HIGH_EVENT		0x00002000 /* High thermal threshold */
@@ -745,6 +764,17 @@
 #define E1000_EEER_RX_LPI_STATUS	0x40000000 /* Rx in LPI state */
 #define E1000_EEER_TX_LPI_STATUS	0x80000000 /* Tx in LPI state */
 #define E1000_EEE_LP_ADV_ADDR_I350	0x040F     /* EEE LP Advertisement */
+#define E1000_M88E1543_PAGE_ADDR	0x16       /* Page Offset Register */
+#define E1000_M88E1543_EEE_CTRL_1	0x0
+#define E1000_M88E1543_EEE_CTRL_1_MS	0x0001     /* EEE Master/Slave */
+#define E1000_EEE_ADV_DEV_I354		7
+#define E1000_EEE_ADV_ADDR_I354		60
+#define E1000_EEE_ADV_100_SUPPORTED	(1 << 1)   /* 100BaseTx EEE Supported */
+#define E1000_EEE_ADV_1000_SUPPORTED	(1 << 2)   /* 1000BaseT EEE Supported */
+#define E1000_PCS_STATUS_DEV_I354	3
+#define E1000_PCS_STATUS_ADDR_I354	1
+#define E1000_PCS_STATUS_RX_LPI_RCVD	0x0400
+#define E1000_PCS_STATUS_TX_LPI_RCVD	0x0800
 #define E1000_EEE_SU_LPI_CLK_STP	0x00800000 /* EEE LPI Clock Stop */
 #define E1000_EEE_LP_ADV_DEV_I210	7          /* EEE LP Adv Device */
 #define E1000_EEE_LP_ADV_ADDR_I210	61         /* EEE LP Adv Register */
@@ -1114,6 +1144,7 @@
 #define M88E1011_I_PHY_ID	0x01410C20
 #define IGP01E1000_I_PHY_ID	0x02A80380
 #define M88E1111_I_PHY_ID	0x01410CC0
+#define M88E1543_E_PHY_ID	0x01410EA0
 #define M88E1112_E_PHY_ID	0x01410C90
 #define I347AT4_E_PHY_ID	0x01410DC0
 #define M88E1340M_E_PHY_ID	0x01410DF0
