@@ -40,11 +40,14 @@
 #include <signal.h>
 #include <errno.h>
 
+#include <time.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/mman.h>
 #include <sys/user.h>
+#include <stdint.h>
+#include <semaphore.h>
 
 #include "e1000_hw.h"
 #include "e1000_82575.h"
@@ -110,6 +113,8 @@ igb_probe( device_t *dev )
 	return (ENXIO);
 }
 
+#define IGB_SEM "igb_sem"
+
 int
 igb_attach(char *dev_path, device_t *pdev)
 {
@@ -133,9 +138,22 @@ igb_attach(char *dev_path, device_t *pdev)
 
 	adapter->ldev = open("/dev/igb_avb", O_RDWR);
 	if (adapter->ldev < 0) {
-		free(pdev->private_data);
-		pdev->private_data = NULL;
-		return ENXIO;
+		error = ENXIO;
+		goto err_prebind;
+	}
+
+	adapter->memlock =
+		sem_open( IGB_SEM, 0, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP, 1 );
+	if( adapter->memlock == ((sem_t *)SEM_FAILED)) {
+		error = errno;
+		close(adapter->ldev);
+		goto err_prebind;
+	}
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		error = errno;
+		close(adapter->ldev);
+		sem_close( adapter->memlock );
+		goto err_prebind;
 	}
 
 	/* 
@@ -145,10 +163,8 @@ igb_attach(char *dev_path, device_t *pdev)
 	strncpy(bind.iface, dev_path, IGB_BIND_NAMESZ - 1);
 
 	if (ioctl(adapter->ldev, IGB_BIND, &bind) < 0) {
-		close(adapter->ldev);
-		free(pdev->private_data);
-		pdev->private_data = NULL;
-		return ENXIO;
+		error = ENXIO;
+		goto err_bind;
 	}
 
 	adapter->csr.paddr = 0;
@@ -175,13 +191,59 @@ igb_attach(char *dev_path, device_t *pdev)
 	adapter->max_frame_size = 1518;
 	adapter->min_frame_size = 64;
 
-	adapter->num_queues = 2;  /* XXX parameterize this */
+	/*
+	** Copy the permanent MAC address out of the EEPROM
+	*/
+	if (igb_read_mac_addr(&adapter->hw) < 0) {
+		error = EIO;
+		goto err_late;
+	}
+
+	if( sem_post( adapter->memlock ) != 0 ) {
+		error = errno;
+		goto err_gen;
+	}
+
+	return (0);
+
+ err_late:
+ err_pci:
+	igb_free_pci_resources(adapter);
+ err_bind:
+	sem_post( adapter->memlock );
+	sem_close( adapter->memlock );
+	close(adapter->ldev);
+ err_prebind:
+	free(pdev->private_data);
+	pdev->private_data = NULL;
+
+ err_gen:
+	return (error);
+}
+
+int
+igb_attach_tx(char *dev_path, device_t *pdev)
+{
+	int error;
+	struct adapter	*adapter;
+
+	if (NULL == pdev) return EINVAL;
+
+	adapter = (struct adapter *)pdev->private_data;
+
+	if (NULL != adapter) return EBUSY;
+
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
 
 	/*
 	** Allocate and Setup Queues
 	*/
+	adapter->num_queues = 2;  /* XXX parameterize this */
 	if (error = igb_allocate_queues(adapter)) {
-		goto err_pci;
+		adapter->num_queues = 0;
+		goto err_unlock;
 	}
 
 	/*
@@ -191,25 +253,14 @@ igb_attach(char *dev_path, device_t *pdev)
 	*/
 	igb_reset(adapter);
 
-	/*
-	** Copy the permanent MAC address out of the EEPROM
-	*/
-	if (igb_read_mac_addr(&adapter->hw) < 0) {
-		error = EIO;
-		goto err_late;
+ err_unlock:
+	if( sem_post( adapter->memlock ) != 0 ) {
+		return errno;
 	}
 
 	return (0);
 
-err_late:
-	igb_free_transmit_structures(adapter);
-	igb_detach(pdev);
-err_pci:
-	igb_free_pci_resources(adapter);
-	close(adapter->ldev);
-	free(pdev->private_data);
-	pdev->private_data = NULL;
-
+ err:
 	return (error);
 }
 
@@ -222,12 +273,22 @@ igb_detach(device_t *dev)
 	adapter = (struct adapter *)dev->private_data;
 	if (NULL == adapter) return ENXIO;
 
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		goto err_nolock;
+	}
+
 	igb_reset(adapter);
+
+	sem_post( adapter->memlock );
 
 	igb_free_transmit_structures(adapter);
 	igb_free_pci_resources(adapter);
 
+ err_nolock:
+	sem_close( adapter->memlock );
+
 	close (adapter->ldev);
+
 	free(dev->private_data);
 	dev->private_data = NULL;
 	return (0);
@@ -251,6 +312,10 @@ igb_suspend(device_t *dev)
 
 	txdctl = 0;
 
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
+
 	/* stop but don't reset the Tx Descriptor Rings */
 	for (i = 0; i < adapter->num_queues; i++, txr++) {
 		txdctl |= IGB_TX_PTHRESH;
@@ -258,6 +323,10 @@ igb_suspend(device_t *dev)
 		txdctl |= IGB_TX_WTHRESH << 16;
 		E1000_WRITE_REG(hw, E1000_TXDCTL(i), txdctl);
 		txr->queue_status = IGB_QUEUE_IDLE;
+	}
+
+	if( sem_post( adapter->memlock ) != 0 ) {
+		return errno;
 	}
 
 	return (0);
@@ -271,6 +340,7 @@ igb_resume(device_t *dev)
 	struct e1000_hw *hw;
 	u32		txdctl;
 	int	i;
+	int error;
 
 	if (NULL == dev) return EINVAL;
 	adapter = (struct adapter *)dev->private_data;
@@ -280,6 +350,10 @@ igb_resume(device_t *dev)
 	hw = &adapter->hw;
 
 	txdctl = 0;
+
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
 
 	/* resume but don't reset the Tx Descriptor Rings */
 	for (i = 0; i < adapter->num_queues; i++, txr++) {
@@ -293,7 +367,14 @@ igb_resume(device_t *dev)
 		txr->queue_status = IGB_QUEUE_WORKING;
 	}
 
+	if( sem_post( adapter->memlock ) != 0 ) {
+		return errno;
+	}
+
 	return (0);
+
+ err_lockfail:
+	return error;
 }
 
 int
@@ -305,11 +386,18 @@ igb_init(device_t *dev)
 	adapter = (struct adapter *)dev->private_data;
 	if (NULL == adapter) return ENXIO;
 
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
 	igb_reset(adapter);
 
 	/* Prepare transmit descriptors and buffers */
 	igb_setup_transmit_structures(adapter);
 	igb_initialize_transmit_units(adapter);
+
+	if( sem_post( adapter->memlock ) != 0 ) {
+		return errno;
+	}
 
 	return(0);
 }
@@ -415,7 +503,16 @@ igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *dma)
 	adapter = (struct adapter *)dev->private_data;
 	if (NULL == adapter) return ENXIO;
 
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		error = errno;
+		goto err;
+	}
 	error = ioctl(adapter->ldev, IGB_MAPBUF, &ubuf);
+	if( sem_post( adapter->memlock ) != 0 ) {
+		error = errno;
+		goto err;
+	}
+
 	if (error < 0) { error = ENOMEM; goto err; }
 
 	dma->dma_paddr = ubuf.physaddr;
@@ -449,12 +546,19 @@ igb_dma_free_page(device_t *dev, struct igb_dma_alloc *dma)
 
 	ubuf.physaddr = dma->dma_paddr;
 
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		goto err;
+	}
 	ioctl(adapter->ldev, IGB_UNMAPBUF, &ubuf);
+	if( sem_post( adapter->memlock ) != 0 ) {
+		goto err;
+	}
 
 	dma->dma_paddr = 0;
 	dma->dma_vaddr = NULL;
 	dma->mmap_size = 0;
 
+ err:
 	return;
 }
 
@@ -532,6 +636,7 @@ tx_desc:
 	};
 tx_fail:
 	free(adapter->tx_rings);
+	adapter->tx_rings = NULL;
 	return (error);
 }
 
@@ -626,12 +731,13 @@ igb_free_transmit_structures(struct adapter *adapter)
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		if (adapter->tx_rings[i].tx_base)
-			munmap(adapter->tx_rings[i].tx_base, \
-				adapter->tx_rings[i].txdma.mmap_size);
+			munmap(adapter->tx_rings[i].tx_base,				\
+				   adapter->tx_rings[i].txdma.mmap_size);
 		ubuf.queue = i;
 		ioctl(adapter->ldev, IGB_UNMAPRING, &ubuf);
 		free(adapter->tx_rings[i].tx_buffers);
-	};
+	}
+
 
 	free(adapter->tx_rings);
 	adapter->tx_rings = NULL;
@@ -712,15 +818,20 @@ igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
 	adapter = (struct adapter *)dev->private_data;
 	if (NULL == adapter) return ENXIO;
 
+	txr = &adapter->tx_rings[queue_index];
+	if( !txr ) return EINVAL;
+
 	if (queue_index > adapter->num_queues)
 		return EINVAL;
 
 	if (NULL == packet)
 		return EINVAL;
 
-	packet->next = NULL; /* used for cleanup */
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
 
-	txr = &adapter->tx_rings[queue_index];
+	packet->next = NULL; /* used for cleanup */
 
 	/* Set basic descriptor constants */
 	cmd_type_len = E1000_ADVTXD_DTYP_DATA;
@@ -803,11 +914,15 @@ igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
 	 * Advance the Transmit Descriptor Tail (TDT), this tells the E1000
 	 * that this frame is available to transmit.
 	 */
+
 	E1000_WRITE_REG(&adapter->hw, E1000_TDT(txr->me), i);
 	++txr->tx_packets;
 
-	return(0);
+	if( sem_post( adapter->memlock ) != 0 ) {
+		return errno;
+	}
 
+	return(0);
 }
 
 void
@@ -819,7 +934,16 @@ igb_trigger(device_t *dev, u_int32_t data)
 	adapter = (struct adapter *)dev->private_data;
 	if (NULL == adapter) return;
 
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		goto err;
+	}
 	E1000_WRITE_REG(&(adapter->hw), E1000_WUS, data);
+	if( sem_post( adapter->memlock ) != 0 ) {
+		goto err;
+	}
+
+ err:
+	return;
 }
 
 void
@@ -847,6 +971,27 @@ igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data)
 
 	*data = E1000_READ_REG(&(adapter->hw), reg);
 }
+
+int igb_lock( device_t *dev ) {
+	struct adapter	*adapter;
+
+	if (NULL == dev) return ENODEV;
+	adapter = (struct adapter *)dev->private_data;
+	if (NULL == adapter) return ENXIO;
+
+	return sem_wait( adapter->memlock );
+}
+
+int igb_unlock( device_t *dev ) {
+	struct adapter	*adapter;
+
+	if (NULL == dev) return ENODEV;
+	adapter = (struct adapter *)dev->private_data;
+	if (NULL == adapter) return ENXIO;
+
+	return sem_post( adapter->memlock );
+}
+
 
 /**********************************************************************
  *
@@ -947,26 +1092,37 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 	return;
 }
 
-#define MAX_WALLCLOCK_WINDOW 1000
+#define MAX_ITER 32
+#define MIN_WALLCLOCK_TSC_WINDOW 80 /* cycles */
+#define MIN_SYSCLOCK_WINDOW 72 /* ns */
 
-static __inline__ u_int64_t rdtscpll(void)
-{
-	u_int32_t lo, hi;
-
-	__asm__ __volatile__ ("cpuid");
-	__asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
-	return (u_int64_t) hi << 32 | lo;
+static inline void rdtscpll( uint64_t *val ) {
+	__asm__ __volatile__( "lfence;"
+						  "rdtsc;"
+						  "shl $32,%%rdx;"
+						  "or %%rdx,%%rax"
+						  : "=a"(*val)
+						  :
+						  : "%rdx", "memory" );
 }
 
+static inline void __sync() {
+	__asm__ __volatile__( "mfence;"
+						  :
+						  :
+						  : "memory" );
+}
 
 int
 igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 {
 	u_int64_t	t0 = 0, t1 = -1;
+	u_int32_t   duration = -1;
 	u_int32_t	timh, timl, tsauxc;
 	struct adapter	*adapter;
 	struct e1000_hw *hw;
 	int iter = 0;
+	int error = 0;
 
 	if (NULL == dev) return EINVAL;
 	adapter = (struct adapter *)dev->private_data;
@@ -974,30 +1130,136 @@ igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 
 	hw = &adapter->hw;
 
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
+
 	/* sample the timestamp bracketed by the RDTSC */
-	while( t1 - t0 > MAX_WALLCLOCK_WINDOW && iter < 8 ) {
-	    tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
-	    tsauxc &= ~(E1000_TSAUXC_SAMP_AUTO);
-	    E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
-	    tsauxc |= E1000_TSAUXC_SAMP_AUTO;
-	    t0 = rdtscpll();
-	    E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
-	    t1 = rdtscpll();
-	    ++iter;
+	for
+		( iter = 0; iter < MAX_ITER && t1 - t0 > MIN_WALLCLOCK_TSC_WINDOW;
+		  ++iter )
+		{
+			tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+			tsauxc |= E1000_TSAUXC_SAMP_AUTO;
+			// Invalidate AUXSTMPH/L0
+			E1000_READ_REG(hw, E1000_AUXSTMPH0);
+			rdtscpll(&t0);
+			E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc );
+			rdtscpll(&t1);
+
+			if( t1 - t0 < duration ) {
+				duration = t1 - t0;
+				timl = E1000_READ_REG(hw, E1000_AUXSTMPL0);
+				timh = E1000_READ_REG(hw, E1000_AUXSTMPH0);
+
+				if( curtime )
+					*curtime = (u_int64_t)timh * 1000000000 + (u_int64_t)timl;
+				if( rdtsc )
+					*rdtsc = (t1 - t0) / 2 + t0; /* average */
+			}
+		}
+
+	if( sem_post( adapter->memlock ) != 0 ) {
+		error = errno;
+		goto err;
 	}
 
-	if( t1 - t0 > MAX_WALLCLOCK_WINDOW ) {
-	  return ERESTART;
-	}
+	return -duration;  // Return the window size * -1
 
-	timl = E1000_READ_REG(hw, E1000_AUXSTMPL0);
-	timh = E1000_READ_REG(hw, E1000_AUXSTMPH0);
-
-	if( curtime ) *curtime = (u_int64_t)timh * 1000000000 + (u_int64_t)timl;
-	if( rdtsc ) *rdtsc = (t1 - t0) / 2 + t0; /* average */
-	
-	return(0);
+ err:
+	return error;
 } 
+
+struct timespec timespec_subtract( struct timespec *a, struct timespec *b )
+{
+	a->tv_nsec = a->tv_nsec - b->tv_nsec;
+	if (a->tv_nsec < 0) {
+		// borrow.
+		a->tv_nsec += 1000000000;
+		--a->tv_sec;
+	}
+
+	a->tv_sec = a->tv_sec - b->tv_sec;
+	return *a;
+}
+
+struct timespec timespec_addns( struct timespec *a, unsigned long addns )
+{
+	a->tv_nsec = a->tv_nsec + (addns % 1000000000);
+	if (a->tv_nsec > 1000000000 ) {
+		// carry
+		a->tv_nsec -= 1000000000;
+		++a->tv_sec;
+	}
+
+	a->tv_sec = a->tv_sec + addns/1000000000;
+	return *a;
+}
+
+#define TS2NS(ts) (((ts).tv_sec*1000000000)+(ts).tv_nsec)
+
+int
+igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime,
+			struct timespec *system_time )
+{
+	struct timespec	t0 = { 0, 0 }, t1 = { .tv_sec = 4, .tv_nsec = 0 };
+	u_int32_t   duration = -1;
+	u_int32_t	timh, timl, tsauxc;
+	struct adapter	*adapter;
+	struct e1000_hw *hw;
+	int iter = 0;
+	int error = 0;
+
+	if (NULL == dev) return EINVAL;
+	adapter = (struct adapter *)dev->private_data;
+	if (NULL == adapter) return ENXIO;
+
+	hw = &adapter->hw;
+
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
+
+	/* sample the timestamp bracketed by the clock_gettime() */
+	for
+		( iter = 0; iter < MAX_ITER && duration > MIN_SYSCLOCK_WINDOW; ++iter )
+		{
+			u_int32_t duration_c;
+			tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+			tsauxc |= E1000_TSAUXC_SAMP_AUTO;
+			// Invalidate AUXSTMPH/L0
+			E1000_READ_REG( hw, E1000_AUXSTMPH0 );
+			clock_gettime( clk_id, &t0 );
+			E1000_WRITE_REG( hw, E1000_TSAUXC, tsauxc );
+			__sync();
+			clock_gettime( clk_id, &t1 );
+
+			timespec_subtract(&t1,&t0);
+			duration_c = TS2NS(t1);
+			if( duration_c < duration ) {
+				duration = duration_c;
+				timl = E1000_READ_REG(hw, E1000_AUXSTMPL0);
+				timh = E1000_READ_REG(hw, E1000_AUXSTMPH0);
+
+				if( curtime )
+					*curtime = (u_int64_t)timh * 1000000000 + (u_int64_t)timl;
+				if( system_time )
+					*system_time = timespec_addns
+						(&t0,duration/2);
+			}
+		}
+
+	if( sem_post( adapter->memlock ) != 0 ) {
+		error = errno;
+		goto err;
+	}
+
+	return -duration;  // Return the window size * -1
+
+ err:
+	return error;
+}
+
 int	
 igb_set_class_bandwidth(device_t *dev, 
 	u_int32_t class_a,
@@ -1015,6 +1277,7 @@ igb_set_class_bandwidth(device_t *dev,
 	struct igb_link_cmd	link;
 	int	err;
 	float		class_a_percent, class_b_percent;
+	int error = 0;
 
 	if (NULL == dev) return EINVAL;
 	adapter = (struct adapter *)dev->private_data;
@@ -1046,13 +1309,17 @@ igb_set_class_bandwidth(device_t *dev,
 	if (tpktsz_b > 1500)
 		return EINVAL;
 
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
+
 	tqavctrl = E1000_READ_REG(hw, E1000_TQAVCTRL);
 
 	if ((class_a + class_b) == 0 ) {
 		/* disable the Qav shaper */
 		tqavctrl &= ~E1000_TQAVCTRL_TX_ARB;
 		E1000_WRITE_REG(hw, E1000_TQAVCTRL, tqavctrl);
-		return(0);
+		goto unlock;
 	}
 
 	tqavcc0 = E1000_TQAVCC_QUEUEMODE;
@@ -1093,8 +1360,10 @@ igb_set_class_bandwidth(device_t *dev,
 		class_b_idle = (u_int32_t)(class_b_percent * 2.0 * (float)linkrate + 0.5);
 	}
 
-	if ((class_a_percent + class_b_percent) > 0.75)
-		return EINVAL;
+	if ((class_a_percent + class_b_percent) > 0.75) {
+		error = EINVAL;
+		goto unlock;
+	}
 	tqavcc0 |= class_a_idle;
 	tqavcc1 |= class_b_idle;
 
@@ -1125,6 +1394,11 @@ igb_set_class_bandwidth(device_t *dev,
 	E1000_WRITE_REG(hw, E1000_TQAVCC(1), tqavcc1);
 	E1000_WRITE_REG(hw, E1000_TQAVCTRL, tqavctrl);
 
-	return(0);
+ unlock:
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		error = errno;
+	}
+
+	return error;
 }
 
