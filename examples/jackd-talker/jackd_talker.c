@@ -49,7 +49,6 @@
 #include <linux/if.h>
 #include <netpacket/packet.h>
 #include <netinet/in.h>
-#include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
 #include <sys/un.h>
@@ -68,12 +67,19 @@
 #include <endian.h>
 #include <stdint.h>
 
+#include <jack/weakmacros.h>
+#include <jack/jack.h>
+#include <jack/ringbuffer.h>
+#include <jack/thread.h>
+#include "jack.h"
+#include "defines.h"
+
 typedef struct { 
   int64_t ml_phoffset;
   int64_t ls_phoffset;
   long double ml_freqoffset;
   long double ls_freqoffset;
-  uint64_t local_time;
+  int64_t local_time;
 } gPtpTimeData;
 
 
@@ -88,8 +94,8 @@ typedef struct {
 #define SAMPLES_PER_CYCLE (SAMPLES_PER_SECOND/FREQUENCY)
 #define GAIN (.5)
 
-#define L16_PAYLOAD_TYPE 96 /* Should be negotiated via RTSP */
-#define ID_B_HDR_EXT_ID 0 /* Should be negotiated via RTSP */
+//1722 header
+#define ETH_TYPE 0x22F0
 
 #define CD_SUBTYPE 0x02		/* for simple audio format */
 #define SV_VER_MR_RS_GV_TV 0x81
@@ -100,23 +106,13 @@ typedef struct {
 unsigned char GATEWAY_INFO[] =
     { SAMPLE_FORMAT_NON_INTR_FLOAT, 0, NOMINAL_SAMPLE_RATE, LINEAR_SAMPLE_MSB };
 
-#define SAMPLE_SIZE 4		/* 4 bytes */
-#define L2_SAMPLES_PER_FRAME 6
-#define L4_SAMPLES_PER_FRAME 60
-#define L4_SAMPLE_SIZE 2
-#define CHANNELS 2
 #define PAYLOAD_SIZE SAMPLE_SIZE*SAMPLES_PER_FRAME*CHANNELS	/* 6*4 * 2 channels  = 48 bytes */
-
-#define RTP_SUBNS_SCALE_NUM 20000000
-#define RTP_SUBNS_SCALE_DEN  4656613
 
 #define IGB_BIND_NAMESZ 24
 
 #define XMIT_DELAY (200000000)	/* us */
 #define RENDER_DELAY (XMIT_DELAY+2000000)	/* us */
-
 typedef enum { false = 0, true = 1 } bool;
-
 typedef struct __attribute__ ((packed)) {
 	uint64_t subtype:7;
 	uint64_t cd_indicator:1;
@@ -136,7 +132,7 @@ typedef struct __attribute__ ((packed)) {
 } seventeen22_header;
 
 /* 61883 CIP with SYT Field */
-typedef struct __attribute__ ((packed)) {
+typedef struct {
 	uint16_t packet_channel:6;
 	uint16_t format_tag:2;
 	uint16_t app_control:4;
@@ -155,54 +151,17 @@ typedef struct __attribute__ ((packed)) {
 	uint16_t syt;
 } six1883_header;
 
-typedef struct __attribute__ ((packed)) {
+typedef struct {
 	uint8_t label;
 	uint8_t value[3];
 } six1883_sample;
-
-typedef struct __attribute__ ((packed)) {
-	uint8_t version_length;
-	uint8_t DSCP_ECN;
-	uint16_t ip_length;
-	uint16_t id;
-	uint16_t fragmentation;
-	uint8_t ttl;
-	uint8_t protocol;
-	uint16_t hdr_cksum;
-	uint32_t src;
-	uint32_t dest;
-
-	uint16_t source_port;
-	uint16_t dest_port;
-	uint16_t udp_length;
-	uint16_t cksum;
-
-	uint8_t version_cc;
-	uint8_t mark_payload;
-	uint16_t sequence;
-	uint32_t timestamp;
-	uint32_t ssrc;
-	
-	uint8_t tag[2];
-	uint16_t total_length;
-	uint8_t tag_length;
-	uint8_t seconds[3];
-	uint32_t nanoseconds;
-} IP_RTP_Header;
-
-typedef struct __attribute__ ((packed)) {
-	uint32_t source;
-	uint32_t dest;
-	uint8_t zero;
-	uint8_t protocol;
-	uint16_t length;
-} IP_PseudoHeader;
 
 /* global variables */
 int control_socket = -1;
 device_t igb_dev;
 volatile int halt_tx = 0;
 volatile int listeners = 0;
+volatile int unleash_jack = 0;
 volatile int mrp_okay;
 volatile int mrp_error = 0;;
 volatile int domain_a_valid = 0;
@@ -214,83 +173,24 @@ int domain_class_b_id;
 int domain_class_b_priority;
 int domain_class_b_vid;
 
+pthread_t packetizer_id;
+
+/* evil global variables
+ * FIXME: move to thread argument struct */
+u_int64_t last_time;
+int seqnum;
+uint32_t time_stamp;
+seventeen22_header *header0;
+six1883_header *header1;
+struct igb_packet *tmp_packet;
+struct igb_packet *free_packets;
+
+
 #define VERSION_STR	"1.0"
 static const char *version_str = "simple_talker v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
 #define MRPD_PORT_DEFAULT 7500
-
-uint16_t inet_checksum(uint8_t *ip, int len){
-    uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
-	
-	while(len > 1){
-		sum += *(( uint16_t *) ip); ip += 2;
-		if(sum & 0x80000000)   /* if high order bit set, fold */
-			sum = (sum & 0xFFFF) + (sum >> 16);
-		len -= 2;
-	}
-	
-	if(len)       /* take care of left over byte */
-		sum += (uint16_t) *(uint8_t *)ip;
-	
-	while(sum>>16)
-		sum = (sum & 0xFFFF) + (sum >> 16);
-	
-	return ~sum;
-}
-
-#if 0
- else {
-			if(sum & 0x80000000)   /* if high order bit set, fold */
-				sum = (sum & 0xFFFF) + (sum >> 16);
-			sum += *(( uint16_t *) buf_iov->iov_base); buf_iov->iov_base += 2;
-			buf_iov->iov_len -= 2;
-		}
-#endif
-
-uint16_t inet_checksum_sg( struct iovec *buf_iov, size_t buf_iovlen ){
-	size_t i;
-    uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
-	uint8_t residual;
-	int has_residual = 0;
-
-	for( i = 0; i < buf_iovlen; ++i,++buf_iov ) {
-		if( has_residual ) {
-			if( buf_iov->iov_len > 0 ) {
-				if(sum & 0x80000000)   /* if high order bit set, fold */
-					sum = (sum & 0xFFFF) + (sum >> 16);
-				sum += residual | (*(( uint8_t *) buf_iov->iov_base) << 8);
-				buf_iov->iov_base += 1;
-				buf_iov->iov_len -= 1;
-			} else {
-				if(sum & 0x80000000)   /* if high order bit set, fold */
-					sum = (sum & 0xFFFF) + (sum >> 16);
-				sum += (uint16_t) residual;
-			}
-			has_residual = 0;
-
-		}
-		while(buf_iov->iov_len > 1){
-			if(sum & 0x80000000)   /* if high order bit set, fold */
-				sum = (sum & 0xFFFF) + (sum >> 16);
-			sum += *(( uint16_t *) buf_iov->iov_base); buf_iov->iov_base += 2;
-			buf_iov->iov_len -= 2;
-		}
-		if( buf_iov->iov_len ) {
-			residual = *(( uint8_t *) buf_iov->iov_base);
-			has_residual = 1;
-		}
-	}
-	if( has_residual ) {
-		sum += (uint16_t) residual;
-	}
-
-	while(sum>>16)
-		sum = (sum & 0xFFFF) + (sum >> 16);
-	
-	return ~sum;
-}
-
 static inline uint64_t ST_rdtsc(void)
 {
 	uint64_t ret;
@@ -345,39 +245,6 @@ int gptpscaling(gPtpTimeData * td)
 		td->ml_freqoffset, td->ls_freqoffset);
 
 	return true;
-}
-
-void gensine32(int32_t * buf, unsigned count)
-{
-	long double interval = (2 * ((long double)M_PI)) / count;
-	unsigned i;
-	for (i = 0; i < count; ++i) {
-		buf[i] =
-		    (int32_t) (MAX_SAMPLE_VALUE * sinl(i * interval) * GAIN);
-	}
-}
-
-int get_samples(unsigned count, int32_t * buffer)
-{
-	static int init = 0;
-	static int32_t samples_onechannel[100];
-	static unsigned index = 0;
-
-	if (init == 0) {
-		gensine32(samples_onechannel, 100);
-		init = 1;
-	}
-
-	while (count > 0) {
-		int i;
-		for (i = 0; i < SRC_CHANNELS; ++i) {
-			*(buffer++) = samples_onechannel[index];
-		}
-		index = (index + 1) % 100;
-		--count;
-	}
-
-	return 0;
 }
 
 int mrp_join_listener(uint8_t * streamid);
@@ -784,21 +651,6 @@ int mrp_monitor()
 	return (0);
 }
 
-int mrp_join_vlan()
-{
-	char *msgbuf;
-	int rc;
-	msgbuf = malloc(1500);
-	if (NULL == msgbuf)
-		return -1;
-	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "V++:I=0002");
-	rc = send_mrp_msg(msgbuf, 1500);
-
-	free(msgbuf);
-	return rc;
-}
-
 int mrp_join_listener(uint8_t * streamid)
 {
 	char *msgbuf;
@@ -884,6 +736,7 @@ void sigint_handler(int signum)
 {
 	printf("got SIGINT\n");
 	halt_tx = signum;
+	unleash_jack = 0;
 }
 
 int pci_connect()
@@ -925,22 +778,11 @@ int pci_connect()
 	return 0;
 }
 
- unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
- unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
+unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 /* IEEE 1722 reserved address */
- unsigned char L2_DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
- unsigned char L3_DEST_ADDR[] = { 224, 0, 0, 115 };
-uint16_t L3_PORT = 5004;
-
- void l3_to_l2_multicast( unsigned char *l2, unsigned char *l3 ) {
-	 l2[0]  = 0x1;
-	 l2[1]  = 0x0;
-	 l2[2]  = 0x5e;
-	 l2[3]  = l3[1] & 0x7F;
-	 l2[4]  = l3[2];
-	 l2[5]  = l3[3];
- }
+unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
 
 int get_mac_address(char *interface)
 {
@@ -971,13 +813,112 @@ static void usage(void)
 		"options:\n"
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
-		"    -t  transport equal to 2 for 1722 or 3 for RTP\n"
 		"\n" "%s" "\n", version_str);
 	exit(1);
 }
 
-#define L2_PACKET_IPG	(125000)	/* (1) packet every 125 usec */
-#define L4_PACKET_IPG	(1250000)	/* (1) packet every 1.25 millisec */
+#define PACKET_IPG	(125000)	/* (1) packet every 125 usec */
+
+
+
+static void* packetizer_thread(void *arg) {
+	struct igb_packet *cleaned_packets;
+	six1883_sample *sample;
+	unsigned total_samples = 0;
+	int err;
+	int i;
+
+	const size_t bytes_to_read = CHANNELS * SAMPLES_PER_FRAME *
+		SAMPLE_SIZE;
+	jack_default_audio_sample_t* framebuf = malloc (bytes_to_read);
+	extern jack_ringbuffer_t* ringbuffer;
+	extern pthread_mutex_t threadLock;
+	extern pthread_cond_t dataReady;
+
+	pthread_setcanceltype (PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+	pthread_mutex_lock(&threadLock);
+
+	while (listeners && !halt_tx) {
+		pthread_cond_wait(&dataReady, &threadLock);
+
+		while ((jack_ringbuffer_read_space(ringbuffer) >= bytes_to_read)) {
+
+			tmp_packet = free_packets;
+			if (NULL == tmp_packet)
+				goto cleanup;
+			header0 =
+				(seventeen22_header *) (((char *)tmp_packet->vaddr) + 18);
+			header1 = (six1883_header *) (header0 + 1);
+			free_packets = tmp_packet->next;
+
+			/* unfortuntely unless this thread is at rtprio
+			 * you get pre-empted between fetching the time
+			 * and programming the packet and get a late packet
+			 */
+			tmp_packet->attime = last_time + PACKET_IPG;
+			last_time += PACKET_IPG;
+
+			jack_ringbuffer_read (ringbuffer, (char*)&framebuf[0], bytes_to_read);
+
+			header0->seq_number = seqnum++;
+			if (seqnum % 4 == 0)
+				header0->timestamp_valid = 0;
+
+			else
+				header0->timestamp_valid = 1;
+
+			time_stamp = htonl(time_stamp);
+			header0->timestamp = time_stamp;
+			time_stamp = ntohl(time_stamp);
+			time_stamp += PACKET_IPG;
+			header1->data_block_continuity = total_samples;
+			total_samples += SAMPLES_PER_FRAME*CHANNELS;
+			sample =
+				(six1883_sample *) (((char *)tmp_packet->vaddr) +
+						(18 + sizeof(seventeen22_header) +
+						 sizeof(six1883_header)));
+
+			for (i = 0; i < SAMPLES_PER_FRAME * CHANNELS; ++i) {
+				uint32_t tmp = htonl(MAX_SAMPLE_VALUE * framebuf[i]);
+				sample[i].label = 0x40;
+				memcpy(&(sample[i].value), &(tmp),
+						sizeof(sample[i].value));
+			}
+
+			err = igb_xmit(&igb_dev, 0, tmp_packet);
+
+			if (!err) {
+				continue;
+			}
+
+			if (ENOSPC == err) {
+
+				/* put back for now */
+				tmp_packet->next = free_packets;
+				free_packets = tmp_packet;
+			}
+
+cleanup:		igb_clean(&igb_dev, &cleaned_packets);
+			i = 0;
+			while (cleaned_packets) {
+			    i++;
+			    tmp_packet = cleaned_packets;
+			    cleaned_packets = cleaned_packets->next;
+			    tmp_packet->next = free_packets;
+			    free_packets = tmp_packet;
+			}
+		}
+	}
+	return NULL;
+}
+
+
+static void run_packetizer(void)
+{
+	jack_acquire_real_time_scheduling(packetizer_id, 70);
+	unleash_jack = 1;
+	pthread_join (packetizer_id, NULL);
+}
 
 int main(int argc, char *argv[])
 {
@@ -985,14 +926,9 @@ int main(int argc, char *argv[])
 	int err;
 	struct igb_dma_alloc a_page;
 	struct igb_packet a_packet;
-	struct igb_packet *tmp_packet;
-	struct igb_packet *cleaned_packets;
-	struct igb_packet *free_packets;
 	int c;
-	u_int64_t last_time;
 	int rc = 0;
 	char *interface = NULL;
-	int transport = -1;
 	int class_a_id = 0;
 	int a_priority = 0;
 	u_int16_t a_vid = 0;
@@ -1001,32 +937,16 @@ int main(int argc, char *argv[])
 	int b_priority = 0;
 	u_int16_t b_vid = 0;
 #endif
-	uint16_t seqnum;
-	uint32_t rtp_timestamp;
-	uint64_t time_stamp;
-	unsigned total_samples = 0;
 	gPtpTimeData td;
-	int32_t sample_buffer[L4_SAMPLES_PER_FRAME * SRC_CHANNELS];
-
-	seventeen22_header *l2_header0;
-	six1883_header *l2_header1;
-	six1883_sample *sample;
-
-	IP_RTP_Header *l4_headers;
-	IP_PseudoHeader pseudo_hdr;
-	unsigned l4_local_address = 0;
-	int sd;
-	struct sockaddr_in local;
-	struct ifreq if_request;
-
 	uint64_t now_local, now_8021as;
 	uint64_t update_8021as;
 	unsigned delta_8021as, delta_local;
-	uint8_t dest_addr[6];
-	size_t packet_size;
+	long double ml_ratio;
+
+	jack_client_t* _jackclient;
 
 	for (;;) {
-		c = getopt(argc, argv, "hi:t:");
+		c = getopt(argc, argv, "hi:");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -1041,17 +961,11 @@ int main(int argc, char *argv[])
 			}
 			interface = strdup(optarg);
 			break;
-		case 't':
-			transport = strtoul( optarg, NULL, 10 );
 		}
 	}
 	if (optind < argc)
 		usage();
 	if (NULL == interface) {
-		usage();
-	}
-	if( transport != 2 && transport != 4 ) {
-		fprintf( stderr, "Must specify valid transport\n" );
 		usage();
 	}
 	rc = mrp_connect();
@@ -1083,37 +997,6 @@ int main(int argc, char *argv[])
 		printf("failed to open interface\n");
 		usage();
 	}
-	if( transport == 2 ) {
-		memcpy( dest_addr, L2_DEST_ADDR, sizeof(dest_addr));
-	} else {
-		memset( &local, 0, sizeof( local ));
-		local.sin_family = PF_INET;
-		local.sin_addr.s_addr = htonl( INADDR_ANY );
-		local.sin_port = htons( L3_PORT );
-		l3_to_l2_multicast( dest_addr, L3_DEST_ADDR );
-		memset( &if_request, 0, sizeof( if_request ));
-		strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name)-1);
-		sd = socket( AF_INET, SOCK_DGRAM, 0 );
-		if( sd == -1 ) {
-			printf( "Failed to open socket: %s\n", strerror( errno ));
-			return errno;
-		}
-		if( bind( sd, (struct sockaddr *) &local, sizeof( local )) != 0 ) {
-			printf( "Failed to bind on socket: %s\n", strerror( errno ));
-			return errno;
-		}
-		if( ioctl( sd, SIOCGIFADDR, &if_request ) != 0 ) {
-			printf
-				( "Failed to get interface address (ioctl) on socket: %s\n",
-				  strerror( errno ));
-			return errno;
-		}
-		memcpy
-			( &l4_local_address,
-			  &(( struct sockaddr_in *)&if_request.ifr_addr)->sin_addr,
-			  sizeof( l4_local_address ));
-		
-	}
 
 	mrp_monitor();
 #ifdef DOMAIN_QUERY
@@ -1131,50 +1014,34 @@ int main(int argc, char *argv[])
 #define PKT_SZ	100
 
 	mrp_register_domain(&class_a_id, &a_priority, &a_vid);
-	mrp_join_vlan();
-
-	if( transport == 2 ) {
-		igb_set_class_bandwidth
-			(&igb_dev, 125000/L2_PACKET_IPG, 0, PKT_SZ - 22, 0);
-	} else {
-		igb_set_class_bandwidth
-			(&igb_dev, 1, 0,
-			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2, 0);
-	}
+	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, PKT_SZ - 22,
+				0);
 
 	memset(STREAM_ID, 0, sizeof(STREAM_ID));
 	memcpy(STREAM_ID, STATION_ADDR, sizeof(STATION_ADDR));
-
-	if( transport == 2 ) {
-		packet_size = PKT_SZ;
-	} else {
-		packet_size = 18 + sizeof(*l4_headers) +
-				(L4_SAMPLES_PER_FRAME * CHANNELS * L4_SAMPLE_SIZE );
- 	}
 
 	a_packet.dmatime = a_packet.attime = a_packet.flags = 0;
 	a_packet.map.paddr = a_page.dma_paddr;
 	a_packet.map.mmap_size = a_page.mmap_size;
 	a_packet.offset = 0;
 	a_packet.vaddr = a_page.dma_vaddr + a_packet.offset;
-	a_packet.len = packet_size;
+	a_packet.len = PKT_SZ;
 	free_packets = NULL;
 	seqnum = 0;
-	rtp_timestamp = 0; /* Should be random start */
 
 	/* divide the dma page into buffers for packets */
-	for (i = 1; i < ((a_page.mmap_size) / packet_size); i++) {
+	for (i = 1; i < ((a_page.mmap_size) / PKT_SZ); i++) {
 		tmp_packet = malloc(sizeof(struct igb_packet));
 		if (NULL == tmp_packet) {
 			printf("failed to allocate igb_packet memory!\n");
 			return (errno);
 		}
 		*tmp_packet = a_packet;
-		tmp_packet->offset = (i * packet_size);
+		tmp_packet->offset = (i * PKT_SZ);
 		tmp_packet->vaddr += tmp_packet->offset;
 		tmp_packet->next = free_packets;
-		memset(tmp_packet->vaddr, 0, packet_size);	/* MAC header at least */
-		memcpy(tmp_packet->vaddr, dest_addr, sizeof(dest_addr));
+		memset(tmp_packet->vaddr, 0, PKT_SZ);	/* MAC header at least */
+		memcpy(tmp_packet->vaddr, DEST_ADDR, sizeof(DEST_ADDR));
 		memcpy(tmp_packet->vaddr + 6, STATION_ADDR,
 		       sizeof(STATION_ADDR));
 
@@ -1185,99 +1052,44 @@ int main(int argc, char *argv[])
 		    ((a_priority << 13 | a_vid)) >> 8;
 		((char *)tmp_packet->vaddr)[15] =
 		    ((a_priority << 13 | a_vid)) & 0xFF;
-		if( transport == 2 ) {
-			((char *)tmp_packet->vaddr)[16] = 0x22;	/* 1722 eth type */
-			((char *)tmp_packet->vaddr)[17] = 0xF0;
-		} else {
-			((char *)tmp_packet->vaddr)[16] = 0x08;	/* IP eth type */
-			((char *)tmp_packet->vaddr)[17] = 0x00;
-		}
+		((char *)tmp_packet->vaddr)[16] = 0x22;	/* 1722 eth type */
+		((char *)tmp_packet->vaddr)[17] = 0xF0;
 
-		if( transport == 2 ) {
-			/* 1722 header update + payload */
-			l2_header0 =
-				(seventeen22_header *) (((char *)tmp_packet->vaddr) + 18);
-			l2_header0->cd_indicator = 0;
-			l2_header0->subtype = 0;
-			l2_header0->sid_valid = 1;
-			l2_header0->version = 0;
-			l2_header0->reset = 0;
-			l2_header0->reserved0 = 0;
-			l2_header0->gateway_valid = 0;
-			l2_header0->reserved1 = 0;
-			l2_header0->timestamp_uncertain = 0;
-			memset(&(l2_header0->stream_id), 0, sizeof(l2_header0->stream_id));
-			memcpy(&(l2_header0->stream_id), STATION_ADDR,
-				   sizeof(STATION_ADDR));
-			l2_header0->length = htons(32);
-			l2_header1 = (six1883_header *) (l2_header0 + 1);
-			l2_header1->format_tag = 1;
-			l2_header1->packet_channel = 0x1F;
-			l2_header1->packet_tcode = 0xA;
-			l2_header1->app_control = 0x0;
-			l2_header1->reserved0 = 0;
-			l2_header1->source_id = 0x3F;
-			l2_header1->data_block_size = 1;
-			l2_header1->fraction_number = 0;
-			l2_header1->quadlet_padding_count = 0;
-			l2_header1->source_packet_header = 0;
-			l2_header1->reserved1 = 0;
-			l2_header1->eoh = 0x2;
-			l2_header1->format_id = 0x10;
-			l2_header1->format_dependent_field = 0x02;
-			l2_header1->syt = 0xFFFF;
-			tmp_packet->len =
-				18 + sizeof(seventeen22_header) + sizeof(six1883_header) +
-				(L2_SAMPLES_PER_FRAME * CHANNELS * sizeof(six1883_sample));
-		} else {
-			pseudo_hdr.source = l4_local_address;
-			memcpy
-				( &pseudo_hdr.dest, L3_DEST_ADDR, sizeof( pseudo_hdr.dest ));
-			pseudo_hdr.zero = 0;
-			pseudo_hdr.protocol = 0x11;
-			pseudo_hdr.length = htons(packet_size-18-20);
-	
-			l4_headers =
-				(IP_RTP_Header *) (((char *)tmp_packet->vaddr) + 18);
-			l4_headers->version_length = 0x45;
-			l4_headers->DSCP_ECN = 0x20;
-			l4_headers->ip_length = htons(packet_size-18);
-			l4_headers->id = 0;
-			l4_headers->fragmentation = 0;
-			l4_headers->ttl = 64;
-			l4_headers->protocol = 0x11;
-			l4_headers->hdr_cksum = 0;
-			l4_headers->src = l4_local_address;
-			memcpy
-				( &l4_headers->dest, L3_DEST_ADDR, sizeof( l4_headers->dest ));
-			{
-				struct iovec iv0;
-				iv0.iov_base = l4_headers;
-				iv0.iov_len = 20;
-				l4_headers->hdr_cksum =
-					inet_checksum_sg( &iv0, 1 );
-			}
-
-			l4_headers->source_port = htons( L3_PORT );
-			l4_headers->dest_port = htons( L3_PORT );;
-			l4_headers->udp_length = htons(packet_size-18-20);
-
-			l4_headers->version_cc = 2;
-			l4_headers->mark_payload = L16_PAYLOAD_TYPE;
-			l4_headers->sequence = 0;
-			l4_headers->timestamp = 0;
-			l4_headers->ssrc = 0;
-			
-			l4_headers->tag[0] = 0xBE;
-			l4_headers->tag[1] = 0xDE;
-			l4_headers->total_length = htons(2);
-			l4_headers->tag_length = (6 << 4) | ID_B_HDR_EXT_ID;
-
-			tmp_packet->len =
-				18 + sizeof(*l4_headers) +
-				(L4_SAMPLES_PER_FRAME * CHANNELS * L4_SAMPLE_SIZE );
-
-		}
+		/* 1722 header update + payload */
+		header0 =
+		    (seventeen22_header *) (((char *)tmp_packet->vaddr) + 18);
+		header0->cd_indicator = 0;
+		header0->subtype = 0;
+		header0->sid_valid = 1;
+		header0->version = 0;
+		header0->reset = 0;
+		header0->reserved0 = 0;
+		header0->gateway_valid = 0;
+		header0->reserved1 = 0;
+		header0->timestamp_uncertain = 0;
+		memset(&(header0->stream_id), 0, sizeof(header0->stream_id));
+		memcpy(&(header0->stream_id), STATION_ADDR,
+		       sizeof(STATION_ADDR));
+		header0->length = htons(32);
+		header1 = (six1883_header *) (header0 + 1);
+		header1->format_tag = 1;
+		header1->packet_channel = 0x1F;
+		header1->packet_tcode = 0xA;
+		header1->app_control = 0x0;
+		header1->reserved0 = 0;
+		header1->source_id = 0x3F;
+		header1->data_block_size = 1;
+		header1->fraction_number = 0;
+		header1->quadlet_padding_count = 0;
+		header1->source_packet_header = 0;
+		header1->reserved1 = 0;
+		header1->eoh = 0x2;
+		header1->format_id = 0x10;
+		header1->format_dependent_field = 0x02;
+		header1->syt = 0xFFFF;
+		tmp_packet->len =
+		    18 + sizeof(seventeen22_header) + sizeof(six1883_header) +
+		    (SAMPLES_PER_FRAME * CHANNELS * sizeof(six1883_sample));
 		free_packets = tmp_packet;
 	}
 
@@ -1287,23 +1099,14 @@ int main(int argc, char *argv[])
 	 *
 	 * IPG is scaled to the Class (A) observation interval of packets per 125 usec
 	 */
+
+	_jackclient = init_jack();
+
 	fprintf(stderr, "advertising stream ...\n");
-	if( transport == 2 ) {
-		mrp_advertise_stream
-			(STREAM_ID, dest_addr, a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000, 
-			 a_priority, 3900);
-	} else {
-		/* 1 is the wrong number for frame rate, but fractional values not
-		   allowed, not sure the significance of the value 6, but using it
-		   consistently */
-		mrp_advertise_stream
-			(STREAM_ID, dest_addr, a_vid,
-			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1, 
-			 a_priority, 3900);
-	}
+	mrp_advertise_stream(STREAM_ID, DEST_ADDR, a_vid, PKT_SZ - 16,
+			     PACKET_IPG / 125000, a_priority, 3900);
 	fprintf(stderr, "awaiting a listener ...\n");
-	//mrp_await_listener(STREAM_ID);
-	listeners = 1;
+	mrp_await_listener(STREAM_ID);
 	printf("got a listener ...\n");
 	halt_tx = 0;
 
@@ -1324,150 +1127,29 @@ int main(int argc, char *argv[])
 
 	rc = nice(-20);
 
-	while (listeners && !halt_tx) {
-		tmp_packet = free_packets;
-		if (NULL == tmp_packet)
-			goto cleanup;
-		
-		free_packets = tmp_packet->next;
-		
-		if( transport == 2 ) {
-			uint32_t timestamp_l;
-			get_samples( L2_SAMPLES_PER_FRAME, sample_buffer );
-			l2_header0 =
-				(seventeen22_header *) (((char *)tmp_packet->vaddr) + 18);
-			l2_header1 = (six1883_header *) (l2_header0 + 1);
+	pthread_create (&packetizer_id, NULL, packetizer_thread, NULL);
+	run_packetizer();
 
-			/* unfortuntely unless this thread is at rtprio
-			 * you get pre-empted between fetching the time
-			 * and programming the packet and get a late packet
-			 */
-			tmp_packet->attime = last_time + L2_PACKET_IPG;
-			last_time += L2_PACKET_IPG;
-
-			l2_header0->seq_number = seqnum++;
-			if (seqnum % 4 == 0)
-				l2_header0->timestamp_valid = 0;
-
-			else
-				l2_header0->timestamp_valid = 1;
-
-			timestamp_l = time_stamp;
-			l2_header0->timestamp = htonl(timestamp_l);
-			time_stamp += L2_PACKET_IPG;
-			l2_header1->data_block_continuity = total_samples;
-			total_samples += L2_SAMPLES_PER_FRAME*CHANNELS;
-			sample =
-				(six1883_sample *) (((char *)tmp_packet->vaddr) +
-									(18 + sizeof(seventeen22_header) +
-									 sizeof(six1883_header)));
-
-			for (i = 0; i < L2_SAMPLES_PER_FRAME * CHANNELS; ++i) {
-				uint32_t tmp = htonl(sample_buffer[i]);
-				sample[i].label = 0x40;
-				memcpy(&(sample[i].value), &(tmp),
-					   sizeof(sample[i].value));
-			}
-		} else {
-			uint16_t *l16_sample;
-			uint8_t *tmp;
-			get_samples( L4_SAMPLES_PER_FRAME, sample_buffer );
-
-			l4_headers =
-				(IP_RTP_Header *) (((char *)tmp_packet->vaddr) + 18);
-
-			l4_headers->sequence =  seqnum++;
-			l4_headers->timestamp = rtp_timestamp;
-
-			tmp_packet->attime = last_time + L4_PACKET_IPG;
-			last_time += L4_PACKET_IPG;
-
-			l4_headers->nanoseconds = time_stamp/1000000000;
-			tmp = (uint8_t *) &l4_headers->nanoseconds;
-			l4_headers->seconds[0] = tmp[2];
-			l4_headers->seconds[1] = tmp[1];
-			l4_headers->seconds[2] = tmp[0];
-			{
-				uint64_t tmp;
-				tmp  = time_stamp % 1000000000;
-				tmp *= RTP_SUBNS_SCALE_NUM;
-				tmp /= RTP_SUBNS_SCALE_DEN;
-				l4_headers->nanoseconds = (uint32_t) tmp;
-			}
-			l4_headers->nanoseconds = htons(l4_headers->nanoseconds);
-
-
-			time_stamp += L4_PACKET_IPG;
-
-			l16_sample = (uint16_t *) (l4_headers+1);
-
-			for (i = 0; i < L4_SAMPLES_PER_FRAME * CHANNELS; ++i) {
-				uint16_t tmp = sample_buffer[i]/65536;
-				l16_sample[i] = htons(tmp);
-			}
-			l4_headers->cksum = 0;
-			{
-				struct iovec iv[2];
-				iv[0].iov_base = &pseudo_hdr;
-				iv[0].iov_len = sizeof(pseudo_hdr);
-				iv[1].iov_base = ((uint8_t *)l4_headers) + 20;
-				iv[1].iov_len = packet_size-18-20;
-				l4_headers->cksum =
-					inet_checksum_sg( iv, 2 );
-			}
-		}
-
-		err = igb_xmit(&igb_dev, 0, tmp_packet);
-
-		if (!err) {
-			continue;
-		}
-		
-		if (ENOSPC == err) {
-			
-			/* put back for now */
-			tmp_packet->next = free_packets;
-			free_packets = tmp_packet;
-		}
-		
-	cleanup:	
-		igb_clean(&igb_dev, &cleaned_packets);
-		i = 0;
-		while (cleaned_packets) {
-			i++;
-			tmp_packet = cleaned_packets;
-			cleaned_packets = cleaned_packets->next;
-			tmp_packet->next = free_packets;
-			free_packets = tmp_packet;
-		}
-	}
 	rc = nice(0);
-	
+
+	stop_jack(_jackclient);
+
 	if (halt_tx == 0)
 		printf("listener left ...\n");
 	halt_tx = 1;
-	
-	if( transport == 2 ) {
-		mrp_unadvertise_stream
-			(STREAM_ID, dest_addr, a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
-			 a_priority, 3900);
-	} else {
-		mrp_unadvertise_stream
-			(STREAM_ID, dest_addr, a_vid,
-			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1,
-			 a_priority, 3900);
-	}
-	
+
+	mrp_unadvertise_stream(STREAM_ID, DEST_ADDR, a_vid, PKT_SZ - 16,
+			       PACKET_IPG / 125000, a_priority, 3900);
+
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */
-	
+
 	rc = mrp_disconnect();
-	
+
 	igb_dma_free_page(&igb_dev, &a_page);
-	
+
 	err = igb_detach(&igb_dev);
-	
+
 	pthread_exit(NULL);
-	
+
 	return (0);
 }
-	

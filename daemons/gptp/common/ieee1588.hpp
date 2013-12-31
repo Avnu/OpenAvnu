@@ -155,46 +155,44 @@ static inline uint64_t bswap_64(uint64_t in)
 }
 
 #define NS_PER_SECOND 1000000000
-#define LS_SEC_MAX 0xFFFFFFFF
+#define LS_SEC_MAX 0xFFFFFFFFull
 
 static inline void TIMESTAMP_SUB_NS( Timestamp &ts, uint64_t ns ) {
-       bool borrow;
+       uint64_t secs = (uint64_t)ts.seconds_ls | ((uint64_t)ts.seconds_ms) << 32;
+	   uint64_t nanos = (uint64_t)ts.nanoseconds;
 
-       if( (ns % NS_PER_SECOND) > ts.nanoseconds ) {
-              borrow = true;
-              ts.nanoseconds = (NS_PER_SECOND + ts.nanoseconds) - (ns % NS_PER_SECOND);
-       } else {
-              borrow = false;
-              ts.nanoseconds = ts.nanoseconds - (ns % NS_PER_SECOND );
-       }
-       while( borrow || (ns/NS_PER_SECOND > 0) ) {
-              if( ts.seconds_ls != 0 ) {
-                     --ts.seconds_ls;
-              } else {
-                     --ts.seconds_ms;
-                     ts.seconds_ls = LS_SEC_MAX;
-              }
-              if( borrow ) borrow = false;
-              else ns -= NS_PER_SECOND;
-       }
-       return;
+       secs -= ns / NS_PER_SECOND;
+	   ns = ns % NS_PER_SECOND;
+	   
+	   if(ns > nanos)
+	   {  //borrow
+          nanos += NS_PER_SECOND;
+		  --secs;
+	   }
+	   
+	   nanos -= ns;
+	   
+	   ts.seconds_ms = (uint16_t)(secs >> 32);
+	   ts.seconds_ls = (uint32_t)(secs & LS_SEC_MAX);
+	   ts.nanoseconds = (uint32_t)nanos;
 }
 
 static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
-       uint32_t tmp;
-       bool carry = false;
+       uint64_t secs = (uint64_t)ts.seconds_ls | ((uint64_t)ts.seconds_ms) << 32;
+	   uint64_t nanos = (uint64_t)ts.nanoseconds;
 
-       tmp = ts.nanoseconds;
-       ts.nanoseconds += ns % NS_PER_SECOND;
-       if( ts.nanoseconds < tmp ) carry = true;
-
-       while( carry || (ns/NS_PER_SECOND) >= 1 ) {
-              ts.seconds_ls = (ts.seconds_ls == LS_SEC_MAX) ? 0 : ts.seconds_ls + 1;
-              if( ts.seconds_ls == 0 ) ++ts.seconds_ms;
-              if( carry ) carry = false;
-              else ns -= NS_PER_SECOND;         
-       }
-       return;
+       secs += ns / NS_PER_SECOND;
+	   nanos += ns % NS_PER_SECOND;
+	   
+	   if(nanos > NS_PER_SECOND)
+	   {  //carry
+          nanos -= NS_PER_SECOND;
+		  ++secs;
+	   }
+	   
+	   ts.seconds_ms = (uint16_t)(secs >> 32);
+	   ts.seconds_ls = (uint32_t)(secs & LS_SEC_MAX);
+	   ts.nanoseconds = (uint32_t)nanos;
 }
 
 #define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)

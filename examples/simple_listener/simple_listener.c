@@ -214,6 +214,20 @@ int recv_msg()
 
 }
 
+int join_vlan()
+{
+	int rc;
+	char *msgbuf = malloc(1500);
+	if (NULL == msgbuf)
+		return -1;
+	memset(msgbuf, 0, 1500);
+	sprintf(msgbuf, "V++:I=0002");
+	rc = send_msg(msgbuf, 1500);
+
+	free(msgbuf);
+	return rc;
+}
+
 int await_talker()
 {
 	while (0 == talker)	
@@ -375,6 +389,7 @@ int main(int argc, char *argv[])
 	}
 
 	report_domain_status();
+	join_vlan();
 
 	fprintf(stdout,"Waiting for talker...\n");
 	await_talker();	
