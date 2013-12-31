@@ -33,6 +33,8 @@
 
 #include <linux_hal.hpp>
 #include <sys/types.h>
+#include <avbts_clock.hpp>
+#include <avbts_port.hpp>
 
 extern "C" {
 #include <igb.h>
@@ -239,34 +241,140 @@ void LinuxNetworkInterface::reenable_rx_queue() {
 	}
 }
 
-
-void LinuxTimerQueueHandler( union sigval arg_in ) {
-    LinuxTimerQueueHandlerArg *arg = (LinuxTimerQueueHandlerArg *)
-		arg_in.sival_ptr;
-    bool runnable = false;
-    unsigned size;
+void *LinuxTimerQueueHandler( void *arg ) {
+	LinuxTimerQueue *timerq = (LinuxTimerQueue *) arg;
+	sigset_t waitfor;
+	struct timespec timeout;
+	timeout.tv_sec = 0; timeout.tv_nsec = 100000000; /* 100 ms */
 	
-    /* Remove myself from unexpired timer queue */
-    pthread_mutex_lock( &arg->timer_queue->lock);
-    size = arg->timer_queue->arg_list.size();
-    arg->timer_queue->arg_list.remove(arg);
-    if( arg->timer_queue->arg_list.size() < size ) {
-      runnable = true;
-    }
-    pthread_mutex_unlock( &arg->timer_queue->lock);
+	sigemptyset( &waitfor );
+	
+	while( !timerq->stop ) {
+		siginfo_t info;
+		LinuxTimerQueueMap_t::iterator iter;
+		sigaddset( &waitfor, SIGUSR1 );
+		if( sigtimedwait( &waitfor, &info, &timeout ) == -1 ) {
+			if( errno == EAGAIN ) continue;
+			else break;
+		}
+		if( timerq->lock->lock() != oslock_ok ) {
+			break;
+		}
 
-    if( runnable ) {
-		arg->func( arg->inner_arg );
-		if( arg->rm ) delete arg->inner_arg;
-		pthread_attr_destroy
-			((pthread_attr_t *) arg->sevp.sigev_notify_attributes);
-		delete (pthread_attr_t *) arg->sevp.sigev_notify_attributes;
-		timer_delete( arg->timer_handle );
-		delete arg;            
-    }
+		iter = timerq->timerQueueMap.find(info.si_value.sival_int);
+		if( iter != timerq->timerQueueMap.end() ) {
+		    struct LinuxTimerQueueActionArg arg = iter->second;
+			timerq->timerQueueMap.erase(iter);
+			timerq->LinuxTimerQueueAction ( &arg );
+			timer_delete(arg.timer_handle);
+		}
+		if( timerq->lock->unlock() != oslock_ok ) {
+			break;
+		}
+	}
+
+	return NULL;
+}
+
+void LinuxTimerQueue::LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg ) {
+	arg->func( arg->inner_arg );
 
     return;
 }
+
+OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
+	( IEEE1588Clock *clock ) {
+	LinuxTimerQueue *ret = new LinuxTimerQueue();
+
+	if( pthread_create
+		( &(ret->signal_thread), NULL, LinuxTimerQueueHandler, ret ) != 0 ) {
+		delete ret;
+		return NULL;
+	}
+
+	ret->stop = false;
+	ret->key = 0;
+	ret->lock = clock->timerQLock();
+
+	return ret;
+}
+
+	
+
+LinuxTimerQueue::LinuxTimerQueue() {
+}
+
+LinuxTimerQueue::~LinuxTimerQueue() {
+	pthread_join(signal_thread,NULL);
+}
+
+bool LinuxTimerQueue::addEvent
+( unsigned long micros, int type, ostimerq_handler func,
+  event_descriptor_t * arg, bool rm, unsigned *event) {
+	LinuxTimerQueueActionArg outer_arg;
+	int err;
+	LinuxTimerQueueMap_t::iterator iter;
+
+
+	outer_arg.inner_arg = arg;
+	outer_arg.rm = rm;
+	outer_arg.func = func;
+	outer_arg.type = type;
+	outer_arg.rm = rm;
+
+	// Find key that we can use
+	while( timerQueueMap.find( key ) != timerQueueMap.end() ) {
+		++key;
+	}
+		
+	{
+		struct itimerspec its;
+		memset(&(outer_arg.sevp), 0, sizeof(outer_arg.sevp));
+		outer_arg.sevp.sigev_notify = SIGEV_SIGNAL;
+		outer_arg.sevp.sigev_signo  = SIGUSR1;
+		outer_arg.sevp.sigev_value.sival_int = key;
+		if ( timer_create
+			 (CLOCK_MONOTONIC, &outer_arg.sevp, &outer_arg.timer_handle)
+			 == -1) {
+			XPTPD_ERROR("timer_create failed - %s", strerror(errno));
+			exit(0);
+		}
+		timerQueueMap[key] = outer_arg;
+
+		memset(&its, 0, sizeof(its));
+		its.it_value.tv_sec = micros / 1000000;
+		its.it_value.tv_nsec = (micros % 1000000) * 1000;
+		err = timer_settime( outer_arg.timer_handle, 0, &its, NULL );
+		if( err < 0 ) {
+			fprintf
+				( stderr, "Failed to arm timer: %s\n", 
+				  strerror( errno ));
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+bool LinuxTimerQueue::cancelEvent( int type, unsigned *event ) {
+	LinuxTimerQueueMap_t::iterator iter;
+	for( iter = timerQueueMap.begin(); iter != timerQueueMap.end();) {
+		if( (iter->second).type == type ) {
+			// Delete element
+			if( (iter->second).rm ) {
+				delete (iter->second).inner_arg;
+			}
+			timer_delete(iter->second.timer_handle);
+			timerQueueMap.erase(iter++);
+		} else {
+			++iter;
+		}
+	}
+
+	return true;
+}
+
 
 void* OSThreadCallback( void* input ) {
     OSThreadArg *arg = (OSThreadArg*) input;

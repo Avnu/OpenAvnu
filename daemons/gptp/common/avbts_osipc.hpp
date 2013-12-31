@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <ptptypes.hpp>
+#include <avbts_port.hpp>
 
 class OS_IPC_ARG {
 public:
@@ -51,11 +52,12 @@ public:
     virtual bool update
 	( int64_t  ml_phoffset,   int64_t ls_phoffset,
 	  FrequencyRatio  ml_freqoffset, FrequencyRatio ls_freq_offset,
-	  uint64_t local_time ) = 0;
+	  uint64_t local_time, uint32_t sync_count, uint32_t pdelay_count,
+	  PortState port_state ) = 0;
 	virtual ~OS_IPC() = 0;
 };
 
-inline OS_IPC::~OS_IPC () { }
+inline OS_IPC::~OS_IPC() {}
 
 #endif
 

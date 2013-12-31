@@ -32,7 +32,7 @@ CXX = g++
 
 IGB_LIB_INCPATH=../../../../lib/igb/
 IGB_LIB_PATH=../../../../lib/igb/
-ALTERNATE_LINUX_INCPATH=/home/chris/headers/include/
+ALTERNATE_LINUX_INCPATH=$(HOME)/headers/include/
 
 CFLAGS_G = -Wall -g -Wnon-virtual-dtor -I. -I../../common -I../src \
 	-I$(IGB_LIB_INCPATH) -I$(ALTERNATE_LINUX_INCPATH)

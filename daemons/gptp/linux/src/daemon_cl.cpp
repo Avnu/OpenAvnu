@@ -40,15 +40,17 @@
 
 void print_usage( char *arg0 ) {
   fprintf( stderr,
-	   "%s <network interface> [-S] [-P] [-F <filename>] "
+	   "%s <network interface> [-S] [-P] [-M <filename>] "
 	   "[-A <count>] [-G <group>] [-R <priority 1>]\n",
 	   arg0 );
-  fprintf( stderr,
-	   "\t-S start syntonization\n\t-P pulse per second\n"
-	   "\t-F <filename> save/restore state\n"
-	   "\t-A <count> initial accelerated sync count\n"
-	   "\t-G <group> group id for shared memory\n"
-	   "\t-R <priority 1> priority 1 value\n" );
+  fprintf
+	  ( stderr,
+		"\t-S start syntonization\n\t-P pulse per second\n"
+		"\t-M <filename> save/restore state\n"
+		"\t-A <count> initial accelerated sync count\n"
+		"\t-G <group> group id for shared memory\n"
+		"\t-R <priority 1> priority 1 value\n" 
+		"\t-T force master\n\t-L force slave\n" );
 }
 
 int main(int argc, char **argv)
@@ -61,6 +63,8 @@ int main(int argc, char **argv)
 	int i;
 	bool pps = false;
 	uint8_t priority1 = 248;
+	bool override_portstate = false;
+	PortState port_state;
 
 	int restorefd = -1;
 	void *restoredata = ((void *) -1);
@@ -71,6 +75,17 @@ int main(int argc, char **argv)
 	LinuxIPCArg *ipc_arg = NULL;
 	
 	int accelerated_sync_count = 0;
+
+	// Block SIGUSR1
+	{
+		sigset_t block;
+		sigemptyset( &block );
+		sigaddset( &block, SIGUSR1 );
+		if( pthread_sigmask( SIG_BLOCK, &block, NULL ) != 0 ) {
+			fprintf( stderr, "Failed to block SIGUSR1\n" );
+			return -1;
+		}
+	}
     
 	LinuxNetworkInterfaceFactory *default_factory =
 		new LinuxNetworkInterfaceFactory;
@@ -97,11 +112,19 @@ int main(int argc, char **argv)
 				// Get syntonize directive from command line
 				syntonize = true;
 			}
-			else if( toupper( argv[i][1] ) == 'F' ) {
+			else if( toupper( argv[i][1] ) == 'T' ) {
+				override_portstate = true;
+				port_state = PTP_MASTER;
+			}
+			else if( toupper( argv[i][1] ) == 'L' ) {
+				override_portstate = true;
+				port_state = PTP_SLAVE;
+			}
+			else if( toupper( argv[i][1] ) == 'M' ) {
 				// Open file
 				if( i+1 < argc ) {
 					restorefd = open
-						( argv[i], O_RDWR|O_CREAT, S_IRUSR|S_IWUSR ); ++i;
+						( argv[i+1], O_RDWR|O_CREAT, S_IRUSR|S_IWUSR ); ++i;
 					if( restorefd == -1 ) printf
 						( "Failed to open restore file\n" );
 				} else {
@@ -137,7 +160,7 @@ int main(int argc, char **argv)
 							"command line, using default value\n" );
 				} else {
 					unsigned long tmp = strtoul( argv[i+1], NULL, 0 ); ++i;
-					if( tmp > 254 ) {
+					if( tmp == 0 ) {
 						printf( "Invalid priority 1 value, using "
 								"default value\n" );
 					} else {
@@ -182,7 +205,7 @@ int main(int argc, char **argv)
 	HWTimestamper *timestamper = new LinuxTimestamper();
 	IEEE1588Clock *clock =
 	  new IEEE1588Clock( false, syntonize, priority1, timestamper,
-			     timerq_factory , ipc );
+			     timerq_factory , ipc, lock_factory );
 	if( restoredataptr != NULL ) {
 	  if( !restorefailed )
 	    restorefailed =
@@ -206,6 +229,10 @@ int main(int argc, char **argv)
 	    !port->restoreSerializedState( restoredataptr, &restoredatacount );
 	  restoredataptr = ((char *)restoredata) +
 	    (restoredatalength - restoredatacount);
+	}
+
+	if( override_portstate ) {
+		port->setPortState( port_state );
 	}
 
 	// Start PPS if requested
@@ -279,7 +306,6 @@ int main(int argc, char **argv)
       
 	  if( restoredata != ((void *) -1 ))
 	    munmap( restoredata, restoredatalength );
-	  close( restorefd );
 	}
 
 	if( ipc ) delete ipc;

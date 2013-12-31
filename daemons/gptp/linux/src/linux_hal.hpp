@@ -457,9 +457,15 @@ public:
 			}
 			cmsg = CMSG_NXTHDR(&msg,cmsg);
 		}
+
+		if( ret != 0 ) {
+			fprintf( stderr, "Received a error message, but didn't find a valid timestamp\n" );
+		}
 		
 	done:
-		if( ret == 0 || last ) net_lock->unlock();
+		if( ret == 0 || last ) {
+			net_lock->unlock();
+		}
 		
 		return ret;
 	}
@@ -584,7 +590,10 @@ protected:
     OSLockResult lock() {
 		int lock_c;
 		lock_c = pthread_mutex_lock(&mutex);
-		if(lock_c != 0) return oslock_fail;
+		if(lock_c != 0) {
+			fprintf( stderr, "LinuxLock: lock failed %d\n", lock_c );  
+			return oslock_fail;
+		}
 		return oslock_ok;
     }
     OSLockResult trylock() {
@@ -596,7 +605,10 @@ protected:
     OSLockResult unlock() {
 		int lock_c;
         lock_c = pthread_mutex_unlock(&mutex);
-		if(lock_c != 0) return oslock_fail;
+		if(lock_c != 0) {
+			fprintf( stderr, "LinuxLock: unlock failed %d\n", lock_c );  
+			return oslock_fail;
+		}
 		return oslock_ok;
     }
 };
@@ -656,185 +668,62 @@ public:
 	}
 };
 
-class LinuxTimerQueue;
-
-struct TimerQueue_t;
-
-struct LinuxTimerQueueHandlerArg {
+struct LinuxTimerQueueActionArg {
 	timer_t timer_handle;
 	struct sigevent sevp;
 	event_descriptor_t *inner_arg;
 	ostimerq_handler func;
 	int type;
 	bool rm;
-	TimerQueue_t *timer_queue;
 };
 
-typedef std::list < LinuxTimerQueueHandlerArg * >TimerArgList_t;
+typedef std::map < int, LinuxTimerQueueActionArg > LinuxTimerQueueMap_t;
 
-struct TimerQueue_t {
-	TimerArgList_t arg_list;
-	pthread_mutex_t lock;
-};
+void *LinuxTimerQueueHandler( void *arg );
 
-typedef std::map < int, TimerQueue_t > TimerQueueMap_t;
-
-void LinuxTimerQueueHandler(union sigval arg_in);
-
-class LinuxTimerQueue:public OSTimerQueue {
+class LinuxTimerQueue : public OSTimerQueue {
 	friend class LinuxTimerQueueFactory;
-	friend void LinuxTimerQueueHandler(union sigval arg_in);
+	friend void *LinuxTimerQueueHandler( void *);
 private:
-	TimerQueueMap_t timerQueueMap;
-	TimerArgList_t retiredTimers;
-	bool in_callback;
+	LinuxTimerQueueMap_t timerQueueMap;
+	int key;
+	bool stop;
+	pthread_t signal_thread;
+	OSLock *lock;
+	void LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg );
 protected:
-	LinuxTimerQueue() {
-		int err;
-		pthread_mutex_t retiredTimersLock;
-		pthread_mutexattr_t retiredTimersLockAttr;
-		err = pthread_mutexattr_init(&retiredTimersLockAttr);
-		if (err != 0) {
-			XPTPD_ERROR("mutexattr_init()");
-			exit(0);
-		}
-		err =
-		    pthread_mutexattr_settype
-			(&retiredTimersLockAttr, PTHREAD_MUTEX_NORMAL);
-		if (err != 0) {
-			XPTPD_ERROR("mutexattr_settype()");
-			exit(0);
-		}
-		err =
-		    pthread_mutex_init(&retiredTimersLock, &retiredTimersLockAttr);
-		if (err != 0) {
-			XPTPD_ERROR("mutex_init()");
-			exit(0);
-		}
-	};
- public:
-	bool addEvent(unsigned long micros, int type, ostimerq_handler func,
-				  event_descriptor_t * arg, bool rm, unsigned *event) {
-		LinuxTimerQueueHandlerArg *outer_arg =
-		    new LinuxTimerQueueHandlerArg();
-		if (timerQueueMap.find(type) == timerQueueMap.end()) {
-			pthread_mutex_init(&timerQueueMap[type].lock, NULL);
-		}
-		outer_arg->inner_arg = arg;
-		outer_arg->func = func;
-		outer_arg->type = type;
-		outer_arg->timer_queue = &timerQueueMap[type];
-		outer_arg->rm = rm;
-		sigset_t set;
-		sigset_t oset;
-		int err;
-		timer_t timerhandle;
-		struct sigevent ev;
-		
-		sigemptyset(&set);
-		sigaddset(&set, SIGALRM);
-		err = pthread_sigmask(SIG_BLOCK, &set, &oset);
-		if (err != 0) {
-			XPTPD_ERROR
-			    ("Add timer pthread_sigmask( SIG_BLOCK ... )");
-			exit(0);
-		}
-		pthread_mutex_lock(&timerQueueMap[type].lock);
-		{
-			struct itimerspec its;
-			memset(&ev, 0, sizeof(ev));
-			ev.sigev_notify = SIGEV_THREAD;
-			ev.sigev_value.sival_ptr = outer_arg;
-			ev.sigev_notify_function = LinuxTimerQueueHandler;
-			ev.sigev_notify_attributes = new pthread_attr_t;
-			pthread_attr_init((pthread_attr_t *) ev.sigev_notify_attributes);
-			pthread_attr_setdetachstate
-				((pthread_attr_t *) ev.sigev_notify_attributes,
-				 PTHREAD_CREATE_DETACHED);
-			if (timer_create(CLOCK_MONOTONIC, &ev, &timerhandle) == -1) {
-				XPTPD_ERROR("timer_create failed - %s", strerror(errno));
-				exit(0);
-			}
-			outer_arg->timer_handle = timerhandle;
-			outer_arg->sevp = ev;
-			
-			memset(&its, 0, sizeof(its));
-			its.it_value.tv_sec = micros / 1000000;
-			its.it_value.tv_nsec = (micros % 1000000) * 1000;
-			err = timer_settime(outer_arg->timer_handle, 0, &its, NULL);
-			if( err < 0 ) {
-			  fprintf( stderr,
-				   "Failed to arm timer: %s\n",
-				   strerror( errno ));
-			  return false;
-			}
-		}
-		timerQueueMap[type].arg_list.push_front(outer_arg);
-
-		pthread_mutex_unlock(&timerQueueMap[type].lock);
-
-		err = pthread_sigmask(SIG_SETMASK, &oset, NULL);
-		if (err != 0) {
-			XPTPD_ERROR
-			    ("Add timer pthread_sigmask( SIG_SETMASK ... )");
-			exit(0);
-		}
-		return true;
-	}
-	bool cancelEvent(int type, unsigned *event) {
-		TimerQueueMap_t::iterator iter = timerQueueMap.find(type);
-		if (iter == timerQueueMap.end())
-			return false;
-		sigset_t set;
-		sigset_t oset;
-		int err;
-		sigemptyset(&set);
-		sigaddset(&set, SIGALRM);
-		err = pthread_sigmask(SIG_BLOCK, &set, &oset);
-		if (err != 0) {
-			XPTPD_ERROR
-			    ("Add timer pthread_sigmask( SIG_BLOCK ... )");
-			exit(0);
-		}
-		pthread_mutex_lock(&timerQueueMap[type].lock);
-		while (!timerQueueMap[type].arg_list.empty()) {
-			LinuxTimerQueueHandlerArg *del_arg =
-			    timerQueueMap[type].arg_list.front();
-			timerQueueMap[type].arg_list.pop_front();
-			pthread_attr_destroy((pthread_attr_t *) del_arg->sevp.
-					     sigev_notify_attributes);
-			delete(pthread_attr_t *) del_arg->sevp.
-			    sigev_notify_attributes;
-			if (del_arg->rm)
-				delete del_arg->inner_arg;
-			timer_delete(del_arg->timer_handle);
-			delete del_arg;
-		}
-		pthread_mutex_unlock(&timerQueueMap[type].lock);
-		err = pthread_sigmask(SIG_SETMASK, &oset, NULL);
-		if (err != 0) {
-			XPTPD_ERROR
-			    ("Add timer pthread_sigmask( SIG_SETMASK ... )");
-			exit(0);
-		}
-		return true;
-	}
+	LinuxTimerQueue();
+public:
+	~LinuxTimerQueue();
+	bool addEvent
+	( unsigned long micros, int type, ostimerq_handler func,
+	  event_descriptor_t * arg, bool rm, unsigned *event );
+	bool cancelEvent( int type, unsigned *event );
 };
 
 class LinuxTimerQueueFactory:public OSTimerQueueFactory {
- public:
-	virtual OSTimerQueue * createOSTimerQueue() {
-		LinuxTimerQueue *timerq = new LinuxTimerQueue();
-		return timerq;
-	};
+public:
+	virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock );
 };
 
-class LinuxTimer:public OSTimer {
+
+
+class LinuxTimer : public OSTimer {
 	friend class LinuxTimerFactory;
  public:
 	virtual unsigned long sleep(unsigned long micros) {
 		struct timespec req = { 0, micros * 1000 };
-		nanosleep(&req, NULL);
+		struct timespec rem;
+		int ret = nanosleep( &req, &rem );
+		while( ret == -1 && errno == EINTR ) {
+			req = rem;
+			ret = nanosleep( &req, &rem );
+		}
+		if( ret == -1 ) {
+			fprintf
+				( stderr, "Error calling nanosleep: %s\n", strerror( errno ));
+			_exit(-1);
+		}
 		return micros;
 	}
  protected:
@@ -1107,7 +996,8 @@ public:
 	}
 	virtual bool update
 	(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
-	 FrequencyRatio ls_freqoffset, uint64_t local_time) {
+	 FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
+	 uint32_t pdelay_count, PortState port_state ) {
 		int buf_offset = 0;
 		char *shm_buffer = master_offset_buffer;
 		gPtpTimeData *ptimedata;
@@ -1120,6 +1010,9 @@ public:
 		ptimedata->ml_freqoffset = ml_freqoffset;
 		ptimedata->ls_freqoffset = ls_freqoffset;
 		ptimedata->local_time = local_time;
+		ptimedata->sync_count   = sync_count;
+		ptimedata->pdelay_count = pdelay_count;
+		ptimedata->port_state   = port_state;
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 		return true;

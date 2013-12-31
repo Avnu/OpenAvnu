@@ -52,7 +52,6 @@
 class LinkLayerAddress;
 struct ClockQuality;
 class PortIdentity;
-class IEEE1588Clock;
 class PTPMessageCommon;
 class PTPMessageSync;
 class PTPMessageAnnounce;
@@ -60,6 +59,7 @@ class PTPMessagePathDelayReq;
 class PTPMessagePathDelayResp;
 class PTPMessagePathDelayRespFollowUp;
 class IEEE1588Port;
+class IEEE1588Clock;
 class OSNetworkInterface;
 
 typedef enum {

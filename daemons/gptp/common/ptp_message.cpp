@@ -426,7 +426,7 @@ PTPMessageCommon *buildPTPMessage
 				buf+
 				PTP_ANNOUNCE_GRANDMASTER_CLOCK_QUALITY
 				(PTP_ANNOUNCE_OFFSET),
-				sizeof( annc->grandmasterClockQuality ));
+				sizeof( *annc->grandmasterClockQuality ));
 			annc->
 			  grandmasterClockQuality->offsetScaledLogVariance =
 			  PLAT_ntohs
@@ -746,23 +746,23 @@ void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
 void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 {
 	// Delete announce receipt timeout
-	port->getClock()->deleteEventTimer(port,
-					   ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES);
+	port->getClock()->deleteEventTimerLocked
+		(port, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES);
 
 	if( stepsRemoved >= 255 ) goto bail;
 	// Add message to the list
 	port->addQualifiedAnnounce(this);
 
-	port->getClock()->addEventTimer(port, STATE_CHANGE_EVENT, 16000000);
-
-bail:
-	port->getClock()->addEventTimer(port, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
-					(unsigned long long)
-					(ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER *
-					 (pow
-					  ((double)2,
-					   port->getAnnounceInterval()) *
-					  1000000000.0)));
+	port->getClock()->addEventTimerLocked(port, STATE_CHANGE_EVENT, 16000000);
+ bail:
+	port->getClock()->addEventTimerLocked
+		(port, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
+		 (unsigned long long)
+		 (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER *
+		  (pow
+		   ((double)2,
+			port->getAnnounceInterval()) *
+		   1000000000.0)));
 }
 
 void PTPMessageSync::processMessage(IEEE1588Port * port)
@@ -780,8 +780,6 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 	FrequencyRatio local_clock_adjustment;
 	FrequencyRatio local_system_freq_offset;
 
-	// Expire any SYNC_RECEIPT timers that exist
-	port->getClock()->deleteEventTimer(port, SYNC_RECEIPT_TIMEOUT_EXPIRES);
 	if (port->getPortState() == PTP_DISABLED ) {
 		// Do nothing Sync messages should be ignored when in this state
 		return;
@@ -862,19 +860,12 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 	  port->getClock()->setMasterOffset
 	    ( scalar_offset, _timestamp, local_clock_adjustment,
 	      local_system_offset, system_time, local_system_freq_offset,
-	      nominal_clock_rate, local_clock );
+	      port->getSyncCount(), port->getPdelayCount(), port->getPortState() );
 	  port->syncDone();
 	}
 
 
  done:
-	// Restart the SYNC_RECEIPT timer
-	port->getClock()->addEventTimer
-		(port, SYNC_RECEIPT_TIMEOUT_EXPIRES, (unsigned long long)
-		 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
-		  ((double) pow((double)2, port->getSyncInterval()) *
-		   1000000000.0)));
-
 	return;
 }
 
@@ -964,6 +955,10 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 
 	XPTPD_INFO("Processing a follow-up message");
 
+	// Expire any SYNC_RECEIPT timers that exist
+	port->getClock()->deleteEventTimerLocked
+		(port, SYNC_RECEIPT_TIMEOUT_EXPIRES);
+
 	if (port->getPortState() == PTP_DISABLED ) {
 		// Do nothing Sync messages should be ignored when in this state
 		return;
@@ -1047,6 +1042,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	  ( preciseOriginTimestamp, corrected_sync_time );
 
 	if( port->getPortState() != PTP_MASTER ) {
+		port->incSyncCount();
 		/* Do not call calcLocalSystemClockRateDifference it updates state
 		   global to the clock object and if we are master then the network 
 		   is transitioning to us not being master but the master process
@@ -1062,8 +1058,15 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 		port->getClock()->setMasterOffset
 			( scalar_offset, sync_arrival, local_clock_adjustment,
 			  local_system_offset, system_time, local_system_freq_offset,
-			  nominal_clock_rate, local_clock );
+			  port->getSyncCount(), port->getPdelayCount(),
+			  port->getPortState() );
 		port->syncDone();
+		// Restart the SYNC_RECEIPT timer
+		port->getClock()->addEventTimerLocked
+			(port, SYNC_RECEIPT_TIMEOUT_EXPIRES, (unsigned long long)
+			 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+			  ((double) pow((double)2, port->getSyncInterval()) *
+			   1000000000.0)));
 	}
 
 done:
@@ -1253,7 +1256,7 @@ void PTPMessagePathDelayResp::processMessage(IEEE1588Port * port)
 		return;
 	}
 
-	port->getClock()->deleteEventTimer
+	port->getClock()->deleteEventTimerLocked
 		(port, PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES);
 	PTPMessagePathDelayResp *old_pdelay_resp = port->getLastPDelayResp();
 	if (old_pdelay_resp != NULL) {
@@ -1436,7 +1439,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 			delete port->getLastPDelayRespFollowUp();
 		}
 		port->setLastPDelayRespFollowUp(this);
-		port->getClock()->addEventTimer
+		port->getClock()->addEventTimerLocked
 			(port, PDELAY_DEFERRED_PROCESSING, 1000000);
 		goto defer;
 	}
@@ -1447,6 +1450,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	if( request_tx_timestamp._version != response_rx_timestamp._version ) {
 	  goto abort;
 	}
+
+	port->incPdelayCount();
 
 
 	link_delay =
