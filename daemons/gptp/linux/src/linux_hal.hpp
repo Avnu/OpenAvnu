@@ -712,7 +712,7 @@ class LinuxTimer : public OSTimer {
 	friend class LinuxTimerFactory;
  public:
 	virtual unsigned long sleep(unsigned long micros) {
-		struct timespec req = { 0, micros * 1000 };
+		struct timespec req = { 0, (long int)(micros * 1000) };
 		struct timespec rem;
 		int ret = nanosleep( &req, &rem );
 		while( ret == -1 && errno == EINTR ) {
