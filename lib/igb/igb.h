@@ -77,6 +77,7 @@ struct igb_dma_alloc {
 
 int	igb_probe( device_t *dev );
 int	igb_attach(char *dev_path, device_t *pdev);
+int igb_attach_tx( device_t *pdev );
 int	igb_detach(device_t *dev);
 int	igb_suspend(device_t *dev);
 int	igb_resume(device_t *dev);

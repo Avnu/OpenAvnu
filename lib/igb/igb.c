@@ -143,7 +143,7 @@ igb_attach(char *dev_path, device_t *pdev)
 	}
 
 	adapter->memlock =
-		sem_open( IGB_SEM, 0, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP, 1 );
+		sem_open( IGB_SEM, O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP, 1 );
 	if( adapter->memlock == ((sem_t *)SEM_FAILED)) {
 		error = errno;
 		close(adapter->ldev);
@@ -222,7 +222,7 @@ igb_attach(char *dev_path, device_t *pdev)
 }
 
 int
-igb_attach_tx(char *dev_path, device_t *pdev)
+igb_attach_tx( device_t *pdev )
 {
 	int error;
 	struct adapter	*adapter;
@@ -231,7 +231,7 @@ igb_attach_tx(char *dev_path, device_t *pdev)
 
 	adapter = (struct adapter *)pdev->private_data;
 
-	if (NULL != adapter) return EBUSY;
+	if (NULL == adapter) return EINVAL;
 
 	if( sem_wait( adapter->memlock ) != 0 ) {
 		return errno;
@@ -1395,7 +1395,7 @@ igb_set_class_bandwidth(device_t *dev,
 	E1000_WRITE_REG(hw, E1000_TQAVCTRL, tqavctrl);
 
  unlock:
-	if( sem_wait( adapter->memlock ) != 0 ) {
+	if( sem_post( adapter->memlock ) != 0 ) {
 		error = errno;
 	}
 

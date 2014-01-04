@@ -136,7 +136,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	// Create HWTimestamper object
 	HWTimestamper *timestamper = new WindowsTimestamper();
 	// Create Clock object
-	IEEE1588Clock *clock = new IEEE1588Clock( false, false, priority1, timestamper, timerq_factory, ipc );  // Do not force slave
+	IEEE1588Clock *clock = new IEEE1588Clock( false, false, priority1, timestamper, timerq_factory, ipc, lock_factory );  // Do not force slave
 	// Create Port Object linked to clock and low level
 	IEEE1588Port *port = new IEEE1588Port( clock, 1, false, 0, timestamper, 0, &local_addr,
 		condition_factory, thread_factory, timer_factory, lock_factory );

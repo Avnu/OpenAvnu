@@ -1097,10 +1097,10 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	PTPMessagePathDelayRespFollowUp *resp_fwup;
 
 	int ts_good;
-	int iter = 2;
 	Timestamp resp_timestamp;
 	unsigned resp_timestamp_counter_value;
-	unsigned req = 1000;	// = 1 ms
+	unsigned req = TX_TIMEOUT_BASE;
+	int iter = TX_TIMEOUT_ITER;
 
 	if (port->getPortState() == PTP_DISABLED) {
 		// Do nothing all messages should be ignored when in this state

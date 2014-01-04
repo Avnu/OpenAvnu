@@ -115,6 +115,9 @@
 #define PTP_PTPTIMESCALE_BYTE 1
 #define PTP_PTPTIMESCALE_BIT 3
 
+#define TX_TIMEOUT_BASE 1000 /* microseconds */
+#define TX_TIMEOUT_ITER 6
+
 enum MessageType {
 	SYNC_MESSAGE = 0,
 	DELAY_REQ_MESSAGE = 1,

@@ -321,7 +321,7 @@ VOID CALLBACK WindowsTimerQueueHandler( PVOID arg_in, BOOLEAN ignore );
 
 class WindowsTimerQueueFactory : public OSTimerQueueFactory {
 public:
-    virtual OSTimerQueue *createOSTimerQueue() {
+    virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock ) {
         WindowsTimerQueue *timerq = new WindowsTimerQueue();
         return timerq;
     };
@@ -519,7 +519,8 @@ public:
 		if( pipe == INVALID_HANDLE_VALUE ) return false;
 		return true;
 	}
-	virtual bool update( int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time ) {
+	virtual bool update( int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
+		uint32_t sync_count, uint32_t pdelay_count, PortState port_state ) {
 		WindowsNPipeMessage msg( ml_phoffset, ls_phoffset, ml_freqoffset, ls_freq_offset, local_time );
 		if( !msg.write( pipe )) {
 			CloseHandle(pipe);

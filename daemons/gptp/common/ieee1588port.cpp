@@ -614,10 +614,11 @@ void IEEE1588Port::processEvent(Event e)
 			XPTPD_INFO("PDELAY_INTERVAL_TIMEOUT_EXPIRES occured");
 			{
 				int ts_good;
-				int iter = 2;
 				Timestamp req_timestamp;
-				long req = 1000;	// = 1 ms
+				int iter = TX_TIMEOUT_ITER;
+				long req = TX_TIMEOUT_BASE;
 				unsigned req_timestamp_counter_value;
+				long long wait_time = 0;
 
 				PTPMessagePathDelayReq *pdelay_req =
 				    new PTPMessagePathDelayReq(this);
@@ -646,6 +647,7 @@ void IEEE1588Port::processEvent(Event e)
 					 false);
 				while (ts_good != 0 && iter-- != 0) {
 					timer->sleep(req);
+					wait_time += req;
 					if (ts_good != -72 && iter < 1)
 						fprintf
 							(stderr,
@@ -687,16 +689,29 @@ void IEEE1588Port::processEvent(Event e)
 				}
 #endif
 
+				{
+					long long timeout;
+					long long interval;
+
+					timeout = PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER *
+						((long long)
+						 (pow((double)2,getPDelayInterval())*1000000000.0)) -
+						wait_time*1000;
+					timeout = timeout > EVENT_TIMER_GRANULARITY ?
+						timeout : EVENT_TIMER_GRANULARITY;
+					clock->addEventTimer
+						(this, PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES, timeout );
+					
+					interval = 
+						((long long)
+						 (pow((double)2,getPDelayInterval())*1000000000.0)) -
+						wait_time*1000;
+					interval = interval > EVENT_TIMER_GRANULARITY ?
+						interval : EVENT_TIMER_GRANULARITY;
+					clock->addEventTimer
+						(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, interval );
+				}
 			}
-			clock->addEventTimer
-				(this, PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,
-				 (unsigned long long)
-				 (PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER*
-				  (pow((double)2,getPDelayInterval())*1000000000.0)));
-			clock->addEventTimer
-				(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES,
-				 (unsigned long long)
-				 (pow((double)2, getPDelayInterval())*1000000000.0));
 			break;
 	case SYNC_INTERVAL_TIMEOUT_EXPIRES:
 			XPTPD_INFO("SYNC_INTERVAL_TIMEOUT_EXPIRES occured");
@@ -707,6 +722,7 @@ void IEEE1588Port::processEvent(Event e)
 				Timestamp device_time;
 				FrequencyRatio local_system_freq_offset;
 				int64_t local_system_offset;
+				long long wait_time = 0;
 				
 				uint32_t local_clock, nominal_clock_rate;
 
@@ -721,16 +737,18 @@ void IEEE1588Port::processEvent(Event e)
 					XPTPD_INFO("Sent SYNC message");
 					
 					int ts_good;
-					int iter = 2;
 					Timestamp sync_timestamp;
 					unsigned sync_timestamp_counter_value;
-					long req = 1000;	// = 1 ms
+					int iter = TX_TIMEOUT_ITER;
+					long req = TX_TIMEOUT_BASE;
 					ts_good =
 						getTxTimestamp(sync, sync_timestamp,
 									   sync_timestamp_counter_value,
 									   false);
 					while (ts_good != 0 && iter-- != 0) {
 						timer->sleep(req);
+						wait_time += req;
+
 						if (ts_good != -72 && iter < 1)
 							XPTPD_ERROR(
 								"Error (TX) timestamping Sync (Retrying), "
@@ -812,10 +830,15 @@ void IEEE1588Port::processEvent(Event e)
 				  if( _accelerated_sync_count == 0 ) {
 					  --_accelerated_sync_count;
 				  }
+				  wait_time *= 1000; // to ns
+				  wait_time =
+					  ((long long)
+					   (pow((double)2,getSyncInterval())*1000000000.0)) -
+					  wait_time;
+				  wait_time = wait_time > EVENT_TIMER_GRANULARITY ? wait_time :
+					  EVENT_TIMER_GRANULARITY;
 				  clock->addEventTimer
-					  ( this, SYNC_INTERVAL_TIMEOUT_EXPIRES,
-						(unsigned long long)
-						(pow((double)2,getSyncInterval())*1000000000.0));
+					  ( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, wait_time );
 			  }
 			  
 			}

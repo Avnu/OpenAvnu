@@ -453,6 +453,8 @@ bool LinuxTimestamper::HWTimestamper_PPS_start( ) {
 
 	igb_initd = true;
 
+	igb_lock( &igb_dev );
+
 	// Edges must be second aligned
 	igb_readreg( &igb_dev, SYSTIMH, &trgttimh );
 	trgttimh += 2;  // First edge in 1-2 seconds
@@ -479,6 +481,8 @@ bool LinuxTimestamper::HWTimestamper_PPS_start( ) {
 	tssdp |= 0x100; // set bit 8 -> SDP0 Time Sync Output
 	igb_writereg(&igb_dev, TSSDP, tssdp);
   
+	igb_unlock( &igb_dev );
+
 	return true;
 }
 
