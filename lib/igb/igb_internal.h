@@ -91,9 +91,8 @@
 #define TSYNC_PORT		319 /* UDP port for the protocol */
 
 struct igb_tx_buffer {
-        int             next_eop;  	/* Index of the desc to watch */
-	struct igb_packet *packet;	/* app-relevant handle */
-	
+	int                next_eop;  /* Index of the desc to watch */
+	struct igb_packet *packet;	  /* app-relevant handle */
 };
 
 /*
@@ -121,6 +120,8 @@ struct tx_ring {
 
 struct adapter {
 	struct e1000_hw	hw;
+
+	sem_t *memlock;
 
 	int 		ldev;	/* file descriptor to igb */
 
