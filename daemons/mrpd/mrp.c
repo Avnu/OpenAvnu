@@ -44,6 +44,19 @@
 /* state machine controls */
 int p2pmac;
 
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
+/* logging on/off bool */
+static int log_this;
+
+int mrp_log_this(void)
+{
+	return log_this;
+}
+void mrp_set_log_this(int v)
+{
+	log_this = v;
+}
+
 char *mrp_event_string(int e)
 {
 	switch (e) {
@@ -142,6 +155,7 @@ static char *mrp_lvatimer_state_string(int s)
 	else
 		return "??";
 }
+#endif
 
 static int client_lookup(client_t * list, struct sockaddr_in *newclient)
 {
@@ -779,15 +793,17 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db,
 	attrib->tx = tx;
 
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP
-	if (attrib->mrp_state != mrp_state) {
-		mrpd_log_printf("mrp_applicant_fsm event %s, state %s -> %s\n",
-				mrp_event_string(event),
-				mrp_state_string(attrib->mrp_state),
-				mrp_state_string(mrp_state));
-	} else {
-		mrpd_log_printf("mrp_applicant_fsm event %s, state %s\n",
-				mrp_event_string(event),
-				mrp_state_string(mrp_state));
+	if (mrp_log_this()) {
+		if (attrib->mrp_state != mrp_state) {
+			mrpd_log_printf("mrp_applicant_fsm event %s, state %s -> %s\n",
+					mrp_event_string(event),
+					mrp_state_string(attrib->mrp_state),
+					mrp_state_string(mrp_state));
+		} else {
+			mrpd_log_printf("mrp_applicant_fsm event %s, state %s\n",
+					mrp_event_string(event),
+					mrp_state_string(mrp_state));
+		}	
 	}
 #endif
 
@@ -913,17 +929,19 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		break;
 	}
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP
-	if (attrib->mrp_state != mrp_state) {
-		mrpd_log_printf("mrp_registrar_fsm event %s, state %s -> %s\n",
-				mrp_event_string(event),
-				mrp_state_string(attrib->mrp_state),
-				mrp_state_string(mrp_state));
+	if (mrp_log_this()) {
+		if (attrib->mrp_state != mrp_state) {
+			mrpd_log_printf("mrp_registrar_fsm event %s, state %s -> %s\n",
+					mrp_event_string(event),
+					mrp_state_string(attrib->mrp_state),
+					mrp_state_string(mrp_state));
 
-	} else {
-		mrpd_log_printf("mrp_registrar_fsm event %s, state %s\n",
-				mrp_event_string(event),
-				mrp_state_string(mrp_state));
-	}
+		} else {
+			mrpd_log_printf("mrp_registrar_fsm event %s, state %s\n",
+					mrp_event_string(event),
+					mrp_state_string(mrp_state));
+		}
+	}	
 #endif
 	attrib->mrp_state = mrp_state;
 	attrib->notify = notify;
