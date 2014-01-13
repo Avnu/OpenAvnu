@@ -36,7 +36,9 @@
 #define LOG_MVRP 0
 #define LOG_MMRP 0
 #define LOG_MSRP 0
+#define LOG_MSRP_FILTERING 0
 #define LOG_TIMERS 0
+#define LOG_MSRP_GARBAGE_COLLECTION 0
 #define LOG_TXNOW 0
 #define LOG_CLIENT_RECV 0
 #define LOG_CLIENT_SEND 0
@@ -207,3 +209,8 @@ int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
 		     mrp_applicant_attribute_t * aattrib, char *str,
 		     int strlen);
 void mrp_schedule_tx_event(struct mrp_database *mrp_db);
+
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
+int mrp_log_this(void);
+void mrp_set_log_this(int v);
+#endif

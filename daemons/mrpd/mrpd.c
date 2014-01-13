@@ -652,7 +652,12 @@ void process_events(void)
 				recv_ctl_msg();
 			if (mmrp_enable) {
 				if FD_ISSET
-					(mmrp_socket, &sel_fds) mmrp_recv_msg();
+					(mmrp_socket, &sel_fds) {
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+					mrpd_log_printf("== EVENT mmrp_recv_msg ==\n");
+#endif
+					mmrp_recv_msg();
+					}
 				if FD_ISSET
 					(MMRP_db->mrp_db.lva_timer, &sel_fds) {
 					mrpd_log_timer_event("MMRP",
@@ -674,7 +679,12 @@ void process_events(void)
 			}
 			if (mvrp_enable) {
 				if FD_ISSET
-					(mvrp_socket, &sel_fds) mvrp_recv_msg();
+					(mvrp_socket, &sel_fds) {
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+					mrpd_log_printf("== EVENT mvrp_recv_msg ==\n");
+#endif
+					mvrp_recv_msg();
+					}
 				if FD_ISSET
 					(MVRP_db->mrp_db.lva_timer, &sel_fds) {
 					mrpd_log_timer_event("MVRP",
@@ -696,7 +706,12 @@ void process_events(void)
 			}
 			if (msrp_enable) {
 				if FD_ISSET
-					(msrp_socket, &sel_fds) msrp_recv_msg();
+					(msrp_socket, &sel_fds) {
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+					mrpd_log_printf("== EVENT msrp_recv_msg ==\n");
+#endif
+					msrp_recv_msg();
+				}
 				if FD_ISSET
 					(MSRP_db->mrp_db.lva_timer, &sel_fds) {
 					mrpd_log_timer_event("MSRP",
@@ -717,6 +732,9 @@ void process_events(void)
 					}
 			}
 			if (FD_ISSET(periodic_timer, &sel_fds)) {
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+				mrpd_log_printf("== EVENT periodic_timer ==\n");
+#endif
 				if (mmrp_enable) {
 					mmrp_event(MRP_EVENT_PERIODIC, NULL);
 				}
@@ -731,6 +749,9 @@ void process_events(void)
 			if (FD_ISSET(gc_timer, &sel_fds)) {
 				mrpd_reclaim();
 			}
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+		mrpd_log_printf("== EVENT DONE ==\n");
+#endif
 		}
 	} while (1);
 }
@@ -876,13 +897,13 @@ int main(int argc, char *argv[])
 
 static void mrpd_log_timer_event(char *src, int event)
 {
-#if LOG_TIMERS
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
 	if (event == MRP_EVENT_LVATIMER) {
-		mrpd_log_printf("%s leaveAll timer expires ->\n", src);
+		mrpd_log_printf("== EVENT %s leaveAll timer expires ==\n", src);
 	} else if (event == MRP_EVENT_LVTIMER) {
-		mrpd_log_printf("%s leave timer expires ->\n", src);
+		mrpd_log_printf("== EVENT %s leave timer expires ==\n", src);
 	} else if (event == MRP_EVENT_TX) {
-		mrpd_log_printf("%s join timer expires ->\n", src);
+		mrpd_log_printf("== EVENT %s join timer expires ==\n", src);
 	}
 #else
 	(void)src;
