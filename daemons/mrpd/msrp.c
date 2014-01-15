@@ -87,6 +87,8 @@ static void msrp_update_log_filter(struct msrp_attribute *attrib)
 #else
 static void msrp_update_log_filter(struct msrp_attribute *attrib)
 {
+	(void)(attrib);
+
 	mrp_set_log_this(1);
 }
 #endif
