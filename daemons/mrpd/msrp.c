@@ -315,20 +315,25 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		break;
 	case MRP_EVENT_RLA:
 		mrp_jointimer_start(&(MSRP_db->mrp_db));
+		if (NULL == rattrib)
+			return -1;	/* XXX internal fault */
+
 		/* update state */
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
+			if (attrib->type == rattrib->type) {
 #if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
+				msrp_update_log_filter(attrib);
+				if (mrp_log_this())
+					mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
+						msrp_attrib_type_string(attrib->type));
 #endif
-			mrp_applicant_fsm(&(MSRP_db->mrp_db),
+				mrp_applicant_fsm(&(MSRP_db->mrp_db),
 					  &(attrib->applicant), MRP_EVENT_RLA);
-			mrp_registrar_fsm(&(attrib->registrar),
+				mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_RLA);
+			}
 			attrib = attrib->next;
 		}
 #if LOG_MSRP
@@ -653,6 +658,18 @@ int msrp_recv_msg()
 				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
 				     ((uint8_t *) mrpdu_vectorptr)[1]);
 #endif
+
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+					attrib = msrp_alloc();
+					if (NULL == attrib)
+						goto out;	/* oops - internal error */
+
+					attrib->type = 	MSRP_DOMAIN_TYPE;				
+					msrp_event(MRP_EVENT_RLA, attrib);
+					free(attrib);
+				}
+
+
 				if (0 == numvalues) {
 					/* skip this null attribute ... some switches generate these ... */
 					/* 2 byte numvalues + 4 byte FirstValue + (0) vector bytes */
@@ -767,10 +784,6 @@ int msrp_recv_msg()
 					numvalues -= numvalues_processed;
 				}
 
-				if (MRPDU_VECT_LVA
-				    (ntohs(mrpdu_vectorptr->VectorHeader)))
-					msrp_event(MRP_EVENT_RLA, NULL);
-
 				/* 2 byte numvalues + 4 byte FirstValue + (n) vector bytes */
 				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 				mrpdu_msg_ptr += 6 + numvectorbytes;
@@ -807,6 +820,17 @@ int msrp_recv_msg()
 				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
 				     ((uint8_t *) mrpdu_vectorptr)[1]);
 #endif
+
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+					attrib = msrp_alloc();
+					if (NULL == attrib)
+						goto out;	/* oops - internal error */
+
+					attrib->type = 	MSRP_LISTENER_TYPE;				
+					msrp_event(MRP_EVENT_RLA, attrib);
+					free(attrib);
+				}
+
 
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 8 byte FirstValue + (0) vector bytes */
@@ -1023,10 +1047,6 @@ int msrp_recv_msg()
 					numvalues -= numvalues_processed;
 				}
 
-				if (MRPDU_VECT_LVA
-				    (ntohs(mrpdu_vectorptr->VectorHeader)))
-					msrp_event(MRP_EVENT_RLA, NULL);
-
 				numvalues =
 				    MRPDU_VECT_NUMVALUES(ntohs
 							 (mrpdu_vectorptr->
@@ -1084,6 +1104,16 @@ int msrp_recv_msg()
 				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
 				     ((uint8_t *) mrpdu_vectorptr)[1]);
 #endif
+
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+					attrib = msrp_alloc();
+					if (NULL == attrib)
+						goto out;	/* oops - internal error */
+
+					attrib->type = 	MSRP_TALKER_ADV_TYPE;				
+					msrp_event(MRP_EVENT_RLA, attrib);
+					free(attrib);
+				}
 
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 25 byte FirstValue + (0) vector bytes */
@@ -1277,10 +1307,6 @@ int msrp_recv_msg()
 					numvalues -= numvalues_processed;
 				}
 
-				if (MRPDU_VECT_LVA
-				    (ntohs(mrpdu_vectorptr->VectorHeader)))
-					msrp_event(MRP_EVENT_RLA, NULL);
-
 				/* 2 byte numvalues + 25 byte FirstValue + (n) vector bytes */
 				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 				mrpdu_msg_ptr += 27 + numvectorbytes;
@@ -1315,6 +1341,17 @@ int msrp_recv_msg()
 				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
 				     ((uint8_t *) mrpdu_vectorptr)[1]);
 #endif
+
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+					attrib = msrp_alloc();
+					if (NULL == attrib)
+						goto out;	/* oops - internal error */
+
+					attrib->type = 	MSRP_TALKER_FAILED_TYPE;				
+					msrp_event(MRP_EVENT_RLA, attrib);
+					free(attrib);
+				}
+
 				if (0 == numvalues) {
 					/* 2 byte numvalues + 34 byte FirstValue + (0) vector bytes */
 					mrpdu_msg_ptr =
@@ -1511,10 +1548,6 @@ int msrp_recv_msg()
 					}
 					numvalues -= numvalues_processed;
 				}
-
-				if (MRPDU_VECT_LVA
-				    (ntohs(mrpdu_vectorptr->VectorHeader)))
-					msrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 2 byte numvalues + 34 byte FirstValue + (n) vector bytes */
 				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;

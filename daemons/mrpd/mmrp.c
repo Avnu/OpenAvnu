@@ -223,17 +223,22 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		break;
 	case MRP_EVENT_RLA:
 		mrp_jointimer_start(&(MMRP_db->mrp_db));
+		if (NULL == rattrib)
+			return -1;	/* XXX internal fault */
+
 		/* update state */
 		attrib = MMRP_db->attrib_list;
 
 		while (NULL != attrib) {
+			if (attrib->type == rattrib->type) {
 #if LOG_MMRP
-			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
+				mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
-			mrp_applicant_fsm(&(MMRP_db->mrp_db),
+				mrp_applicant_fsm(&(MMRP_db->mrp_db),
 					  &(attrib->applicant), MRP_EVENT_RLA);
-			mrp_registrar_fsm(&(attrib->registrar),
+				mrp_registrar_fsm(&(attrib->registrar),
 					  &(MMRP_db->mrp_db), MRP_EVENT_RLA);
+			}
 			attrib = attrib->next;
 		}
 
@@ -486,6 +491,16 @@ int mmrp_recv_msg()
 							 (mrpdu_vectorptr->
 							  VectorHeader));
 
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+					attrib = mmrp_alloc();
+					if (NULL == attrib)
+						goto out;	/* oops - internal error */
+
+					attrib->type = 	MMRP_SVCREQ_TYPE;				
+					mmrp_event(MRP_EVENT_RLA, attrib);
+					free(attrib);
+				}
+
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
 					goto out;
@@ -614,6 +629,16 @@ int mmrp_recv_msg()
 							 (mrpdu_vectorptr->
 							  VectorHeader));
 
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+					attrib = mmrp_alloc();
+					if (NULL == attrib)
+						goto out;	/* oops - internal error */
+
+					attrib->type = 	MMRP_MACVEC_TYPE;				
+					mmrp_event(MRP_EVENT_RLA, attrib);
+					free(attrib);
+				}
+
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
 					goto out;
@@ -706,10 +731,6 @@ int mmrp_recv_msg()
 					}
 					numvalues -= numvalues_processed;
 				}
-
-				if (MRPDU_VECT_LVA
-				    (ntohs(mrpdu_vectorptr->VectorHeader)))
-					mmrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 1 byte Type, 1 byte Len, 6 byte FirstValue, and (n) vector bytes */
 				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
