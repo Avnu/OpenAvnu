@@ -888,6 +888,7 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 	case MRP_EVENT_LVTIMER:
 		switch (mrp_state) {
 		case MRP_LV_STATE:
+			notify = MRP_NOTIFY_LV;
 			mrp_state = MRP_MT_STATE;
 			break;
 		case MRP_MT_STATE:
