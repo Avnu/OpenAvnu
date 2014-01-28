@@ -1878,6 +1878,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	int vectevt_idx;
 	uint8_t streamid_firstval[8];
 	uint8_t destmac_firstval[6];
+	uint16_t tspec_maxframesize_firstval;
 	int attriblistlen;
 	struct msrp_attribute *attrib, *vattrib;
 	mrpdu_message_t *mrpdu_msg;
@@ -1957,10 +1958,11 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		    (uint8_t) attrib->attribute.talk_listen.
 		    DataFrameParameters.Vlan_ID;
 
+		tspec_maxframesize_firstval = attrib->attribute.talk_listen.TSpec.MaxFrameSize;
 		mrpdu_vectorptr->FirstValue_VectorEvents[16] =
-		    attrib->attribute.talk_listen.TSpec.MaxFrameSize >> 8;
+		    tspec_maxframesize_firstval >> 8;
 		mrpdu_vectorptr->FirstValue_VectorEvents[17] =
-		    (uint8_t) attrib->attribute.talk_listen.TSpec.MaxFrameSize;
+		    (uint8_t)tspec_maxframesize_firstval;
 
 		mrpdu_vectorptr->FirstValue_VectorEvents[18] =
 		    attrib->attribute.talk_listen.TSpec.MaxIntervalFrames >> 8;
@@ -2049,6 +2051,10 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 					streamid_firstval, 8);
 
 			if (0 != mac_eq)
+				break;
+
+			/* check TSpec MaxFrameSize before vectorizing */
+			if (tspec_maxframesize_firstval != vattrib->attribute.talk_listen.TSpec.MaxFrameSize)
 				break;
 
 			vattrib->applicant.tx = 0;
