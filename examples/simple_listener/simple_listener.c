@@ -78,6 +78,10 @@ pcap_t* handle;
 u_char ETHER_TYPE[] = { 0x22, 0xf0 };
 SNDFILE* snd_file;
 
+#define VERSION_STR	"1.1"
+static const char *version_str = "simple_listener v" VERSION_STR "\n"
+    "Copyright (c) 2012, Intel Corporation\n";
+
 static void help()
 {
 	fprintf(stderr, "\n"
@@ -87,7 +91,7 @@ static void help()
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
 		"    -f  set the name of the output wav-file\n" 
-		"\n" "%s" "\n");
+		"\n" "%s" "\n", version_str);
 	exit(1);
 }
 
@@ -180,8 +184,9 @@ int msg_process(char *buf, int buflen)
 	uint32_t id;
 	fprintf(stderr, "Msg: %s\n", buf);
  	int l = 0;
-	if ('S' == buf[l++] && 'N' == buf[l++] && 'E' == buf[l++] && 'T' == buf[++l])
+	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
 	{
+		l = 6; // skip "Sxx T:"
 		while ('S' != buf[l++]);
 		l++;
 		for(int j = 0; j < 8 ; l+=2, j++)
@@ -214,20 +219,6 @@ int recv_msg()
 
 }
 
-int join_vlan()
-{
-	int rc;
-	char *msgbuf = malloc(1500);
-	if (NULL == msgbuf)
-		return -1;
-	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "V++:I=0002");
-	rc = send_msg(msgbuf, 1500);
-
-	free(msgbuf);
-	return rc;
-}
-
 int await_talker()
 {
 	while (0 == talker)	
@@ -247,6 +238,20 @@ int send_msg(char *data, int data_len)
 		return (sendto(control_socket, data, data_len, 0, (struct sockaddr*)&addr, (socklen_t)sizeof(addr)));
 	else 
 		return 0;
+}
+
+int join_vlan()
+{
+	int rc;
+	char *msgbuf = malloc(1500);
+	if (NULL == msgbuf)
+		return -1;
+	memset(msgbuf, 0, 1500);
+	sprintf(msgbuf, "V++:I=0002");
+	rc = send_msg(msgbuf, 1500);
+
+	free(msgbuf);
+	return rc;
 }
 
 int mrp_disconnect()
