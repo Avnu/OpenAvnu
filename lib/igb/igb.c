@@ -1097,13 +1097,14 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 #define MIN_SYSCLOCK_WINDOW 72 /* ns */
 
 static inline void rdtscpll( uint64_t *val ) {
+	uint32_t high, low;
 	__asm__ __volatile__( "lfence;"
 						  "rdtsc;"
-						  "shl $32,%%rdx;"
-						  "or %%rdx,%%rax"
-						  : "=a"(*val)
+						  : "=d"(high), "=a"(low)
 						  :
-						  : "%rdx", "memory" );
+						  : "memory" );
+	*val = high;
+	*val = (*val << 32) | low;
 }
 
 static inline void __sync() {
