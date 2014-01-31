@@ -448,6 +448,10 @@ int mvrp_recv_msg(void)
 							 (mrpdu_vectorptr->
 							  VectorHeader));
 
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+					mvrp_event(MRP_EVENT_RLA, NULL);
+				}
+
 				if (0 == numvalues)
 					/* Malformed - cant tell how long the trailing vectors are */
 					goto out;
@@ -542,10 +546,6 @@ int mvrp_recv_msg(void)
 					}
 					numvalues -= numvalues_processed;
 				}
-
-				if (MRPDU_VECT_LVA
-				    (ntohs(mrpdu_vectorptr->VectorHeader)))
-					mvrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 1 byte Type, 1 byte Len, 2 byte FirstValue, and (n) vector bytes */
 				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
