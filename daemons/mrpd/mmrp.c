@@ -196,31 +196,22 @@ int mmrp_merge(struct mmrp_attribute *rattrib)
 int mmrp_event(int event, struct mmrp_attribute *rattrib)
 {
 	struct mmrp_attribute *attrib;
+	int tx_event_type = 0;
+	int tx_request = 0;
 
 	switch (event) {
 	case MRP_EVENT_LVATIMER:
 		mrp_lvatimer_stop(&(MMRP_db->mrp_db));
 		mrp_jointimer_stop(&(MMRP_db->mrp_db));
-		/* update state */
-		attrib = MMRP_db->attrib_list;
 
-		while (NULL != attrib) {
-#if LOG_MMRP
-			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
-#endif
-			mrp_applicant_fsm(&(MMRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_TXLA);
-			mrp_registrar_fsm(&(attrib->registrar),
-					  &(MMRP_db->mrp_db), MRP_EVENT_TXLA);
-			attrib = attrib->next;
+		mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_LVATIMER, &tx_request);
+		if (tx_request) {
+			MMRP_db->send_empty_LeaveAll_flag = 1;
+			mmrp_event(MRP_EVENT_SLA, NULL);
+			mmrp_event(MRP_EVENT_TX, NULL);
 		}
-
-		mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_LVATIMER);
-
-		MMRP_db->send_empty_LeaveAll_flag = 1;
-		mmrp_txpdu();
-		MMRP_db->send_empty_LeaveAll_flag = 0;
 		break;
+	case MRP_EVENT_SLA:
 	case MRP_EVENT_RLA:
 		mrp_jointimer_start(&(MMRP_db->mrp_db));
 		if (NULL == rattrib)
@@ -242,23 +233,28 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 			attrib = attrib->next;
 		}
 
-		mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_RLA);
+		if (MRP_EVENT_RLA == event)
+			mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_RLA, NULL);
 
 		break;
 	case MRP_EVENT_TX:
 		mrp_jointimer_stop(&(MMRP_db->mrp_db));
 		attrib = MMRP_db->attrib_list;
 
+		tx_event_type = MRP_EVENT_TX;
+		if (mrp_lvatimer_fsm_LeaveAll(&(MMRP_db->mrp_db)))
+			tx_event_type = MRP_EVENT_TXLA;
+
 		while (NULL != attrib) {
 #if LOG_MMRP
 			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MMRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_TX);
+					  &(attrib->applicant), tx_event_type);
 			attrib = attrib->next;
 		}
 
-		mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_TX);
+		mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_TX, NULL);
 
 		mmrp_txpdu();
 		break;
@@ -977,6 +973,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		    &(mrpdu_vectorptr->FirstValue_VectorEvents[mrpdu_msg->AttributeLength]);
 		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
 	}
+	MMRP_db->send_empty_LeaveAll_flag = 0;
 
 	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) mrpdu_msg->Data) {
 		*bytes_used = 0;
@@ -1709,7 +1706,7 @@ int mmrp_init(int mmrp_enable)
 	if (rc < 0)
 		goto abort_alloc;
 
-	mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_BEGIN);
+	mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_BEGIN, NULL);
 	return 0;
 
  abort_alloc:

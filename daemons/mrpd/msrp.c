@@ -284,37 +284,23 @@ int msrp_merge(struct msrp_attribute *rattrib)
 int msrp_event(int event, struct msrp_attribute *rattrib)
 {
 	struct msrp_attribute *attrib;
+	int tx_event_type = 0;
+	int tx_request = 0;
 	int rc;
 
 	switch (event) {
 	case MRP_EVENT_LVATIMER:
 		mrp_lvatimer_stop(&(MSRP_db->mrp_db));
 		mrp_jointimer_stop(&(MSRP_db->mrp_db));
-		/* update state */
-		attrib = MSRP_db->attrib_list;
 
-		while (NULL != attrib) {
-#if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
-#endif
-			mrp_applicant_fsm(&(MSRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_TXLA);
-			mrp_registrar_fsm(&(attrib->registrar),
-					  &(MSRP_db->mrp_db), MRP_EVENT_TXLA);
-			attrib = attrib->next;
+		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_LVATIMER, &tx_request);
+		if (tx_request) {
+			MSRP_db->send_empty_LeaveAll_flag = 1;
+			msrp_event(MRP_EVENT_SLA, NULL);
+			msrp_event(MRP_EVENT_TX, NULL);
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
-		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_LVATIMER);
-
-		MSRP_db->send_empty_LeaveAll_flag = 1;
-		msrp_txpdu();
-		MSRP_db->send_empty_LeaveAll_flag = 0;
 		break;
+	case MRP_EVENT_SLA:
 	case MRP_EVENT_RLA:
 		mrp_jointimer_start(&(MSRP_db->mrp_db));
 		if (NULL == rattrib)
@@ -341,12 +327,17 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 		msrp_update_log_filter(NULL);
 #endif
-		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_RLA);
+		if (MRP_EVENT_RLA == event)
+			mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_RLA, NULL);
 
 		break;
 	case MRP_EVENT_TX:
 		mrp_jointimer_stop(&(MSRP_db->mrp_db));
 		attrib = MSRP_db->attrib_list;
+
+		tx_event_type = MRP_EVENT_TX;
+		if (mrp_lvatimer_fsm_LeaveAll(&(MSRP_db->mrp_db)))
+			tx_event_type = MRP_EVENT_TXLA;
 
 		while (NULL != attrib) {
 #if LOG_MSRP
@@ -356,13 +347,13 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 					msrp_attrib_type_string(attrib->type));
 #endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_TX);
+					  &(attrib->applicant), tx_event_type);
 			attrib = attrib->next;
 		}
 #if LOG_MSRP
 		msrp_update_log_filter(NULL);
 #endif
-		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_TX);
+		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_TX, NULL);
 
 		msrp_txpdu();
 		break;
@@ -1634,6 +1625,9 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
+#if LOG_MSRP
+			mrpd_log_printf("MSRP msrp_emit_domainvectors() drop optional attrib\n");
+#endif
 			attrib->applicant.tx = 0;
 			attrib = attrib->next;
 			continue;
@@ -1827,6 +1821,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		    &(mrpdu_vectorptr->FirstValue_VectorEvents[mrpdu_msg->AttributeLength]);
 		mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg_ptr;
 	}
+	MSRP_db->send_empty_LeaveAll_flag = 0;
 
 	if (mrpdu_vectorptr == (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2])) {
 		*bytes_used = 0;
@@ -2579,6 +2574,10 @@ int msrp_txpdu(void)
 		MSRP_db->mrp_db.lva.tx = 0;
 	}
 
+#if LOG_MSRP
+	mrpd_log_printf("MSRP msrp_txpdu() with lva flag %d\n", lva);
+#endif
+
 	rc = msrp_emit_talkervectors(mrpdu_msg_ptr, mrpdu_msg_eof, &bytes, lva, MSRP_TALKER_ADV_TYPE);
 	if (-1 == rc)
 		goto out;
@@ -2605,6 +2604,8 @@ int msrp_txpdu(void)
 		goto out;
 
 	mrpdu_msg_ptr += bytes;
+
+	MSRP_db->send_empty_LeaveAll_flag = 0;
 
 	if (mrpdu_msg_ptr == MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu)) {
 		goto out;	/* nothing to send */
@@ -3283,7 +3284,7 @@ int msrp_init(int msrp_enable)
 	if (rc < 0)
 		goto abort_alloc;
 
-	mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_BEGIN);
+	mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_BEGIN, NULL);
 
 	return 0;
 

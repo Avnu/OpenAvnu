@@ -114,6 +114,7 @@ typedef struct mrp_registrar_attribute {
 #define MRP_EVENT_PERIODIC_DISABLE 1900	/*  periodic timer disable */
 #define MRP_EVENT_LVTIMER  2000	/*  leave timer expire */
 #define MRP_EVENT_LVATIMER 2100	/*  leaveall timer expire */
+#define MRP_EVENT_SLA 2200	/*  after MRP_EVENT_LVATIMER, MRP_EVENT_SLA is used to send LA to applicant and participant */
 
 #define MRP_SND_NEW	0	/* declare and register a new attribute from a new participant */
 #define MRP_SND_JOIN	1	/* declare and register an attribute (generally) */
@@ -200,7 +201,8 @@ int mrp_lvtimer_start(struct mrp_database *mrp_db);
 int mrp_lvtimer_stop(struct mrp_database *mrp_db);
 int mrp_lvatimer_start(struct mrp_database *mrp_db);
 int mrp_lvatimer_stop(struct mrp_database *mrp_db);
-int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event);
+int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event, int *tx_request);
+int mrp_lvatimer_fsm_LeaveAll(struct mrp_database *mrp_db);
 int mrp_applicant_fsm(struct mrp_database *mrp_db,
 		      mrp_applicant_attribute_t * attrib, int event);
 int mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
