@@ -157,8 +157,8 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		mrp_lvatimer_fsm(&(MVRP_db->mrp_db), MRP_EVENT_LVATIMER, &tx_request);
 		if (tx_request) {
 			MVRP_db->send_empty_LeaveAll_flag = 1;
-			mvrp_event(MRP_EVENT_TX, NULL);
 			mvrp_event(MRP_EVENT_SLA, NULL);
+			mvrp_event(MRP_EVENT_TX, NULL);
 		}
 		break;
 	case MRP_EVENT_SLA:
