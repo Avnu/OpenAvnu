@@ -46,7 +46,7 @@ int p2pmac;
 
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
 /* logging on/off bool */
-static int log_this;
+static int log_this = 1;
 
 int mrp_log_this(void)
 {
@@ -143,6 +143,48 @@ static char *mrp_state_string(int s)
 		return "LV";
 	case MRP_MT_STATE:
 		return "MT";
+	default:
+		return "??";
+	}
+}
+
+char *mrp_send_string(int s)
+{
+	switch (s) {
+	case MRP_SND_NEW:
+		return "NEW";
+	case MRP_SND_JOIN:
+		return "JOIN";
+	case MRP_SND_IN:
+		return "IN";
+	case MRP_SND_LV:
+		return "LV";
+	case MRP_SND_LVA:
+		return "LVA";
+	case MRP_SND_NULL:
+		return "NULL";
+	case MRP_SND_NONE:
+		return "NONE";
+	default:
+		return "??";
+	}
+}
+
+char *mrp_pdu_string(int s)
+{
+	switch (s) {
+	case MRPDU_NULL_LVA: /* or NEW */
+		return "null LVA | NEW";
+	case MRPDU_LVA: /* pr JOININ */
+		return "LVA | JOININ";
+	case MRPDU_IN:
+		return "IN";
+	case MRPDU_JOINMT:
+		return "JOINMT";
+	case MRPDU_MT:
+		return "MT";
+	case MRPDU_LV:
+		return "LV";
 	default:
 		return "??";
 	}
