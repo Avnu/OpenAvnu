@@ -372,7 +372,9 @@ int mvrp_recv_msg(void)
 	if (MVRP_ETYPE != ntohs(eth->typelen))
 		goto out;
 
-	/* XXX check dest mac address too? */
+	/* check dest mac address too */
+	if (memcmp(eth->destaddr, MVRP_CUSTOMER_BRIDGE_ADDR, sizeof(eth->destaddr)))
+		goto out;
 
 	mrpdu = (mrpdu_t *) (msgbuf + sizeof(struct eth_hdr));
 

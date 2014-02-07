@@ -584,7 +584,9 @@ int msrp_recv_msg()
 	if (MSRP_ETYPE != ntohs(eth->typelen)) {
 		goto out;
 	}
-	/* XXX check dest mac address too? */
+	/* check dest mac address too */
+	if (memcmp(eth->destaddr, MSRP_ADDR, sizeof(eth->destaddr)))
+		goto out;
 
 	mrpdu = (mrpdu_t *) (msgbuf + sizeof(struct eth_hdr));
 
