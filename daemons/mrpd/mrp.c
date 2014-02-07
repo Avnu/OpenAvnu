@@ -102,8 +102,6 @@ char *mrp_event_string(int e)
 		return "leavetimer!";
 	case MRP_EVENT_LVATIMER:
 		return "leavealltimer!";
-	case MRP_EVENT_SLA:
-		return "sLA";
 	default:
 		return "UNKNOWN";
 	}
@@ -385,23 +383,16 @@ int mrp_lvatimer_stop(struct mrp_database *mrp_db)
 	return mrpd_timer_stop(mrp_db->lva_timer);
 }
 
-int mrp_lvatimer_fsm_LeaveAll(struct mrp_database *mrp_db)
+int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 {
-	return (mrp_db->lva.state == MRP_TIMER_ACTIVE);
-}
-
-int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event, int *tx_request)
-{
-	int tx_req;
 	int la_state;
-	int tx;
+	int sndmsg = MRP_SND_NONE;
+	int tx = 0;
 
 	if (NULL == mrp_db)
 		return -1;
 
-	tx_req = 0;
 	la_state = mrp_db->lva.state;
-	tx = mrp_db->lva.tx;
 
 	switch (event) {
 	case MRP_EVENT_BEGIN:
@@ -411,6 +402,7 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event, int *tx_request)
 	case MRP_EVENT_TX:
 		if (la_state == MRP_TIMER_ACTIVE) {
 			tx = 1;
+			sndmsg = MRP_SND_LVA;
 			la_state = MRP_TIMER_PASSIVE;
 		}
 		break;
@@ -420,12 +412,9 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event, int *tx_request)
 		mrp_lvatimer_start(mrp_db);
 		break;
 	case MRP_EVENT_LVATIMER:
-		if (la_state == MRP_TIMER_PASSIVE) {
-			tx_req = 1;
-			mrp_lvatimer_stop(mrp_db);
-			mrp_lvatimer_start(mrp_db);
-		}
 		la_state = MRP_TIMER_ACTIVE;
+		mrp_lvatimer_stop(mrp_db);
+		mrp_lvatimer_start(mrp_db);
 		break;
 	default:
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP
@@ -437,22 +426,19 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event, int *tx_request)
 	}
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP
 	if (mrp_db->lva.state != la_state) {
-		mrpd_log_printf("mrp_lvatimer_fsm event %s state %s -> %s [tx flag %d, tx req %d]\n",
+		mrpd_log_printf("mrp_lvatimer_fsm event %s state %s -> %s\n",
 				mrp_event_string(event),
 				mrp_lvatimer_state_string(mrp_db->lva.state),
-				mrp_lvatimer_state_string(la_state),
-				tx, tx_req);
+				mrp_lvatimer_state_string(la_state));
 	} else {
-		mrpd_log_printf("mrp_lvatimer_fsm event %s state %s [tx flag %d, tx req %d]\n",
+		mrpd_log_printf("mrp_lvatimer_fsm event %s state %s\n",
 				mrp_event_string(event),
-				mrp_lvatimer_state_string(la_state),
-				tx, tx_req);
+				mrp_lvatimer_state_string(la_state));
 	}
 #endif
 	mrp_db->lva.state = la_state;
+	mrp_db->lva.sndmsg = sndmsg;
 	mrp_db->lva.tx = tx;
-	if (tx_request)
-		*tx_request = tx_req;
 
 	return 0;
 }
