@@ -213,4 +213,6 @@ void mrp_schedule_tx_event(struct mrp_database *mrp_db);
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
 int mrp_log_this(void);
 void mrp_set_log_this(int v);
+char *mrp_send_string(int s);
+char *mrp_pdu_stringild(int s);
 #endif
