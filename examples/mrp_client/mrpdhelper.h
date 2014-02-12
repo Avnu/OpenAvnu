@@ -138,6 +138,9 @@ int mrpdhelper_parse_notification(char *sz,
 int mrpdhelper_notify_equal(struct mrpdhelper_notify *n1,
 			    struct mrpdhelper_notify *n2);
 
+int mrpdhelper_notify_mergable(struct mrpdhelper_notify *n1,
+			    struct mrpdhelper_notify *n2);
+
 int mrpdhelper_to_string(struct mrpdhelper_notify *mrp_data,
 				char *sz,  size_t len);
 

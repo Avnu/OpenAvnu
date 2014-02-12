@@ -264,7 +264,12 @@ int msrp_merge(struct msrp_attribute *rattrib)
 #ifdef ENABLE_MERGED_LATENCY
 		attrib->attribute.talk_listen.AccumulatedLatency =
 		    rattrib->attribute.talk_listen.AccumulatedLatency;
-#endif
+#endif 
+		/* support merging
+		 * TalkerFailed <- TalkerAdvertise and
+		 * TalkerAdvertise <- TalkerFailed
+		 */
+		 attrib->type = rattrib->type;
 		break;
 	case MSRP_LISTENER_TYPE:
 		if (attrib->substate != rattrib->substate) {
@@ -1407,10 +1412,9 @@ int msrp_recv_msg()
 						attrib = msrp_alloc();
 						if (NULL == attrib)
 							goto out;	/* oops - internal error */
-						/* update the failure information on merge, but don't support
-						 * different ADV and FAILED_TYPES in the list of attributes */
+
 						attrib->type =
-						    MSRP_TALKER_ADV_TYPE;
+						    MSRP_TALKER_FAILED_TYPE;
 
 						/* NOTE this isn't from us */
 						attrib->direction =
@@ -2934,6 +2938,31 @@ static int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
+static int msrp_cmd_parse_join_or_new_stream_failure(char *buf, int buflen,
+					     struct msrpdu_talker_fail
+					     *talker_ad, int *err_index)
+{
+	struct parse_param specs[] = {
+		{"S" PARSE_ASSIGN, parse_c64, talker_ad->StreamID},
+		{"A" PARSE_ASSIGN, parse_mac,
+		 talker_ad->DataFrameParameters.Dest_Addr},
+		{"V" PARSE_ASSIGN, parse_u16,
+		 &talker_ad->DataFrameParameters.Vlan_ID},
+		{"Z" PARSE_ASSIGN, parse_u16, &talker_ad->TSpec.MaxFrameSize},
+		{"I" PARSE_ASSIGN, parse_u16,
+		 &talker_ad->TSpec.MaxIntervalFrames},
+		{"P" PARSE_ASSIGN, parse_u8, &talker_ad->PriorityAndRank},
+		{"L" PARSE_ASSIGN, parse_u32, &talker_ad->AccumulatedLatency},
+		{"B" PARSE_ASSIGN, parse_c64, &talker_ad->FailureInformation.BridgeID},
+		{"C" PARSE_ASSIGN, parse_c64, &talker_ad->FailureInformation.FailureCode},
+		{0, parse_null, 0}
+	};
+	if (buflen < 47)
+		return -1;
+	memset(talker_ad, 0, sizeof(*talker_ad));
+	return parse(buf + 4, buflen - 4, specs, err_index);
+}
+
 /*
  * Required fields are:
  * talker_ad->StreamID
@@ -2944,9 +2973,13 @@ static int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
  * talker_ad->PriorityAndRank
  * talker_ad->AccumulatedLatency
  *
+ * For TalkerFaild, also require non-zero values in:
+ * talker_ad->FailureInformation.BridgeID
+ * talker_ad->FailureInformation.FailureCode
  */
 
 static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad,
+				       int attrib_type,
 				       int mrp_event)
 {
 	struct msrp_attribute *attrib;
@@ -2955,7 +2988,7 @@ static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad,
 	if (NULL == attrib) {
 		return -1;
 	}
-	attrib->type = MSRP_TALKER_ADV_TYPE;
+	attrib->type = attrib_type;
 	attrib->attribute.talk_listen = *talker_ad;
 	msrp_event(mrp_event, attrib);
 	return 0;
@@ -3105,6 +3138,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	struct msrpdu_domain domain_param;
 	struct msrpdu_talker_fail talker_param;
 	int err_index;
+	int attrib_type;
 
 	if (NULL == MSRP_db) {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s\n", buf);
@@ -3201,10 +3235,25 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		   ",I=%d" \
 		   ",P=%d" \
 		   ",L=%d" \
+
+		   if declaring a TalkerFailed, additional string fields
+		   ",B=%02x%02x%02x%02x%02x%02x%02x%02x" \   (Failure BridgeID)
+		   ",C=%d" \    (failure code)
+		   are required.
+
 		 */
-		rc = msrp_cmd_parse_join_or_new_stream(buf, buflen,
+		if (strstr(buf,"B=")) {
+			attrib_type = MSRP_TALKER_FAILED_TYPE;
+			rc = msrp_cmd_parse_join_or_new_stream_failure(buf, buflen,
 						       &talker_param,
 						       &err_index);
+		} else {
+			attrib_type = MSRP_TALKER_ADV_TYPE;
+			rc = msrp_cmd_parse_join_or_new_stream(buf, buflen,
+						       &talker_param,
+						       &err_index);
+		}
+
 		if (rc)
 			goto out_ERP;
 		if ('?' == buf[2]) {
@@ -3212,7 +3261,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		} else {
 			mrp_event = MRP_EVENT_NEW;
 		}
-		rc = msrp_cmd_join_or_new_stream(&talker_param, mrp_event);
+		rc = msrp_cmd_join_or_new_stream(&talker_param, attrib_type, mrp_event);
 		if (rc)
 			goto out_ERI;	/* oops - internal error */
 	} else {
