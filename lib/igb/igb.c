@@ -954,7 +954,7 @@ static __inline__ u_int64_t rdtscpll(void)
 	u_int32_t lo, hi;
 
 	__asm__ __volatile__ ("cpuid");
-	__asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+	__asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi): "a"(0) : "%ebx", "%ecx");
 	return (u_int64_t) hi << 32 | lo;
 }
 
