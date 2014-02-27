@@ -38,11 +38,9 @@
 #include <string.h>
 #include <map>
 #include <ieee1588.hpp>
+#include <ptptypes.hpp>
 
 #define FACTORY_NAME_LENGTH 48
-#define ETHER_ADDR_OCTETS	6
-#define IP_ADDR_OCTETS		4
-#define PTP_ETHERTYPE 0x88F7
 #define DEFAULT_TIMEOUT 1	// milliseconds
 
 class LinkLayerAddress:public InterfaceLabel {
