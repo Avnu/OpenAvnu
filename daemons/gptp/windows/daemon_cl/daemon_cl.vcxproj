@@ -166,12 +166,17 @@
     <ClInclude Include="..\..\common\avbts_ostimer.hpp" />
     <ClInclude Include="..\..\common\avbts_ostimerq.hpp" />
     <ClInclude Include="..\..\common\avbts_port.hpp" />
+    <ClInclude Include="..\..\common\debugout.hpp" />
     <ClInclude Include="..\..\common\ieee1588.hpp" />
     <ClInclude Include="..\..\common\ptptypes.hpp" />
     <ClInclude Include="ipcdef.hpp" />
+    <ClInclude Include="IPCListener.hpp" />
+    <ClInclude Include="Lockable.hpp" />
     <ClInclude Include="packet.hpp" />
+    <ClInclude Include="PeerList.hpp" />
     <ClInclude Include="platform.hpp" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Stoppable.hpp" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="tsc.hpp" />
     <ClInclude Include="windows_hal.hpp" />
@@ -193,6 +198,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="IPCListener.cpp" />
     <ClCompile Include="packet.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

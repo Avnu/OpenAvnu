@@ -35,6 +35,7 @@
 #define WINDOWS_HAL_HPP
 
 #include <minwindef.h>
+#include <IPCListener.hpp>
 #include "avbts_osnet.hpp"
 #include "avbts_oslock.hpp"
 #include "avbts_oscondition.hpp"
@@ -465,7 +466,10 @@ public:
 		while(( result = readOID( OID_INTEL_GET_TXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
-		if( result != ERROR_GEN_FAILURE ) return -1;
+		if( result != ERROR_GEN_FAILURE ) {
+			fprintf( stderr, "Error is: %d\n", result );
+			return -1;
+		}
 		if( returned != sizeof(buf_tmp) ) return -72;
 		tx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		tx_s = scaleNativeClockToNanoseconds( tx_r );
@@ -505,29 +509,16 @@ public:
 class WindowsNamedPipeIPC : public OS_IPC {
 private:
 	HANDLE pipe;
+	LockableOffset loffset;
+	PeerList peerlist;
 public:
 	WindowsNamedPipeIPC() { };
 	~WindowsNamedPipeIPC() {
 		CloseHandle( pipe );
 	}
-	virtual bool init( OS_IPC_ARG *arg = NULL ) {
-		char pipename[64];
-		PLAT_strncpy( pipename, PIPE_PREFIX, 63 );
-		PLAT_strncpy( pipename+strlen(pipename), P802_1AS_PIPENAME, 63-strlen(pipename) );
-		pipe = CreateNamedPipe( pipename, PIPE_ACCESS_OUTBOUND, PIPE_TYPE_MESSAGE, PIPE_UNLIMITED_INSTANCES,
-			OUTSTANDING_MESSAGES*sizeof( WindowsNPipeMessage ), 0, 0, NULL );
-		if( pipe == INVALID_HANDLE_VALUE ) return false;
-		return true;
-	}
+	virtual bool init( OS_IPC_ARG *arg = NULL );
 	virtual bool update( int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-		uint32_t sync_count, uint32_t pdelay_count, PortState port_state ) {
-		WindowsNPipeMessage msg( ml_phoffset, ls_phoffset, ml_freqoffset, ls_freq_offset, local_time );
-		if( !msg.write( pipe )) {
-			CloseHandle(pipe);
-			return init();
-		}
-		return true;
-	}
+		uint32_t sync_count, uint32_t pdelay_count, PortState port_state );
 };
 
 #endif

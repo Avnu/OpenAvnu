@@ -45,6 +45,8 @@
 #include <platform.hpp>
 #include <ptptypes.hpp>
 
+#include <debugout.hpp>
+
 #define MAX_PORTS 32
 
 #define PTP_CLOCK_IDENTITY_LENGTH 8
@@ -194,13 +196,6 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
 	   ts.seconds_ls = (uint32_t)(secs & LS_SEC_MAX);
 	   ts.nanoseconds = (uint32_t)nanos;
 }
-
-#define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
-#ifdef PTP_DEBUG
-#define XPTPD_INFO(fmt,...) fprintf( stderr, "DEBUG at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
-#else
-#define XPTPD_INFO(fmt,...)
-#endif
 
 #define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096
 
