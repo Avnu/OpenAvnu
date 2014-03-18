@@ -201,7 +201,7 @@ static int parse_msrp_string(char *sz, size_t len, struct mrpdhelper_notify *n)
 		break;
 	case 'T':
 		/* if no B= (BridgeID), must be talker advertise */
-		if (stsrstr(sz, ",B=") == NULL)
+		if (strstr(sz, ",B=") == NULL)
 		{
 			result = sscanf(sz,
 				"T:S=%" SCNx64
@@ -220,7 +220,7 @@ static int parse_msrp_string(char *sz, size_t len, struct mrpdhelper_notify *n)
 				&n->u.st.accum_latency);
 			n->u.st.bridge_id = 0;
 			n->u.st.failure_code  = 0;
-			if (result < 9)
+			if (result < 7)
 				return -1;
 		} else {
 			result = sscanf(sz,
@@ -392,16 +392,16 @@ int mrpdhelper_notify_mergable(struct mrpdhelper_notify *n1,
 		break;
 	case mrpdhelper_attribtype_msrp_talker:
 	case mrpdhelper_attribtype_msrp_talker_fail:
-		if ((n2->attrib != n2->mrpdhelper_attribtype_msrp_talker) &&
-		    (n2->attrib != n2->mrpdhelper_attribtype_msrp_talker_fail))
+		if ((n2->attrib != mrpdhelper_attribtype_msrp_talker) &&
+		    (n2->attrib != mrpdhelper_attribtype_msrp_talker_fail))
 			return 0;
 		if (n1->u.st.id != n2->u.st.id)
 			return 0;
 		break;
 	case mrpdhelper_attribtype_msrp_listener:
 	case mrpdhelper_attribtype_msrp_listener_fail:
-		if ((n2->attrib != n2->mrpdhelper_attribtype_msrp_listener) &&
-		    (n2->attrib != n2->mrpdhelper_attribtype_msrp_listener_fail))
+		if ((n2->attrib != mrpdhelper_attribtype_msrp_listener) &&
+		    (n2->attrib != mrpdhelper_attribtype_msrp_listener_fail))
 			return 0;
 		if (n1->u.sl.id != n2->u.sl.id)
 			return 0;
@@ -492,8 +492,6 @@ int mrpdhelper_to_string(struct mrpdhelper_notify *mrpd_data,
 			",I=%d"
 			",P=%d"
 			",L=%d"
-			",B=%" SCNx64
-			",C=%d"
 			" %s",
 			mrpd_data->u.st.id,
 			mrpd_data->u.st.dest_mac,
