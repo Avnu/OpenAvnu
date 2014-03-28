@@ -168,6 +168,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		mrp_lvatimer_fsm(&(MVRP_db->mrp_db), MRP_EVENT_LVATIMER);
 
 		MVRP_db->send_empty_LeaveAll_flag = 1;
+		mrp_lvatimer_fsm(&(MVRP_db->mrp_db), MRP_EVENT_TX);
 		mvrp_txpdu();
 		MVRP_db->send_empty_LeaveAll_flag = 0;
 		break;
@@ -202,8 +203,6 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 					  &(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
 		}
-
-		mrp_lvatimer_fsm(&(MVRP_db->mrp_db), MRP_EVENT_TX);
 
 		mvrp_txpdu();
 		break;
