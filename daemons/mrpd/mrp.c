@@ -795,14 +795,16 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db,
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP
 	if (mrp_log_this()) {
 		if (attrib->mrp_state != mrp_state) {
-			mrpd_log_printf("mrp_applicant_fsm event %s, state %s -> %s\n",
+			mrpd_log_printf("mrp_applicant_fsm event %s, state %s -> %s, tx = %d\n",
 					mrp_event_string(event),
 					mrp_state_string(attrib->mrp_state),
-					mrp_state_string(mrp_state));
+					mrp_state_string(mrp_state),
+					tx);
 		} else {
-			mrpd_log_printf("mrp_applicant_fsm event %s, state %s\n",
+			mrpd_log_printf("mrp_applicant_fsm event %s, state %s, tx = %d\n",
 					mrp_event_string(event),
-					mrp_state_string(mrp_state));
+					mrp_state_string(mrp_state),
+					tx);
 		}	
 	}
 #endif
