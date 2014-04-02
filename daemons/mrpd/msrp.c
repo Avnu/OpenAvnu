@@ -628,10 +628,6 @@ int msrp_recv_msg()
 
 	endmarks = 0;
 
-#if LOG_MSRP
-	mrpd_log_printf("MSRP msrp_recv_msg()\n");
-#endif
-
 	while (mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) {
 		mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
 		if ((mrpdu_msg->AttributeType == 0) &&
@@ -667,11 +663,9 @@ int msrp_recv_msg()
 							  VectorHeader));
 #if LOG_MSRP
 				mrpd_log_printf
-				    ("MSRP msrp_recv_msg() DOMAIN vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+				    ("MSRP msrp_recv_msg() DOMAIN vector addr 0x%X, n = %d, VectorHeader %d\n",
 				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
-				     ntohs(mrpdu_vectorptr->VectorHeader),
-				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
-				     ((uint8_t *) mrpdu_vectorptr)[1]);
+				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
 				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
@@ -829,11 +823,9 @@ int msrp_recv_msg()
 
 #if LOG_MSRP
 				mrpd_log_printf
-				    ("MSRP msrp_recv_msg() LISTENER vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+				    ("MSRP msrp_recv_msg() LISTENER vector addr 0x%X, n = %d, VectorHeader  %d\n",
 				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
-				     ntohs(mrpdu_vectorptr->VectorHeader),
-				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
-				     ((uint8_t *) mrpdu_vectorptr)[1]);
+				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
 				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
@@ -1113,11 +1105,9 @@ int msrp_recv_msg()
 
 #if LOG_MSRP
 				mrpd_log_printf
-				    ("MSRP msrp_recv_msg() TALKER vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+				    ("MSRP msrp_recv_msg() TALKER vector addr 0x%X, n = %d, VectorHeader %d\n",
 				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
-				     ntohs(mrpdu_vectorptr->VectorHeader),
-				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
-				     ((uint8_t *) mrpdu_vectorptr)[1]);
+				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
 				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
@@ -1350,11 +1340,9 @@ int msrp_recv_msg()
 							  VectorHeader));
 #if LOG_MSRP
 				mrpd_log_printf
-				    ("MSRP msrp_recv_msg() TALKER FAILED vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+				    ("MSRP msrp_recv_msg() TALKER FAILED vector addr 0x%X, n = %d, VectorHeader %d\n",
 				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
-				     ntohs(mrpdu_vectorptr->VectorHeader),
-				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
-				     ((uint8_t *) mrpdu_vectorptr)[1]);
+				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
 				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
