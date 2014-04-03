@@ -35,7 +35,11 @@
 #ifndef PLATFORM_HPP
 #define PLATFORM_HPP
 
+#include <stdio.h>
+
 errno_t PLAT_strncpy( char *dest, const char *src, rsize_t max );
+#define PLAT_snprintf(buffer,count,...) _snprintf_s(buffer,count,count,__VA_ARGS__);
+
 uint16_t PLAT_htons( uint16_t s );
 uint32_t PLAT_htonl( uint32_t l );
 uint16_t PLAT_ntohs( uint16_t s );

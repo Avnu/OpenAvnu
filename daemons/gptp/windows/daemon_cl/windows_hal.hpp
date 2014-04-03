@@ -67,7 +67,7 @@ public:
 		if( sendFrame( handle, &dest, PTP_ETHERTYPE, payload, length ) != PACKET_NO_ERROR ) return net_fatal;
 		return net_succeed;
 	}
-	virtual net_result recv( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) {
+	virtual net_result nrecv( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) {
 		packet_addr_t dest;
 		packet_error_t pferror = recvFrame( handle, &dest, payload, length );
 		if( pferror != PACKET_NO_ERROR && pferror != PACKET_RECVTIMEOUT_ERROR ) return net_fatal;

@@ -222,8 +222,8 @@ class IEEE1588Port {
 	// Added for testing
 	bool forceSlave;
 	
-	bool serializeState( void *buf, off_t *count );
-	bool restoreSerializedState( void *buf, off_t *count );
+	bool serializeState( void *buf, long *count );
+	bool restoreSerializedState( void *buf, long *count );
 	void becomeMaster( bool annc );
 	void becomeSlave( bool );
 	

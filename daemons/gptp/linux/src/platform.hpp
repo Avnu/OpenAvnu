@@ -34,13 +34,14 @@
 #ifndef PLATFORM_HPP
 #define PLATFORM_HPP
 
-#include <arpa/inet.h>
+#include <stdint.h>
 
 #define PLAT_strncpy( dest, src, max ) strncpy( dest, src, max+1 );
+#define PLAT_snprintf(...) snprintf( __VA_ARGS__ );
 
-#define PLAT_htons( s ) htons( s )
-#define PLAT_htonl( l ) htonl( l )
-#define PLAT_ntohs( s ) ntohs( s )
-#define PLAT_ntohl( l ) ntohl( l )
+uint16_t PLAT_htons( uint16_t s );
+uint32_t PLAT_htonl( uint32_t l );
+uint16_t PLAT_ntohs( uint16_t s );
+uint32_t PLAT_ntohl( uint32_t l );
 
 #endif

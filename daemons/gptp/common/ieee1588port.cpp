@@ -46,7 +46,6 @@
 #include <math.h>
 
 #include <stdlib.h>
-#include <time.h>
 
 LinkLayerAddress IEEE1588Port::other_multicast(OTHER_MULTICAST);
 LinkLayerAddress IEEE1588Port::pdelay_multicast(PDELAY_MULTICAST);
@@ -300,7 +299,7 @@ void *IEEE1588Port::openPort(void)
 		net_result rrecv;
 		size_t length = sizeof(buf);
 
-		if ((rrecv = net_iface->recv(&remote, buf, length)) == net_succeed) {
+		if ((rrecv = net_iface->nrecv(&remote, buf, length)) == net_succeed) {
 			XPTPD_INFO("Processing network buffer");
 			msg = buildPTPMessage((char *)buf, (int)length, &remote,
 					    this);
@@ -666,7 +665,7 @@ void IEEE1588Port::processEvent(Event e)
 				} else {
 				  Timestamp failed = INVALID_TIMESTAMP;
 				  pdelay_req->setTimestamp(failed);
-				 fprintf( stderr, "Invalid TX\n" );
+				  fprintf( stderr, "Invalid TX\n" );
 				}
 
 				if (ts_good != 0) {

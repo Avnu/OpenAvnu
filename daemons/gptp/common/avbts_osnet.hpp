@@ -140,7 +140,7 @@ class OSNetworkInterface {
 	virtual net_result send
 	(LinkLayerAddress * addr, uint8_t * payload, size_t length,
 	 bool timestamp) = 0;
-	virtual net_result recv
+	virtual net_result nrecv
 	(LinkLayerAddress * addr, uint8_t * payload, size_t & length) = 0;
 	virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
 	virtual unsigned getPayloadOffset() = 0;

@@ -15,9 +15,9 @@ The message format is:
 
 	Integer64	<local-system phase offset>
 
-	Integer32	<master-local frequency offset>
+	Float	<master-local frequency offset>
 
-	Integer32	<local-system frequency offset>
+	Float	<local-system frequency offset>
 
 	UInteger64	<local time of last update>
 
@@ -28,25 +28,30 @@ Meaning of IPC provided values
 - Dmaster ~= Dlocal * (1-<master-local phase offset>/1e12) (where D denotes a delta rather than a specific value)
 - Dlocal ~= Dsystem * (1-<local-system freq offset>/1e12) (where D denotes a delta rather than a specific value)
 
-Known Limitations
-+++++++++++++++++
-
-* There are problems with timestamp accuracy create problems using switches that impose limits on the peer rate offset
-
-* The current Windows driver version does not allow timestamping between the system clock (e.g. TCS) and the network device clock; systems offsets are not valid
-
-
 Linux Specific
 ++++++++++++++
 
 To build, execute the linux/build makefile.
+
+To build for I210:
+
+ARCH=I210 make clean all
+
+To build for 'generic' Linux:
+
+make clean all
+
+To build for Intel CE 5100 Platforms:
+
+ARCH=IntelCE make clean all
 
 To execute, run 
 	./daemon_cl <interface-name>
 such as
 	./daemon_cl eth0
 
-The daemon creates a shared memory segment with the 'ptp' group. Some distributions may not have this group installed. The apparent effect is client applications will segfault after attempting to connect and use the shared memory segment. One suggested workaround is to execute 'sudo groupadd ptp' or similar to fix this issue.
+The daemon creates a shared memory segment with the 'ptp' group. Some distributions may not have this group installed.  The IPC interface will not available unless the 'ptp' group is available.
+
 
 Windows Version
 +++++++++++++++
@@ -85,7 +90,7 @@ ptp daemons.
 
 * Richard Cochran's ptp4l daemon - https://sourceforge.net/p/linuxptp/
 
-  Note with thsi version to use gPTP specific settings, which differ 
+  Note with this version to use gPTP specific settings, which differ 
   slightly from IEEE 1588.
 
 * http://ptpd.sourceforge.net/

@@ -35,8 +35,19 @@
 #include "avbts_clock.hpp"
 #include "avbts_osnet.hpp"
 #include "avbts_oslock.hpp"
-#include "linux_hal.hpp"
+#ifdef ARCH_INTELCE
+#include "linux_hal_intelce.hpp"
+#else
+#include "linux_hal_generic.hpp"
+#endif
 #include <ctype.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 void print_usage( char *arg0 ) {
   fprintf( stderr,
@@ -69,7 +80,7 @@ int main(int argc, char **argv)
 	int restorefd = -1;
 	void *restoredata = ((void *) -1);
 	char *restoredataptr = NULL;
-	off_t restoredatalength;
+	off_t restoredatalength = 0;
 	off_t restoredatacount;
 	bool restorefailed = false;
 	LinuxIPCArg *ipc_arg = NULL;
@@ -152,7 +163,7 @@ int main(int argc, char **argv)
 			}
 			else if( toupper( argv[i][1] ) == 'H' ) {
 				print_usage( argv[0] );
-				_exit(0);
+				return 0;
 			}
 			else if( toupper( argv[i][1] ) == 'R' ) {
 				if( i+1 >= argc ) {
@@ -176,12 +187,13 @@ int main(int argc, char **argv)
 	  ipc = NULL;
 	}
 	if( ipc_arg != NULL ) delete ipc_arg;
-	
+
 	if( restorefd != -1 ) {
 		// MMAP file
 		struct stat stat0;
 		if( fstat( restorefd, &stat0 ) == -1 ) {
 			printf( "Failed to stat restore file, %s\n", strerror( errno ));
+			restoredatalength = 0;
 		} else {
 			restoredatalength = stat0.st_size;
 			if( restoredatalength != 0 ) {
@@ -202,10 +214,16 @@ int main(int argc, char **argv)
 		return -1;
 	ifname = new InterfaceName(argv[1], strlen(argv[1]));
 
-	HWTimestamper *timestamper = new LinuxTimestamper();
+#ifdef ARCH_INTELCE
+	HWTimestamper *timestamper = new LinuxTimestamperIntelCE();
+#else
+	HWTimestamper *timestamper = new LinuxTimestamperGeneric();
+#endif
+
 	IEEE1588Clock *clock =
 	  new IEEE1588Clock( false, syntonize, priority1, timestamper,
 			     timerq_factory , ipc, lock_factory );
+	
 	if( restoredataptr != NULL ) {
 	  if( !restorefailed )
 	    restorefailed =

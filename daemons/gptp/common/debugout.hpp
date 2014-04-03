@@ -34,6 +34,8 @@
 #ifndef DEBUGOUT_HPP
 #define DEBUGOUT_HPP
 
+#include <stdio.h>
+
 #define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
 #ifdef PTP_DEBUG
 #define XPTPD_INFO(fmt,...) fprintf( stderr, "DEBUG at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)

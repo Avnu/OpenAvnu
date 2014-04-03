@@ -39,6 +39,9 @@ typedef void (*ostimerq_handler) (void *);
 class IEEE1588Clock;
 
 class OSTimerQueue {
+protected:
+	virtual bool init() { return true; }
+	OSTimerQueue() {}
 public:
 	virtual bool addEvent
 	(unsigned long micros, int type, ostimerq_handler func,

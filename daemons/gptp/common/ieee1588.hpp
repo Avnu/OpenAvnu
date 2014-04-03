@@ -38,8 +38,6 @@
 
 #include <string.h>
 
-#include <signal.h>
-
 #include <stdio.h>
 
 #include <platform.hpp>
@@ -95,6 +93,12 @@ class ClockIdentity {
  private:
 	uint8_t id[PTP_CLOCK_IDENTITY_LENGTH];
  public:
+	ClockIdentity() {
+		memset( id, 0, PTP_CLOCK_IDENTITY_LENGTH );
+	}
+	ClockIdentity( uint8_t *id ) {
+		set(id);
+	}
 	bool operator==(const ClockIdentity & cmp) const {
 		return memcmp(this->id, cmp.id,
 			      PTP_CLOCK_IDENTITY_LENGTH) == 0 ? true : false;
@@ -119,19 +123,99 @@ class ClockIdentity {
 	void set(LinkLayerAddress * address);
 };
 
+#define MAX_NANOSECONDS 1000000000
+#define MAX_TIMESTAMP_STRLEN 28
+
 class Timestamp {
- public:
+private:
+	char output_string[MAX_TIMESTAMP_STRLEN];
+public:
 	Timestamp(uint32_t ns, uint32_t s_l, uint16_t s_m) {
 		nanoseconds = ns;
 		seconds_ls = s_l;
 		seconds_ms = s_m;
-	} 
+	}
 	Timestamp() {
-	};
+		output_string[0] = '\0';
+	}
 	uint32_t nanoseconds;
 	uint32_t seconds_ls;
 	uint16_t seconds_ms;
-        uint8_t _version;
+	uint8_t _version;
+	char *toString() {
+		PLAT_snprintf
+			( output_string, 28, "%hu %u %u", seconds_ms, seconds_ls
+			  ,
+			  nanoseconds );
+		return output_string;
+	}
+	Timestamp operator+( const Timestamp& o ) {
+		uint32_t nanoseconds;
+		uint32_t seconds_ls;
+		uint16_t seconds_ms;
+		bool carry;
+
+		nanoseconds  = this->nanoseconds;
+		nanoseconds += o.nanoseconds;
+		carry =
+			nanoseconds < this->nanoseconds ||
+			nanoseconds >= MAX_NANOSECONDS ? true : false;
+		nanoseconds -= carry ? MAX_NANOSECONDS : 0;
+
+		seconds_ls  = this->seconds_ls;
+		seconds_ls += o.seconds_ls;
+		seconds_ls += carry ? 1 : 0;
+		carry = seconds_ls < this->seconds_ls ? true : false;
+
+		seconds_ms  = this->seconds_ms;
+		seconds_ms += o.seconds_ms;
+		seconds_ms += carry ? 1 : 0;
+		carry = seconds_ms < this->seconds_ms ? true : false;
+
+		return Timestamp( nanoseconds, seconds_ls, seconds_ms );
+	}
+	Timestamp operator-( const Timestamp& o ) {
+		uint32_t nanoseconds;
+		uint32_t seconds_ls;
+		uint16_t seconds_ms;
+		bool carry, borrow_this;
+		unsigned borrow_total = 0;
+
+		borrow_this = this->nanoseconds < o.nanoseconds;
+		nanoseconds =
+			((borrow_this ? MAX_NANOSECONDS : 0) + this->nanoseconds) -
+			o.nanoseconds;
+		carry = nanoseconds > MAX_NANOSECONDS;
+		nanoseconds -= carry ? MAX_NANOSECONDS : 0;
+		borrow_total += borrow_this ? 1 : 0;
+
+		seconds_ls  = carry ? 1 : 0;
+		seconds_ls += this->seconds_ls;
+		borrow_this =
+			borrow_total > seconds_ls ||
+			seconds_ls - borrow_total < o.seconds_ls;
+		seconds_ls  = 
+			borrow_this ? seconds_ls - o.seconds_ls + (uint32_t)-1 :
+			(seconds_ls - borrow_total) - o.seconds_ls;
+		borrow_total = borrow_this ? borrow_total + 1 : 0;
+
+		seconds_ms  = carry ? 1 : 0;
+		seconds_ms += this->seconds_ms;
+		borrow_this =
+			borrow_total > seconds_ms ||
+			seconds_ms - borrow_total < o.seconds_ms;
+		seconds_ms  = 
+			borrow_this ? seconds_ms - o.seconds_ms + (uint32_t)-1 :
+			(seconds_ms - borrow_total) - o.seconds_ms;
+		borrow_total = borrow_this ? borrow_total + 1 : 0;
+
+		return Timestamp( nanoseconds, seconds_ls, seconds_ms );
+	}
+	void set64( uint64_t value ) {
+		nanoseconds = value % 1000000000;
+		seconds_ls = (uint32_t) (value / 1000000000);
+		seconds_ms = (uint16_t)((value / 1000000000) >> 32);
+	}
 };
 
 #define INVALID_TIMESTAMP (Timestamp( 0xC0000000, 0, 0 ))
@@ -141,7 +225,7 @@ class Timestamp {
 			       << sizeof((ts).seconds_ls)*8) + \
 			      (ts).seconds_ls)*1000000000LL + (ts).nanoseconds)
 
-static inline uint64_t bswap_64(uint64_t in)
+static inline uint64_t byte_swap64(uint64_t in)
 {
 	uint8_t *s = (uint8_t *) & in;
 	uint8_t *e = s + 7;
@@ -249,8 +333,7 @@ public:
     return version;
   }
   HWTimestamper() { version = 0; }
-  virtual ~ HWTimestamper() {
-  }
+  virtual ~HWTimestamper() { }
 };
 
 PTPMessageCommon *buildPTPMessage(char *buf, int size,
