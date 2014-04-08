@@ -31,33 +31,16 @@
 
 ******************************************************************************/
 
-#ifndef AVBTS_OSTIMERQ_HPP
-#define AVBTS_OSTIMERQ_HPP
+#ifndef DEBUGOUT_HPP
+#define DEBUGOUT_HPP
 
-typedef void (*ostimerq_handler) (void *);
+#include <stdio.h>
 
-class IEEE1588Clock;
-
-class OSTimerQueue {
-protected:
-	virtual bool init() { return true; }
-	OSTimerQueue() {}
-public:
-	virtual bool addEvent
-	(unsigned long micros, int type, ostimerq_handler func,
-	 event_descriptor_t * arg, bool dynamic, unsigned *event) = 0;
-	virtual bool cancelEvent(int type, unsigned *event) = 0;
-	virtual ~OSTimerQueue() = 0;
-};
-
-inline OSTimerQueue::~OSTimerQueue() {}
-
-class OSTimerQueueFactory {
-public:
-	virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock ) = 0;
-	virtual ~OSTimerQueueFactory() = 0;
-};
-
-inline OSTimerQueueFactory::~OSTimerQueueFactory() {}
-
+#define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
+#ifdef PTP_DEBUG
+#define XPTPD_INFO(fmt,...) fprintf( stderr, "DEBUG at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
+#else
+#define XPTPD_INFO(fmt,...)
 #endif
+
+#endif/*DEBUGOUT_HPP*/

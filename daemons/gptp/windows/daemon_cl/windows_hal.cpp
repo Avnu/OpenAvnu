@@ -34,6 +34,9 @@
 #include <WinSock2.h>
 #include <iphlpapi.h>
 #include <windows_hal.hpp>
+#include <IPCListener.hpp>
+#include <PeerList.hpp>
+#include <debugout.hpp>
 
 DWORD WINAPI OSThreadCallback( LPVOID input ) {
 	OSThreadArg *arg = (OSThreadArg*) input;
@@ -89,7 +92,7 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 	} else {
 		netclock_hz.QuadPart = NETCLOCK_HZ_OTHER;
 	}
-	fprintf( stderr, "Adapter UID: %s(%s)\n", pAdapterInfo->AdapterName, pAdapterInfo->Description+(strlen(pAdapterInfo->Description)-7));
+	fprintf( stderr, "Adapter UID: %s\n", pAdapterInfo->AdapterName );
 	PLAT_strncpy( network_card_id, NETWORK_CARD_ID_PREFIX, 63 );
 	PLAT_strncpy( network_card_id+strlen(network_card_id), pAdapterInfo->AdapterName, 63-strlen(network_card_id) );
 
@@ -104,5 +107,36 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 		return false;
 	}
 
+	return true;
+}
+
+bool WindowsNamedPipeIPC::init( OS_IPC_ARG *arg ) {
+	IPCListener *ipclistener;
+	IPCSharedData ipcdata = { &peerlist, &loffset };
+
+	ipclistener = new IPCListener();
+	// Start IPC listen thread
+	if( !ipclistener->start( ipcdata ) ) {
+		XPTPD_ERROR( "Starting IPC listener thread failed" );
+	} else {
+		XPTPD_INFO( "Starting IPC listener thread succeeded" );
+	}
+
+	return true;
+}
+
+bool WindowsNamedPipeIPC::update( int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
+	uint32_t sync_count, uint32_t pdelay_count, PortState port_state ) {
+
+
+	loffset.get();
+	loffset.local_time = local_time;
+	loffset.ml_freqoffset = ml_freqoffset;
+	loffset.ml_phoffset = ml_phoffset;
+	loffset.ls_freqoffset = ls_freq_offset;
+	loffset.ls_phoffset = ls_phoffset;
+	
+	if( !loffset.isReady() ) loffset.setReady( true );
+	loffset.put();
 	return true;
 }

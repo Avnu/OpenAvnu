@@ -31,33 +31,71 @@
 
 ******************************************************************************/
 
-#ifndef AVBTS_OSTIMERQ_HPP
-#define AVBTS_OSTIMERQ_HPP
+#include <linux/timex.h>
+#include <linux_hal_generic.hpp>
+#include <syscall.h>
+#include <math.h>
 
-typedef void (*ostimerq_handler) (void *);
+bool LinuxTimestamperGeneric::resetFrequencyAdjustment() {
+	struct timex tx;
+	tx.modes = ADJ_FREQUENCY;
+	tx.freq = 0;
 
-class IEEE1588Clock;
+	return Adjust(&tx);
+}
 
-class OSTimerQueue {
-protected:
-	virtual bool init() { return true; }
-	OSTimerQueue() {}
-public:
-	virtual bool addEvent
-	(unsigned long micros, int type, ostimerq_handler func,
-	 event_descriptor_t * arg, bool dynamic, unsigned *event) = 0;
-	virtual bool cancelEvent(int type, unsigned *event) = 0;
-	virtual ~OSTimerQueue() = 0;
-};
+bool LinuxTimestamperGeneric::HWTimestamper_adjclockphase( int64_t phase_adjust ) {
+	struct timex tx;
+	LinuxNetworkInterfaceList::iterator iface_iter;
+	bool ret = true;
+	LinuxTimerFactory factory;
+	OSTimer *timer = factory.createTimer();
+		
+	/* Walk list of interfaces disabling them all */
+	iface_iter = iface_list.begin();
+	for
+		( iface_iter = iface_list.begin(); iface_iter != iface_list.end();
+		  ++iface_iter ) {
+		(*iface_iter)->disable_clear_rx_queue();
+	}
+		
+	rxTimestampList.clear();
+		
+	/* Wait 180 ms - This is plenty of time for any time sync frames
+	   to clear the queue */
+	timer->sleep(180000);
+		
+	++version;
+		
+	tx.modes = ADJ_SETOFFSET | ADJ_NANO;
+	if( phase_adjust >= 0 ) {
+		tx.time.tv_sec  = phase_adjust / 1000000000LL;
+		tx.time.tv_usec = phase_adjust % 1000000000LL;
+	} else {
+		tx.time.tv_sec  = (phase_adjust / 1000000000LL)-1;
+		tx.time.tv_usec = (phase_adjust % 1000000000LL)+1000000000;
+	}
 
-inline OSTimerQueue::~OSTimerQueue() {}
+	if( !Adjust( &tx )) {
+		ret = false;
+	}
+		
+	// Walk list of interfaces re-enabling them
+	iface_iter = iface_list.begin();
+	for( iface_iter = iface_list.begin(); iface_iter != iface_list.end();
+		 ++iface_iter ) {
+		(*iface_iter)->reenable_rx_queue();
+	}
+	  
+	delete timer;
+	return ret;
+}
+	
+bool LinuxTimestamperGeneric::HWTimestamper_adjclockrate( float freq_offset ) {
+	struct timex tx;
+	tx.modes = ADJ_FREQUENCY;
+	tx.freq  = long(freq_offset) << 16;
+	tx.freq += long(fmodf( freq_offset, 1.0 )*65536.0);
 
-class OSTimerQueueFactory {
-public:
-	virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock ) = 0;
-	virtual ~OSTimerQueueFactory() = 0;
-};
-
-inline OSTimerQueueFactory::~OSTimerQueueFactory() {}
-
-#endif
+	return Adjust(&tx);
+}

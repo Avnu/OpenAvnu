@@ -117,8 +117,8 @@ public:
 	 OS_IPC * ipc, OSLockFactory *lock_factory );
 	~IEEE1588Clock(void);
 
-	bool serializeState( void *buf, off_t *count );
-	bool restoreSerializedState( void *buf, off_t *count );
+	bool serializeState( void *buf, long *count );
+	bool restoreSerializedState( void *buf, long *count );
 
 	Timestamp getTime(void);
 	Timestamp getPreciseTime(void);

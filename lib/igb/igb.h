@@ -35,6 +35,8 @@
 #ifndef _IGB_H_DEFINED_
 #define _IGB_H_DEFINED_
 
+#include <sys/types.h>
+
 struct resource {
         u_int64_t       paddr;
 	u_int32_t	mmap_size;

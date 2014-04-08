@@ -112,7 +112,7 @@ int _tmain(int argc, _TCHAR* argv[])
 					printf( "Priority 1 value must be specified on "
 						"command line, using default value\n" );
 				} else {
-					unsigned long tmp = strtoul( argv[i], NULL, 0 ); ++i;
+					unsigned long tmp = strtoul( argv[i+1], NULL, 0 ); ++i;
 					if( tmp > 254 ) {
 						printf( "Invalid priority 1 value, using "
 							"default value\n" );

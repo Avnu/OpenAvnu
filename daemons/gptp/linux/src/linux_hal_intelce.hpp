@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -31,33 +31,45 @@
 
 ******************************************************************************/
 
-#ifndef AVBTS_OSTIMERQ_HPP
-#define AVBTS_OSTIMERQ_HPP
+#ifndef LINUX_HAL_INTELCE_HPP
+#define LINUX_HAL_INTELCE_HPP
 
-typedef void (*ostimerq_handler) (void *);
+#include <linux_hal_common.hpp>
+#include <ismd_core.h>
 
-class IEEE1588Clock;
-
-class OSTimerQueue {
-protected:
-	virtual bool init() { return true; }
-	OSTimerQueue() {}
+class LinuxTimestamperIntelCE : public LinuxTimestamper {
+private:
+	ismd_clock_t iclock;
+	uint64_t last_tx_time;
+	uint64_t last_rx_time;
+	int ce_timestamp_common
+	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	  unsigned &clock_value, bool tx );
 public:
-	virtual bool addEvent
-	(unsigned long micros, int type, ostimerq_handler func,
-	 event_descriptor_t * arg, bool dynamic, unsigned *event) = 0;
-	virtual bool cancelEvent(int type, unsigned *event) = 0;
-	virtual ~OSTimerQueue() = 0;
+	virtual bool HWTimestamper_init
+	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
+
+	virtual int HWTimestamper_txtimestamp
+	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	  unsigned &clock_value, bool last );
+
+	virtual int HWTimestamper_rxtimestamp
+	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	  unsigned &clock_value, bool last );
+
+	bool post_init( int ifindex, int sd, TicketingLock *lock );
+
+	virtual ~LinuxTimestamperIntelCE() {
+	}
+
+	LinuxTimestamperIntelCE() {
+		last_tx_time = 0;
+		last_rx_time = 0;
+	}
+
+	virtual bool HWTimestamper_gettime
+	( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
+	  uint32_t *nominal_clock_rate );
 };
 
-inline OSTimerQueue::~OSTimerQueue() {}
-
-class OSTimerQueueFactory {
-public:
-	virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock ) = 0;
-	virtual ~OSTimerQueueFactory() = 0;
-};
-
-inline OSTimerQueueFactory::~OSTimerQueueFactory() {}
-
-#endif
+#endif/*LINUX_HAL_INTELCE_HPP*/

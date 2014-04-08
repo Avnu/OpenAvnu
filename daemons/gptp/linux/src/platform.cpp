@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2012 Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -31,33 +31,18 @@
 
 ******************************************************************************/
 
-#ifndef AVBTS_OSTIMERQ_HPP
-#define AVBTS_OSTIMERQ_HPP
+#include <platform.hpp>
+#include <arpa/inet.h>
 
-typedef void (*ostimerq_handler) (void *);
-
-class IEEE1588Clock;
-
-class OSTimerQueue {
-protected:
-	virtual bool init() { return true; }
-	OSTimerQueue() {}
-public:
-	virtual bool addEvent
-	(unsigned long micros, int type, ostimerq_handler func,
-	 event_descriptor_t * arg, bool dynamic, unsigned *event) = 0;
-	virtual bool cancelEvent(int type, unsigned *event) = 0;
-	virtual ~OSTimerQueue() = 0;
-};
-
-inline OSTimerQueue::~OSTimerQueue() {}
-
-class OSTimerQueueFactory {
-public:
-	virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock ) = 0;
-	virtual ~OSTimerQueueFactory() = 0;
-};
-
-inline OSTimerQueueFactory::~OSTimerQueueFactory() {}
-
-#endif
+uint16_t PLAT_htons( uint16_t s ) {
+	return htons( s );
+}
+uint32_t PLAT_htonl( uint32_t l ) {
+	return htonl( l );
+}
+uint16_t PLAT_ntohs( uint16_t s ) {
+	return ntohs( s );
+}
+uint32_t PLAT_ntohl( uint32_t l ) {
+	return ntohl( l );
+}

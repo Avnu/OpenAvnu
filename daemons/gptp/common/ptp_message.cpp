@@ -41,8 +41,6 @@
 #include <string.h>
 #include <math.h>
 
-#include <time.h>
-
 PTPMessageCommon::PTPMessageCommon(IEEE1588Port * port)
 {
 	// Fill in fields using port/clock dataset as a template
@@ -117,8 +115,8 @@ PTPMessageCommon *buildPTPMessage
 	XPTPD_INFO("Captured Sequence Id: %u", sequenceId);
 
 	if (!(messageType >> 3)) {
-		int iter = 2;
-		long req = 1000;	// = 1 ms
+		int iter = 5;
+		long req = 4000;	// = 1 ms
 		int ts_good =
 		    port->getRxTimestamp
 			(sourcePortIdentity, sequenceId, timestamp, counter_value, false);
@@ -481,7 +479,7 @@ PTPMessageCommon *buildPTPMessage
 	memcpy(&(msg->correctionField),
 	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
 	       sizeof(msg->correctionField));
-	msg->correctionField = bswap_64(msg->correctionField);	// Assume LE machine
+	msg->correctionField = byte_swap64(msg->correctionField);	// Assume LE machine
 	msg->sourcePortIdentity = sourcePortIdentity;
 	msg->sequenceId = sequenceId;
 	memcpy(&(msg->control),
@@ -513,7 +511,7 @@ void PTPMessageCommon::buildCommonHeader(uint8_t * buf)
 	unsigned char tspec_msg_t;
 	tspec_msg_t = messageType | 0x10;
 	//tspec_msg_t = messageType;
-	long long correctionField_BE = bswap_64(correctionField);	// Assume LE machine
+	long long correctionField_BE = byte_swap64(correctionField);	// Assume LE machine
 	uint16_t messageLength_NO = PLAT_htons(messageLength);
 
 	memcpy(buf + PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(PTP_COMMON_HDR_OFFSET),

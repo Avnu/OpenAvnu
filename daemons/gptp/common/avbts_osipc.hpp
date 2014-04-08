@@ -35,7 +35,6 @@
 #define AVBTS_OSIPC_HPP
 
 #include <stdint.h>
-#include <stdlib.h>
 #include <ptptypes.hpp>
 #include <avbts_port.hpp>
 
