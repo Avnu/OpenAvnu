@@ -218,6 +218,7 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_LVATIMER);
 
 		MMRP_db->send_empty_LeaveAll_flag = 1;
+		mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_TX);
 		mmrp_txpdu();
 		MMRP_db->send_empty_LeaveAll_flag = 0;
 		break;
@@ -257,8 +258,6 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 					  &(attrib->applicant), MRP_EVENT_TX);
 			attrib = attrib->next;
 		}
-
-		mrp_lvatimer_fsm(&(MMRP_db->mrp_db), MRP_EVENT_TX);
 
 		mmrp_txpdu();
 		break;
@@ -440,7 +439,9 @@ int mmrp_recv_msg()
 	if (MMRP_ETYPE != ntohs(eth->typelen))
 		goto out;
 
-	/* XXX check dest mac address too? */
+	/* check dest mac address too */
+	if (memcmp(eth->destaddr, MMRP_ADDR, sizeof(eth->destaddr)))
+		goto out;
 
 	mrpdu = (mrpdu_t *) (msgbuf + sizeof(struct eth_hdr));
 

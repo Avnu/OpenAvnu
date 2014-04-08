@@ -312,6 +312,13 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_LVATIMER);
 
 		MSRP_db->send_empty_LeaveAll_flag = 1;
+		/*
+		 * We are going to emit a PDU here, so call lva FSM with
+		 * TX event so as to set the lva.tx=1 flag prior to sending
+		 * the PDU. After the pdu is sent, lva.tx=0 and the lva
+		 * LSM is back to the passive state.
+		 */
+		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_TX);
 		msrp_txpdu();
 		MSRP_db->send_empty_LeaveAll_flag = 0;
 		break;
@@ -362,8 +369,12 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 		msrp_update_log_filter(NULL);
 #endif
-		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_TX);
-
+		/*
+		 * Don't need to call mrp_lvatimer_fsm(..., MRP_EVENT_TX) from
+		 * here because the TX event only ever does anything in the
+		 * lva FSM when the start is active, and it is only active
+		 * momentarily after a LVATIMER event.
+		 */
 		msrp_txpdu();
 		break;
 	case MRP_EVENT_LVTIMER:
@@ -584,7 +595,9 @@ int msrp_recv_msg()
 	if (MSRP_ETYPE != ntohs(eth->typelen)) {
 		goto out;
 	}
-	/* XXX check dest mac address too? */
+	/* check dest mac address too */
+	if (memcmp(eth->destaddr, MSRP_ADDR, sizeof(eth->destaddr)))
+		goto out;
 
 	mrpdu = (mrpdu_t *) (msgbuf + sizeof(struct eth_hdr));
 
