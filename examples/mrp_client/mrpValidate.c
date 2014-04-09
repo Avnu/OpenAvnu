@@ -233,8 +233,8 @@ fnSquestionquestion(void) {
 
 /********************************************
  * MSRP Talker Failed functions:
- *  SF++ Declare a Talker Failed for Stream w/New
- *  SF+? Declare a Talker Failed for Stream w/JoinMt
+ *  S++ Declare a Talker Failed for Stream w/New
+ *  S+? Declare a Talker Failed for Stream w/JoinMt
  ********************************************/
 int
 fnSTFplusplus(void) {
