@@ -2954,7 +2954,7 @@ static int msrp_cmd_parse_join_or_new_stream_failure(char *buf, int buflen,
 		{"P" PARSE_ASSIGN, parse_u8, &talker_ad->PriorityAndRank},
 		{"L" PARSE_ASSIGN, parse_u32, &talker_ad->AccumulatedLatency},
 		{"B" PARSE_ASSIGN, parse_c64, &talker_ad->FailureInformation.BridgeID},
-		{"C" PARSE_ASSIGN, parse_c64, &talker_ad->FailureInformation.FailureCode},
+		{"C" PARSE_ASSIGN, parse_u8, &talker_ad->FailureInformation.FailureCode},
 		{0, parse_null, 0}
 	};
 	if (buflen < 47)
