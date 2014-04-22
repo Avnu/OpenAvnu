@@ -101,7 +101,10 @@ struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
 
 	attrib = MSRP_db->attrib_list;
 	while (NULL != attrib) {
-		if (rattrib->type == attrib->type) {
+		if (	(rattrib->type == attrib->type) ||
+			((MSRP_TALKER_ADV_TYPE == rattrib->type) && (MSRP_TALKER_FAILED_TYPE == attrib->type)) ||
+			((MSRP_TALKER_FAILED_TYPE == rattrib->type) && (MSRP_TALKER_ADV_TYPE == attrib->type)))
+			{
 			if (MSRP_DOMAIN_TYPE == attrib->type) {
 				mac_eq = memcmp(&(attrib->attribute.domain),
 						&(rattrib->attribute.domain),
