@@ -46,9 +46,27 @@ pthread_t thread;
 pthread_mutex_t lock;
 int socketfd;
 
+#define VERSION_STR	"0.0"
+
+static const char *version_str =
+    "maap_daemon v" VERSION_STR "\n" "Copyright (c) 2014, VAYAVYA LABS PVT LTD\n";
+
+void usage(void)
+{
+	fprintf(stderr,
+		"\n"
+		"usage: maap_daemon [-d] -i interface-name"
+		"\n"
+		"options:\n"
+		"    -d  run daemon in the background\n"
+		"    -i  specify interface to monitor\n"
+		"\n" "%s" "\n", version_str);
+	exit(1);
+}
+
 int main(int argc, char *argv[]) 
 {
-	uint8_t *iface = NULL; 
+	char *iface = NULL;
 	struct ifreq buffer;
 	int ifindex;
 	struct packet_mreq mreq; 
@@ -56,20 +74,56 @@ int main(int argc, char *argv[])
 	uint32_t seed;
 	uint8_t dest_mac[6];
 	uint8_t src_mac[6];
+	int daemonize = 0;
 	int shmid;
 	key_t key;
+	int ret;
+	int c;
 
-	if (argc < 2) {
-		printf("USAGE:%s <if_name>\n",argv[0]);
-		return -1;
-	} 
+		for (;;) {
+		c = getopt(argc, argv, "hdi:");
 
-	iface = (uint8_t *)argv[1];
+		if (c < 0)
+			break;
+
+		switch (c) {
+		case 'd':
+			daemonize = 1;
+			break;
+		case 'i':
+			if (iface) {
+				printf
+				    ("only one interface per daemon is supported\n");
+				usage();
+			}
+			iface = strdup(optarg);
+			break;
+		case 'h':
+		default:
+			usage();
+			break;
+		}
+	}
+	if (optind < argc)
+		usage();
+
+	if (iface == NULL)
+		usage();
+
+	if (daemonize) {
+		ret = daemon(1, 0);
+		if (ret) {
+			printf("Error: Failed to daemonize\n");
+			return -1;
+		}
+	}
+
 	if ((socketfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_TYPE))) < 0 )
 	{
 		printf("Error: could not open socket %d\n",socketfd);
 		return -1;
 	}
+
 	memset(&buffer, 0x00, sizeof(buffer));
 	strncpy(buffer.ifr_name, (char *)iface, IFNAMSIZ);
 	if (ioctl(socketfd, SIOCGIFINDEX, &buffer) < 0)

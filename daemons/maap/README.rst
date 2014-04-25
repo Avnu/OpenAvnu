@@ -19,9 +19,9 @@ Linux Specific
 To build, execute the linux makefile.
 
 To execute(in root), go to build directory(where binary is created) and run
-	./maap_daemon <interface-name>
+	maap_daemon [-d] -i interface-name
 such as
-	./maap_daemon eth0
+	./maap_daemon -i eth0
 
 The daemon creates a 6 bytes shared memory segment with the key 1234 and writes the allocated mac-addr there.
 The client applications will have to use this key value 1234 in the applications and read the allocated mac-addr
@@ -31,13 +31,13 @@ and use it as dest mac-addr for the packets transmission.
 Execute Command :
 ------------
 
-	sudo ./maap_daemon eth0
+	sudo ./maap_daemon -i eth0
 
 
 OUTPUT :
 ------------
 
-$ sudo ./maap_daemon eth0
+$ sudo ./maap_daemon -i eth0
 
 SENT MAAP_PROBE 
 
@@ -64,4 +64,3 @@ ADDR[2] = 0xf0
 ADDR[3] = 0
 ADDR[4] = 0x95
 ADDR[5] = 0x18
-
