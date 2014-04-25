@@ -813,6 +813,7 @@ igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
 	union e1000_adv_tx_desc	*txd = NULL;
 	u32			cmd_type_len, olinfo_status = 0;
 	int			i, first, last = 0;
+	int error = 0;
 
 	if (NULL == dev) return EINVAL;
 	adapter = (struct adapter *)dev->private_data;
@@ -856,8 +857,10 @@ igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
 	** the context descriptor used for the
 	** offloads.
 	*/
-	if (txr->tx_avail <= 2)
-		return (ENOSPC);
+	if (txr->tx_avail <= 2) {
+		error = ENOSPC;
+		goto unlock;
+	}
 
 	/* 
 	 * Set up the context descriptor to specify
@@ -918,11 +921,12 @@ igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
 	E1000_WRITE_REG(&adapter->hw, E1000_TDT(txr->me), i);
 	++txr->tx_packets;
 
+unlock:
 	if( sem_post( adapter->memlock ) != 0 ) {
 		return errno;
 	}
 
-	return(0);
+	return(error);
 }
 
 void
