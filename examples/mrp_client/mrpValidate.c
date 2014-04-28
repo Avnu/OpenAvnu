@@ -231,11 +231,14 @@ fnSquestionquestion(void) {
 	return 0;
 }
 
-/********************************************
+/******************************************************************
  * MSRP Talker Failed functions:
- *  S++ Declare a Talker Failed for Stream w/New
- *  S+? Declare a Talker Failed for Stream w/JoinMt
- ********************************************/
+ *  S++...B=...C=... Declare a Talker Failed for Stream w/New
+ *  S+?...B=...C=... Declare a Talker Failed for Stream w/JoinMt
+ *  these are the same format as the Talker Advertise string with the
+ *  addition of a bridge ID and a failure code at the end of the
+ *  string.
+ ******************************************************************/
 int
 fnSTFplusplus(void) {
 #define STF_PLUS_PLUS "S++:S=" STREAM_ID \
