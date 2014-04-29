@@ -1023,7 +1023,7 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 
 		if (txr->tx_avail == adapter->num_tx_desc) {
 			txr->queue_status = IGB_QUEUE_IDLE;
-			return;
+			continue;
 		}
 	
 		processed = 0;
