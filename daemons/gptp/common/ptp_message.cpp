@@ -1003,7 +1003,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 
 	correctionField = (uint64_t)
 		((correctionField >> 16)/master_local_freq_offset);
-	correction = (int) (delay + (correctionField >> 16));
+	correction = (int) (delay + correctionField);
 	corrected_sync_time = sync_arrival;
 	
 	if( correction > 0 )
