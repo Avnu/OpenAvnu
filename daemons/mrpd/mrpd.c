@@ -648,12 +648,16 @@ void process_events(void)
 		if (-1 == rc)
 			return;	/* exit on error */
 		else {
-			if (FD_ISSET(control_socket, &sel_fds))
+			if (FD_ISSET(control_socket, &sel_fds)) {
+#if LOG_POLL_EVENTS
+				mrpd_log_printf("== EVENT recv_ctl_msg ==\n");
+#endif
 				recv_ctl_msg();
+			}
 			if (mmrp_enable) {
 				if FD_ISSET
 					(mmrp_socket, &sel_fds) {
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+#if LOG_POLL_EVENTS
 					mrpd_log_printf("== EVENT mmrp_recv_msg ==\n");
 #endif
 					mmrp_recv_msg();
@@ -680,7 +684,7 @@ void process_events(void)
 			if (mvrp_enable) {
 				if FD_ISSET
 					(mvrp_socket, &sel_fds) {
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+#if LOG_POLL_EVENTS
 					mrpd_log_printf("== EVENT mvrp_recv_msg ==\n");
 #endif
 					mvrp_recv_msg();
@@ -707,7 +711,7 @@ void process_events(void)
 			if (msrp_enable) {
 				if FD_ISSET
 					(msrp_socket, &sel_fds) {
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+#if LOG_POLL_EVENTS
 					mrpd_log_printf("== EVENT msrp_recv_msg ==\n");
 #endif
 					msrp_recv_msg();
@@ -732,7 +736,7 @@ void process_events(void)
 					}
 			}
 			if (FD_ISSET(periodic_timer, &sel_fds)) {
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+#if LOG_POLL_EVENTS && LOG_TIMERS
 				mrpd_log_printf("== EVENT periodic_timer ==\n");
 #endif
 				if (mmrp_enable) {
@@ -749,7 +753,7 @@ void process_events(void)
 			if (FD_ISSET(gc_timer, &sel_fds)) {
 				mrpd_reclaim();
 			}
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+#if LOG_POLL_EVENTS
 		mrpd_log_printf("== EVENT DONE ==\n");
 #endif
 		}
@@ -897,7 +901,7 @@ int main(int argc, char *argv[])
 
 static void mrpd_log_timer_event(char *src, int event)
 {
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
+#if LOG_POLL_EVENTS && LOG_TIMERS
 	if (event == MRP_EVENT_LVATIMER) {
 		mrpd_log_printf("== EVENT %s leaveAll timer expires ==\n", src);
 	} else if (event == MRP_EVENT_LVTIMER) {
