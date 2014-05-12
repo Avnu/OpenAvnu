@@ -36,7 +36,7 @@
 #define LOG_MVRP 0
 #define LOG_MMRP 0
 #define LOG_MSRP 0
-#define LOG_MSRP_FILTERING 0
+#define LOG_POLL_EVENTS 0
 #define LOG_TIMERS 0
 #define LOG_MSRP_GARBAGE_COLLECTION 0
 #define LOG_TXNOW 0
@@ -52,6 +52,9 @@ typedef struct mrp_applicant_attribute {
 	int tx;			/* tx=1 means transmit on next TX event */
 	int sndmsg;		/* sndmsg={NEW,IN,JOININ,JOINMT,MT, or LV} */
 	int encode;		/* when tx=1, NO, YES or OPTIONAL */
+#ifdef LOG_MRP
+	int mrp_previous_state; /* for identifying state transitions for debug */
+#endif
 } mrp_applicant_attribute_t;
 
 typedef struct mrp_registrar_attribute {
@@ -59,6 +62,9 @@ typedef struct mrp_registrar_attribute {
 	int notify;
 	short rsvd;
 	unsigned char macaddr[6];	/* mac address of last registration */
+#ifdef LOG_MRP
+	int mrp_previous_state; /* for identifying state transitions for debug */
+#endif
 } mrp_registrar_attribute_t;
 
 /* MRP Application Notifications */
@@ -211,8 +217,8 @@ int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
 void mrp_schedule_tx_event(struct mrp_database *mrp_db);
 
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
-int mrp_log_this(void);
-void mrp_set_log_this(int v);
+char *mrp_event_string(int e);
 char *mrp_send_string(int s);
-char *mrp_pdu_stringild(int s);
+char *mrp_print_status(const mrp_applicant_attribute_t * app,
+		       const mrp_registrar_attribute_t * reg);
 #endif

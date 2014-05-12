@@ -71,27 +71,34 @@ static char *msrp_attrib_type_string(int t)
 	}
 }
 
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
-#if LOG_MSRP_FILTERING
-static void msrp_update_log_filter(struct msrp_attribute *attrib)
+#if LOG_MSRP && LOG_MRP
+void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 {
-	int v;
+	char * state_mc_states = NULL;
 
-	/* write custom filter in here */
-	if (NULL == attrib)
-		v = 0;
-	else
-		v = (MSRP_LISTENER_TYPE == attrib->type);
-	mrp_set_log_this(v);
-}
-#else
-static void msrp_update_log_filter(struct msrp_attribute *attrib)
-{
-	(void)(attrib);
+	if (attrib) {
+#if 0
+		if (MSRP_DOMAIN_TYPE == attrib->type) {
+			state_mc_states = mrp_print_status(
+						&(attrib->applicant),
+						&(attrib->registrar));
+			mrpd_log_printf("MSRP Domain event %s, %s\n",
+				     mrp_event_string(evt),
+				     state_mc_states);		
 
-	mrp_set_log_this(1);
-}
+		}
 #endif
+		if (MSRP_TALKER_ADV_TYPE == attrib->type) {
+			state_mc_states = mrp_print_status(
+						&(attrib->applicant),
+						&(attrib->registrar));
+			mrpd_log_printf("MSRP Talker event %s, %s\n",
+				     mrp_event_string(evt),
+				     state_mc_states);		
+
+		}
+	}
+}
 #endif
 
 struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
@@ -302,21 +309,16 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
-#endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db),
 					  &(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_TXLA);
+#if LOG_MSRP
+			msrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
+
 		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_LVATIMER);
 
 		MSRP_db->send_empty_LeaveAll_flag = 1;
@@ -340,22 +342,17 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 			if (attrib->type == rattrib->type) {
-#if LOG_MSRP
-				msrp_update_log_filter(attrib);
-				if (mrp_log_this())
-					mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-						msrp_attrib_type_string(attrib->type));
-#endif
 				mrp_applicant_fsm(&(MSRP_db->mrp_db),
 					  &(attrib->applicant), MRP_EVENT_RLA);
 				mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_RLA);
+#if LOG_MSRP
+				msrp_print_debug_info(event, attrib);
+#endif
 			}
 			attrib = attrib->next;
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
+
 		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_RLA);
 
 		break;
@@ -364,19 +361,14 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
-#endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db),
 					  &(attrib->applicant), MRP_EVENT_TX);
+#if LOG_MSRP
+			msrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
+
 		/*
 		 * Don't need to call mrp_lvatimer_fsm(..., MRP_EVENT_TX) from
 		 * here because the TX event only ever does anything in the
@@ -390,40 +382,28 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_registrar_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
-#endif
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db),
 					  MRP_EVENT_LVTIMER);
 
+#if LOG_MSRP
+			msrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
 		break;
 	case MRP_EVENT_PERIODIC:
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
-#endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db),
 					  &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
+#if LOG_MSRP
+			msrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
 		break;
 	case MRP_EVENT_NEW:
 	case MRP_EVENT_JOIN:
@@ -448,21 +428,10 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 			msrp_merge(rattrib);
 			free(rattrib);
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(attrib);
-		if (mrp_log_this())
-			mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-				msrp_attrib_type_string(attrib->type));
-#endif
+
 		mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant),
 				  event);
 
-
-#if LOG_MSRP
-		if (mrp_log_this())
-			mrpd_log_printf("MSRP -> mrp_registrar_fsm (%s)\n",
-				msrp_attrib_type_string(attrib->type));
-#endif
 		/* remap local requests into registrar events */
 		switch (event) {
 		case MRP_EVENT_NEW:
@@ -495,8 +464,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 			break;
 		}
 #if LOG_MSRP
-		msrp_update_log_filter(NULL);
+		msrp_print_debug_info(event, attrib);
 #endif
+
 		break;
 	default:
 		break;
@@ -536,10 +506,15 @@ struct msrp_attribute *msrp_alloc()
 	attrib->applicant.tx = 0;
 	attrib->applicant.sndmsg = MRP_SND_NULL;
 	attrib->applicant.encode = MRP_ENCODE_OPTIONAL;
+#ifdef LOG_MRP
+	attrib->applicant.mrp_previous_state = -1;
+#endif
 
 	attrib->registrar.mrp_state = MRP_MT_STATE;
 	attrib->registrar.notify = MRP_NOTIFY_NONE;
-
+#ifdef LOG_MRP
+	attrib->registrar.mrp_previous_state = -1;
+#endif
 	return attrib;
 }
 
