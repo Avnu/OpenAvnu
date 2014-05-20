@@ -219,6 +219,8 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		}
 		break;
 	case MRP_EVENT_PERIODIC:
+		mrp_jointimer_start(&(MVRP_db->mrp_db));
+
 		attrib = MVRP_db->attrib_list;
 
 		while (NULL != attrib) {

@@ -107,6 +107,7 @@ extern SOCKET msrp_socket;
 int periodic_timer;
 int gc_timer;
 unsigned int gc_ctl_msg_count = 0;
+static struct mrp_periodictimer_state mrp_periodic_state;
 
 extern struct mmrp_database *MMRP_db;
 extern struct mvrp_database *MVRP_db;
@@ -176,18 +177,20 @@ int gctimer_start()
 	return mrpd_timer_start(gc_timer, 30 * 1000);
 }
 
-int periodictimer_start()
+int mrp_periodictimer_start()
 {
-	/* periodictimer has expired. (10.7.5.23)
+	/* Single periodic timer and state machine per port
+	 * periodictimer has expired. (10.7.5.23)
 	 * PeriodicTransmission state machine generates periodic events
 	 * period is one-per-sec
 	 */
 	return mrpd_timer_start_interval(periodic_timer, 1000, 1000);
 }
 
-int periodictimer_stop()
+int mrp_periodictimer_stop()
 {
-	/* periodictimer has expired. (10.7.5.23)
+	/* Single periodic timer and state machine per port
+	 * periodictimer has expired. (10.7.5.23)
 	 * PeriodicTransmission state machine generates periodic events
 	 * period is one-per-sec
 	 */
@@ -509,16 +512,6 @@ int mrpd_init_timers(struct mrp_database *mrp_db)
 	return -1;
 }
 
-int handle_periodic(void)
-{
-	if (periodic_enable)
-		periodictimer_start();
-	else
-		periodictimer_stop();
-
-	return 0;
-}
-
 int init_timers(void)
 {
 	/*
@@ -536,9 +529,6 @@ int init_timers(void)
 		goto out;
 
 	gctimer_start();
-
-	if (periodic_enable)
-		periodictimer_start();
 
 	return 0;
  out:
@@ -635,6 +625,12 @@ void process_events(void)
 	FD_SET(periodic_timer, &fds);
 	if (periodic_timer > max_fd)
 		max_fd = periodic_timer;
+
+	if (periodic_enable) {
+		rc = mrp_periodictimer_fsm(&mrp_periodic_state, MRP_EVENT_BEGIN);
+		if (rc)
+			return;
+	}
 
 	FD_SET(gc_timer, &fds);
 	if (gc_timer > max_fd)
@@ -739,6 +735,8 @@ void process_events(void)
 #if LOG_POLL_EVENTS && LOG_TIMERS
 				mrpd_log_printf("== EVENT periodic_timer ==\n");
 #endif
+				
+				mrp_periodictimer_fsm(&mrp_periodic_state, MRP_EVENT_PERIODIC);
 				if (mmrp_enable) {
 					mmrp_event(MRP_EVENT_PERIODIC, NULL);
 				}
@@ -748,7 +746,6 @@ void process_events(void)
 				if (msrp_enable) {
 					msrp_event(MRP_EVENT_PERIODIC, NULL);
 				}
-				handle_periodic();
 			}
 			if (FD_ISSET(gc_timer, &sel_fds)) {
 				mrpd_reclaim();
@@ -799,6 +796,7 @@ int main(int argc, char *argv[])
 	mmrp_socket = INVALID_SOCKET;
 	mvrp_socket = INVALID_SOCKET;
 	msrp_socket = INVALID_SOCKET;
+	mrp_periodic_state.state = -1;
 	periodic_timer = -1;
 	gc_timer = -1;
 

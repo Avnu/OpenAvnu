@@ -393,17 +393,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		}
 		break;
 	case MRP_EVENT_PERIODIC:
-		attrib = MSRP_db->attrib_list;
-
-		while (NULL != attrib) {
-			mrp_applicant_fsm(&(MSRP_db->mrp_db),
-					  &(attrib->applicant),
-					  MRP_EVENT_PERIODIC);
-#if LOG_MSRP
-			msrp_print_debug_info(event, attrib);
-#endif
-			attrib = attrib->next;
-		}
+		/*
+		 * Periodic timer is ignored in MSRP application.
+		 */
 		break;
 	case MRP_EVENT_NEW:
 	case MRP_EVENT_JOIN:

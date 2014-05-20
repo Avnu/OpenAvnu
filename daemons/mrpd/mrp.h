@@ -142,6 +142,10 @@ typedef struct mrp_timer {
 	int sndmsg;		/* sndmsg={NEW,JOIN,or LV}  */
 } mrp_timer_t;
 
+typedef struct mrp_periodictimer_state {
+	int state;
+} mrp_periodictimer_state_t;
+
 #define MRP_TIMER_PASSIVE	0
 #define MRP_TIMER_ACTIVE	1
 
@@ -183,7 +187,6 @@ typedef struct client {
 
 struct mrp_database {
 	mrp_timer_t lva;
-	mrp_timer_t periodic;
 	HTIMER join_timer;
 	int join_timer_running;
 	HTIMER lv_timer;
@@ -200,6 +203,9 @@ int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient);
 
 int mrp_init(void);
 char *mrp_event_string(int e);
+int mrp_periodictimer_start();
+int mrp_periodictimer_stop();
+int mrp_periodictimer_fsm(struct mrp_periodictimer_state *periodic_state, int event);
 int mrp_jointimer_stop(struct mrp_database *mrp_db);
 int mrp_jointimer_start(struct mrp_database *mrp_db);
 int mrp_lvtimer_start(struct mrp_database *mrp_db);

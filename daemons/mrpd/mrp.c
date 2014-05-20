@@ -474,17 +474,17 @@ int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event)
 	return 0;
 }
 
-#ifdef LATER
-int mrp_periodictimer_fsm(struct mrp_database *mrp_db, int event)
+/*
+ * Only on periodic state machine per port.
+ */
+int mrp_periodictimer_fsm(struct mrp_periodictimer_state *periodic_state, int event)
 {
 	int p_state;
-	int sndmsg = MRP_SND_NONE;
-	int tx = 0;
 
-	if (NULL == mrp_db)
+	if (NULL == periodic_state)
 		return -1;
 
-	p_state = mrp_db->periodic.state;
+	p_state = periodic_state->state;
 
 	switch (event) {
 	case MRP_EVENT_BEGIN:
@@ -507,16 +507,13 @@ int mrp_periodictimer_fsm(struct mrp_database *mrp_db, int event)
 		}
 		break;
 	default:
-		printf("mrp_periodictimer_fsm:unexpected event (%d), state %s\n",
-			event, mrp_lvatimer_state_string(p_state));
-		return;
-		break;
+		printf("mrp_periodictimer_fsm:unexpected event (%d), state %d\n",
+			event, p_state);
+		return -1;
 	}
-	mrp_db->periodic.state = p_state;
-	mrp_db->periodic.sndmsg = sndmsg;
-	mrp_db->periodic.tx = tx;
+	periodic_state->state = p_state;
+	return 0;
 }
-#endif
 
 /*
  * per-attribute MRP FSM
