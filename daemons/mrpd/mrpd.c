@@ -77,7 +77,6 @@ char *interface;
 int interface_fd;
 
 /* state machine controls */
-int periodic_enable;
 int registration;
 
 /* if registration is FIXED or FORBIDDEN
@@ -626,11 +625,9 @@ void process_events(void)
 	if (periodic_timer > max_fd)
 		max_fd = periodic_timer;
 
-	if (periodic_enable) {
-		rc = mrp_periodictimer_fsm(&mrp_periodic_state, MRP_EVENT_BEGIN);
-		if (rc)
-			return;
-	}
+	rc = mrp_periodictimer_fsm(&mrp_periodic_state, MRP_EVENT_BEGIN);
+	if (rc)
+		return;
 
 	FD_SET(gc_timer, &fds);
 	if (gc_timer > max_fd)
@@ -789,7 +786,6 @@ int main(int argc, char *argv[])
 	mrpd_port = MRPD_PORT_DEFAULT;
 	interface = NULL;
 	interface_fd = -1;
-	periodic_enable = 0;
 	registration = MRP_REGISTRAR_CTL_NORMAL;	/* default */
 	participant = MRP_APPLICANT_CTL_NORMAL;	/* default */
 	control_socket = INVALID_SOCKET;
@@ -821,9 +817,6 @@ int main(int argc, char *argv[])
 			break;
 		case 'd':
 			daemonize = 1;
-			break;
-		case 'p':
-			periodic_enable = 1;
 			break;
 		case 'i':
 			if (interface) {
