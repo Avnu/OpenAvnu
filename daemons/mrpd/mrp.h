@@ -225,6 +225,7 @@ void mrp_schedule_tx_event(struct mrp_database *mrp_db);
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
 char *mrp_event_string(int e);
 char *mrp_send_string(int s);
+char *mrp_pdu_string(int s);
 char *mrp_print_status(const mrp_applicant_attribute_t * app,
 		       const mrp_registrar_attribute_t * reg);
 #endif

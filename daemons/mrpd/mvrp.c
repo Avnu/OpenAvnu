@@ -56,6 +56,18 @@ SOCKET mvrp_socket;
 struct mvrp_database *MVRP_db;
 
 /* MVRP */
+#if LOG_MVRP && LOG_MRP
+void mvrp_print_debug_info(int evt, const struct mvrp_attribute *attrib)
+{
+	char * state_mc_states = NULL;
+
+	state_mc_states = mrp_print_status(&(attrib->applicant),
+					   &(attrib->registrar));
+	mrpd_log_printf("MVRP event %s, %s\n",
+		        mrp_event_string(evt),
+		        state_mc_states);		
+}
+#endif
 
 struct mvrp_attribute *mvrp_lookup(struct mvrp_attribute *rattrib)
 {
@@ -155,13 +167,13 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		attrib = MVRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MVRP
-			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
-#endif
 			mrp_applicant_fsm(&(MVRP_db->mrp_db),
 					  &(attrib->applicant), MRP_EVENT_TXLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MVRP_db->mrp_db), MRP_EVENT_TXLA);
+#if LOG_MVRP
+			mvrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
 
@@ -178,13 +190,13 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		attrib = MVRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MVRP
-			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
-#endif
 			mrp_applicant_fsm(&(MVRP_db->mrp_db),
 					  &(attrib->applicant), MRP_EVENT_RLA);
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MVRP_db->mrp_db), MRP_EVENT_RLA);
+#if LOG_MVRP
+			mvrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
 
@@ -196,11 +208,11 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		attrib = MVRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MVRP
-			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
-#endif
 			mrp_applicant_fsm(&(MVRP_db->mrp_db),
 					  &(attrib->applicant), MRP_EVENT_TX);
+#if LOG_MVRP
+			mvrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
 
@@ -215,21 +227,26 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 					  &(MVRP_db->mrp_db),
 					  MRP_EVENT_LVTIMER);
 
+#if LOG_MVRP
+			mvrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
 		break;
 	case MRP_EVENT_PERIODIC:
-		mrp_jointimer_start(&(MVRP_db->mrp_db));
-
 		attrib = MVRP_db->attrib_list;
 
+		if (NULL != attrib) {
+			mrp_jointimer_start(&(MVRP_db->mrp_db));
+		}
+
 		while (NULL != attrib) {
-#if LOG_MVRP
-			mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
-#endif
 			mrp_applicant_fsm(&(MVRP_db->mrp_db),
 					  &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
+#if LOG_MVRP
+			mvrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
 		break;
@@ -257,9 +274,6 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 			free(rattrib);
 		}
 
-#if LOG_MVRP
-		mrpd_log_printf("MVRP -> mrp_applicant_fsm\n");
-#endif
 		mrp_applicant_fsm(&(MVRP_db->mrp_db), &(attrib->applicant),
 				  event);
 		/* remap local requests into registrar events */
@@ -292,6 +306,9 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 			}
 			break;
 		}
+#if LOG_MVRP
+		mvrp_print_debug_info(event, attrib);
+#endif
 		break;
 	default:
 		break;
