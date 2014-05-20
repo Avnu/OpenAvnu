@@ -276,13 +276,17 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 	case MRP_EVENT_PERIODIC:
 		attrib = MMRP_db->attrib_list;
 
+		if (NULL != attrib) {
+			mrp_jointimer_start(&(MMRP_db->mrp_db));
+		}
+
 		while (NULL != attrib) {
-#if LOG_MMRP
-			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
-#endif
 			mrp_applicant_fsm(&(MMRP_db->mrp_db),
 					  &(attrib->applicant),
 					  MRP_EVENT_PERIODIC);
+#if LOG_MMRP
+			//mvrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
 		break;
