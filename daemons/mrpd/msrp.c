@@ -714,6 +714,12 @@ int msrp_recv_msg()
 					numvalues_processed =
 					    (numvalues > 3 ? 3 : numvalues);
 
+					/* check for out of range encoding */
+					if (vectevt[0] > MRPDU_LV) {
+						numvalues -= numvalues_processed;
+						continue;
+					}
+
 					for (vectevt_idx = 0;
 					     vectevt_idx < numvalues_processed;
 					     vectevt_idx++) {
@@ -962,6 +968,12 @@ int msrp_recv_msg()
 					numvalues_processed =
 					    (numvalues > 3 ? 3 : numvalues);
 
+					/* check for out of range encoding */
+					if (vectevt[0] > MRPDU_LV) {
+						numvalues -= numvalues_processed;
+						continue;
+					}
+
 					for (vectevt_idx = 0;
 					     vectevt_idx < numvalues_processed;
 					     vectevt_idx++) {
@@ -1153,6 +1165,12 @@ int msrp_recv_msg()
 
 					numvalues_processed =
 					    (numvalues > 3 ? 3 : numvalues);
+
+					/* check for out of range encoding */
+					if (vectevt[0] > MRPDU_LV) {
+						numvalues -= numvalues_processed;
+						continue;
+					}
 
 					for (vectevt_idx = 0;
 					     vectevt_idx < numvalues_processed;
@@ -1385,6 +1403,12 @@ int msrp_recv_msg()
 
 					numvalues_processed =
 					    (numvalues > 3 ? 3 : numvalues);
+
+					/* check for out of range encoding */
+					if (vectevt[0] > MRPDU_LV) {
+						numvalues -= numvalues_processed;
+						continue;
+					}
 
 					for (vectevt_idx = 0;
 					     vectevt_idx < numvalues_processed;
