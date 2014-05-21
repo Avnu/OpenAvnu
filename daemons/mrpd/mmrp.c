@@ -957,7 +957,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
 
 		if (lva)
-			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA(0xFFFF);
+			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA_FLAG;
 
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
@@ -979,7 +979,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	if ((0 == attrib_found_flag) && MMRP_db->send_empty_LeaveAll_flag) {
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
-						MRPDU_VECT_LVA(0xFFFF);
+						MRPDU_VECT_LVA_FLAG;
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
 
@@ -1203,7 +1203,7 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
 
 		if (lva)
-			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA(0xFFFF);
+			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA_FLAG;
 
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);

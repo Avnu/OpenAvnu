@@ -178,7 +178,8 @@ typedef struct mrpdu_vectorattrib {
 } mrpdu_vectorattrib_t;
 
 #define MRPDU_VECT_NUMVALUES(x)	((x) & ((1 << 13) - 1))
-#define MRPDU_VECT_LVA(x)	((x) & (1 << 13))
+#define MRPDU_VECT_LVA(x)	(((x) & (7 << 13)) == (1 << 13))
+#define MRPDU_VECT_LVA_FLAG	(1 << 13)
 
 typedef struct client {
 	struct client *next;
