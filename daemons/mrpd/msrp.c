@@ -716,6 +716,9 @@ int msrp_recv_msg()
 
 					/* check for out of range encoding */
 					if (vectevt[0] > MRPDU_LV) {
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() DOMAIN vector discard\n");
+#endif
 						numvalues -= numvalues_processed;
 						continue;
 					}
@@ -970,6 +973,9 @@ int msrp_recv_msg()
 
 					/* check for out of range encoding */
 					if (vectevt[0] > MRPDU_LV) {
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() LISTENER vector discard\n");
+#endif
 						numvalues -= numvalues_processed;
 						continue;
 					}
@@ -1103,7 +1109,7 @@ int msrp_recv_msg()
 
 #if LOG_MSRP
 				mrpd_log_printf
-				    ("MSRP msrp_recv_msg() TALKER vector addr 0x%X, n = %d, VectorHeader %d\n",
+				     ("MSRP msrp_recv_msg() TALKER vector addr 0x%X, n = %d, VectorHeader %d\n",
 				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
 				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
@@ -1168,6 +1174,9 @@ int msrp_recv_msg()
 
 					/* check for out of range encoding */
 					if (vectevt[0] > MRPDU_LV) {
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() TALKER_ADV vector discard\n");
+#endif
 						numvalues -= numvalues_processed;
 						continue;
 					}
@@ -1406,6 +1415,9 @@ int msrp_recv_msg()
 
 					/* check for out of range encoding */
 					if (vectevt[0] > MRPDU_LV) {
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() TALKER_FAIL vector discard\n");
+#endif
 						numvalues -= numvalues_processed;
 						continue;
 					}
