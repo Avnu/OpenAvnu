@@ -890,6 +890,8 @@ int mrp_applicant_state_transition_implies_tx(mrp_applicant_attribute_t * attrib
 	case MRP_LO_STATE:
 		return 0;
 	}
+	
+	return 0;
 }
 
 int
