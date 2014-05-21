@@ -860,14 +860,36 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db,
 		break;
 	}
 
-#if LOG_MRP
 	attrib->mrp_previous_state = attrib->mrp_state;
-#endif
 	attrib->tx = tx;
 	attrib->mrp_state = mrp_state;
 	attrib->sndmsg = sndmsg;
 	attrib->encode = (optional ? MRP_ENCODE_OPTIONAL : MRP_ENCODE_YES);
 	return 0;
+}
+
+int mrp_applicant_state_transition_implies_tx(mrp_applicant_attribute_t * attrib)
+{
+	if (attrib->mrp_previous_state == attrib->mrp_state) {
+		return 0;
+	}
+
+	switch (attrib->mrp_state) {
+	case MRP_VP_STATE:
+	case MRP_VN_STATE:
+	case MRP_AN_STATE:
+	case MRP_AA_STATE:
+	case MRP_LA_STATE:
+		return 1;
+	case MRP_VO_STATE:
+	case MRP_QA_STATE:
+	case MRP_AO_STATE:
+	case MRP_QO_STATE:
+	case MRP_AP_STATE:
+	case MRP_QP_STATE:
+	case MRP_LO_STATE:
+		return 0;
+	}
 }
 
 int

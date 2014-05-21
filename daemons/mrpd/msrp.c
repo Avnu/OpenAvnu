@@ -299,6 +299,7 @@ int msrp_merge(struct msrp_attribute *rattrib)
 int msrp_event(int event, struct msrp_attribute *rattrib)
 {
 	struct msrp_attribute *attrib;
+	int count = 0;
 	int rc;
 
 	switch (event) {
@@ -366,6 +367,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 			msrp_print_debug_info(event, attrib);
 #endif
+			count += mrp_applicant_state_transition_implies_tx(&(attrib->applicant));
 			attrib = attrib->next;
 		}
 
@@ -376,6 +378,15 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		 * momentarily after a LVATIMER event.
 		 */
 		msrp_txpdu();
+
+		/*
+		 * Certain state transitions imply we need to request another tx
+		 * opportunity.
+		 */
+		if (count) {
+			mrp_jointimer_start(&(MSRP_db->mrp_db));
+		}
+
 		break;
 	case MRP_EVENT_LVTIMER:
 		mrp_lvtimer_stop(&(MSRP_db->mrp_db));

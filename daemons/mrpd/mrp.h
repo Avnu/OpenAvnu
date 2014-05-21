@@ -52,9 +52,7 @@ typedef struct mrp_applicant_attribute {
 	int tx;			/* tx=1 means transmit on next TX event */
 	int sndmsg;		/* sndmsg={NEW,IN,JOININ,JOINMT,MT, or LV} */
 	int encode;		/* when tx=1, NO, YES or OPTIONAL */
-#ifdef LOG_MRP
-	int mrp_previous_state; /* for identifying state transitions for debug */
-#endif
+	int mrp_previous_state; /* for identifying state transitions */
 } mrp_applicant_attribute_t;
 
 typedef struct mrp_registrar_attribute {
@@ -221,6 +219,7 @@ int mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
 		     mrp_applicant_attribute_t * aattrib, char *str,
 		     int strlen);
+int mrp_applicant_state_transition_implies_tx(mrp_applicant_attribute_t * attrib);
 void mrp_schedule_tx_event(struct mrp_database *mrp_db);
 
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
