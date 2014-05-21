@@ -196,6 +196,7 @@ int mmrp_merge(struct mmrp_attribute *rattrib)
 int mmrp_event(int event, struct mmrp_attribute *rattrib)
 {
 	struct mmrp_attribute *attrib;
+	int count = 0;
 
 	switch (event) {
 	case MRP_EVENT_LVATIMER:
@@ -256,10 +257,20 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 #endif
 			mrp_applicant_fsm(&(MMRP_db->mrp_db),
 					  &(attrib->applicant), MRP_EVENT_TX);
+			count += mrp_applicant_state_transition_implies_tx(&(attrib->applicant));
 			attrib = attrib->next;
 		}
 
 		mmrp_txpdu();
+
+		/*
+		 * Certain state transitions imply we need to request another tx
+		 * opportunity.
+		 */
+		if (count) {
+			mrp_jointimer_start(&(MMRP_db->mrp_db));
+		}
+
 		break;
 	case MRP_EVENT_LVTIMER:
 		mrp_lvtimer_stop(&(MMRP_db->mrp_db));

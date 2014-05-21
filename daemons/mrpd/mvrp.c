@@ -153,6 +153,7 @@ int mvrp_merge(struct mvrp_attribute *rattrib)
 int mvrp_event(int event, struct mvrp_attribute *rattrib)
 {
 	struct mvrp_attribute *attrib;
+	int count = 0;
 	int rc;
 
 #if LOG_MVRP
@@ -213,10 +214,19 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			mvrp_print_debug_info(event, attrib);
 #endif
+			count += mrp_applicant_state_transition_implies_tx(&(attrib->applicant));
 			attrib = attrib->next;
 		}
 
 		mvrp_txpdu();
+
+		/*
+		 * Certain state transitions imply we need to request another tx
+		 * opportunity.
+		 */
+		if (count) {
+			mrp_jointimer_start(&(MVRP_db->mrp_db));
+		}
 		break;
 	case MRP_EVENT_LVTIMER:
 		mrp_lvtimer_stop(&(MVRP_db->mrp_db));
