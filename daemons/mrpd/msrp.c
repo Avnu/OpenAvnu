@@ -1880,6 +1880,28 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	return -1;
 }
 
+/*
+ * Below works for both talker and talkerFailed because talker has
+ * FailureInformation explicitly set to zero.
+ */
+static int vectorize_talker(struct msrp_attribute *first_attrib,
+			uint8_t streamid_firstval[8],
+			uint8_t mac_firstval[6],
+			struct msrp_attribute *candidate_attrib)
+{
+	struct msrpdu_talker_fail  first;
+
+	/*
+	 * Make a copy of the "first" attrib and update ID and MAC with new
+	 * values before comparing
+	 */
+	first = first_attrib->attribute.talk_listen;
+	memcpy(first.StreamID, streamid_firstval, 8);
+	memcpy(first.DataFrameParameters.Dest_Addr, mac_firstval, 6);
+	return (memcmp(&first, &candidate_attrib->attribute.talk_listen,
+			sizeof(first)) == 0);
+}
+
 int
 msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		      int *bytes_used, int lva, unsigned int type)
@@ -1898,7 +1920,6 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	mrpdu_message_t *mrpdu_msg;
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
-	int mac_eq;
 	unsigned int attrib_found_flag = 0;
 	unsigned int vector_size = 0;
 	unsigned int attrib_len = 0;
@@ -2061,14 +2082,10 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			msrp_increment_streamid(streamid_firstval);
 			mmrp_increment_macaddr(destmac_firstval);
 
-			mac_eq = memcmp(vattrib->attribute.talk_listen.StreamID,
-					streamid_firstval, 8);
-
-			if (0 != mac_eq)
-				break;
-
-			/* check TSpec MaxFrameSize before vectorizing */
-			if (tspec_maxframesize_firstval != vattrib->attribute.talk_listen.TSpec.MaxFrameSize)
+			if (!vectorize_talker(attrib,
+					streamid_firstval,
+					destmac_firstval,
+					vattrib))
 				break;
 
 			vattrib->applicant.tx = 0;
