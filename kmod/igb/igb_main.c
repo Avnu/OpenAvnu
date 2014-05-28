@@ -130,7 +130,9 @@ static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
 static void igb_dma_err_task(struct work_struct *);
 static void igb_dma_err_timer(unsigned long data);
-static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb);
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb,
+                            void *accel_priv,
+                            select_queue_fallback_t fallback);
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
 static struct net_device_stats *igb_get_stats(struct net_device *);
 static int igb_change_mtu(struct net_device *, int);
@@ -5526,7 +5528,8 @@ static inline struct igb_ring *igb_tx_queue_mapping(struct igb_adapter *adapter,
 #error This driver must have multi-queue transmit support enabled (CONFIG_NETDEVICES_MULTIQUEUE)!
 #endif
 
-static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb,
+                            void *accel_priv, select_queue_fallback_t fallback)
 {
        /* remap normal LAN to best effort queue[3] */
 
@@ -9291,7 +9294,7 @@ int igb_del_mac_filter(struct igb_adapter *adapter, u8* addr, u16 queue)
 	if (is_zero_ether_addr(addr))
 		return 0;
 	for (i = 0; i < hw->mac.rar_entry_count; i++) {
-		if (!compare_ether_addr(addr, adapter->mac_table[i].addr) &&
+		if (ether_addr_equal(addr, adapter->mac_table[i].addr) &&
 		    adapter->mac_table[i].queue == queue) {
 			adapter->mac_table[i].state = IGB_MAC_STATE_MODIFIED;
 			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
