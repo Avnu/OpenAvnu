@@ -210,7 +210,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MMRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_TXLA);
+					  &(attrib->applicant), MRP_EVENT_TXLA,
+					  mrp_registrar_in(&(attrib->registrar)));
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MMRP_db->mrp_db), MRP_EVENT_TXLA);
 			attrib = attrib->next;
@@ -237,7 +238,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 				mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 				mrp_applicant_fsm(&(MMRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_RLA);
+					  &(attrib->applicant), MRP_EVENT_RLA,
+					  mrp_registrar_in(&(attrib->registrar)));
 				mrp_registrar_fsm(&(attrib->registrar),
 					  &(MMRP_db->mrp_db), MRP_EVENT_RLA);
 			}
@@ -256,7 +258,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 			mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 			mrp_applicant_fsm(&(MMRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_TX);
+					  &(attrib->applicant), MRP_EVENT_TX,
+					  mrp_registrar_in(&(attrib->registrar)));
 			count += mrp_applicant_state_transition_implies_tx(&(attrib->applicant));
 			attrib = attrib->next;
 		}
@@ -294,7 +297,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		while (NULL != attrib) {
 			mrp_applicant_fsm(&(MMRP_db->mrp_db),
 					  &(attrib->applicant),
-					  MRP_EVENT_PERIODIC);
+					  MRP_EVENT_PERIODIC,
+					  mrp_registrar_in(&(attrib->registrar)));
 #if LOG_MMRP
 			//mvrp_print_debug_info(event, attrib);
 #endif
@@ -329,7 +333,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		mrpd_log_printf("MMRP -> mrp_applicant_fsm\n");
 #endif
 		mrp_applicant_fsm(&(MMRP_db->mrp_db), &(attrib->applicant),
-				  event);
+				  event,
+				  mrp_registrar_in(&(attrib->registrar)));
 		/* remap local requests into registrar events */
 		switch (event) {
 		case MRP_EVENT_NEW:

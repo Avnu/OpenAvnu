@@ -213,9 +213,10 @@ int mrp_lvatimer_start(struct mrp_database *mrp_db);
 int mrp_lvatimer_stop(struct mrp_database *mrp_db);
 int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event);
 int mrp_applicant_fsm(struct mrp_database *mrp_db,
-		      mrp_applicant_attribute_t * attrib, int event);
+		      mrp_applicant_attribute_t * attrib, int event, int in_flag);
 int mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		      struct mrp_database *mrp_db, int event);
+int mrp_registrar_in(mrp_registrar_attribute_t * attrib);
 int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
 		     mrp_applicant_attribute_t * aattrib, char *str,
 		     int strlen);

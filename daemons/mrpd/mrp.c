@@ -520,7 +520,8 @@ int mrp_periodictimer_fsm(struct mrp_periodictimer_state *periodic_state, int ev
  */
 
 int mrp_applicant_fsm(struct mrp_database *mrp_db,
-		      mrp_applicant_attribute_t * attrib, int event)
+		      mrp_applicant_attribute_t * attrib, int event,
+		      int registrar_is_IN)
 {
 	int tx = 0;
 	int optional = 0;
@@ -715,7 +716,13 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db,
 			/* send NEW */
 			tx = 1;
 			sndmsg = MRP_SND_NEW;
-			mrp_state = MRP_QA_STATE;
+			/*
+			 * See Note 8 for tx! event in Table 10-3 of IEEE 802.1Q-2011.
+			 */
+			if(registrar_is_IN)
+				mrp_state = MRP_QA_STATE;
+			else
+				mrp_state = MRP_AA_STATE;
 			break;
 		case MRP_AP_STATE:
 		case MRP_AA_STATE:
@@ -1016,6 +1023,11 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 	attrib->mrp_state = mrp_state;
 	attrib->notify = notify;
 	return 0;
+}
+
+int mrp_registrar_in(mrp_registrar_attribute_t * attrib)
+{
+	return (MRP_IN_STATE == attrib->mrp_state);
 }
 
 int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
