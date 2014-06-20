@@ -135,6 +135,12 @@ public:
 		seconds_ls = s_l;
 		seconds_ms = s_m;
 	}
+	Timestamp(uint32_t ns, uint32_t s_l, uint16_t s_m, uint8_t version) {
+		nanoseconds = ns;
+		seconds_ls = s_l;
+		seconds_ms = s_m;
+		_version = version;
+	}
 	Timestamp() {
 		output_string[0] = '\0';
 	}
@@ -172,7 +178,7 @@ public:
 		seconds_ms += carry ? 1 : 0;
 		carry = seconds_ms < this->seconds_ms ? true : false;
 
-		return Timestamp( nanoseconds, seconds_ls, seconds_ms );
+		return Timestamp( nanoseconds, seconds_ls, seconds_ms, _version );
 	}
 	Timestamp operator-( const Timestamp& o ) {
 		uint32_t nanoseconds;
@@ -209,7 +215,7 @@ public:
 			(seconds_ms - borrow_total) - o.seconds_ms;
 		borrow_total = borrow_this ? borrow_total + 1 : 0;
 
-		return Timestamp( nanoseconds, seconds_ls, seconds_ms );
+		return Timestamp( nanoseconds, seconds_ls, seconds_ms, _version );
 	}
 	void set64( uint64_t value ) {
 		nanoseconds = value % 1000000000;
