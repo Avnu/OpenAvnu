@@ -2686,6 +2686,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 	char *regsrc;
 	char mrp_state[8];
 	client_t *client;
+	size_t sub_str_len = 128;
 
 	if (NULL == attrib)
 		return -1;
@@ -2696,8 +2697,8 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 
 	variant = regsrc = NULL;
 
-	variant = (char *)malloc(128);
-	regsrc = (char *)malloc(128);
+	variant = (char *)malloc(sub_str_len);
+	regsrc = (char *)malloc(sub_str_len);
 
 	if ((NULL == variant) || (NULL == regsrc))
 		goto free_msgbuf;
@@ -2705,7 +2706,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 	memset(msgbuf, 0, MAX_MRPD_CMDSZ);
 
 	if (MSRP_LISTENER_TYPE == attrib->type) {
-		sprintf(variant, "L:D=%d,S=%02x%02x%02x%02x%02x%02x%02x%02x",
+		snprintf(variant, sub_str_len - 1, "L:D=%d,S=%02x%02x%02x%02x%02x%02x%02x%02x",
 			attrib->substate,
 			attrib->attribute.talk_listen.StreamID[0],
 			attrib->attribute.talk_listen.StreamID[1],
@@ -2716,12 +2717,12 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			attrib->attribute.talk_listen.StreamID[6],
 			attrib->attribute.talk_listen.StreamID[7]);
 	} else if (MSRP_DOMAIN_TYPE == attrib->type) {
-		sprintf(variant, "D:C=%d,P=%d,V=%04x",
+		snprintf(variant, sub_str_len - 1, "D:C=%d,P=%d,V=%04x",
 			attrib->attribute.domain.SRclassID,
 			attrib->attribute.domain.SRclassPriority,
 			attrib->attribute.domain.SRclassVID);
 	} else {
-		sprintf(variant, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
+		snprintf(variant, sub_str_len - 1, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
 			",A=%02x%02x%02x%02x%02x%02x"
 			",V=%04x"
 			",Z=%d"
@@ -2776,7 +2777,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			FailureCode);
 	}
 
-	sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
+	snprintf(regsrc, sub_str_len - 1, "R=%02x%02x%02x%02x%02x%02x",
 		attrib->registrar.macaddr[0],
 		attrib->registrar.macaddr[1],
 		attrib->registrar.macaddr[2],
@@ -2788,13 +2789,13 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 
 	switch (notify) {
 	case MRP_NOTIFY_NEW:
-		sprintf(msgbuf, "SNE %s %s %s\n", variant, regsrc, mrp_state);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "SNE %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	case MRP_NOTIFY_JOIN:
-		sprintf(msgbuf, "SJO %s %s %s\n", variant, regsrc, mrp_state);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "SJO %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	case MRP_NOTIFY_LV:
-		sprintf(msgbuf, "SLE %s %s %s\n", variant, regsrc, mrp_state);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "SLE %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	default:
 		goto free_msgbuf;
