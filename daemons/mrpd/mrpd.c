@@ -240,10 +240,10 @@ mrpd_send_ctl_msg(struct sockaddr_in *client_addr, char *notify_data,
 
 #if LOG_CLIENT_SEND
 	if (logging_enable) {
-		mrpd_log_printf("[%02d] CLT MSG %05d:%s",
+		mrpd_log_printf("[%03d] CLT MSG %05d:%s",
 				gc_ctl_msg_count, client_addr->sin_port,
 				notify_data);
-		gc_ctl_msg_count = (gc_ctl_msg_count + 1) % 100;
+		gc_ctl_msg_count = (gc_ctl_msg_count + 1) % 1000;
 	}
 #endif
 	rc = sendto(control_socket, notify_data, notify_len,
@@ -918,6 +918,8 @@ void mrpd_log_printf(const char *fmt, ...)
 		vsnprintf(sz, 512, fmt, arglist);
 		printf("MRPD %03d.%06d %s",
 		       (int)(tv.tv_sec % 1000), (int)tv.tv_usec, sz);
+		if (strstr(sz, ":ERP"))
+			printf("\n");
 		va_end(arglist);
 	}
 }
