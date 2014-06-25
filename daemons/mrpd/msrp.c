@@ -3415,8 +3415,9 @@ int msrp_reclaim(void)
 			free_sattrib = sattrib;
 			sattrib = sattrib->next;
 #if LOG_MSRP_GARBAGE_COLLECTION
-			mrpd_log_printf("MSRP -> free attrib of type (%s)\n",
-					msrp_attrib_type_string(free_sattrib->type));
+			mrpd_log_printf("MSRP -------------> free attrib of type (%s), current 0x%p, next 0x%p\n",
+					msrp_attrib_type_string(free_sattrib->type),
+					free_sattrib, sattrib);
 #endif
 			msrp_send_notifications(free_sattrib, MRP_NOTIFY_LV);
 			free(free_sattrib);
