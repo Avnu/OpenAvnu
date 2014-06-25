@@ -170,6 +170,8 @@ int msrp_add(struct msrp_attribute *rattrib)
 					rattrib->next = attrib->next;
 					rattrib->prev = attrib;
 					attrib->next = rattrib;
+					if (rattrib->next)
+						rattrib->next->prev = rattrib;
 					return 0;
 
 				} else {
@@ -205,6 +207,8 @@ int msrp_add(struct msrp_attribute *rattrib)
 					rattrib->next = attrib->next;
 					rattrib->prev = attrib;
 					attrib->next = rattrib;
+					if (rattrib->next)
+						rattrib->next->prev = rattrib;
 					return 0;
 
 				} else {
