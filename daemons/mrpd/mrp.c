@@ -45,17 +45,9 @@
 int p2pmac;
 
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
-/* logging on/off bool */
-static int log_this;
 
-int mrp_log_this(void)
-{
-	return log_this;
-}
-void mrp_set_log_this(int v)
-{
-	log_this = v;
-}
+/* can use static string since module is single threaded */
+static char state_status_string[64];
 
 char *mrp_event_string(int e)
 {
@@ -146,6 +138,48 @@ static char *mrp_state_string(int s)
 	}
 }
 
+char *mrp_send_string(int s)
+{
+	switch (s) {
+	case MRP_SND_NEW:
+		return "NEW";
+	case MRP_SND_JOIN:
+		return "JOIN";
+	case MRP_SND_IN:
+		return "IN";
+	case MRP_SND_LV:
+		return "LV";
+	case MRP_SND_LVA:
+		return "LVA";
+	case MRP_SND_NULL:
+		return "NULL";
+	case MRP_SND_NONE:
+		return "NONE";
+	default:
+		return "??";
+	}
+}
+
+char *mrp_pdu_string(int s)
+{
+	switch (s) {
+	case MRPDU_NULL_LVA: /* or NEW */
+		return "null LVA | NEW";
+	case MRPDU_LVA: /* pr JOININ */
+		return "LVA | JOININ";
+	case MRPDU_IN:
+		return "IN";
+	case MRPDU_JOINMT:
+		return "JOINMT";
+	case MRPDU_MT:
+		return "MT";
+	case MRPDU_LV:
+		return "LV";
+	default:
+		return "??";
+	}
+}
+
 static char *mrp_lvatimer_state_string(int s)
 {
 	if (s == MRP_TIMER_PASSIVE)
@@ -155,6 +189,45 @@ static char *mrp_lvatimer_state_string(int s)
 	else
 		return "??";
 }
+
+char *mrp_print_status(const mrp_applicant_attribute_t * app,
+			const mrp_registrar_attribute_t * reg)
+{
+	/*
+	 * output looks like VO->AA/IN->MT, or QA/IN
+	 */
+	if ((app->mrp_state == app->mrp_previous_state) &&
+		(reg->mrp_state == reg->mrp_previous_state)) {
+		snprintf(state_status_string, sizeof(state_status_string) - 1,
+			"%s/%s",
+			mrp_state_string(app->mrp_state),
+			mrp_state_string(reg->mrp_state));
+	} else if ((app->mrp_state != app->mrp_previous_state) &&
+		(reg->mrp_state == reg->mrp_previous_state)) {
+		snprintf(state_status_string, sizeof(state_status_string) - 1,
+			"%s->%s/%s",
+			mrp_state_string(app->mrp_previous_state),
+			mrp_state_string(app->mrp_state),
+			mrp_state_string(reg->mrp_state));
+	} else if ((app->mrp_state == app->mrp_previous_state) &&
+		(reg->mrp_state != reg->mrp_previous_state)) {
+		snprintf(state_status_string, sizeof(state_status_string) - 1,
+			"%s/%s->%s",
+			mrp_state_string(app->mrp_state),
+			mrp_state_string(reg->mrp_previous_state),
+			mrp_state_string(reg->mrp_state));
+	} else if ((app->mrp_state != app->mrp_previous_state) &&
+		(reg->mrp_state != reg->mrp_previous_state)) {
+		snprintf(state_status_string, sizeof(state_status_string) - 1,
+			"%s->%s/%s->%s",
+			mrp_state_string(app->mrp_previous_state),
+			mrp_state_string(app->mrp_state),
+			mrp_state_string(reg->mrp_previous_state),
+			mrp_state_string(reg->mrp_state));
+	}
+	return state_status_string;
+}
+
 #endif
 
 static int client_lookup(client_t * list, struct sockaddr_in *newclient)
@@ -782,7 +855,7 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db,
 		break;
 
 	default:
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
 		printf("mrp_applicant_fsm:unexpected event %s (%d)\n",
 		       mrp_event_string(event), event);
 #endif
@@ -790,23 +863,10 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db,
 		break;
 	}
 
-	attrib->tx = tx;
-
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP
-	if (mrp_log_this()) {
-		if (attrib->mrp_state != mrp_state) {
-			mrpd_log_printf("mrp_applicant_fsm event %s, state %s -> %s\n",
-					mrp_event_string(event),
-					mrp_state_string(attrib->mrp_state),
-					mrp_state_string(mrp_state));
-		} else {
-			mrpd_log_printf("mrp_applicant_fsm event %s, state %s\n",
-					mrp_event_string(event),
-					mrp_state_string(mrp_state));
-		}	
-	}
+#if LOG_MRP
+	attrib->mrp_previous_state = attrib->mrp_state;
 #endif
-
+	attrib->tx = tx;
 	attrib->mrp_state = mrp_state;
 	attrib->sndmsg = sndmsg;
 	attrib->encode = (optional ? MRP_ENCODE_OPTIONAL : MRP_ENCODE_YES);
@@ -921,7 +981,7 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		 */
 		break;
 	default:
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
 		printf("mrp_registrar_fsm:unexpected event %s (%d), state %s\n",
 		       mrp_event_string(event), event,
 		       mrp_state_string(mrp_state));
@@ -929,20 +989,8 @@ mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		return -1;
 		break;
 	}
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP
-	if (mrp_log_this()) {
-		if (attrib->mrp_state != mrp_state) {
-			mrpd_log_printf("mrp_registrar_fsm event %s, state %s -> %s\n",
-					mrp_event_string(event),
-					mrp_state_string(attrib->mrp_state),
-					mrp_state_string(mrp_state));
-
-		} else {
-			mrpd_log_printf("mrp_registrar_fsm event %s, state %s\n",
-					mrp_event_string(event),
-					mrp_state_string(mrp_state));
-		}
-	}	
+#if LOG_MRP
+	attrib->mrp_previous_state = attrib->mrp_state;
 #endif
 	attrib->mrp_state = mrp_state;
 	attrib->notify = notify;

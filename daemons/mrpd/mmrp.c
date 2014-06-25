@@ -379,10 +379,15 @@ struct mmrp_attribute *mmrp_alloc()
 	attrib->applicant.tx = 0;
 	attrib->applicant.sndmsg = MRP_SND_NULL;
 	attrib->applicant.encode = MRP_ENCODE_OPTIONAL;
+#ifdef LOG_MRP
+	attrib->applicant.mrp_previous_state = -1;
+#endif
 
 	attrib->registrar.mrp_state = MRP_MT_STATE;
 	attrib->registrar.notify = MRP_NOTIFY_NONE;
-
+#ifdef LOG_MRP
+	attrib->registrar.mrp_previous_state = -1;
+#endif
 	return attrib;
 }
 
