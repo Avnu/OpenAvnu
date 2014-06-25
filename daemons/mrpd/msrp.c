@@ -2115,12 +2115,12 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 				vectevt[vectevt_idx] = MRPDU_LV;
 				break;
 			case MRP_SND_JOIN:
-				/* IF 'Join' in indicated by the applicant, look at
+				/* If 'Join' in indicated by the applicant, look at
 				 * the corresponding registrar state to determine whether
 				 * to send a JoinIn (if the registar state is 'In') or
 				 * a JoinMt if the registrar state is MT or LV.
 				 */
-				if (MRP_IN_STATE == attrib->registrar.mrp_state)
+				if (MRP_IN_STATE == vattrib->registrar.mrp_state)
 					vectevt[vectevt_idx] = MRPDU_JOININ;
 				else
 					vectevt[vectevt_idx] = MRPDU_JOINMT;
@@ -2406,7 +2406,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 				 * to send a JoinIn (if the registar state is 'In') or
 				 * a JoinMt if the registrar state is MT or LV.
 				 */
-				if (MRP_IN_STATE == attrib->registrar.mrp_state)
+				if (MRP_IN_STATE == vattrib->registrar.mrp_state)
 					vectevt[vectevt_idx] = MRPDU_JOININ;
 				else
 					vectevt[vectevt_idx] = MRPDU_JOINMT;

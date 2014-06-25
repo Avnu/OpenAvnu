@@ -921,7 +921,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 				 * to send a JoinIn (if the registar state is 'In') or
 				 * a JoinMt if the registrar state is MT or LV.
 				 */
-				if (MRP_IN_STATE == attrib->registrar.mrp_state)
+				if (MRP_IN_STATE == vattrib->registrar.mrp_state)
 					vectevt[vectevt_idx] = MRPDU_JOININ;
 				else
 					vectevt[vectevt_idx] = MRPDU_JOINMT;
@@ -1267,6 +1267,7 @@ int mmrp_txpdu(void)
 	msgbuf = (unsigned char *)malloc(MAX_FRAME_SIZE);
 	if (NULL == msgbuf)
 		return -1;
+	memset(msgbuf, 0, MAX_FRAME_SIZE);
 	msgbuf_len = 0;
 
 	msgbuf_wrptr = msgbuf;

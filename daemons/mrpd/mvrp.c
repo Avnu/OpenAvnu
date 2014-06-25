@@ -754,7 +754,7 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 				 * to send a JoinIn (if the registar state is 'In') or
 				 * a JoinMt if the registrar state is MT or LV.
 				 */
-				if (MRP_IN_STATE == attrib->registrar.mrp_state)
+				if (MRP_IN_STATE == vattrib->registrar.mrp_state)
 					vectevt[vectevt_idx] = MRPDU_JOININ;
 				else
 					vectevt[vectevt_idx] = MRPDU_JOINMT;
