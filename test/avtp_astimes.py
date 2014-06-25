@@ -127,9 +127,10 @@ def main(count, input_cap, output_txt, mac_filter):
 				mac_counts[pkt[s.Ether].dst] = mac_counts[pkt[s.Ether].dst] + 1
 			else:
 				mac_counts[pkt[s.Ether].dst] = 1
-				
+
 			# Deal with AVTP packets
-			if pkt[s.Ether].type == 0x22f0:
+			if (pkt[s.Ether].type == 0x22f0 or
+				(pkt[s.Ether].type == 0x8100 and pkt[s.Dot1Q].type == 0x22f0)):
 				# look for the requested MAC
 				if pkt[s.Ether].dst == mac_filter:
 					n = pkt_avtp(pkt, foutput, pkt_count)
