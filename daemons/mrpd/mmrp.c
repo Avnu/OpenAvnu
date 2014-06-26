@@ -110,6 +110,8 @@ int mmrp_add(struct mmrp_attribute *rattrib)
 					rattrib->next = attrib->next;
 					rattrib->prev = attrib;
 					attrib->next = rattrib;
+					if (rattrib->next)
+						rattrib->next->prev = rattrib;
 					return 0;
 
 				} else {
@@ -142,6 +144,8 @@ int mmrp_add(struct mmrp_attribute *rattrib)
 					rattrib->next = attrib->next;
 					rattrib->prev = attrib;
 					attrib->next = rattrib;
+					if (rattrib->next)
+						rattrib->next->prev = rattrib;
 					return 0;
 
 				} else {
