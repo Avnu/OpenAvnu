@@ -418,6 +418,7 @@ mrpd_init_protocol_socket(u_int16_t etype, int *sock,
 	if (NULL == multicast_addr)
 		return -1;
 
+	memset(&multicast_req, 0, sizeof(multicast_req));
 	*sock = -1;
 
 	lsock = socket(PF_PACKET, SOCK_RAW, htons(etype));
