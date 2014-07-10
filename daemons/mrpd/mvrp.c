@@ -295,7 +295,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		switch (event) {
 		case MRP_EVENT_NEW:
 			mrp_registrar_fsm(&(attrib->registrar),
-					  &(MVRP_db->mrp_db), MRP_EVENT_RNEW);
+					  &(MVRP_db->mrp_db), MRP_EVENT_BEGIN);
 			break;
 		case MRP_EVENT_JOIN:
 			if (MRP_IN_STATE == attrib->registrar.mrp_state)
