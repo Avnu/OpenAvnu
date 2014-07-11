@@ -123,6 +123,7 @@ class ClockIdentity {
 	void set(LinkLayerAddress * address);
 };
 
+#define INVALID_TIMESTAMP_VERSION 0xFF
 #define MAX_NANOSECONDS 1000000000
 #define MAX_TIMESTAMP_STRLEN 28
 
@@ -130,10 +131,13 @@ class Timestamp {
 private:
 	char output_string[MAX_TIMESTAMP_STRLEN];
 public:
-	Timestamp(uint32_t ns, uint32_t s_l, uint16_t s_m) {
+	Timestamp
+	(uint32_t ns, uint32_t s_l, uint16_t s_m,
+	 uint8_t ver = INVALID_TIMESTAMP_VERSION) {
 		nanoseconds = ns;
 		seconds_ls = s_l;
 		seconds_ms = s_m;
+		_version = ver;
 	}
 	Timestamp() {
 		output_string[0] = '\0';
@@ -153,6 +157,7 @@ public:
 		uint32_t nanoseconds;
 		uint32_t seconds_ls;
 		uint16_t seconds_ms;
+		uint8_t version;
 		bool carry;
 
 		nanoseconds  = this->nanoseconds;
@@ -172,12 +177,15 @@ public:
 		seconds_ms += carry ? 1 : 0;
 		carry = seconds_ms < this->seconds_ms ? true : false;
 
-		return Timestamp( nanoseconds, seconds_ls, seconds_ms );
+		version = this->_version == o._version ? this->_version :
+			INVALID_TIMESTAMP_VERSION;
+		return Timestamp( nanoseconds, seconds_ls, seconds_ms, version );
 	}
 	Timestamp operator-( const Timestamp& o ) {
 		uint32_t nanoseconds;
 		uint32_t seconds_ls;
 		uint16_t seconds_ms;
+		uint8_t version;
 		bool carry, borrow_this;
 		unsigned borrow_total = 0;
 
@@ -209,7 +217,9 @@ public:
 			(seconds_ms - borrow_total) - o.seconds_ms;
 		borrow_total = borrow_this ? borrow_total + 1 : 0;
 
-		return Timestamp( nanoseconds, seconds_ls, seconds_ms );
+		version = this->_version == o._version ? this->_version :
+			INVALID_TIMESTAMP_VERSION;
+		return Timestamp( nanoseconds, seconds_ls, seconds_ms, version );
 	}
 	void set64( uint64_t value ) {
 		nanoseconds = value % 1000000000;
