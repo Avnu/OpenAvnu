@@ -448,6 +448,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		case MRP_EVENT_NEW:
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_BEGIN);
+			attrib->registrar.notify = MRP_NOTIFY_NEW;
 			break;
 		case MRP_EVENT_JOIN:
 			if (MRP_IN_STATE == attrib->registrar.mrp_state)

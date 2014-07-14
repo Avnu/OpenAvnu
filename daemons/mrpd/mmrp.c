@@ -343,7 +343,8 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		switch (event) {
 		case MRP_EVENT_NEW:
 			mrp_registrar_fsm(&(attrib->registrar),
-					  &(MMRP_db->mrp_db), MRP_EVENT_RNEW);
+					  &(MMRP_db->mrp_db), MRP_EVENT_BEGIN);
+			attrib->registrar.notify = MRP_NOTIFY_NEW;
 			break;
 		case MRP_EVENT_JOIN:
 			if (MRP_IN_STATE == attrib->registrar.mrp_state)
