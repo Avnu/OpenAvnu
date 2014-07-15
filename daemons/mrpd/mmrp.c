@@ -475,8 +475,10 @@ int mmrp_recv_msg()
 
 	mrpdu = (mrpdu_t *) (msgbuf + sizeof(struct eth_hdr));
 
-	if (MMRP_PROT_VER != mrpdu->ProtocolVersion)	/* should accept */
+	/*
+	if (MMRP_PROT_VER != mrpdu->ProtocolVersion)
 		goto out;
+	*/
 
 	mrpdu_msg_ptr = MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu);
 

@@ -611,9 +611,12 @@ int msrp_recv_msg()
 	 * VectorAttrute is discarded and processing continues with the next VectorAttribute.
 	 */
 
-	if (MSRP_PROT_VER != mrpdu->ProtocolVersion) {	/* XXX should accept ... */
+	/*
+	if (MSRP_PROT_VER != mrpdu->ProtocolVersion) {
 		goto out;
 	}
+	*/
+
 	mrpdu_msg_ptr = MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu);
 
 	mrpdu_msg_eof = (unsigned char *)mrpdu_msg_ptr;

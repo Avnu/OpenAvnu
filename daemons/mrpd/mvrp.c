@@ -433,8 +433,10 @@ int mvrp_recv_msg(void)
 	 * VectorAttrute is discarded and processing continues with the next VectorAttribute.
 	 */
 
-	if (MVRP_PROT_VER != mrpdu->ProtocolVersion)	/* XXX should accept ... */
+	/*
+	if (MVRP_PROT_VER != mrpdu->ProtocolVersion)
 		goto out;
+	*/
 
 	mrpdu_msg_ptr = (unsigned char *)MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu);
 
