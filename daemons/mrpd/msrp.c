@@ -1016,9 +1016,11 @@ int msrp_recv_msg()
 					     vectevt_idx++) {
 
 						if (MSRP_LISTENER_IGNORE ==
-						    vectevt[vectevt_idx]) {
+						    listener_vectevt
+						    [listener_vectevt_idx]) {
 							msrp_increment_streamid
 							    (streamid_firstval);
+							listener_vectevt_idx++;
 							continue;
 						}
 
