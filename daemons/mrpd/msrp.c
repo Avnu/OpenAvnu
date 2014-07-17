@@ -2748,6 +2748,40 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			attrib->attribute.domain.SRclassID,
 			attrib->attribute.domain.SRclassPriority,
 			attrib->attribute.domain.SRclassVID);
+	} else if (MSRP_TALKER_ADV_TYPE == attrib->type) {
+		snprintf(variant, sub_str_len - 1, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
+			",A=%02x%02x%02x%02x%02x%02x"
+			",V=%04x"
+			",Z=%d"
+			",I=%d"
+			",P=%d"
+			",L=%d",
+			attrib->attribute.talk_listen.StreamID[0],
+			attrib->attribute.talk_listen.StreamID[1],
+			attrib->attribute.talk_listen.StreamID[2],
+			attrib->attribute.talk_listen.StreamID[3],
+			attrib->attribute.talk_listen.StreamID[4],
+			attrib->attribute.talk_listen.StreamID[5],
+			attrib->attribute.talk_listen.StreamID[6],
+			attrib->attribute.talk_listen.StreamID[7],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[0],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[1],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[2],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[3],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[4],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[5],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Vlan_ID,
+			attrib->attribute.talk_listen.TSpec.MaxFrameSize,
+			attrib->attribute.talk_listen.TSpec.MaxIntervalFrames,
+			attrib->attribute.talk_listen.PriorityAndRank,
+			attrib->attribute.talk_listen.AccumulatedLatency);
 	} else {
 		snprintf(variant, sub_str_len - 1, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
 			",A=%02x%02x%02x%02x%02x%02x"
@@ -2801,7 +2835,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			attrib->attribute.talk_listen.FailureInformation.
 			BridgeID[7],
 			attrib->attribute.talk_listen.FailureInformation.
-			FailureCode);
+			FailureCode);		
 	}
 
 	snprintf(regsrc, sub_str_len - 1, "R=%02x%02x%02x%02x%02x%02x",
