@@ -290,13 +290,22 @@ int msrp_merge(struct msrp_attribute *rattrib)
 		}
 		break;
 	case MSRP_DOMAIN_TYPE:
-		if ((attrib->attribute.domain.SRclassPriority !=
+		/*
+		 * If the device has the capability of updating the AVTP packet priority,
+		 * then ENABLE_MERGED_DOMAIN_PRIORITY can be defined.
+		 */
+		if (
+#ifdef ENABLE_MERGED_DOMAIN_PRIORITY
+		   (attrib->attribute.domain.SRclassPriority !=
 		    rattrib->attribute.domain.SRclassPriority) ||
+#endif
 		    (attrib->attribute.domain.SRclassVID !=
 		    rattrib->attribute.domain.SRclassVID)) {
+#ifdef ENABLE_MERGED_DOMAIN_PRIORITY
 			attrib->attribute.domain.SRclassPriority =
 			    rattrib->attribute.domain.SRclassPriority;
-			attrib->attribute.domain.SRclassVID =
+#endif
+ 			attrib->attribute.domain.SRclassVID =
 			    rattrib->attribute.domain.SRclassVID;
 			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
 		}
