@@ -220,6 +220,7 @@ static int parse_msrp_string(char *sz, size_t len, struct mrpdhelper_notify *n)
 				&n->u.st.accum_latency);
 			n->u.st.bridge_id = 0;
 			n->u.st.failure_code  = 0;
+			n->attrib = mrpdhelper_attribtype_msrp_talker;
 			if (result < 7)
 				return -1;
 		} else {
@@ -242,13 +243,10 @@ static int parse_msrp_string(char *sz, size_t len, struct mrpdhelper_notify *n)
 				&n->u.st.accum_latency,
 				&n->u.st.bridge_id,
 				&n->u.st.failure_code);
+			n->attrib = mrpdhelper_attribtype_msrp_talker_fail;
 			if (result < 9)
 				return -1;
 		}
-		if (0 != n->u.st.failure_code)
-			n->attrib = mrpdhelper_attribtype_msrp_talker_fail;
-		else
-			n->attrib = mrpdhelper_attribtype_msrp_talker;
 		break;
 	default:
 		return -1;
