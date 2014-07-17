@@ -113,10 +113,8 @@ struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
 			((MSRP_TALKER_FAILED_TYPE == rattrib->type) && (MSRP_TALKER_ADV_TYPE == attrib->type)))
 			{
 			if (MSRP_DOMAIN_TYPE == attrib->type) {
-				mac_eq = memcmp(&(attrib->attribute.domain),
-						&(rattrib->attribute.domain),
-						sizeof(msrpdu_domain_t));
-				if (0 == mac_eq)
+				if (attrib->attribute.domain.SRclassID ==
+				   rattrib->attribute.domain.SRclassID)
 					return attrib;
 			} else {
 				/* compare on the stream ID */
@@ -268,6 +266,10 @@ int msrp_merge(struct msrp_attribute *rattrib)
 	switch (attrib->type) {
 	case MSRP_TALKER_ADV_TYPE:
 	case MSRP_TALKER_FAILED_TYPE:
+		/* support merging
+		 * TalkerFailed <- TalkerAdvertise and
+		 * TalkerAdvertise <- TalkerFailed
+		 */
 		attrib->attribute.talk_listen.FailureInformation.FailureCode =
 		    rattrib->attribute.talk_listen.FailureInformation.
 		    FailureCode;
@@ -279,10 +281,6 @@ int msrp_merge(struct msrp_attribute *rattrib)
 		attrib->attribute.talk_listen.AccumulatedLatency =
 		    rattrib->attribute.talk_listen.AccumulatedLatency;
 #endif 
-		/* support merging
-		 * TalkerFailed <- TalkerAdvertise and
-		 * TalkerAdvertise <- TalkerFailed
-		 */
 		 attrib->type = rattrib->type;
 		break;
 	case MSRP_LISTENER_TYPE:
@@ -292,7 +290,16 @@ int msrp_merge(struct msrp_attribute *rattrib)
 		}
 		break;
 	case MSRP_DOMAIN_TYPE:
-		/* doesn't/shouldn't happen */
+		if ((attrib->attribute.domain.SRclassPriority !=
+		    rattrib->attribute.domain.SRclassPriority) ||
+		    (attrib->attribute.domain.SRclassVID !=
+		    rattrib->attribute.domain.SRclassVID)) {
+			attrib->attribute.domain.SRclassPriority =
+			    rattrib->attribute.domain.SRclassPriority;
+			attrib->attribute.domain.SRclassVID =
+			    rattrib->attribute.domain.SRclassVID;
+			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
+		}
 		break;
 	default:
 		break;

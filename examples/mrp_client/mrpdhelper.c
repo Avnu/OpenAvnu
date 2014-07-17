@@ -344,9 +344,7 @@ int mrpdhelper_notify_equal(struct mrpdhelper_notify *n1,
 			return 0;
 		break;
 	case mrpdhelper_attribtype_msrp_domain:
-		if ((n1->u.sd.id != n2->u.sd.id) ||
-		    (n1->u.sd.priority != n2->u.sd.priority) ||
-		    (n1->u.sd.vid != n2->u.sd.vid))
+		if (n1->u.sd.id != n2->u.sd.id)
 			return 0;
 		break;
 	case mrpdhelper_attribtype_msrp_talker:
@@ -385,9 +383,7 @@ int mrpdhelper_notify_mergable(struct mrpdhelper_notify *n1,
 	case mrpdhelper_attribtype_msrp_domain:
 		if (n1->attrib != n2->attrib)
 			return 0;
-		if ((n1->u.sd.id != n2->u.sd.id) ||
-		    (n1->u.sd.priority != n2->u.sd.priority) ||
-		    (n1->u.sd.vid != n2->u.sd.vid))
+		if (n1->u.sd.id != n2->u.sd.id)
 			return 0;
 		break;
 	case mrpdhelper_attribtype_msrp_talker:
