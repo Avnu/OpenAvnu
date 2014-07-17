@@ -281,7 +281,10 @@ int msrp_merge(struct msrp_attribute *rattrib)
 		attrib->attribute.talk_listen.AccumulatedLatency =
 		    rattrib->attribute.talk_listen.AccumulatedLatency;
 #endif 
-		 attrib->type = rattrib->type;
+		if (attrib->type != rattrib->type) {
+			attrib->type = rattrib->type;
+			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
+		}
 		break;
 	case MSRP_LISTENER_TYPE:
 		if (attrib->substate != rattrib->substate) {
