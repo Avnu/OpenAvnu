@@ -71,7 +71,7 @@ static char *msrp_attrib_type_string(int t)
 	}
 }
 
-#if LOG_MSRP && LOG_MRP
+#if LOG_MSRP || LOG_MRP
 void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 {
 	char * state_mc_states = NULL;
@@ -566,6 +566,61 @@ void msrp_increment_streamid(uint8_t * streamid)
 	return;
 }
 
+static int msrp_recv_msg_check_attrib_list_len(
+	int attrib_type,
+	uint8_t *pkt_attrib_list_len,
+	uint8_t *pkt_eof)
+{
+	uint32_t list_len = (uint32_t)pkt_attrib_list_len[0] << 8 |
+			(uint32_t)pkt_attrib_list_len[1];
+	uint32_t attrib_len = (uint32_t)pkt_attrib_list_len[-1];
+
+	/*
+	 * Check for list length < attribute len + header_size (2) + event (1)
+	 * Note: this test is more of a sanity test than anything else. It does
+	 * not attempt to use number of values to compute 3packed and 4packed byte
+	 * count.
+	 */
+	if (list_len < (attrib_len + 2 + 1)) {
+#if LOG_MSRP
+		mrpd_log_printf
+		    ("MSRP msrp_recv_msg_check_attrib_list_len(%s) FAILED SIZE list len %d attrib len %d\n",
+		     msrp_attrib_type_string(attrib_type),
+		     list_len,
+		     attrib_len);
+#endif
+		return 0;
+	}
+
+	/* check the eof */
+	if ((pkt_attrib_list_len + list_len) >= pkt_eof) {
+#if LOG_MSRP
+		mrpd_log_printf
+		    ("MSRP msrp_recv_msg_check_attrib_list_len(%s) FAILED EOF list len %d pkt %p eof %p\n",
+		     msrp_attrib_type_string(attrib_type),
+		     list_len,
+		     pkt_attrib_list_len,
+		     pkt_eof);
+#endif
+		return 0;
+	}
+
+	/* check for the endmark */
+	if ((0 != pkt_attrib_list_len[list_len]) || (0 != pkt_attrib_list_len[list_len + 1])) {
+#if LOG_MSRP
+		mrpd_log_printf
+		    ("MSRP msrp_recv_msg_check_attrib_list_len(%s) FAILED ENDMARK list len %d pkt %p\n",
+		     msrp_attrib_type_string(attrib_type),
+		     list_len,
+		     pkt_attrib_list_len,
+		     pkt_eof);
+#endif
+		return 0;
+	}
+
+	return 1;
+}
+
 int msrp_recv_msg()
 {
 	char *msgbuf;
@@ -672,6 +727,26 @@ int msrp_recv_msg()
 			mrpdu_vectorptr =
 			    (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
+
+			/* check attribute list length is reasonable */
+			if (!msrp_recv_msg_check_attrib_list_len(mrpdu_msg->AttributeType, &mrpdu_msg->Data[0], mrpdu_msg_eof)) {
+				numvalues =
+				    MRPDU_VECT_NUMVALUES(ntohs
+							 (mrpdu_vectorptr->
+							  VectorHeader));
+
+				mrpdu_msg_ptr =
+				    (uint8_t *) mrpdu_vectorptr;
+				/* skip this null attribute ... some switches generate these ... */
+				/* 2 byte numvalues + 4 byte FirstValue + vector bytes */
+				mrpdu_msg_ptr += 2 + 4 + (numvalues + 2) / 3;
+
+				mrpdu_vectorptr =
+				    (mrpdu_vectorattrib_t *)
+				    mrpdu_msg_ptr;
+				continue;
+			}
+
 			while (!((mrpdu_msg_ptr[0] == 0)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
@@ -839,6 +914,26 @@ int msrp_recv_msg()
 			mrpdu_vectorptr =
 			    (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
+
+			/* check attribute list length is reasonable */
+			if (!msrp_recv_msg_check_attrib_list_len(mrpdu_msg->AttributeType, &mrpdu_msg->Data[0], mrpdu_msg_eof)) {
+				numvalues =
+				    MRPDU_VECT_NUMVALUES(ntohs
+							 (mrpdu_vectorptr->
+							  VectorHeader));
+
+				mrpdu_msg_ptr =
+				    (uint8_t *) mrpdu_vectorptr;
+				/* skip this null attribute ... some switches generate these ... */
+				/* 2 byte numvalues + 8 byte FirstValue + (0) vector bytes */
+				mrpdu_msg_ptr += 2 + 8 + (numvalues + 2) / 3 + (numvalues + 3) / 4;
+
+				mrpdu_vectorptr =
+				    (mrpdu_vectorattrib_t *)
+				    mrpdu_msg_ptr;
+				continue;
+			}
+
 
 			while (!((mrpdu_msg_ptr[0] == 0)
 				 && (mrpdu_msg_ptr[1] == 0))) {
@@ -1133,6 +1228,25 @@ int msrp_recv_msg()
 			    (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 
+			/* check attribute list length is reasonable */
+			if (!msrp_recv_msg_check_attrib_list_len(mrpdu_msg->AttributeType, &mrpdu_msg->Data[0], mrpdu_msg_eof)) {
+				numvalues =
+				    MRPDU_VECT_NUMVALUES(ntohs
+							 (mrpdu_vectorptr->
+							  VectorHeader));
+
+				mrpdu_msg_ptr =
+				    (uint8_t *) mrpdu_vectorptr;
+				/* skip this null attribute ... some switches generate these ... */
+				/* 2 byte numvalues + 25 byte FirstValue + (0) vector bytes */
+				mrpdu_msg_ptr += 2 + 25 + (numvalues + 2) / 3;
+
+				mrpdu_vectorptr =
+				    (mrpdu_vectorattrib_t *)
+				    mrpdu_msg_ptr;
+				continue;
+			}
+
 			while (!((mrpdu_msg_ptr[0] == 0)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
@@ -1378,6 +1492,26 @@ int msrp_recv_msg()
 			mrpdu_vectorptr =
 			    (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
+
+			/* check attribute list length is reasonable */
+			if (!msrp_recv_msg_check_attrib_list_len(mrpdu_msg->AttributeType, &mrpdu_msg->Data[0], mrpdu_msg_eof)) {
+				numvalues =
+				    MRPDU_VECT_NUMVALUES(ntohs
+							 (mrpdu_vectorptr->
+							  VectorHeader));
+
+				mrpdu_msg_ptr =
+				    (uint8_t *) mrpdu_vectorptr;
+				/* skip this null attribute ... some switches generate these ... */
+				/* 2 byte numvalues + 34 byte FirstValue + (0) vector bytes */
+				mrpdu_msg_ptr += 2 + 34 + (numvalues + 2) / 3;
+
+				mrpdu_vectorptr =
+				    (mrpdu_vectorattrib_t *)
+				    mrpdu_msg_ptr;
+				continue;
+			}
+
 			while (!((mrpdu_msg_ptr[0] == 0)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
