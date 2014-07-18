@@ -600,11 +600,20 @@ int mvrp_recv_msg(void)
 			}
 			break;
 		default:
-			/* unrecognized attribute type
-			 * we can seek for an endmark to recover .. but this version
-			 * dumps the entire packet as malformed
+			/*
+			 * Try to parse unknown message type.
 			 */
-			goto out;
+			mrpdu_vectorptr =
+			    (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
+			numvalues = MRPDU_VECT_NUMVALUES(ntohs
+							 (mrpdu_vectorptr->
+							  VectorHeader));
+			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
+			/* skip this null attribute ... some switches generate these ... */
+			/* 2 byte numvalues + FirstValue + vector bytes */
+			mrpdu_msg_ptr += 2 + mrpdu_msg->AttributeLength + (numvalues + 2) / 3;
+			mrpdu_vectorptr = (mrpdu_vectorattrib_t *)mrpdu_msg_ptr;
+			break;
 		}
 	}
 
