@@ -44,6 +44,7 @@
 #include "parse.h"
 
 int mvrp_send_notifications(struct mvrp_attribute *attrib, int notify);
+static struct mvrp_attribute *mvrp_conditional_reclaim(struct mvrp_attribute *sattrib);
 int mvrp_txpdu(void);
 
 unsigned char MVRP_CUSTOMER_BRIDGE_ADDR[] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x21 };	/* 81-00 */
@@ -243,7 +244,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 #if LOG_MVRP
 			mvrp_print_debug_info(event, attrib);
 #endif
-			attrib = attrib->next;
+			attrib = mvrp_conditional_reclaim(attrib);
 		}
 		break;
 	case MRP_EVENT_PERIODIC:
@@ -322,6 +323,7 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 			}
 			break;
 		}
+		attrib = mvrp_conditional_reclaim(attrib);
 #if LOG_MVRP
 		mvrp_print_debug_info(event, attrib);
 #endif
@@ -1273,30 +1275,46 @@ int mvrp_init(int mvrp_enable)
 	return -1;
 }
 
+static struct mvrp_attribute *mvrp_conditional_reclaim(struct mvrp_attribute *vattrib)
+{
+	struct mvrp_attribute *free_vattrib;
+
+	if ((vattrib->registrar.mrp_state == MRP_MT_STATE) &&
+	    ((vattrib->applicant.mrp_state == MRP_VO_STATE) ||
+	     (vattrib->applicant.mrp_state == MRP_AO_STATE) ||
+	     (vattrib->applicant.mrp_state == MRP_QO_STATE))) {
+		if (NULL != vattrib->prev)
+			vattrib->prev->next = vattrib->next;
+		else
+			MVRP_db->attrib_list = vattrib->next;
+		if (NULL != vattrib->next)
+			vattrib->next->prev = vattrib->prev;
+		free_vattrib = vattrib;
+		vattrib = vattrib->next;
+#if LOG_MVRP_GARBAGE_COLLECTION
+		mrpd_log_printf("MVRP -------------> free attrib of type (%d), current 0x%p, next 0x%p\n",
+				free_vattrib->attribute,
+				free_vattrib, vattrib);
+#endif
+		mvrp_send_notifications(free_vattrib, MRP_NOTIFY_LV);
+		free(free_vattrib);
+		return vattrib;
+	} else {
+		return vattrib->next;
+	}
+
+}
+
 int mvrp_reclaim(void)
 {
-	struct mvrp_attribute *vattrib, *free_vattrib;
+	struct mvrp_attribute *vattrib;
 	if (NULL == MVRP_db)
 		return 0;
 
 	vattrib = MVRP_db->attrib_list;
 	while (NULL != vattrib) {
-		if ((vattrib->registrar.mrp_state == MRP_MT_STATE) &&
-		    ((vattrib->applicant.mrp_state == MRP_VO_STATE) ||
-		     (vattrib->applicant.mrp_state == MRP_AO_STATE) ||
-		     (vattrib->applicant.mrp_state == MRP_QO_STATE))) {
-			if (NULL != vattrib->prev)
-				vattrib->prev->next = vattrib->next;
-			else
-				MVRP_db->attrib_list = vattrib->next;
-			if (NULL != vattrib->next)
-				vattrib->next->prev = vattrib->prev;
-			free_vattrib = vattrib;
-			vattrib = vattrib->next;
-			mvrp_send_notifications(free_vattrib, MRP_NOTIFY_LV);
-			free(free_vattrib);
-		} else
-			vattrib = vattrib->next;
+		vattrib = mvrp_conditional_reclaim(vattrib);
+
 	}
 	return 0;
 }

@@ -46,6 +46,7 @@
 
 int msrp_txpdu(void);
 int msrp_send_notifications(struct msrp_attribute *attrib, int notify);
+static struct msrp_attribute *msrp_conditional_reclaim(struct msrp_attribute *sattrib);
 
 unsigned char MSRP_ADDR[] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E };
 
@@ -426,7 +427,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 			msrp_print_debug_info(event, attrib);
 #endif
-			attrib = attrib->next;
+			attrib = msrp_conditional_reclaim(attrib);
 		}
 		break;
 	case MRP_EVENT_PERIODIC:
@@ -494,6 +495,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 			}
 			break;
 		}
+		msrp_conditional_reclaim(attrib);
 #if LOG_MSRP
 		msrp_print_debug_info(event, attrib);
 #endif
@@ -574,6 +576,9 @@ static int msrp_recv_msg_check_attrib_list_len(
 	uint32_t list_len = (uint32_t)pkt_attrib_list_len[0] << 8 |
 			(uint32_t)pkt_attrib_list_len[1];
 	uint32_t attrib_len = (uint32_t)pkt_attrib_list_len[-1];
+#if !LOG_MSRP
+	(void)(attrib_type);
+#endif
 
 	/*
 	 * Check for list length < attribute len + header_size (2) + event (1)
@@ -3590,36 +3595,46 @@ void msrp_bye(struct sockaddr_in *client)
 		mrp_client_delete(&(MSRP_db->mrp_db.clients), client);
 }
 
+static struct msrp_attribute *msrp_conditional_reclaim(struct msrp_attribute *sattrib)
+{
+	struct msrp_attribute *free_sattrib;
+
+	if ((sattrib->registrar.mrp_state == MRP_MT_STATE) &&
+	    ((sattrib->applicant.mrp_state == MRP_VO_STATE) ||
+	     (sattrib->applicant.mrp_state == MRP_AO_STATE) ||
+	     (sattrib->applicant.mrp_state == MRP_QO_STATE))) {
+		if (NULL != sattrib->prev)
+			sattrib->prev->next = sattrib->next;
+		else
+			MSRP_db->attrib_list = sattrib->next;
+		if (NULL != sattrib->next)
+			sattrib->next->prev = sattrib->prev;
+		free_sattrib = sattrib;
+		sattrib = sattrib->next;
+#if LOG_MSRP_GARBAGE_COLLECTION
+		mrpd_log_printf("MSRP -------------> free attrib of type (%s), current 0x%p, next 0x%p\n",
+				msrp_attrib_type_string(free_sattrib->type),
+				free_sattrib, sattrib);
+#endif
+		msrp_send_notifications(free_sattrib, MRP_NOTIFY_LV);
+		free(free_sattrib);
+		return sattrib;
+	} else {
+		return sattrib->next;
+	}
+
+}
+
 int msrp_reclaim(void)
 {
-	struct msrp_attribute *sattrib, *free_sattrib;
+	struct msrp_attribute *sattrib;
 
 	if (NULL == MSRP_db)
 		return 0;
 
 	sattrib = MSRP_db->attrib_list;
 	while (NULL != sattrib) {
-		if ((sattrib->registrar.mrp_state == MRP_MT_STATE) &&
-		    ((sattrib->applicant.mrp_state == MRP_VO_STATE) ||
-		     (sattrib->applicant.mrp_state == MRP_AO_STATE) ||
-		     (sattrib->applicant.mrp_state == MRP_QO_STATE))) {
-			if (NULL != sattrib->prev)
-				sattrib->prev->next = sattrib->next;
-			else
-				MSRP_db->attrib_list = sattrib->next;
-			if (NULL != sattrib->next)
-				sattrib->next->prev = sattrib->prev;
-			free_sattrib = sattrib;
-			sattrib = sattrib->next;
-#if LOG_MSRP_GARBAGE_COLLECTION
-			mrpd_log_printf("MSRP -------------> free attrib of type (%s), current 0x%p, next 0x%p\n",
-					msrp_attrib_type_string(free_sattrib->type),
-					free_sattrib, sattrib);
-#endif
-			msrp_send_notifications(free_sattrib, MRP_NOTIFY_LV);
-			free(free_sattrib);
-		} else
-			sattrib = sattrib->next;
+		sattrib = msrp_conditional_reclaim(sattrib);
 	}
 	return 0;
 }
