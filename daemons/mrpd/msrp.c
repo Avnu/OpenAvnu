@@ -45,6 +45,7 @@
 #include "mmrp.h"
 
 int msrp_txpdu(void);
+static struct msrp_attribute *msrp_alloc(void);
 int msrp_send_notifications(struct msrp_attribute *attrib, int notify);
 static struct msrp_attribute *msrp_conditional_reclaim(struct msrp_attribute *sattrib);
 
@@ -247,7 +248,9 @@ int msrp_add(struct msrp_attribute *rattrib)
 
 int msrp_merge(struct msrp_attribute *rattrib)
 {
+	struct msrp_attribute *talker_attrib;
 	struct msrp_attribute *attrib;
+	int talker_missing;
 
 	attrib = msrp_lookup(rattrib);
 
@@ -289,6 +292,24 @@ int msrp_merge(struct msrp_attribute *rattrib)
 		break;
 	case MSRP_LISTENER_TYPE:
 		if (attrib->substate != rattrib->substate) {
+			/* If transitioning from AskingFailed to Ready or ReadyFailed, need to 
+			 * check a matching talkerID has been declared.
+			 */
+			if (MSRP_LISTENER_ASKFAILED == attrib->substate) {
+				talker_attrib = msrp_alloc();
+				if (NULL == talker_attrib)
+					break;
+				talker_attrib->type =
+				    MSRP_TALKER_ADV_TYPE;
+				memcpy(talker_attrib->attribute.
+				       talk_listen.StreamID,
+				       attrib->attribute.
+				       talk_listen.StreamID, 8);
+				talker_missing = (NULL == msrp_lookup(talker_attrib));
+				free(talker_attrib);
+				if (talker_missing)
+					break;
+			}
 			attrib->substate = rattrib->substate;
 			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
 		}
@@ -525,7 +546,7 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 	return 0;
 }
 
-struct msrp_attribute *msrp_alloc()
+static struct msrp_attribute *msrp_alloc()
 {
 	struct msrp_attribute *attrib;
 
