@@ -3326,6 +3326,7 @@ static int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail
 					     *talker_ad)
 {
 	struct msrp_attribute *attrib;
+	struct msrp_attribute *existing_listener_attrib;
 
 	attrib = msrp_alloc();
 	if (NULL == attrib) {
@@ -3333,6 +3334,11 @@ static int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail
 	}
 	attrib->type = MSRP_LISTENER_TYPE;
 	attrib->attribute.talk_listen = *talker_ad;
+	/* need to maintain substate on LV, i.e. it can't just be 0 (IGNORE) */
+	existing_listener_attrib = msrp_lookup(attrib);
+	if (existing_listener_attrib) {
+		attrib->substate = existing_listener_attrib->substate;
+	}
 	msrp_event(MRP_EVENT_LV, attrib);
 
 	return 0;
