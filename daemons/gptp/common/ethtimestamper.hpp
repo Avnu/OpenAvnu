@@ -31,28 +31,51 @@
 
 ******************************************************************************/
 
-#ifndef DEBUGOUT_HPP
-#define DEBUGOUT_HPP
+#ifndef ETHTIMESTAMPER_HPP
+#define ETHTIMESTAMPER_HPP
 
-#include <stdio.h>
+#include <avbts_oslock.hpp>
+#include <ptptypes.hpp>
+#include <vector>
+#include <list>
+#include <stdint.h>
+#include <avbts_osnet.hpp>
+#include <timestamper.hpp>
 
-#define BMCA_DEBUG 0x1
-#define MESSAGE_DUMP 0x2
-#define ANNOUNCE_DEBUG 0x4
-#define OSNET_DEBUG 0x8
-#define PDELAY_DEBUG 0x10
-#define SYNC_DEBUG 0x20
-#define TIMESTAMP_DEBUG 0x30
 
-#define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
-#ifdef PTP_DEBUG
-#define XPTPD_INFO(fmt,...) XPTPD_INFOL(0,fmt,## __VA_ARGS__)
-#define XPTPD_INFOL(level,fmt,...)										\
-	if( level & PTP_DEBUG )												\
-		fprintf( stderr, "DEBUG at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
-#else
-#define XPTPD_INFO(fmt,...)
-#define XPTPD_INFOL(level,fmt,...)
-#endif
+class MediaDependentPort;
+class InterfaceLabel;
+class OSNetworkInterface;
+class Timestamp;
+class PortIdentity;
+class OSThread;
+class OSThreadFactory;
+class OSTimerFactory;
 
-#endif/*DEBUGOUT_HPP*/
+/* id identifies the timestamper 0 is reserved meaning no timestamper is 
+   availabled */
+
+class EthernetTimestamper : public Timestamper {
+public:
+	bool HWTimestamper_init
+	( InterfaceLabel *iface_label, OSNetworkInterface *iface,
+	  OSLockFactory *lock_factory, OSThreadFactory *thread_factory,
+	  OSTimerFactory *timer_factory );
+
+	bool HWTimestamper_adjclockphase( int64_t phase_adjust );
+	virtual bool clear_rx_timestamp_list() { return false; }
+
+	EthernetTimestamper() { }
+	virtual ~EthernetTimestamper() {}
+
+	virtual int HWTimestamper_txtimestamp
+	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	  bool last ) = 0;
+
+	virtual int HWTimestamper_rxtimestamp
+	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	  bool last ) = 0;
+};
+
+
+#endif/*ETHTIMESTAMPER_HPP*/

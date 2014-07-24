@@ -36,6 +36,8 @@
 #include <avbts_clock.hpp>
 #include <avbts_oslock.hpp>
 #include <avbts_ostimerq.hpp>
+#include <avbts_message.hpp>
+#include <avbts_osipc.hpp>
 
 #include <stdio.h>
 
@@ -61,15 +63,11 @@ void ClockIdentity::set(LinkLayerAddress * addr)
 
 IEEE1588Clock::IEEE1588Clock
 ( bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
-  HWTimestamper *timestamper, OSTimerQueueFactory *timerq_factory,
-  OS_IPC *ipc, OSLockFactory *lock_factory )
+  Timestamper *timestamper, OSTimerQueueFactory *timerq_factory,
+  OSLockFactory *lock_factory, OS_IPC *ipc )
 {
 	this->priority1 = priority1;
 	priority2 = 248;
-
-	number_ports = 0;
-
-	this->forceOrdinarySlave = forceOrdinarySlave;
 
 	clock_quality.clockAccuracy = 0xfe;
 	clock_quality.cq_class = 248;
@@ -79,126 +77,99 @@ IEEE1588Clock::IEEE1588Clock
 
 	domain_number = 0;
 
-	_syntonize = syntonize;
-	_new_syntonization_set_point = false;
-	_ppm = 0;
-
-	_master_local_freq_offset_init = false;
-	_local_system_freq_offset_init = false;
-	_timestamper = timestamper;
-
 	this->ipc = ipc;
+
+	glock = lock_factory->createLock( oslock_nonrecursive );
 
  	memset( &LastEBestIdentity, 0xFF, sizeof( LastEBestIdentity ));
 
-	timerq_lock = lock_factory->createLock( oslock_nonrecursive );
+	_last_sync_valid = false;
 
 	// This should be done LAST!! to pass fully initialized clock object
-	timerq = timerq_factory->createOSTimerQueue( this );
+	timerq = timerq_factory->createOSTimerQueue( lock_factory );
 
 	return;
 }
 
 bool IEEE1588Clock::serializeState( void *buf, off_t *count ) {
-  bool ret = true;
+	bool ret = true;
   
-  if( buf == NULL ) {
-    *count = sizeof( _master_local_freq_offset ) + sizeof( _local_system_freq_offset ) + sizeof( LastEBestIdentity );
-    return true;
-  }
-  
-  // Master-Local Frequency Offset
-  if( ret && *count >= (off_t) sizeof( _master_local_freq_offset )) {
-	  memcpy
-		  ( buf, &_master_local_freq_offset,
-			sizeof( _master_local_freq_offset ));
-	  *count -= sizeof( _master_local_freq_offset );
-	  buf = ((char *)buf) + sizeof( _master_local_freq_offset );
-  } else if( ret == false ) {
-	  *count += sizeof( _master_local_freq_offset );
-  } else {
-	  *count = sizeof( _master_local_freq_offset )-*count;
-	  ret = false;
-  }
-  
-  // Local-System Frequency Offset
-  if( ret && *count >= (off_t) sizeof( _local_system_freq_offset )) {
-	  memcpy
-		  ( buf, &_local_system_freq_offset,(off_t)
-			sizeof( _local_system_freq_offset ));
-	  *count -= sizeof( _local_system_freq_offset );
-	  buf = ((char *)buf) + sizeof( _local_system_freq_offset );
-  } else if( ret == false ) {
-	  *count += sizeof( _local_system_freq_offset );
-  } else {
-	  *count = sizeof( _local_system_freq_offset )-*count;
-	  ret = false;
-  }
+	if( lock() != oslock_ok ) {
+		ret = false;
+		goto done;
+	}
 
-  // LastEBestIdentity
-  if( ret && *count >= (off_t) sizeof( LastEBestIdentity )) {
-    memcpy( buf, &LastEBestIdentity, (off_t) sizeof( LastEBestIdentity ));
-    *count -= sizeof( LastEBestIdentity );
-    buf = ((char *)buf) + sizeof( LastEBestIdentity );
-  } else if( ret == false ) {
-    *count += sizeof( LastEBestIdentity );
-  } else {
-    *count = sizeof( LastEBestIdentity )-*count;
-    ret = false;
-  }
+	if( buf == NULL ) {
+		*count = sizeof( _master_system_freq_offset ) +
+			sizeof( LastEBestIdentity );
+		return true;
+	}
+  
+	// Master-System Frequency Offset
+	if( ret && *count >= (off_t) sizeof( _master_system_freq_offset )) {
+		memcpy
+			( buf, &_master_system_freq_offset,
+			  sizeof( _master_system_freq_offset ));
+		*count -= sizeof( _master_system_freq_offset );
+		buf = ((char *)buf) + sizeof( _master_system_freq_offset );
+	} else if( ret == false ) {
+		*count += sizeof( _master_system_freq_offset );
+	} else {
+		*count = sizeof( _master_system_freq_offset )-*count;
+		ret = false;
+	}
+  
+	// LastEBestIdentity
+	if( ret && *count >= (off_t) sizeof( LastEBestIdentity )) {
+		memcpy( buf, &LastEBestIdentity, (off_t) sizeof( LastEBestIdentity ));
+		*count -= sizeof( LastEBestIdentity );
+		buf = ((char *)buf) + sizeof( LastEBestIdentity );
+	} else if( ret == false ) {
+		*count += sizeof( LastEBestIdentity );
+	} else {
+		*count = sizeof( LastEBestIdentity )-*count;
+		ret = false;
+	}
 
-  return ret;
+	if( unlock() != oslock_ok ) {
+		ret = false;
+		goto done;
+	}
+
+done:
+	return ret;
 }
 
 bool IEEE1588Clock::restoreSerializedState( void *buf, off_t *count ) {
 	bool ret = true;
   
 	/* Master-Local Frequency Offset */
-	if( ret && *count >= (off_t) sizeof( _master_local_freq_offset )) {
+	if( ret && *count >= (off_t) sizeof( _master_system_freq_offset )) {
 		memcpy
-			( &_master_local_freq_offset, buf, 
-			  sizeof( _master_local_freq_offset ));
-		*count -= sizeof( _master_local_freq_offset );
-		buf = ((char *)buf) + sizeof( _master_local_freq_offset );
+			( &_master_system_freq_offset, buf, 
+			  sizeof( _master_system_freq_offset ));
+		*count -= sizeof( _master_system_freq_offset );
+		buf = ((char *)buf) + sizeof( _master_system_freq_offset );
 	} else if( ret == false ) {
-		*count += sizeof( _master_local_freq_offset );
+		*count += sizeof( _master_system_freq_offset );
 	} else {
-		*count = sizeof( _master_local_freq_offset )-*count;
+		*count = sizeof( _master_system_freq_offset )-*count;
 		ret = false;
 	}
 	
-	/* Local-System Frequency Offset */
-	if( ret && *count >= (off_t) sizeof( _local_system_freq_offset )) {
-		memcpy
-			( &_local_system_freq_offset, buf,
-			  sizeof( _local_system_freq_offset ));
-		*count -= sizeof( _local_system_freq_offset );
-		buf = ((char *)buf) + sizeof( _local_system_freq_offset );
+	/* LastEBestIdentity */
+	if( ret && *count >= (off_t) sizeof( LastEBestIdentity )) {
+		memcpy( &LastEBestIdentity, buf, sizeof( LastEBestIdentity ));
+		*count -= sizeof( LastEBestIdentity );
+		buf = ((char *)buf) + sizeof( LastEBestIdentity );
 	} else if( ret == false ) {
-		*count += sizeof( _local_system_freq_offset );
+		*count += sizeof( LastEBestIdentity );
 	} else {
-		*count = sizeof( _local_system_freq_offset )-*count;
+		*count = sizeof( LastEBestIdentity )-*count;
 		ret = false;
 	}
 
-	/* LastEBestIdentity */
-  if( ret && *count >= (off_t) sizeof( LastEBestIdentity )) {
-	  memcpy( &LastEBestIdentity, buf, sizeof( LastEBestIdentity ));
-	  *count -= sizeof( LastEBestIdentity );
-	  buf = ((char *)buf) + sizeof( LastEBestIdentity );
-  } else if( ret == false ) {
-	  *count += sizeof( LastEBestIdentity );
-  } else {
-	  *count = sizeof( LastEBestIdentity )-*count;
-	  ret = false;
-  }
-
-  return ret;
-}
-
-Timestamp IEEE1588Clock::getSystemTime(void)
-{
-	return (Timestamp(0, 0, 0));
+	return ret;
 }
 
 void timerq_handler(void *arg)
@@ -208,170 +179,55 @@ void timerq_handler(void *arg)
 	event_descriptor->port->processEvent(event_descriptor->event);
 }
 
-void IEEE1588Clock::addEventTimer
-( IEEE1588Port * target, Event e, unsigned long long time_ns )
+bool IEEE1588Clock::addEventTimer
+( MediaIndependentPort * target, Event e, unsigned long long time_ns)
 {
+	bool ret;
 	event_descriptor_t *event_descriptor = new event_descriptor_t();
 	event_descriptor->event = e;
 	event_descriptor->port = target;
-	timerq->addEvent
+	event_descriptor->timerq = timerq;
+	ret = timerq->addEvent
 		((unsigned)(time_ns / 1000), (int)e, timerq_handler, event_descriptor,
 		 true, NULL);
+	return ret;
 }
 
-void IEEE1588Clock::addEventTimerLocked
-( IEEE1588Port * target, Event e, unsigned long long time_ns )
+bool IEEE1588Clock::deleteEventTimer(MediaIndependentPort *target, Event event)
 {
-    if( getTimerQLock() == oslock_fail ) return;
-	addEventTimer( target, e, time_ns );
-    if( putTimerQLock() == oslock_fail ) return;
+	bool ret = timerq->cancelEvent( (int)event, target );
+	return ret;
 }
 
-
-
-void IEEE1588Clock::deleteEventTimer(IEEE1588Port * target, Event event)
+void IEEE1588Clock::setMasterOffset( clock_offset_t *offset ) 
 {
-	timerq->cancelEvent((int)event, NULL);
-}
+	_master_system_freq_offset = offset->ml_freqoffset*offset->ls_freqoffset;
 
-void IEEE1588Clock::deleteEventTimerLocked(IEEE1588Port * target, Event event)
-{
-    if( getTimerQLock() == oslock_fail ) return;
+	if( ipc != NULL ) ipc->update( offset );
 
-	timerq->cancelEvent((int)event, NULL);
-
-    if( putTimerQLock() == oslock_fail ) return;
-}
-
-FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp local_time, Timestamp system_time ) {
-	unsigned long long inter_system_time;
-	unsigned long long inter_local_time;
-	FrequencyRatio ppt_offset;
-
-	XPTPD_INFO( "Calculated local to system clock rate difference" );
-
-	if( !_local_system_freq_offset_init ) {
-		_prev_system_time = system_time;
-		_prev_local_time = local_time;
-
-		_local_system_freq_offset_init = true;
-
-		return 1.0;
-	}
-
-	inter_system_time =
-		TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(_prev_system_time);
-	inter_local_time  =
-		TIMESTAMP_TO_NS(local_time) -  TIMESTAMP_TO_NS(_prev_local_time);
-
-	if( inter_system_time != 0 ) {
-		ppt_offset = ((FrequencyRatio)inter_local_time)/inter_system_time;
-	} else {
-		ppt_offset = 1.0;
-	}
-	
-	_prev_system_time = system_time;
-	_prev_local_time = local_time;
-
-  return ppt_offset;
-}
-
-
-
-FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp master_time, Timestamp sync_time ) {
-	unsigned long long inter_sync_time;
-	unsigned long long inter_master_time;
-	FrequencyRatio ppt_offset;
-	
-	XPTPD_INFO( "Calculated master to local clock rate difference" );
-
-	if( !_master_local_freq_offset_init ) {
-		_prev_sync_time = sync_time;
-		_prev_master_time = master_time;
-	
-		_master_local_freq_offset_init = true;
-	
-		return 1.0;
-	}
-
-	inter_sync_time =
-		TIMESTAMP_TO_NS(sync_time) - TIMESTAMP_TO_NS(_prev_sync_time);
-	inter_master_time =
-		TIMESTAMP_TO_NS(master_time) -  TIMESTAMP_TO_NS(_prev_master_time);
-
-	if( inter_sync_time != 0 ) {
-		ppt_offset = ((FrequencyRatio)inter_master_time)/inter_sync_time;
-	} else {
-		ppt_offset = 1.0;
-	}
-
-	_prev_sync_time = sync_time;
-	_prev_master_time = master_time;
-
-	return ppt_offset;
-}
-
-void IEEE1588Clock::setMasterOffset
-( int64_t master_local_offset, Timestamp local_time,
-  FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
-  Timestamp system_time, FrequencyRatio local_system_freq_offset,
-  unsigned sync_count, unsigned pdelay_count, PortState port_state )
-{
-	_master_local_freq_offset = master_local_freq_offset;
-	_local_system_freq_offset = local_system_freq_offset;
-
-	if( ipc != NULL ) ipc->update
-		( master_local_offset, local_system_offset, master_local_freq_offset,
-		  local_system_freq_offset, TIMESTAMP_TO_NS(local_time), sync_count,
-		  pdelay_count, port_state );
-
-	if( master_local_offset == 0 && master_local_freq_offset == 1.0 ) {
-		return;
-	}
-
-	if( _syntonize ) {
-		if( _new_syntonization_set_point ) {
-			_new_syntonization_set_point = false;
-			if( _timestamper ) {
-				/* Make sure that there are no transmit operations
-				   in progress */
-				getTxLockAll();
-				_timestamper->HWTimestamper_adjclockphase
-					( -master_local_offset );
-				_master_local_freq_offset_init = false;
-				putTxLockAll();
-				master_local_offset = 0;
-			}
-		}
-		// Adjust for frequency offset
-		long double phase_error = (long double) -master_local_offset;
-		_ppm += (float) (INTEGRAL*phase_error +
-			 PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
-		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
-		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
-		if( _timestamper ) {
-			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
-				XPTPD_ERROR( "Failed to adjust clock rate" );
-			}
-		}
-	}
-	
 	return;
 }
 
 /* Get current time from system clock */
-Timestamp IEEE1588Clock::getTime(void)
+Timestamp IEEE1588Clock::getTime(void) const
 {
 	return getSystemTime();
 }
 
 /* Get timestamp from hardware */
-Timestamp IEEE1588Clock::getPreciseTime(void)
+Timestamp IEEE1588Clock::getPreciseTime(void) const
 {
 	return getSystemTime();
 }
 
-bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
+Timestamp IEEE1588Clock::getSystemTime(void)
+{
+	return (Timestamp(0, 0, 0));
+}
+
+
+
+bool IEEE1588Clock::isBetterThan( PTPMessageAnnounce * msg ) const
 {
 	unsigned char this1[14];
 	unsigned char that1[14];
@@ -398,17 +254,6 @@ bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
 	
 	clock_identity.getIdentityString(this1 + 6);
 	msg->getGrandmasterIdentity((char *)that1 + 6);
-
-#if 0
-	fprintf(stderr, "(Clk)Us: ");
-	for (int i = 0; i < 14; ++i)
-		fprintf(stderr, "%hhx ", this1[i]);
-	fprintf(stderr, "\n");
-	fprintf(stderr, "(Clk)Them: ");
-	for (int i = 0; i < 14; ++i)
-		fprintf(stderr, "%hhx ", that1[i]);
-	fprintf(stderr, "\n");
-#endif
 
 	return (memcmp(this1, that1, 14) < 0) ? true : false;
 }

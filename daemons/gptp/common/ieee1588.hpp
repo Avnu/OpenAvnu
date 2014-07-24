@@ -52,15 +52,17 @@
 class LinkLayerAddress;
 struct ClockQuality;
 class PortIdentity;
+class IEEE1588Clock;
 class PTPMessageCommon;
 class PTPMessageSync;
 class PTPMessageAnnounce;
 class PTPMessagePathDelayReq;
 class PTPMessagePathDelayResp;
 class PTPMessagePathDelayRespFollowUp;
-class IEEE1588Port;
-class IEEE1588Clock;
+class MediaIndependentPort;
+class MediaDependentPort;
 class OSNetworkInterface;
+class OSTimerQueue;
 
 typedef enum {
 	NULL_EVENT = 0,
@@ -79,20 +81,24 @@ typedef enum {
 } Event;
 
 typedef struct {
-	IEEE1588Port *port;
+	MediaIndependentPort *port;
+	OSTimerQueue *timerq;
 	Event event;
 } event_descriptor_t;
 
 class InterfaceLabel {
- public:
-	virtual ~ InterfaceLabel() {
+protected:
+	char label[128];
+public:
+	virtual ~InterfaceLabel() {
 	};
+	char *toString() { return label; }
 };
 
 class ClockIdentity {
- private:
+private:
 	uint8_t id[PTP_CLOCK_IDENTITY_LENGTH];
- public:
+public:
 	ClockIdentity() {
 		memset( id, 0, PTP_CLOCK_IDENTITY_LENGTH );
 	}
@@ -101,20 +107,20 @@ class ClockIdentity {
 	}
 	bool operator==(const ClockIdentity & cmp) const {
 		return memcmp(this->id, cmp.id,
-			      PTP_CLOCK_IDENTITY_LENGTH) == 0 ? true : false;
+					  PTP_CLOCK_IDENTITY_LENGTH) == 0 ? true : false;
 	}
     bool operator!=( const ClockIdentity &cmp ) const {
         return memcmp( this->id, cmp.id, PTP_CLOCK_IDENTITY_LENGTH ) != 0 ? true : false;
 	}
 	bool operator<(const ClockIdentity & cmp)const {
 		return memcmp(this->id, cmp.id,
-			      PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
+					  PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
 	}
 	bool operator>(const ClockIdentity & cmp)const {
 		return memcmp(this->id, cmp.id,
-			      PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
+					  PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
 	}
-	void getIdentityString(uint8_t *id) {
+	void getIdentityString(uint8_t *id) const {
 		memcpy(id, this->id, PTP_CLOCK_IDENTITY_LENGTH);
 	} 
 	void set(uint8_t * id) {
@@ -144,8 +150,7 @@ public:
 	uint8_t _version;
 	char *toString() {
 		PLAT_snprintf
-			( output_string, 28, "%hu %u %u", seconds_ms, seconds_ls
-			  ,
+			( output_string, 28, "%hu %u %u", seconds_ms, seconds_ls,
 			  nanoseconds );
 		return output_string;
 	}
@@ -211,10 +216,14 @@ public:
 
 		return Timestamp( nanoseconds, seconds_ls, seconds_ms );
 	}
-	void set64( uint64_t value ) {
-		nanoseconds = value % 1000000000;
-		seconds_ls = (uint32_t) (value / 1000000000);
-		seconds_ms = (uint16_t)((value / 1000000000) >> 32);
+	bool operator>( const Timestamp& o ) {
+		if( seconds_ms > o.seconds_ms ) return true;
+		if( seconds_ms < o.seconds_ms ) return false;
+		if( seconds_ls > o.seconds_ls ) return true;
+		if( seconds_ls < o.seconds_ls ) return false;
+		if( nanoseconds > o.nanoseconds ) return true;
+		if( nanoseconds < o.nanoseconds ) return false;
+		return false; // equal
 	}
 };
 
@@ -222,8 +231,16 @@ public:
 #define PDELAY_PENDING_TIMESTAMP (Timestamp( 0xC0000001, 0, 0 ))
 
 #define TIMESTAMP_TO_NS(ts) (((static_cast<long long int>((ts).seconds_ms) \
-			       << sizeof((ts).seconds_ls)*8) + \
-			      (ts).seconds_ls)*1000000000LL + (ts).nanoseconds)
+							   << sizeof((ts).seconds_ls)*8) +			\
+							  (ts).seconds_ls)*1000000000LL + (ts).nanoseconds)
+
+static inline Timestamp NS_TO_TIMESTAMP( uint64_t ns ) {
+	Timestamp ret;
+	ret.nanoseconds =  ns % 1000000000;
+	ret.seconds_ls  = (ns / 1000000000) &  0xFFFFFFFF;
+	ret.seconds_ms  = (uint16_t) ((ns / 1000000000) >> 32);
+	return ret;
+}
 
 static inline uint64_t byte_swap64(uint64_t in)
 {
@@ -241,103 +258,53 @@ static inline uint64_t byte_swap64(uint64_t in)
 }
 
 #define NS_PER_SECOND 1000000000
-#define LS_SEC_MAX 0xFFFFFFFFull
+#define LS_SEC_MAX 0xFFFFFFFF
 
 static inline void TIMESTAMP_SUB_NS( Timestamp &ts, uint64_t ns ) {
-       uint64_t secs = (uint64_t)ts.seconds_ls | ((uint64_t)ts.seconds_ms) << 32;
-	   uint64_t nanos = (uint64_t)ts.nanoseconds;
+	bool borrow;
 
-       secs -= ns / NS_PER_SECOND;
-	   ns = ns % NS_PER_SECOND;
-	   
-	   if(ns > nanos)
-	   {  //borrow
-          nanos += NS_PER_SECOND;
-		  --secs;
-	   }
-	   
-	   nanos -= ns;
-	   
-	   ts.seconds_ms = (uint16_t)(secs >> 32);
-	   ts.seconds_ls = (uint32_t)(secs & LS_SEC_MAX);
-	   ts.nanoseconds = (uint32_t)nanos;
+	if( (ns % NS_PER_SECOND) > ts.nanoseconds ) {
+		borrow = true;
+		ts.nanoseconds = (NS_PER_SECOND + ts.nanoseconds) -
+			(ns % NS_PER_SECOND);
+	} else {
+		borrow = false;
+		ts.nanoseconds = ts.nanoseconds - (ns % NS_PER_SECOND );
+	}
+	while( borrow || (ns/NS_PER_SECOND > 0) ) {
+		if( ts.seconds_ls != 0 ) {
+			--ts.seconds_ls;
+		} else {
+			--ts.seconds_ms;
+			ts.seconds_ls = LS_SEC_MAX;
+		}
+		if( borrow ) borrow = false;
+		else ns -= NS_PER_SECOND;
+	}
+	return;
 }
 
 static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
-       uint64_t secs = (uint64_t)ts.seconds_ls | ((uint64_t)ts.seconds_ms) << 32;
-	   uint64_t nanos = (uint64_t)ts.nanoseconds;
+	uint32_t tmp;
+	bool carry = false;
 
-       secs += ns / NS_PER_SECOND;
-	   nanos += ns % NS_PER_SECOND;
-	   
-	   if(nanos > NS_PER_SECOND)
-	   {  //carry
-          nanos -= NS_PER_SECOND;
-		  ++secs;
-	   }
-	   
-	   ts.seconds_ms = (uint16_t)(secs >> 32);
-	   ts.seconds_ls = (uint32_t)(secs & LS_SEC_MAX);
-	   ts.nanoseconds = (uint32_t)nanos;
+	tmp = ts.nanoseconds;
+	ts.nanoseconds += ns % NS_PER_SECOND;
+	if( ts.nanoseconds < tmp ) carry = true;
+
+	while( carry || (ns/NS_PER_SECOND) >= 1 ) {
+		ts.seconds_ls = (ts.seconds_ls == LS_SEC_MAX) ? 0 : ts.seconds_ls + 1;
+		if( ts.seconds_ls == 0 ) ++ts.seconds_ms;
+		if( carry ) carry = false;
+		else ns -= NS_PER_SECOND;         
+	}
+	return;
 }
 
 #define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096
 
-class HWTimestamper {
-protected:
-  uint8_t version;
-public:
-  virtual bool HWTimestamper_init
-  ( InterfaceLabel *iface_label, OSNetworkInterface *iface )
-  { return true; }
-	virtual void HWTimestamper_final(void) {
-	}
-
-  virtual bool HWTimestamper_adjclockrate( float frequency_offset )
-  { return false; }
-  virtual bool HWTimestamper_adjclockphase( int64_t phase_adjust )
-  { return false; }
-
-	virtual bool HWTimestamper_gettime(Timestamp * system_time,
-					   Timestamp * device_time,
-					   uint32_t * local_clock,
-					   uint32_t * nominal_clock_rate) = 0;
-
-	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
-					      uint16_t sequenceId,
-					      Timestamp & timestamp,
-					      unsigned &clock_value,
-					      bool last) = 0;
-
-	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
-					      uint16_t sequenceId,
-					      Timestamp & timestamp,
-					      unsigned &clock_value,
-					      bool last) = 0;
-
-	virtual bool HWTimestamper_get_extclk_offset(Timestamp * local_time,
-						     int64_t * clk_offset,
-						     int32_t *
-						     ppt_freq_offset) {
-		return false;
-	}
-
-	virtual void HWTimestamper_get_extderror(char *msg) {
-		*msg = '\0';
-	}
-
-  virtual bool HWTimestamper_PPS_start() { return false; };
-  virtual bool HWTimestamper_PPS_stop() { return true; };
-
-  int getVersion() {
-    return version;
-  }
-  HWTimestamper() { version = 0; }
-  virtual ~HWTimestamper() { }
-};
-
-PTPMessageCommon *buildPTPMessage(char *buf, int size,
-				  LinkLayerAddress * remote,
-				  IEEE1588Port * port);
+PTPMessageCommon *buildPTPMessage
+( char *buf, int size, LinkLayerAddress * remote,
+  MediaDependentPort * port, bool *event );
 
 #endif

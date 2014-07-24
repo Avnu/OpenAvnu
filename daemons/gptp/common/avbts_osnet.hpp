@@ -40,14 +40,20 @@
 #include <ieee1588.hpp>
 #include <ptptypes.hpp>
 
+class Timestamper;
+
 #define FACTORY_NAME_LENGTH 48
+#define ETHER_ADDR_OCTETS 6
+#define IP_ADDR_OCTETS 4
+#define PTP_ETHERTYPE 0x88F7
 #define DEFAULT_TIMEOUT 1	// milliseconds
 
-class LinkLayerAddress:public InterfaceLabel {
+class LinkLayerAddress : public InterfaceLabel {
  private:
 	uint8_t addr[ETHER_ADDR_OCTETS];
  public:
 	LinkLayerAddress() {
+		memset(addr, 0, ETHER_ADDR_OCTETS);
 	};
 	LinkLayerAddress(uint64_t address_scalar) {
 		uint8_t *ptr;
@@ -87,31 +93,21 @@ class LinkLayerAddress:public InterfaceLabel {
 	}
 };
 
-class InterfaceName: public InterfaceLabel {
- private:
-	char *name;
+class InterfaceName : public InterfaceLabel {
  public:
 	InterfaceName() { }
 	InterfaceName(char *name, int length) {
-		this->name = new char[length + 1];
-		PLAT_strncpy(this->name, name, length);
+		PLAT_strncpy(this->label, name, length);
 	}
 	bool operator==(const InterfaceName & cmp) const {
-		return strcmp(name, cmp.name) == 0 ? true : false;
+		return strcmp(label, cmp.label) == 0 ? true : false;
 	}
 	bool operator<(const InterfaceName & cmp)const {
-		return strcmp(name, cmp.name) < 0 ? true : false;
+		return strcmp(label, cmp.label) < 0 ? true : false;
 	}
 	bool operator>(const InterfaceName & cmp)const {
-		return strcmp(name, cmp.name) < 0 ? true : false;
+		return strcmp(label, cmp.label) < 0 ? true : false;
 	} 
-	bool toString(char *string, size_t length) {
-		if (length >= strlen(name) + 1) {
-			PLAT_strncpy(string, name, length);
-			return true;
-		}
-		return false;
-	}
 };
 
 class factory_name_t {
@@ -145,6 +141,8 @@ class OSNetworkInterface {
 	virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
 	virtual unsigned getPayloadOffset() = 0;
 	virtual ~OSNetworkInterface() = 0;
+	virtual net_result disable_clear_rx_queue() { return net_fatal; }
+	virtual net_result reenable_rx_queue() { return net_fatal; }
 };
 
 inline OSNetworkInterface::~OSNetworkInterface() {}
@@ -165,18 +163,18 @@ class OSNetworkInterfaceFactory {
 	}
 	static bool buildInterface
 	(OSNetworkInterface ** iface, factory_name_t id, InterfaceLabel * iflabel,
-	 HWTimestamper * timestamper) {
+	 Timestamper *timestamper, LinkLayerAddress *remote = NULL) {
 		return factoryMap[id]->createInterface
-			(iface, iflabel, timestamper);
+			(iface, iflabel, timestamper,remote);
 	}
 	virtual ~OSNetworkInterfaceFactory() = 0;
 private:
 	virtual bool createInterface
 	(OSNetworkInterface ** iface, InterfaceLabel * iflabel,
-	 HWTimestamper * timestamper) = 0;
+	 Timestamper * timestamper, LinkLayerAddress *remote) = 0;
 	static FactoryMap_t factoryMap;
 };
 
-inline OSNetworkInterfaceFactory::~OSNetworkInterfaceFactory() { }
+inline OSNetworkInterfaceFactory::~OSNetworkInterfaceFactory() {}
 
 #endif

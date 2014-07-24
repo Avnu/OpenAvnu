@@ -34,30 +34,55 @@
 #ifndef AVBTS_OSTIMERQ_HPP
 #define AVBTS_OSTIMERQ_HPP
 
+#include <avbts_oslock.hpp>
+#include <ieee1588.hpp>
+
 typedef void (*ostimerq_handler) (void *);
 
 class IEEE1588Clock;
 
 class OSTimerQueue {
 protected:
+	OSLock *glock;
+	bool stopped;
 	virtual bool init() { return true; }
-	OSTimerQueue() {}
+	OSTimerQueue() {
+		stopped = false;
+		glock = NULL;
+	}
+
 public:
 	virtual bool addEvent
 	(unsigned long micros, int type, ostimerq_handler func,
-	 event_descriptor_t * arg, bool dynamic, unsigned *event) = 0;
-	virtual bool cancelEvent(int type, unsigned *event) = 0;
+	 event_descriptor_t *arg, bool dynamic, unsigned *event) = 0;
+	virtual bool cancelEvent( int type, MediaIndependentPort *port ) = 0;
+	OSLockResult lock() { return glock->lock(); }
+	OSLockResult unlock() { return glock->unlock(); }
+	virtual bool stop() { return false; }
+	virtual bool stop_port( MediaIndependentPort *port ) { return false; }
 	virtual ~OSTimerQueue() = 0;
+	friend class OSTimerQueueFactory;
 };
 
-inline OSTimerQueue::~OSTimerQueue() {}
+inline OSTimerQueue::~OSTimerQueue() {
+	if( glock != NULL ) delete glock;
+}
 
 class OSTimerQueueFactory {
+protected:
+	bool createOSTimerQueue(OSLockFactory *lock_factory, OSTimerQueue *q);
 public:
-	virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock ) = 0;
-	virtual ~OSTimerQueueFactory() = 0;
+	virtual OSTimerQueue *createOSTimerQueue
+	( OSLockFactory *lock_factory ) = 0;
+	virtual ~OSTimerQueueFactory();
 };
 
 inline OSTimerQueueFactory::~OSTimerQueueFactory() {}
+inline bool OSTimerQueueFactory::createOSTimerQueue(OSLockFactory *lock_factory, OSTimerQueue *q) {
+	q->glock = lock_factory->createLock(oslock_nonrecursive);
+	q->stopped = false;
+	if (q->glock == NULL) return false;
+	return true;
+}
 
 #endif

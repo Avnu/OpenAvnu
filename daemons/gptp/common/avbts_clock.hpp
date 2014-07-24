@@ -36,16 +36,23 @@
 
 #include <stdint.h>
 #include <ieee1588.hpp>
-#include <avbts_port.hpp>
+#include <min_port.hpp>
 #include <avbts_ostimerq.hpp>
-#include <avbts_osipc.hpp>
+#include <offset.hpp>
 
-#define EVENT_TIMER_GRANULARITY 5000000
+#include <vector>
+
+class OS_IPC;
+
+#define EVENT_TIMER_GRANULARITY 16000000
 
 #define INTEGRAL 0.0024
 #define PROPORTIONAL 1.0
 #define UPPER_FREQ_LIMIT  250.0
 #define LOWER_FREQ_LIMIT -250.0
+
+typedef std::vector<MediaIndependentPort *> MinPortList;
+typedef MinPortList::const_iterator MinPortListIterator;
 
 struct ClockQuality {
 	unsigned char cq_class;
@@ -63,7 +70,6 @@ private:
 	bool is_boundary_clock;
 	bool two_step_clock;
 	unsigned char domain_number;
-	uint16_t number_ports;
 	uint16_t number_foreign_records;
 	bool slave_only;
 	int16_t current_utc_offset;
@@ -80,59 +86,99 @@ private:
 	unsigned char grandmaster_priority2;
 	bool grandmaster_is_boundary_clock;
 	uint8_t time_source;
+
+	bool _grandmaster;
 	
 	ClockIdentity LastEBestIdentity;
-	bool _syntonize;
-	bool _new_syntonization_set_point;
-	float _ppm;
 
-	IEEE1588Port *port_list[MAX_PORTS];
+	MinPortList port_list;
 	
-	static Timestamp start_time;
-	Timestamp last_sync_time;
-	
-	bool _master_local_freq_offset_init;
-	Timestamp _prev_master_time;
-	Timestamp _prev_sync_time;
-	
-	bool _local_system_freq_offset_init;
-	Timestamp _prev_local_time;
-	Timestamp _prev_system_time;
-	
-	HWTimestamper *_timestamper;
+	Timestamp _last_sync_orig;
+	Timestamp _last_sync_rcpt_dev;
+	Timestamp _last_sync_rcpt_sys;
+	uint64_t _last_sync_correction;
+	FrequencyRatio _last_sync_cumoffset;
+	unsigned _last_sync_devid;
+	bool _last_sync_valid;
 	
 	OS_IPC *ipc;
 
 	OSTimerQueue *timerq;
 	
-	bool forceOrdinarySlave;
-	FrequencyRatio _master_local_freq_offset;
-	FrequencyRatio _local_system_freq_offset;
+	FrequencyRatio _master_system_freq_offset;
 
-  OSLock *timerq_lock;
+	OSLock *glock;
 public:
 	IEEE1588Clock
 	(bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
-	 HWTimestamper *timestamper, OSTimerQueueFactory * timerq_factory,
-	 OS_IPC * ipc, OSLockFactory *lock_factory );
+	 Timestamper *timestamper, OSTimerQueueFactory * timerq_factory,
+	 OSLockFactory *lock_factory, OS_IPC * ipc);
 	~IEEE1588Clock(void);
 
 	bool serializeState( void *buf, long *count );
 	bool restoreSerializedState( void *buf, long *count );
 
-	Timestamp getTime(void);
-	Timestamp getPreciseTime(void);
+	bool stop_port(MediaIndependentPort *port) {
+		return timerq->stop_port(port);
+	}
 
-	bool isBetterThan(PTPMessageAnnounce * msg);
+	Timestamp getTime( void ) const;
+	Timestamp getPreciseTime( void ) const;
+	static Timestamp getSystemTime(void);
 	
-	ClockIdentity getLastEBestIdentity( void ) {
+	bool isBetterThan( PTPMessageAnnounce * msg ) const;
+	
+	ClockIdentity getLastEBestIdentity() const {
 		return LastEBestIdentity;
 	}
 	void setLastEBestIdentity( ClockIdentity id ) {
 		LastEBestIdentity = id;
-		return;
 	}
 	
+	void setLastSyncOriginTime( Timestamp ts ) {
+		_last_sync_orig = ts;
+	}
+	void setLastSyncReceiveDeviceTime( Timestamp ts ) {
+		_last_sync_rcpt_dev = ts;
+	}
+	void setLastSyncReceiveSystemTime( Timestamp ts ) {
+		_last_sync_rcpt_sys = ts;
+	}
+	void setLastSyncCorrection( uint64_t correction ) {
+		_last_sync_correction = correction;
+	}
+	void setLastSyncCumulativeOffset( FrequencyRatio ratio ) {
+		_last_sync_cumoffset = ratio;
+	}
+	void setLastSyncReceiveDeviceId( unsigned id ) {
+		_last_sync_devid = id;
+	}
+	void setLastSyncValid() {
+		_last_sync_valid = true;
+	}
+	Timestamp getLastSyncOriginTime() {
+		return _last_sync_orig;
+	}
+	Timestamp getLastSyncReceiveDeviceTime() {
+		return _last_sync_rcpt_dev;
+	}
+	Timestamp getLastSyncReceiveSystemTime() {
+		return _last_sync_rcpt_sys;
+	}
+	uint64_t getLastSyncCorrection() {
+		return _last_sync_correction;
+	}
+	FrequencyRatio getLastSyncCumulativeOffset() {
+		return _last_sync_cumoffset;
+	}
+    unsigned getLastSyncReceiveDeviceId() {
+		return _last_sync_devid;
+	}
+	bool getLastSyncValid() {
+		return _last_sync_valid;
+	}
+
+
 	void setClockIdentity(char *id) {
 		clock_identity.set((uint8_t *) id);
 	}
@@ -140,33 +186,34 @@ public:
 		clock_identity.set(addr);
 	}
 	
-	unsigned char getDomain(void) {
+	unsigned char getDomain(void) const {
 		return domain_number;
 	}
 
-	ClockIdentity getGrandmasterClockIdentity(void) {
+	ClockIdentity getGrandmasterClockIdentity(void) const {
 		return grandmaster_clock_identity;
 	}
 	void setGrandmasterClockIdentity(ClockIdentity id) {
 		grandmaster_clock_identity = id;
 	}
 	
-	ClockQuality getGrandmasterClockQuality(void) {
+	ClockQuality getGrandmasterClockQuality(void) const {
 		return grandmaster_clock_quality;
 	}
+
 	void setGrandmasterClockQuality( ClockQuality clock_quality ) {
 		grandmaster_clock_quality = clock_quality;
 	}
 	
-	ClockQuality getClockQuality(void) {
+	ClockQuality getClockQuality(void) const {
 		return clock_quality;
 	}
 	
-	unsigned char getGrandmasterPriority1(void) {
+	unsigned char getGrandmasterPriority1(void) const {
 		return grandmaster_priority1;
 	}
 	
-	unsigned char getGrandmasterPriority2(void) {
+	unsigned char getGrandmasterPriority2(void) const {
 		return grandmaster_priority2;
 	}
 	void setGrandmasterPriority1( unsigned char priority1 ) {
@@ -177,114 +224,78 @@ public:
 		grandmaster_priority2 = priority2;
 	}
 	
-	uint16_t getMasterStepsRemoved(void) {
+	uint16_t getMasterStepsRemoved(void) const {
 		return steps_removed;
 	}
 	
-	uint16_t getCurrentUtcOffset(void) {
+	uint16_t getCurrentUtcOffset(void) const {
 		return current_utc_offset;
 	}
 	
-	uint8_t getTimeSource(void) {
+	uint8_t getTimeSource(void) const {
 		return time_source;
 	}
 	
-	unsigned char getPriority1(void) {
+	unsigned char getPriority1(void) const {
 		return priority1;
 	}
 
-	unsigned char getPriority2(void) {
+	unsigned char getPriority2(void) const {
 		return priority2;
 	}
-	uint16_t getNextPortId(void) {
-		return (number_ports++ % (MAX_PORTS + 1)) + 1;
+	bool registerPort( MediaIndependentPort *port ) {
+		if( lock() != oslock_ok ) return false;
+		port_list.push_back( port );
+		if( unlock() != oslock_ok ) return false;
+		return true;
 	}
-	void registerPort(IEEE1588Port * port, uint16_t index) {
-		if (index < MAX_PORTS) {
-			port_list[index - 1] = port;
-		}
-		++number_ports;
+
+	MinPortListIterator getPortListBegin() const {
+		return port_list.cbegin();
 	}
-	void getPortList(int &count, IEEE1588Port ** &ports) {
-		ports = this->port_list;
-		count = number_ports;
-		return;
+	MinPortListIterator getPortListEnd() const {
+		return port_list.cend();
 	}
 	
-	static Timestamp getSystemTime(void);
+	bool addEventTimer
+	( MediaIndependentPort *target, Event e, unsigned long long time_ns);
+	bool deleteEventTimer( MediaIndependentPort *target, Event e );
+
+	void setMasterOffset( clock_offset_t *offset );
+
+	FrequencyRatio getMasterSystemFrequencyOffset() {
+		return _master_system_freq_offset;
+	}
 	
-	void addEventTimer
-	( IEEE1588Port * target, Event e, unsigned long long time_ns );
-	void deleteEventTimer(IEEE1588Port * target, Event e);
-
-	void addEventTimerLocked
-	( IEEE1588Port * target, Event e, unsigned long long time_ns );
-	void deleteEventTimerLocked(IEEE1588Port * target, Event e);
-
-	FrequencyRatio calcMasterLocalClockRateDifference
-	( Timestamp master_time, Timestamp sync_time );
-	FrequencyRatio calcLocalSystemClockRateDifference
-	( Timestamp local_time, Timestamp system_time );
-
-	void setMasterOffset
-	( int64_t master_local_offset, Timestamp local_time,
-	  FrequencyRatio master_local_freq_offset,
-	  int64_t local_system_offset,
-	  Timestamp system_time,
-	  FrequencyRatio local_system_freq_offset,
-	  unsigned sync_count, unsigned pdelay_count, PortState port_state );
-	
-	ClockIdentity getClockIdentity() {
+	ClockIdentity getClockIdentity() const {
 		return clock_identity;
 	}
 
-	void newSyntonizationSetPoint() {
-		_new_syntonization_set_point = true;
+	bool getGrandmaster() {
+		return _grandmaster;
+	}
+	void setGrandmaster() {
+		_grandmaster = true;
+	}
+	void clearGrandmaster() {
+		_grandmaster = false;
 	}
 
-	int getTxLockAll() {
-		int number_ports, i, j = 0;
-		IEEE1588Port **ports;
-
-		getPortList( number_ports, ports );
-
-		for( i = 0; i < number_ports; ++i ) {
-			while( ports[j] == NULL ) ++j;
-			if( ports[j]->getTxLock() == false ) {
-				return false;
-			}
-		}
-
-		return true;
+	OSLockResult lock() {
+		return glock->lock();
+	}
+	OSLockResult unlock() {
+		return glock->unlock();
 	}
 
-	int putTxLockAll() {
-		int number_ports, i, j = 0;
-		IEEE1588Port **ports;
-
-		getPortList( number_ports, ports );
-		
-		for( i = 0; i < number_ports; ++i ) {
-			while( ports[j] == NULL ) ++j;
-			if( ports[j]->putTxLock() == false ) {
-				return false;
-			}
-		}
-		
-		return true;
+	OSLockResult timerq_lock() {
+		return timerq->lock();
+	}
+	OSLockResult timerq_unlock() {
+		return timerq->unlock();
 	}
 
 	friend void tick_handler(int sig);
-
-	OSLockResult getTimerQLock() {
-		return timerq_lock->lock();
-	}
-	OSLockResult putTimerQLock() {
-		return timerq_lock->unlock();
-	}
-	OSLock *timerQLock() {
-		return timerq_lock;
-	}
 };
 
 void tick_handler(int sig);

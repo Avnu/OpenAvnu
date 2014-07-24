@@ -31,28 +31,76 @@
 
 ******************************************************************************/
 
-#ifndef DEBUGOUT_HPP
-#define DEBUGOUT_HPP
+#include <timestamper.hpp>
+#include <mdport.hpp>
+#include <avbts_osthread.hpp>
+#include <ethtimestamper.hpp>
 
-#include <stdio.h>
+#define DEFAULT_PHASEADJ_SLEEP (100) /*ms*/ 
 
-#define BMCA_DEBUG 0x1
-#define MESSAGE_DUMP 0x2
-#define ANNOUNCE_DEBUG 0x4
-#define OSNET_DEBUG 0x8
-#define PDELAY_DEBUG 0x10
-#define SYNC_DEBUG 0x20
-#define TIMESTAMP_DEBUG 0x30
+bool EthernetTimestamper::HWTimestamper_init
+( InterfaceLabel *iface_label, OSNetworkInterface *iface,
+  OSLockFactory *lock_factory, OSThreadFactory *thread_factory,
+  OSTimerFactory *timer_factory ) {
+	Timestamper::HWTimestamper_init
+		( iface_label, iface, lock_factory, thread_factory,
+		  timer_factory );
+	
+	return true;
+}
 
-#define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
-#ifdef PTP_DEBUG
-#define XPTPD_INFO(fmt,...) XPTPD_INFOL(0,fmt,## __VA_ARGS__)
-#define XPTPD_INFOL(level,fmt,...)										\
-	if( level & PTP_DEBUG )												\
-		fprintf( stderr, "DEBUG at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
-#else
-#define XPTPD_INFO(fmt,...)
-#define XPTPD_INFOL(level,fmt,...)
-#endif
+bool EthernetTimestamper::HWTimestamper_adjclockphase
+( int64_t phase_adjust ) {
+	OSNetworkInterfaceList::iterator iface_iter;
+	OSTimer *timer;
+	net_result err;
+	bool ret = true;
+		
+	/* Walk list of interfaces disabling them all */
+	iface_iter = iface_list.begin();
+	for
+		( iface_iter = iface_list.begin(); iface_iter != iface_list.end();
+		  ++iface_iter ) {
+		err = (*iface_iter)->disable_clear_rx_queue();
+		ret = false;
+		switch(err) {
+		default:
+			ret = true;
+			break;
+		case net_fatal:
+			goto bail;
+		case net_trfail:
+			goto bail_reenable;
+		}
+	}
+		
+	// Wait to ensure that any inflight RX data is processed
+	timer = getTimerFactory()->createTimer();
+	timer->sleep( DEFAULT_PHASEADJ_SLEEP*1000 );
+		
+	if( !clear_rx_timestamp_list() ) {
+		ret = false;
+		goto bail_reenable;
+	}
+		
+	if( !_adjclockphase( phase_adjust )) {
+		ret = false;
+		goto bail_reenable;
+	}
+	++version;
 
-#endif/*DEBUGOUT_HPP*/
+ bail_reenable:
+	// Walk list of interfaces re-enabling them
+	iface_iter = iface_list.begin();
+	for( iface_iter = iface_list.begin(); iface_iter != iface_list.end();
+		 ++iface_iter ) {
+		err = (*iface_iter)->reenable_rx_queue();
+		if( err != net_succeed ) {
+			ret = false;
+			goto bail;
+		}
+	}
+ bail:
+	
+	return ret;
+}

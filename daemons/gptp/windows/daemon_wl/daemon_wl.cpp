@@ -39,7 +39,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "avbts_oslock.hpp"
 #include "windows_hal.hpp"
 #include <min_port.hpp>
-#include <md_ethport.hpp>
+#include <md_wireless.hpp>
 #include <tchar.h>
 
 #define MACSTR_LENGTH 17
@@ -49,7 +49,7 @@ static bool exit_flag;
 void print_usage( char *arg0 ) {
 	fprintf( stderr,
 		"%s "
-		"[-R <priority 1>] <network interface>\n",
+		"[-R <priority 1>] <network interface> <peer address>\n",
 		arg0 );
 }
 
@@ -103,7 +103,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	}
 
 	/* Process optional arguments */
-	for( i = 1; i < argc-1; ++i ) {
+	for( i = 1; i < argc; ++i ) {
 		if( ispunct(argv[i][0]) ) {
 			if( toupper( argv[i][1] ) == 'H' ) {
 				print_usage( argv[0] );
@@ -123,39 +123,47 @@ int _tmain(int argc, _TCHAR* argv[])
 					}
 				}
 			}
+			else if (ispunct(argv[i][0])) {
+				++i;
+				break;
+			}
 		}
 	}
 
-	// Create Low level network interface object
-	uint8_t local_addr_ostr[ETHER_ADDR_OCTETS];
 	if( i >= argc ) {
 		print_usage( argv[0] );
 		return -1;
 	}
-	parseMacAddr( argv[i], local_addr_ostr );
+	uint8_t local_addr_ostr[ETHER_ADDR_OCTETS];
+	parseMacAddr(argv[i++], local_addr_ostr);
 	LinkLayerAddress local_addr(local_addr_ostr);
 
+	if (i >= argc) {
+		print_usage(argv[0]);
+		return -1;
+	}
+	uint8_t peer_addr_ostr1[ETHER_ADDR_OCTETS];
+	parseMacAddr(argv[i++], peer_addr_ostr1);
+	LinkLayerAddress peer_addr1(peer_addr_ostr1);
+
 	// Create HWTimestamper object
-	EthernetTimestamper *timestamper = new WindowsTimestamper();
+	WirelessTimestamper *timestamper = new WindowsWirelessTimestamper(condition_factory);
 	// Create Clock object
 	IEEE1588Clock *clock =
 		new IEEE1588Clock
 		(false, false, priority1, timestamper, timerq_factory,
 		lock_factory, ipc);
-	// Create Port Object linked to clock and low level
-	MediaIndependentPort *min_port =
-		new MediaIndependentPort
-		(clock, 0, syntonize, condition_factory,
-		thread_factory, timer_factory, lock_factory);
-	MediaDependentPort *md_port = new MediaDependentEtherPort
-		(timestamper, &local_addr, condition_factory, thread_factory,
-		timer_factory, lock_factory);
-	min_port->setPort(md_port);
-	if (!min_port->init_port()) {
-		printf("failed to initialize port \n");
-		return -1;
+	timestamper->setClock(clock);
+	timestamper->HWTimestamper_init(&local_addr, NULL, lock_factory, thread_factory, timer_factory);
+
+	timestamper->addPeer(peer_addr1);
+
+	while (i < argc) {
+		uint8_t peer_addr_ostr2[ETHER_ADDR_OCTETS];
+		parseMacAddr(argv[i++], peer_addr_ostr2);
+		LinkLayerAddress peer_addr2(peer_addr_ostr2);
+		timestamper->addPeer(peer_addr2);
 	}
-	min_port->processEvent(POWERUP);
 
 	// Wait for Ctrl-C
 	if( !SetConsoleCtrlHandler( ctrl_handler, true )) {

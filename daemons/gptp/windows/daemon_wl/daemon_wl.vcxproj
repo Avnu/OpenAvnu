@@ -19,9 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{590D3055-A068-4B31-B4F9-B2ACC5F93663}</ProjectGuid>
+    <ProjectGuid>{EA171445-F793-49B4-9061-CDB00F24C4F6}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>daemon_cl</RootNamespace>
+    <RootNamespace>daemon_wl</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -103,13 +103,13 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\daemon_cl;$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ALLUSERSPROFILE)\WpdPack\Lib\x64;$(USERPROFILE)\WpdPack\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;MurocApi.lib;PanApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files %28x86%29\Intel\WiFiSDK\Lib\x64\Debug;$(ALLUSERSPROFILE)\WpdPack\Lib\x64;$(USERPROFILE)\WpdPack\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -120,7 +120,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\src\pcap\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\src\pcap\Include;$(SolutionDir)\..\common;$(SolutionDir)\daemon_cl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -140,15 +140,15 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\daemon_cl;$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(ALLUSERSPROFILE)\WpdPack\Lib\x64;$(USERPROFILE)\WpdPack\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Intel\WiFiSDK\Lib\x64\Release;$(ALLUSERSPROFILE)\WpdPack\Lib\x64;$(USERPROFILE)\WpdPack\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;MurocApi.lib;PanApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>true</GenerateMapFile>
     </Link>
   </ItemDefinitionGroup>
@@ -170,21 +170,24 @@
     <ClInclude Include="..\..\common\ieee1588.hpp" />
     <ClInclude Include="..\..\common\mdport.hpp" />
     <ClInclude Include="..\..\common\md_ethport.hpp" />
+    <ClInclude Include="..\..\common\md_wireless.hpp" />
     <ClInclude Include="..\..\common\min_port.hpp" />
     <ClInclude Include="..\..\common\offset.hpp" />
     <ClInclude Include="..\..\common\ptptypes.hpp" />
     <ClInclude Include="..\..\common\timestamper.hpp" />
-    <ClInclude Include="ipcdef.hpp" />
-    <ClInclude Include="IPCListener.hpp" />
-    <ClInclude Include="Lockable.hpp" />
-    <ClInclude Include="packet.hpp" />
-    <ClInclude Include="PeerList.hpp" />
-    <ClInclude Include="platform.hpp" />
+    <ClInclude Include="..\..\common\wltimestamper.hpp" />
+    <ClInclude Include="..\daemon_cl\ipcdef.hpp" />
+    <ClInclude Include="..\daemon_cl\IPCListener.hpp" />
+    <ClInclude Include="..\daemon_cl\Lockable.hpp" />
+    <ClInclude Include="..\daemon_cl\packet.hpp" />
+    <ClInclude Include="..\daemon_cl\PeerList.hpp" />
+    <ClInclude Include="..\daemon_cl\platform.hpp" />
+    <ClInclude Include="dummy.hpp" />
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="Stoppable.hpp" />
+    <ClInclude Include="..\daemon_cl\Stoppable.hpp" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="tsc.hpp" />
-    <ClInclude Include="windows_hal.hpp" />
+    <ClInclude Include="..\daemon_cl\tsc.hpp" />
+    <ClInclude Include="..\daemon_cl\windows_hal.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\common\avbts_osnet.cpp">
@@ -195,28 +198,30 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\common\md_ethport.cpp" />
+    <ClCompile Include="..\..\common\md_wireless.cpp" />
     <ClCompile Include="..\..\common\min_port.cpp" />
     <ClCompile Include="..\..\common\ptp_message.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\common\timestamper.cpp" />
-    <ClCompile Include="daemon_cl.cpp">
+    <ClCompile Include="..\..\common\wltimestamper.cpp" />
+    <ClCompile Include="daemon_wl.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="IPCListener.cpp" />
-    <ClCompile Include="packet.cpp">
+    <ClCompile Include="..\daemon_cl\IPCListener.cpp" />
+    <ClCompile Include="..\daemon_cl\packet.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="platform.cpp" />
+    <ClCompile Include="..\daemon_cl\platform.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="windows_hal.cpp" />
+    <ClCompile Include="..\daemon_cl\windows_hal.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

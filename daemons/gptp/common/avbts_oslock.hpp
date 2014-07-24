@@ -41,22 +41,23 @@ class OSLock {
 	virtual OSLockResult lock() = 0;
 	virtual OSLockResult unlock() = 0;
 	virtual OSLockResult trylock() = 0;
+	virtual ~OSLock() = 0;
  protected:
 	OSLock() { }
-	bool initialize(OSLockType type) {
+	bool initialize( OSLockType type ) {
 		return false;
 	}
-	virtual ~OSLock() = 0;
 };
 
-inline OSLock::~OSLock() {}
+inline OSLock::~OSLock() { }
 
 class OSLockFactory {
 public:
-	virtual OSLock * createLock(OSLockType type) = 0;
+	// Return value of NULL indicates error condition
+	virtual OSLock* createLock(OSLockType type) = 0;
 	virtual ~OSLockFactory() = 0;
 };
 
-inline OSLockFactory::~OSLockFactory () {}
+inline OSLockFactory::~OSLockFactory() {}
 
 #endif
