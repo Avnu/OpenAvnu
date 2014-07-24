@@ -37,6 +37,7 @@
 class OSCondition {
 private:
 	int wait_count;
+	bool signaled;
 public:
 	virtual bool wait() = 0;
 	virtual bool wait_prelock() = 0;
@@ -45,6 +46,7 @@ public:
 protected:
 	OSCondition() {
 		wait_count = 0;
+		signaled = false;
 	};
 	void up() {
 		++wait_count;
@@ -52,20 +54,25 @@ protected:
 	void down() {
 		--wait_count;
 	} 
+	void setcsig() {
+		signaled = true;
+	}
+	bool getcsig() {
+		return signaled;
+	}
 	bool waiting() {
 		return wait_count > 0;
 	}
 };
 
-inline OSCondition::~OSCondition() { }
+inline OSCondition::~OSCondition() {}
 
 class OSConditionFactory {
 public:
-	virtual OSCondition * createCondition() = 0;
+	virtual OSCondition *createCondition() = 0;
 	virtual ~OSConditionFactory() = 0;
 };
 
 inline OSConditionFactory::~OSConditionFactory() {}
-
 
 #endif

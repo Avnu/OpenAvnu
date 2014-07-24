@@ -50,10 +50,41 @@
 
 #include "avbts_osipc.hpp"
 
+#include <ethtimestamper.hpp>
+#include <wltimestamper.hpp>
+
 #include <ntddndis.h>
 
 #include <map>
 #include <list>
+#include <dummy.hpp>
+
+class WindowsWirelessTimestamper : public WirelessTimestamper {
+private:
+	ADAPTER_ID hAdapter;
+	uint32_t last_count;
+	uint32_t rollover;
+	Timestamp system_time;
+	Timestamp device_time;
+	HANDLE CtsEvent;
+public:
+	virtual bool HWTimestamper_init
+		(InterfaceLabel *iface_label, OSNetworkInterface *iface,
+		OSLockFactory *lock_factory, OSThreadFactory *thread_factory,
+		OSTimerFactory *timer_factory);
+
+	virtual net_result _requestTimingMeasurement
+		(LinkLayerAddress dest, uint8_t dialog_token, WirelessDialog *prev_dialog,
+		uint8_t *follow_up, int followup_length);
+	virtual bool HWTimestamper_gettime(Timestamp *system_time, Timestamp *device_time);
+
+	WindowsWirelessTimestamper(OSConditionFactory *condition_factory) : WirelessTimestamper(condition_factory) {
+		hAdapter = NULL;
+		last_count = 0;
+		rollover = 0;
+	}
+	friend void WirelessTimestamperCallback(EVENT_ID event, void *data, void *context);
+};
 
 class WindowsPCAPNetworkInterface : public OSNetworkInterface {
 	friend class WindowsPCAPNetworkInterfaceFactory;
@@ -91,16 +122,20 @@ protected:
 
 class WindowsPCAPNetworkInterfaceFactory : public OSNetworkInterfaceFactory {
 public:
-	virtual bool createInterface( OSNetworkInterface **net_iface, InterfaceLabel *label, HWTimestamper *timestamper ) {
+	virtual bool createInterface( OSNetworkInterface **net_iface, InterfaceLabel *label,
+		Timestamper *timestamper, LinkLayerAddress *remote ) {
 		WindowsPCAPNetworkInterface *net_iface_l = new WindowsPCAPNetworkInterface();
 		LinkLayerAddress *addr = dynamic_cast<LinkLayerAddress *>(label);
 		if( addr == NULL ) goto error_nofree;
 		net_iface_l->local_addr = *addr;
 		packet_addr_t pfaddr;
 		addr->toOctetArray( pfaddr.addr );
+		packet_addr_t raddr;
+		if (remote == NULL) { raddr = ETHER_ADDR_ANY; }
+		else { remote->toOctetArray(raddr.addr); }
 		if( mallocPacketHandle( &net_iface_l->handle ) != PACKET_NO_ERROR ) goto error_nofree;
 		if( openInterfaceByAddr( net_iface_l->handle, &pfaddr, 1 ) != PACKET_NO_ERROR ) goto error_free_handle;
-		if( packetBind( net_iface_l->handle, PTP_ETHERTYPE ) != PACKET_NO_ERROR ) goto error_free_handle;
+		if( packetBind( net_iface_l->handle, PTP_ETHERTYPE, raddr ) != PACKET_NO_ERROR ) goto error_free_handle;
 		*net_iface = net_iface_l;
 
 		return true;
@@ -201,17 +236,20 @@ public:
 		return true;
 	}
 	bool wait() {
-		BOOL result = SleepConditionVariableSRW( &condition, &lock, INFINITE, 0 );
-		bool ret = false;
-		if( result == TRUE ) {
-			down();
-			ReleaseSRWLockExclusive( &lock );
-			ret = true;
+		bool ret = true;
+		while (!getcsig()) { // We're signaled
+			if (SleepConditionVariableSRW(&condition, &lock, INFINITE, 0) != TRUE) {
+				ret = false;
+				break;
+			}
 		}
+		down();
+		ReleaseSRWLockExclusive(&lock);
 		return ret;
 	}
 	bool signal() {
 		AcquireSRWLockExclusive( &lock );
+		setcsig();
 		if( waiting() ) WakeAllConditionVariable( &condition );
 		ReleaseSRWLockExclusive( &lock );
 		return true;
@@ -245,7 +283,6 @@ typedef std::list<WindowsTimerQueueHandlerArg *> TimerArgList_t;
 struct TimerQueue_t {
 	TimerArgList_t arg_list;
 	HANDLE queue_handle;
-	SRWLOCK lock;
 };
 
 
@@ -260,13 +297,13 @@ private:
 	TimerQueueMap_t timerQueueMap;
 	TimerArgList_t retiredTimers;
 	SRWLOCK retiredTimersLock;
-	void cleanupRetiredTimers() {
+	void cleanupRetiredTimers( bool final ) {
 		AcquireSRWLockExclusive( &retiredTimersLock );
 		while( !retiredTimers.empty() ) {
 			WindowsTimerQueueHandlerArg *retired_arg = retiredTimers.front();
 			retiredTimers.pop_front();
 			ReleaseSRWLockExclusive( &retiredTimersLock );
-			DeleteTimerQueueTimer( retired_arg->queue_handle, retired_arg->timer_handle, INVALID_HANDLE_VALUE );
+			if( !final ) DeleteTimerQueueTimer( retired_arg->queue_handle, retired_arg->timer_handle, INVALID_HANDLE_VALUE );
 			if( retired_arg->rm ) delete retired_arg->inner_arg;
 			delete retired_arg;
 			AcquireSRWLockExclusive( &retiredTimersLock );
@@ -280,39 +317,73 @@ protected:
 	};
 public:
 	bool addEvent( unsigned long micros, int type, ostimerq_handler func, event_descriptor_t *arg, bool rm, unsigned *event ) {
-		WindowsTimerQueueHandlerArg *outer_arg = new WindowsTimerQueueHandlerArg();
-		cleanupRetiredTimers();
-		if( timerQueueMap.find(type) == timerQueueMap.end() ) {
-			timerQueueMap[type].queue_handle = CreateTimerQueue();
-			InitializeSRWLock( &timerQueueMap[type].lock );
+		WindowsTimerQueueHandlerArg *outer_arg;
+		outer_arg = new WindowsTimerQueueHandlerArg();
+		cleanupRetiredTimers(stopped);
+
+		if (!stopped) {
+			if (timerQueueMap.find(type) == timerQueueMap.end()) {
+				timerQueueMap[type].queue_handle = CreateTimerQueue();
+			}
+			outer_arg->queue_handle = timerQueueMap[type].queue_handle;
+			outer_arg->inner_arg = arg;
+			outer_arg->func = func;
+			outer_arg->queue = this;
+			outer_arg->type = type;
+			outer_arg->rm = rm;
+			outer_arg->timer_queue = &timerQueueMap[type];
+			CreateTimerQueueTimer(&outer_arg->timer_handle, timerQueueMap[type].queue_handle, WindowsTimerQueueHandler, (void *)outer_arg, micros / 1000, 0, 0);
+			timerQueueMap[type].arg_list.push_front(outer_arg);
 		}
-		outer_arg->queue_handle = timerQueueMap[type].queue_handle;
-		outer_arg->inner_arg = arg;
-		outer_arg->func = func;
-		outer_arg->queue = this;
-		outer_arg->type = type;
-		outer_arg->rm = rm;
-		outer_arg->timer_queue = &timerQueueMap[type];
-		AcquireSRWLockExclusive( &timerQueueMap[type].lock );
-		CreateTimerQueueTimer( &outer_arg->timer_handle, timerQueueMap[type].queue_handle, WindowsTimerQueueHandler, (void *) outer_arg, micros/1000, 0, 0 );
-		timerQueueMap[type].arg_list.push_front(outer_arg);
-		ReleaseSRWLockExclusive( &timerQueueMap[type].lock );
+
 		return true;
 	}
-	bool cancelEvent( int type, unsigned *event ) {
+	bool cancelEvent( int type, MediaIndependentPort *port ) {
 		TimerQueueMap_t::iterator iter = timerQueueMap.find( type );
 		if( iter == timerQueueMap.end() ) return false;
-		AcquireSRWLockExclusive( &timerQueueMap[type].lock );
 		while( ! timerQueueMap[type].arg_list.empty() ) {
 			WindowsTimerQueueHandlerArg *del_arg = timerQueueMap[type].arg_list.front();
 			timerQueueMap[type].arg_list.pop_front();
-			ReleaseSRWLockExclusive( &timerQueueMap[type].lock );
 			DeleteTimerQueueTimer( del_arg->queue_handle, del_arg->timer_handle, INVALID_HANDLE_VALUE );
 			if( del_arg->rm ) delete del_arg->inner_arg;
 			delete del_arg;
-			AcquireSRWLockExclusive( &timerQueueMap[type].lock );
 		}
-		ReleaseSRWLockExclusive( &timerQueueMap[type].lock );
+
+		return true;
+	}
+	bool stop() {
+		// Stop all of the timers
+		TimerQueueMap_t::iterator iter;
+
+		lock();
+		stopped = true;
+		for (iter = timerQueueMap.begin(); iter != timerQueueMap.end(); ++iter) {
+			DeleteTimerQueueEx(iter->second.queue_handle, INVALID_HANDLE_VALUE);
+		}
+		unlock();
+
+		// Cleanup retired timers
+		cleanupRetiredTimers(true);
+		return true;
+	}
+	virtual bool stop_port(MediaIndependentPort *port) {
+		// Stop all of the timers associated with this port
+		TimerQueueMap_t::iterator iter;
+
+		lock();
+		for (iter = timerQueueMap.begin(); iter != timerQueueMap.end(); ++iter) {
+			TimerArgList_t::iterator iter_in;
+			for (iter_in = iter->second.arg_list.begin(); iter_in != iter->second.arg_list.end(); ++iter_in) {
+				if ((*iter_in)->inner_arg->port == port) {
+					WindowsTimerQueueHandlerArg *tmp = *iter_in;
+					iter->second.arg_list.erase(iter_in++);
+					DeleteTimerQueueTimer(tmp->queue_handle, tmp->timer_handle, INVALID_HANDLE_VALUE);
+					if (tmp->rm) delete tmp->inner_arg;
+					delete tmp;
+				}
+			}
+		}
+		unlock();
 
 		return true;
 	}
@@ -322,8 +393,12 @@ VOID CALLBACK WindowsTimerQueueHandler( PVOID arg_in, BOOLEAN ignore );
 
 class WindowsTimerQueueFactory : public OSTimerQueueFactory {
 public:
-    virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock ) {
-        WindowsTimerQueue *timerq = new WindowsTimerQueue();
+    virtual OSTimerQueue *createOSTimerQueue( OSLockFactory *lock_factory ) {
+		WindowsTimerQueue *timerq = new WindowsTimerQueue();
+		if (!OSTimerQueueFactory::createOSTimerQueue(lock_factory, timerq)) {
+			return NULL;
+		}
+
         return timerq;
     };
 };
@@ -395,7 +470,7 @@ public:
 #define OID_INTEL_GET_SYSTIM  0xFF020262
 #define OID_INTEL_SET_SYSTIM  0xFF020261
 
-class WindowsTimestamper : public HWTimestamper {
+class WindowsTimestamper : public EthernetTimestamper {
 private:
     // No idea whether the underlying implementation is thread safe
 	HANDLE miniport;
@@ -433,31 +508,10 @@ private:
 		return (uint64_t) scaled_output;
 	}
 public:
-	virtual bool HWTimestamper_init( InterfaceLabel *iface_label, OSNetworkInterface *net_iface );
-    virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock, uint32_t *nominal_clock_rate )
-    {
-        DWORD buf[6];
-        DWORD returned;
-        uint64_t now_net, now_tsc;
-        DWORD result;
+	virtual bool HWTimestamper_init( InterfaceLabel *iface_label, OSNetworkInterface *net_iface, OSLockFactory *lock_factory, OSThreadFactory *thread_factory, OSTimerFactory *timer_factory );
+	virtual bool HWTimestamper_gettime(Timestamp *system_time, Timestamp *device_time);
 
-        memset( buf, 0xFF, sizeof( buf ));
-        if(( result = readOID( OID_INTEL_GET_SYSTIM, buf, sizeof(buf), &returned )) != ERROR_SUCCESS ) return false;
-
-        now_net = (((uint64_t)buf[1]) << 32) | buf[0];
-        now_net = scaleNativeClockToNanoseconds( now_net );
-        *device_time = nanoseconds64ToTimestamp( now_net );
-		device_time->_version = version;
-
-        now_tsc = (((uint64_t)buf[3]) << 32) | buf[2];
-        now_tsc = scaleTSCClockToNanoseconds( now_tsc );
-        *system_time = nanoseconds64ToTimestamp( now_tsc );
-		system_time->_version = version;
-
-        return true;
-    }
-
-	virtual int HWTimestamper_txtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, unsigned &clock_value, bool last )
+	virtual int HWTimestamper_txtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, bool last )
 	{
 		DWORD buf[4], buf_tmp[4];
 		DWORD returned = 0;
@@ -480,7 +534,7 @@ public:
 		return 0;
 	}
 
-	virtual int HWTimestamper_rxtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, unsigned &clock_value, bool last )
+	virtual int HWTimestamper_rxtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, bool last )
 	{
 		DWORD buf[4], buf_tmp[4];
 		DWORD returned;
@@ -517,8 +571,7 @@ public:
 		CloseHandle( pipe );
 	}
 	virtual bool init( OS_IPC_ARG *arg = NULL );
-	virtual bool update( int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-		uint32_t sync_count, uint32_t pdelay_count, PortState port_state );
+	virtual bool update(clock_offset_t *update);
 };
 
 #endif

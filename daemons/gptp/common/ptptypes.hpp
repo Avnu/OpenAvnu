@@ -31,13 +31,9 @@
 
 ******************************************************************************/
 
-#ifndef WINPTP_TYPES_HPP
-#define WINPTP_TYPES_HPP
+#ifndef PTPTYPES_HPP
+#define PTPTYPES_HPP
 
 typedef long double FrequencyRatio;
 
-#define ETHER_ADDR_OCTETS	6
-#define IP_ADDR_OCTETS		4
-#define PTP_ETHERTYPE 0x88F7
-
-#endif/*WINPTP_TYPES_HPP*/
+#endif/*PTPTYPES_HPP*/

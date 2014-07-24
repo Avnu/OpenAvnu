@@ -53,5 +53,4 @@ public:
 
 inline OSThreadFactory::~OSThreadFactory() {}
 
-
 #endif

@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <avbts_osnet.hpp>
 #include <ieee1588.hpp>
+#include <md_ethport.hpp>
 
 #define PTP_CODE_STRING_LENGTH 4
 #define PTP_SUBDOMAIN_NAME_LENGTH 16
@@ -115,8 +116,7 @@
 #define PTP_PTPTIMESCALE_BYTE 1
 #define PTP_PTPTIMESCALE_BIT 3
 
-#define TX_TIMEOUT_BASE 1000 /* microseconds */
-#define TX_TIMEOUT_ITER 6
+class MediaDependentEtherPort;
 
 enum MessageType {
 	SYNC_MESSAGE = 0,
@@ -140,12 +140,6 @@ enum LegacyMessageType {
 	MESSAGE_OTHER
 };
 
-enum MulticastType {
-	MCAST_NONE,
-	MCAST_PDELAY,
-	MCAST_OTHER
-};
-
 class PTPMessageCommon {
 protected:
 	unsigned char versionPTP;
@@ -160,7 +154,7 @@ protected:
 	
 	uint16_t messageLength;
 	char logMeanMessageInterval;
-	long long correctionField;
+	uint64_t correctionField;
 	unsigned char domainNumber;
 	
 	Timestamp _timestamp;
@@ -169,9 +163,10 @@ protected:
 	
 	PTPMessageCommon(void) { };
  public:
-	PTPMessageCommon(IEEE1588Port * port);
+	PTPMessageCommon( MediaDependentPort *port );
 	virtual ~PTPMessageCommon(void);
 
+	virtual net_result sendPort( MediaDependentPort * port ) = 0;
 	unsigned char *getFlags(void) {
 		return flags;
 	}
@@ -179,7 +174,7 @@ protected:
 	uint16_t getSequenceId(void) {
 		return sequenceId;
 	}
-	void setSequenceId(uint16_t seq) {
+	void setSequenceId( uint16_t seq ) {
 		sequenceId = seq;
 	}
 
@@ -190,7 +185,7 @@ protected:
 	long long getCorrectionField(void) {
 		return correctionField;
 	}
-	void setCorrectionField(long long correctionAmount) {
+	void setCorrectionField( uint64_t correctionAmount ) {
 		correctionField = correctionAmount;
 	}
 
@@ -213,22 +208,34 @@ protected:
 
 	bool isSenderEqual(PortIdentity portIdentity);
 
-	virtual void processMessage(IEEE1588Port * port);
+	virtual bool processMessage( MediaDependentPort * port);
 
 	void buildCommonHeader(uint8_t * buf);
-
+	
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	( char *buf, int size, LinkLayerAddress * remote,
+	  MediaDependentPort * port, bool *event );
+};
+
+class PTPMessageEther : public PTPMessageCommon {
+public:
+	PTPMessageEther() {}
+	virtual ~PTPMessageEther() {}
+	PTPMessageEther( MediaDependentPort *port ) :
+		PTPMessageCommon( port ) { }
+	virtual bool processMessage( MediaDependentEtherPort *port ) = 0;
+	bool processMessage( MediaDependentPort *port_in );
+	net_result sendPort( MediaDependentPort *port_in );
 };
 
 #pragma pack(push,1)
 
 class PathTraceTLV {
- private:
+private:
 	uint16_t tlvType;
 	uint16_t lengthField;
 	ClockIdentity identity;
- public:
+public:
 	 PathTraceTLV() {
 		tlvType = PLAT_htons(0x8);
 		lengthField = PLAT_htons(sizeof(identity));
@@ -243,7 +250,7 @@ class PathTraceTLV {
 
 #pragma pack(pop)
 
-class PTPMessageAnnounce:public PTPMessageCommon {
+class PTPMessageAnnounce : public PTPMessageCommon {
  private:
 	uint8_t grandmasterIdentity[PTP_CLOCK_IDENTITY_LENGTH];
 	ClockQuality *grandmasterClockQuality;
@@ -259,8 +266,8 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 
 	 PTPMessageAnnounce(void);
  public:
-	 PTPMessageAnnounce(IEEE1588Port * port);
-	~PTPMessageAnnounce();
+	PTPMessageAnnounce( MediaIndependentPort *port );
+	virtual ~PTPMessageAnnounce();
 
 	bool isBetterThan(PTPMessageAnnounce * msg);
 
@@ -288,33 +295,33 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 		return ret;
 	}
 
-	void processMessage(IEEE1588Port * port);
+	bool processMessage( MediaDependentPort *port);
 
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+	net_result sendPort( MediaDependentPort *port );
 
-	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
-						 LinkLayerAddress * remote,
-						 IEEE1588Port * port);
+	friend PTPMessageCommon *buildPTPMessage
+	( char *buf, int size, LinkLayerAddress * remote,
+	  MediaDependentPort * port, bool *event );
 };
 
-class PTPMessageSync : public PTPMessageCommon {
- private:
+class PTPMessageSync : public PTPMessageEther {
+private:
 	Timestamp originTimestamp;
 
 	PTPMessageSync();
- public:
-	PTPMessageSync(IEEE1588Port * port);
-	~PTPMessageSync();
-	void processMessage(IEEE1588Port * port);
+public:
+	PTPMessageSync( MediaDependentPort *port );
+	virtual ~PTPMessageSync();
+	net_result sendPort( MediaDependentEtherPort *port );
+	bool processMessage( MediaDependentEtherPort *port );
 
 	Timestamp getOriginTimestamp(void) {
 		return originTimestamp;
 	}
 
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
-
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	( char *buf, int size, LinkLayerAddress * remote,
+	  MediaDependentPort * port, bool *event );
 };
 
 #pragma pack(push,1)
@@ -362,11 +369,14 @@ class FollowUpTLV {
 	int32_t getRateOffset() {
 		return cumulativeScaledRateOffset;
 	}
+	void setRateOffset( int32_t offset ) {
+		cumulativeScaledRateOffset = offset;
+	}
 };
 
 #pragma pack(pop)
 
-class PTPMessageFollowUp:public PTPMessageCommon {
+class PTPMessageFollowUp : public PTPMessageEther {
 private:
 	Timestamp preciseOriginTimestamp;
 	
@@ -374,55 +384,66 @@ private:
 	
 	PTPMessageFollowUp(void) { }
 public:
-	PTPMessageFollowUp(IEEE1588Port * port);
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
-	void processMessage(IEEE1588Port * port);
+	PTPMessageFollowUp( MediaDependentPort *port );
+	net_result sendPort( MediaDependentEtherPort *port );
+	bool processMessage( MediaDependentEtherPort *port );
+	bool processMessage(MediaDependentPort *port, Timestamp receipt, uint64_t delay);
 	
 	Timestamp getPreciseOriginTimestamp(void) {
 		return preciseOriginTimestamp;
 	}
-	void setPreciseOriginTimestamp(Timestamp & timestamp) {
+	void setPreciseOriginTimestamp(Timestamp timestamp) {
 		preciseOriginTimestamp = timestamp;
 	}
-	
+
+	void setRateOffset( FrequencyRatio ratio ) {
+		ratio -= 1.0;
+		ratio *= 2ULL << 41;
+		tlv.setRateOffset((int32_t) ratio);
+	} 
+
+	size_t buildMessage(uint8_t *buf_ptr);
+
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	( char *buf, int size, LinkLayerAddress * remote,
+	  MediaDependentPort * port, bool *event );
 };
 
-class PTPMessagePathDelayReq : public PTPMessageCommon {
- private:
+class PTPMessagePathDelayReq : public PTPMessageEther {
+private:
 	Timestamp originTimestamp;
 
 	PTPMessagePathDelayReq() {
 		return;
 	}
- public:
-	~PTPMessagePathDelayReq() {
+public:
+	virtual ~PTPMessagePathDelayReq() {
 	}
-	PTPMessagePathDelayReq(IEEE1588Port * port);
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
-	void processMessage(IEEE1588Port * port);
+	PTPMessagePathDelayReq( MediaDependentPort *port );
+	net_result sendPort( MediaDependentEtherPort *port );
+	bool processMessage( MediaDependentEtherPort * port );
 	
 	Timestamp getOriginTimestamp(void) {
 		return originTimestamp;
 	}
 	
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	( char *buf, int size, LinkLayerAddress * remote,
+	  MediaDependentPort * port, bool *event );
 };
 
-class PTPMessagePathDelayResp:public PTPMessageCommon {
+class PTPMessagePathDelayResp : public PTPMessageEther {
 private:
-	PortIdentity * requestingPortIdentity;
+	PortIdentity *requestingPortIdentity;
 	Timestamp requestReceiptTimestamp;
 	
 	PTPMessagePathDelayResp(void) {	
 	}
 public:
-	~PTPMessagePathDelayResp();
-	PTPMessagePathDelayResp(IEEE1588Port * port);
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
-	void processMessage(IEEE1588Port * port);
+	virtual ~PTPMessagePathDelayResp();
+	PTPMessagePathDelayResp(MediaDependentEtherPort *port);
+	net_result sendPort( MediaDependentEtherPort *port );
+	bool processMessage( MediaDependentEtherPort *port );
 	
 	void setRequestReceiptTimestamp(Timestamp timestamp) {
 		requestReceiptTimestamp = timestamp;
@@ -436,20 +457,21 @@ public:
 	}
 	
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	( char *buf, int size, LinkLayerAddress * remote,
+	  MediaDependentPort * port, bool *event );
 };
 
-class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
- private:
+class PTPMessagePathDelayRespFollowUp : public PTPMessageEther {
+private:
 	Timestamp responseOriginTimestamp;
 	PortIdentity *requestingPortIdentity;
 
 	PTPMessagePathDelayRespFollowUp(void) { }
 public:
-	 PTPMessagePathDelayRespFollowUp(IEEE1588Port * port);
-	~PTPMessagePathDelayRespFollowUp();
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
-	void processMessage(IEEE1588Port * port);
+	PTPMessagePathDelayRespFollowUp(MediaDependentEtherPort * port);
+	virtual ~PTPMessagePathDelayRespFollowUp();
+	net_result sendPort( MediaDependentEtherPort *port );
+	bool processMessage( MediaDependentEtherPort *port);
 
 	void setResponseOriginTimestamp(Timestamp timestamp) {
 		responseOriginTimestamp = timestamp;
@@ -464,7 +486,8 @@ public:
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	( char *buf, int size, LinkLayerAddress * remote,
+	  MediaDependentPort * port, bool *event );
 };
 
 #endif

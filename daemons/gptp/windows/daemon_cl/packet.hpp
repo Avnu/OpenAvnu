@@ -47,6 +47,16 @@ typedef enum {
 } packet_error_t; 
 
 typedef struct { uint8_t addr[ETHER_ADDR_OCTETS]; } packet_addr_t;
+static inline int packet_addr_equal(packet_addr_t a, packet_addr_t b) {
+	int i;
+	for (i = 0; i < ETHER_ADDR_OCTETS; ++i) {
+		if (a.addr[i] != b.addr[i])  break;
+	}
+	return i == ETHER_ADDR_OCTETS ? 1 : 0;
+}
+inline void packet_addr_copy(char *dest, packet_addr_t src, size_t len);
+extern packet_addr_t ETHER_ADDR_ANY;
+
 typedef struct packet_handle * pfhandle_t;
 
 packet_error_t mallocPacketHandle( pfhandle_t *pfhandle_r );
@@ -57,6 +67,6 @@ void closeInterface( pfhandle_t pfhandle );
 packet_error_t sendFrame( pfhandle_t pfhandle, packet_addr_t *addr, uint16_t ethertype, uint8_t *payload, size_t length );
 packet_error_t recvFrame( pfhandle_t pfhandle, packet_addr_t *addr,                     uint8_t *payload, size_t &length );
 
-packet_error_t packetBind( struct packet_handle *handle, uint16_t ethertype );
+packet_error_t packetBind(struct packet_handle *handle, uint16_t ethertype, packet_addr_t remote_addr);
 
 #endif /* PACKET_H */

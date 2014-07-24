@@ -39,6 +39,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <ptptypes.hpp>
 #include <minwinbase.h>
 #include <debugout.hpp>
+#include <avbts_osnet.hpp>
 
 #define OUTSTANDING_MESSAGES 10
 

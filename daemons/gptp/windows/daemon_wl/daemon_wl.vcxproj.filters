@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="daemon_wl.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\ethtimestamper.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\ieee1588clock.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\avbts_osnet.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\daemon_cl\IPCListener.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\daemon_cl\packet.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\md_ethport.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\min_port.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\daemon_cl\platform.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\ptp_message.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\timestamper.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\daemon_cl\windows_hal.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\md_wireless.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\wltimestamper.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\common\avbts_clock.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\avbts_message.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\avbts_oscondition.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\avbts_osipc.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\avbts_oslock.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\avbts_osnet.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\avbts_osthread.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\avbts_ostimer.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\avbts_ostimerq.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\debugout.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\ethtimestamper.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\ieee1588.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\ipcdef.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\IPCListener.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\Lockable.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\md_ethport.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\mdport.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\min_port.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\offset.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\packet.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\PeerList.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\platform.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\ptptypes.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\timestamper.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\tsc.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\windows_hal.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\Stoppable.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\md_wireless.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\common\wltimestamper.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="dummy.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source">
+      <UniqueIdentifier>{b50d1acf-0789-47c6-b979-f3b941259ecd}</UniqueIdentifier>
+      <Extensions>*.cpp</Extensions>
+    </Filter>
+    <Filter Include="Header">
+      <UniqueIdentifier>{395a1e74-cead-4e75-acd6-42c9fcfcac84}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

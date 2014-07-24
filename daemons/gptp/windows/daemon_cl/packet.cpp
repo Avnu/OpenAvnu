@@ -54,6 +54,20 @@ struct packet_handle {
     struct bpf_program filter;
 };
 
+packet_addr_t ETHER_ADDR_ANY = {};
+
+inline void packet_addr_copy(char *dest, packet_addr_t src, size_t len) {
+	int i, j;
+	for (i = 0, j = 0; i < (len >= 3 * ETHER_ADDR_OCTETS-1 ? 3 * ETHER_ADDR_OCTETS - 1 : len); ++j) {
+		char str[] = "00";
+		sprintf_s(str, sizeof(str), "%02hhx", src.addr[j]);
+		strcat_s(dest,len-j*3,str); i += 2;
+		if (j != ETHER_ADDR_OCTETS - 1) {
+			strcat_s(dest, len - (j * 3 + 2), "-"); ++i;
+		}
+	}
+	if (i < len) dest[i] = '\0';
+}
 
 packet_error_t mallocPacketHandle( struct packet_handle **phandle ) {
     packet_error_t ret = PACKET_NO_ERROR;
@@ -88,7 +102,8 @@ packet_error_t openInterfaceByAddr( struct packet_handle *handle, packet_addr_t 
     IP_ADAPTER_ADDRESSES AdapterAddress[32];       // Allocate information for up to 32 NICs
     DWORD dwBufLen = sizeof(AdapterAddress);  // Save memory size of buffer
 
-    DWORD dwStatus = GetAdaptersAddresses( AF_UNSPEC, 0, NULL, AdapterAddress, &dwBufLen);
+	addr->addr[0] |= 0x2;
+	DWORD dwStatus = GetAdaptersAddresses( AF_UNSPEC, 0, NULL, AdapterAddress, &dwBufLen);
 
     if( dwStatus != ERROR_SUCCESS ) {
         ret = PACKET_IFLOOKUP_ERROR;
@@ -150,11 +165,19 @@ fnexit:
     return ret;
 }
 
-packet_error_t packetBind( struct packet_handle *handle, uint16_t ethertype ) {
-    packet_error_t ret = PACKET_NO_ERROR;
-    char filter_expression[32] = "ether proto 0x";
+#define ETYPE_FILTER "ether proto 0x"
+#define SRCADDR_FILTER "ether src"
+#define FEXP_LENGTH (128)
 
-    sprintf_s( filter_expression+strlen(filter_expression), 31-strlen(filter_expression), "%hx", ethertype );
+packet_error_t packetBind( struct packet_handle *handle, uint16_t ethertype, packet_addr_t remote_addr ) {
+    packet_error_t ret = PACKET_NO_ERROR;
+    char filter_expression[FEXP_LENGTH] = "";
+
+    sprintf_s( filter_expression+strlen(filter_expression), FEXP_LENGTH-strlen(filter_expression), "%s%hx", ETYPE_FILTER, ethertype );
+	if (!packet_addr_equal(remote_addr,ETHER_ADDR_ANY)) {
+		sprintf_s(filter_expression + strlen(filter_expression), FEXP_LENGTH - strlen(filter_expression), " and %s ", SRCADDR_FILTER);
+		packet_addr_copy(filter_expression + strlen(filter_expression), remote_addr, FEXP_LENGTH - strlen(filter_expression));
+	}
     if( pcap_compile( handle->iface, &handle->filter, filter_expression, 1, 0 ) == -1 ) {
         ret = PACKET_BIND_ERROR;
         goto fnexit;
