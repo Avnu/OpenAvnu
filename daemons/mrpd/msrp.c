@@ -871,6 +871,9 @@ int msrp_recv_msg()
 						    SRclassPriority =
 						    srclassprio_firstval;
 						attrib->attribute.domain.
+						    neighborSRclassPriority =
+						    srclassprio_firstval;
+						attrib->attribute.domain.
 						    SRclassVID =
 						    srclassvid_firstval;
 
