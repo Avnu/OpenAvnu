@@ -120,6 +120,7 @@ struct mrpdhelper_msrp_domain {
 	uint32_t id;
 	uint32_t priority;
 	uint32_t vid;
+	uint32_t neighbor_priority;
 };
 
 struct mrpdhelper_msrp_listener {

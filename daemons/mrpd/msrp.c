@@ -320,16 +320,16 @@ int msrp_merge(struct msrp_attribute *rattrib)
 		 * then ENABLE_MERGED_DOMAIN_PRIORITY can be defined.
 		 */
 		if (
-#ifdef ENABLE_MERGED_DOMAIN_PRIORITY
 		   (attrib->attribute.domain.SRclassPriority !=
 		    rattrib->attribute.domain.SRclassPriority) ||
-#endif
 		    (attrib->attribute.domain.SRclassVID !=
 		    rattrib->attribute.domain.SRclassVID)) {
 #ifdef ENABLE_MERGED_DOMAIN_PRIORITY
 			attrib->attribute.domain.SRclassPriority =
 			    rattrib->attribute.domain.SRclassPriority;
 #endif
+			attrib->attribute.domain.neighborSRclassPriority =
+			    rattrib->attribute.domain.SRclassPriority;
  			attrib->attribute.domain.SRclassVID =
 			    rattrib->attribute.domain.SRclassVID;
 			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
@@ -2906,10 +2906,12 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			attrib->attribute.talk_listen.StreamID[6],
 			attrib->attribute.talk_listen.StreamID[7]);
 	} else if (MSRP_DOMAIN_TYPE == attrib->type) {
-		snprintf(variant, sub_str_len - 1, "D:C=%d,P=%d,V=%04x",
+		snprintf(variant, sub_str_len - 1, "D:C=%d,P=%d,V=%04x,N=%d",
 			attrib->attribute.domain.SRclassID,
 			attrib->attribute.domain.SRclassPriority,
-			attrib->attribute.domain.SRclassVID);
+			attrib->attribute.domain.SRclassVID,
+			attrib->attribute.domain.neighborSRclassPriority
+			);
 	} else if (MSRP_TALKER_ADV_TYPE == attrib->type) {
 		snprintf(variant, sub_str_len - 1, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
 			",A=%02x%02x%02x%02x%02x%02x"
@@ -3086,10 +3088,11 @@ int msrp_dumptable(struct sockaddr_in *client)
 				attrib->attribute.talk_listen.StreamID[6],
 				attrib->attribute.talk_listen.StreamID[7]);
 		} else if (MSRP_DOMAIN_TYPE == attrib->type) {
-			sprintf(variant, "D:C=%d,P=%d,V=%04x",
+			sprintf(variant, "D:C=%d,P=%d,V=%04x,N=%d",
 				attrib->attribute.domain.SRclassID,
 				attrib->attribute.domain.SRclassPriority,
-				attrib->attribute.domain.SRclassVID);
+				attrib->attribute.domain.SRclassVID,
+				attrib->attribute.domain.neighborSRclassPriority);
 		} else {
 			sprintf(variant, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
 				",A=%02x%02x%02x%02x%02x%02x"
@@ -3395,6 +3398,9 @@ static int msrp_cmd_report_domain_status(struct msrpdu_domain *domain,
 
 	attrib->type = MSRP_DOMAIN_TYPE;
 	attrib->attribute.domain = *domain;
+	/* assume SRclassPriority for neighbor is same as ours */
+	attrib->attribute.domain.neighborSRclassPriority =
+		domain->SRclassPriority;
 	if (report)
 		msrp_event(MRP_EVENT_JOIN, attrib);
 	else

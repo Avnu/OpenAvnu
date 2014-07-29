@@ -186,9 +186,10 @@ static int parse_msrp_string(char *sz, size_t len, struct mrpdhelper_notify *n)
 	sz[len] = 0;
 	switch (sz[0]) {
 	case 'D':
-		result = sscanf(sz, "D:C=%d,P=%d,V=%04x",
-				&n->u.sd.id, &n->u.sd.priority, &n->u.sd.vid);
-		if (result < 3)
+		result = sscanf(sz, "D:C=%d,P=%d,V=%04x,N=%d",
+				&n->u.sd.id, &n->u.sd.priority, &n->u.sd.vid,
+				&n->u.sd.neighbor_priority);
+		if (result < 4)
 			return -1;
 		n->attrib = mrpdhelper_attribtype_msrp_domain;
 		break;
@@ -472,10 +473,11 @@ int mrpdhelper_to_string(struct mrpdhelper_notify *mrpd_data,
 			szString);
 		break;
 	case mrpdhelper_attribtype_msrp_domain:
-		status = snprintf(sz, len, "D:C=%d,P=%d,V=0x%04x %s",
+		status = snprintf(sz, len, "D:C=%d,P=%d,V=0x%04x,N=%d %s",
 			mrpd_data->u.sd.id,
 			mrpd_data->u.sd.priority,
 			mrpd_data->u.sd.vid,
+			mrpd_data->u.sd.neighbor_priority,
 			szString);
 		break;
 	case mrpdhelper_attribtype_msrp_talker:
