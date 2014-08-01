@@ -765,19 +765,6 @@ void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 
 void PTPMessageSync::processMessage(IEEE1588Port * port)
 {
-	Timestamp system_time;
-	Timestamp device_time;
-	Timestamp corrected_sync_time;
-
-	uint64_t delay;
-
-	signed long long local_system_offset;
-	signed long long scalar_offset;
-	int correction;
-
-	FrequencyRatio local_clock_adjustment;
-	FrequencyRatio local_system_freq_offset;
-
 	if (port->getPortState() == PTP_DISABLED ) {
 		// Do nothing Sync messages should be ignored when in this state
 		return;
@@ -788,12 +775,7 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 		return;
 	}
 
-	XPTPD_INFO("PTP assist flag is not set, FLAGS[0,1] = %u,%u", flags[0],
-		   flags[1]);
-
-//   if( flags[PTP_ASSIST_BYTE] & (0x1<<PTP_ASSIST_BIT)) {
-	if (true) {
-		// If PTP_ASSIST flag is set, expect a follow-up message and do nothing
+	if( flags[PTP_ASSIST_BYTE] & (0x1<<PTP_ASSIST_BIT)) {
 		PTPMessageSync *old_sync = port->getLastSync();
 		if (old_sync != NULL) {
 			delete old_sync;
@@ -802,66 +784,10 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 		_gc = false;
 		goto done;
 	} else {
+		XPTPD_ERROR("PTP assist flag is not set, discarding invalid sync");
 		_gc = true;
-	}
-
-	// Indicates invalid link delay, wait until link delay had been calculated
-	if ((delay = port->getLinkDelay()) == 3600000000000) {
-		printf
-		    ("Got Sync/Follow-Up but Link Delay has not been computed\n");
 		goto done;
 	}
-
-	correction = (int) (delay + (correctionField >> 16));
-	corrected_sync_time = _timestamp;
-	TIMESTAMP_SUB_NS( corrected_sync_time, correction );
-	scalar_offset  = TIMESTAMP_TO_NS( corrected_sync_time );
-	scalar_offset -= TIMESTAMP_TO_NS( originTimestamp );
-	
-	// Otherwise synchronize clock with approximate time from Sync message
-	uint32_t local_clock;
-	uint32_t nominal_clock_rate;
-	uint32_t device_sync_time_offset;
-
-	port->getDeviceTime
-		(system_time, device_time, local_clock, nominal_clock_rate);
-
-	// Adjust local_clock to correspond to _timestamp
-	device_sync_time_offset =
-	    TIMESTAMP_TO_NS(device_time) - TIMESTAMP_TO_NS(_timestamp);
-	local_clock -=
-	    device_sync_time_offset / (1000000000 / nominal_clock_rate);
-
-	XPTPD_INFO
-		("ptp_message::sync::processMessage System time: %u,%u "
-		 "Device Time: %u,%u",
-	     system_time.seconds_ls, system_time.nanoseconds,
-	     device_time.seconds_ls, device_time.nanoseconds);
-
-	local_clock_adjustment = port->getClock()->
-		calcMasterLocalClockRateDifference
-		( originTimestamp, corrected_sync_time );
-
-	local_system_offset =
-		TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(device_time);
-
-	if( port->getPortState() != PTP_MASTER ) {
-		/* Do not call calcLocalSystemClockRateDifference it updates
-		   state global to the clock object and if we are master then
-		   the network is transitioning to us not being master but the 
-		   master process is still running locally */
-		local_system_freq_offset = port->getClock()->
-			calcLocalSystemClockRateDifference( device_time, system_time );
-	  TIMESTAMP_SUB_NS
-	    ( system_time, (uint64_t)
-		  (device_sync_time_offset/local_system_freq_offset) );
-	  port->getClock()->setMasterOffset
-	    ( scalar_offset, _timestamp, local_clock_adjustment,
-	      local_system_offset, system_time, local_system_freq_offset,
-	      port->getSyncCount(), port->getPdelayCount(), port->getPortState() );
-	  port->syncDone();
-	}
-
 
  done:
 	return;
