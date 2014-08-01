@@ -941,7 +941,6 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	Timestamp sync_arrival;
 	Timestamp system_time(0, 0, 0);
 	Timestamp device_time(0, 0, 0);
-	Timestamp corrected_sync_time;
 
 	signed long long local_system_offset;
 	signed long long scalar_offset;
@@ -996,13 +995,12 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 
 	correctionField = (uint64_t)
 		((correctionField >> 16)/master_local_freq_offset);
-	correction = (int) (delay + (correctionField >> 16));
-	corrected_sync_time = sync_arrival;
+	correction = (int) (delay + correctionField);
 	
 	if( correction > 0 )
-	  TIMESTAMP_SUB_NS( corrected_sync_time, correction );
-	else TIMESTAMP_ADD_NS( corrected_sync_time, -correction );
-	scalar_offset  = TIMESTAMP_TO_NS( corrected_sync_time );
+	  TIMESTAMP_ADD_NS( preciseOriginTimestamp, correction );
+	else TIMESTAMP_SUB_NS( preciseOriginTimestamp, -correction );
+	scalar_offset  = TIMESTAMP_TO_NS( sync_arrival );
 	scalar_offset -= TIMESTAMP_TO_NS( preciseOriginTimestamp );
 
 	XPTPD_INFO
@@ -1031,13 +1029,10 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	     system_time.seconds_ls, system_time.nanoseconds,
 	     device_time.seconds_ls, device_time.nanoseconds);
 
-	local_system_offset =
-	    TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(device_time);
-
 	local_clock_adjustment =
 	  port->getClock()->
 	  calcMasterLocalClockRateDifference
-	  ( preciseOriginTimestamp, corrected_sync_time );
+	  ( preciseOriginTimestamp, sync_arrival );
 
 	if( port->getPortState() != PTP_MASTER ) {
 		port->incSyncCount();
@@ -1053,6 +1048,9 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 			( system_time, (uint64_t)
 			  (((FrequencyRatio) device_sync_time_offset)/
 			   local_system_freq_offset) );
+		local_system_offset =
+			TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(sync_arrival);
+
 		port->getClock()->setMasterOffset
 			( scalar_offset, sync_arrival, local_clock_adjustment,
 			  local_system_offset, system_time, local_system_freq_offset,
