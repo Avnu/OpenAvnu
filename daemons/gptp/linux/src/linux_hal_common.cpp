@@ -614,6 +614,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	LinuxIPCArg *arg;
 	struct group *grp;
 	const char *group_name;
+	pthread_mutexattr_t shared;
 	if( barg == NULL ) {
 		group_name = DEFAULT_GROUPNAME;
 	} else {
@@ -627,8 +628,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	}
 	grp = getgrnam( group_name );
 	if( grp == NULL ) {
-		XPTPD_ERROR( "Group %s not found", group_name );
-		goto exit_error;
+		XPTPD_ERROR( "Group %s not found, will try root (0) instead", group_name );
 	}
 		
 	shm_fd = shm_open( SHM_NAME, O_RDWR | O_CREAT, 0660 );
@@ -636,9 +636,8 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 		XPTPD_ERROR( "shm_open(): %s", strerror(errno) );
 		goto exit_error;
 	}
-	if (fchown(shm_fd, -1, grp->gr_gid) < 0) {
-		XPTPD_ERROR("fchwon()");
-		goto exit_unlink;
+	if (fchown(shm_fd, -1, grp != NULL ? grp->gr_gid : 0) < 0) {
+		XPTPD_ERROR("shm_open(): Failed to set ownership");
 	}
 	if( ftruncate( shm_fd, SHM_SIZE ) == -1 ) {
 		XPTPD_ERROR( "ftruncate()" );
@@ -651,8 +650,17 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 		XPTPD_ERROR( "mmap()" );
 		goto exit_unlink;
 	}
+	/*create mutex attr */
+	err = pthread_mutexattr_init(&shared);
+	if(err != 0) {
+		XPTPD_ERROR
+			("mutex attr initialization failed - %s\n",
+			 strerror(errno));
+		goto exit_unlink;
+	}
+	pthread_mutexattr_setpshared(&shared,1);
 	/*create a mutex */
-	err = pthread_mutex_init((pthread_mutex_t *) master_offset_buffer, NULL);
+	err = pthread_mutex_init((pthread_mutex_t *) master_offset_buffer, &shared);
 	if(err != 0) {
 		XPTPD_ERROR
 			("sharedmem - Mutex initialization failed - %s\n",

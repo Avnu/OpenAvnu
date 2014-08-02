@@ -220,6 +220,14 @@ int main(int argc, char **argv)
 	HWTimestamper *timestamper = new LinuxTimestamperGeneric();
 #endif
 
+	sigemptyset(&set);
+	sigaddset(&set, SIGINT);
+	sigaddset( &set, SIGTERM );
+	if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0) {
+		perror("pthread_sigmask()");
+		return -1;
+	}
+
 	IEEE1588Clock *clock =
 	  new IEEE1588Clock( false, syntonize, priority1, timestamper,
 			     timerq_factory , ipc, lock_factory );
@@ -261,14 +269,6 @@ int main(int argc, char **argv)
 	}
 
 	port->processEvent(POWERUP);
-
-	sigemptyset(&set);
-	sigaddset(&set, SIGINT);
-	sigaddset( &set, SIGTERM );
-	if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0) {
-		perror("pthread_sigmask()");
-		return -1;
-	}
 
 	if (sigwait(&set, &sig) != 0) {
 		perror("sigwait()");
