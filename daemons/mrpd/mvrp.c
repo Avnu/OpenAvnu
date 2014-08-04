@@ -1156,7 +1156,7 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	int err_index;
 
 	if (NULL == MVRP_db) {
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s\n", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC MVRP_db %s\n", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
@@ -1198,7 +1198,7 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		if (rc)
 			goto out_ERI;
 	} else {
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC MVRP %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}

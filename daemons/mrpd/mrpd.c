@@ -335,7 +335,7 @@ int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
 		break;
 	default:
 		printf("unrecognized command %s\n", buf);
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC MRP parse %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		return -1;
 		break;

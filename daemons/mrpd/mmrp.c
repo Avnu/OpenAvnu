@@ -1608,7 +1608,7 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	uint8_t macvec_param[6];
 
 	if (NULL == MMRP_db) {
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s\n", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC MMRP_db %s\n", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
@@ -1681,7 +1681,7 @@ int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		if (rc)
 			goto out_ERI;
 	} else {
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC MMRP %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
