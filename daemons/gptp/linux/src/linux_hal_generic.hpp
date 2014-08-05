@@ -65,7 +65,9 @@ public:
 	bool resetFrequencyAdjustment();
 	bool Adjust( void *tmx );
 	virtual bool HWTimestamper_init
-	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
+		(InterfaceLabel *iface_label, OSNetworkInterface *iface,
+		OSLockFactory *lock_factory, OSThreadFactory *thread_factory,
+		OSTimerFactory *timer_factory);
 
 	void updateCrossStamp( Timestamp *system_time, Timestamp *device_time );
 
@@ -76,16 +78,15 @@ public:
 	bool post_init( int ifindex, int sd, TicketingLock *lock );
 
 	virtual bool HWTimestamper_gettime
-	( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
-	  uint32_t *nominal_clock_rate );
+	( Timestamp *system_time, Timestamp *device_time );
 
 	virtual int HWTimestamper_txtimestamp
 	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
-	  unsigned &clock_value, bool last );
+	  bool last );
 
 	virtual int HWTimestamper_rxtimestamp
 	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
-	  unsigned &clock_value, bool last ) {
+	  bool last ) {
 		/* This shouldn't happen. Ever. */
 		if( rxTimestampList.empty() ) return -72;
 		timestamp = rxTimestampList.back();

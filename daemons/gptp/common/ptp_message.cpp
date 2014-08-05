@@ -617,7 +617,7 @@ bool PTPMessageAnnounce::processMessage( MediaDependentPort *port )
 	MediaIndependentPort *iport = port->getPort();
 	IEEE1588Clock *clock = port->getPort()->getClock();
 
-	printf("Processing announce message\n");
+	XPTPD_INFOL(ANNOUNCE_DEBUG, "Processing announce message");
 
 	// Delete announce receipt timeout
 	clock->deleteEventTimer

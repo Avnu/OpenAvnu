@@ -42,6 +42,7 @@
 #include "avbts_osthread.hpp"
 #include "avbts_osipc.hpp"
 #include "ieee1588.hpp"
+#include "ethtimestamper.hpp"
 
 #include <list>
 
@@ -74,7 +75,7 @@ private:
 	uint8_t cond_ticket_serving;
 };
 
-class LinuxTimestamper : public HWTimestamper {
+class LinuxTimestamper : public EthernetTimestamper {
 public:
 	virtual ~LinuxTimestamper() = 0;
 	virtual bool post_init( int ifindex, int sd, TicketingLock *lock ) = 0;
@@ -98,8 +99,8 @@ public:
 	virtual net_result nrecv
 	( LinkLayerAddress *addr, uint8_t *payload, size_t &length );
 
-	void disable_clear_rx_queue();
-	void reenable_rx_queue();
+	net_result disable_clear_rx_queue();
+	net_result reenable_rx_queue();
 
 	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
 		*addr = local_addr;
@@ -191,7 +192,6 @@ private:
 	int key;
 	bool stop;
 	LinuxTimerQueuePrivate_t _private;
-	OSLock *lock;
 	void LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg );
 protected:
 	LinuxTimerQueue() {
@@ -203,12 +203,12 @@ public:
 	bool addEvent
 	( unsigned long micros, int type, ostimerq_handler func,
 	  event_descriptor_t * arg, bool rm, unsigned *event );
-	bool cancelEvent( int type, unsigned *event );
+	bool cancelEvent( int type, MediaIndependentPort *port );
 };
 
 class LinuxTimerQueueFactory : public OSTimerQueueFactory {
 public:
-	virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock );
+    virtual OSTimerQueue *createOSTimerQueue( OSLockFactory *lock_factory );
 };
 
 
@@ -263,7 +263,7 @@ class LinuxNetworkInterfaceFactory : public OSNetworkInterfaceFactory {
 public:
 	virtual bool createInterface
 	( OSNetworkInterface **net_iface, InterfaceLabel *label,
-	  HWTimestamper *timestamper );
+	  Timestamper *timestamper, LinkLayerAddress *remote );
 };
 
 
@@ -298,10 +298,7 @@ public:
 	};
 	~LinuxSharedMemoryIPC();
 	virtual bool init( OS_IPC_ARG *barg = NULL );
-	virtual bool update
-	(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
-	 FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
-	 uint32_t pdelay_count, PortState port_state );
+	virtual bool update( clock_offset_t *update );
 	void stop();
 };
 

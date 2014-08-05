@@ -31,7 +31,7 @@
 ALTERNATE_LINUX_INCPATH=$(HOME)/headers/include/
 
 CFLAGS_G = -Wall -g -Wnon-virtual-dtor -I. -I../../common -I../src \
-	-I$(ALTERNATE_LINUX_INCPATH)
+	-I$(ALTERNATE_LINUX_INCPATH) -std=c++0x -DPTP_DEBUG=0
 
 LDFLAGS_G = -lpthread -lrt
 
@@ -41,13 +41,15 @@ OBJ_DIR = obj
 
 OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/avbts_osnet.o\
-		 $(OBJ_DIR)/ieee1588port.o\
+		 $(OBJ_DIR)/ethtimestamper.o\
+		 $(OBJ_DIR)/md_ethport.o\
+		 $(OBJ_DIR)/min_port.o\
+		 $(OBJ_DIR)/timestamper.o\
 		 $(OBJ_DIR)/ieee1588clock.o \
 		 $(OBJ_DIR)/linux_hal_common.o \
 		 $(OBJ_DIR)/platform.o
 
-HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
-		$(COMMON_DIR)/avbts_ostimerq.hpp\
+HEADER_FILES = $(COMMON_DIR)/avbts_ostimerq.hpp\
 		$(COMMON_DIR)/avbts_ostimer.hpp\
 		$(COMMON_DIR)/avbts_osthread.hpp\
 		$(COMMON_DIR)/avbts_osnet.hpp\
@@ -56,7 +58,13 @@ HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(COMMON_DIR)/avbts_oscondition.hpp\
 		$(COMMON_DIR)/avbts_message.hpp\
 		$(COMMON_DIR)/avbts_clock.hpp\
+		$(COMMON_DIR)/ethtimestamper.hpp\
 		$(COMMON_DIR)/ieee1588.hpp\
+		$(COMMON_DIR)/md_ethport.hpp\
+		$(COMMON_DIR)/mdport.hpp\
+		$(COMMON_DIR)/min_port.hpp\
+		$(COMMON_DIR)/offset.hpp\
+		$(COMMON_DIR)/timestamper.hpp\
 		$(SRC_DIR)/linux_hal_common.hpp\
 		$(SRC_DIR)/platform.hpp
 
@@ -87,12 +95,16 @@ endif
 CFLAGS = $(CFLAGS_G)
 LDFLAGS = $(LDFLAGS_G)
 
+#all: $(OBJ_DIR)/daemon_cl $(OBJ_DIR)/daemon_wl
 all: $(OBJ_DIR)/daemon_cl
 
 rebuild: clean all
 
 $(OBJ_DIR)/daemon_cl: $(SRC_DIR)/daemon_cl.cpp $(OBJ_FILES)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $(OBJ_FILES) $(SRC_DIR)/daemon_cl.cpp -o $(OBJ_DIR)/daemon_cl $(LDFLAGS)
+
+$(OBJ_DIR)/daemon_wl: $(SRC_DIR)/daemon_wl.cpp $(OBJ_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) $(OBJ_FILES) $(SRC_DIR)/daemon_wl.cpp -o $(OBJ_DIR)/daemon_wl $(LDFLAGS)
 
 $(OBJ_DIR)/linux_hal_common.o: $(SRC_DIR)/linux_hal_common.cpp $(HEADER_FILES)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_common.cpp -o $(OBJ_DIR)/linux_hal_common.o
@@ -124,6 +136,18 @@ $(OBJ_DIR)/ptp_message.o: $(COMMON_DIR)/ptp_message.cpp $(HEADER_FILES)
 $(OBJ_DIR)/avbts_osnet.o: $(COMMON_DIR)/avbts_osnet.cpp $(HEADER_FILES)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/avbts_osnet.cpp -o $(OBJ_DIR)/avbts_osnet.o
 
+$(OBJ_DIR)/ethtimestamper.o: $(COMMON_DIR)/ethtimestamper.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ethtimestamper.cpp -o $(OBJ_DIR)/ethtimestamper.o
+
+$(OBJ_DIR)/md_ethport.o: $(COMMON_DIR)/md_ethport.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/md_ethport.cpp -o $(OBJ_DIR)/md_ethport.o
+
+$(OBJ_DIR)/min_port.o: $(COMMON_DIR)/min_port.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/min_port.cpp -o $(OBJ_DIR)/min_port.o
+
+$(OBJ_DIR)/timestamper.o: $(COMMON_DIR)/timestamper.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/timestamper.cpp -o $(OBJ_DIR)/timestamper.o
+
 clean:
-	/bin/rm -f *~ $(OBJ_DIR)/*.o  $(OBJ_DIR)/daemon_cl 
+	/bin/rm -f *~ $(OBJ_DIR)/*.o $(OBJ_DIR)/daemon_cl $(OBJ_DIR)/daemon_wl
 

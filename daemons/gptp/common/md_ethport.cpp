@@ -396,7 +396,9 @@ bool MediaDependentEtherPort::processSync
 		correction_field += ((uint64_t)residence_time) << 16;
 		follow_up->setCorrectionField( correction_field );
 	} else {
-		follow_up->setPreciseOriginTimestamp( system_time );
+		// TODO: Need to resolve PCH interface not returning system time first
+		// follow_up->setPreciseOriginTimestamp( system_time );
+		follow_up->setPreciseOriginTimestamp( sync_timestamp );
 	}
 	if( follow_up->sendPort( this ) != net_succeed ) {
 		ret = false;

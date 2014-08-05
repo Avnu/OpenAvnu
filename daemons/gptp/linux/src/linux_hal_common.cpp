@@ -34,7 +34,6 @@
 #include <linux_hal_common.hpp>
 #include <sys/types.h>
 #include <avbts_clock.hpp>
-#include <avbts_port.hpp>
 
 #include <pthread.h>
 #include <ipcdef.hpp>
@@ -108,7 +107,7 @@ net_result LinuxNetworkInterface::send
 }
 
 
-void LinuxNetworkInterface::disable_clear_rx_queue() {
+net_result LinuxNetworkInterface::disable_clear_rx_queue() {
 	struct packet_mreq mr_8021as;
 	int err;
 	char buf[256];
@@ -130,15 +129,15 @@ void LinuxNetworkInterface::disable_clear_rx_queue() {
 		XPTPD_ERROR
 			( "Unable to add PTP multicast addresses to port id: %u",
 			  ifindex );
-		return;
+		return net_fatal;
 	}
   
 	while( recvfrom( sd_event, buf, 256, MSG_DONTWAIT, NULL, 0 ) != -1 );
 	
-	return;
+	return net_succeed;
 }
 
-void LinuxNetworkInterface::reenable_rx_queue() {
+net_result LinuxNetworkInterface::reenable_rx_queue() {
 	struct packet_mreq mr_8021as;
 	int err;
 
@@ -154,12 +153,14 @@ void LinuxNetworkInterface::reenable_rx_queue() {
 		XPTPD_ERROR
 			( "Unable to add PTP multicast addresses to port id: %u",
 			  ifindex );
-		return;
+		return net_fatal;
 	}
 
 	if( !net_lock.unlock() ) {
 		fprintf( stderr, "D failed unlock rx lock, %d\n", err );
 	}
+
+	return net_succeed;
 }
 
 struct LinuxTimerQueuePrivate {
@@ -203,7 +204,7 @@ void *LinuxTimerQueueHandler( void *arg ) {
 			if( errno == EAGAIN ) continue;
 			else break;
 		}
-		if( timerq->lock->lock() != oslock_ok ) {
+		if( timerq->glock->lock() != oslock_ok ) {
 			break;
 		}
 
@@ -215,7 +216,7 @@ void *LinuxTimerQueueHandler( void *arg ) {
 			timer_delete(arg->timer_handle);
 			delete arg;
 		}
-		if( timerq->lock->unlock() != oslock_ok ) {
+		if( timerq->glock->unlock() != oslock_ok ) {
 			break;
 		}
 	}
@@ -229,8 +230,7 @@ void LinuxTimerQueue::LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg ) {
     return;
 }
 
-OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
-	( IEEE1588Clock *clock ) {
+OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue( OSLockFactory *lock_factory ) {
 	LinuxTimerQueue *ret = new LinuxTimerQueue();
 
 	if( !ret->init() ) {
@@ -246,12 +246,13 @@ OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
 
 	ret->stop = false;
 	ret->key = 0;
-	ret->lock = clock->timerQLock();
 
-	return ret;
+	if (!OSTimerQueueFactory::createOSTimerQueue(lock_factory, ret)) {
+		return NULL;
+	}
+
+    return ret;
 }
-
-	
 
 bool LinuxTimerQueue::addEvent
 ( unsigned long micros, int type, ostimerq_handler func,
@@ -303,7 +304,7 @@ bool LinuxTimerQueue::addEvent
 }
 
 
-bool LinuxTimerQueue::cancelEvent( int type, unsigned *event ) {
+bool LinuxTimerQueue::cancelEvent( int type, MediaIndependentPort *port ) {
 	LinuxTimerQueueMap_t::iterator iter;
 	for( iter = timerQueueMap.begin(); iter != timerQueueMap.end();) {
 		if( (iter->second)->type == type ) {
@@ -666,26 +667,22 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	return false;
 }
 
-bool LinuxSharedMemoryIPC::update
-(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
- FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
- uint32_t pdelay_count, PortState port_state ) {
+bool LinuxSharedMemoryIPC::update(clock_offset_t *update) {
 	int buf_offset = 0;
 	char *shm_buffer = master_offset_buffer;
 	gPtpTimeData *ptimedata;
-	if( shm_buffer != NULL ) {
+	if( shm_buffer != NULL && update != NULL ) {
 		/* lock */
 		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
 		buf_offset += sizeof(pthread_mutex_t);
 		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
-		ptimedata->ml_phoffset = ml_phoffset;
-		ptimedata->ls_phoffset = ls_phoffset;
-		ptimedata->ml_freqoffset = ml_freqoffset;
-		ptimedata->ls_freqoffset = ls_freqoffset;
-		ptimedata->local_time = local_time;
-		ptimedata->sync_count   = sync_count;
-		ptimedata->pdelay_count = pdelay_count;
-		ptimedata->port_state   = port_state;
+		ptimedata->ml_phoffset = update->ml_phoffset;
+		ptimedata->ls_phoffset = update->ls_phoffset;
+		ptimedata->ml_freqoffset = update->ml_freqoffset;
+		ptimedata->ls_freqoffset = update->ls_freqoffset;
+		ptimedata->local_time = update->master_time + update->ml_phoffset;
+		ptimedata->sync_count = update->sync_count;
+		ptimedata->pdelay_count = update->pdelay_count;
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 	}
@@ -699,9 +696,12 @@ void LinuxSharedMemoryIPC::stop() {
 	}
 }
 
+/**
+ * TODO: Support remote address pcap filter (See windows_hal.hpp)
+ */
 bool LinuxNetworkInterfaceFactory::createInterface
 ( OSNetworkInterface **net_iface, InterfaceLabel *label,
-  HWTimestamper *timestamper ) {
+  Timestamper *timestamper, LinkLayerAddress *remote ) {
 	struct ifreq device;
 	int err;
 	struct sockaddr_ll ifsock_addr;
@@ -735,7 +735,7 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	}
 		
 	memset( &device, 0, sizeof(device));
-	ifname->toString( device.ifr_name, IFNAMSIZ );
+	memcpy(device.ifr_name, ifname->toString(), IFNAMSIZ);
 	err = ioctl( net_iface_l->sd_event, SIOCGIFHWADDR, &device );
 	if( err == -1 ) {
 		XPTPD_ERROR

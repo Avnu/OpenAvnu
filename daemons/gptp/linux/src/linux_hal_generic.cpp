@@ -180,7 +180,7 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	memset( &ifr, 0, sizeof(ifr));
 	memset( &info, 0, sizeof(info));
 	info.cmd = ETHTOOL_GET_TS_INFO;
-	ifname->toString( ifr.ifr_name, IFNAMSIZ-1 );
+	memcpy(ifr.ifr_name, ifname->toString(), IFNAMSIZ);
 	ifr.ifr_data = (char *) &info;
 		
 	if( ioctl( sd, SIOCETHTOOL, &ifr ) < 0 ) {
@@ -217,13 +217,18 @@ bool LinuxTimestamperGeneric::Adjust( void *tmx ) {
 }
 
 bool LinuxTimestamperGeneric::HWTimestamper_init
-( InterfaceLabel *iface_label, OSNetworkInterface *iface ) {
+	(InterfaceLabel *iface_label, OSNetworkInterface *iface,
+	OSLockFactory *lock_factory, OSThreadFactory *thread_factory,
+	OSTimerFactory *timer_factory) {
+
 	int fd;
 	cross_stamp_good = false;
 	int phc_index;
 	char ptp_device[] = PTP_DEVICE;
 
 	_private = new LinuxTimestamperGenericPrivate;
+
+	EthernetTimestamper::HWTimestamper_init(iface_label, iface, lock_factory, thread_factory, timer_factory);
 
 	pthread_mutex_init( &_private->cross_stamp_lock, NULL );
 
@@ -259,7 +264,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 
 int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 ( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
-  unsigned &clock_value, bool last ) {
+  bool last ) {
 	int err;
 	int ret = -72;
 	struct msghdr msg;
@@ -387,8 +392,7 @@ void LinuxTimestamperGeneric::updateCrossStamp( Timestamp *system_time, Timestam
 }
 
 bool LinuxTimestamperGeneric::HWTimestamper_gettime
-( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
-  uint32_t *nominal_clock_rate ) {
+( Timestamp *system_time, Timestamp *device_time ) {
 	bool ret = false;
 	pthread_mutex_lock( &_private->cross_stamp_lock );
 	if( cross_stamp_good ) {
