@@ -49,6 +49,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "min_port.hpp"
+#include "md_ethport.hpp"
+
 void print_usage( char *arg0 ) {
   fprintf( stderr,
 	   "%s <network interface> [-S] [-P] [-M <filename>] "
@@ -114,7 +117,6 @@ int main(int argc, char **argv)
 		print_usage( argv[0] );
 		return -1;
 	}
-	ifname = new InterfaceName( argv[1], strlen(argv[1]) ); 
 
 	/* Process optional arguments */
 	for( i = 2; i < argc; ++i ) {
@@ -215,14 +217,14 @@ int main(int argc, char **argv)
 	ifname = new InterfaceName(argv[1], strlen(argv[1]));
 
 #ifdef ARCH_INTELCE
-	HWTimestamper *timestamper = new LinuxTimestamperIntelCE();
+	EthernetTimestamper *timestamper = new LinuxTimestamperIntelCE();
 #else
-	HWTimestamper *timestamper = new LinuxTimestamperGeneric();
+	EthernetTimestamper *timestamper = new LinuxTimestamperGeneric();
 #endif
 
 	IEEE1588Clock *clock =
 	  new IEEE1588Clock( false, syntonize, priority1, timestamper,
-			     timerq_factory , ipc, lock_factory );
+			     timerq_factory , lock_factory, ipc );
 	
 	if( restoredataptr != NULL ) {
 	  if( !restorefailed )
@@ -233,24 +235,30 @@ int main(int argc, char **argv)
 	    (restoredatalength - restoredatacount);
 	}
 
-    IEEE1588Port *port =
-      new IEEE1588Port
-      ( clock, 1, false, accelerated_sync_count, timestamper, 0, ifname,
-	condition_factory, thread_factory, timer_factory, lock_factory );
-	if (!port->init_port()) {
+	MediaIndependentPort *min_port =
+		new MediaIndependentPort
+		(clock, accelerated_sync_count, syntonize, condition_factory,
+		thread_factory, timer_factory, lock_factory);
+
+	MediaDependentPort *md_port = new MediaDependentEtherPort
+		(timestamper, ifname, condition_factory, thread_factory,
+		timer_factory, lock_factory);
+
+	min_port->setPort(md_port);
+	if (!min_port->init_port()) {
 		printf("failed to initialize port \n");
 		return -1;
 	}
 
 	if( restoredataptr != NULL ) {
 	  if( !restorefailed ) restorefailed =
-	    !port->restoreSerializedState( restoredataptr, &restoredatacount );
+	    !min_port->restoreSerializedState( restoredataptr, &restoredatacount );
 	  restoredataptr = ((char *)restoredata) +
 	    (restoredatalength - restoredatacount);
 	}
 
 	if( override_portstate ) {
-		port->setPortState( port_state );
+		min_port->setPortState( port_state );
 	}
 
 	// Start PPS if requested
@@ -260,7 +268,7 @@ int main(int argc, char **argv)
 	  }
 	}
 
-	port->processEvent(POWERUP);
+	min_port->processEvent(POWERUP);
 
 	sigemptyset(&set);
 	sigaddset(&set, SIGINT);
@@ -286,13 +294,13 @@ int main(int argc, char **argv)
 
 	// If port is either master or slave, save clock and then port state
 	if( restorefd != -1 ) {
-	  if( port->getPortState() == PTP_MASTER ||
-	      port->getPortState() == PTP_SLAVE ) {
+	  if( min_port->getPortState() == PTP_MASTER ||
+		  min_port->getPortState() == PTP_SLAVE ) {
 	    off_t len;
 	    restoredatacount = 0;
 	    clock->serializeState( NULL, &len );
 	    restoredatacount += len;
-	    port->serializeState( NULL, &len );
+	    min_port->serializeState( NULL, &len );
 	    restoredatacount += len;
 	
 	    if( restoredatacount > restoredatalength ) {
@@ -314,7 +322,7 @@ int main(int argc, char **argv)
 	    clock->serializeState( restoredataptr, &restoredatacount );
 	    restoredataptr = ((char *)restoredata) +
 	      (restoredatalength - restoredatacount);
-	    port->serializeState( restoredataptr, &restoredatacount );
+	    min_port->serializeState( restoredataptr, &restoredatacount );
 	    restoredataptr = ((char *)restoredata) +
 	      (restoredatalength - restoredatacount);
 	  remap_failed:

@@ -241,7 +241,7 @@ public:
 	void setAsCapable();
 	void unsetAsCapable() {
 		if (asCapable == true) {
-			XPTPD_INFO("AsCapable: Disabled" );
+			fprintf( stderr, "AsCapable: Disabled\n" );
 		}
 		asCapable = false;
 		_peer_offset_init = false;

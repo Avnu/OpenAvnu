@@ -49,7 +49,9 @@
 
 #include <utility>
 
+#ifdef WIN32
 #include <Windows.h>
+#endif
 
 LinkLayerAddress MediaIndependentPort::other_multicast(OTHER_MULTICAST);
 uint16_t MediaIndependentPort::port_index = 1;
@@ -158,7 +160,7 @@ bool MediaIndependentPort::startAnnounce() {
 
 void MediaIndependentPort::setAsCapable() {
 	if (asCapable == false) {
-		XPTPD_INFO("AsCapable: Enabled" );
+		fprintf( stderr, "AsCapable: Enabled\n" );
 	}
 	asCapable = true;
 	clock->addEventTimer
@@ -604,9 +606,11 @@ bool MediaIndependentPort::processEvent(Event e)
 				  grandmaster, getClock()->getLastSyncValid() );
 	
 			if( asCapable && (grandmaster || getClock()->getLastSyncValid())) {
+#ifdef WIN32
 				SYSTEMTIME systime;
 				GetSystemTime(&systime);
 				printf("processSync:%hu:%hu:%hu.%03hu\n", systime.wHour, systime.wMinute, systime.wSecond, systime.wMilliseconds);
+#endif
 				inferior->processSync(getNextSyncSequenceId(), grandmaster, &elapsed_time);
 			}
 
