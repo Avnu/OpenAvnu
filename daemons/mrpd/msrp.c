@@ -550,7 +550,7 @@ static struct msrp_attribute *msrp_alloc()
 {
 	struct msrp_attribute *attrib;
 
-	attrib = (msrp_attribute *) malloc(sizeof(struct msrp_attribute));
+	attrib = (struct msrp_attribute *) malloc(sizeof(struct msrp_attribute));
 	if (NULL == attrib)
 		return NULL;
 
@@ -3585,7 +3585,7 @@ int msrp_init(int msrp_enable)
 	if (rc < 0)
 		return -1;
 
-	MSRP_db = (msrp_database*) malloc(sizeof(struct msrp_database));
+	MSRP_db = (struct msrp_database*) malloc(sizeof(struct msrp_database));
 
 	if (NULL == MSRP_db)
 		goto abort_socket;

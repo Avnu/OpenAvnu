@@ -356,7 +356,7 @@ struct mvrp_attribute *mvrp_alloc()
 {
 	struct mvrp_attribute *attrib;
 
-	attrib = (mvrp_attribute*) malloc(sizeof(struct mvrp_attribute));
+	attrib = (struct mvrp_attribute*) malloc(sizeof(struct mvrp_attribute));
 	if (NULL == attrib)
 		return NULL;
 
@@ -1236,7 +1236,7 @@ int mvrp_init(int mvrp_enable)
 	if (rc < 0)
 		return -1;
 
-	MVRP_db = (mvrp_database*) malloc(sizeof(struct mvrp_database));
+	MVRP_db = (struct mvrp_database*) malloc(sizeof(struct mvrp_database));
 
 	if (NULL == MVRP_db)
 		goto abort_socket;
