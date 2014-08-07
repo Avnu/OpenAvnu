@@ -550,7 +550,7 @@ static struct msrp_attribute *msrp_alloc()
 {
 	struct msrp_attribute *attrib;
 
-	attrib = malloc(sizeof(struct msrp_attribute));
+	attrib = (msrp_attribute *) malloc(sizeof(struct msrp_attribute));
 	if (NULL == attrib)
 		return NULL;
 
@@ -1077,7 +1077,7 @@ int msrp_recv_msg()
 						if (listener_vectevt_idx ==
 						    listener_vectevt_sz) {
 							listener_vectevt =
-							    realloc
+							    (int*)realloc
 							    (listener_vectevt,
 							     (listener_vectevt_sz
 							      +
@@ -3585,7 +3585,7 @@ int msrp_init(int msrp_enable)
 	if (rc < 0)
 		return -1;
 
-	MSRP_db = malloc(sizeof(struct msrp_database));
+	MSRP_db = (msrp_database*) malloc(sizeof(struct msrp_database));
 
 	if (NULL == MSRP_db)
 		goto abort_socket;

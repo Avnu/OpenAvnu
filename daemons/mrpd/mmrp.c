@@ -394,7 +394,7 @@ struct mmrp_attribute *mmrp_alloc()
 {
 	struct mmrp_attribute *attrib;
 
-	attrib = malloc(sizeof(struct mmrp_attribute));
+	attrib = (mmrp_attribute *) malloc(sizeof(struct mmrp_attribute));
 	if (NULL == attrib)
 		return NULL;
 
@@ -1718,7 +1718,7 @@ int mmrp_init(int mmrp_enable)
 	if (rc < 0)
 		return -1;
 
-	MMRP_db = malloc(sizeof(struct mmrp_database));
+	MMRP_db = (mmrp_database *) malloc(sizeof(struct mmrp_database));
 
 	if (NULL == MMRP_db)
 		goto abort_socket;

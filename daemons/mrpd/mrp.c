@@ -261,7 +261,7 @@ int mrp_client_add(client_t ** list, struct sockaddr_in *newclient)
 
 	/* handle 1st entry into list */
 	if (NULL == client_item) {
-		client_item = malloc(sizeof(client_t));
+		client_item = (client_s*)malloc(sizeof(client_t));
 		if (NULL == client_item)
 			return -1;
 		client_item->next = NULL;
@@ -272,7 +272,7 @@ int mrp_client_add(client_t ** list, struct sockaddr_in *newclient)
 
 	while (client_item) {
 		if (NULL == client_item->next) {
-			client_item->next = malloc(sizeof(client_t));
+			client_item->next = (client_s*)malloc(sizeof(client_t));
 			if (NULL == client_item->next)
 				return -1;
 			client_item = client_item->next;
