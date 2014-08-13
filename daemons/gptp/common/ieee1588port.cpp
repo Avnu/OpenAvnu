@@ -397,7 +397,7 @@ void IEEE1588Port::processEvent(Event e)
 			}
 
 			if( clock->getPriority1() == 255 || port_state == PTP_SLAVE ) {
-				becomeSlave( false );
+				becomeSlave( true );
 			} else if( port_state == PTP_MASTER ) {
 				becomeMaster( true );
 			} else {
