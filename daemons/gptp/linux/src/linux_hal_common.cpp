@@ -53,6 +53,7 @@
 #include <netpacket/packet.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 Timestamp tsToTimestamp(struct timespec *ts)
 {
@@ -615,6 +616,8 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	struct group *grp;
 	const char *group_name;
 	pthread_mutexattr_t shared;
+	mode_t oldumask = umask(0);
+
 	if( barg == NULL ) {
 		group_name = DEFAULT_GROUPNAME;
 	} else {
@@ -636,6 +639,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 		XPTPD_ERROR( "shm_open(): %s", strerror(errno) );
 		goto exit_error;
 	}
+	(void) umask(oldumask);
 	if (fchown(shm_fd, -1, grp != NULL ? grp->gr_gid : 0) < 0) {
 		XPTPD_ERROR("shm_open(): Failed to set ownership");
 	}
