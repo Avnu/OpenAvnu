@@ -42,6 +42,7 @@
 #include <avbts_osnet.hpp>
 #include <avbts_osthread.hpp>
 #include <avbts_oscondition.hpp>
+#include <ipcdef.hpp>
 
 #include <stdint.h>
 
@@ -55,17 +56,6 @@
 #define PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER 3
 #define SYNC_RECEIPT_TIMEOUT_MULTIPLIER 3
 #define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3
-
-typedef enum {
-	PTP_MASTER = 7,
-	PTP_PRE_MASTER,
-	PTP_SLAVE,
-	PTP_UNCALIBRATED,
-	PTP_DISABLED,
-	PTP_FAULTY,
-	PTP_INITIALIZING,
-	PTP_LISTENING
-} PortState;
 
 typedef enum {
 	V1,

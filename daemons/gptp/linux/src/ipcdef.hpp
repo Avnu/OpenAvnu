@@ -34,6 +34,19 @@
 #ifndef IPCDEF_HPP
 #define IPCDEF_HPP
 
+#include <ptptypes.hpp>
+
+typedef enum {
+	PTP_MASTER = 7,
+	PTP_PRE_MASTER,
+	PTP_SLAVE,
+	PTP_UNCALIBRATED,
+	PTP_DISABLED,
+	PTP_FAULTY,
+	PTP_INITIALIZING,
+	PTP_LISTENING
+} PortState;
+
 typedef struct { 
 	int64_t ml_phoffset;
 	int64_t ls_phoffset;
