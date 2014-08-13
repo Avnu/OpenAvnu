@@ -56,6 +56,7 @@ typedef struct {
 	uint32_t sync_count;
 	uint32_t pdelay_count;
 	PortState port_state;
+	pid_t  process_id;
 } gPtpTimeData;
 
 

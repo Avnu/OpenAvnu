@@ -270,24 +270,18 @@ int main(int argc, char **argv)
 
 	port->processEvent(POWERUP);
 
+	do {
 	if (sigwait(&set, &sig) != 0) {
 		perror("sigwait()");
 		return -1;
 	}
 
-	fprintf(stderr, "Exiting on %d\n", sig);
-
-	// Stop PPS if previously started
-	if( pps ) {
-	  if( !timestamper->HWTimestamper_PPS_stop()) {
-	    printf( "Failed to stop pulse per second I/O\n" );
-	  }
-	}
-
+	if (sig == SIGHUP) {
 	// If port is either master or slave, save clock and then port state
 	if( restorefd != -1 ) {
 	  if( port->getPortState() == PTP_MASTER ||
 	      port->getPortState() == PTP_SLAVE ) {
+	    printf( "Signal received to write restore data\n" );
 	    off_t len;
 	    restoredatacount = 0;
 	    clock->serializeState( NULL, &len );
@@ -324,6 +318,17 @@ int main(int argc, char **argv)
       
 	  if( restoredata != ((void *) -1 ))
 	    munmap( restoredata, restoredatalength );
+	}
+	}
+	} while(sig == SIGHUP);
+
+	fprintf(stderr, "Exiting on %d\n", sig);
+
+	// Stop PPS if previously started
+	if( pps ) {
+	    if( !timestamper->HWTimestamper_PPS_stop()) {
+		printf( "Failed to stop pulse per second I/O\n" );
+	    }
 	}
 
 	if( ipc ) delete ipc;

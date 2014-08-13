@@ -679,6 +679,7 @@ bool LinuxSharedMemoryIPC::update
  FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
  uint32_t pdelay_count, PortState port_state ) {
 	int buf_offset = 0;
+	pid_t process_id = getpid();
 	char *shm_buffer = master_offset_buffer;
 	gPtpTimeData *ptimedata;
 	if( shm_buffer != NULL ) {
@@ -694,6 +695,7 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->sync_count   = sync_count;
 		ptimedata->pdelay_count = pdelay_count;
 		ptimedata->port_state   = port_state;
+		ptimedata->process_id   = process_id;
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 	}
