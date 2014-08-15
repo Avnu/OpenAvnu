@@ -86,6 +86,7 @@ IEEE1588Port::IEEE1588Port
 	port_state = PTP_INITIALIZING;
 
 	asCapable = false;
+	clock->setSharedAsCapable(false);
 
 	announce_sequence_id = 0;
 	sync_sequence_id = 0;
@@ -154,6 +155,19 @@ bool IEEE1588Port::init_port()
 	port_ready_condition = condition_factory->createCondition();
 
 	return true;
+}
+
+void IEEE1588Port::setAsCapable(bool ascap) 
+{
+	if (ascap != asCapable) {
+		fprintf(stderr, "AsCapable: %s\n",
+				ascap == true ? "Enabled" : "Disabled");
+	}
+	if(!ascap){
+		_peer_offset_init = false;
+	}
+	asCapable = ascap;
+	clock->setSharedAsCapable(asCapable);
 }
 
 void IEEE1588Port::startPDelay() {
@@ -676,7 +690,17 @@ void IEEE1588Port::processEvent(Event e)
 				(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES,
 				 (unsigned long long)
 				 (pow((double)2, getPDelayInterval())*1000000000.0));
+
+			{
+				uint32_t newPriority1;
+
+				if (true == clock->checkPriority1Update(&newPriority1))
+				{
+					clock->setPriority1(newPriority1);
+				}
+			}
 			break;
+
 	case SYNC_INTERVAL_TIMEOUT_EXPIRES:
 			XPTPD_INFO("SYNC_INTERVAL_TIMEOUT_EXPIRES occured");
 			{
