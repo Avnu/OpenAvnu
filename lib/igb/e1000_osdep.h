@@ -77,10 +77,10 @@ typedef int8_t		s8;
 /* Register READ/WRITE macros */
 
 #define E1000_READ_REG(hw, reg) \
-    (*(u32 *)(((hw)->hw_addr + reg)))
+    (*(volatile u32 *)(((hw)->hw_addr + reg)))
 
 #define E1000_WRITE_REG(hw, reg, value) \
-    (*(u32 *)(((hw)->hw_addr + reg)) = value)
+    (*(volatile u32 *)(((hw)->hw_addr + reg)) = value)
 
 #endif  /* _OSDEP_H_ */
 

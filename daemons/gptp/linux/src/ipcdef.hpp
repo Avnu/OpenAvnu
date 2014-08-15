@@ -35,11 +35,14 @@
 #define IPCDEF_HPP
 
 typedef struct { 
-  int64_t ml_phoffset;
-  int64_t ls_phoffset;
-  FrequencyRatio ml_freqoffset;
-  FrequencyRatio ls_freqoffset;
-  int64_t local_time;
+	int64_t ml_phoffset;
+	int64_t ls_phoffset;
+	FrequencyRatio ml_freqoffset;
+	FrequencyRatio ls_freqoffset;
+	int64_t local_time;
+	uint32_t sync_count;
+	uint32_t pdelay_count;
+	PortState port_state;
 } gPtpTimeData;
 
 
@@ -60,7 +63,7 @@ typedef struct {
 
 */
 
-#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
+#define SHM_SIZE (sizeof(gPtpTimeData) + sizeof(pthread_mutex_t))
 #define SHM_NAME  "/ptp"
 
 #endif/*IPCDEF_HPP*/

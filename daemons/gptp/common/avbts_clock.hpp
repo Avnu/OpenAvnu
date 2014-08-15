@@ -108,15 +108,17 @@ private:
 	bool forceOrdinarySlave;
 	FrequencyRatio _master_local_freq_offset;
 	FrequencyRatio _local_system_freq_offset;
+
+  OSLock *timerq_lock;
 public:
 	IEEE1588Clock
 	(bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
 	 HWTimestamper *timestamper, OSTimerQueueFactory * timerq_factory,
-	 OS_IPC * ipc);
+	 OS_IPC * ipc, OSLockFactory *lock_factory );
 	~IEEE1588Clock(void);
 
-	bool serializeState( void *buf, off_t *count );
-	bool restoreSerializedState( void *buf, off_t *count );
+	bool serializeState( void *buf, long *count );
+	bool restoreSerializedState( void *buf, long *count );
 
 	Timestamp getTime(void);
 	Timestamp getPreciseTime(void);
@@ -211,9 +213,13 @@ public:
 	
 	static Timestamp getSystemTime(void);
 	
-	void addEventTimer(IEEE1588Port * target, Event e,
-			   unsigned long long time_ns);
+	void addEventTimer
+	( IEEE1588Port * target, Event e, unsigned long long time_ns );
 	void deleteEventTimer(IEEE1588Port * target, Event e);
+
+	void addEventTimerLocked
+	( IEEE1588Port * target, Event e, unsigned long long time_ns );
+	void deleteEventTimerLocked(IEEE1588Port * target, Event e);
 
 	FrequencyRatio calcMasterLocalClockRateDifference
 	( Timestamp master_time, Timestamp sync_time );
@@ -226,7 +232,7 @@ public:
 	  int64_t local_system_offset,
 	  Timestamp system_time,
 	  FrequencyRatio local_system_freq_offset,
-	  uint32_t nominal_clock_rate, uint32_t local_clock);
+	  unsigned sync_count, unsigned pdelay_count, PortState port_state );
 	
 	ClockIdentity getClockIdentity() {
 		return clock_identity;
@@ -269,6 +275,16 @@ public:
 	}
 
 	friend void tick_handler(int sig);
+
+	OSLockResult getTimerQLock() {
+		return timerq_lock->lock();
+	}
+	OSLockResult putTimerQLock() {
+		return timerq_lock->unlock();
+	}
+	OSLock *timerQLock() {
+		return timerq_lock;
+	}
 };
 
 void tick_handler(int sig);

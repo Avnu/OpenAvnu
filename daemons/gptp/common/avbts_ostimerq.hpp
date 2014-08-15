@@ -36,7 +36,12 @@
 
 typedef void (*ostimerq_handler) (void *);
 
+class IEEE1588Clock;
+
 class OSTimerQueue {
+protected:
+	virtual bool init() { return true; }
+	OSTimerQueue() {}
 public:
 	virtual bool addEvent
 	(unsigned long micros, int type, ostimerq_handler func,
@@ -45,14 +50,14 @@ public:
 	virtual ~OSTimerQueue() = 0;
 };
 
-inline OSTimerQueue::~OSTimerQueue() { }
+inline OSTimerQueue::~OSTimerQueue() {}
 
 class OSTimerQueueFactory {
 public:
-	virtual OSTimerQueue *createOSTimerQueue() = 0;
+	virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock ) = 0;
 	virtual ~OSTimerQueueFactory() = 0;
 };
 
-inline OSTimerQueueFactory::~OSTimerQueueFactory() { }
+inline OSTimerQueueFactory::~OSTimerQueueFactory() {}
 
 #endif

@@ -35,6 +35,8 @@
 #ifndef _IGB_H_DEFINED_
 #define _IGB_H_DEFINED_
 
+#include <sys/types.h>
+
 struct resource {
         u_int64_t       paddr;
 	u_int32_t	mmap_size;
@@ -77,6 +79,7 @@ struct igb_dma_alloc {
 
 int	igb_probe( device_t *dev );
 int	igb_attach(char *dev_path, device_t *pdev);
+int igb_attach_tx( device_t *pdev );
 int	igb_detach(device_t *dev);
 int	igb_suspend(device_t *dev);
 int	igb_resume(device_t *dev);
@@ -86,11 +89,15 @@ void	igb_dma_free_page(device_t *dev, struct igb_dma_alloc *page);
 int	igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet);
 void	igb_clean(device_t *dev, struct igb_packet **cleaned_packets);
 int	igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc);
+int igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime, struct timespec *system_time );
 int	igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_int32_t tpktsz_a, u_int32_t tpktsz_b);
 
 void	igb_trigger(device_t *dev, u_int32_t data);
 void	igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data);
 void	igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data);
+
+int igb_lock( device_t *dev );
+int igb_unlock( device_t *dev );
 
 #endif /* _IGB_H_DEFINED_ */
 

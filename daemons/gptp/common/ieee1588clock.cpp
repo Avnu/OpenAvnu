@@ -44,7 +44,6 @@
 #include <stdlib.h>
 
 #include <string.h>
-#include <time.h>
 
 void ClockIdentity::set(LinkLayerAddress * addr)
 {
@@ -63,10 +62,8 @@ void ClockIdentity::set(LinkLayerAddress * addr)
 IEEE1588Clock::IEEE1588Clock
 ( bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
   HWTimestamper *timestamper, OSTimerQueueFactory *timerq_factory,
-  OS_IPC *ipc )
+  OS_IPC *ipc, OSLockFactory *lock_factory )
 {
-	timerq = timerq_factory->createOSTimerQueue();
-
 	this->priority1 = priority1;
 	priority2 = 248;
 
@@ -93,6 +90,12 @@ IEEE1588Clock::IEEE1588Clock
 	this->ipc = ipc;
 
  	memset( &LastEBestIdentity, 0xFF, sizeof( LastEBestIdentity ));
+
+	timerq_lock = lock_factory->createLock( oslock_nonrecursive );
+
+	// This should be done LAST!! to pass fully initialized clock object
+	timerq = timerq_factory->createOSTimerQueue( this );
+
 	return;
 }
 
@@ -205,20 +208,39 @@ void timerq_handler(void *arg)
 	event_descriptor->port->processEvent(event_descriptor->event);
 }
 
-void IEEE1588Clock::addEventTimer(IEEE1588Port * target, Event e,
-				  unsigned long long time_ns)
+void IEEE1588Clock::addEventTimer
+( IEEE1588Port * target, Event e, unsigned long long time_ns )
 {
 	event_descriptor_t *event_descriptor = new event_descriptor_t();
 	event_descriptor->event = e;
 	event_descriptor->port = target;
 	timerq->addEvent
-		((unsigned)time_ns / 1000, (int)e, timerq_handler, event_descriptor,
+		((unsigned)(time_ns / 1000), (int)e, timerq_handler, event_descriptor,
 		 true, NULL);
 }
+
+void IEEE1588Clock::addEventTimerLocked
+( IEEE1588Port * target, Event e, unsigned long long time_ns )
+{
+    if( getTimerQLock() == oslock_fail ) return;
+	addEventTimer( target, e, time_ns );
+    if( putTimerQLock() == oslock_fail ) return;
+}
+
+
 
 void IEEE1588Clock::deleteEventTimer(IEEE1588Port * target, Event event)
 {
 	timerq->cancelEvent((int)event, NULL);
+}
+
+void IEEE1588Clock::deleteEventTimerLocked(IEEE1588Port * target, Event event)
+{
+    if( getTimerQLock() == oslock_fail ) return;
+
+	timerq->cancelEvent((int)event, NULL);
+
+    if( putTimerQLock() == oslock_fail ) return;
 }
 
 FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp local_time, Timestamp system_time ) {
@@ -254,6 +276,8 @@ FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp loca
   return ppt_offset;
 }
 
+
+
 FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp master_time, Timestamp sync_time ) {
 	unsigned long long inter_sync_time;
 	unsigned long long inter_master_time;
@@ -287,38 +311,23 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 	return ppt_offset;
 }
 
-void IEEE1588Clock::setSharedAsCapable(bool asCapable)
-{
-	if ( ipc != NULL ) 
-	{
-		ipc->setSharedAsCapable(asCapable);
-	}
-}
-
-bool IEEE1588Clock::checkPriority1Update(uint32_t *newPriority)
-{
-	bool needUpdate = false;
-
-	if ( ipc != NULL ) 
-	{
-		needUpdate = ipc->updatePriority1(newPriority);
-	}
-
-	return needUpdate;
-}
-
 void IEEE1588Clock::setMasterOffset
 ( int64_t master_local_offset, Timestamp local_time,
   FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
   Timestamp system_time, FrequencyRatio local_system_freq_offset,
-  uint32_t nominal_clock_rate, uint32_t local_clock )
+  unsigned sync_count, unsigned pdelay_count, PortState port_state )
 {
 	_master_local_freq_offset = master_local_freq_offset;
 	_local_system_freq_offset = local_system_freq_offset;
 
 	if( ipc != NULL ) ipc->update
 		( master_local_offset, local_system_offset, master_local_freq_offset,
-		  local_system_freq_offset, TIMESTAMP_TO_NS(local_time));
+		  local_system_freq_offset, TIMESTAMP_TO_NS(local_time), sync_count,
+		  pdelay_count, port_state );
+
+	if( master_local_offset == 0 && master_local_freq_offset == 1.0 ) {
+		return;
+	}
 
 	if( _syntonize ) {
 		if( _new_syntonization_set_point ) {

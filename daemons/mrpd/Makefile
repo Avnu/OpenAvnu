@@ -26,7 +26,7 @@ mrpctl: mrpctl.o
 
 clean:
 	rm -f `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"`
-	rm mrpd mrpctl
+	rm -f mrpd mrpctl
 	
 indent:
 	indent --linux-style mrpd.c mrpd.h mvrp.c mvrp.h msrp.c msrp.h mmrp.c mmrp.h mrp.c mrp.h \

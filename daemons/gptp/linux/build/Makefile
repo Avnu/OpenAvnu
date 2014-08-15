@@ -28,20 +28,13 @@
 #  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
-CXX = g++
-
-IGB_LIB_INCPATH=../../../../lib/igb/
-IGB_LIB_PATH=../../../../lib/igb/
-ALTERNATE_LINUX_INCPATH=/home/chris/headers/include/
+ALTERNATE_LINUX_INCPATH=$(HOME)/header/include/
 
 CFLAGS_G = -Wall -g -Wnon-virtual-dtor -I. -I../../common -I../src \
-	-I$(IGB_LIB_INCPATH) -I$(ALTERNATE_LINUX_INCPATH)
-LDFLAGS_G = -L$(IGB_LIB_PATH) -lpthread -lrt -lpci -ligb -lz
+	-I$(ALTERNATE_LINUX_INCPATH)
 
-CFLAGS = $(CFLAGS_G)
-LDFLAGS = $(LDFLAGS_G)
+LDFLAGS_G = -lpthread -lrt
 
-CXXFLAGS =
 COMMON_DIR = ../../common
 SRC_DIR = ../src
 OBJ_DIR = obj
@@ -50,7 +43,8 @@ OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/avbts_osnet.o\
 		 $(OBJ_DIR)/ieee1588port.o\
 		 $(OBJ_DIR)/ieee1588clock.o \
-		 $(OBJ_DIR)/linux_hal.o
+		 $(OBJ_DIR)/linux_hal_common.o \
+		 $(OBJ_DIR)/platform.o
 
 HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(COMMON_DIR)/avbts_ostimerq.hpp\
@@ -63,8 +57,35 @@ HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(COMMON_DIR)/avbts_message.hpp\
 		$(COMMON_DIR)/avbts_clock.hpp\
 		$(COMMON_DIR)/ieee1588.hpp\
-		$(SRC_DIR)/linux_hal.hpp\
+		$(SRC_DIR)/linux_hal_common.hpp\
 		$(SRC_DIR)/platform.hpp
+
+ifeq ($(ARCH),I210)
+	IGB_LIB_INCPATH=../../../../lib/igb/
+	IGB_LIB_PATH=../../../../lib/igb/
+	CFLAGS_G += -I$(IGB_LIB_INCPATH) -DWITH_IGBLIB
+	LDFLAGS_G += -lz -ligb -lpci -L$(IGB_LIB_PATH)
+	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
+		$(OBJ_DIR)/linux_hal_generic_adj.o
+	OBJ_FILES += $(OBJ_DIR)/linux_hal_i210.o 
+	HEADER_FILES += $(SRC_DIR)/linux_hal_generic.hpp
+else ifeq ($(ARCH),IntelCE)
+	INTELCE_INCPATH=/home/hitesh/work/smd/Dinerout/i686-linux-elf/include/
+	INTELCE_LINUX_INCPATH=/home/hitesh/work/smd/Dinerout/i686-linux-elf/include/linux_user
+	INTELCE_LIBPATH=/home/hitesh/work/smd/Dinerout/i686-linux-elf/lib/
+	CFLAGS_G += -I$(INTELCE_LINUX_INCPATH) -I$(INTELCE_INCPATH) -DARCH_INTELCE
+	LDFLAGS_G += -L$(INTELCE_LIBPATH) -lismd_clock_ioctl -lismd_core_ioctl
+	HEADER_FILES += $(SRC_DIR)/linux_hal_intelce.hpp
+	OBJ_FILES += $(OBJ_DIR)/linux_hal_intelce.o
+	CXX = $(TARGETCXX)
+else
+	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
+		$(OBJ_DIR)/linux_hal_generic_adj.o
+	HEADER_FILES += $(SRC_DIR)/linux_hal_generic.hpp
+endif
+
+CFLAGS = $(CFLAGS_G)
+LDFLAGS = $(LDFLAGS_G)
 
 all: $(OBJ_DIR)/daemon_cl
 
@@ -73,8 +94,23 @@ rebuild: clean all
 $(OBJ_DIR)/daemon_cl: $(SRC_DIR)/daemon_cl.cpp $(OBJ_FILES)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $(OBJ_FILES) $(SRC_DIR)/daemon_cl.cpp -o $(OBJ_DIR)/daemon_cl $(LDFLAGS)
 
-$(OBJ_DIR)/linux_hal.o: $(SRC_DIR)/linux_hal.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal.cpp -o $(OBJ_DIR)/linux_hal.o
+$(OBJ_DIR)/linux_hal_common.o: $(SRC_DIR)/linux_hal_common.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_common.cpp -o $(OBJ_DIR)/linux_hal_common.o
+
+$(OBJ_DIR)/platform.o: $(SRC_DIR)/platform.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/platform.cpp -o $(OBJ_DIR)/platform.o
+
+$(OBJ_DIR)/linux_hal_generic.o: $(SRC_DIR)/linux_hal_generic.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_generic.cpp -o $(OBJ_DIR)/linux_hal_generic.o
+
+$(OBJ_DIR)/linux_hal_generic_adj.o: $(SRC_DIR)/linux_hal_generic_adj.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_generic_adj.cpp -o $(OBJ_DIR)/linux_hal_generic_adj.o
+
+$(OBJ_DIR)/linux_hal_i210.o: $(SRC_DIR)/linux_hal_i210.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_i210.cpp -o $(OBJ_DIR)/linux_hal_i210.o
+
+$(OBJ_DIR)/linux_hal_intelce.o: $(SRC_DIR)/linux_hal_intelce.cpp $(HEADER_FILES)
+	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_intelce.cpp -o $(OBJ_DIR)/linux_hal_intelce.o
 
 $(OBJ_DIR)/ieee1588port.o: $(COMMON_DIR)/ieee1588port.cpp $(HEADER_FILES)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ieee1588port.cpp -o $(OBJ_DIR)/ieee1588port.o
