@@ -826,7 +826,6 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
-		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -837,6 +836,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
+		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
 		svcreq_firstval = attrib->attribute.svcreq;
 		mrpdu_vectorptr->FirstValue_VectorEvents[0] =

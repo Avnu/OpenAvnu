@@ -1846,7 +1846,6 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
-		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -1857,6 +1856,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
+		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
 		srclassID_firstval = attrib->attribute.domain.SRclassID;
 		srclassprio_firstval = attrib->attribute.domain.SRclassPriority;
@@ -2160,7 +2160,6 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 #endif
-		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -2171,6 +2170,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
+		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
 		memcpy(streamid_firstval,
 		       attrib->attribute.talk_listen.StreamID, 8);
@@ -2473,7 +2473,6 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
-		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -2487,6 +2486,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		 * contiguous active streams in messages
 		 */
 
+		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
 		memcpy(streamid_firstval,
 		       attrib->attribute.talk_listen.StreamID, 8);

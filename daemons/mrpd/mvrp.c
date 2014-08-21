@@ -650,7 +650,6 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
 
-		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -661,6 +660,7 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
+		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
 		attrib->applicant.tx = 0;
 		vid_firstval = attrib->attribute;
