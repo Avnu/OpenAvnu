@@ -62,13 +62,18 @@ def fit_line(count, plots, file1):
 	res = {}
 	with open(file1, 'rU') as csvfile:
 		vals = list(csv.reader(csvfile))
+		y_prev = float(vals[0][1])
 		for s in vals[0:count]:
 			x = float(s[0])
 			y = float(s[1])
+			y_delta = y - y_prev
+			if (y_delta > 200000):
+				print "### Error ### Timestamp step delta in %s and index %d of %f" % (file1, n, y_delta)
 			SX = SX + x
 			SXX = SXX + (x * x)
 			SY = SY + y
 			SXY = SXY + (x * y)
+			y_prev = y
 			n = n + 1
 		m = (n * SXY - SX * SY)/(n * SXX - SX * SX)
 		b = SY/n - m * SX/n
