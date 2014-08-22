@@ -53,6 +53,7 @@
 #include <netpacket/packet.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 Timestamp tsToTimestamp(struct timespec *ts)
 {
@@ -615,6 +616,8 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	struct group *grp;
 	const char *group_name;
 	pthread_mutexattr_t shared;
+	mode_t oldumask = umask(0);
+
 	if( barg == NULL ) {
 		group_name = DEFAULT_GROUPNAME;
 	} else {
@@ -636,6 +639,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 		XPTPD_ERROR( "shm_open(): %s", strerror(errno) );
 		goto exit_error;
 	}
+	(void) umask(oldumask);
 	if (fchown(shm_fd, -1, grp != NULL ? grp->gr_gid : 0) < 0) {
 		XPTPD_ERROR("shm_open(): Failed to set ownership");
 	}
@@ -679,6 +683,7 @@ bool LinuxSharedMemoryIPC::update
  FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
  uint32_t pdelay_count, PortState port_state ) {
 	int buf_offset = 0;
+	pid_t process_id = getpid();
 	char *shm_buffer = master_offset_buffer;
 	gPtpTimeData *ptimedata;
 	if( shm_buffer != NULL ) {
@@ -694,6 +699,7 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->sync_count   = sync_count;
 		ptimedata->pdelay_count = pdelay_count;
 		ptimedata->port_state   = port_state;
+		ptimedata->process_id   = process_id;
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 	}

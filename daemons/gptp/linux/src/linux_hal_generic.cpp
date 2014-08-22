@@ -310,8 +310,8 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 			system = tsToTimestamp( ts_system );
 			ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
 			system._version = version;
-			device._version = version;
 			device = device + latency;
+			device._version = version;
 			updateCrossStamp( &system, &device );
 			timestamp = device;
 			ret = 0;
