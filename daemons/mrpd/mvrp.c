@@ -399,6 +399,7 @@ int mvrp_recv_msg(void)
 	uint16_t vid_firstval;
 	struct mvrp_attribute *attrib;
 	int endmarks;
+	int saw_vlan_lva = 0;
 
 	bytes = mrpd_recvmsgbuf(mvrp_socket, &msgbuf);
 	if (bytes <= 0)
@@ -494,7 +495,8 @@ int mvrp_recv_msg(void)
 							 (mrpdu_vectorptr->
 							  VectorHeader));
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_vlan_lva) {
+					saw_vlan_lva = 1;
 					mvrp_event(MRP_EVENT_RLA, NULL);
 				}
 

@@ -676,6 +676,10 @@ int msrp_recv_msg()
 	int listener_vectevt_sz = 0;
 	int listener_vectevt_idx;
 	int listener_endbyte;
+	int saw_domain_lva = 0;
+	int saw_talker_lva = 0;
+	int saw_talkerfailed_lva = 0;
+	int saw_listener_lva = 0;
 
 	bytes = mrpd_recvmsgbuf(msrp_socket, &msgbuf);
 	if (bytes <= 0)
@@ -786,7 +790,8 @@ int msrp_recv_msg()
 				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_domain_lva) {
+					saw_domain_lva = 1;
 					attrib = msrp_alloc();
 					if (NULL == attrib)
 						goto out;	/* oops - internal error */
@@ -978,7 +983,8 @@ int msrp_recv_msg()
 				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_listener_lva) {
+					saw_listener_lva = 1;
 					attrib = msrp_alloc();
 					if (NULL == attrib)
 						goto out;	/* oops - internal error */
@@ -1290,7 +1296,8 @@ int msrp_recv_msg()
 				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_talker_lva) {
+					saw_talker_lva = 1;
 					attrib = msrp_alloc();
 					if (NULL == attrib)
 						goto out;	/* oops - internal error */
@@ -1554,7 +1561,8 @@ int msrp_recv_msg()
 				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_talkerfailed_lva) {
+					saw_talkerfailed_lva = 1;
 					attrib = msrp_alloc();
 					if (NULL == attrib)
 						goto out;	/* oops - internal error */

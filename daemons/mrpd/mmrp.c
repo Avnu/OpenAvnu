@@ -454,6 +454,7 @@ int mmrp_recv_msg()
 	uint8_t macvec_firstval[6];
 	struct mmrp_attribute *attrib;
 	int endmarks;
+	int saw_lva = 0;
 
 	bytes = mrpd_recvmsgbuf(mmrp_socket, &msgbuf);
 	if (bytes <= 0)
@@ -524,7 +525,8 @@ int mmrp_recv_msg()
 							 (mrpdu_vectorptr->
 							  VectorHeader));
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_lva) {
+					saw_lva = 1;
 					attrib = mmrp_alloc();
 					if (NULL == attrib)
 						goto out;	/* oops - internal error */
