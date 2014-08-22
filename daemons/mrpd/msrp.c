@@ -2016,8 +2016,10 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
 
-		if (lva)
+		if (lva) {
 			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA_FLAG;
+			lva = 0;
+		}
 
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
@@ -2363,8 +2365,10 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
 
-		if (lva)
+		if (lva) {
 			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA_FLAG;
+			lva = 0;
+		}
 
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
@@ -2714,8 +2718,10 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
 
-		if (lva)
+		if (lva) {
 			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA_FLAG;
+			lva = 0;
+		}
 
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
