@@ -667,72 +667,85 @@ void process_events(void)
 			return;	/* exit on error */
 		}
 		else {
-			if (FD_ISSET(control_socket, &sel_fds))
+			if FD_ISSET
+				(control_socket, &sel_fds)
 				recv_ctl_msg();
 			if (mmrp_enable) {
-				if (FD_ISSET(mmrp_socket, &sel_fds)) {
+				if FD_ISSET
+					(mmrp_socket, &sel_fds) {
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
 					mrpd_log_printf("== EVENT mmrp_recv_msg ==\n");
 #endif
 					mmrp_recv_msg();
 					}
-				if (FD_ISSET(MMRP_db->mrp_db.lva_timer, &sel_fds)) {
+				if FD_ISSET
+					(MMRP_db->mrp_db.lva_timer, &sel_fds) {
 					mrpd_log_timer_event("MMRP",
 							     MRP_EVENT_LVATIMER);
 					mmrp_event(MRP_EVENT_LVATIMER, NULL);
 					}
-				if (FD_ISSET(MMRP_db->mrp_db.lv_timer, &sel_fds)) {
+				if FD_ISSET
+					(MMRP_db->mrp_db.lv_timer, &sel_fds) {
 					mrpd_log_timer_event("MMRP",
 							     MRP_EVENT_LVTIMER);
 					mmrp_event(MRP_EVENT_LVTIMER, NULL);
 					}
-				if (FD_ISSET(MMRP_db->mrp_db.join_timer, &sel_fds)) {
+				if FD_ISSET
+					(MMRP_db->mrp_db.join_timer, &sel_fds) {
 					mrpd_log_timer_event("MMRP",
 							     MRP_EVENT_TX);
 					mmrp_event(MRP_EVENT_TX, NULL);
 					}
 			}
 			if (mvrp_enable) {
-				if (FD_ISSET(mvrp_socket, &sel_fds)) {
+				if FD_ISSET
+						(mvrp_socket, &sel_fds) {
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
 					mrpd_log_printf("== EVENT mvrp_recv_msg ==\n");
 #endif
 					mvrp_recv_msg();
 					}
-				if (FD_ISSET(MVRP_db->mrp_db.lva_timer, &sel_fds)) {
+				if FD_ISSET
+					(MVRP_db->mrp_db.lva_timer, &sel_fds) {
 					mrpd_log_timer_event("MVRP",
 							     MRP_EVENT_LVATIMER);
 					mvrp_event(MRP_EVENT_LVATIMER, NULL);
 					}
-				if (FD_ISSET(MVRP_db->mrp_db.lv_timer, &sel_fds)) {
+				if FD_ISSET
+					(MVRP_db->mrp_db.lv_timer, &sel_fds) {
 					mrpd_log_timer_event("MVRP",
 							     MRP_EVENT_LVTIMER);
 					mvrp_event(MRP_EVENT_LVTIMER, NULL);
 					}
-				if (FD_ISSET(MVRP_db->mrp_db.join_timer, &sel_fds)) {
+				if FD_ISSET
+					(MVRP_db->mrp_db.join_timer, &sel_fds) {
 					mrpd_log_timer_event("MVRP",
 							     MRP_EVENT_TX);
 					mvrp_event(MRP_EVENT_TX, NULL);
 					}
 			}
 			if (msrp_enable) {
-				if (FD_ISSET(msrp_socket, &sel_fds)) {
+				if FD_ISSET
+					(msrp_socket, &sel_fds) {
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
 					mrpd_log_printf("== EVENT msrp_recv_msg ==\n");
 #endif
 					msrp_recv_msg();
 				}
-				if (FD_ISSET(MSRP_db->mrp_db.lva_timer, &sel_fds)) {
+				if FD_ISSET
+					(MSRP_db->mrp_db.lva_timer, &sel_fds) {
 					mrpd_log_timer_event("MSRP",
 							     MRP_EVENT_LVATIMER);
 					msrp_event(MRP_EVENT_LVATIMER, NULL);
 					}
-				if (FD_ISSET(MSRP_db->mrp_db.lv_timer, &sel_fds)) {
+				if FD_ISSET
+					(MSRP_db->mrp_db.lv_timer, &sel_fds) {
 					mrpd_log_timer_event("MSRP",
 							     MRP_EVENT_LVTIMER);
 					msrp_event(MRP_EVENT_LVTIMER, NULL);
 					}
-				if (FD_ISSET(MSRP_db->mrp_db.join_timer, &sel_fds)) {
+				if FD_ISSET
+					(MSRP_db->mrp_db.join_timer, &sel_fds) {
 					mrpd_log_timer_event("MSRP",
 							     MRP_EVENT_TX);
 					msrp_event(MRP_EVENT_TX, NULL);
