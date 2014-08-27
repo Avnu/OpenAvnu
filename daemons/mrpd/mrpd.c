@@ -213,8 +213,10 @@ int init_local_ctl(void)
 
 	rc = bind(sock_fd, (struct sockaddr *)&addr, addr_len);
 
-	if (rc < 0)
+	if (rc < 0) {
+		fprintf(stderr, "%s - Error on bind %s", __FUNCTION__, strerror(errno));
 		goto out;
+	}
 
 	control_socket = sock_fd;
 
@@ -397,7 +399,22 @@ int mrpd_recvmsgbuf(int sock, char **buf)
 	msg.msg_namelen = sizeof(client_addr);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-	bytes = recvmsg(sock, &msg, 0);
+	/* Non-blocking sockets. */
+	bytes = recvmsg(sock, &msg, MSG_DONTWAIT);
+
+	if (bytes < 0) {
+#if LOG_ERRORS
+		fprintf(stderr, "recvmsg sock %d: %s\r\n", sock, strerror(errno));
+#endif
+		return (-1);
+	}
+	else if (bytes == 0) {
+#if LOG_ERRORS
+		fprintf(stderr, "Closed socket!\r\n");
+#endif
+		return(-1);
+	}
+
 	return bytes;
 }
 
@@ -452,6 +469,7 @@ mrpd_init_protocol_socket(u_int16_t etype, int *sock,
 
 	rc = bind(lsock, (struct sockaddr *)&addr, sizeof(addr));
 	if (0 != rc) {
+		fprintf(stderr, "%s - Error on bind %s", __FUNCTION__, strerror(errno));
 		close(lsock);
 		return -1;
 	}
@@ -641,91 +659,80 @@ void process_events(void)
 		max_fd = gc_timer;
 
 	do {
-
 		sel_fds = fds;
 		rc = select(max_fd + 1, &sel_fds, NULL, NULL, NULL);
 
-		if (-1 == rc)
+		if (-1 == rc) {
+			fprintf(stderr, "Error on select %s\r\n", strerror(errno));
 			return;	/* exit on error */
+		}
 		else {
 			if (FD_ISSET(control_socket, &sel_fds))
 				recv_ctl_msg();
 			if (mmrp_enable) {
-				if FD_ISSET
-					(mmrp_socket, &sel_fds) {
+				if (FD_ISSET(mmrp_socket, &sel_fds)) {
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
 					mrpd_log_printf("== EVENT mmrp_recv_msg ==\n");
 #endif
 					mmrp_recv_msg();
 					}
-				if FD_ISSET
-					(MMRP_db->mrp_db.lva_timer, &sel_fds) {
+				if (FD_ISSET(MMRP_db->mrp_db.lva_timer, &sel_fds)) {
 					mrpd_log_timer_event("MMRP",
 							     MRP_EVENT_LVATIMER);
 					mmrp_event(MRP_EVENT_LVATIMER, NULL);
 					}
-				if FD_ISSET
-					(MMRP_db->mrp_db.lv_timer, &sel_fds) {
+				if (FD_ISSET(MMRP_db->mrp_db.lv_timer, &sel_fds)) {
 					mrpd_log_timer_event("MMRP",
 							     MRP_EVENT_LVTIMER);
 					mmrp_event(MRP_EVENT_LVTIMER, NULL);
 					}
-				if FD_ISSET
-					(MMRP_db->mrp_db.join_timer, &sel_fds) {
+				if (FD_ISSET(MMRP_db->mrp_db.join_timer, &sel_fds)) {
 					mrpd_log_timer_event("MMRP",
 							     MRP_EVENT_TX);
 					mmrp_event(MRP_EVENT_TX, NULL);
 					}
 			}
 			if (mvrp_enable) {
-				if FD_ISSET
-					(mvrp_socket, &sel_fds) {
+				if (FD_ISSET(mvrp_socket, &sel_fds)) {
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
 					mrpd_log_printf("== EVENT mvrp_recv_msg ==\n");
 #endif
 					mvrp_recv_msg();
 					}
-				if FD_ISSET
-					(MVRP_db->mrp_db.lva_timer, &sel_fds) {
+				if (FD_ISSET(MVRP_db->mrp_db.lva_timer, &sel_fds)) {
 					mrpd_log_timer_event("MVRP",
 							     MRP_EVENT_LVATIMER);
 					mvrp_event(MRP_EVENT_LVATIMER, NULL);
 					}
-				if FD_ISSET
-					(MVRP_db->mrp_db.lv_timer, &sel_fds) {
+				if (FD_ISSET(MVRP_db->mrp_db.lv_timer, &sel_fds)) {
 					mrpd_log_timer_event("MVRP",
 							     MRP_EVENT_LVTIMER);
 					mvrp_event(MRP_EVENT_LVTIMER, NULL);
 					}
-				if FD_ISSET
-					(MVRP_db->mrp_db.join_timer, &sel_fds) {
+				if (FD_ISSET(MVRP_db->mrp_db.join_timer, &sel_fds)) {
 					mrpd_log_timer_event("MVRP",
 							     MRP_EVENT_TX);
 					mvrp_event(MRP_EVENT_TX, NULL);
 					}
 			}
 			if (msrp_enable) {
-				if FD_ISSET
-					(msrp_socket, &sel_fds) {
+				if (FD_ISSET(msrp_socket, &sel_fds)) {
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
 					mrpd_log_printf("== EVENT msrp_recv_msg ==\n");
 #endif
 					msrp_recv_msg();
 				}
-				if FD_ISSET
-					(MSRP_db->mrp_db.lva_timer, &sel_fds) {
+				if (FD_ISSET(MSRP_db->mrp_db.lva_timer, &sel_fds)) {
 					mrpd_log_timer_event("MSRP",
 							     MRP_EVENT_LVATIMER);
 					msrp_event(MRP_EVENT_LVATIMER, NULL);
 					}
-				if FD_ISSET
-					(MSRP_db->mrp_db.lv_timer, &sel_fds) {
+				if (FD_ISSET(MSRP_db->mrp_db.lv_timer, &sel_fds)) {
 					mrpd_log_timer_event("MSRP",
 							     MRP_EVENT_LVTIMER);
 					msrp_event(MRP_EVENT_LVTIMER, NULL);
 					}
-				if FD_ISSET
-					(MSRP_db->mrp_db.join_timer, &sel_fds) {
+				if (FD_ISSET(MSRP_db->mrp_db.join_timer, &sel_fds)) {
 					mrpd_log_timer_event("MSRP",
 							     MRP_EVENT_TX);
 					msrp_event(MRP_EVENT_TX, NULL);

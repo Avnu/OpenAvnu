@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <errno.h>
 
 #include "parse.h"
 #include "mrpd.h"
@@ -2632,8 +2633,10 @@ int msrp_txpdu(void)
 #if LOG_MSRP
 	mrpd_log_printf("MSRP send PDU\n");
 #endif
-	if (bytes <= 0)
+	if (bytes <= 0) {
+		fprintf(stderr, "%s - Error on send %s", __FUNCTION__, strerror(errno));
 		goto out;
+	}
 
 	free(msgbuf);
 	return 0;
