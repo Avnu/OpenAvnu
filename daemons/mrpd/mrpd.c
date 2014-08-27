@@ -659,6 +659,7 @@ void process_events(void)
 		max_fd = gc_timer;
 
 	do {
+
 		sel_fds = fds;
 		rc = select(max_fd + 1, &sel_fds, NULL, NULL, NULL);
 
@@ -667,8 +668,7 @@ void process_events(void)
 			return;	/* exit on error */
 		}
 		else {
-			if FD_ISSET
-				(control_socket, &sel_fds)
+			if (FD_ISSET(control_socket, &sel_fds))
 				recv_ctl_msg();
 			if (mmrp_enable) {
 				if FD_ISSET
@@ -699,7 +699,7 @@ void process_events(void)
 			}
 			if (mvrp_enable) {
 				if FD_ISSET
-						(mvrp_socket, &sel_fds) {
+					(mvrp_socket, &sel_fds) {
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_TIMERS
 					mrpd_log_printf("== EVENT mvrp_recv_msg ==\n");
 #endif
