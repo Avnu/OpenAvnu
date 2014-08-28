@@ -1347,7 +1347,9 @@ int mmrp_txpdu(void)
 	mrpd_log_printf("MMRP send PDU\n");
 #endif
 	if (bytes <= 0) {
+#if LOG_ERRORS
 		fprintf(stderr, "%s - Error on send %s", __FUNCTION__, strerror(errno));
+#endif
 		goto out;
 	}
 
