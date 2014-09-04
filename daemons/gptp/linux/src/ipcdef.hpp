@@ -34,6 +34,7 @@
 #ifndef IPCDEF_HPP
 #define IPCDEF_HPP
 
+#include <sys/types.h>
 #include <ptptypes.hpp>
 
 typedef enum {
