@@ -404,11 +404,11 @@ int mrpd_recvmsgbuf(int sock, char **buf)
 	/* Non-blocking sockets. */
 	bytes = recvmsg(sock, &msg, MSG_DONTWAIT);
 
-	if (bytes < 0) {
+	if ( (bytes < 0) && (errno != EAGAIN) ) {
 #if LOG_ERRORS
 		fprintf(stderr, "recvmsg sock %d: %s\r\n", sock, strerror(errno));
 #endif
-		return (-1);
+		return(-1);
 	}
 	else if (bytes == 0) {
 #if LOG_ERRORS
