@@ -605,6 +605,13 @@ int mvrp_recv_msg(void)
 			break;
 		default:
 			/*
+			 * If protocol version is 0, but attribute type is unknown, we have
+			 * a malformed PDU, so terminate parsing.
+			 */
+			if (MVRP_PROT_VER == mrpdu->ProtocolVersion)
+				goto out;
+
+			/*
 			 * Try to parse unknown message type.
 			 */
 			mrpdu_vectorptr =
