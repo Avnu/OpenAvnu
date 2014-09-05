@@ -2634,7 +2634,7 @@ int msrp_txpdu(void)
 	mrpd_log_printf("MSRP send PDU\n");
 #endif
 	if (bytes <= 0) {
-#if LOG_ERRORS
+#if LOG_LINUX_ERROR
 		fprintf(stderr, "%s - Error on send %s", __FUNCTION__, strerror(errno));
 #endif
 		goto out;
