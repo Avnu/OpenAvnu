@@ -1,17 +1,17 @@
+
+.. image:: avnu_logo.png
+
 Open AVB
 ========
-maintainer: eric.mann AT intel.com
 
-Intel created the Open AVB repository to encourage collaborative source code 
-development for AVB technology enabling. By publishing the source code, our 
-intent is to encourage standardization, stability and inter-operability between 
-multiple vendors. This repository - created by the Intel LAN Access Division - 
-is open for contributions from other vendors. The repository contains primarily 
-network building block components - drivers, libraries, example applications 
-and daemon source code - required to build an AVB system. It is planned to 
-eventually include the various packet encapsulation types, protocol discovery 
-daemons, libraries to convert media clocks to AVB clocks (and vice 
-versa), and drivers.
+The Open AVB project is sponsored by the AVnu Alliance.
+
+The intent is to provide components for building AVB systems. The repository
+contains primarily network building block components - drivers, libraries,
+\example applications  and daemon source code - required to build an AVB system.
+It is planned to eventually include the various packet encapsulation types,
+protocol discovery daemons, libraries to convert media clocks to AVB clocks
+and vice versa), and drivers.
 
 This repository does not include all components required to build a full 
 production AVB system (e.g. a turnkey solution to stream stored or live audio 
@@ -23,6 +23,15 @@ solutions.
 
 For more information about AVB, see also the AVnu Alliance webpage at
 www.avnu.org.
+
+BACKGROUND
+===========
+
+Intel created the Open AVB repository to encourage collaborative source code 
+development for AVB technology enabling. By publishing the source code, our 
+intent is to encourage standardization, stability and inter-operability between 
+multiple vendors. This repository - created by the Intel LAN Access Division - 
+is open for contributions from other vendors. 
 
 LICENSING AND CONTRIBUTION GUIDELINES
 ======================================
