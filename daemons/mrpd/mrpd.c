@@ -213,8 +213,12 @@ int init_local_ctl(void)
 
 	rc = bind(sock_fd, (struct sockaddr *)&addr, addr_len);
 
-	if (rc < 0)
+	if (rc < 0) {
+#if LOG_ERRORS
+		fprintf(stderr, "%s - Error on bind %s", __FUNCTION__, strerror(errno));
+#endif
 		goto out;
+	}
 
 	control_socket = sock_fd;
 
@@ -397,7 +401,22 @@ int mrpd_recvmsgbuf(int sock, char **buf)
 	msg.msg_namelen = sizeof(client_addr);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-	bytes = recvmsg(sock, &msg, 0);
+	/* Non-blocking sockets. */
+	bytes = recvmsg(sock, &msg, MSG_DONTWAIT);
+
+	if ( (bytes < 0) && (errno != EAGAIN) ) {
+#if LOG_ERRORS
+		fprintf(stderr, "recvmsg sock %d: %s\r\n", sock, strerror(errno));
+#endif
+		return(-1);
+	}
+	else if (bytes == 0) {
+#if LOG_ERRORS
+		fprintf(stderr, "Closed socket!\r\n");
+#endif
+		return(-1);
+	}
+
 	return bytes;
 }
 
@@ -452,6 +471,9 @@ mrpd_init_protocol_socket(u_int16_t etype, int *sock,
 
 	rc = bind(lsock, (struct sockaddr *)&addr, sizeof(addr));
 	if (0 != rc) {
+#if LOG_ERRORS
+		fprintf(stderr, "%s - Error on bind %s", __FUNCTION__, strerror(errno));
+#endif
 		close(lsock);
 		return -1;
 	}
@@ -645,8 +667,12 @@ void process_events(void)
 		sel_fds = fds;
 		rc = select(max_fd + 1, &sel_fds, NULL, NULL, NULL);
 
-		if (-1 == rc)
+		if (-1 == rc) {
+#if LOG_ERRORS
+			fprintf(stderr, "Error on select %s\r\n", strerror(errno));
+#endif
 			return;	/* exit on error */
+		}
 		else {
 			if (FD_ISSET(control_socket, &sel_fds))
 				recv_ctl_msg();

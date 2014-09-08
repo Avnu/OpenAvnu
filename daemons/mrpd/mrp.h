@@ -42,6 +42,7 @@
 #define LOG_TXNOW 0
 #define LOG_CLIENT_RECV 0
 #define LOG_CLIENT_SEND 0
+#define LOG_ERRORS	0
 
 #define MRP_DEFAULT_POINT_TO_POINT_MAC	1	/* operPointToPointMAC */
 #define MRP_ENCODE_YES		0	/* must send */

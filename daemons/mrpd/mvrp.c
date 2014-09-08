@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <errno.h>
 
 #include "mrpd.h"
 #include "mrp.h"
@@ -916,8 +917,12 @@ int mvrp_txpdu(void)
 #if LOG_MVRP
 	mrpd_log_printf("MVRP send PDU\n");
 #endif
-	if (bytes <= 0)
+	if (bytes <= 0) {
+#if LOG_ERRORS
+		fprintf(stderr, "%s - Error on send %s", __FUNCTION__, strerror(errno));
+#endif
 		goto out;
+	}
 
 	free(msgbuf);
 	return 0;
