@@ -40,19 +40,13 @@
 import math
 import scapy.all as s
 
-usage = """avtp_astimes.py [options] input.libpcap output.csv
+usage = """avtp_astimes.py [options] input.libpcap
 
 This script extracts AVTP packet timestamps and writes them
 in a text file for later processing. Timestamps are modified
 so as to be always incrementing (ie the 4s wrap is removed).
 
 """
-
-
-wraps = 0
-prev_pkt_ts = 0
-ts_count = 0
-seq = {}
 
 class AVTP(s.Packet):
 	name = "AVTP"
@@ -79,88 +73,110 @@ class AVTP(s.Packet):
 	]
 s.bind_layers(s.Ether, AVTP, type=0x22f0)
 
-def pkt_avtp(pkt, fout, pkt_count):
-	global wraps, prev_pkt_ts, ts_count, ts_accum, seq
+def pkt_avtp(pkt, fout, pkt_count, info):
 	
 	n = 0
 	avtp = pkt[AVTP]
-	if avtp.controlData == 0x0:
-		if seq['init'] == False:
-			seq['last'] = avtp.sequence
-			seq['init'] = True
+	if info['seq']['init'] == False:
+		info['seq']['last'] = avtp.sequence
+		info['seq']['init'] = True
+	else:
+		if avtp.sequence < info['seq']['last']:
+			if avtp.sequence != 0:
+				print "Sequence wrap error at packet number %d" % (pkt_count)
 		else:
-			if avtp.sequence < seq['last']:
-				if avtp.sequence != 0:
-					print "Sequence wrap error at packet number %d" % (pkt_count)
+			if avtp.sequence - info['seq']['last'] != 1:
+				print "Sequence error at packet number %d (MAC %s)" % (pkt_count, info['this_mac'])
+		info['seq']['last'] = avtp.sequence
+			
+	if avtp.flags == 0x81:
+		if info['ts_count'] == 0:
+			info['ts_accum'] = avtp.ptpTimestamp
+		else:
+			if avtp.ptpTimestamp > info['prev_pkt_ts']:
+				ts_delta = avtp.ptpTimestamp - info['prev_pkt_ts']
 			else:
-				if avtp.sequence - seq['last'] != 1:
-					print "Sequence error at packet number %d" % (pkt_count)
-			seq['last'] = avtp.sequence
-				
-		if avtp.flags == 0x81:
-			if ts_count == 0:
-				ts_accum = avtp.ptpTimestamp
-			else:
-				if avtp.ptpTimestamp > prev_pkt_ts:
-					ts_delta = avtp.ptpTimestamp - prev_pkt_ts
-				else:
-					ts_delta = avtp.ptpTimestamp + 0x100000000 - prev_pkt_ts
-				ts_accum = ts_accum + ts_delta
-				fout.write("%d, %d\n" % (ts_count, ts_accum))
-				n = 1
-			prev_pkt_ts = avtp.ptpTimestamp
-			ts_count = ts_count + 1
+				ts_delta = avtp.ptpTimestamp + 0x100000000 - info['prev_pkt_ts']
+			info['ts_accum'] = info['ts_accum'] + ts_delta
+			fout.write("%d, %d\n" % (info['ts_count'], info['ts_accum']))
+			n = 1
+		info['prev_pkt_ts'] = avtp.ptpTimestamp
+		info['ts_count'] = info['ts_count'] + 1
 	return n
 
-def main(count, input_cap, output_txt, mac_filter):
-	mac_counts = {}
+def main(count, input_cap):
+	mac_data = {}
+	n_avtp_streams = 0
+	foutput = []
 	pkt_count = 0
-	seq['last'] = 0
-	seq['init'] = False
+	ts_good = 0
 	capture = s.rdpcap(input_cap)
-	foutput = open(output_txt, 'wt')
 	for pkt in capture:
 		n = 0;
 		pkt_count += 1
 		try:
-			if pkt[s.Ether].dst in mac_counts:
-				mac_counts[pkt[s.Ether].dst] = mac_counts[pkt[s.Ether].dst] + 1
-			else:
-				mac_counts[pkt[s.Ether].dst] = 1
-
 			# Deal with AVTP packets
-			if (pkt[s.Ether].type == 0x22f0 or
-				(pkt[s.Ether].type == 0x8100 and pkt[s.Dot1Q].type == 0x22f0)):
-				# look for the requested MAC
-				if pkt[s.Ether].dst == mac_filter:
-					n = pkt_avtp(pkt, foutput, pkt_count)
+			if (pkt[s.Ether].type == 0x8100 and pkt[s.Dot1Q].type == 0x22f0):
+				avtp = pkt[AVTP]
+				if avtp.controlData == 0x0:
+					if pkt[s.Ether].dst in mac_data:
+						mac_data[pkt[s.Ether].dst]['avtp_count'] = mac_data[pkt[s.Ether].dst]['avtp_count'] + 1
+					else:
+						print "Packet %d, found AVTP stream with destination MAC %s" % (pkt_count, pkt[s.Ether].dst)
+						mac_data[pkt[s.Ether].dst] = {}
+						mac_data[pkt[s.Ether].dst]['this_mac'] = pkt[s.Ether].dst
+						mac_data[pkt[s.Ether].dst]['avtp_count'] = 1
+						mac_data[pkt[s.Ether].dst]['fname'] = 'seq%d.csv' % n_avtp_streams
+						mac_data[pkt[s.Ether].dst]['fout'] = open(mac_data[pkt[s.Ether].dst]['fname'], 'wt')
+						mac_data[pkt[s.Ether].dst]['seq'] = {}
+						mac_data[pkt[s.Ether].dst]['seq']['last'] = 0
+						mac_data[pkt[s.Ether].dst]['seq']['init'] = False
+						mac_data[pkt[s.Ether].dst]['wraps'] = 0
+						mac_data[pkt[s.Ether].dst]['prev_pkt_ts'] = 0
+						mac_data[pkt[s.Ether].dst]['ts_count'] = 0
+						mac_data[pkt[s.Ether].dst]['ts_accum'] = 0
+						mac_data[pkt[s.Ether].dst]['ts_uncertain_count'] = 0
+						n_avtp_streams = n_avtp_streams + 1
+					
+					if avtp.timestampUncertain:
+						ts_good = 0
+						mac_data[pkt[s.Ether].dst]['ts_uncertain_count'] = mac_data[pkt[s.Ether].dst]['ts_uncertain_count'] + 1
+					else:
+						ts_good = ts_good + 1
+
+					# when we have 2 MACs, process the packet
+					if n_avtp_streams == 2 and ts_good > 2:
+						if mac_data[pkt[s.Ether].dst]['ts_count'] == 0:
+							print "At packet %d start unpacking AVTP dest MAC %s" % (pkt_count, pkt[s.Ether].dst)
+						n = pkt_avtp(pkt, mac_data[pkt[s.Ether].dst]['fout'], pkt_count, mac_data[pkt[s.Ether].dst])
 		except IndexError:
-			print "Unknown ethernet type"
+			print "Unknown ethernet type packet %d" % pkt_count
 		count = count - n
 		if count == 0:
 			break
-	foutput.close();
+	for k, v in mac_data.items():
+		v['fout'].close();
+		print "MAC %s %d AVTP timestamps stored to %s" % (k, v['ts_count'], v['fname'])
+		print "         Timestamp uncertain count: %d" % v['ts_uncertain_count']
+
 	if count != 0:
-		print "Could not find the specified MAC, or MAC count"
-		print "Mac counts"
-		print mac_counts
+		print "Could not find the specified packets counts"
+	
 	print "Complete"
 
 if __name__ == "__main__":
 	from optparse import OptionParser
 	
 	parser = OptionParser(usage = usage)
-	parser.add_option('-m','--mac',type='string',dest='dst_mac',
-			help='Destination MAC address of the AVTP stream', default=None)
 	parser.add_option('-c','--count',type='int',dest='count',
 	                  help='Number of 802.1AS timestamps to extract. Default=%default', default=100)
 			
 	opts,args = parser.parse_args()
 	
-	print "Search for %d timestamped AVTP packets sent to dst MAC %s" % (opts.count, opts.dst_mac)
+	print "Search for %d timestamped AVTP packets" % (opts.count)
 	
 	if len(args) == 0:
 		parser.print_usage()
 		exit()
 	
-	main(opts.count, args[0], args[1], opts.dst_mac)
+	main(opts.count * 2, args[0])
