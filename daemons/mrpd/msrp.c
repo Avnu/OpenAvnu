@@ -1042,7 +1042,7 @@ int msrp_recv_msg()
 					goto out;
 
 				if (NULL == listener_vectevt) {
-					listener_vectevt_sz = 64;;
+					listener_vectevt_sz = 64;
 					listener_vectevt =
 					    (int *)malloc(listener_vectevt_sz *
 							  sizeof(int));
