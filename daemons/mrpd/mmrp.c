@@ -304,7 +304,7 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 					  MRP_EVENT_PERIODIC,
 					  mrp_registrar_in(&(attrib->registrar)));
 #if LOG_MMRP
-			//mvrp_print_debug_info(event, attrib);
+			mmrp_print_debug_info(event, attrib);
 #endif
 			attrib = attrib->next;
 		}
