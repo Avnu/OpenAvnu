@@ -85,6 +85,8 @@ char *msgbuf;
 #define ACCUMULATED_LATENCY      "1000"
 #define SR_CLASS_ID              "6"
 #define SR_CLASS_PRIORITY        "3"
+#define BRIDGE_ID                "BADC0FFEEC0FFEE0"
+#define FAILURE_CODE             "1"
 
 int
 process_ctl_msg(char *buf, int buflen)
@@ -229,6 +231,42 @@ fnSquestionquestion(void) {
 	return 0;
 }
 
+/******************************************************************
+ * MSRP Talker Failed functions:
+ *  S++...B=...C=... Declare a Talker Failed for Stream w/New
+ *  S+?...B=...C=... Declare a Talker Failed for Stream w/JoinMt
+ *  these are the same format as the Talker Advertise string with the
+ *  addition of a bridge ID and a failure code at the end of the
+ *  string.
+ ******************************************************************/
+int
+fnSTFplusplus(void) {
+#define STF_PLUS_PLUS "S++:S=" STREAM_ID \
+                     ",A=" STREAM_DA \
+                     ",V=" VLAN_ID \
+                     ",Z=" TSPEC_MAX_FRAME_SIZE \
+                     ",I=" TSPEC_MAX_FRAME_INTERVAL \
+                     ",P=" PRIORITY_AND_RANK \
+                     ",L=" ACCUMULATED_LATENCY \
+                     ",B=" BRIDGE_ID \
+                     ",C=" FAILURE_CODE
+	return (mprdclient_sendto(STF_PLUS_PLUS, sizeof(STF_PLUS_PLUS)));
+}
+
+int
+fnSTFplusquestion(void) {
+#define STF_PLUS_QUESTION "S+?:S=" STREAM_ID \
+                         ",A=" STREAM_DA \
+                         ",V=" VLAN_ID \
+                         ",Z=" TSPEC_MAX_FRAME_SIZE \
+                         ",I=" TSPEC_MAX_FRAME_INTERVAL \
+                         ",P=" PRIORITY_AND_RANK \
+                         ",L=" ACCUMULATED_LATENCY \
+                         ",B=" BRIDGE_ID \
+                         ",C=" FAILURE_CODE
+	return (mprdclient_sendto(STF_PLUS_QUESTION, sizeof(STF_PLUS_QUESTION)));
+}
+
 
 //-------------------------------------------
 // MSRP Listener functions:
@@ -331,7 +369,10 @@ struct menu_option menu[] = {
 	{"S++",  "Declare a Talker Advertise (NEW)",     fnSTplusplus},
 	{"S+?",  "Declare a Talker Advertise (JOIN)",    fnSTplusquestion},
 	{"S--",  "Withdraw a Talker Advertise (LEAVE)",  fnSTminusminus},
-	{"S??",  "Dump the Talker Advertise table",      fnSquestionquestion},
+	{"S??",  "Dump the MSRP table",                  fnSquestionquestion},
+	{"   ",  "", 0},
+	{"SF++", "Declare a Talker Failed (NEW)",        fnSTFplusplus},
+	{"SF+?", "Declare a Talker Failed (JOIN)",       fnSTFplusquestion},
 	{"   ",  "", 0},
 	{"S+L",  "Declare a Listener Ready (NEW)",       fnSLplusplus},
 	{"S-L",  "Withdraw a Listener Ready (LEAVE)",    fnSLminusminus},

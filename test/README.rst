@@ -19,11 +19,10 @@ timestamp sequences.
 
 The below operation
 ::
-   $python avtp_astimes.py -c 60000 -m 91:e0:f0:00:15:20 capture.libpcap a.csv
-   $python avtp_astimes.py -c 60000 -m 91:e0:f0:00:35:80 capture.libpcap b.csv
+   $python avtp_astimes.py -c 60000 capture.libpcap
 
 extracts 60,000 AS presentation times from capture.libpcap and stores the times
-in a.csv and b.csv. Recall that for an AVB stream running with a 48 kHz sample
+in seq0.csv and seq1.csv. Recall that for an AVB stream running with a 48 kHz sample
 rate, AS timestamps are inserted every 8 samples, making 6,000 AS timestamps
 per second. The count of 60000 timestamps would therefore correspond to 10 seconds
 of audio. The -m option specifies the destination multicast MAC that the AVB stream
@@ -47,7 +46,7 @@ and output the difference in slope and y intercept between the two lines.
 
 The below operation
 ::
-   $python avtp_fitline.py -c 60000 a.csv b.csv
+   $python avtp_fitline.py -c 60000 seq0.csv seq1.csv
    
 Fits lines to the a.csv AS presentation sequence and the b.csv presentation time
 sequence. The first 60,000 AS presentation times are used for both lines.
