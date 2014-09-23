@@ -453,7 +453,10 @@ int mrpdhelper_to_string(struct mrpdhelper_notify *mrpd_data,
 		break;
 	}
 
-	szAppState = mrp_app_state_mapping[mrpd_data->app_state].s;
+	if (mrpd_data->app_state < MRPD_N_APP_STATE_STRINGS)
+		szAppState = mrp_app_state_mapping[mrpd_data->app_state].s;
+	else
+		szAppState = mrp_app_state_mapping[0].s;
 
 	status = snprintf(szString, 128, "R=%" SCNx64 " %s,%s,%s",
 		mrpd_data->registrar,
