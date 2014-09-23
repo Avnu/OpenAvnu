@@ -3021,7 +3021,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			attrib->attribute.talk_listen.FailureInformation.
 			BridgeID[7],
 			attrib->attribute.talk_listen.FailureInformation.
-			FailureCode);		
+			FailureCode);
 	}
 
 	snprintf(regsrc, sub_str_len - 1, "R=%02x%02x%02x%02x%02x%02x",
