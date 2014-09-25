@@ -36,7 +36,7 @@
 #define LOG_MVRP 0
 #define LOG_MMRP 0
 #define LOG_MSRP 0
-#define LOG_MSRP_FILTERING 0
+#define LOG_POLL_EVENTS 0
 #define LOG_TIMERS 0
 #define LOG_MSRP_GARBAGE_COLLECTION 0
 #define LOG_TXNOW 0
@@ -53,6 +53,7 @@ typedef struct mrp_applicant_attribute {
 	int tx;			/* tx=1 means transmit on next TX event */
 	int sndmsg;		/* sndmsg={NEW,IN,JOININ,JOINMT,MT, or LV} */
 	int encode;		/* when tx=1, NO, YES or OPTIONAL */
+	int mrp_previous_state; /* for identifying state transitions */
 } mrp_applicant_attribute_t;
 
 typedef struct mrp_registrar_attribute {
@@ -60,6 +61,9 @@ typedef struct mrp_registrar_attribute {
 	int notify;
 	short rsvd;
 	unsigned char macaddr[6];	/* mac address of last registration */
+#ifdef LOG_MRP
+	int mrp_previous_state; /* for identifying state transitions for debug */
+#endif
 } mrp_registrar_attribute_t;
 
 /* MRP Application Notifications */
@@ -126,7 +130,11 @@ typedef struct mrp_registrar_attribute {
 
 /* timer defaults from 802.1Q-2011, Table 10-7 */
 
-#define MRP_JOINTIMER_VAL	200	/* join timeout in msec */
+/*
+ * Join timer may only "fire" 3 times in 300 msec. Default timeout is 200 msec.
+ * Here we use 100 msec, or 300/3 msec.
+ */
+#define MRP_JOINTIMER_VAL	100	/* join timeout in msec */
 #define MRP_LVTIMER_VAL		1000	/* leave timeout in msec */
 #define MRP_LVATIMER_VAL	10000	/* leaveall timeout in msec */
 #define MRP_PERIODTIMER_VAL	1000	/* periodic timeout in msec */
@@ -136,6 +144,10 @@ typedef struct mrp_timer {
 	int tx;			/* tx=1 means transmit on next TX event */
 	int sndmsg;		/* sndmsg={NEW,JOIN,or LV}  */
 } mrp_timer_t;
+
+typedef struct mrp_periodictimer_state {
+	int state;
+} mrp_periodictimer_state_t;
 
 #define MRP_TIMER_PASSIVE	0
 #define MRP_TIMER_ACTIVE	1
@@ -169,16 +181,16 @@ typedef struct mrpdu_vectorattrib {
 } mrpdu_vectorattrib_t;
 
 #define MRPDU_VECT_NUMVALUES(x)	((x) & ((1 << 13) - 1))
-#define MRPDU_VECT_LVA(x)	((x) & (1 << 13))
+#define MRPDU_VECT_LVA(x)	(((x) & (7 << 13)) == (1 << 13))
+#define MRPDU_VECT_LVA_FLAG	(1 << 13)
 
-typedef struct client {
-	struct client *next;
+typedef struct client_s {
+	struct client_s *next;
 	struct sockaddr_in client;
 } client_t;
 
 struct mrp_database {
 	mrp_timer_t lva;
-	mrp_timer_t periodic;
 	HTIMER join_timer;
 	int join_timer_running;
 	HTIMER lv_timer;
@@ -195,6 +207,9 @@ int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient);
 
 int mrp_init(void);
 char *mrp_event_string(int e);
+int mrp_periodictimer_start();
+int mrp_periodictimer_stop();
+int mrp_periodictimer_fsm(struct mrp_periodictimer_state *periodic_state, int event);
 int mrp_jointimer_stop(struct mrp_database *mrp_db);
 int mrp_jointimer_start(struct mrp_database *mrp_db);
 int mrp_lvtimer_start(struct mrp_database *mrp_db);
@@ -203,15 +218,20 @@ int mrp_lvatimer_start(struct mrp_database *mrp_db);
 int mrp_lvatimer_stop(struct mrp_database *mrp_db);
 int mrp_lvatimer_fsm(struct mrp_database *mrp_db, int event);
 int mrp_applicant_fsm(struct mrp_database *mrp_db,
-		      mrp_applicant_attribute_t * attrib, int event);
+		      mrp_applicant_attribute_t * attrib, int event, int in_flag);
 int mrp_registrar_fsm(mrp_registrar_attribute_t * attrib,
 		      struct mrp_database *mrp_db, int event);
+int mrp_registrar_in(mrp_registrar_attribute_t * attrib);
 int mrp_decode_state(mrp_registrar_attribute_t * rattrib,
 		     mrp_applicant_attribute_t * aattrib, char *str,
 		     int strlen);
+int mrp_applicant_state_transition_implies_tx(mrp_applicant_attribute_t * attrib);
 void mrp_schedule_tx_event(struct mrp_database *mrp_db);
 
 #if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
-int mrp_log_this(void);
-void mrp_set_log_this(int v);
+char *mrp_event_string(int e);
+char *mrp_send_string(int s);
+char *mrp_pdu_string(int s);
+char *mrp_print_status(const mrp_applicant_attribute_t * app,
+		       const mrp_registrar_attribute_t * reg);
 #endif
