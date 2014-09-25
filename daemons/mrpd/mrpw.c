@@ -146,10 +146,9 @@ struct netif *netif_open(int timeout_ms)
 	int inum = 0;
 	int i = 0, total_interfaces = 0;
 	struct netif *netif;
-	IP_ADAPTER_INFO *AdapterInfo;
-	IP_ADAPTER_INFO *Current;
-	ULONG AIS;
-	DWORD status;
+	PIP_ADAPTER_INFO AdapterInfo;
+	PIP_ADAPTER_INFO Current;
+	DWORD status, size;
 
 	netif = (struct netif *)calloc(1, sizeof(struct netif));
 
@@ -207,11 +206,14 @@ struct netif *netif_open(int timeout_ms)
 	}
 
 	/* lookup ip address */
-	AdapterInfo =
-	    (IP_ADAPTER_INFO *) calloc(total_interfaces,
-				       sizeof(IP_ADAPTER_INFO));
-	AIS = sizeof(IP_ADAPTER_INFO) * total_interfaces;
-	status = GetAdaptersInfo(AdapterInfo, &AIS);
+
+	/* first, call to lookup the size */
+	status = GetAdaptersInfo(NULL, &size);
+	if (status != ERROR_BUFFER_OVERFLOW)
+		goto error_return;
+	AdapterInfo = (PIP_ADAPTER_INFO)malloc(size);
+
+	status = GetAdaptersInfo(AdapterInfo, &size);
 	if (status != ERROR_SUCCESS) {
 		fprintf(stderr,
 			"\nError, GetAdaptersInfo() call in netif_win32_pcap.c failed\n");
@@ -221,15 +223,7 @@ struct netif *netif_open(int timeout_ms)
 
 	for (Current = AdapterInfo; Current != NULL; Current = Current->Next) {
 		if (strstr(netif->d->name, Current->AdapterName) != 0) {
-			uint32_t my_ip;
-			ULONG len;
-			uint8_t tmp[16];
-
-			my_ip =
-			    inet_addr(Current->IpAddressList.IpAddress.String);
-			len = sizeof(tmp);
-			SendARP(my_ip, INADDR_ANY, tmp, &len);
-			memcpy(netif->mac, &tmp[0], sizeof(netif->mac));
+			memcpy(netif->mac, &Current->Address, sizeof(netif->mac));
 		}
 	}
 	free(AdapterInfo);

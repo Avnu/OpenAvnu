@@ -47,6 +47,10 @@ and parses them into a machine readable structure.
 #define SCNx64       "I64x"
 #endif
 
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
+
 #include "mrpdhelper.h"
 
 #define MRPD_N_APP_STATE_STRINGS 13
@@ -182,9 +186,10 @@ static int parse_msrp_string(char *sz, size_t len, struct mrpdhelper_notify *n)
 	sz[len] = 0;
 	switch (sz[0]) {
 	case 'D':
-		result = sscanf(sz, "D:C=%d,P=%d,V=%04x",
-				&n->u.sd.id, &n->u.sd.priority, &n->u.sd.vid);
-		if (result < 3)
+		result = sscanf(sz, "D:C=%d,P=%d,V=%04x,N=%d",
+				&n->u.sd.id, &n->u.sd.priority, &n->u.sd.vid,
+				&n->u.sd.neighbor_priority);
+		if (result < 4)
 			return -1;
 		n->attrib = mrpdhelper_attribtype_msrp_domain;
 		break;
@@ -196,7 +201,31 @@ static int parse_msrp_string(char *sz, size_t len, struct mrpdhelper_notify *n)
 		n->attrib = mrpdhelper_attribtype_msrp_listener;
 		break;
 	case 'T':
-		result = sscanf(sz,
+		/* if no B= (BridgeID), must be talker advertise */
+		if (strstr(sz, ",B=") == NULL)
+		{
+			result = sscanf(sz,
+				"T:S=%" SCNx64
+				",A=%" SCNx64
+				",V=%04x"
+				",Z=%d"
+				",I=%d"
+				",P=%d"
+				",L=%d",
+				&n->u.st.id,
+				&n->u.st.dest_mac,
+				&n->u.st.vid,
+				&n->u.st.max_frame_size,
+				&n->u.st.max_interval_frames,
+				&n->u.st.priority_and_rank,
+				&n->u.st.accum_latency);
+			n->u.st.bridge_id = 0;
+			n->u.st.failure_code  = 0;
+			n->attrib = mrpdhelper_attribtype_msrp_talker;
+			if (result < 7)
+				return -1;
+		} else {
+			result = sscanf(sz,
 				"T:S=%" SCNx64
 				",A=%" SCNx64
 				",V=%04x"
@@ -213,10 +242,12 @@ static int parse_msrp_string(char *sz, size_t len, struct mrpdhelper_notify *n)
 				&n->u.st.max_interval_frames,
 				&n->u.st.priority_and_rank,
 				&n->u.st.accum_latency,
-				&n->u.st.bridge_id, &n->u.st.failure_code);
-		if (result < 9)
-			return -1;
-		n->attrib = mrpdhelper_attribtype_msrp_talker;
+				&n->u.st.bridge_id,
+				&n->u.st.failure_code);
+			n->attrib = mrpdhelper_attribtype_msrp_talker_fail;
+			if (result < 9)
+				return -1;
+		}
 		break;
 	default:
 		return -1;
@@ -261,6 +292,9 @@ static int parse_msrp_query(char *sz, size_t len, struct mrpdhelper_notify *n)
 
 static int parse_mmrp(char *sz, size_t len, struct mrpdhelper_notify *n)
 {
+	if (len < 9)	/* protect against sscanf(&sz[8],...) runaway */
+		return -1;
+
 	if (parse_notification(&sz[1], n) < 0)
 		return -1;
 
@@ -309,9 +343,7 @@ int mrpdhelper_notify_equal(struct mrpdhelper_notify *n1,
 			return 0;
 		break;
 	case mrpdhelper_attribtype_msrp_domain:
-		if ((n1->u.sd.id != n1->u.sd.id) ||
-		    (n1->u.sd.priority != n1->u.sd.priority) ||
-		    (n1->u.sd.vid != n1->u.sd.vid))
+		if (n1->u.sd.id != n2->u.sd.id)
 			return 0;
 		break;
 	case mrpdhelper_attribtype_msrp_talker:
@@ -321,6 +353,51 @@ int mrpdhelper_notify_equal(struct mrpdhelper_notify *n1,
 		break;
 	case mrpdhelper_attribtype_msrp_listener:
 	case mrpdhelper_attribtype_msrp_listener_fail:
+		if (n1->u.sl.id != n2->u.sl.id)
+			return 0;
+		break;
+	default:
+		return 0;
+	}
+	return 1;
+}
+
+int mrpdhelper_notify_mergable(struct mrpdhelper_notify *n1,
+			    struct mrpdhelper_notify *n2)
+{
+
+	switch (n1->attrib) {
+	case mrpdhelper_attribtype_mmrp:
+		if (n1->attrib != n2->attrib)
+			return 0;
+		if (n1->u.m.mac != n2->u.m.mac)
+			return 0;
+		break;
+	case mrpdhelper_attribtype_mvrp:
+		if (n1->attrib != n2->attrib)
+			return 0;
+		if (n1->u.v.vid != n2->u.v.vid)
+			return 0;
+		break;
+	case mrpdhelper_attribtype_msrp_domain:
+		if (n1->attrib != n2->attrib)
+			return 0;
+		if (n1->u.sd.id != n2->u.sd.id)
+			return 0;
+		break;
+	case mrpdhelper_attribtype_msrp_talker:
+	case mrpdhelper_attribtype_msrp_talker_fail:
+		if ((n2->attrib != mrpdhelper_attribtype_msrp_talker) &&
+		    (n2->attrib != mrpdhelper_attribtype_msrp_talker_fail))
+			return 0;
+		if (n1->u.st.id != n2->u.st.id)
+			return 0;
+		break;
+	case mrpdhelper_attribtype_msrp_listener:
+	case mrpdhelper_attribtype_msrp_listener_fail:
+		if ((n2->attrib != mrpdhelper_attribtype_msrp_listener) &&
+		    (n2->attrib != mrpdhelper_attribtype_msrp_listener_fail))
+			return 0;
 		if (n1->u.sl.id != n2->u.sl.id)
 			return 0;
 		break;
@@ -376,7 +453,10 @@ int mrpdhelper_to_string(struct mrpdhelper_notify *mrpd_data,
 		break;
 	}
 
-	szAppState = mrp_app_state_mapping[mrpd_data->app_state].s;
+	if (mrpd_data->app_state < MRPD_N_APP_STATE_STRINGS)
+		szAppState = mrp_app_state_mapping[mrpd_data->app_state].s;
+	else
+		szAppState = mrp_app_state_mapping[0].s;
 
 	status = snprintf(szString, 128, "R=%" SCNx64 " %s,%s,%s",
 		mrpd_data->registrar,
@@ -396,13 +476,33 @@ int mrpdhelper_to_string(struct mrpdhelper_notify *mrpd_data,
 			szString);
 		break;
 	case mrpdhelper_attribtype_msrp_domain:
-		status = snprintf(sz, len, "D:C=%d,P=%d,V=0x%04x %s",
+		status = snprintf(sz, len, "D:C=%d,P=%d,V=0x%04x,N=%d %s",
 			mrpd_data->u.sd.id,
 			mrpd_data->u.sd.priority,
 			mrpd_data->u.sd.vid,
+			mrpd_data->u.sd.neighbor_priority,
 			szString);
 		break;
 	case mrpdhelper_attribtype_msrp_talker:
+		status = snprintf(sz, len, "T:S=%" SCNx64
+			",A=%" SCNx64
+			",V=%04x"
+			",Z=%d"
+			",I=%d"
+			",P=%d"
+			",L=%d"
+			" %s",
+			mrpd_data->u.st.id,
+			mrpd_data->u.st.dest_mac,
+			mrpd_data->u.st.vid,
+			mrpd_data->u.st.max_frame_size,
+			mrpd_data->u.st.max_interval_frames,
+			mrpd_data->u.st.priority_and_rank,
+			mrpd_data->u.st.accum_latency,
+			szString
+			);
+		break;
+	case mrpdhelper_attribtype_msrp_talker_fail:
 		status = snprintf(sz, len, "T:S=%" SCNx64
 			",A=%" SCNx64
 			",V=%04x"
@@ -424,9 +524,6 @@ int mrpdhelper_to_string(struct mrpdhelper_notify *mrpd_data,
 			mrpd_data->u.st.failure_code,
 			szString
 			);
-		break;
-	case mrpdhelper_attribtype_msrp_talker_fail:
-		status = snprintf(sz, len, "MSRP talker failed");
 		break;
 	case mrpdhelper_attribtype_msrp_listener:
 		status = snprintf(sz, len, "L:D=%d,S=%" SCNx64 " %s",

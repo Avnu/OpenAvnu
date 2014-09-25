@@ -38,6 +38,28 @@
 This module provides helper functions for communicating with the MRPD daemon.
 ***************************************************************************/
 
+enum mrpdhelper_talkerfailed_codes {
+	mrpdhelper_talkerfailed_success,
+	mrpdhelper_talkerfailed_bandwidth,
+	mrpdhelper_talkerfailed_bridge_resources,
+	mrpdhelper_talkerfailed_bridge_class_bandwidth,
+	mrpdhelper_talkerfailed_id_in_use,
+	mrpdhelper_talkerfailed_preempted,
+	mrpdhelper_talkerfailed_latency_change,
+	mrpdhelper_talkerfailed_egress_port_not_ascapable,
+	mrpdhelper_talkerfailed_illegal_destination_address,
+	mrpdhelper_talkerfailed_no_msrp_resources,
+	mrpdhelper_talkerfailed_no_mmrp_resources,
+	mrpdhelper_talkerfailed_destination_address_storage,
+	mrpdhelper_talkerfailed_illegal_priority,
+	mrpdhelper_talkerfailed_max_framesize,
+	mrpdhelper_talkerfailed_msrp_fan_in_limit,
+	mrpdhelper_talkerfailed_id_change,
+	mrpdhelper_talkerfailed_vlan_blocked,
+	mrpdhelper_talkerfailed_vlan_tagging_disabled,
+	mrpdhelper_talkerfailed_class_priority_mismatch
+};
+
 enum mrpdhelper_attribtype {
 	mrpdhelper_attribtype_null,
 	mrpdhelper_attribtype_mmrp,
@@ -98,6 +120,7 @@ struct mrpdhelper_msrp_domain {
 	uint32_t id;
 	uint32_t priority;
 	uint32_t vid;
+	uint32_t neighbor_priority;
 };
 
 struct mrpdhelper_msrp_listener {
@@ -136,6 +159,9 @@ int mrpdhelper_parse_notification(char *sz,
 				  size_t len, struct mrpdhelper_notify *n);
 
 int mrpdhelper_notify_equal(struct mrpdhelper_notify *n1,
+			    struct mrpdhelper_notify *n2);
+
+int mrpdhelper_notify_mergable(struct mrpdhelper_notify *n1,
 			    struct mrpdhelper_notify *n2);
 
 int mrpdhelper_to_string(struct mrpdhelper_notify *mrp_data,

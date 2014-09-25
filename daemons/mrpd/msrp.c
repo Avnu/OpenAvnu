@@ -46,7 +46,9 @@
 #include "mmrp.h"
 
 int msrp_txpdu(void);
+static struct msrp_attribute *msrp_alloc(void);
 int msrp_send_notifications(struct msrp_attribute *attrib, int notify);
+static struct msrp_attribute *msrp_conditional_reclaim(struct msrp_attribute *sattrib);
 
 unsigned char MSRP_ADDR[] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E };
 
@@ -72,27 +74,34 @@ static char *msrp_attrib_type_string(int t)
 	}
 }
 
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
-#if LOG_MSRP_FILTERING
-static void msrp_update_log_filter(struct msrp_attribute *attrib)
+#if LOG_MSRP || LOG_MRP
+void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 {
-	int v;
+	char * state_mc_states = NULL;
 
-	/* write custom filter in here */
-	if (NULL == attrib)
-		v = 0;
-	else
-		v = (MSRP_LISTENER_TYPE == attrib->type);
-	mrp_set_log_this(v);
-}
-#else
-static void msrp_update_log_filter(struct msrp_attribute *attrib)
-{
-	(void)(attrib);
+	if (attrib) {
+#if 0
+		if (MSRP_DOMAIN_TYPE == attrib->type) {
+			state_mc_states = mrp_print_status(
+						&(attrib->applicant),
+						&(attrib->registrar));
+			mrpd_log_printf("MSRP Domain event %s, %s\n",
+				     mrp_event_string(evt),
+				     state_mc_states);		
 
-	mrp_set_log_this(1);
-}
+		}
 #endif
+		if (MSRP_TALKER_ADV_TYPE == attrib->type) {
+			state_mc_states = mrp_print_status(
+						&(attrib->applicant),
+						&(attrib->registrar));
+			mrpd_log_printf("MSRP Talker event %s, %s\n",
+				     mrp_event_string(evt),
+				     state_mc_states);		
+
+		}
+	}
+}
 #endif
 
 struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
@@ -102,12 +111,13 @@ struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
 
 	attrib = MSRP_db->attrib_list;
 	while (NULL != attrib) {
-		if (rattrib->type == attrib->type) {
+		if (	(rattrib->type == attrib->type) ||
+			((MSRP_TALKER_ADV_TYPE == rattrib->type) && (MSRP_TALKER_FAILED_TYPE == attrib->type)) ||
+			((MSRP_TALKER_FAILED_TYPE == rattrib->type) && (MSRP_TALKER_ADV_TYPE == attrib->type)))
+			{
 			if (MSRP_DOMAIN_TYPE == attrib->type) {
-				mac_eq = memcmp(&(attrib->attribute.domain),
-						&(rattrib->attribute.domain),
-						sizeof(msrpdu_domain_t));
-				if (0 == mac_eq)
+				if (attrib->attribute.domain.SRclassID ==
+				   rattrib->attribute.domain.SRclassID)
 					return attrib;
 			} else {
 				/* compare on the stream ID */
@@ -161,6 +171,8 @@ int msrp_add(struct msrp_attribute *rattrib)
 					rattrib->next = attrib->next;
 					rattrib->prev = attrib;
 					attrib->next = rattrib;
+					if (rattrib->next)
+						rattrib->next->prev = rattrib;
 					return 0;
 
 				} else {
@@ -196,6 +208,8 @@ int msrp_add(struct msrp_attribute *rattrib)
 					rattrib->next = attrib->next;
 					rattrib->prev = attrib;
 					attrib->next = rattrib;
+					if (rattrib->next)
+						rattrib->next->prev = rattrib;
 					return 0;
 
 				} else {
@@ -235,7 +249,9 @@ int msrp_add(struct msrp_attribute *rattrib)
 
 int msrp_merge(struct msrp_attribute *rattrib)
 {
+	struct msrp_attribute *talker_attrib;
 	struct msrp_attribute *attrib;
+	int talker_missing;
 
 	attrib = msrp_lookup(rattrib);
 
@@ -255,6 +271,10 @@ int msrp_merge(struct msrp_attribute *rattrib)
 	switch (attrib->type) {
 	case MSRP_TALKER_ADV_TYPE:
 	case MSRP_TALKER_FAILED_TYPE:
+		/* support merging
+		 * TalkerFailed <- TalkerAdvertise and
+		 * TalkerAdvertise <- TalkerFailed
+		 */
 		attrib->attribute.talk_listen.FailureInformation.FailureCode =
 		    rattrib->attribute.talk_listen.FailureInformation.
 		    FailureCode;
@@ -265,16 +285,56 @@ int msrp_merge(struct msrp_attribute *rattrib)
 #ifdef ENABLE_MERGED_LATENCY
 		attrib->attribute.talk_listen.AccumulatedLatency =
 		    rattrib->attribute.talk_listen.AccumulatedLatency;
-#endif
+#endif 
+		if (attrib->type != rattrib->type) {
+			attrib->type = rattrib->type;
+			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
+		}
 		break;
 	case MSRP_LISTENER_TYPE:
 		if (attrib->substate != rattrib->substate) {
+			/* If transitioning from AskingFailed to Ready or ReadyFailed, need to 
+			 * check a matching talkerID has been declared.
+			 */
+			if (MSRP_LISTENER_ASKFAILED == attrib->substate) {
+				talker_attrib = msrp_alloc();
+				if (NULL == talker_attrib)
+					break;
+				talker_attrib->type =
+				    MSRP_TALKER_ADV_TYPE;
+				memcpy(talker_attrib->attribute.
+				       talk_listen.StreamID,
+				       attrib->attribute.
+				       talk_listen.StreamID, 8);
+				talker_missing = (NULL == msrp_lookup(talker_attrib));
+				free(talker_attrib);
+				if (talker_missing)
+					break;
+			}
 			attrib->substate = rattrib->substate;
 			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
 		}
 		break;
 	case MSRP_DOMAIN_TYPE:
-		/* doesn't/shouldn't happen */
+		/*
+		 * If the device has the capability of updating the AVTP packet priority,
+		 * then ENABLE_MERGED_DOMAIN_PRIORITY can be defined.
+		 */
+		if (
+		   (attrib->attribute.domain.SRclassPriority !=
+		    rattrib->attribute.domain.SRclassPriority) ||
+		    (attrib->attribute.domain.SRclassVID !=
+		    rattrib->attribute.domain.SRclassVID)) {
+#ifdef ENABLE_MERGED_DOMAIN_PRIORITY
+			attrib->attribute.domain.SRclassPriority =
+			    rattrib->attribute.domain.SRclassPriority;
+#endif
+			attrib->attribute.domain.neighborSRclassPriority =
+			    rattrib->attribute.domain.SRclassPriority;
+ 			attrib->attribute.domain.SRclassVID =
+			    rattrib->attribute.domain.SRclassVID;
+			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
+		}
 		break;
 	default:
 		break;
@@ -285,6 +345,7 @@ int msrp_merge(struct msrp_attribute *rattrib)
 int msrp_event(int event, struct msrp_attribute *rattrib)
 {
 	struct msrp_attribute *attrib;
+	int count = 0;
 	int rc;
 
 	switch (event) {
@@ -295,21 +356,17 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
-#endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_TXLA);
+					  &(attrib->applicant), MRP_EVENT_TXLA,
+					  mrp_registrar_in(&(attrib->registrar)));
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_TXLA);
+#if LOG_MSRP
+			msrp_print_debug_info(event, attrib);
+#endif
 			attrib = attrib->next;
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
+
 		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_LVATIMER);
 
 		MSRP_db->send_empty_LeaveAll_flag = 1;
@@ -333,22 +390,18 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 		while (NULL != attrib) {
 			if (attrib->type == rattrib->type) {
-#if LOG_MSRP
-				msrp_update_log_filter(attrib);
-				if (mrp_log_this())
-					mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-						msrp_attrib_type_string(attrib->type));
-#endif
 				mrp_applicant_fsm(&(MSRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_RLA);
+					  &(attrib->applicant), MRP_EVENT_RLA,
+					  mrp_registrar_in(&(attrib->registrar)));
 				mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db), MRP_EVENT_RLA);
+#if LOG_MSRP
+				msrp_print_debug_info(event, attrib);
+#endif
 			}
 			attrib = attrib->next;
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
+
 		mrp_lvatimer_fsm(&(MSRP_db->mrp_db), MRP_EVENT_RLA);
 
 		break;
@@ -357,19 +410,16 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
-#endif
 			mrp_applicant_fsm(&(MSRP_db->mrp_db),
-					  &(attrib->applicant), MRP_EVENT_TX);
+					  &(attrib->applicant), MRP_EVENT_TX,
+					  mrp_registrar_in(&(attrib->registrar)));
+#if LOG_MSRP
+			msrp_print_debug_info(event, attrib);
+#endif
+			count += mrp_applicant_state_transition_implies_tx(&(attrib->applicant));
 			attrib = attrib->next;
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
+
 		/*
 		 * Don't need to call mrp_lvatimer_fsm(..., MRP_EVENT_TX) from
 		 * here because the TX event only ever does anything in the
@@ -377,46 +427,35 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		 * momentarily after a LVATIMER event.
 		 */
 		msrp_txpdu();
+
+		/*
+		 * Certain state transitions imply we need to request another tx
+		 * opportunity.
+		 */
+		if (count) {
+			mrp_jointimer_start(&(MSRP_db->mrp_db));
+		}
+
 		break;
 	case MRP_EVENT_LVTIMER:
 		mrp_lvtimer_stop(&(MSRP_db->mrp_db));
 		attrib = MSRP_db->attrib_list;
 
 		while (NULL != attrib) {
-#if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_registrar_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
-#endif
 			mrp_registrar_fsm(&(attrib->registrar),
 					  &(MSRP_db->mrp_db),
 					  MRP_EVENT_LVTIMER);
 
-			attrib = attrib->next;
-		}
 #if LOG_MSRP
-		msrp_update_log_filter(NULL);
+			msrp_print_debug_info(event, attrib);
 #endif
+			attrib = msrp_conditional_reclaim(attrib);
+		}
 		break;
 	case MRP_EVENT_PERIODIC:
-		attrib = MSRP_db->attrib_list;
-
-		while (NULL != attrib) {
-#if LOG_MSRP
-			msrp_update_log_filter(attrib);
-			if (mrp_log_this())
-				mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-					msrp_attrib_type_string(attrib->type));
-#endif
-			mrp_applicant_fsm(&(MSRP_db->mrp_db),
-					  &(attrib->applicant),
-					  MRP_EVENT_PERIODIC);
-			attrib = attrib->next;
-		}
-#if LOG_MSRP
-		msrp_update_log_filter(NULL);
-#endif
+		/*
+		 * Periodic timer is ignored in MSRP application.
+		 */
 		break;
 	case MRP_EVENT_NEW:
 	case MRP_EVENT_JOIN:
@@ -441,26 +480,17 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 			msrp_merge(rattrib);
 			free(rattrib);
 		}
-#if LOG_MSRP
-		msrp_update_log_filter(attrib);
-		if (mrp_log_this())
-			mrpd_log_printf("MSRP -> mrp_applicant_fsm (%s)\n",
-				msrp_attrib_type_string(attrib->type));
-#endif
+
 		mrp_applicant_fsm(&(MSRP_db->mrp_db), &(attrib->applicant),
-				  event);
+				  event,
+				  mrp_registrar_in(&(attrib->registrar)));
 
-
-#if LOG_MSRP
-		if (mrp_log_this())
-			mrpd_log_printf("MSRP -> mrp_registrar_fsm (%s)\n",
-				msrp_attrib_type_string(attrib->type));
-#endif
 		/* remap local requests into registrar events */
 		switch (event) {
 		case MRP_EVENT_NEW:
 			mrp_registrar_fsm(&(attrib->registrar),
-					  &(MSRP_db->mrp_db), MRP_EVENT_RNEW);
+					  &(MSRP_db->mrp_db), MRP_EVENT_BEGIN);
+			attrib->registrar.notify = MRP_NOTIFY_NEW;
 			break;
 		case MRP_EVENT_JOIN:
 			if (MRP_IN_STATE == attrib->registrar.mrp_state)
@@ -487,9 +517,11 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 			}
 			break;
 		}
+		msrp_conditional_reclaim(attrib);
 #if LOG_MSRP
-		msrp_update_log_filter(NULL);
+		msrp_print_debug_info(event, attrib);
 #endif
+
 		break;
 	default:
 		break;
@@ -515,11 +547,11 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 	return 0;
 }
 
-struct msrp_attribute *msrp_alloc()
+static struct msrp_attribute *msrp_alloc()
 {
 	struct msrp_attribute *attrib;
 
-	attrib = malloc(sizeof(struct msrp_attribute));
+	attrib = (struct msrp_attribute *) malloc(sizeof(struct msrp_attribute));
 	if (NULL == attrib)
 		return NULL;
 
@@ -529,10 +561,15 @@ struct msrp_attribute *msrp_alloc()
 	attrib->applicant.tx = 0;
 	attrib->applicant.sndmsg = MRP_SND_NULL;
 	attrib->applicant.encode = MRP_ENCODE_OPTIONAL;
+#ifdef LOG_MRP
+	attrib->applicant.mrp_previous_state = -1;
+#endif
 
 	attrib->registrar.mrp_state = MRP_MT_STATE;
 	attrib->registrar.notify = MRP_NOTIFY_NONE;
-
+#ifdef LOG_MRP
+	attrib->registrar.mrp_previous_state = -1;
+#endif
 	return attrib;
 }
 
@@ -551,6 +588,64 @@ void msrp_increment_streamid(uint8_t * streamid)
 		i--;
 	}
 	return;
+}
+
+static int msrp_recv_msg_check_attrib_list_len(
+	int attrib_type,
+	uint8_t *pkt_attrib_list_len,
+	uint8_t *pkt_eof)
+{
+	uint32_t list_len = (uint32_t)pkt_attrib_list_len[0] << 8 |
+			(uint32_t)pkt_attrib_list_len[1];
+	uint32_t attrib_len = (uint32_t)pkt_attrib_list_len[-1];
+#if !LOG_MSRP
+	(void)(attrib_type);
+#endif
+
+	/*
+	 * Check for list length < attribute len + header_size (2) + event (1)
+	 * Note: this test is more of a sanity test than anything else. It does
+	 * not attempt to use number of values to compute 3packed and 4packed byte
+	 * count.
+	 */
+	if (list_len < (attrib_len + 2 + 1)) {
+#if LOG_MSRP
+		mrpd_log_printf
+		    ("MSRP msrp_recv_msg_check_attrib_list_len(%s) FAILED SIZE list len %d attrib len %d\n",
+		     msrp_attrib_type_string(attrib_type),
+		     list_len,
+		     attrib_len);
+#endif
+		return 0;
+	}
+
+	/* check the eof */
+	if ((pkt_attrib_list_len + list_len) >= pkt_eof) {
+#if LOG_MSRP
+		mrpd_log_printf
+		    ("MSRP msrp_recv_msg_check_attrib_list_len(%s) FAILED EOF list len %d pkt %p eof %p\n",
+		     msrp_attrib_type_string(attrib_type),
+		     list_len,
+		     pkt_attrib_list_len,
+		     pkt_eof);
+#endif
+		return 0;
+	}
+
+	/* check for the endmark */
+	if ((0 != pkt_attrib_list_len[list_len]) || (0 != pkt_attrib_list_len[list_len + 1])) {
+#if LOG_MSRP
+		mrpd_log_printf
+		    ("MSRP msrp_recv_msg_check_attrib_list_len(%s) FAILED ENDMARK list len %d pkt %p\n",
+		     msrp_attrib_type_string(attrib_type),
+		     list_len,
+		     pkt_attrib_list_len,
+		     pkt_eof);
+#endif
+		return 0;
+	}
+
+	return 1;
 }
 
 int msrp_recv_msg()
@@ -582,6 +677,10 @@ int msrp_recv_msg()
 	int listener_vectevt_sz = 0;
 	int listener_vectevt_idx;
 	int listener_endbyte;
+	int saw_domain_lva = 0;
+	int saw_talker_lva = 0;
+	int saw_talkerfailed_lva = 0;
+	int saw_listener_lva = 0;
 
 	bytes = mrpd_recvmsgbuf(msrp_socket, &msgbuf);
 	if (bytes <= 0)
@@ -617,9 +716,12 @@ int msrp_recv_msg()
 	 * VectorAttrute is discarded and processing continues with the next VectorAttribute.
 	 */
 
-	if (MSRP_PROT_VER != mrpdu->ProtocolVersion) {	/* XXX should accept ... */
+	/*
+	if (MSRP_PROT_VER != mrpdu->ProtocolVersion) {
 		goto out;
 	}
+	*/
+
 	mrpdu_msg_ptr = MRPD_GET_MRPDU_MESSAGE_LIST(mrpdu);
 
 	mrpdu_msg_eof = (unsigned char *)mrpdu_msg_ptr;
@@ -628,10 +730,6 @@ int msrp_recv_msg()
 	mrpdu_msg_eof -= MRPD_OFFSETOF_MRPD_GET_MRPDU_MESSAGE_LIST;
 
 	endmarks = 0;
-
-#if LOG_MSRP
-	mrpd_log_printf("MSRP msrp_recv_msg()\n");
-#endif
 
 	while (mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) {
 		mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
@@ -660,6 +758,26 @@ int msrp_recv_msg()
 			mrpdu_vectorptr =
 			    (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
+
+			/* check attribute list length is reasonable */
+			if (!msrp_recv_msg_check_attrib_list_len(mrpdu_msg->AttributeType, &mrpdu_msg->Data[0], mrpdu_msg_eof)) {
+				numvalues =
+				    MRPDU_VECT_NUMVALUES(ntohs
+							 (mrpdu_vectorptr->
+							  VectorHeader));
+
+				mrpdu_msg_ptr =
+				    (uint8_t *) mrpdu_vectorptr;
+				/* skip this null attribute ... some switches generate these ... */
+				/* 2 byte numvalues + 4 byte FirstValue + vector bytes */
+				mrpdu_msg_ptr += 2 + 4 + (numvalues + 2) / 3;
+
+				mrpdu_vectorptr =
+				    (mrpdu_vectorattrib_t *)
+				    mrpdu_msg_ptr;
+				continue;
+			}
+
 			while (!((mrpdu_msg_ptr[0] == 0)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
@@ -668,14 +786,13 @@ int msrp_recv_msg()
 							  VectorHeader));
 #if LOG_MSRP
 				mrpd_log_printf
-				    ("MSRP msrp_recv_msg() DOMAIN vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+				    ("MSRP msrp_recv_msg() DOMAIN vector addr 0x%X, n = %d, VectorHeader %d\n",
 				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
-				     ntohs(mrpdu_vectorptr->VectorHeader),
-				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
-				     ((uint8_t *) mrpdu_vectorptr)[1]);
+				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_domain_lva) {
+					saw_domain_lva = 1;
 					attrib = msrp_alloc();
 					if (NULL == attrib)
 						goto out;	/* oops - internal error */
@@ -735,6 +852,15 @@ int msrp_recv_msg()
 					numvalues_processed =
 					    (numvalues > 3 ? 3 : numvalues);
 
+					/* check for out of range encoding */
+					if (vectevt[0] > MRPDU_LV) {
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() DOMAIN vector discard\n");
+#endif
+						numvalues -= numvalues_processed;
+						continue;
+					}
+
 					for (vectevt_idx = 0;
 					     vectevt_idx < numvalues_processed;
 					     vectevt_idx++) {
@@ -749,6 +875,9 @@ int msrp_recv_msg()
 						    srclassID_firstval;
 						attrib->attribute.domain.
 						    SRclassPriority =
+						    srclassprio_firstval;
+						attrib->attribute.domain.
+						    neighborSRclassPriority =
 						    srclassprio_firstval;
 						attrib->attribute.domain.
 						    SRclassVID =
@@ -821,6 +950,26 @@ int msrp_recv_msg()
 			    (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 
+			/* check attribute list length is reasonable */
+			if (!msrp_recv_msg_check_attrib_list_len(mrpdu_msg->AttributeType, &mrpdu_msg->Data[0], mrpdu_msg_eof)) {
+				numvalues =
+				    MRPDU_VECT_NUMVALUES(ntohs
+							 (mrpdu_vectorptr->
+							  VectorHeader));
+
+				mrpdu_msg_ptr =
+				    (uint8_t *) mrpdu_vectorptr;
+				/* skip this null attribute ... some switches generate these ... */
+				/* 2 byte numvalues + 8 byte FirstValue + (0) vector bytes */
+				mrpdu_msg_ptr += 2 + 8 + (numvalues + 2) / 3 + (numvalues + 3) / 4;
+
+				mrpdu_vectorptr =
+				    (mrpdu_vectorattrib_t *)
+				    mrpdu_msg_ptr;
+				continue;
+			}
+
+
 			while (!((mrpdu_msg_ptr[0] == 0)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
@@ -830,14 +979,13 @@ int msrp_recv_msg()
 
 #if LOG_MSRP
 				mrpd_log_printf
-				    ("MSRP msrp_recv_msg() LISTENER vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+				    ("MSRP msrp_recv_msg() LISTENER vector addr 0x%X, n = %d, VectorHeader  %d\n",
 				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
-				     ntohs(mrpdu_vectorptr->VectorHeader),
-				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
-				     ((uint8_t *) mrpdu_vectorptr)[1]);
+				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_listener_lva) {
+					saw_listener_lva = 1;
 					attrib = msrp_alloc();
 					if (NULL == attrib)
 						goto out;	/* oops - internal error */
@@ -895,7 +1043,7 @@ int msrp_recv_msg()
 					goto out;
 
 				if (NULL == listener_vectevt) {
-					listener_vectevt_sz = 64;;
+					listener_vectevt_sz = 64;
 					listener_vectevt =
 					    (int *)malloc(listener_vectevt_sz *
 							  sizeof(int));
@@ -936,7 +1084,7 @@ int msrp_recv_msg()
 						if (listener_vectevt_idx ==
 						    listener_vectevt_sz) {
 							listener_vectevt =
-							    realloc
+							    (int*)realloc
 							    (listener_vectevt,
 							     (listener_vectevt_sz
 							      +
@@ -985,14 +1133,25 @@ int msrp_recv_msg()
 					numvalues_processed =
 					    (numvalues > 3 ? 3 : numvalues);
 
+					/* check for out of range encoding */
+					if (vectevt[0] > MRPDU_LV) {
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() LISTENER vector discard\n");
+#endif
+						numvalues -= numvalues_processed;
+						continue;
+					}
+
 					for (vectevt_idx = 0;
 					     vectevt_idx < numvalues_processed;
 					     vectevt_idx++) {
 
 						if (MSRP_LISTENER_IGNORE ==
-						    vectevt[vectevt_idx]) {
+						    listener_vectevt
+						    [listener_vectevt_idx]) {
 							msrp_increment_streamid
 							    (streamid_firstval);
+							listener_vectevt_idx++;
 							continue;
 						}
 
@@ -1105,6 +1264,25 @@ int msrp_recv_msg()
 			    (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
 
+			/* check attribute list length is reasonable */
+			if (!msrp_recv_msg_check_attrib_list_len(mrpdu_msg->AttributeType, &mrpdu_msg->Data[0], mrpdu_msg_eof)) {
+				numvalues =
+				    MRPDU_VECT_NUMVALUES(ntohs
+							 (mrpdu_vectorptr->
+							  VectorHeader));
+
+				mrpdu_msg_ptr =
+				    (uint8_t *) mrpdu_vectorptr;
+				/* skip this null attribute ... some switches generate these ... */
+				/* 2 byte numvalues + 25 byte FirstValue + (0) vector bytes */
+				mrpdu_msg_ptr += 2 + 25 + (numvalues + 2) / 3;
+
+				mrpdu_vectorptr =
+				    (mrpdu_vectorattrib_t *)
+				    mrpdu_msg_ptr;
+				continue;
+			}
+
 			while (!((mrpdu_msg_ptr[0] == 0)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
@@ -1114,14 +1292,13 @@ int msrp_recv_msg()
 
 #if LOG_MSRP
 				mrpd_log_printf
-				    ("MSRP msrp_recv_msg() TALKER vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+				     ("MSRP msrp_recv_msg() TALKER vector addr 0x%X, n = %d, VectorHeader %d\n",
 				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
-				     ntohs(mrpdu_vectorptr->VectorHeader),
-				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
-				     ((uint8_t *) mrpdu_vectorptr)[1]);
+				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_talker_lva) {
+					saw_talker_lva = 1;
 					attrib = msrp_alloc();
 					if (NULL == attrib)
 						goto out;	/* oops - internal error */
@@ -1178,6 +1355,15 @@ int msrp_recv_msg()
 
 					numvalues_processed =
 					    (numvalues > 3 ? 3 : numvalues);
+
+					/* check for out of range encoding */
+					if (vectevt[0] > MRPDU_LV) {
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() TALKER_ADV vector discard\n");
+#endif
+						numvalues -= numvalues_processed;
+						continue;
+					}
 
 					for (vectevt_idx = 0;
 					     vectevt_idx < numvalues_processed;
@@ -1343,6 +1529,26 @@ int msrp_recv_msg()
 			mrpdu_vectorptr =
 			    (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 			mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
+
+			/* check attribute list length is reasonable */
+			if (!msrp_recv_msg_check_attrib_list_len(mrpdu_msg->AttributeType, &mrpdu_msg->Data[0], mrpdu_msg_eof)) {
+				numvalues =
+				    MRPDU_VECT_NUMVALUES(ntohs
+							 (mrpdu_vectorptr->
+							  VectorHeader));
+
+				mrpdu_msg_ptr =
+				    (uint8_t *) mrpdu_vectorptr;
+				/* skip this null attribute ... some switches generate these ... */
+				/* 2 byte numvalues + 34 byte FirstValue + (0) vector bytes */
+				mrpdu_msg_ptr += 2 + 34 + (numvalues + 2) / 3;
+
+				mrpdu_vectorptr =
+				    (mrpdu_vectorattrib_t *)
+				    mrpdu_msg_ptr;
+				continue;
+			}
+
 			while (!((mrpdu_msg_ptr[0] == 0)
 				 && (mrpdu_msg_ptr[1] == 0))) {
 				numvalues =
@@ -1351,14 +1557,13 @@ int msrp_recv_msg()
 							  VectorHeader));
 #if LOG_MSRP
 				mrpd_log_printf
-				    ("MSRP msrp_recv_msg() TALKER FAILED vector addr 0x%X, n = %d, VectorHeader (ntohs) %d, VectorHeader read %d\n",
+				    ("MSRP msrp_recv_msg() TALKER FAILED vector addr 0x%X, n = %d, VectorHeader %d\n",
 				     ((int)mrpdu_vectorptr) & 0x3, numvalues,
-				     ntohs(mrpdu_vectorptr->VectorHeader),
-				     ((uint8_t *) mrpdu_vectorptr)[0] << 8 |
-				     ((uint8_t *) mrpdu_vectorptr)[1]);
+				     ntohs(mrpdu_vectorptr->VectorHeader));
 #endif
 
-				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader))) {
+				if (MRPDU_VECT_LVA(ntohs(mrpdu_vectorptr->VectorHeader)) && !saw_talkerfailed_lva) {
+					saw_talkerfailed_lva = 1;
 					attrib = msrp_alloc();
 					if (NULL == attrib)
 						goto out;	/* oops - internal error */
@@ -1413,6 +1618,15 @@ int msrp_recv_msg()
 					numvalues_processed =
 					    (numvalues > 3 ? 3 : numvalues);
 
+					/* check for out of range encoding */
+					if (vectevt[0] > MRPDU_LV) {
+#if LOG_MSRP
+						mrpd_log_printf("MSRP msrp_recv_msg() TALKER_FAIL vector discard\n");
+#endif
+						numvalues -= numvalues_processed;
+						continue;
+					}
+
 					for (vectevt_idx = 0;
 					     vectevt_idx < numvalues_processed;
 					     vectevt_idx++) {
@@ -1420,10 +1634,9 @@ int msrp_recv_msg()
 						attrib = msrp_alloc();
 						if (NULL == attrib)
 							goto out;	/* oops - internal error */
-						/* update the failure information on merge, but don't support
-						 * different ADV and FAILED_TYPES in the list of attributes */
+
 						attrib->type =
-						    MSRP_TALKER_ADV_TYPE;
+						    MSRP_TALKER_FAILED_TYPE;
 
 						/* NOTE this isn't from us */
 						attrib->direction =
@@ -1642,7 +1855,6 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
-		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -1653,6 +1865,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
+		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
 		srclassID_firstval = attrib->attribute.domain.SRclassID;
 		srclassprio_firstval = attrib->attribute.domain.SRclassPriority;
@@ -1812,8 +2025,10 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
 
-		if (lva)
-			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA(0xFFFF);
+		if (lva) {
+			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA_FLAG;
+			lva = 0;
+		}
 
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
@@ -1833,7 +2048,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	if ((0 == attrib_found_flag) && MSRP_db->send_empty_LeaveAll_flag) {
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
-						MRPDU_VECT_LVA(0xFFFF);
+						MRPDU_VECT_LVA_FLAG;
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
 
@@ -1872,6 +2087,28 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	return -1;
 }
 
+/*
+ * Below works for both talker and talkerFailed because talker has
+ * FailureInformation explicitly set to zero.
+ */
+static int vectorize_talker(struct msrp_attribute *first_attrib,
+			uint8_t streamid_firstval[8],
+			uint8_t mac_firstval[6],
+			struct msrp_attribute *candidate_attrib)
+{
+	struct msrpdu_talker_fail  first;
+
+	/*
+	 * Make a copy of the "first" attrib and update ID and MAC with new
+	 * values before comparing
+	 */
+	first = first_attrib->attribute.talk_listen;
+	memcpy(first.StreamID, streamid_firstval, 8);
+	memcpy(first.DataFrameParameters.Dest_Addr, mac_firstval, 6);
+	return (memcmp(&first, &candidate_attrib->attribute.talk_listen,
+			sizeof(first)) == 0);
+}
+
 int
 msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		      int *bytes_used, int lva, unsigned int type)
@@ -1884,12 +2121,12 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	int vectevt_idx;
 	uint8_t streamid_firstval[8];
 	uint8_t destmac_firstval[6];
+	uint16_t tspec_maxframesize_firstval;
 	int attriblistlen;
 	struct msrp_attribute *attrib, *vattrib;
 	mrpdu_message_t *mrpdu_msg;
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
-	int mac_eq;
 	unsigned int attrib_found_flag = 0;
 	unsigned int vector_size = 0;
 	unsigned int attrib_len = 0;
@@ -1934,7 +2171,6 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 #endif
-		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -1945,6 +2181,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
+		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
 		memcpy(streamid_firstval,
 		       attrib->attribute.talk_listen.StreamID, 8);
@@ -1963,10 +2200,11 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		    (uint8_t) attrib->attribute.talk_listen.
 		    DataFrameParameters.Vlan_ID;
 
+		tspec_maxframesize_firstval = attrib->attribute.talk_listen.TSpec.MaxFrameSize;
 		mrpdu_vectorptr->FirstValue_VectorEvents[16] =
-		    attrib->attribute.talk_listen.TSpec.MaxFrameSize >> 8;
+		    tspec_maxframesize_firstval >> 8;
 		mrpdu_vectorptr->FirstValue_VectorEvents[17] =
-		    (uint8_t) attrib->attribute.talk_listen.TSpec.MaxFrameSize;
+		    (uint8_t)tspec_maxframesize_firstval;
 
 		mrpdu_vectorptr->FirstValue_VectorEvents[18] =
 		    attrib->attribute.talk_listen.TSpec.MaxIntervalFrames >> 8;
@@ -2051,10 +2289,10 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			msrp_increment_streamid(streamid_firstval);
 			mmrp_increment_macaddr(destmac_firstval);
 
-			mac_eq = memcmp(vattrib->attribute.talk_listen.StreamID,
-					streamid_firstval, 8);
-
-			if (0 != mac_eq)
+			if (!vectorize_talker(attrib,
+					streamid_firstval,
+					destmac_firstval,
+					vattrib))
 				break;
 
 			vattrib->applicant.tx = 0;
@@ -2080,12 +2318,12 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 				vectevt[vectevt_idx] = MRPDU_LV;
 				break;
 			case MRP_SND_JOIN:
-				/* IF 'Join' in indicated by the applicant, look at
+				/* If 'Join' in indicated by the applicant, look at
 				 * the corresponding registrar state to determine whether
 				 * to send a JoinIn (if the registar state is 'In') or
 				 * a JoinMt if the registrar state is MT or LV.
 				 */
-				if (MRP_IN_STATE == attrib->registrar.mrp_state)
+				if (MRP_IN_STATE == vattrib->registrar.mrp_state)
 					vectevt[vectevt_idx] = MRPDU_JOININ;
 				else
 					vectevt[vectevt_idx] = MRPDU_JOINMT;
@@ -2136,8 +2374,10 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
 
-		if (lva)
-			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA(0xFFFF);
+		if (lva) {
+			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA_FLAG;
+			lva = 0;
+		}
 
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
@@ -2157,7 +2397,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	if ((0 == attrib_found_flag) && MSRP_db->send_empty_LeaveAll_flag) {
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
-						MRPDU_VECT_LVA(0xFFFF);
+						MRPDU_VECT_LVA_FLAG;
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
 
@@ -2246,7 +2486,6 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 
-		attrib_found_flag = 1;
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
@@ -2260,6 +2499,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		 * contiguous active streams in messages
 		 */
 
+		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
 		memcpy(streamid_firstval,
 		       attrib->attribute.talk_listen.StreamID, 8);
@@ -2371,7 +2611,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 				 * to send a JoinIn (if the registar state is 'In') or
 				 * a JoinMt if the registrar state is MT or LV.
 				 */
-				if (MRP_IN_STATE == attrib->registrar.mrp_state)
+				if (MRP_IN_STATE == vattrib->registrar.mrp_state)
 					vectevt[vectevt_idx] = MRPDU_JOININ;
 				else
 					vectevt[vectevt_idx] = MRPDU_JOINMT;
@@ -2487,8 +2727,10 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
 
-		if (lva)
-			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA(0xFFFF);
+		if (lva) {
+			mrpdu_vectorptr->VectorHeader |= MRPDU_VECT_LVA_FLAG;
+			lva = 0;
+		}
 
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
@@ -2508,7 +2750,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	if ((0 == attrib_found_flag) && MSRP_db->send_empty_LeaveAll_flag) {
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(0) |
-						MRPDU_VECT_LVA(0xFFFF);
+						MRPDU_VECT_LVA_FLAG;
 		mrpdu_vectorptr->VectorHeader =
 		    htons(mrpdu_vectorptr->VectorHeader);
 
@@ -2655,6 +2897,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 	char *regsrc;
 	char mrp_state[8];
 	client_t *client;
+	size_t sub_str_len = 128;
 
 	if (NULL == attrib)
 		return -1;
@@ -2665,8 +2908,8 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 
 	variant = regsrc = NULL;
 
-	variant = (char *)malloc(128);
-	regsrc = (char *)malloc(128);
+	variant = (char *)malloc(sub_str_len);
+	regsrc = (char *)malloc(sub_str_len);
 
 	if ((NULL == variant) || (NULL == regsrc))
 		goto free_msgbuf;
@@ -2674,7 +2917,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 	memset(msgbuf, 0, MAX_MRPD_CMDSZ);
 
 	if (MSRP_LISTENER_TYPE == attrib->type) {
-		sprintf(variant, "L:D=%d,S=%02x%02x%02x%02x%02x%02x%02x%02x",
+		snprintf(variant, sub_str_len - 1, "L:D=%d,S=%02x%02x%02x%02x%02x%02x%02x%02x",
 			attrib->substate,
 			attrib->attribute.talk_listen.StreamID[0],
 			attrib->attribute.talk_listen.StreamID[1],
@@ -2685,12 +2928,48 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			attrib->attribute.talk_listen.StreamID[6],
 			attrib->attribute.talk_listen.StreamID[7]);
 	} else if (MSRP_DOMAIN_TYPE == attrib->type) {
-		sprintf(variant, "D:C=%d,P=%d,V=%04x",
+		snprintf(variant, sub_str_len - 1, "D:C=%d,P=%d,V=%04x,N=%d",
 			attrib->attribute.domain.SRclassID,
 			attrib->attribute.domain.SRclassPriority,
-			attrib->attribute.domain.SRclassVID);
+			attrib->attribute.domain.SRclassVID,
+			attrib->attribute.domain.neighborSRclassPriority
+			);
+	} else if (MSRP_TALKER_ADV_TYPE == attrib->type) {
+		snprintf(variant, sub_str_len - 1, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
+			",A=%02x%02x%02x%02x%02x%02x"
+			",V=%04x"
+			",Z=%d"
+			",I=%d"
+			",P=%d"
+			",L=%d",
+			attrib->attribute.talk_listen.StreamID[0],
+			attrib->attribute.talk_listen.StreamID[1],
+			attrib->attribute.talk_listen.StreamID[2],
+			attrib->attribute.talk_listen.StreamID[3],
+			attrib->attribute.talk_listen.StreamID[4],
+			attrib->attribute.talk_listen.StreamID[5],
+			attrib->attribute.talk_listen.StreamID[6],
+			attrib->attribute.talk_listen.StreamID[7],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[0],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[1],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[2],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[3],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[4],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Dest_Addr[5],
+			attrib->attribute.talk_listen.DataFrameParameters.
+			Vlan_ID,
+			attrib->attribute.talk_listen.TSpec.MaxFrameSize,
+			attrib->attribute.talk_listen.TSpec.MaxIntervalFrames,
+			attrib->attribute.talk_listen.PriorityAndRank,
+			attrib->attribute.talk_listen.AccumulatedLatency);
 	} else {
-		sprintf(variant, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
+		snprintf(variant, sub_str_len - 1, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
 			",A=%02x%02x%02x%02x%02x%02x"
 			",V=%04x"
 			",Z=%d"
@@ -2745,7 +3024,7 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 			FailureCode);
 	}
 
-	sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
+	snprintf(regsrc, sub_str_len - 1, "R=%02x%02x%02x%02x%02x%02x",
 		attrib->registrar.macaddr[0],
 		attrib->registrar.macaddr[1],
 		attrib->registrar.macaddr[2],
@@ -2757,13 +3036,13 @@ int msrp_send_notifications(struct msrp_attribute *attrib, int notify)
 
 	switch (notify) {
 	case MRP_NOTIFY_NEW:
-		sprintf(msgbuf, "SNE %s %s %s\n", variant, regsrc, mrp_state);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "SNE %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	case MRP_NOTIFY_JOIN:
-		sprintf(msgbuf, "SJO %s %s %s\n", variant, regsrc, mrp_state);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "SJO %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	case MRP_NOTIFY_LV:
-		sprintf(msgbuf, "SLE %s %s %s\n", variant, regsrc, mrp_state);
+		snprintf(msgbuf, MAX_MRPD_CMDSZ - 1, "SLE %s %s %s\n", variant, regsrc, mrp_state);
 		break;
 	default:
 		goto free_msgbuf;
@@ -2831,10 +3110,11 @@ int msrp_dumptable(struct sockaddr_in *client)
 				attrib->attribute.talk_listen.StreamID[6],
 				attrib->attribute.talk_listen.StreamID[7]);
 		} else if (MSRP_DOMAIN_TYPE == attrib->type) {
-			sprintf(variant, "D:C=%d,P=%d,V=%04x",
+			sprintf(variant, "D:C=%d,P=%d,V=%04x,N=%d",
 				attrib->attribute.domain.SRclassID,
 				attrib->attribute.domain.SRclassPriority,
-				attrib->attribute.domain.SRclassVID);
+				attrib->attribute.domain.SRclassVID,
+				attrib->attribute.domain.neighborSRclassPriority);
 		} else {
 			sprintf(variant, "T:S=%02x%02x%02x%02x%02x%02x%02x%02x"
 				",A=%02x%02x%02x%02x%02x%02x"
@@ -2951,6 +3231,31 @@ static int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
+static int msrp_cmd_parse_join_or_new_stream_failure(char *buf, int buflen,
+					     struct msrpdu_talker_fail
+					     *talker_ad, int *err_index)
+{
+	struct parse_param specs[] = {
+		{"S" PARSE_ASSIGN, parse_c64, talker_ad->StreamID},
+		{"A" PARSE_ASSIGN, parse_mac,
+		 talker_ad->DataFrameParameters.Dest_Addr},
+		{"V" PARSE_ASSIGN, parse_u16_04x,
+		 &talker_ad->DataFrameParameters.Vlan_ID},
+		{"Z" PARSE_ASSIGN, parse_u16, &talker_ad->TSpec.MaxFrameSize},
+		{"I" PARSE_ASSIGN, parse_u16,
+		 &talker_ad->TSpec.MaxIntervalFrames},
+		{"P" PARSE_ASSIGN, parse_u8, &talker_ad->PriorityAndRank},
+		{"L" PARSE_ASSIGN, parse_u32, &talker_ad->AccumulatedLatency},
+		{"B" PARSE_ASSIGN, parse_c64, &talker_ad->FailureInformation.BridgeID},
+		{"C" PARSE_ASSIGN, parse_u8, &talker_ad->FailureInformation.FailureCode},
+		{0, parse_null, 0}
+	};
+	if (buflen < 47)
+		return -1;
+	memset(talker_ad, 0, sizeof(*talker_ad));
+	return parse(buf + 4, buflen - 4, specs, err_index);
+}
+
 /*
  * Required fields are:
  * talker_ad->StreamID
@@ -2961,9 +3266,13 @@ static int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
  * talker_ad->PriorityAndRank
  * talker_ad->AccumulatedLatency
  *
+ * For TalkerFaild, also require non-zero values in:
+ * talker_ad->FailureInformation.BridgeID
+ * talker_ad->FailureInformation.FailureCode
  */
 
 static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad,
+				       int attrib_type,
 				       int mrp_event)
 {
 	struct msrp_attribute *attrib;
@@ -2972,7 +3281,7 @@ static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad,
 	if (NULL == attrib) {
 		return -1;
 	}
-	attrib->type = MSRP_TALKER_ADV_TYPE;
+	attrib->type = attrib_type;
 	attrib->attribute.talk_listen = *talker_ad;
 	msrp_event(mrp_event, attrib);
 	return 0;
@@ -3039,7 +3348,7 @@ static int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
 	attrib->direction = MSRP_DIRECTION_LISTENER;
 	attrib->substate = substate;
 	attrib->attribute.talk_listen = *talker_ad;
-	msrp_event(MRP_EVENT_JOIN, attrib);
+	msrp_event(MRP_EVENT_NEW, attrib);
 
 	return 0;
 }
@@ -3063,6 +3372,7 @@ static int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail
 					     *talker_ad)
 {
 	struct msrp_attribute *attrib;
+	struct msrp_attribute *existing_listener_attrib;
 
 	attrib = msrp_alloc();
 	if (NULL == attrib) {
@@ -3070,6 +3380,11 @@ static int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail
 	}
 	attrib->type = MSRP_LISTENER_TYPE;
 	attrib->attribute.talk_listen = *talker_ad;
+	/* need to maintain substate on LV, i.e. it can't just be 0 (IGNORE) */
+	existing_listener_attrib = msrp_lookup(attrib);
+	if (existing_listener_attrib) {
+		attrib->substate = existing_listener_attrib->substate;
+	}
 	msrp_event(MRP_EVENT_LV, attrib);
 
 	return 0;
@@ -3105,6 +3420,9 @@ static int msrp_cmd_report_domain_status(struct msrpdu_domain *domain,
 
 	attrib->type = MSRP_DOMAIN_TYPE;
 	attrib->attribute.domain = *domain;
+	/* assume SRclassPriority for neighbor is same as ours */
+	attrib->attribute.domain.neighborSRclassPriority =
+		domain->SRclassPriority;
 	if (report)
 		msrp_event(MRP_EVENT_JOIN, attrib);
 	else
@@ -3122,9 +3440,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	struct msrpdu_domain domain_param;
 	struct msrpdu_talker_fail talker_param;
 	int err_index;
+	int attrib_type;
 
 	if (NULL == MSRP_db) {
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s\n", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC MSRP_db %s\n", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
@@ -3218,10 +3537,25 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		   ",I=%d" \
 		   ",P=%d" \
 		   ",L=%d" \
+
+		   if declaring a TalkerFailed, additional string fields
+		   ",B=%02x%02x%02x%02x%02x%02x%02x%02x" \   (Failure BridgeID)
+		   ",C=%d" \    (failure code)
+		   are required.
+
 		 */
-		rc = msrp_cmd_parse_join_or_new_stream(buf, buflen,
+		if (strstr(buf,"B=")) {
+			attrib_type = MSRP_TALKER_FAILED_TYPE;
+			rc = msrp_cmd_parse_join_or_new_stream_failure(buf, buflen,
 						       &talker_param,
 						       &err_index);
+		} else {
+			attrib_type = MSRP_TALKER_ADV_TYPE;
+			rc = msrp_cmd_parse_join_or_new_stream(buf, buflen,
+						       &talker_param,
+						       &err_index);
+		}
+
 		if (rc)
 			goto out_ERP;
 		if ('?' == buf[2]) {
@@ -3229,11 +3563,11 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		} else {
 			mrp_event = MRP_EVENT_NEW;
 		}
-		rc = msrp_cmd_join_or_new_stream(&talker_param, mrp_event);
+		rc = msrp_cmd_join_or_new_stream(&talker_param, attrib_type, mrp_event);
 		if (rc)
 			goto out_ERI;	/* oops - internal error */
 	} else {
-		snprintf(respbuf, sizeof(respbuf) - 1, "ERC %s", buf);
+		snprintf(respbuf, sizeof(respbuf) - 1, "ERC MSRP %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
 		goto out;
 	}
@@ -3270,7 +3604,7 @@ int msrp_init(int msrp_enable)
 	if (rc < 0)
 		return -1;
 
-	MSRP_db = malloc(sizeof(struct msrp_database));
+	MSRP_db = (struct msrp_database*) malloc(sizeof(struct msrp_database));
 
 	if (NULL == MSRP_db)
 		goto abort_socket;
@@ -3316,35 +3650,46 @@ void msrp_bye(struct sockaddr_in *client)
 		mrp_client_delete(&(MSRP_db->mrp_db.clients), client);
 }
 
+static struct msrp_attribute *msrp_conditional_reclaim(struct msrp_attribute *sattrib)
+{
+	struct msrp_attribute *free_sattrib;
+
+	if ((sattrib->registrar.mrp_state == MRP_MT_STATE) &&
+	    ((sattrib->applicant.mrp_state == MRP_VO_STATE) ||
+	     (sattrib->applicant.mrp_state == MRP_AO_STATE) ||
+	     (sattrib->applicant.mrp_state == MRP_QO_STATE))) {
+		if (NULL != sattrib->prev)
+			sattrib->prev->next = sattrib->next;
+		else
+			MSRP_db->attrib_list = sattrib->next;
+		if (NULL != sattrib->next)
+			sattrib->next->prev = sattrib->prev;
+		free_sattrib = sattrib;
+		sattrib = sattrib->next;
+#if LOG_MSRP_GARBAGE_COLLECTION
+		mrpd_log_printf("MSRP -------------> free attrib of type (%s), current 0x%p, next 0x%p\n",
+				msrp_attrib_type_string(free_sattrib->type),
+				free_sattrib, sattrib);
+#endif
+		msrp_send_notifications(free_sattrib, MRP_NOTIFY_LV);
+		free(free_sattrib);
+		return sattrib;
+	} else {
+		return sattrib->next;
+	}
+
+}
+
 int msrp_reclaim(void)
 {
-	struct msrp_attribute *sattrib, *free_sattrib;
+	struct msrp_attribute *sattrib;
 
 	if (NULL == MSRP_db)
 		return 0;
 
 	sattrib = MSRP_db->attrib_list;
 	while (NULL != sattrib) {
-		if ((sattrib->registrar.mrp_state == MRP_MT_STATE) &&
-		    ((sattrib->applicant.mrp_state == MRP_VO_STATE) ||
-		     (sattrib->applicant.mrp_state == MRP_AO_STATE) ||
-		     (sattrib->applicant.mrp_state == MRP_QO_STATE))) {
-			if (NULL != sattrib->prev)
-				sattrib->prev->next = sattrib->next;
-			else
-				MSRP_db->attrib_list = sattrib->next;
-			if (NULL != sattrib->next)
-				sattrib->next->prev = sattrib->prev;
-			free_sattrib = sattrib;
-			sattrib = sattrib->next;
-#if LOG_MSRP_GARBAGE_COLLECTION
-			mrpd_log_printf("MSRP -> free attrib of type (%s)\n",
-					msrp_attrib_type_string(free_sattrib->type));
-#endif
-			msrp_send_notifications(free_sattrib, MRP_NOTIFY_LV);
-			free(free_sattrib);
-		} else
-			sattrib = sattrib->next;
+		sattrib = msrp_conditional_reclaim(sattrib);
 	}
 	return 0;
 }

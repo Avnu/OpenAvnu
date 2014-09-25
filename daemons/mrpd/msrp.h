@@ -122,6 +122,7 @@ typedef struct msrpdu_talker_fail {
 typedef struct msrpdu_domain {
 	uint8_t SRclassID;
 	uint8_t SRclassPriority;
+	uint8_t neighborSRclassPriority;
 	uint16_t SRclassVID;
 } msrpdu_domain_t;
 
