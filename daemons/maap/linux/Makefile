@@ -1,4 +1,4 @@
-BUILD_DIR=../build
+BUILD_DIR=.
 COMMON_DIR=../common
 INCFLAGS=$(COMMON_DIR)/maap_protocol.c 
 CFLAGS=$(OPT) -Wall
