@@ -35,6 +35,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef IPCDEF_HPP
 #define IPCDEF_HPP
 
+#include <windows.h>
 #include <stdint.h>
 #include <ptptypes.hpp>
 #include <minwinbase.h>
@@ -44,6 +45,19 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define PIPE_PREFIX "\\\\.\\pipe\\"
 #define P802_1AS_PIPENAME "gptp-ctrl"
+
+typedef struct {
+	int64_t ml_phoffset;
+	int64_t ls_phoffset;
+	FrequencyRatio ml_freqoffset;
+	FrequencyRatio ls_freqoffset;
+	int64_t local_time;
+	uint32_t sync_count;
+	uint32_t pdelay_count;
+	PortState port_state;
+	DWORD  process_id;
+} gPtpTimeData;
+
 
 #pragma pack(push,1)
 
