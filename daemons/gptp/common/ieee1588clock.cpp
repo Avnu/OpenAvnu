@@ -53,7 +53,7 @@ std::string ClockIdentity::getIdentityString()
 	char* pscid = scid;
 	for (unsigned i = 0; i < PTP_CLOCK_IDENTITY_LENGTH; ++i) {
 		unsigned byte = cid[i];
-		sprintf_s(pscid, 4, "%2.2X:", byte);
+		PLAT_snprintf(pscid, 4, "%2.2X:", byte);
 		pscid += 3;
 	}
 	scid[PTP_CLOCK_IDENTITY_LENGTH * 3 - 1] = '\0';
