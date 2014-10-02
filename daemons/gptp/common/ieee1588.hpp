@@ -114,6 +114,7 @@ class ClockIdentity {
 		return memcmp(this->id, cmp.id,
 			      PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
 	}
+	std::string getIdentityString();
 	void getIdentityString(uint8_t *id) {
 		memcpy(id, this->id, PTP_CLOCK_IDENTITY_LENGTH);
 	} 
