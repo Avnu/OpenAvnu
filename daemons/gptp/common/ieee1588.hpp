@@ -34,6 +34,8 @@
 #ifndef IEEE1588_HPP
 #define IEEE1588_HPP
 
+#include <string>
+
 #include <stdint.h>
 
 #include <string.h>
