@@ -110,33 +110,35 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 	return true;
 }
 
-bool WindowsNamedPipeIPC::init( OS_IPC_ARG *arg ) {
+bool WindowsNamedPipeIPC::init(OS_IPC_ARG *arg) {
 	IPCListener *ipclistener;
-	IPCSharedData ipcdata = { &peerlist, &loffset };
+	IPCSharedData ipcdata = { &peerList_, &lOffset_ };
 
 	ipclistener = new IPCListener();
 	// Start IPC listen thread
-	if( !ipclistener->start( ipcdata ) ) {
-		XPTPD_ERROR( "Starting IPC listener thread failed" );
-	} else {
-		XPTPD_INFO( "Starting IPC listener thread succeeded" );
+	if (!ipclistener->start(ipcdata)) {
+		XPTPD_ERROR("Starting IPC listener thread failed");
+	}
+	else {
+		XPTPD_INFO("Starting IPC listener thread succeeded");
 	}
 
 	return true;
 }
 
-bool WindowsNamedPipeIPC::update( int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-	uint32_t sync_count, uint32_t pdelay_count, PortState port_state ) {
+bool WindowsNamedPipeIPC::update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
+	uint32_t sync_count, uint32_t pdelay_count, PortState port_state) {
 
 
-	loffset.get();
-	loffset.local_time = local_time;
-	loffset.ml_freqoffset = ml_freqoffset;
-	loffset.ml_phoffset = ml_phoffset;
-	loffset.ls_freqoffset = ls_freq_offset;
-	loffset.ls_phoffset = ls_phoffset;
-	
-	if( !loffset.isReady() ) loffset.setReady( true );
-	loffset.put();
+	lOffset_.get();
+	lOffset_.local_time = local_time;
+	lOffset_.ml_freqoffset = ml_freqoffset;
+	lOffset_.ml_phoffset = ml_phoffset;
+	lOffset_.ls_freqoffset = ls_freq_offset;
+	lOffset_.ls_phoffset = ls_phoffset;
+
+	if (!lOffset_.isReady()) lOffset_.setReady(true);
+	lOffset_.put();
 	return true;
 }
+

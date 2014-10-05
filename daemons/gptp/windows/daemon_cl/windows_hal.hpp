@@ -508,17 +508,18 @@ public:
 
 class WindowsNamedPipeIPC : public OS_IPC {
 private:
-	HANDLE pipe;
-	LockableOffset loffset;
-	PeerList peerlist;
+	HANDLE pipe_;
+	LockableOffset lOffset_;
+	PeerList peerList_;
 public:
-	WindowsNamedPipeIPC() { };
+	WindowsNamedPipeIPC() : pipe_(INVALID_HANDLE_VALUE) { };
 	~WindowsNamedPipeIPC() {
-		CloseHandle( pipe );
+		if (pipe_ != 0 && pipe_ != INVALID_HANDLE_VALUE)
+			::CloseHandle(pipe_);
 	}
-	virtual bool init( OS_IPC_ARG *arg = NULL );
-	virtual bool update( int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-		uint32_t sync_count, uint32_t pdelay_count, PortState port_state );
+	virtual bool init(OS_IPC_ARG *arg = NULL);
+	virtual bool update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
+		uint32_t sync_count, uint32_t pdelay_count, PortState port_state);
 };
 
 #endif
