@@ -52,7 +52,11 @@ typedef int HTIMER;
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR   -1
 #define closesocket(s) close(s);
+#ifdef MRP_CPPUTEST
+size_t mrpd_send(SOCKET sockfd, const void *buf, size_t len, int flags);
+#else
 #define mrpd_send send
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -130,3 +134,8 @@ int mrpd_close_socket(SOCKET sock);
 int mrpd_recvmsgbuf(SOCKET sock, char **buf);
 
 void mrpd_log_printf(const char *fmt, ...);
+
+#ifdef MRP_CPPUTEST
+void mrpd_reset(void);
+unsigned int mrpd_send_packet_count(void);
+#endif

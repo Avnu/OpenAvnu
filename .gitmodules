@@ -1,0 +1,3 @@
+[submodule "thirdparty/cpputest"]
+	path = thirdparty/cpputest
+	url = git@github.com:cpputest/cpputest.git

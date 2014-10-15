@@ -65,6 +65,17 @@ by Intel.
 The Open AVB project has a development mailing list. To subscribe, visit
 https://lists.sourceforge.net/lists/listinfo/open-avb-devel to sign up.
 
+GIT SUBMODULES
+==============
+
+After checking out the Open-AVB git repository submodules should be
+configured by going.
+
+git submodule init
+
+git submodule update
+
+
 RELATED OPEN SOURCE PROJECTS
 ============================
 

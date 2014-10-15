@@ -158,9 +158,14 @@ struct msrp_database {
 };
 
 int msrp_init(int msrp_enable);
+void msrp_reset(void);
 int msrp_event(int event, struct msrp_attribute *rattrib);
 int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);
 int msrp_send_notifications(struct msrp_attribute *attrib, int notify);
 int msrp_reclaim(void);
 void msrp_bye(struct sockaddr_in *client);
 int msrp_recv_msg(void);
+
+#ifdef MRP_CPPUTEST
+struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib);
+#endif
