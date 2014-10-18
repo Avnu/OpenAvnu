@@ -148,7 +148,10 @@ public:
 		return grandmaster_clock_identity;
 	}
 	void setGrandmasterClockIdentity(ClockIdentity id) {
-		grandmaster_clock_identity = id;
+		if (id != grandmaster_clock_identity) {
+			fprintf(stderr, "New Grandmaster \"%s\" (previous \"%s\")\n", id.getIdentityString().c_str(), grandmaster_clock_identity.getIdentityString().c_str());
+			grandmaster_clock_identity = id;
+		}
 	}
 	
 	ClockQuality getGrandmasterClockQuality(void) {

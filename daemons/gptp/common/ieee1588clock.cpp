@@ -45,6 +45,22 @@
 
 #include <string.h>
 
+std::string ClockIdentity::getIdentityString()
+{
+	uint8_t cid[PTP_CLOCK_IDENTITY_LENGTH];
+	getIdentityString(cid);
+	char scid[PTP_CLOCK_IDENTITY_LENGTH * 3 + 1];
+	char* pscid = scid;
+	for (unsigned i = 0; i < PTP_CLOCK_IDENTITY_LENGTH; ++i) {
+		unsigned byte = cid[i];
+		PLAT_snprintf(pscid, 4, "%2.2X:", byte);
+		pscid += 3;
+	}
+	scid[PTP_CLOCK_IDENTITY_LENGTH * 3 - 1] = '\0';
+
+	return std::string(scid);
+}
+
 void ClockIdentity::set(LinkLayerAddress * addr)
 {
 	uint64_t tmp1 = 0;

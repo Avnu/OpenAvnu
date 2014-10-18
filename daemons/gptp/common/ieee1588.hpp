@@ -34,6 +34,8 @@
 #ifndef IEEE1588_HPP
 #define IEEE1588_HPP
 
+#include <string>
+
 #include <stdint.h>
 
 #include <string.h>
@@ -114,6 +116,7 @@ class ClockIdentity {
 		return memcmp(this->id, cmp.id,
 			      PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
 	}
+	std::string getIdentityString();
 	void getIdentityString(uint8_t *id) {
 		memcpy(id, this->id, PTP_CLOCK_IDENTITY_LENGTH);
 	} 

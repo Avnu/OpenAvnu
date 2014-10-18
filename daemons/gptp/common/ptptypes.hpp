@@ -40,4 +40,15 @@ typedef long double FrequencyRatio;
 #define IP_ADDR_OCTETS		4
 #define PTP_ETHERTYPE 0x88F7
 
+typedef enum {
+	PTP_MASTER = 7,
+	PTP_PRE_MASTER,
+	PTP_SLAVE,
+	PTP_UNCALIBRATED,
+	PTP_DISABLED,
+	PTP_FAULTY,
+	PTP_INITIALIZING,
+	PTP_LISTENING
+} PortState;
+
 #endif/*WINPTP_TYPES_HPP*/
