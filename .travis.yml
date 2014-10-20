@@ -1,4 +1,11 @@
 language: c
+# git submodules workaround
+git:
+  submodules: false
+# use sed to replace SSH URL with the public URL, then init submodules 
+before_install:
+  - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
+  - git submodule update --init --recursive
 compiler:
   - gcc
 env: BUILD_KERNEL=3.13.0-36-generic
