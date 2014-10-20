@@ -1,6 +1,11 @@
 
 .. image:: avnu_logo.png
 
+|
+
+.. image:: https://travis-ci.org/AVnu/Open-AVB.svg?branch=open-avb-next
+   :target: https://travis-ci.org/AVnu/Open-AVB
+
 Open AVB
 ========
 
