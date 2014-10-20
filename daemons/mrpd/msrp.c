@@ -3644,6 +3644,23 @@ int msrp_init(int msrp_enable)
 	return -1;
 }
 
+void msrp_reset(void)
+{
+	struct msrp_attribute *free_sattrib;
+	struct msrp_attribute *sattrib;
+
+	if (NULL == MSRP_db)
+		return;
+
+	sattrib = MSRP_db->attrib_list;
+	while (NULL != sattrib) {
+		free_sattrib = sattrib;
+		sattrib = sattrib->next;
+		free(free_sattrib);
+    }
+	free(MSRP_db);
+}
+
 void msrp_bye(struct sockaddr_in *client)
 {
 	if (NULL != MSRP_db)
