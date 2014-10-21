@@ -30,3 +30,5 @@ elseif(WIN32)
   add_executable (mrpd_simple_test ${MRPD_SRC} ${SRC_DIR}/que.c)
   target_link_libraries(mrpd_simple_test wpcap Iphlpapi Ws2_32 CppUTest CppUTestExt)
 endif()
+
+add_test( test_mrpd mrpd_simple_test )
