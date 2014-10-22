@@ -1795,6 +1795,25 @@ int mmrp_reclaim(void)
 	return 0;
 }
 
+
+void mmrp_reset(void)
+{
+	struct mmrp_attribute *free_sattrib;
+	struct mmrp_attribute *sattrib;
+
+	if (NULL == MMRP_db)
+		return;
+
+	sattrib = MMRP_db->attrib_list;
+	while (NULL != sattrib) {
+		free_sattrib = sattrib;
+		sattrib = sattrib->next;
+		free(free_sattrib);
+	}
+	free(MMRP_db);
+}
+
+
 void mmrp_bye(struct sockaddr_in *client)
 {
 	if (NULL != MMRP_db)
