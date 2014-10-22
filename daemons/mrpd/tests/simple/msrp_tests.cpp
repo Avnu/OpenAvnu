@@ -140,44 +140,154 @@ TEST(MsrpTestGroup, RegisterTalkerAdv)
     CHECK(a_msrp != NULL);
 }
 
-TEST(MsrpTestGroup, TxLVA)
+TEST(MsrpTestGroup, TxLVA_TalkerAdv_clear_tx_flag)
 {
     struct msrp_attribute *attrib;
-    char cmd_string[128];
-    uint64_t id = 0xbadc0ffeeull;
-    uint64_t da = 0xdeadbeefull;
-    int count = 32;
+     int count = 128;
     int tx_flag_count = 0;
-    int i;
+	char cmd_string[] = "S++:S=" STREAM_ID ",A=" STREAM_DA ",V=" VLAN_ID
+		",Z=" TSPEC_MAX_FRAME_SIZE ",I=" TSPEC_MAX_FRAME_INTERVAL
+		",P=" PRIORITY_AND_RANK ",L=" ACCUMULATED_LATENCY;
 
-    /* declare count TalkerAdv */
-    for (i = 0; i < count; i++)
-    {
-        snprintf(cmd_string, sizeof(cmd_string),
-                 "S++:S=%" PRIx64 ",A=%" PRIx64 ",V=" VLAN_ID ",Z=" TSPEC_MAX_FRAME_SIZE
-                 ",I=" TSPEC_MAX_FRAME_INTERVAL ",P=" PRIORITY_AND_RANK ",L=" ACCUMULATED_LATENCY,
-                 id, da);
-        msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
-        /* add 2 to prevent vectorizing */
-        id += 2;
-        da += 2;
-    }
+	msrp_recv_cmd(cmd_string, sizeof(cmd_string), &client);
 
-    /* generate a LVA */
+    /*
+	 * Generate a LVA event.
+	 * This will cause a tx flag to be set for the attribute and then cleared when
+	 * the attribute is encoded into a PDU.
+	 */
     msrp_event(MRP_EVENT_LVATIMER, NULL);
 
-    /* verify that all tx flags are zero */
+    /* verify that all tx flags are zero by scanning the attribute list */
     attrib = MSRP_db->attrib_list;
-    /*
-     * ToDo - figure out why this test fails.
-     * Seems the code that emits a PDU DOES NOT
-     * reset the tx flag. Need to do some research.
-     */
     while (NULL != attrib)
     {
         tx_flag_count += attrib->applicant.tx;
         attrib = attrib->next;
     }
     CHECK(mrpd_send_packet_count() > 0);
-    //CHECK_EQUAL(0, tx_flag_count);
+    CHECK_EQUAL(0, tx_flag_count);
+}
+
+TEST(MsrpTestGroup, TxLVA_TalkerFailed_clear_tx_flag)
+{
+	struct msrp_attribute *attrib;
+	int tx_flag_count = 0;
+	char cmd_string[] = "S++:S=" STREAM_ID ",A=" STREAM_DA ",V=" VLAN_ID
+		",Z=" TSPEC_MAX_FRAME_SIZE ",I=" TSPEC_MAX_FRAME_INTERVAL
+		",P=" PRIORITY_AND_RANK ",L=" ACCUMULATED_LATENCY
+		",B=" BRIDGE_ID ",C=" FAILURE_CODE;
+
+	/* declare single TalkerFailed */
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+
+	/*
+	* Generate a LVA event.
+	* This will cause a tx flag to be set for the attribute and then cleared when
+	* the attribute is encoded into a PDU.
+	*/
+	msrp_event(MRP_EVENT_LVATIMER, NULL);
+
+	/* verify that all tx flags are zero by scanning the attribute list */
+	attrib = MSRP_db->attrib_list;
+	while (NULL != attrib)
+	{
+		tx_flag_count += attrib->applicant.tx;
+		attrib = attrib->next;
+	}
+	CHECK(mrpd_send_packet_count() > 0);
+	CHECK_EQUAL(0, tx_flag_count);
+}
+
+TEST(MsrpTestGroup, TxLVA_Listener_clear_tx_flag)
+{
+	struct msrp_attribute *attrib;
+	int tx_flag_count = 0;
+	char cmd_string[] = "S+L:L=" STREAM_ID ",D=2";
+
+	/* declare single Listener */
+	msrp_recv_cmd(cmd_string, sizeof(cmd_string), &client);
+
+	/*
+	* Generate a LVA event.
+	* This will cause a tx flag to be set for the attribute and then cleared when
+	* the attribute is encoded into a PDU.
+	*/
+	msrp_event(MRP_EVENT_LVATIMER, NULL);
+
+	/* verify that all tx flags are zero by scanning the attribute list */
+	attrib = MSRP_db->attrib_list;
+	while (NULL != attrib)
+	{
+		tx_flag_count += attrib->applicant.tx;
+		attrib = attrib->next;
+	}
+	CHECK(mrpd_send_packet_count() > 0);
+	CHECK_EQUAL(0, tx_flag_count);
+}
+
+TEST(MsrpTestGroup, TxLVA_Domain_clear_tx_flag)
+{
+	struct msrp_attribute *attrib;
+	int tx_flag_count = 0;
+	char cmd_string[] = "S+D:C=" SR_CLASS_ID
+		",P=" SR_CLASS_PRIORITY
+		",V=" VLAN_ID;
+
+	/* declare single Domain */
+	msrp_recv_cmd(cmd_string, sizeof(cmd_string), &client);
+
+	/*
+	* Generate a LVA event.
+	* This will cause a tx flag to be set for the attribute and then cleared when
+	* the attribute is encoded into a PDU.
+	*/
+	msrp_event(MRP_EVENT_LVATIMER, NULL);
+
+	/* verify that all tx flags are zero by scanning the attribute list */
+	attrib = MSRP_db->attrib_list;
+	while (NULL != attrib)
+	{
+		tx_flag_count += attrib->applicant.tx;
+		attrib = attrib->next;
+	}
+	CHECK(mrpd_send_packet_count() > 0);
+	CHECK_EQUAL(0, tx_flag_count);
+}
+
+TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
+{
+	struct msrp_attribute *attrib;
+	char cmd_string[128];
+	uint64_t id = 0xbadc0ffeeull;
+	uint64_t da = 0xdeadbeefull;
+	int count = 64;
+	int tx_flag_count = 0;
+	int i;
+
+	/* declare count TalkerAdv */
+	for (i = 0; i < count; i++)
+	{
+		snprintf(cmd_string, sizeof(cmd_string),
+			"S++:S=%" PRIx64 ",A=%" PRIx64 ",V=" VLAN_ID ",Z=" TSPEC_MAX_FRAME_SIZE
+			",I=" TSPEC_MAX_FRAME_INTERVAL ",P=" PRIORITY_AND_RANK ",L=" ACCUMULATED_LATENCY,
+			id, da);
+		msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+		/* add 2 to prevent vectorizing */
+		id += 2;
+		da += 2;
+	}
+
+	/* generate a LVA */
+	msrp_event(MRP_EVENT_LVATIMER, NULL);
+
+	/* verify that all tx flags are zero */
+	attrib = MSRP_db->attrib_list;
+	while (NULL != attrib)
+	{
+		tx_flag_count += attrib->applicant.tx;
+		attrib = attrib->next;
+	}
+	CHECK(mrpd_send_packet_count() > 0);
+	CHECK_EQUAL(0, tx_flag_count);
 }
