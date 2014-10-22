@@ -7,7 +7,7 @@ set (SRC_DIR "../.." )
 add_definitions(-DMRP_CPPUTEST)
 
 include_directories( . "../../../common" ${CPPUTEST_DIR}/include )
-file(GLOB MRPD_SRC ${SRC_DIR}/mrp.c ${SRC_DIR}/mvrp.c ${SRC_DIR}/mmrp.c ${SRC_DIR}/msrp.c "../../../common/parse.c" "msrp_tests.cpp" "mvrp_tests.cpp" "mmrp_tests.cpp" "AllTests.cpp")
+file(GLOB MRPD_SRC ${SRC_DIR}/mrp.c ${SRC_DIR}/mvrp.c ${SRC_DIR}/mmrp.c ${SRC_DIR}/msrp.c "../../../common/parse.c" "msrp_tests.cpp" "mvrp_tests.cpp" "mmrp_tests.cpp" "applicant_fsm_tests.cpp" "AllTests.cpp")
 
 if(APPLE)
   include_directories( include ${CPPUTEST_DIR}/include/Platforms/Gcc )
