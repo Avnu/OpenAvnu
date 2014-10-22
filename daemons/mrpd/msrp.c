@@ -1859,8 +1859,8 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			attrib = attrib->next;
 			continue;
 		}
+		attrib->applicant.tx = 0;
 		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
-			attrib->applicant.tx = 0;
 			attrib = attrib->next;
 			continue;
 		}
@@ -2175,8 +2175,8 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			attrib = attrib->next;
 			continue;
 		}
+		attrib->applicant.tx = 0;
 		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
-			attrib->applicant.tx = 0;
 			attrib = attrib->next;
 			continue;
 		}
@@ -2487,6 +2487,12 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		}
 
 		if (0 == attrib->applicant.tx) {
+			attrib = attrib->next;
+			continue;
+		}
+
+		attrib->applicant.tx = 0;
+		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
 			attrib = attrib->next;
 			continue;
 		}
