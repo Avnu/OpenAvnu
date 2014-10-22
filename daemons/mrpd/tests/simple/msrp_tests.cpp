@@ -54,13 +54,9 @@ extern "C"
 
 #include "mrpd.h"
 #include "mrp.h"
-#include "mvrp.h"
 #include "msrp.h"
-#include "mmrp.h"
 #include "parse.h"
 
-    extern struct mmrp_database *MMRP_db;
-    extern struct mvrp_database *MVRP_db;
     extern struct msrp_database *MSRP_db;
 
 }
@@ -89,7 +85,7 @@ extern "C"
                      ",P=" PRIORITY_AND_RANK \
                      ",L=" ACCUMULATED_LATENCY
 
-struct sockaddr_in client;
+static struct sockaddr_in client;
 
 static void uint64_to_id(uint64_t v, uint8_t *id)
 {
