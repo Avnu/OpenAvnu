@@ -833,8 +833,8 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			attrib = attrib->next;
 			continue;
 		}
+		attrib->applicant.tx = 0;
 		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
-			attrib->applicant.tx = 0;
 			attrib = attrib->next;
 			continue;
 		}
@@ -1075,8 +1075,8 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			attrib = attrib->next;
 			continue;
 		}
+		attrib->applicant.tx = 0;
 		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
-			attrib->applicant.tx = 0;
 			attrib = attrib->next;
 			continue;
 		}

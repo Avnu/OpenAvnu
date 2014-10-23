@@ -57,7 +57,7 @@ extern "C"
 #include "mmrp.h"
 #include "parse.h"
 
-    extern struct mvrp_database *MMRP_db;
+    extern struct mmrp_database *MMRP_db;
 
 }
 
@@ -101,4 +101,47 @@ TEST(MmrpTestGroup, RegisterAttrib)
     /* lookup the created attrib */
     a_mmrp = mmrp_lookup(&a_ref);
     CHECK(a_mmrp != NULL);
+}
+
+
+TEST(MmrpTestGroup, TxLVA_clear_tx_flag)
+{
+	struct mmrp_attribute a_ref;
+	struct mmrp_attribute *attrib = NULL;
+	int tx_flag_count = 0;
+	int err_index = 0;
+	int parse_status = 0;
+	int i;
+	char cmd_string[] = "M++:M=" STREAM_DA;
+
+	CHECK(MMRP_db != NULL);
+
+	/* here we fill in a_ref struct with target values */
+	a_ref.type = MMRP_MACVEC_TYPE;
+	for (i = 0; i < 6; i++)
+		a_ref.attribute.macaddr[i] = i + 1; /* matches defn of STREAM_DA */
+
+	/* use string interface to get MMRP to create attrib in it's database */
+	mmrp_recv_cmd(cmd_string, sizeof(cmd_string), &client);
+
+	/* lookup the created attrib */
+	attrib = mmrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+
+	/*
+	* Generate a LVA event.
+	* This will cause a tx flag to be set for the attribute and then cleared when
+	* the attribute is encoded into a PDU.
+	*/
+	mmrp_event(MRP_EVENT_LVATIMER, NULL);
+
+	/* verify that all tx flags are zero by scanning the attribute list */
+	attrib = MMRP_db->attrib_list;
+	while (NULL != attrib)
+	{
+		tx_flag_count += attrib->applicant.tx;
+		attrib = attrib->next;
+	}
+	CHECK(mrpd_send_packet_count() > 0);
+	CHECK_EQUAL(0, tx_flag_count);
 }

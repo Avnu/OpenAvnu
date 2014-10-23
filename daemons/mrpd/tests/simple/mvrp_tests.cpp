@@ -97,3 +97,41 @@ TEST(MvrpTestGroup, RegisterVLAN)
     a_mvrp = mvrp_lookup(&a_ref);
     CHECK(a_mvrp != NULL);
 }
+
+TEST(MvrpTestGroup, TxLVA_clear_tx_flag)
+{
+	struct mvrp_attribute a_ref;
+	struct mvrp_attribute *attrib = NULL;
+	int tx_flag_count = 0;
+	int err_index = 0;
+	int parse_status = 0;
+	char cmd_string[] = "V++:I=1234";
+
+	CHECK(MVRP_db != NULL);
+
+	/* here we fill in a_ref struct with target values */
+	a_ref.attribute = 0x1234;
+
+	/* use string interface to get MSRP to create TalkerAdv attrib in it's database */
+	mvrp_recv_cmd(cmd_string, sizeof(cmd_string), &client);
+
+	/* lookup the created attrib */
+	attrib = mvrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+	/*
+	* Generate a LVA event.
+	* This will cause a tx flag to be set for the attribute and then cleared when
+	* the attribute is encoded into a PDU.
+	*/
+	mvrp_event(MRP_EVENT_LVATIMER, NULL);
+
+	/* verify that all tx flags are zero by scanning the attribute list */
+	attrib = MVRP_db->attrib_list;
+	while (NULL != attrib)
+	{
+		tx_flag_count += attrib->applicant.tx;
+		attrib = attrib->next;
+	}
+	CHECK(mrpd_send_packet_count() > 0);
+	CHECK_EQUAL(0, tx_flag_count);
+}

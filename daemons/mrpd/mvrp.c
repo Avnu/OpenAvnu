@@ -673,15 +673,14 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			attrib = attrib->next;
 			continue;
 		}
+		attrib->applicant.tx = 0;
 		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
-			attrib->applicant.tx = 0;
 			attrib = attrib->next;
 			continue;
 		}
 
 		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
-		attrib->applicant.tx = 0;
 		vid_firstval = attrib->attribute;
 		mrpdu_vectorptr->FirstValue_VectorEvents[0] =
 		    (uint8_t) (attrib->attribute >> 8);
