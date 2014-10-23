@@ -809,9 +809,10 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
 	unsigned int attrib_found_flag = 0;
+	unsigned int vector_size = 6;
 
 	/* need at least 6 bytes for a single vector */
-	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 6))
+	if (mrpdu_msg_ptr > (mrpdu_msg_eof - vector_size))
 		goto oops;
 
 	mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
@@ -822,7 +823,7 @@ mmrp_emit_svcvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
 
-	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
+	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - vector_size - MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
 
 		if (MMRP_SVCREQ_TYPE != attrib->type) {
 			attrib = attrib->next;
@@ -1050,10 +1051,11 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	int vectevt_idx;
 	uint8_t macvec_firstval[6];
 	struct mmrp_attribute *attrib, *vattrib;
+	unsigned int vector_size = 11;
 	int mac_eq;
 
 	/* need at least 11 bytes for a single vector */
-	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 11))
+	if (mrpdu_msg_ptr > (mrpdu_msg_eof - vector_size))
 		goto oops;
 
 	mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
@@ -1064,7 +1066,7 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
 
-	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
+	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - vector_size - MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
 
 		if (MMRP_MACVEC_TYPE != attrib->type) {
 			attrib = attrib->next;

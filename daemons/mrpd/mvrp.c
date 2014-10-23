@@ -651,12 +651,13 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	struct mvrp_attribute *attrib, *vattrib;
 	mrpdu_message_t *mrpdu_msg;
 	unsigned int attrib_found_flag = 0;
+	unsigned int vector_size = 6;
 
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
 
 	/* need at least 6 bytes for a single vector */
-	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 6))
+	if (mrpdu_msg_ptr > (mrpdu_msg_eof - vector_size))
 		goto oops;
 
 	mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
@@ -667,7 +668,7 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
 
-	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
+	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - vector_size - MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
 
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
