@@ -1210,7 +1210,7 @@ mmrp_emit_macvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			}
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
-			    > (mrpdu_msg_eof - 11))
+			    > (mrpdu_msg_eof - vector_size))
 				goto oops;
 
 			vattrib = vattrib->next;
