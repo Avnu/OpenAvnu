@@ -2353,7 +2353,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			}
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
-				> (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
+			    > (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 				goto oops;
 
 			vattrib = vattrib->next;
@@ -2660,7 +2660,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			}
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
-				> (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
+			    > (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 				goto oops;
 
 			vattrib = vattrib->next;
@@ -2730,7 +2730,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		}
 
 		if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx]) >
-			(mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
+		    (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 			goto oops;
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
