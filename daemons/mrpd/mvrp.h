@@ -57,8 +57,10 @@ struct mvrp_database {
 
 /* MVRP uses ThreePackedEvents for all vector encodings */
 int mvrp_init(int mvrp_enable);
+void mvrp_reset(void);
 int mvrp_event(int event, struct mvrp_attribute *rattrib);
 int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);
+struct mvrp_attribute *mvrp_lookup(struct mvrp_attribute *rattrib);
 int mvrp_reclaim(void);
 void mvrp_bye(struct sockaddr_in *client);
 int mvrp_recv_msg(void);

@@ -460,7 +460,7 @@ int mvrp_recv_msg(void)
 
 	endmarks = 0;
 
-	while (mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) {
+	while (mrpdu_msg_ptr < (mrpdu_msg_eof - MRPDU_ENDMARK_SZ)) {
 		mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
 		if ((mrpdu_msg->AttributeType == 0) &&
 		    (mrpdu_msg->AttributeLength == 0)) {
@@ -651,12 +651,13 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	struct mvrp_attribute *attrib, *vattrib;
 	mrpdu_message_t *mrpdu_msg;
 	unsigned int attrib_found_flag = 0;
+	unsigned int vector_size = 6;
 
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
 
 	/* need at least 6 bytes for a single vector */
-	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 6))
+	if (mrpdu_msg_ptr > (mrpdu_msg_eof - vector_size))
 		goto oops;
 
 	mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
@@ -667,21 +668,20 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) mrpdu_msg->Data;
 
-	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
+	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - vector_size - MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
 
 		if (0 == attrib->applicant.tx) {
 			attrib = attrib->next;
 			continue;
 		}
+		attrib->applicant.tx = 0;
 		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
-			attrib->applicant.tx = 0;
 			attrib = attrib->next;
 			continue;
 		}
 
 		attrib_found_flag = 1;
 		/* pointing to at least one attribute which needs to be transmitted */
-		attrib->applicant.tx = 0;
 		vid_firstval = attrib->attribute;
 		mrpdu_vectorptr->FirstValue_VectorEvents[0] =
 		    (uint8_t) (attrib->attribute >> 8);
@@ -807,7 +807,7 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			}
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
-			    > (mrpdu_msg_eof - 2))
+			    > (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 				goto oops;
 
 			vattrib = vattrib->next;
@@ -824,7 +824,7 @@ mvrp_emit_vidvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		}
 
 		if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx]) >
-		    (mrpdu_msg_eof - 2))
+		    (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 			goto oops;
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
@@ -973,7 +973,7 @@ int mvrp_txpdu(void)
 	}
 
 	/* endmark */
-	if (mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) {
+	if (mrpdu_msg_ptr < (mrpdu_msg_eof - MRPDU_ENDMARK_SZ)) {
 		*mrpdu_msg_ptr = 0;
 		mrpdu_msg_ptr++;
 		*mrpdu_msg_ptr = 0;
@@ -1333,6 +1333,23 @@ int mvrp_reclaim(void)
 
 	}
 	return 0;
+}
+
+void mvrp_reset(void)
+{
+	struct mvrp_attribute *free_sattrib;
+	struct mvrp_attribute *sattrib;
+
+	if (NULL == MVRP_db)
+		return;
+
+	sattrib = MVRP_db->attrib_list;
+	while (NULL != sattrib) {
+		free_sattrib = sattrib;
+		sattrib = sattrib->next;
+		free(free_sattrib);
+	}
+	free(MVRP_db);
 }
 
 void mvrp_bye(struct sockaddr_in *client)

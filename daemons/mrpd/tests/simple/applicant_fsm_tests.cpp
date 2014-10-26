@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2012, Intel Corporation 
+  Copyright (c) 2014, AudioScience, Inc.
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -31,50 +31,33 @@
 
 ******************************************************************************/
 
-#define MMRP_ETYPE	0x88F6
-#define MMRP_PROT_VER	0x00
+#include <stdio.h>
+#include <string.h>
 
-/* two attribute types defined for MMRP */
-#define MMRP_SVCREQ_TYPE	1
-#define MMRP_MACVEC_TYPE	2
+#include "CppUTest/TestHarness.h"
 
-/* MMRP_MACVEC_TYPE FirstValue is the 6-byte MAC address, with
- * corresponding attrib_length=6
- */
+extern "C" {
 
-/* MMRP_SVCREQ_TYPE FirstValue is a single byte - values follow,
- * attrib_length=1
- */
+#include "mrpd.h"
+#include "mrp.h"
 
-#define MMRP_SVCREQ_FOWARD_ALL			0
-#define MMRP_SVCREQ_FOWARD_UNREGISTERED	1
-/* MMRP uses ThreePackedEvents for all vector encodings */
+}
 
-struct mmrp_attribute {
-	struct mmrp_attribute *prev;
-	struct mmrp_attribute *next;
-	uint32_t type;
-	union {
-		unsigned char macaddr[6];
-		uint8_t svcreq;
-	} attribute;
-	mrp_applicant_attribute_t applicant;
-	mrp_registrar_attribute_t registrar;
+TEST_GROUP(ApplicantTestGroup)
+{
+   void setup()
+   {
+   }
+
+   void teardown()
+   {
+   }
 };
 
-struct mmrp_database {
-	struct mrp_database mrp_db;
-	struct mmrp_attribute *attrib_list;
-	int send_empty_LeaveAll_flag;
-};
+TEST(ApplicantTestGroup, Applicant_rLVA)
+{
+	mrp_applicant_attribute_t a;
 
-int mmrp_init(int mmrp_enable);
-void mmrp_reset(void);
-int mmrp_event(int event, struct mmrp_attribute *rattrib);
-struct mmrp_attribute *mmrp_lookup(struct mmrp_attribute *rattrib);
-int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);
-int mmrp_reclaim(void);
-void mmrp_bye(struct sockaddr_in *client);
-int mmrp_recv_msg(void);
-void mmrp_increment_macaddr(uint8_t * macaddr);
-int mmrp_send_notifications(struct mmrp_attribute *attrib, int notify);
+	a.mrp_state = 0;
+	// etc....
+}
