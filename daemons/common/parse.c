@@ -63,7 +63,7 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 	const char *guard;
 	unsigned int v_uint;
 	uint64_t v_uint64;
-	int result;
+	int result = 0;
 	int count = 0;
 
 	/* make sure string is null terminated */
