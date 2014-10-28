@@ -731,7 +731,7 @@ int msrp_recv_msg()
 
 	endmarks = 0;
 
-	while (mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) {
+	while (mrpdu_msg_ptr < (mrpdu_msg_eof - MRPDU_ENDMARK_SZ)) {
 		mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
 		if ((mrpdu_msg->AttributeType == 0) &&
 		    (mrpdu_msg->AttributeLength == 0)) {
@@ -1835,9 +1835,10 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	unsigned char *mrpdu_msg_ptr = msgbuf;
 	unsigned char *mrpdu_msg_eof = msgbuf_eof;
 	unsigned int attrib_found_flag = 0;
+	unsigned int vector_size = 5;
 
 	/* need at least 5 bytes for a single vector */
-	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 5))
+	if (mrpdu_msg_ptr > (mrpdu_msg_eof - vector_size))
 		goto oops;
 
 	mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
@@ -1848,7 +1849,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 
-	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
+	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - vector_size - MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
 
 		if (MSRP_DOMAIN_TYPE != attrib->type) {
 			attrib = attrib->next;
@@ -1859,8 +1860,8 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			attrib = attrib->next;
 			continue;
 		}
+		attrib->applicant.tx = 0;
 		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
-			attrib->applicant.tx = 0;
 			attrib = attrib->next;
 			continue;
 		}
@@ -2002,7 +2003,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			}
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
-			    > (mrpdu_msg_eof - 2))
+			    > (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 				goto oops;
 
 			vattrib = vattrib->next;
@@ -2020,7 +2021,7 @@ msrp_emit_domainvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		}
 
 		if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx]) >
-		    (mrpdu_msg_eof - 2))
+		    (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 			goto oops;
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
@@ -2159,7 +2160,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 
 	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 
-	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
+	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - vector_size - MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
 
 		if (type != attrib->type) {
 			attrib = attrib->next;
@@ -2175,8 +2176,8 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			attrib = attrib->next;
 			continue;
 		}
+		attrib->applicant.tx = 0;
 		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
-			attrib->applicant.tx = 0;
 			attrib = attrib->next;
 			continue;
 		}
@@ -2352,7 +2353,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			}
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
-			    > (mrpdu_msg_eof - 2))
+			    > (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 				goto oops;
 
 			vattrib = vattrib->next;
@@ -2369,7 +2370,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		}
 
 		if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx]) >
-		    (mrpdu_msg_eof - 2))
+		    (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 			goto oops;
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
@@ -2450,11 +2451,12 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	int listen_declare_end = 0;
 	uint8_t streamid_firstval[8];
 	struct msrp_attribute *attrib, *vattrib;
+	unsigned int vector_size = 13;
 	int mac_eq;
 	unsigned int attrib_found_flag = 0;
 
 	/* need at least 13 bytes for a single vector */
-	if (mrpdu_msg_ptr > (mrpdu_msg_eof - 13))
+	if (mrpdu_msg_ptr > (mrpdu_msg_eof - vector_size))
 		goto oops;
 
 	mrpdu_msg = (mrpdu_message_t *) mrpdu_msg_ptr;
@@ -2479,7 +2481,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 	attrib = MSRP_db->attrib_list;
 	mrpdu_vectorptr = (mrpdu_vectorattrib_t *) & (mrpdu_msg->Data[2]);
 
-	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) && (NULL != attrib)) {
+	while ((mrpdu_msg_ptr < (mrpdu_msg_eof - vector_size -MRPDU_ENDMARK_SZ)) && (NULL != attrib)) {
 
 		if (MSRP_LISTENER_TYPE != attrib->type) {
 			attrib = attrib->next;
@@ -2487,6 +2489,12 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		}
 
 		if (0 == attrib->applicant.tx) {
+			attrib = attrib->next;
+			continue;
+		}
+
+		attrib->applicant.tx = 0;
+		if (MRP_ENCODE_OPTIONAL == attrib->applicant.encode) {
 			attrib = attrib->next;
 			continue;
 		}
@@ -2652,7 +2660,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			}
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
-			    > (mrpdu_msg_eof - 2))
+			    > (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 				goto oops;
 
 			vattrib = vattrib->next;
@@ -2677,7 +2685,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		     listen_declare_idx += 4) {
 
 			if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx])
-			    > (mrpdu_msg_eof - 2))
+			    > (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 				goto oops;
 
 			vect_4pack =
@@ -2722,7 +2730,7 @@ msrp_emit_listenvectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 		}
 
 		if (&(mrpdu_vectorptr->FirstValue_VectorEvents[vectidx]) >
-		    (mrpdu_msg_eof - 2))
+		    (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 			goto oops;
 
 		mrpdu_vectorptr->VectorHeader = MRPDU_VECT_NUMVALUES(numvalues);
@@ -2841,7 +2849,7 @@ int msrp_txpdu(void)
 
 	mrpdu_msg_ptr += bytes;
 
-	if (mrpdu_msg_ptr >= (mrpdu_msg_eof - 2))
+	if (mrpdu_msg_ptr >= (mrpdu_msg_eof - MRPDU_ENDMARK_SZ))
 		goto out;
 
 	rc = msrp_emit_listenvectors(mrpdu_msg_ptr, mrpdu_msg_eof, &bytes, lva);
@@ -2861,7 +2869,7 @@ int msrp_txpdu(void)
 	}
 
 	/* endmark */
-	if (mrpdu_msg_ptr < (mrpdu_msg_eof - 2)) {
+	if (mrpdu_msg_ptr < (mrpdu_msg_eof - MRPDU_ENDMARK_SZ)) {
 		*mrpdu_msg_ptr = 0;
 		mrpdu_msg_ptr++;
 		*mrpdu_msg_ptr = 0;
@@ -3642,6 +3650,23 @@ int msrp_init(int msrp_enable)
 	msrp_socket = INVALID_SOCKET;
 	/* XXX */
 	return -1;
+}
+
+void msrp_reset(void)
+{
+	struct msrp_attribute *free_sattrib;
+	struct msrp_attribute *sattrib;
+
+	if (NULL == MSRP_db)
+		return;
+
+	sattrib = MSRP_db->attrib_list;
+	while (NULL != sattrib) {
+		free_sattrib = sattrib;
+		sattrib = sattrib->next;
+		free(free_sattrib);
+    }
+	free(MSRP_db);
 }
 
 void msrp_bye(struct sockaddr_in *client)

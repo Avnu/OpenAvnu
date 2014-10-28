@@ -1,0 +1,26 @@
+cmake_minimum_required (VERSION 2.8) 
+project (mrpd)
+enable_testing()
+
+include_directories( . "../common" )
+file(GLOB MRPD_SRC "mrp.c" "mvrp.c" "mmrp.c" "msrp.c" "../common/parse.c")
+
+if(APPLE)
+  add_executable (mrpd ${MRPD_SRC}  "mrpd.c")
+elseif(UNIX)
+  add_executable (mrpd ${MRPD_SRC}  "mrpd.c")
+  target_link_libraries(pthread)
+elseif(WIN32)
+  if( CMAKE_SIZEOF_VOID_P EQUAL 8 )
+    link_directories($ENV{WPCAP_DIR}/Lib/x64)
+  elseif( CMAKE_SIZEOF_VOID_P EQUAL 4 )
+    link_directories($ENV{WPCAP_DIR}/Lib)
+  endif()
+
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+  include_directories( include $ENV{WPCAP_DIR}/Include )
+  add_executable (mrpd ${MRPD_SRC} "mrpw.c" "que.c")
+  target_link_libraries(mrpd wpcap Iphlpapi Ws2_32)
+endif()
+
+add_subdirectory("tests/simple")

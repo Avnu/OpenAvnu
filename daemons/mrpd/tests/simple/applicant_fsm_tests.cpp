@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2014, AudioScience, Inc.
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -31,24 +31,33 @@
 
 ******************************************************************************/
 
-#ifndef WINPTP_TYPES_HPP
-#define WINPTP_TYPES_HPP
+#include <stdio.h>
+#include <string.h>
 
-typedef long double FrequencyRatio;
+#include "CppUTest/TestHarness.h"
 
-#define ETHER_ADDR_OCTETS	6
-#define IP_ADDR_OCTETS		4
-#define PTP_ETHERTYPE 0x88F7
+extern "C" {
 
-typedef enum {
-	PTP_MASTER = 7,
-	PTP_PRE_MASTER,
-	PTP_SLAVE,
-	PTP_UNCALIBRATED,
-	PTP_DISABLED,
-	PTP_FAULTY,
-	PTP_INITIALIZING,
-	PTP_LISTENING
-} PortState;
+#include "mrpd.h"
+#include "mrp.h"
 
-#endif/*WINPTP_TYPES_HPP*/
+}
+
+TEST_GROUP(ApplicantTestGroup)
+{
+   void setup()
+   {
+   }
+
+   void teardown()
+   {
+   }
+};
+
+TEST(ApplicantTestGroup, Applicant_rLVA)
+{
+	mrp_applicant_attribute_t a;
+
+	a.mrp_state = 0;
+	// etc....
+}

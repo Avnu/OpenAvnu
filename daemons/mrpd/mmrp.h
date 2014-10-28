@@ -69,7 +69,9 @@ struct mmrp_database {
 };
 
 int mmrp_init(int mmrp_enable);
+void mmrp_reset(void);
 int mmrp_event(int event, struct mmrp_attribute *rattrib);
+struct mmrp_attribute *mmrp_lookup(struct mmrp_attribute *rattrib);
 int mmrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);
 int mmrp_reclaim(void);
 void mmrp_bye(struct sockaddr_in *client);
