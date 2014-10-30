@@ -446,7 +446,7 @@ mrpd_init_protocol_socket(u_int16_t etype, int *sock,
 
 	memset(&if_request, 0, sizeof(if_request));
 
-	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name));
+	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name) - 1);
 
 	rc = ioctl(lsock, SIOCGIFHWADDR, &if_request);
 	if (rc < 0) {
@@ -459,7 +459,7 @@ mrpd_init_protocol_socket(u_int16_t etype, int *sock,
 
 	memset(&if_request, 0, sizeof(if_request));
 
-	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name));
+	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name)-1);
 
 	rc = ioctl(lsock, SIOCGIFINDEX, &if_request);
 	if (rc < 0) {
