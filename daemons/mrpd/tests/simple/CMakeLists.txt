@@ -32,4 +32,4 @@ elseif(WIN32)
   target_link_libraries(mrpd_simple_test wpcap Iphlpapi Ws2_32 CppUTest CppUTestExt)
 endif()
 
-add_test( test_mrpd mrpd_simple_test )
+add_test( test_mrpd mrpd_simple_test -v )
