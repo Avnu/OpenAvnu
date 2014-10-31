@@ -134,8 +134,3 @@ int mrpd_close_socket(SOCKET sock);
 int mrpd_recvmsgbuf(SOCKET sock, char **buf);
 
 void mrpd_log_printf(const char *fmt, ...);
-
-#ifdef MRP_CPPUTEST
-void mrpd_reset(void);
-unsigned int mrpd_send_packet_count(void);
-#endif

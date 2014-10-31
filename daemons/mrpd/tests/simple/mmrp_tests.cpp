@@ -52,7 +52,7 @@ typedef unsigned __int64 uint64_t;
 extern "C"
 {
 
-#include "mrpd.h"
+#include "mrp_doubles.h"
 #include "mrp.h"
 #include "mmrp.h"
 #include "parse.h"
@@ -69,6 +69,7 @@ TEST_GROUP(MmrpTestGroup)
 {
     void setup()
     {
+        mrpd_reset();
         mmrp_init(1);
     }
 
