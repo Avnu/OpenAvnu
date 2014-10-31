@@ -58,7 +58,7 @@ extern unsigned char STATION_ADDR[];
 SOCKET msrp_socket;
 struct msrp_database *MSRP_db;
 
-static char *msrp_attrib_type_string(int t)
+char *msrp_attrib_type_string(int t)
 {
 	switch (t) {
 	case MSRP_TALKER_ADV_TYPE:
@@ -1791,9 +1791,11 @@ int msrp_recv_msg()
 			 * we can seek for an endmark to recover .. but this version
 			 * dumps the entire packet as malformed
 			 */
+#if LOG_MSRP
 			printf
 			    ("################## unrecognized attribute type (%d)\n",
 			     mrpdu_msg->AttributeType);
+#endif
 			goto out;
 		}
 	}
