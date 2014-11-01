@@ -44,7 +44,7 @@
 /* state machine controls */
 int p2pmac;
 
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP || MRP_CPPUTEST
 
 /* can use static string since module is single threaded */
 static char state_status_string[64];
