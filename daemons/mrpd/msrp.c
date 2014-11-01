@@ -50,6 +50,8 @@ static struct msrp_attribute *msrp_alloc(void);
 int msrp_send_notifications(struct msrp_attribute *attrib, int notify);
 static struct msrp_attribute *msrp_conditional_reclaim(struct msrp_attribute *sattrib);
 
+int msrp_event(int event, struct msrp_attribute *rattrib);
+
 unsigned char MSRP_ADDR[] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x0E };
 
 extern unsigned char STATION_ADDR[];
@@ -58,7 +60,7 @@ extern unsigned char STATION_ADDR[];
 SOCKET msrp_socket;
 struct msrp_database *MSRP_db;
 
-static char *msrp_attrib_type_string(int t)
+char *msrp_attrib_type_string(int t)
 {
 	switch (t) {
 	case MSRP_TALKER_ADV_TYPE:
@@ -342,7 +344,11 @@ int msrp_merge(struct msrp_attribute *rattrib)
 	return 0;
 }
 
+#ifdef MRP_CPPUTEST /* MSRP_PDU_TEST */
+int msrp_event_orig(int event, struct msrp_attribute *rattrib)
+#else
 int msrp_event(int event, struct msrp_attribute *rattrib)
+#endif
 {
 	struct msrp_attribute *attrib;
 	int count = 0;
@@ -1791,9 +1797,11 @@ int msrp_recv_msg()
 			 * we can seek for an endmark to recover .. but this version
 			 * dumps the entire packet as malformed
 			 */
+#if LOG_MSRP
 			printf
 			    ("################## unrecognized attribute type (%d)\n",
 			     mrpdu_msg->AttributeType);
+#endif
 			goto out;
 		}
 	}

@@ -8,5 +8,5 @@ mkdir build
 cd build
 cmake .. -G "Unix Makefiles"
 make
+export ARGS=--output-on-failure
 make test
-
