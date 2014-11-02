@@ -894,7 +894,7 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	rc = msrp_init(msrp_enable);
+	rc = msrp_init(msrp_enable,0);
 	if (rc) {
 		printf("msrp_enable failed\n");
 		goto out;
