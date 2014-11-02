@@ -13,7 +13,7 @@ all: mrpd mrpctl
 
 VPATH = ../common
 
-mrpd: mrpd.o mvrp.o msrp.o mmrp.o mrp.o parse.o
+mrpd: mrpd.o mvrp.o msrp.o mmrp.o mrp.o parse.o eui64set.o
 
 mrpctl: mrpctl.o ../../examples/mrp_client/mrpdclient.o
 
