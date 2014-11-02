@@ -54,11 +54,57 @@ TEST_GROUP(Eui64SetGroup)
 
 TEST(Eui64SetGroup, Fill)
 {
-
+    eui64set my_set;
+    int size=7;
+    CHECK( eui64set_init( &my_set, size ) == 0 );
+    CHECK( eui64set_is_full(&my_set) == 0 );
+    
+    for( int i=0; i<size; ++i )
+    {
+        uint64_t v=(i-(uint64_t(~0)));
+        CHECK( eui64set_insert_and_sort( &my_set, v, 0 )==1 );
+        if( i<size-1 )
+        {
+            CHECK( eui64set_is_full(&my_set) == 0 );
+        }
+    }
+    CHECK( eui64set_is_full(&my_set) == 1 );
+    eui64set_free( &my_set );
 }
 
 TEST(Eui64SetGroup, Find)
 {
+    eui64set my_set;
+    int size=7;
+    CHECK( eui64set_init( &my_set, size ) == 0 );
+    CHECK( eui64set_is_full(&my_set) == 0 );
+    
+    for( int i=0; i<size; ++i )
+    {
+        uint64_t v=(i-(uint64_t(~0)));
+        CHECK( eui64set_insert_and_sort( &my_set, v, 0 )==1 );
+        if( i<size-1 )
+        {
+            CHECK( eui64set_is_full(&my_set) == 0 );
+        }
+    }
+    CHECK( eui64set_is_full(&my_set) == 1 );
+    
+    for( int i=0; i<size; ++i )
+    {
+        uint64_t v=(i-(uint64_t(~0)));
+        
+        const eui64set_entry *entry = eui64set_find(&my_set,v);
+        CHECK( entry != 0 );
+        if( entry )
+        {
+            CHECK( entry->eui64 == v );
+        }
+    }        
+    
+    CHECK( eui64set_find(&my_set,0) == 0 );
+    
+    eui64set_free( &my_set );
 
 }
 
