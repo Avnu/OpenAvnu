@@ -30,21 +30,80 @@
 
 ******************************************************************************/
 
-/** Initialize an eui64set structure using the specified storage buffer.
- */
-void eui64set_init( struct eui64set *self, int max_entries, uint64_t *storage )
+#include <stdlib.h>
+#include "eui64set.h"
+
+uint64_t eui64_read( const uint8_t network_order_buf[8] )
 {
-    self->storage = storage;
-    self->num_entries=0;
-    self->max_entries = max_entries;
+    uint64_t v = 0;
+
+    v = ( ( (uint64_t)network_order_buf[0] ) << 56 )
+        + ( ( (uint64_t)network_order_buf[1] ) << 48 )
+        + ( ( (uint64_t)network_order_buf[2] ) << 40 )
+        + ( ( (uint64_t)network_order_buf[3] ) << 32 )
+        + ( ( (uint64_t)network_order_buf[4] ) << 24 )
+        + ( ( (uint64_t)network_order_buf[5] ) << 16 )
+        + ( ( (uint64_t)network_order_buf[6] ) << 8 )
+        + ( ( (uint64_t)network_order_buf[7] ) << 0 );
+
+    return v;
 }
 
-/** Clear all entries in a eui64set structure.
- */
-void eui64set_clear( struct eui64set *self )
+void eui64_write( uint8_t network_order_buf[8], uint64_t v )
 {
-    self->num_entries=0;
+    network_order_buf[0] = ( uint8_t )( ( v >> 56 ) & 0xff );
+    network_order_buf[1] = ( uint8_t )( ( v >> 48 ) & 0xff );
+    network_order_buf[2] = ( uint8_t )( ( v >> 40 ) & 0xff );
+    network_order_buf[3] = ( uint8_t )( ( v >> 32 ) & 0xff );
+    network_order_buf[4] = ( uint8_t )( ( v >> 24 ) & 0xff );
+    network_order_buf[5] = ( uint8_t )( ( v >> 16 ) & 0xff );
+    network_order_buf[6] = ( uint8_t )( ( v >> 8 ) & 0xff );
+    network_order_buf[7] = ( uint8_t )( ( v >> 0 ) & 0xff );
 }
+
+int eui64set_compare( const void *lhs, const void *rhs )
+{
+    int r = 0;
+    const struct eui64set_entry *lhsv = (const struct eui64set_entry *)lhs;
+    const struct eui64set_entry *rhsv = (const struct eui64set_entry *)rhs;
+
+    if ( lhsv->eui64 < rhsv->eui64 )
+    {
+        r = -1;
+    }
+    else if ( lhsv->eui64 > rhsv->eui64 )
+    {
+        r = 1;
+    }
+    return r;
+}
+
+int eui64set_init( struct eui64set *self, int max_entries )
+{
+    int r = -1;
+    self->num_entries = 0;
+    self->max_entries = max_entries;
+    self->storage = (struct eui64set_entry *)calloc(
+        sizeof( struct eui64set_entry ), max_entries );
+    if ( self->storage != 0 )
+    {
+        r = 0;
+    }
+    return r;
+}
+
+void eui64set_free( struct eui64set *self )
+{
+    if ( self )
+    {
+        if ( self->storage )
+        {
+            free( self->storage );
+        }
+    }
+}
+
+void eui64set_clear( struct eui64set *self ) { self->num_entries = 0; }
 
 /** Test if the eui64set is full.
  *  Returns 1 if the eui64set is full
@@ -55,44 +114,79 @@ int eui64set_is_full( struct eui64set *self )
     return self->num_entries >= self->max_entries;
 }
 
-/** Insert an eui64 into the eui64set structure, without re-sorting it.
- *  If you have multiple eui64's to add at a time call this
- *  for each eui64 and then sort it once at the end.
- *  Returns 1 on success
- *  Returns 0 if the storage area was full
- */
-int eui64set_insert( struct eui64set *self, uint64_t value )
+int eui64set_insert( struct eui64set *self, uint64_t value, void *p )
 {
-    int r=0;
+    int r = 0;
     /* Do we have space? */
-    if( self->num_entries < self->max_entries )
+    if ( self->num_entries < self->max_entries )
     {
-        self->storage[ self->num_entries++ ] = value;
-        r=1;
+        self->storage[self->num_entries].eui64 = value;
+        self->storage[self->num_entries].p = p;
+        ++self->num_entries;
+        r = 1;
     }
     return r;
 }
 
-/** Sort a eui64set structure
- */
 void eui64set_sort( struct eui64set *self )
 {
+    qsort( self->storage,
+           self->num_entries,
+           sizeof( struct eui64set_entry ),
+           eui64set_compare );
 }
 
-/** Insert a single eui64 into a eui64set structure and sort it afterwards.
- */
-int eui64set_insert_and_sort( struct eui64set *self, uint64_t value );
+int eui64set_insert_and_sort( struct eui64set *self, uint64_t value, void *p )
+{
+    int r;
 
-/** Find a eui64 in the eui64set structure. Returns 1 if found, 0 if not.
- */
-int eui64set_find( struct eui64set *self, uint64_t value );
+    r = eui64set_insert( self, value, p );
+    if ( 1 == r )
+    {
+        eui64set_sort( self );
+    }
+    return r;
+}
 
-/** Remove the specified eui64 from the eui64set structure. Returns 1 if found and removed.
- *  returns 0 if not found.
- */
-int eui64set_remove( struct eui64set *self, uint64_t value );
+const struct eui64set_entry *eui64set_find( const struct eui64set *self,
+                                            uint64_t value )
+{
+    const struct eui64set_entry *result;
+    struct eui64set_entry key;
+    key.eui64 = value;
+    key.p = 0;
+    result = bsearch( &key,
+                      self->storage,
+                      self->num_entries,
+                      sizeof( key ),
+                      eui64set_compare );
+    return result;
+}
 
-/** Get the selected eui64 item from the structure.  Behaviour is unspecified if
- *  item_num >= num_entries
- */
-uint64_t eui64set_get( struct eui64set *self, int item_num );
+int eui64set_remove_and_sort( struct eui64set *self, uint64_t value )
+{
+    int r = 0;
+    struct eui64set_entry *item;
+    struct eui64set_entry key;
+    key.eui64 = value;
+    key.p = 0;
+    item = bsearch( &key,
+                    self->storage,
+                    self->num_entries,
+                    sizeof( key ),
+                    eui64set_compare );
+    if ( item )
+    {
+        // Set value to highest value
+        item->eui64 = ~( (uint64_t)0 );
+        if ( item->p )
+        {
+            free( item->p );
+        }
+
+        eui64set_sort( self );
+        --self->num_entries;
+        r = 1;
+    }
+    return r;
+}
