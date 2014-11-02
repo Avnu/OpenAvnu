@@ -3481,6 +3481,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	 * S-L   Withdraw a listener status
 	 * S+D   Report a domain status
 	 * S-D   Withdraw a domain status
+     * S+P   Enable pruning of received uninteresting stream id attributes
+     * S-P   Disable pruning of received uninteresting stream id attributes
+     * S+S   Add a stream id to the interesting stream id list
+     * S-S   Remove a stream id from the interesting stream id list
 	 */
 
 	if (strncmp(buf, "S??", 3) == 0) {
@@ -3603,7 +3607,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	return -1;
 }
 
-int msrp_init(int msrp_enable)
+int msrp_init(int msrp_enable, int max_interesting_stream_ids)
 {
 	int rc;
 
@@ -3624,6 +3628,11 @@ int msrp_init(int msrp_enable)
 
 	if (NULL == MSRP_db)
 		goto abort_socket;
+
+    if( eui64set_init(&MSRP_db->interesting_stream_ids, max_interesting_stream_ids ) < 0 )
+        goto abort_alloc;
+
+    MSRP_db->enable_pruning_of_unintersting_ids = 0;
 
 	memset(MSRP_db, 0, sizeof(struct msrp_database));
 
@@ -3674,6 +3683,7 @@ void msrp_reset(void)
 		sattrib = sattrib->next;
 		free(free_sattrib);
     }
+    eui64set_free(&MSRP_db->interesting_stream_ids);
 	free(MSRP_db);
 }
 

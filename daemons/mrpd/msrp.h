@@ -31,6 +31,8 @@
 
 ******************************************************************************/
 
+#include "eui64set.h"
+
 #define MSRP_ETYPE	0x22EA
 #define MSRP_PROT_VER	0x00
 #define MSRP_SR_PVID_DEFAULT	2
@@ -155,9 +157,11 @@ struct msrp_database {
 	struct mrp_database mrp_db;
 	struct msrp_attribute *attrib_list;
 	int send_empty_LeaveAll_flag;
+    struct eui64set interesting_stream_ids;
+    int enable_pruning_of_unintersting_ids;
 };
 
-int msrp_init(int msrp_enable);
+int msrp_init(int msrp_enable,int max_interesting_stream_ids);
 void msrp_reset(void);
 int msrp_event(int event, struct msrp_attribute *rattrib);
 int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);
