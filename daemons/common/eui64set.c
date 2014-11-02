@@ -80,14 +80,20 @@ int eui64set_compare( const void *lhs, const void *rhs )
 
 int eui64set_init( struct eui64set *self, int max_entries )
 {
-    int r = -1;
+    int r = 0;
     self->num_entries = 0;
     self->max_entries = max_entries;
-    self->storage = (struct eui64set_entry *)calloc(
-        sizeof( struct eui64set_entry ), max_entries );
-    if ( self->storage != 0 )
+    self->storage = 0;
+    /* Are we to allocate storage? */
+    if ( max_entries > 0 )
     {
-        r = 0;
+        /* Yes, try */
+        self->storage = (struct eui64set_entry *)calloc( sizeof( struct eui64set_entry ), max_entries );
+	if( self->storage == 0 )
+	{
+            /* Failure to allocate storage */
+            r = -1;
+        }
     }
     return r;
 }
