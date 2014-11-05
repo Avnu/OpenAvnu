@@ -157,8 +157,7 @@ struct msrp_database {
 	struct mrp_database mrp_db;
 	struct msrp_attribute *attrib_list;
 	int send_empty_LeaveAll_flag;
-	struct eui64set interesting_talker_stream_ids;
-	struct eui64set interesting_listener_stream_ids;
+	struct eui64set interesting_stream_ids;
 	int enable_pruning_of_uninteresting_ids;
 };
 

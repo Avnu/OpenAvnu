@@ -353,7 +353,13 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 	struct msrp_attribute *attrib;
 	int count = 0;
 	int rc;
+	int is_talker_or_listener_attrib = 0;
 	int interested = 1;
+
+	if( rattrib->type == MSRP_TALKER_ADV_TYPE || rattrib->type == MSRP_TALKER_FAILED_TYPE || rattrib->type == MSRP_LISTENER_TYPE )
+	{
+		is_talker_or_listener_attrib = 1;
+	}
 
 	switch (event) {
 	case MRP_EVENT_LVATIMER:
@@ -480,21 +486,12 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		/* are we interested? Assume yes */
 		interested=1;
 
-		if( MSRP_db->enable_pruning_of_uninteresting_ids ) {
-			if( rattrib->direction == MSRP_DIRECTION_LISTENER ) {
-				/* check for uninteresting listener stream IDs */
-				if( eui64set_find( &MSRP_db->interesting_listener_stream_ids, 
-                                                   eui64_read( rattrib->attribute.talk_listen.StreamID ) )==0 ) {
-					/* Not interesting listener stream id */
-					interested=0;
-				}
-			} else if( rattrib->direction == MSRP_DIRECTION_TALKER ) {
-				/* check for uninteresting talker stream IDs */
-				if( eui64set_find( &MSRP_db->interesting_talker_stream_ids, 
-                                                   eui64_read( rattrib->attribute.talk_listen.StreamID ) )==0 ) {
-					/* Not interesting talker stream id */
-					interested=0;
-				}
+		if( is_talker_or_listener_attrib && MSRP_db->enable_pruning_of_uninteresting_ids ) {
+			/* check for uninteresting  stream IDs */
+			if( eui64set_find( &MSRP_db->interesting_stream_ids,
+					   eui64_read( rattrib->attribute.talk_listen.StreamID ) )==0 ) {
+				/* Not interesting listener stream id */
+				interested=0;
 			}
 		}
 		if( interested ) {
@@ -3520,10 +3517,8 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	 * S-D   Withdraw a domain status
 	 * I+P   Enable pruning of received uninteresting stream id attributes
 	 * I-P   Disable pruning of received uninteresting stream id attributes
-	 * I+T   Add a stream id to the interesting talker stream id list
-	 * I-T   Remove a stream id from the interesting talker stream id list
-	 * I+L   Add a stream id to the interesting listener stream id list
-	 * I-L   Remove a stream id from the interesting listener stream id list
+	 * I+S   Add a stream id to the talker stream id list
+	 * I-S   Remove a stream id from the talker stream id list
 	 * I-A   Remove all stream ids from the interesting talker and listener stream id lists
 	 */
 
@@ -3632,42 +3627,25 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	} else if (strncmp(buf, "I-P", 3 ) == -1 ) {
 		/* Disable pruning of received uninteresting stream id attributes */
 		MSRP_db->enable_pruning_of_uninteresting_ids = 0;
-	} else if (strncmp(buf, "I+T", 3 ) == 0 ) {
-		/* Add a stream id to the interesting talker stream id list */
+	} else if (strncmp(buf, "I+S", 3 ) == 0 ) {
+		/* Add a stream id to the interesting stream id list */
 		uint8_t stream_id[8];
 		rc=msrp_cmd_parse_stream_id(buf,buflen,stream_id,&err_index);
 		if (rc)
 			goto out_ERP;
-		if( eui64set_insert_and_sort( &MSRP_db->interesting_talker_stream_ids, eui64_read(stream_id), 0 )==0 )
+		if( eui64set_insert_and_sort( &MSRP_db->interesting_stream_ids, eui64_read(stream_id), 0 )==0 )
 			goto out_ERI;
-	} else if (strncmp(buf, "I-T", 3 ) == 0 ) {
-		/* Remove a stream id from the interesting talker stream id list */
+	} else if (strncmp(buf, "I-S", 3 ) == 0 ) {
+		/* Remove a stream id from the interesting stream id list */
 		uint8_t stream_id[8];
 		rc=msrp_cmd_parse_stream_id(buf,buflen,stream_id,&err_index);
 		if (rc)
 			goto out_ERP;
-		if( eui64set_remove_and_sort( &MSRP_db->interesting_talker_stream_ids, eui64_read(stream_id) )==0 )
-			goto out_ERI;
-	} else if (strncmp(buf, "I+L", 3 ) == 0 ) {
-		/* Add a stream id to the interesting listener stream id list */
-		uint8_t stream_id[8];
-		rc=msrp_cmd_parse_stream_id(buf,buflen,stream_id,&err_index);
-		if (rc)
-			goto out_ERP;
-		if( eui64set_insert_and_sort( &MSRP_db->interesting_listener_stream_ids, eui64_read(stream_id), 0 )==0 )
-			goto out_ERI;
-	} else if (strncmp(buf, "I-L", 3 ) == 0 ) {
-		/* Remove a stream id from the interesting listener stream id list */
-		uint8_t stream_id[8];
-		rc=msrp_cmd_parse_stream_id(buf,buflen,stream_id,&err_index);
-		if (rc)
-			goto out_ERP;
-		if( eui64set_remove_and_sort( &MSRP_db->interesting_listener_stream_ids, eui64_read(stream_id) )==0 )
+		if( eui64set_remove_and_sort( &MSRP_db->interesting_stream_ids, eui64_read(stream_id) )==0 )
 			goto out_ERI;
 	} else if (strncmp(buf, "I-A", 3 ) == 0 ) {
 		/* Remove all stream ids from the interesting stream id lists */
-		eui64set_clear( &MSRP_db->interesting_talker_stream_ids );
-		eui64set_clear( &MSRP_db->interesting_listener_stream_ids );
+		eui64set_clear( &MSRP_db->interesting_stream_ids );
 	} else {
 		snprintf(respbuf, sizeof(respbuf) - 1, "ERC MSRP %s", buf);
 		mrpd_send_ctl_msg(client, respbuf, sizeof(respbuf));
@@ -3716,10 +3694,7 @@ int msrp_init(int msrp_enable, int max_interesting_stream_ids)
 		max_interesting_stream_ids = 8;
 	}
 
-	if( eui64set_init(&MSRP_db->interesting_talker_stream_ids, max_interesting_stream_ids ) < 0 )
-		goto abort_alloc;
-
-	if( eui64set_init(&MSRP_db->interesting_listener_stream_ids, max_interesting_stream_ids ) < 0 )
+	if( eui64set_init(&MSRP_db->interesting_stream_ids, max_interesting_stream_ids ) < 0 )
 		goto abort_alloc;
 
 	MSRP_db->enable_pruning_of_uninteresting_ids = 0;
@@ -3773,8 +3748,7 @@ void msrp_reset(void)
 		sattrib = sattrib->next;
 		free(free_sattrib);
    	}
-	eui64set_free(&MSRP_db->interesting_listener_stream_ids);
-	eui64set_free(&MSRP_db->interesting_talker_stream_ids);
+	eui64set_free(&MSRP_db->interesting_stream_ids);
 	free(MSRP_db);
 }
 
