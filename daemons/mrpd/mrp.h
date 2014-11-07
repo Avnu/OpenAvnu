@@ -97,28 +97,31 @@ typedef struct mrp_registrar_attribute {
 #define MRP_LV_STATE	17	/* registrar state - leaving */
 #define MRP_MT_STATE	18	/* whe Registrar state is MT or LV */
 
+/* MRP Event Spacing */
+#define MRP_EVENT_SPACING	100	/*  Event defines are separated by this */
+
 /* MRP Events */
-#define MRP_EVENT_BEGIN	100	/*  Initialize state machine (10.7.5.1) */
-#define MRP_EVENT_NEW	200	/*  A new declaration (10.7.5.4) */
-#define MRP_EVENT_JOIN	300	/*  Declaration registration (10.7.5.5) */
-#define MRP_EVENT_LV	400	/*  Withdraw a declaration (10.7.5.6) */
-#define MRP_EVENT_TX	500	/*  Tx without LVA (10.7.5.7) */
-#define MRP_EVENT_TXLA	600	/*  Tx with a LVA (10.7.5.8) */
-#define MRP_EVENT_TXLAF	700	/*  Tx with a LVA, no room (Full) (10.7.5.9) */
-#define MRP_EVENT_RNEW	800	/*  Rx New message (10.7.5.14) */
-#define MRP_EVENT_RJOININ 900	/*  Rx JoinIn message (10.7.5.15),  */
-#define MRP_EVENT_RIN	1000	/*  receive In message (10.7.5.18) */
-#define MRP_EVENT_RJOINMT 1100	/*  receive JoinEmpty message (10.7.5.16) */
-#define MRP_EVENT_RMT	1200	/*  receive Empty message (10.7.5.19) */
-#define MRP_EVENT_RLV	1300	/*  receive Leave message (10.7.5.17) */
-#define MRP_EVENT_RLA	1400	/*  receive a LeaveAll message (10.7.5.20) */
-#define MRP_EVENT_FLUSH	1500	/*  Port role change (10.7.5.2) */
-#define MRP_EVENT_REDECLARE 1600	/*  Port role changes (10.7.5.3) */
-#define MRP_EVENT_PERIODIC 1700	/*  periodic timer expire */
-#define MRP_EVENT_PERIODIC_ENABLE 1800	/*  periodic timer enable */
-#define MRP_EVENT_PERIODIC_DISABLE 1900	/*  periodic timer disable */
-#define MRP_EVENT_LVTIMER  2000	/*  leave timer expire */
-#define MRP_EVENT_LVATIMER 2100	/*  leaveall timer expire */
+#define MRP_EVENT_BEGIN            (1 * MRP_EVENT_SPACING)    /*  Initialize state machine (10.7.5.1) */
+#define MRP_EVENT_NEW              (2 * MRP_EVENT_SPACING)    /*  A new declaration (10.7.5.4) */
+#define MRP_EVENT_JOIN             (3 * MRP_EVENT_SPACING)    /*  Declaration registration (10.7.5.5) */
+#define MRP_EVENT_LV               (4 * MRP_EVENT_SPACING)    /*  Withdraw a declaration (10.7.5.6) */
+#define MRP_EVENT_TX               (5 * MRP_EVENT_SPACING)    /*  Tx without LVA (10.7.5.7) */
+#define MRP_EVENT_TXLA             (6 * MRP_EVENT_SPACING)    /*  Tx with a LVA (10.7.5.8) */
+#define MRP_EVENT_TXLAF            (7 * MRP_EVENT_SPACING)    /*  Tx with a LVA, no room (Full) (10.7.5.9) */
+#define MRP_EVENT_RNEW             (8 * MRP_EVENT_SPACING)    /*  Rx New message (10.7.5.14) */
+#define MRP_EVENT_RJOININ          (9 * MRP_EVENT_SPACING)    /*  Rx JoinIn message (10.7.5.15),  */
+#define MRP_EVENT_RIN              (10 * MRP_EVENT_SPACING)   /*  receive In message (10.7.5.18) */
+#define MRP_EVENT_RJOINMT          (11 * MRP_EVENT_SPACING)   /*  receive JoinEmpty message (10.7.5.16) */
+#define MRP_EVENT_RMT              (12 * MRP_EVENT_SPACING)   /*  receive Empty message (10.7.5.19) */
+#define MRP_EVENT_RLV              (13 * MRP_EVENT_SPACING)   /*  receive Leave message (10.7.5.17) */
+#define MRP_EVENT_RLA              (14 * MRP_EVENT_SPACING)   /*  receive a LeaveAll message (10.7.5.20) */
+#define MRP_EVENT_FLUSH            (15 * MRP_EVENT_SPACING)   /*  Port role change (10.7.5.2) */
+#define MRP_EVENT_REDECLARE        (16 * MRP_EVENT_SPACING)   /*  Port role changes (10.7.5.3) */
+#define MRP_EVENT_PERIODIC         (17 * MRP_EVENT_SPACING)   /*  periodic timer expire */
+#define MRP_EVENT_PERIODIC_ENABLE  (18 * MRP_EVENT_SPACING)   /*  periodic timer enable */
+#define MRP_EVENT_PERIODIC_DISABLE (19 * MRP_EVENT_SPACING)   /*  periodic timer disable */
+#define MRP_EVENT_LVTIMER          (20 * MRP_EVENT_SPACING)   /*  leave timer expire */
+#define MRP_EVENT_LVATIMER         (21 * MRP_EVENT_SPACING)   /*  leaveall timer expire */
 
 #define MRP_SND_NEW	0	/* declare and register a new attribute from a new participant */
 #define MRP_SND_JOIN	1	/* declare and register an attribute (generally) */
