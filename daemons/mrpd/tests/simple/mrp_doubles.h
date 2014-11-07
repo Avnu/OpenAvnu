@@ -98,7 +98,7 @@ struct mrpd_test_state {
 extern struct mrpd_test_state test_state;
 
 /* Events are defined in mrp.h ranging sequentially from 100 to 2100 */
-#define MSRP_EVENT_IDX(event) (event/100-1)
-#define MSRP_EVENT_ID(idx) ((idx+1)*100)
+#define MSRP_EVENT_IDX(event) (event/MRP_EVENT_SPACING-1)
+#define MSRP_EVENT_ID(idx) ((idx+1)*MRP_EVENT_SPACING)
 
 #endif
