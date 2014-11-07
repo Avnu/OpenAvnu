@@ -43,6 +43,7 @@ TRACE
 	test_state.sent_count = 0;
 
 	memset(test_state.msrp_event_counts, 0, sizeof test_state.msrp_event_counts);
+	memset(test_state.msrp_event_counts_per_type, 0, sizeof test_state.msrp_event_counts_per_type);
 	test_state.forward_msrp_events = 1;
 	test_state.msrp_observe = NULL;
 
@@ -286,6 +287,8 @@ void dump_msrp_attrib(struct msrp_attribute *attr)
 
 int msrp_event(int event, struct msrp_attribute *rattrib) {
 	test_state.msrp_event_counts[MSRP_EVENT_IDX(event)]++;
+	if(rattrib)
+		test_state.msrp_event_counts_per_type[MSRP_TYPE_IDX(rattrib->type)][MSRP_EVENT_IDX(event)]++;
 	if (test_state.msrp_observe) {
 		test_state.msrp_observe(event, rattrib);
 	}
