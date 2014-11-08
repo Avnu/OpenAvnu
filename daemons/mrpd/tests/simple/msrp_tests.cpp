@@ -99,6 +99,12 @@ static void uint64_to_id(uint64_t v, uint8_t *id)
     }
 }
 
+static int event_counts_per_type(int the_type, int the_event)
+{
+	return test_state.msrp_event_counts_per_type[MSRP_TYPE_IDX(the_type)][MSRP_EVENT_IDX(the_event)];
+}
+
+
 TEST_GROUP(MsrpTestGroup)
 {
     void setup()
@@ -114,6 +120,11 @@ TEST_GROUP(MsrpTestGroup)
     }
 };
 
+/*
+ * This test registers a TalkerAdv using the same string
+ * interface that a client would use and verifies the TalkerAdv
+ * is registered in the MSRP database.
+ */
 TEST(MsrpTestGroup, RegisterTalkerAdv)
 {
     struct msrp_attribute a_ref;
@@ -135,12 +146,15 @@ TEST(MsrpTestGroup, RegisterTalkerAdv)
     /* lookup the created attrib */
     a_msrp = msrp_lookup(&a_ref);
     CHECK(a_msrp != NULL);
+
+	/* check for NEW event */
+	LONGS_EQUAL(1, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
 
 TEST(MsrpTestGroup, TxLVA_TalkerAdv_clear_tx_flag)
 {
     struct msrp_attribute *attrib;
-     int count = 128;
+    int count = 128;
     int tx_flag_count = 0;
 	char cmd_string[] = "S++:S=" STREAM_ID ",A=" STREAM_DA ",V=" VLAN_ID
 		",Z=" TSPEC_MAX_FRAME_SIZE ",I=" TSPEC_MAX_FRAME_INTERVAL
@@ -163,7 +177,8 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_clear_tx_flag)
         attrib = attrib->next;
     }
     CHECK(mrpd_send_packet_count() > 0);
-    CHECK_EQUAL(0, tx_flag_count);
+    LONGS_EQUAL(0, tx_flag_count);
+    LONGS_EQUAL(1, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
 
 TEST(MsrpTestGroup, TxLVA_TalkerFailed_clear_tx_flag)
@@ -193,7 +208,8 @@ TEST(MsrpTestGroup, TxLVA_TalkerFailed_clear_tx_flag)
 		attrib = attrib->next;
 	}
 	CHECK(mrpd_send_packet_count() > 0);
-	CHECK_EQUAL(0, tx_flag_count);
+	LONGS_EQUAL(0, tx_flag_count);
+	LONGS_EQUAL(1, event_counts_per_type(MSRP_TALKER_FAILED_TYPE, MRP_EVENT_NEW));
 }
 
 TEST(MsrpTestGroup, TxLVA_Listener_clear_tx_flag)
@@ -220,7 +236,8 @@ TEST(MsrpTestGroup, TxLVA_Listener_clear_tx_flag)
 		attrib = attrib->next;
 	}
 	CHECK(mrpd_send_packet_count() > 0);
-	CHECK_EQUAL(0, tx_flag_count);
+	LONGS_EQUAL(0, tx_flag_count);
+	LONGS_EQUAL(1, event_counts_per_type(MSRP_LISTENER_TYPE, MRP_EVENT_NEW));
 }
 
 TEST(MsrpTestGroup, TxLVA_Domain_clear_tx_flag)
@@ -249,7 +266,8 @@ TEST(MsrpTestGroup, TxLVA_Domain_clear_tx_flag)
 		attrib = attrib->next;
 	}
 	CHECK(mrpd_send_packet_count() > 0);
-	CHECK_EQUAL(0, tx_flag_count);
+	LONGS_EQUAL(0, tx_flag_count);
+	LONGS_EQUAL(1, event_counts_per_type(MSRP_DOMAIN_TYPE, MRP_EVENT_JOIN));
 }
 
 TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
@@ -287,4 +305,5 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
 	}
 	CHECK(mrpd_send_packet_count() > 0);
 	CHECK_EQUAL(0, tx_flag_count);
+	LONGS_EQUAL(count, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
