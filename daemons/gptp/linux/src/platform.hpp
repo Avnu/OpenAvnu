@@ -36,8 +36,8 @@
 
 #include <stdint.h>
 
-#define PLAT_strncpy( dest, src, max ) strncpy( dest, src, max+1 );
-#define PLAT_snprintf(...) snprintf( __VA_ARGS__ );
+#define PLAT_strncpy( dest, src, max ) strncpy( dest, src, max+1 )
+#define PLAT_snprintf(...) snprintf( __VA_ARGS__ )
 
 uint16_t PLAT_htons( uint16_t s );
 uint32_t PLAT_htonl( uint32_t l );
