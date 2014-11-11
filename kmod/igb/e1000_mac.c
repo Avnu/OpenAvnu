@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -30,7 +27,7 @@
 static s32 e1000_validate_mdi_setting_generic(struct e1000_hw *hw);
 static void e1000_set_lan_id_multi_port_pcie(struct e1000_hw *hw);
 static void e1000_config_collision_dist_generic(struct e1000_hw *hw);
-static void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index);
+static int e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index);
 
 /**
  *  e1000_init_mac_ops_generic - Initialize MAC function pointers
@@ -137,14 +134,14 @@ void e1000_null_write_vfta(struct e1000_hw E1000_UNUSEDARG *hw,
 }
 
 /**
- *  e1000_null_rar_set - No-op function, return void
+ *  e1000_null_rar_set - No-op function, return 0
  *  @hw: pointer to the HW structure
  **/
-void e1000_null_rar_set(struct e1000_hw E1000_UNUSEDARG *hw,
+int e1000_null_rar_set(struct e1000_hw E1000_UNUSEDARG *hw,
 			u8 E1000_UNUSEDARG *h, u32 E1000_UNUSEDARG a)
 {
 	DEBUGFUNC("e1000_null_rar_set");
-	return;
+	return E1000_SUCCESS;
 }
 
 /**
@@ -376,7 +373,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
  *  Sets the receive address array register at index to the address passed
  *  in by addr.
  **/
-static void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
+static int e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 {
 	u32 rar_low, rar_high;
 
@@ -402,6 +399,8 @@ static void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 	E1000_WRITE_FLUSH(hw);
 	E1000_WRITE_REG(hw, E1000_RAH(index), rar_high);
 	E1000_WRITE_FLUSH(hw);
+
+	return E1000_SUCCESS;
 }
 
 /**
@@ -509,6 +508,43 @@ void e1000_update_mc_addr_list_generic(struct e1000_hw *hw,
 	for (i = hw->mac.mta_reg_count - 1; i >= 0; i--)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, hw->mac.mta_shadow[i]);
 	E1000_WRITE_FLUSH(hw);
+}
+
+/**
+ *  e1000_pcix_mmrbc_workaround_generic - Fix incorrect MMRBC value
+ *  @hw: pointer to the HW structure
+ *
+ *  In certain situations, a system BIOS may report that the PCIx maximum
+ *  memory read byte count (MMRBC) value is higher than than the actual
+ *  value. We check the PCIx command register with the current PCIx status
+ *  register.
+ **/
+void e1000_pcix_mmrbc_workaround_generic(struct e1000_hw *hw)
+{
+	u16 cmd_mmrbc;
+	u16 pcix_cmd;
+	u16 pcix_stat_hi_word;
+	u16 stat_mmrbc;
+
+	DEBUGFUNC("e1000_pcix_mmrbc_workaround_generic");
+
+	/* Workaround for PCI-X issue when BIOS sets MMRBC incorrectly */
+	if (hw->bus.type != e1000_bus_type_pcix)
+		return;
+
+	e1000_read_pci_cfg(hw, PCIX_COMMAND_REGISTER, &pcix_cmd);
+	e1000_read_pci_cfg(hw, PCIX_STATUS_REGISTER_HI, &pcix_stat_hi_word);
+	cmd_mmrbc = (pcix_cmd & PCIX_COMMAND_MMRBC_MASK) >>
+		     PCIX_COMMAND_MMRBC_SHIFT;
+	stat_mmrbc = (pcix_stat_hi_word & PCIX_STATUS_HI_MMRBC_MASK) >>
+		      PCIX_STATUS_HI_MMRBC_SHIFT;
+	if (stat_mmrbc == PCIX_STATUS_HI_MMRBC_4K)
+		stat_mmrbc = PCIX_STATUS_HI_MMRBC_2K;
+	if (cmd_mmrbc > stat_mmrbc) {
+		pcix_cmd &= ~PCIX_COMMAND_MMRBC_MASK;
+		pcix_cmd |= stat_mmrbc << PCIX_COMMAND_MMRBC_SHIFT;
+		e1000_write_pci_cfg(hw, PCIX_COMMAND_REGISTER, &pcix_cmd);
+	}
 }
 
 /**
@@ -810,6 +846,7 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 {
 	s32 ret_val;
 	u16 nvm_data;
+	u16 nvm_offset = 0;
 
 	DEBUGFUNC("e1000_set_default_fc_generic");
 
@@ -821,7 +858,18 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &nvm_data);
+	if (hw->mac.type == e1000_i350) {
+		nvm_offset = NVM_82580_LAN_FUNC_OFFSET(hw->bus.func);
+		ret_val = hw->nvm.ops.read(hw,
+					   NVM_INIT_CONTROL2_REG +
+					   nvm_offset,
+					   1, &nvm_data);
+	} else {
+		ret_val = hw->nvm.ops.read(hw,
+					   NVM_INIT_CONTROL2_REG,
+					   1, &nvm_data);
+	}
+
 
 	if (ret_val) {
 		DEBUGOUT("NVM Read Error\n");
@@ -1910,6 +1958,9 @@ void e1000_set_pcie_no_snoop_generic(struct e1000_hw *hw, u32 no_snoop)
 
 	DEBUGFUNC("e1000_set_pcie_no_snoop_generic");
 
+	if (hw->bus.type != e1000_bus_type_pci_express)
+		return;
+
 	if (no_snoop) {
 		gcr = E1000_READ_REG(hw, E1000_GCR);
 		gcr &= ~(PCIE_NO_SNOOP_ALL);
@@ -1936,13 +1987,17 @@ s32 e1000_disable_pcie_master_generic(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_disable_pcie_master_generic");
 
+	if (hw->bus.type != e1000_bus_type_pci_express)
+		return E1000_SUCCESS;
+
 	ctrl = E1000_READ_REG(hw, E1000_CTRL);
 	ctrl |= E1000_CTRL_GIO_MASTER_DISABLE;
 	E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
 
 	while (timeout) {
 		if (!(E1000_READ_REG(hw, E1000_STATUS) &
-		      E1000_STATUS_GIO_MASTER_ENABLE))
+		      E1000_STATUS_GIO_MASTER_ENABLE) ||
+				E1000_REMOVED(hw->hw_addr))
 			break;
 		usec_delay(100);
 		timeout--;

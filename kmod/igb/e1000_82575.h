@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -236,6 +233,8 @@ union e1000_adv_rx_desc {
 #define E1000_RXDADV_RSSTYPE_IPV6_UDP_EX 0x00000009
 
 /* RSS Packet Types as indicated in the receive descriptor */
+#define E1000_RXDADV_PKTTYPE_ILMASK	0x000000F0
+#define E1000_RXDADV_PKTTYPE_TLMASK	0x00000F00
 #define E1000_RXDADV_PKTTYPE_NONE	0x00000000
 #define E1000_RXDADV_PKTTYPE_IPV4	0x00000010 /* IPV4 hdr present */
 #define E1000_RXDADV_PKTTYPE_IPV4_EX	0x00000020 /* IPV4 hdr + extensions */
@@ -469,12 +468,14 @@ void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable);
 void e1000_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf);
 void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable);
 s32 e1000_init_nvm_params_82575(struct e1000_hw *hw);
+s32  e1000_init_hw_82575(struct e1000_hw *hw);
 
 u16 e1000_rxpbs_adjust_82580(u32 data);
 s32 e1000_read_emi_reg(struct e1000_hw *hw, u16 addr, u16 *data);
 s32 e1000_set_eee_i350(struct e1000_hw *);
 s32 e1000_set_eee_i354(struct e1000_hw *);
 s32 e1000_get_eee_status_i354(struct e1000_hw *, bool *);
+s32 e1000_initialize_M88E1512_phy(struct e1000_hw *hw);
 #define E1000_I2C_THERMAL_SENSOR_ADDR	0xF8
 #define E1000_EMC_INTERNAL_DATA		0x00
 #define E1000_EMC_INTERNAL_THERM_LIMIT	0x20

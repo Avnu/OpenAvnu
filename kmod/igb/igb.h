@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -56,7 +53,6 @@ struct igb_user_page {
 	struct page *page;
 	dma_addr_t page_dma;
 };
-
 #if defined(CONFIG_DCA) || defined(CONFIG_DCA_MODULE)
 #define IGB_DCA
 #endif
@@ -75,13 +71,13 @@ struct igb_user_page {
 #include "e1000_manage.h"
 #include "e1000_mbx.h"
 
-#define IGB_ERR(args...) printk(KERN_ERR "igb: " args)
+#define IGB_ERR(args...) pr_err(KERN_ERR "igb: " args)
 
 #define PFX "igb: "
 #define DPRINTK(nlevel, klevel, fmt, args...) \
 	(void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
 	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__FUNCTION__ , ## args))
+		__func__ , ## args))
 
 #ifdef HAVE_PTP_1588_CLOCK
 #include <linux/clocksource.h>
@@ -123,6 +119,8 @@ struct igb_user_page {
 
 /* Transmit and receive queues */
 #define IGB_MAX_RX_QUEUES                 16
+#define IGB_MAX_RX_QUEUES_82575            4
+#define IGB_MAX_RX_QUEUES_I211             2
 #define IGB_MAX_TX_QUEUES                 16
 
 #define IGB_MAX_VF_MC_ENTRIES             30
@@ -237,7 +235,7 @@ struct igb_lro_stats {
  */
 struct igb_lrohdr {
 	struct iphdr iph;
-	struct tcphdr th; 
+	struct tcphdr th;
 	__be32 ts[0];
 };
 
@@ -309,6 +307,7 @@ struct igb_tx_buffer {
 	unsigned int bytecount;
 	u16 gso_segs;
 	__be16 protocol;
+
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
 	u32 tx_flags;
@@ -336,6 +335,9 @@ struct igb_rx_queue_stats {
 	u64 drops;
 	u64 csum_err;
 	u64 alloc_failed;
+};
+
+struct igb_rx_packet_stats {
 	u64 ipv4_packets;      /* IPv4 headers processed */
 	u64 ipv4e_packets;     /* IPv4E headers with extensions processed */
 	u64 ipv6_packets;      /* IPv6 headers processed */
@@ -344,6 +346,7 @@ struct igb_rx_queue_stats {
 	u64 udp_packets;       /* UDP headers processed */
 	u64 sctp_packets;      /* SCTP headers processed */
 	u64 nfs_packets;       /* NFS headers processe */
+	u64 other_packets;
 };
 
 struct igb_ring_container {
@@ -363,9 +366,6 @@ struct igb_ring {
 		struct igb_tx_buffer *tx_buffer_info;
 		struct igb_rx_buffer *rx_buffer_info;
 	};
-#ifdef HAVE_PTP_1588_CLOCK
-	unsigned long last_rx_timestamp;
-#endif /* HAVE_PTP_1588_CLOCK */
 	void *desc;                     /* descriptor ring memory */
 	unsigned long flags;            /* ring specific flags */
 	void __iomem *tail;             /* pointer to ring tail register */
@@ -389,6 +389,7 @@ struct igb_ring {
 		/* RX */
 		struct {
 			struct igb_rx_queue_stats rx_stats;
+			struct igb_rx_packet_stats pkt_stats;
 #ifdef CONFIG_IGB_DISABLE_PACKET_SPLIT
 			u16 rx_buffer_len;
 #else
@@ -417,6 +418,7 @@ struct igb_q_vector {
 #ifndef IGB_NO_LRO
 	struct igb_lro_list lrolist;   /* LRO list for queue vector*/
 #endif
+	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[IFNAMSIZ + 9];
 #ifndef HAVE_NETDEV_NAPI_LIST
 	struct net_device poll_dev;
@@ -487,16 +489,10 @@ static inline struct netdev_queue *txring_txq(const struct igb_ring *tx_ring)
 }
 #endif /* CONFIG_BQL */
 
-// #ifdef EXT_THERMAL_SENSOR_SUPPORT
-// #ifdef IGB_PROCFS
-struct igb_therm_proc_data
-{
+struct igb_therm_proc_data {
 	struct e1000_hw *hw;
 	struct e1000_thermal_diode_data *sensor_data;
 };
-
-//  #endif /* IGB_PROCFS */
-// #endif /* EXT_THERMAL_SENSOR_SUPPORT */
 
 #ifdef IGB_HWMON
 #define IGB_HWMON_TYPE_LOC	0
@@ -517,6 +513,9 @@ struct hwmon_buff {
 	unsigned int n_hwmon;
 	};
 #endif /* IGB_HWMON */
+#ifdef ETHTOOL_GRXFHINDIR
+#define IGB_RETA_SIZE	128
+#endif /* ETHTOOL_GRXFHINDIR */
 
 /* board specific private data structure */
 struct igb_adapter {
@@ -574,11 +573,9 @@ struct igb_adapter {
 
 	/* OS defined structs */
 	struct pci_dev *pdev;
-
 	/* user-dma specific variables */
 	struct igb_user_page	*userpages;
 	u32	uring_init;
-
 #ifndef HAVE_NETDEV_STATS_IN_NETDEV
 	struct net_device_stats net_stats;
 #endif
@@ -619,6 +616,7 @@ struct igb_adapter {
 	bool mdd;
 	int int_mode;
 	u32 rss_queues;
+	u32 tss_queues;
 	u32 vmdq_pools;
 	char fw_version[32];
 	u32 wvbr;
@@ -653,6 +651,7 @@ struct igb_adapter {
 	struct sk_buff *ptp_tx_skb;
 	unsigned long ptp_tx_start;
 	unsigned long last_rx_ptp_check;
+	unsigned long last_rx_timestamp;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
@@ -666,10 +665,16 @@ struct igb_adapter {
 	struct i2c_client *i2c_client;
 #endif /* HAVE_I2C_SUPPORT */
 	unsigned long link_check_timeout;
+
+
 	int devrc;
 
 	int copper_tries;
 	u16 eee_advert;
+#ifdef ETHTOOL_GRXFHINDIR
+	u32 rss_indir_tbl_init;
+	u8 rss_indir_tbl[IGB_RETA_SIZE];
+#endif
 };
 
 #ifdef CONFIG_IGB_VMDQ_NETDEV
@@ -751,15 +756,14 @@ struct igb_vmdq_adapter {
 struct e1000_fw_hdr {
 	u8 cmd;
 	u8 buf_len;
-	union
-	{
+	union {
 		u8 cmd_resv;
 		u8 ret_status;
 	} cmd_or_resp;
 	u8 checksum;
 };
 
-#pragma pack(push,1)
+#pragma pack(push, 1)
 struct e1000_fw_drv_info {
 	struct e1000_fw_hdr hdr;
 	u8 port_num;
@@ -772,7 +776,8 @@ struct e1000_fw_drv_info {
 enum e1000_state_t {
 	__IGB_TESTING,
 	__IGB_RESETTING,
-	__IGB_DOWN
+	__IGB_DOWN,
+	__IGB_PTP_TX_IN_PROGRESS,
 };
 
 extern char igb_driver_name[];
@@ -782,6 +787,9 @@ extern int igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
 extern void igb_reset(struct igb_adapter *);
+#ifdef ETHTOOL_SRXFHINDIR
+extern void igb_write_rss_indir_tbl(struct igb_adapter *);
+#endif
 extern int igb_set_spd_dplx(struct igb_adapter *, u16);
 extern int igb_setup_tx_resources(struct igb_ring *);
 extern int igb_setup_rx_resources(struct igb_ring *);
@@ -793,9 +801,10 @@ extern void igb_setup_tctl(struct igb_adapter *);
 extern void igb_setup_rctl(struct igb_adapter *);
 extern netdev_tx_t igb_xmit_frame_ring(struct sk_buff *, struct igb_ring *);
 extern void igb_unmap_and_free_tx_resource(struct igb_ring *,
-                                           struct igb_tx_buffer *);
+					   struct igb_tx_buffer *);
 extern void igb_alloc_rx_buffers(struct igb_ring *, u16);
 extern void igb_clean_rx_ring(struct igb_ring *);
+extern int igb_setup_queues(struct igb_adapter *adapter);
 extern void igb_update_stats(struct igb_adapter *);
 extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
@@ -813,27 +822,6 @@ extern void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 extern void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector,
 				unsigned char *va,
 				struct sk_buff *skb);
-static inline void igb_ptp_rx_hwtstamp(struct igb_ring *rx_ring,
-				       union e1000_adv_rx_desc *rx_desc,
-				       struct sk_buff *skb)
-{
-	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
-#ifdef CONFIG_IGB_DISABLE_PACKET_SPLIT
-		igb_ptp_rx_pktstamp(rx_ring->q_vector, skb->data, skb);
-		skb_pull(skb, IGB_TS_HDR_LEN);
-#endif
-		return;
-	}
-
-	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS))
-		igb_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
-
-	/* Update the last_rx_timestamp timer in order to enable watchdog check
-	 * for error case of latched timestamp on a dropped packet.
-	 */
-	rx_ring->last_rx_timestamp = jiffies;
-}
-
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 				  struct ifreq *ifr, int cmd);
 #endif /* HAVE_PTP_1588_CLOCK */
@@ -842,7 +830,7 @@ extern int ethtool_ioctl(struct ifreq *);
 #endif
 extern int igb_write_mc_addr_list(struct net_device *netdev);
 extern int igb_add_mac_filter(struct igb_adapter *adapter, u8 *addr, u16 queue);
-extern int igb_del_mac_filter(struct igb_adapter *adapter, u8* addr, u16 queue);
+extern int igb_del_mac_filter(struct igb_adapter *adapter, u8 *addr, u16 queue);
 extern int igb_available_rars(struct igb_adapter *adapter);
 extern s32 igb_vlvf_set(struct igb_adapter *, u32, bool, u32);
 extern void igb_configure_vt_default_pool(struct igb_adapter *adapter);
@@ -858,8 +846,8 @@ void igb_sysfs_exit(struct igb_adapter *adapter);
 int igb_sysfs_init(struct igb_adapter *adapter);
 #else
 #ifdef IGB_PROCFS
-int igb_procfs_init(struct igb_adapter* adapter);
-void igb_procfs_exit(struct igb_adapter* adapter);
+int igb_procfs_init(struct igb_adapter *adapter);
+void igb_procfs_exit(struct igb_adapter *adapter);
 int igb_procfs_topdir_init(void);
 void igb_procfs_topdir_exit(void);
 #endif /* IGB_PROCFS */

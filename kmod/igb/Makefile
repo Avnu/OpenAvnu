@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Intel(R) Gigabit Ethernet Linux driver
-# Copyright(c) 2007-2013 Intel Corporation.
+# Copyright(c) 2007-2014 Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 # more details.
 #
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-#
 # The full GNU General Public License is included in this distribution in
 # the file called "COPYING".
 #
 # Contact Information:
+# Linux NICS <linux.nics@intel.com>
 # e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
 # Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #
@@ -156,7 +153,7 @@ EXTRA_CFLAGS += -DDRIVER_NAME=$(DRIVER_NAME)
 EXTRA_CFLAGS += -DDRIVER_NAME_CAPS=$(shell echo $(DRIVER_NAME) | tr '[a-z]' '[A-Z]')
 # standard flags for module builds
 EXTRA_CFLAGS += -DLINUX -D__KERNEL__ -DMODULE -O2 -pipe -Wall
-EXTRA_CFLAGS += -I$(KSRC)/generated/uapi -I/include -I.
+EXTRA_CFLAGS += -I$(KSRC)/include
 EXTRA_CFLAGS += $(shell [ -f $(KSRC)/include/linux/modversions.h ] && \
             echo "-DMODVERSIONS -DEXPORT_SYMTAB \
                   -include $(KSRC)/include/linux/modversions.h")
