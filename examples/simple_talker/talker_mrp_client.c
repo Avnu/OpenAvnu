@@ -37,18 +37,7 @@
  * gcc -Wall -c -I../../daemons/mrpd talker_mrp_client.c
  */
 
-#include <stdlib.h> // malloc free
-#include <stdio.h> // sprintf
-#include <string.h> // memset
-#include <netinet/in.h>
-#include <pthread.h>
-#include <poll.h>
-
-#include "mrpd.h" // daemons/mrpd/mrpd.h:121:#define MAX_MRPD_CMDSZ
-#include "mrp.h" // needed by msrp.h
-#include "msrp.h" // daemons/mrpd/msrp.h:50:#define MSRP_LISTENER_ASKFAILED
-
-//#define MRPD_PORT_DEFAULT 7500 // mrpd.h
+#include "talker_mrp_client.h"
 
 /* global variables */
 
@@ -99,7 +88,7 @@ int mrp_connect(void)
 
 int send_mrp_msg(char *notify_data, int notify_len);
 
-int mrp_disconnect()
+int mrp_disconnect(void)
 {
 	char *msgbuf;
 	int rc;
@@ -589,13 +578,4 @@ int recv_mrp_okay()
 		usleep(20000);
 	return 0;
 }
-
-#if 0
-int main(void)
-{
-	return 0;
-}
-#endif
-
-
 

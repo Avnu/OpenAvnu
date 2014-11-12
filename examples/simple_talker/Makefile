@@ -8,10 +8,13 @@ LDFLAGS=-L../../lib/igb
 
 all: simple_talker
 
-simple_talker: simple_talker.o
+simple_talker: simple_talker.o talker_mrp_client.o
 
 simple_talker.o: simple_talker.c
 	gcc -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) simple_talker.c
+
+talker_mrp_client.o: talker_mrp_client.c
+	gcc -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) talker_mrp_client.c
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
