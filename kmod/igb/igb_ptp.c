@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -247,7 +244,8 @@ static int igb_ptp_adjfreq_82576(struct ptp_clock_info *ptp, s32 ppb)
 	else
 		incvalue += rate;
 
-	E1000_WRITE_REG(hw, E1000_TIMINCA, INCPERIOD_82576 | (incvalue & INCVALUE_82576_MASK));
+	E1000_WRITE_REG(hw, E1000_TIMINCA, INCPERIOD_82576
+			| (incvalue & INCVALUE_82576_MASK));
 
 	return 0;
 }
@@ -281,6 +279,7 @@ static int igb_ptp_adjfreq_82580(struct ptp_clock_info *ptp, s32 ppb)
 			rate = div_u64(rate, 5);
 		}
 	}
+
 	inca = rate & INCVALUE_MASK;
 	if (neg_adj)
 		inca |= ISGN;
@@ -426,8 +425,9 @@ void igb_ptp_tx_work(struct work_struct *work)
 				   IGB_PTP_TX_TIMEOUT)) {
 		dev_kfree_skb_any(adapter->ptp_tx_skb);
 		adapter->ptp_tx_skb = NULL;
+		clear_bit_unlock(__IGB_PTP_TX_IN_PROGRESS, &adapter->state);
 		adapter->tx_hwtstamp_timeouts++;
-		dev_warn(&adapter->pdev->dev, "clearing Tx timestamp hang");
+		dev_warn(&adapter->pdev->dev, "clearing Tx timestamp hang\n");
 		return;
 	}
 
@@ -465,10 +465,8 @@ static void igb_ptp_overflow_check(struct work_struct *work)
 void igb_ptp_rx_hang(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	struct igb_ring *rx_ring;
 	u32 tsyncrxctl = E1000_READ_REG(hw, E1000_TSYNCRXCTL);
 	unsigned long rx_event;
-	int n;
 
 	if (hw->mac.type != e1000_82576)
 		return;
@@ -483,18 +481,15 @@ void igb_ptp_rx_hang(struct igb_adapter *adapter)
 
 	/* Determine the most recent watchdog or rx_timestamp event */
 	rx_event = adapter->last_rx_ptp_check;
-	for (n = 0; n < adapter->num_rx_queues; n++) {
-		rx_ring = adapter->rx_ring[n];
-		if (time_after(rx_ring->last_rx_timestamp, rx_event))
-			rx_event = rx_ring->last_rx_timestamp;
-	}
+	if (time_after(adapter->last_rx_timestamp, rx_event))
+		rx_event = adapter->last_rx_timestamp;
 
 	/* Only need to read the high RXSTMP register to clear the lock */
 	if (time_is_before_jiffies(rx_event + 5 * HZ)) {
 		E1000_READ_REG(hw, E1000_RXSTMPH);
 		adapter->last_rx_ptp_check = jiffies;
 		adapter->rx_hwtstamp_cleared++;
-		dev_warn(&adapter->pdev->dev, "clearing Rx timestamp hang");
+		dev_warn(&adapter->pdev->dev, "clearing Rx timestamp hang\n");
 	}
 }
 
@@ -519,6 +514,7 @@ void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter)
 	skb_tstamp_tx(adapter->ptp_tx_skb, &shhwtstamps);
 	dev_kfree_skb_any(adapter->ptp_tx_skb);
 	adapter->ptp_tx_skb = NULL;
+	clear_bit_unlock(__IGB_PTP_TX_IN_PROGRESS, &adapter->state);
 }
 
 /**
@@ -579,6 +575,11 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 	regval |= (u64)E1000_READ_REG(hw, E1000_RXSTMPH) << 32;
 
 	igb_ptp_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
+
+	/* Update the last_rx_timestamp timer in order to enable watchdog check
+	 * for error case of latched timestamp on a dropped packet.
+	 */
+	adapter->last_rx_timestamp = jiffies;
 }
 
 /**
@@ -887,6 +888,7 @@ void igb_ptp_stop(struct igb_adapter *adapter)
 	if (adapter->ptp_tx_skb) {
 		dev_kfree_skb_any(adapter->ptp_tx_skb);
 		adapter->ptp_tx_skb = NULL;
+		clear_bit_unlock(__IGB_PTP_TX_IN_PROGRESS, &adapter->state);
 	}
 
 	if (adapter->ptp_clock) {

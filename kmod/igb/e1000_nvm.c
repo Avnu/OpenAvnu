@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -489,6 +486,9 @@ s32 e1000_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 			   E1000_NVM_RW_REG_DATA);
 	}
 
+	if (ret_val)
+		DEBUGOUT1("NVM read error: %d\n", ret_val);
+
 	return ret_val;
 }
 
@@ -591,6 +591,12 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 	u16 length;
 
 	DEBUGFUNC("e1000_read_pba_string_generic");
+
+	if ((hw->mac.type >= e1000_i210) &&
+	    !e1000_get_flash_presence_i210(hw)) {
+		DEBUGOUT("Flashless no PBA string\n");
+		return -E1000_ERR_NVM_PBA_SECTION;
+	}
 
 	if (pba_num == NULL) {
 		DEBUGOUT("PBA string buffer was null\n");
@@ -876,7 +882,6 @@ void e1000_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 	/* basic eeprom version numbers, bits used vary by part and by tool
 	 * used to create the nvm images */
 	/* Check which data format we have */
-	hw->nvm.ops.read(hw, NVM_ETRACK_HIWORD, 1, &etrack_test);
 	switch (hw->mac.type) {
 	case e1000_i211:
 		e1000_read_invm_version(hw, fw_vers);
@@ -884,6 +889,7 @@ void e1000_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 	case e1000_82575:
 	case e1000_82576:
 	case e1000_82580:
+		hw->nvm.ops.read(hw, NVM_ETRACK_HIWORD, 1, &etrack_test);
 		/* Use this format, unless EETRACK ID exists,
 		 * then use alternate format
 		 */
@@ -904,7 +910,7 @@ void e1000_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 		}
 		/* fall through */
 	case e1000_i350:
-	case e1000_i354:
+		hw->nvm.ops.read(hw, NVM_ETRACK_HIWORD, 1, &etrack_test);
 		/* find combo image version */
 		hw->nvm.ops.read(hw, NVM_COMB_VER_PTR, 1, &comb_offset);
 		if ((comb_offset != 0x0) &&
@@ -932,6 +938,7 @@ void e1000_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 		}
 		break;
 	default:
+		hw->nvm.ops.read(hw, NVM_ETRACK_HIWORD, 1, &etrack_test);
 		return;
 	}
 	hw->nvm.ops.read(hw, NVM_VERSION, 1, &fw_version);
@@ -960,8 +967,12 @@ etrack_id:
 		hw->nvm.ops.read(hw, (NVM_ETRACK_WORD + 1), 1, &eeprom_verh);
 		fw_vers->etrack_id = (eeprom_verh << NVM_ETRACK_SHIFT)
 			| eeprom_verl;
+	} else if ((etrack_test & NVM_ETRACK_VALID) == 0) {
+		hw->nvm.ops.read(hw, NVM_ETRACK_WORD, 1, &eeprom_verh);
+		hw->nvm.ops.read(hw, (NVM_ETRACK_WORD + 1), 1, &eeprom_verl);
+		fw_vers->etrack_id = (eeprom_verh << NVM_ETRACK_SHIFT) |
+				     eeprom_verl;
 	}
-	return;
 }
 
 
