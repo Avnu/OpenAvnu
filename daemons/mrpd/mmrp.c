@@ -632,9 +632,6 @@ int mmrp_recv_msg()
 				/* as either firstval is either 0 or 1 ... the common
 				 * case will be nulls for evt_2 and evt_3 ...
 				 */
-				if (MRPDU_VECT_LVA
-				    (ntohs(mrpdu_vectorptr->VectorHeader)))
-					mmrp_event(MRP_EVENT_RLA, NULL);
 
 				/* 2 byte numvalues + 34 byte FirstValue + (n) vector bytes */
 				mrpdu_msg_ptr = (uint8_t *) mrpdu_vectorptr;
