@@ -103,6 +103,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 	uint32_t buf;
 	uint32_t *mybuf;
 	uint32_t frame[2] = { 0 , 0 };
+	int i;
 
 #ifdef DEBUG
 	fprintf(stdout,"Got packet.\n");
@@ -135,7 +136,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 
 			//sample = (struct six1883_sample*) (packet + HEADER_SIZE);
 			mybuf = (uint32_t*) (packet + HEADER_SIZE);
-			for(int i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
+			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
 			{	
 				memcpy(&frame[0], &mybuf[i], sizeof(frame));
 
@@ -183,13 +184,14 @@ int msg_process(char *buf, int buflen)
 {
 	uint32_t id;
 	fprintf(stderr, "Msg: %s\n", buf);
- 	int l = 0;
+	int j, l = 0;
+
 	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
 	{
 		l = 6; // skip "Sxx T:"
 		while ('S' != buf[l++]);
 		l++;
-		for(int j = 0; j < 8 ; l+=2, j++)
+		for(j = 0; j < 8 ; l+=2, j++)
 		{
 			sscanf(&buf[l],"%02x",&id);
 			stream_id[j] = (unsigned char)id;
