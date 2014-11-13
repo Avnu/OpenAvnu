@@ -27,13 +27,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * gcc -Wall -c -I../../daemons/mrpd listener_mrp_client.c
  */
 
-#include <stdlib.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <stdio.h> // TODO fprintf, to be removed
-#include <unistd.h>
-
-#include "mrpd.h"
+#include "listener_mrp_client.h"
 
 /* global variables */
 
@@ -42,7 +36,67 @@ volatile int talker = 0;
 unsigned char stream_id[8];
 
 /*
- * called in main
+ * private
+ */
+
+int send_msg(char *data, int data_len)
+{
+	struct sockaddr_in addr;
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(MRPD_PORT_DEFAULT);
+	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	inet_aton("127.0.0.1", &addr.sin_addr);
+	if (-1 != control_socket)
+		return (sendto(control_socket, data, data_len, 0, (struct sockaddr*)&addr, (socklen_t)sizeof(addr)));
+	else
+		return 0;
+}
+
+int msg_process(char *buf, int buflen)
+{
+	uint32_t id;
+	int j;
+
+	fprintf(stderr, "Msg: %s\n", buf);
+	int l = 0;
+	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
+	{
+		l = 6; // skip "Sxx T:"
+		while ('S' != buf[l++]);
+		l++;
+		for(j = 0; j < 8 ; l+=2, j++)
+		{
+			sscanf(&buf[l],"%02x",&id);
+			stream_id[j] = (unsigned char)id;
+		}
+		talker = 1;
+	}
+	return (0);
+}
+
+int recv_msg()
+{
+	char *databuf;
+	int bytes = 0;
+
+	databuf = (char *)malloc(2000);
+	if (NULL == databuf)
+		return -1;
+
+	memset(databuf, 0, 2000);
+	bytes = recv(control_socket, databuf, 2000, 0);
+	if (bytes <= -1)
+	{
+		free(databuf);
+		return (-1);
+	}
+	return msg_process(databuf, bytes);
+
+}
+
+/*
+ * public
  */
 
 int create_socket() // TODO FIX! =:-|
@@ -70,8 +124,6 @@ int create_socket() // TODO FIX! =:-|
 	}
 	return 0;
 }
-
-int send_msg(char *data, int data_len);
 
 int report_domain_status()
 {
@@ -102,8 +154,6 @@ int join_vlan()
 	free(msgbuf);
 	return rc;
 }
-
-int recv_msg();
 
 int await_talker()
 {
@@ -152,72 +202,6 @@ int send_leave()
 	free(databuf);
 	return rc;
 }
-
-/*
- * internal
- */
-
-int send_msg(char *data, int data_len)
-{
-	struct sockaddr_in addr;
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(MRPD_PORT_DEFAULT);
-	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	inet_aton("127.0.0.1", &addr.sin_addr);
-	if (-1 != control_socket)
-		return (sendto(control_socket, data, data_len, 0, (struct sockaddr*)&addr, (socklen_t)sizeof(addr)));
-	else 
-		return 0;
-}
-
-int msg_process(char *buf, int buflen);
-
-int recv_msg()
-{
-	char *databuf;
-	int bytes = 0;
-
-	databuf = (char *)malloc(2000);
-	if (NULL == databuf)
-		return -1;
-
-	memset(databuf, 0, 2000);
-	bytes = recv(control_socket, databuf, 2000, 0);
-	if (bytes <= -1) 
-	{
-		free(databuf);
-		return (-1);
-	}
-	return msg_process(databuf, bytes);
-
-}
-
-int msg_process(char *buf, int buflen)
-{
-	uint32_t id;
-	int j;
-
-	fprintf(stderr, "Msg: %s\n", buf);
- 	int l = 0;
-	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
-	{
-		l = 6; // skip "Sxx T:"
-		while ('S' != buf[l++]);
-		l++;
-		for(j = 0; j < 8 ; l+=2, j++)
-		{
-			sscanf(&buf[l],"%02x",&id);
-			stream_id[j] = (unsigned char)id;
-		}
-		talker = 1;
-	}
-	return (0);
-}
-
-/*
- * actually not used
- */
 
 int mrp_disconnect()
 {
