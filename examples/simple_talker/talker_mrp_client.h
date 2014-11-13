@@ -32,6 +32,9 @@
 
 ******************************************************************************/
 
+#ifndef _TALKER_MRP_CLIENT_H_
+#define _TALKER_MRP_CLIENT_H_
+
 /*
  * simple_talker MRP client part
  */
@@ -75,3 +78,5 @@ int mrp_join_vlan(void);
 int mrp_advertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
 int mrp_unadvertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
 int mrp_await_listener(unsigned char *streamid);
+
+#endif /* _TALKER_MRP_CLIENT_H_ */

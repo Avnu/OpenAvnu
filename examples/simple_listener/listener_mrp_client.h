@@ -22,6 +22,9 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#ifndef _LISTENER_MRP_CLIENT_H_
+#define _LISTENER_MRP_CLIENT_H_
+
 /*
  * simple_listener MRP client part
  */
@@ -51,3 +54,5 @@ int await_talker();
 int send_ready();
 int send_leave();
 int mrp_disconnect();
+
+#endif /* _LISTENER_MRP_CLIENT_H_ */
