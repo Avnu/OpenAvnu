@@ -151,6 +151,12 @@ TEST(MsrpTestGroup, RegisterTalkerAdv)
 	LONGS_EQUAL(1, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
 
+/*
+ * This test registers a TalkerAdv using the same string
+ * interface that a client would use and verifies that after
+ * the LVA timer triggers, a packet is emitted and that all
+ * attributes scheduled for transmission have been sent.
+ */
 TEST(MsrpTestGroup, TxLVA_TalkerAdv_clear_tx_flag)
 {
     struct msrp_attribute *attrib;
@@ -181,6 +187,12 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_clear_tx_flag)
     LONGS_EQUAL(1, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
 
+/*
+ * This test registers a TalkerFailed using the same string
+ * interface that a client would use and verifies that after
+ * the LVA timer triggers, a packet is emitted and that all
+ * attributes scheduled for transmission have been sent.
+ */
 TEST(MsrpTestGroup, TxLVA_TalkerFailed_clear_tx_flag)
 {
 	struct msrp_attribute *attrib;
@@ -212,6 +224,12 @@ TEST(MsrpTestGroup, TxLVA_TalkerFailed_clear_tx_flag)
 	LONGS_EQUAL(1, event_counts_per_type(MSRP_TALKER_FAILED_TYPE, MRP_EVENT_NEW));
 }
 
+/*
+ * This test registers a Listener using the same string
+ * interface that a client would use and verifies that after
+ * the LVA timer triggers, a packet is emitted and that all
+ * attributes scheduled for transmission have been sent.
+ */
 TEST(MsrpTestGroup, TxLVA_Listener_clear_tx_flag)
 {
 	struct msrp_attribute *attrib;
@@ -240,6 +258,12 @@ TEST(MsrpTestGroup, TxLVA_Listener_clear_tx_flag)
 	LONGS_EQUAL(1, event_counts_per_type(MSRP_LISTENER_TYPE, MRP_EVENT_NEW));
 }
 
+/*
+ * This test registers a Domain using the same string
+ * interface that a client would use and verifies that after
+ * the LVA timer triggers, a packet is emitted and that all
+ * attributes scheduled for transmission have been sent.
+ */
 TEST(MsrpTestGroup, TxLVA_Domain_clear_tx_flag)
 {
 	struct msrp_attribute *attrib;
@@ -270,6 +294,12 @@ TEST(MsrpTestGroup, TxLVA_Domain_clear_tx_flag)
 	LONGS_EQUAL(1, event_counts_per_type(MSRP_DOMAIN_TYPE, MRP_EVENT_JOIN));
 }
 
+/*
+ * This test registers 64 TalkerAdvertises using the same string
+ * interface that a client would use and verifies that after
+ * the LVA timer triggers, a packet is emitted and that all
+ * attributes scheduled for transmission have been sent.
+ */
 TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
 {
 	struct msrp_attribute *attrib;
