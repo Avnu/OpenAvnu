@@ -89,6 +89,7 @@ struct mrpd_test_state {
 
 	/* MSRP Events */
 	uint16_t msrp_event_counts[21];
+	uint16_t msrp_event_counts_per_type[4][21];
 	int forward_msrp_events;
 	msrp_observer_t msrp_observe;
 
@@ -100,5 +101,6 @@ extern struct mrpd_test_state test_state;
 /* Events are defined in mrp.h ranging sequentially from 100 to 2100 */
 #define MSRP_EVENT_IDX(event) (event/MRP_EVENT_SPACING-1)
 #define MSRP_EVENT_ID(idx) ((idx+1)*MRP_EVENT_SPACING)
+#define MSRP_TYPE_IDX(atype) (atype-1)
 
 #endif
