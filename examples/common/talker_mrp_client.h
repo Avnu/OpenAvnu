@@ -61,19 +61,19 @@ extern volatile int mrp_error;
 extern volatile int domain_a_valid;
 extern int domain_class_a_id;
 extern int domain_class_a_priority;
-extern int domain_class_a_vid;
+extern u_int16_t domain_class_a_vid;
 
 extern volatile int domain_b_valid;
 extern int domain_class_b_id;
 extern int domain_class_b_priority;
-extern int domain_class_b_vid;
+extern u_int16_t domain_class_b_vid;
 
 /* functions */
 
 int mrp_connect(void);
 int mrp_disconnect(void);
 int mrp_monitor(void);
-int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid);
+int mrp_register_domain(int *class_id, int *priority, u_int16_t *vid);
 int mrp_join_vlan(void);
 int mrp_advertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
 int mrp_unadvertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);

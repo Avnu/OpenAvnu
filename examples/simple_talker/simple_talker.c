@@ -479,14 +479,6 @@ int main(int argc, char *argv[])
 	int rc = 0;
 	char *interface = NULL;
 	int transport = -1;
-	int class_a_id = 0;
-	int a_priority = 0;
-	u_int16_t a_vid = 0;
-#ifdef DOMAIN_QUERY
-	int class_b_id = 0;
-	int b_priority = 0;
-	u_int16_t b_vid = 0;
-#endif
 	uint16_t seqnum;
 	uint32_t rtp_timestamp;
 	uint64_t time_stamp;
@@ -602,21 +594,19 @@ int main(int argc, char *argv[])
 	}
 
 	mrp_monitor();
-#ifdef DOMAIN_QUERY
 	/* 
-	 * should use mrp_get_domain() above but this is a simplification 
+	 * should use mrp_get_domain() but this is a simplification
 	 */
-#endif
 	domain_a_valid = 1;
-	class_a_id = MSRP_SR_CLASS_A;
-	a_priority = MSRP_SR_CLASS_A_PRIO;
-	a_vid = 2;
-	printf("detected domain Class A PRIO=%d VID=%04x...\n", a_priority,
-	       a_vid);
+	domain_class_a_id = MSRP_SR_CLASS_A;
+	domain_class_a_priority = MSRP_SR_CLASS_A_PRIO;
+	domain_class_a_vid = 2;
+	printf("detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
+	       domain_class_a_vid);
 
 #define PKT_SZ	100
 
-	mrp_register_domain(&class_a_id, &a_priority, &a_vid);
+	mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
 	mrp_join_vlan();
 
 	if( transport == 2 ) {
@@ -668,9 +658,9 @@ int main(int argc, char *argv[])
 		((char *)tmp_packet->vaddr)[12] = 0x81;
 		((char *)tmp_packet->vaddr)[13] = 0x00;
 		((char *)tmp_packet->vaddr)[14] =
-		    ((a_priority << 13 | a_vid)) >> 8;
+		    ((domain_class_a_priority << 13 | domain_class_a_vid)) >> 8;
 		((char *)tmp_packet->vaddr)[15] =
-		    ((a_priority << 13 | a_vid)) & 0xFF;
+		    ((domain_class_a_priority << 13 | domain_class_a_vid)) & 0xFF;
 		if( transport == 2 ) {
 			((char *)tmp_packet->vaddr)[16] = 0x22;	/* 1722 eth type */
 			((char *)tmp_packet->vaddr)[17] = 0xF0;
@@ -776,16 +766,16 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "advertising stream ...\n");
 	if( transport == 2 ) {
 		mrp_advertise_stream
-			(STREAM_ID, dest_addr, a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000, 
-			 a_priority, 3900);
+			(STREAM_ID, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
+			 domain_class_a_priority, 3900);
 	} else {
 		/* 1 is the wrong number for frame rate, but fractional values not
 		   allowed, not sure the significance of the value 6, but using it
 		   consistently */
 		mrp_advertise_stream
-			(STREAM_ID, dest_addr, a_vid,
+			(STREAM_ID, dest_addr, domain_class_a_vid,
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1, 
-			 a_priority, 3900);
+			 domain_class_a_priority, 3900);
 	}
 	fprintf(stderr, "awaiting a listener ...\n");
 	mrp_await_listener(STREAM_ID);
@@ -937,13 +927,13 @@ int main(int argc, char *argv[])
 	
 	if( transport == 2 ) {
 		mrp_unadvertise_stream
-			(STREAM_ID, dest_addr, a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
-			 a_priority, 3900);
+			(STREAM_ID, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
+			 domain_class_a_priority, 3900);
 	} else {
 		mrp_unadvertise_stream
-			(STREAM_ID, dest_addr, a_vid,
+			(STREAM_ID, dest_addr, domain_class_a_vid,
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1,
-			 a_priority, 3900);
+			 domain_class_a_priority, 3900);
 	}
 	
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */
