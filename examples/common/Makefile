@@ -6,9 +6,9 @@ INCFLAGS=-I../../lib/igb
 LDLIBS=-ligb -lpci -lz -lrt -lm -pthread
 LDFLAGS=-L../../lib/igb
 
-all: avb talker_mrp_client.o listener_mrp_client.o
+all: avb.o talker_mrp_client.o listener_mrp_client.o
 
-avb:
+avb.o:
 	gcc $(INCFLAGS) -c avb.c
 
 talker_mrp_client.o: talker_mrp_client.c talker_mrp_client.h
