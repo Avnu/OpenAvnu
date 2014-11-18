@@ -47,7 +47,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define LIBSND
 
-#define MRPD_PORT_DEFAULT 7500
+#include "listener_mrp_client.h"
 
 #define ETHERNET_HEADER_SIZE 18
 #define SEVENTEEN22_HEADER_PART1_SIZE 4
@@ -73,9 +73,6 @@ struct ethernet_header{
 };
 
 // global
-unsigned char stream_id[STREAM_ID_SIZE];
-volatile int talker = 0;
-int control_socket;
 pcap_t* handle;
 u_char ETHER_TYPE[] = { 0x22, 0xf0 };
 SNDFILE* snd_file;
@@ -100,148 +97,15 @@ static void help()
 	exit(1);
 }
 
-int send_msg(char *data, int data_len)
-{
-	int rc;
-	struct sockaddr_in addr;
-
-	memset(&addr, 0, sizeof(addr));
-
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(MRPD_PORT_DEFAULT);
-	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	inet_aton("127.0.0.1", &addr.sin_addr);
-
-	rc = sendto(control_socket, data, data_len, 0, (struct sockaddr*)&addr, (socklen_t)sizeof(addr));
-	return rc;
-}
-
-int send_process(char type)
-{ 
-	int rc;
-	char* msgbuf = malloc(1500);
-
-	if (NULL == msgbuf) {
-		return -1;
-	}
-
-	memset(msgbuf, 0, 1500);
-	
-	switch(type) {
-	case 'M':
-		sprintf(msgbuf, "BYE");
-		break;
-	case 'D':
-		sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
-		break;
-	case 'R':
-		sprintf(msgbuf, "S+L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=2",
-		     stream_id[0], stream_id[1],
-		     stream_id[2], stream_id[3],
-		     stream_id[4], stream_id[5],
-		     stream_id[6], stream_id[7]);
-		break;
-	case 'L':
-		sprintf(msgbuf, "S-L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=3",
-		     stream_id[0], stream_id[1],
-		     stream_id[2], stream_id[3],
-		     stream_id[4], stream_id[5],
-		     stream_id[6], stream_id[7]);
-		break;
-	default:
-		return -1;
-	}
-
-	rc = send_msg(msgbuf, 1500);
-
-	free(msgbuf);
-	return rc;
-}
-
-int create_socket()
-{
-	struct sockaddr_in addr;
-	
-	control_socket = socket(AF_INET, SOCK_DGRAM, 0);
-
-	/** POSIX: fd 0,1,2 are reserved */
-	if (2 > control_socket) {
-		close(control_socket);
-		return -1;
-	}
-
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(0);
-
-	if(0 > (bind(control_socket, (struct sockaddr*)&addr, sizeof(addr)))) {
-		fprintf(stderr, "Could not bind socket.\n");
-		close(control_socket);
-		return -1;
-	}
-
-	return 0;
-}
-
-int recvmsg_process(char *buf, int buflen)
-{
-	uint32_t id;
-	int l = 0;
-	
-	if ('S' == buf[l++] && 'N' == buf[l++] && 'E' == buf[l++] && 'T' == buf[++l]) {
-
-		while ('S' != buf[l++]);
-		l++;
-
-		for(int j = 0; j < 8 ; l+=2, j++) {
-			sscanf(&buf[l],"%02x",&id);
-			stream_id[j] = (unsigned char)id;
-		}
-		talker = 1;
-	}
-
-	return 0;
-}
-
-int recv_msg()
-{
-	int bytes = 0;
-	char* msgbuf = malloc(2000);
-	
-	if (NULL == msgbuf) {
-		return -1;
-	}
-
-	memset(msgbuf, 0, 2000);
-
-	bytes = recv(control_socket, msgbuf, 2000, 0);
-
-	if (bytes <= -1){
-		free(msgbuf);
-		return -1;
-	}
-
-	return recvmsg_process(msgbuf, bytes);
-}
-
-int await_talker()
-{
-	while (0 == talker) {	
-		recv_msg();
-	}
-
-	return 0;
-}
-
 void shutdown_all(int sig)
 {
 	fprintf(stdout,"Leaving...\n");
 
 	if (0 != talker) {
-		send_process('L'); /** send leave */
+		send_leave();
 	}
 
-	send_process('M'); /** mrp disconnect */
+	mrp_disconnect();
 	close(control_socket);
 
 	if (NULL != handle) {
@@ -474,14 +338,14 @@ int main(int argc, char *argv[])
 		return (errno);
 	}
 
-	send_process('D'); /** report domain status */
+	report_domain_status();
 
 	init_jack();
 	
 	fprintf(stdout,"Waiting for talker...\n");
 	await_talker();	
 
-	send_process('R'); /** send_ready */
+	send_ready();
 
 #ifdef LIBSND
 	char* filename = "listener.wav";
