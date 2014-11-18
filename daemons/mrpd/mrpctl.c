@@ -186,16 +186,10 @@ static void
 usage( void ) {
 	fprintf(stderr, 
 		"\n"
-		"usage: mrpd [-hdlmvs] -i interface-name"
+		"usage: mrpctl [-h]"
 		"\n"
 		"options:\n"
 		"    -h  show this message\n"
-		"    -d  run daemon in the background\n"
-		"    -l  enable logging (ignored in daemon mode)\n"
-		"    -m  enable MMRP Registrar and Participant\n"
-		"    -v  enable MVRP Registrar and Participant\n"
-		"    -s  enable MSRP Registrar and Participant\n"
-		"    -i  specify interface to monitor\n"
 		"\n"
 		"%s"
 		"\n", version_str);
@@ -211,7 +205,7 @@ main(int argc, char *argv[]) {
 	int	status;
 
 	for (;;) {
-		c = getopt(argc, argv, "hdlmvsi:");
+		c = getopt(argc, argv, "h");
 
 		if (c < 0)
 			break;

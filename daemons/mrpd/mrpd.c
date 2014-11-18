@@ -791,7 +791,6 @@ void usage(void)
 		"    -h  show this message\n"
 		"    -d  run daemon in the background\n"
 		"    -l  enable logging (ignored in daemon mode)\n"
-		"    -p  enable periodic timer\n"
 		"    -m  enable MMRP Registrar and Participant\n"
 		"    -v  enable MVRP Registrar and Participant\n"
 		"    -s  enable MSRP Registrar and Participant\n"

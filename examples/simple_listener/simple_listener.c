@@ -38,12 +38,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sndfile.h>
 
+#include "listener_mrp_client.h"
+
 //#define DEBUG
 #define PCAP
 #define LIBSND
-
-#define MAX_MRPD_CMDSZ 1500
-#define MRPD_PORT_DEFAULT 7500
 
 #define ETHERNET_HEADER_SIZE 18
 #define SEVENTEEN22_HEADER_PART1_SIZE 4
@@ -71,9 +70,6 @@ struct ethernet_header{
 typedef int (*process_msg) (char *buf, int buflen);
 
 // global
-unsigned char stream_id[8];
-volatile int talker = 0;
-int control_socket;
 pcap_t* handle;
 u_char ETHER_TYPE[] = { 0x22, 0xf0 };
 SNDFILE* snd_file;
@@ -103,6 +99,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 	uint32_t buf;
 	uint32_t *mybuf;
 	uint32_t frame[2] = { 0 , 0 };
+	int i;
 
 #ifdef DEBUG
 	fprintf(stdout,"Got packet.\n");
@@ -135,7 +132,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 
 			//sample = (struct six1883_sample*) (packet + HEADER_SIZE);
 			mybuf = (uint32_t*) (packet + HEADER_SIZE);
-			for(int i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
+			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
 			{	
 				memcpy(&frame[0], &mybuf[i], sizeof(frame));
 
@@ -150,179 +147,6 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 			}
 		}	
 	}
-}
-
-int create_socket()
-{
-	struct sockaddr_in addr;
-	control_socket = socket(AF_INET, SOCK_DGRAM, 0);
-		
-	/** in POSIX fd 0,1,2 are reserved */
-	if (2 > control_socket)
-	{
-		if (-1 > control_socket)
-			close(control_socket);
-	return -1;
-	}
-	
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(0);
-	
-	if(0 > (bind(control_socket, (struct sockaddr*)&addr, sizeof(addr)))) 
-	{
-		fprintf(stderr, "Could not bind socket.\n");
-		close(control_socket);
-		return -1;
-	}
-	return 0;
-}
-
-
-int msg_process(char *buf, int buflen)
-{
-	uint32_t id;
-	fprintf(stderr, "Msg: %s\n", buf);
- 	int l = 0;
-	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
-	{
-		l = 6; // skip "Sxx T:"
-		while ('S' != buf[l++]);
-		l++;
-		for(int j = 0; j < 8 ; l+=2, j++)
-		{
-			sscanf(&buf[l],"%02x",&id);
-			stream_id[j] = (unsigned char)id;
-		}
-		talker = 1;
-	}
-	return (0);
-}
-
-int recv_msg()
-{
-	char *databuf;
-	int bytes = 0;
-
-	databuf = (char *)malloc(2000);
-	if (NULL == databuf)
-		return -1;
-
-	memset(databuf, 0, 2000);
-	bytes = recv(control_socket, databuf, 2000, 0);
-	if (bytes <= -1) 
-	{
-		free(databuf);
-		return (-1);
-	}
-	return msg_process(databuf, bytes);
-
-}
-
-int await_talker()
-{
-	while (0 == talker)	
-		recv_msg();
-	return 0;
-}
-
-int send_msg(char *data, int data_len)
-{
-	struct sockaddr_in addr;
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(MRPD_PORT_DEFAULT);
-	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	inet_aton("127.0.0.1", &addr.sin_addr);
-	if (-1 != control_socket)
-		return (sendto(control_socket, data, data_len, 0, (struct sockaddr*)&addr, (socklen_t)sizeof(addr)));
-	else 
-		return 0;
-}
-
-int join_vlan()
-{
-	int rc;
-	char *msgbuf = malloc(1500);
-	if (NULL == msgbuf)
-		return -1;
-	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "V++:I=0002");
-	rc = send_msg(msgbuf, 1500);
-
-	free(msgbuf);
-	return rc;
-}
-
-int mrp_disconnect()
-{
-	int rc;
-	char *msgbuf = malloc(1500);
-	if (NULL == msgbuf)
-		return -1;
-	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "BYE");
-	rc = send_msg(msgbuf, 1500);
-
-	free(msgbuf);
-	return rc;
-}
-	
-int report_domain_status()
-{
-	int rc;
-	char* msgbuf = malloc(1500);
-
-	if (NULL == msgbuf)
-		return -1;
-	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
-	
-	rc = send_msg(msgbuf, 1500);
-
-	free(msgbuf);
-	return rc;
-}
-
-int send_ready()
-{
-	char *databuf;
-	int rc;
-	databuf = malloc(1500);
-	if (NULL == databuf)
-		return -1;
-	memset(databuf, 0, 1500);
-	sprintf(databuf, "S+L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=2",
-		     stream_id[0], stream_id[1],
-		     stream_id[2], stream_id[3],
-		     stream_id[4], stream_id[5],
-		     stream_id[6], stream_id[7]);
-	rc = send_msg(databuf, 1500);
-
-#ifdef DEBUG
-	fprintf(stdout,"Ready-Msg: %s\n", databuf);
-#endif 
-
-	free(databuf);
-	return rc;
-}
-
-int send_leave()
-{
-	char *databuf;
-	int rc;
-	databuf = malloc(1500);
-	if (NULL == databuf)
-		return -1;
-	memset(databuf, 0, 1500);
-	sprintf(databuf, "S-L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=3",
-		     stream_id[0], stream_id[1],
-		     stream_id[2], stream_id[3],
-		     stream_id[4], stream_id[5],
-		     stream_id[6], stream_id[7]);
-	rc = send_msg(databuf, 1500);
-	free(databuf);
-	return rc;
 }
 
 void sigint_handler(int signum)
