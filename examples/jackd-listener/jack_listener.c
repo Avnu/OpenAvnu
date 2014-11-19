@@ -85,15 +85,19 @@ jack_client_t* client;
 
 volatile int ready = 0;
 
+#define VERSION_STR	"1.0"
+static const char *version_str = "jack_listener v" VERSION_STR "\n"
+    "Copyright (c) 2013, Katja Rohloff\n";
+
 static void help()
 {
 	fprintf(stderr, "\n"
-		"Usage: listener [-h] -i interface -f file_name.wav"
+		"Usage: jack_listener [-h] -i interface -f file_name.wav"
 		"\n"
 		"Options:\n"
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
-		"\n" "%s" "\n");
+		"\n" "%s" "\n", version_str);
 	exit(1);
 }
 
