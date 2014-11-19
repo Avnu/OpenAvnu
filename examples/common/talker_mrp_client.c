@@ -476,14 +476,18 @@ mrp_unadvertise_stream(uint8_t * streamid,
 int mrp_await_listener(unsigned char *streamid)
 {
 	char *msgbuf;
+	int ret;
+
 	memcpy(monitor_stream_id, streamid, sizeof(monitor_stream_id));
 	msgbuf = malloc(64);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 64);
 	sprintf(msgbuf, "S??");
-	send_mrp_msg(msgbuf, 64);
+	ret = send_mrp_msg(msgbuf, 64);
 	free(msgbuf);
+	if (ret == -1)
+		return -1;
 
 	/* either already there ... or need to wait ... */
 	while (!halt_tx && (listeners == 0))
