@@ -301,6 +301,8 @@ jack_client_t* init_jack(void)
 	}
 
 	free(ports);
+
+	return client;
 }
 
 
