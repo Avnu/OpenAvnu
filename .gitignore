@@ -4,10 +4,12 @@ daemons/gptp/linux/build/obj/daemon_cl
 daemons/maap/linux/maap_daemon
 examples/common/*.o
 examples/jackd-listener/jack_listener
+examples/jackd-listener/*.o
 examples/jackd-talker/*.o
 examples/jackd-talker/jackd_talker
 examples/live_stream/listener
 examples/live_stream/talker
+examples/live_stream/*.o
 examples/mrp_client/mrpValidate
 examples/mrp_client/*.o
 examples/mrp_client/mrpl
