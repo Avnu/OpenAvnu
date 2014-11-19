@@ -323,9 +323,9 @@ int gptpscaling(gPtpTimeData * td)
 	memcpy(td, memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
 	pthread_mutex_unlock((pthread_mutex_t *) memory_offset_buffer);
 
-	fprintf( stderr, "local_time = %lu\n",
+	fprintf( stderr, "local_time = %llu\n",
 			 td->local_time );
-	fprintf(stderr, "ml_phoffset = %ld, ls_phoffset = %ld\n",
+	fprintf(stderr, "ml_phoffset = %lld, ls_phoffset = %lld\n",
 		td->ml_phoffset, td->ls_phoffset);
 	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
 		td->ml_freqoffset, td->ls_freqoffset);
