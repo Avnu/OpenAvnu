@@ -143,7 +143,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 				frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
 				frame[1] <<= 8;
 
-				sf_writef_int(snd_file, frame, 1);
+				sf_writef_int(snd_file, (const int *)frame, 1);
 			}
 		}	
 	}
