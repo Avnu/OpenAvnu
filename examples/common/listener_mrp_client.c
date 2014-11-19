@@ -78,7 +78,7 @@ int msg_process(char *buf, int buflen)
 int recv_msg()
 {
 	char *databuf;
-	int bytes = 0;
+	int bytes = 0, ret;
 
 	databuf = (char *)malloc(2000);
 	if (NULL == databuf)
@@ -91,8 +91,10 @@ int recv_msg()
 		free(databuf);
 		return (-1);
 	}
-	return msg_process(databuf, bytes);
+	ret = msg_process(databuf, bytes);
+	free(databuf);
 
+	return ret;
 }
 
 /*
