@@ -1,5 +1,5 @@
 OPT=-O2
-CFLAGS=$(OPT) -Wall -W -Wno-parentheses -ggdb
+CFLAGS=$(OPT) -Wall -Wextra -Wno-parentheses -ggdb
 
 ifeq ($(ARCH),arm)
 CC=arm-none-linux-gnueabi-gcc

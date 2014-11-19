@@ -1,5 +1,5 @@
 OPT=-O2
-CFLAGS=$(OPT) -Wall -W -Wno-parentheses
+CFLAGS=$(OPT) -Wall -Wextra -Wno-parentheses
 
 CC = gcc
 INCFLAGS=-I../../daemons/mrpd -I../common

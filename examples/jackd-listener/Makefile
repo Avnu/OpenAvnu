@@ -1,6 +1,6 @@
 CC = gcc
 OPT=-O2 -g
-CFLAGS=$(OPT) -Wall -W -Wno-parentheses -std=gnu99
+CFLAGS=$(OPT) -Wall -Wextra -Wno-parentheses -std=gnu99
 INCFLAGS=-I../../daemons/mrpd -I../common
 LDLIBS = -lpcap -lsndfile -pthread -ljack
 
