@@ -95,7 +95,7 @@ int main (int argc, char *argv[ ])
 #ifdef USE_MRPD
 	if (create_socket()) {
 		fprintf(stderr, "Socket creation failed.\n");
-		return (errno);
+		return errno;
 	}
 
 	report_domain_status();
@@ -108,13 +108,13 @@ int main (int argc, char *argv[ ])
 	error = pci_connect(&igb_dev);
 	if (error) {
 		fprintf(stderr, "connect failed (%s) - are you running as root?\n", strerror(errno));
-		return (errno);
+		return errno;
 	}
 
 	error = igb_init(&igb_dev);
 	if (error) {
 		fprintf(stderr, "init failed (%s) - is the driver really loaded?\n", strerror(errno));
-		return (errno);
+		return errno;
 	}
 
 	socket_descriptor = socket(AF_PACKET, SOCK_RAW, htons(ETHER_TYPE_AVTP));

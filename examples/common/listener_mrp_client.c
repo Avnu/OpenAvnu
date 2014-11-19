@@ -48,7 +48,8 @@ int send_msg(char *data, int data_len)
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	if (-1 != control_socket)
-		return (sendto(control_socket, data, data_len, 0, (struct sockaddr*)&addr, (socklen_t)sizeof(addr)));
+		return sendto(control_socket, data, data_len, 0,
+			(struct sockaddr*)&addr, (socklen_t)sizeof(addr));
 	else
 		return 0;
 }
@@ -72,7 +73,7 @@ int msg_process(char *buf, int buflen)
 		}
 		talker = 1;
 	}
-	return (0);
+	return 0;
 }
 
 int recv_msg()
@@ -89,7 +90,7 @@ int recv_msg()
 	if (bytes <= -1)
 	{
 		free(databuf);
-		return (-1);
+		return -1;
 	}
 	ret = msg_process(databuf, bytes);
 	free(databuf);

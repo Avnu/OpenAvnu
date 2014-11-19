@@ -149,26 +149,26 @@ int main(int argc, char *argv[])
 	err = mrp_connect();
 	if (err) {
 		fprintf(stderr, "socket creation failed\n");
-		return (errno);
+		return errno;
 	}
 #endif
 
 	err = pci_connect(&igb_dev);
 	if (err) {
 		fprintf(stderr, "connect failed (%s) - are you running as root?\n", strerror(errno));
-		return (errno);
+		return errno;
 	}
 
 	err = igb_init(&igb_dev);
 	if (err) {
 		fprintf(stderr, "init failed (%s) - is the driver really loaded?\n", strerror(errno));
-		return (errno);
+		return errno;
 	}
 
 	err = igb_dma_malloc_page(&igb_dev, &a_page);
 	if (err) {
 		fprintf(stderr, "malloc failed (%s) - out of memory?\n", strerror(errno));
-		return (errno);
+		return errno;
 	}
 
 	signal(SIGINT, sigint_handler);
@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
 		tmp_packet = malloc(sizeof(struct igb_packet));
 		if (NULL == tmp_packet) {
 			fprintf(stderr, "failed to allocate igb_packet memory!\n");
-			return (errno);
+			return errno;
 		}
 		*tmp_packet = a_packet;
 		tmp_packet->offset = (i * packet_size);

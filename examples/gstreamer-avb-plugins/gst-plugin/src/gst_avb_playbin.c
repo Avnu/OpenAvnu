@@ -452,13 +452,13 @@ gst_avbsrc_create (GstPushSrc * psrc, GstBuffer ** buf)
 		err = pci_connect(&igb_dev);
 		if (err) {
 			printf("connect failed (%s) - are you running as root?\n", strerror(errno));
-			return (errno);
+			return errno;
 		}
 
 		err = igb_init(&igb_dev);
 		if (err) {
 			printf("init failed (%s) - is the driver really loaded?\n", strerror(errno));
-			return (errno);
+			return errno;
 		}
 
 		socket_d = socket(AF_PACKET, SOCK_RAW, htons(ETHER_TYPE_AVTP));

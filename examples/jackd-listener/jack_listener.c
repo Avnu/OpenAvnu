@@ -335,7 +335,7 @@ int main(int argc, char *argv[])
 
 	if (create_socket()) {
 		fprintf(stderr, "Socket creation failed.\n");
-		return (errno);
+		return errno;
 	}
 
 	report_domain_status();
