@@ -499,6 +499,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		   int *class_b_id, int *b_priority, u_int16_t * b_vid)
 {
 	char *msgbuf;
+	int ret;
 
 	/* we may not get a notification if we are joining late,
 	 * so query for what is already there ...
@@ -508,8 +509,10 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		return -1;
 	memset(msgbuf, 0, 64);
 	sprintf(msgbuf, "S??");
-	send_mrp_msg(msgbuf, 64);
+	ret = send_mrp_msg(msgbuf, 64);
 	free(msgbuf);
+	if (ret == -1)
+		return -1;
 	while (!halt_tx && (domain_a_valid == 0) && (domain_b_valid == 0))
 		usleep(20000);
 	*class_a_id = 0;
