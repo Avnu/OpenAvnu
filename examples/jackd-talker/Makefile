@@ -1,10 +1,9 @@
-OPT=-O2 -g
-CFLAGS=$(OPT) -Wall -Wextra -Wno-parentheses -std=gnu99
-
-CC=gcc
-INCFLAGS=-I../../lib/igb -I../../daemons/mrpd -I../common
-LDLIBS=-ligb -lpci -lz -lrt -lm -pthread -ljack -lsndfile
-LDFLAGS=-L../../lib/igb
+CC = gcc
+OPT = -O2 -g
+CFLAGS = $(OPT) -Wall -Wextra -Wno-parentheses -std=gnu99
+INCFLAGS = -I../../lib/igb -I../../daemons/mrpd -I../common
+LDLIBS = -ligb -lpci -lrt -pthread -ljack
+LDFLAGS = -L../../lib/igb
 
 all: jackd_talker
 
@@ -23,5 +22,6 @@ jackd_talker.o: jackd_talker.c defines.h jack.h
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 clean:
-	rm -f `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"` jackd_talker
+	$(RM) jackd_talker
+	$(RM) `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"`
 
