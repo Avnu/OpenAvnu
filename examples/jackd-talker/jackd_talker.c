@@ -325,6 +325,7 @@ static void* packetizer_thread(void *arg) {
 	unsigned total_samples = 0;
 	int err;
 	int i;
+	(void) arg; /* unused */
 
 	const size_t bytes_to_read = CHANNELS * SAMPLES_PER_FRAME *
 		SAMPLE_SIZE;
@@ -431,8 +432,6 @@ int main(int argc, char *argv[])
 	uint64_t now_local, now_8021as;
 	uint64_t update_8021as;
 	unsigned delta_8021as, delta_local;
-	long double ml_ratio;
-
 	jack_client_t* _jackclient;
 
 	for (;;) {
@@ -461,25 +460,25 @@ int main(int argc, char *argv[])
 	rc = mrp_connect();
 	if (rc) {
 		printf("socket creation failed\n");
-		return (errno);
+		return errno;
 	}
 	err = pci_connect();
 	if (err) {
 		printf("connect failed (%s) - are you running as root?\n",
 		       strerror(errno));
-		return (errno);
+		return errno;
 	}
 	err = igb_init(&igb_dev);
 	if (err) {
 		printf("init failed (%s) - is the driver really loaded?\n",
 		       strerror(errno));
-		return (errno);
+		return errno;
 	}
 	err = igb_dma_malloc_page(&igb_dev, &a_page);
 	if (err) {
 		printf("malloc failed (%s) - out of memory?\n",
 		       strerror(errno));
-		return (errno);
+		return errno;
 	}
 	signal(SIGINT, sigint_handler);
 	rc = get_mac_address(interface);
@@ -524,7 +523,7 @@ int main(int argc, char *argv[])
 		tmp_packet = malloc(sizeof(struct igb_packet));
 		if (NULL == tmp_packet) {
 			printf("failed to allocate igb_packet memory!\n");
-			return (errno);
+			return errno;
 		}
 		*tmp_packet = a_packet;
 		tmp_packet->offset = (i * PKT_SZ);
@@ -641,5 +640,5 @@ int main(int argc, char *argv[])
 
 	pthread_exit(NULL);
 
-	return (0);
+	return 0;
 }

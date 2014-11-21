@@ -85,20 +85,26 @@ jack_client_t* client;
 
 volatile int ready = 0;
 
+#define VERSION_STR	"1.0"
+static const char *version_str = "jack_listener v" VERSION_STR "\n"
+    "Copyright (c) 2013, Katja Rohloff\n";
+
 static void help()
 {
 	fprintf(stderr, "\n"
-		"Usage: listener [-h] -i interface -f file_name.wav"
+		"Usage: jack_listener [-h] -i interface -f file_name.wav"
 		"\n"
 		"Options:\n"
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
-		"\n" "%s" "\n");
+		"\n" "%s" "\n", version_str);
 	exit(1);
 }
 
 void shutdown_all(int sig)
 {
+	if (sig != 0)
+		fprintf(stdout,"Received signal %d:", sig);
 	fprintf(stdout,"Leaving...\n");
 
 	if (0 != talker) {
@@ -133,13 +139,13 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 {
 	unsigned char* test_stream_id;
 	struct ethernet_header* eth_header;
-	
 	uint32_t* mybuf;
 	uint32_t frame[CHANNELS];
 	jack_default_audio_sample_t jackframe[CHANNELS];
-
 	int cnt;
 	static int total;
+	(void) args; /* unused */
+	(void) packet_header; /* unused */
 
 	eth_header = (struct ethernet_header*)(packet);
 
@@ -188,7 +194,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 
 static int process_jack(jack_nframes_t nframes, void* arg)
 {
-	int cnt;
+	(void) arg; /* unused */
 
 	if (!ready) {
 		return 0;
@@ -219,6 +225,8 @@ static int process_jack(jack_nframes_t nframes, void* arg)
 
 void jack_shutdown(void* arg)
 {
+	(void) arg; /* unused*/
+
 	printf("JACK shutdown\n");
 	shutdown_all(0);
 }
@@ -297,19 +305,17 @@ jack_client_t* init_jack(void)
 	}
 
 	free(ports);
+
+	return client;
 }
 
 
 int main(int argc, char *argv[])
 {
-	int ret;
-
 	char* dev = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/** The compiled filter expression */
 	char filter_exp[] = "ether dst 91:E0:F0:00:0e:80";	/** The filter expression */
-	struct pcap_pkthdr header;	/** header pcap gives us */
-	const u_char* packet;		/** actual packet */
 	
 	signal(SIGINT, shutdown_all);
 	
@@ -335,7 +341,7 @@ int main(int argc, char *argv[])
 
 	if (create_socket()) {
 		fprintf(stderr, "Socket creation failed.\n");
-		return (errno);
+		return errno;
 	}
 
 	report_domain_status();

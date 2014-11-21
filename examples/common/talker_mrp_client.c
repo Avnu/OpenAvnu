@@ -76,12 +76,10 @@ int send_mrp_msg(char *notify_data, int notify_len)
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	addr_len = sizeof(addr);
 	if (control_socket != -1)
-		return (sendto
-			(control_socket, notify_data, notify_len, 0,
-			 (struct sockaddr *)&addr, addr_len));
-
+		return sendto(control_socket, notify_data, notify_len, 0,
+			 (struct sockaddr *)&addr, addr_len);
 	else
-		return (0);
+		return 0;
 }
 
 int process_mrp_msg(char *buf, int buflen)
@@ -99,7 +97,7 @@ int process_mrp_msg(char *buf, int buflen)
 	unsigned char recovered_streamid[8];
 	k = 0;
  next_line:if (k >= buflen)
-		return (0);
+		return 0;
 	switch (buf[k]) {
 	case 'E':
 		printf("%s from mrpd\n", buf);
@@ -167,9 +165,9 @@ int process_mrp_msg(char *buf, int buflen)
 		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
 			i++;
 		if (i == buflen)
-			return (0);
+			return 0;
 		if (buf[i] == '\0')
-			return (0);
+			return 0;
 		i++;
 		k = i;
 		goto next_line;
@@ -201,7 +199,7 @@ int process_mrp_msg(char *buf, int buflen)
 		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
 			i++;
 		if ((i == buflen) || (buf[i] == '\0'))
-			return (0);
+			return 0;
 		i++;
 		k = i;
 		goto next_line;
@@ -213,9 +211,9 @@ int process_mrp_msg(char *buf, int buflen)
 		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
 			i++;
 		if (i == buflen)
-			return (0);
+			return 0;
 		if (buf[i] == '\0')
-			return (0);
+			return 0;
 		i++;
 		k = i;
 		goto next_line;
@@ -284,14 +282,14 @@ int process_mrp_msg(char *buf, int buflen)
 
 			/* only care about listeners ... */
 		default:
-			return (0);
+			return 0;
 			break;
 		}
 		break;
 	case '\0':
 		break;
 	}
-	return (0);
+	return 0;
 }
 
 void *mrp_monitor_thread(void *arg)
@@ -303,11 +301,7 @@ void *mrp_monitor_thread(void *arg)
 	int bytes = 0;
 	struct pollfd fds;
 	int rc;
-	if (NULL == arg)
-		rc = 0;
 
-	else
-		rc = 1;
 	msgbuf = (char *)malloc(MAX_MRPD_CMDSZ);
 	if (NULL == msgbuf)
 		return NULL;
@@ -361,11 +355,11 @@ int mrp_connect(void)
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	memset(&addr, 0, sizeof(addr));
 	control_socket = sock_fd;
-	return (0);
+	return 0;
  out:	if (sock_fd != -1)
 		close(sock_fd);
 	sock_fd = -1;
-	return (-1);
+	return -1;
 }
 
 int mrp_disconnect(void)
@@ -389,7 +383,7 @@ int mrp_monitor(void)
 {
 	pthread_attr_init(&monitor_attr);
 	pthread_create(&monitor_thread, NULL, mrp_monitor_thread, NULL);
-	return (0);
+	return 0;
 }
 
 int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid)
@@ -476,19 +470,23 @@ mrp_unadvertise_stream(uint8_t * streamid,
 int mrp_await_listener(unsigned char *streamid)
 {
 	char *msgbuf;
+	int ret;
+
 	memcpy(monitor_stream_id, streamid, sizeof(monitor_stream_id));
 	msgbuf = malloc(64);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 64);
 	sprintf(msgbuf, "S??");
-	send_mrp_msg(msgbuf, 64);
+	ret = send_mrp_msg(msgbuf, 64);
 	free(msgbuf);
+	if (ret == -1)
+		return -1;
 
 	/* either already there ... or need to wait ... */
 	while (!halt_tx && (listeners == 0))
 		usleep(20000);
-	return (0);
+	return 0;
 }
 
 /*
@@ -499,6 +497,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		   int *class_b_id, int *b_priority, u_int16_t * b_vid)
 {
 	char *msgbuf;
+	int ret;
 
 	/* we may not get a notification if we are joining late,
 	 * so query for what is already there ...
@@ -508,8 +507,10 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		return -1;
 	memset(msgbuf, 0, 64);
 	sprintf(msgbuf, "S??");
-	send_mrp_msg(msgbuf, 64);
+	ret = send_mrp_msg(msgbuf, 64);
 	free(msgbuf);
+	if (ret == -1)
+		return -1;
 	while (!halt_tx && (domain_a_valid == 0) && (domain_b_valid == 0))
 		usleep(20000);
 	*class_a_id = 0;
@@ -528,7 +529,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		*b_priority = domain_class_b_priority;
 		*b_vid = domain_class_b_vid;
 	}
-	return (0);
+	return 0;
 }
 
 int mrp_join_vlan()

@@ -31,6 +31,7 @@ static int process(jack_nframes_t nframes, void* arg)
 {
 	int cnt;
 	static int total;
+	(void) arg; /* unused */
 
 	/* Do nothing until we're ready to begin. */
 	if (!unleash_jack) {
@@ -70,6 +71,8 @@ static int process(jack_nframes_t nframes, void* arg)
 
 void jack_shutdown(void* arg)
 {
+	(void) arg; /* unused */
+
 	printf("JACK shutdown\n");
 	halt_tx = 1;
 }

@@ -1,8 +1,8 @@
 CC = gcc
-OPT=-O2 -g
-CFLAGS=$(OPT) -Wall -W -Wno-parentheses -std=gnu99
-INCFLAGS=-I../../daemons/mrpd -I../common
-LDLIBS = -lpcap -lsndfile -pthread -ljack
+OPT = -O2 -g
+CFLAGS = $(OPT) -Wall -Wextra -Wno-parentheses -std=gnu99
+INCFLAGS = -I../../daemons/mrpd -I../common
+LDLIBS = -lpcap -lsndfile -ljack
 
 all: jack_listener
 
@@ -18,4 +18,5 @@ jack_listener.o: jack_listener.c
 	$(CC) $^ $(LDLIBS) -o $@
 
 clean:
-	rm -f `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"` jack_listener
+	$(RM) jack_listener
+	$(RM) `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"`

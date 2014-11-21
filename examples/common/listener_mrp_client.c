@@ -48,7 +48,8 @@ int send_msg(char *data, int data_len)
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	if (-1 != control_socket)
-		return (sendto(control_socket, data, data_len, 0, (struct sockaddr*)&addr, (socklen_t)sizeof(addr)));
+		return sendto(control_socket, data, data_len, 0,
+			(struct sockaddr*)&addr, (socklen_t)sizeof(addr));
 	else
 		return 0;
 }
@@ -56,14 +57,15 @@ int send_msg(char *data, int data_len)
 int msg_process(char *buf, int buflen)
 {
 	uint32_t id;
-	int j;
+	int j, l;
 
 	fprintf(stderr, "Msg: %s\n", buf);
-	int l = 0;
 	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
 	{
-		l = 6; // skip "Sxx T:"
-		while ('S' != buf[l++]);
+		l = 6; /* skip "Sxx T:" */
+		while ((l < buflen) && ('S' != buf[l++]));
+		if (l = buflen)
+			return -1;
 		l++;
 		for(j = 0; j < 8 ; l+=2, j++)
 		{
@@ -72,13 +74,14 @@ int msg_process(char *buf, int buflen)
 		}
 		talker = 1;
 	}
-	return (0);
+	return 0;
 }
 
 int recv_msg()
 {
 	char *databuf;
 	int bytes = 0;
+	int ret;
 
 	databuf = (char *)malloc(2000);
 	if (NULL == databuf)
@@ -89,10 +92,12 @@ int recv_msg()
 	if (bytes <= -1)
 	{
 		free(databuf);
-		return (-1);
+		return -1;
 	}
-	return msg_process(databuf, bytes);
+	ret = msg_process(databuf, bytes);
+	free(databuf);
 
+	return ret;
 }
 
 /*
