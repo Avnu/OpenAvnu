@@ -80,7 +80,8 @@ int msg_process(char *buf, int buflen)
 int recv_msg()
 {
 	char *databuf;
-	int bytes = 0, ret;
+	int bytes = 0;
+	int ret;
 
 	databuf = (char *)malloc(2000);
 	if (NULL == databuf)
