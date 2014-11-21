@@ -6049,6 +6049,19 @@ void igb_update_stats(struct igb_adapter *adapter)
 	}
 }
 
+static void igb_tsync_interrupt(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 tsicr = rd32(E1000_TSICR);
+
+	if (tsicr & E1000_TSICR_TXTS) {
+		/* acknowledge the interrupt */
+		wr32(E1000_TSICR, E1000_TSICR_TXTS);
+		/* retrieve hardware timestamp */
+		schedule_work(&adapter->ptp_tx_work);
+	}
+}
+
 static irqreturn_t igb_msix_other(int irq, void *data)
 {
 	struct igb_adapter *adapter = data;
@@ -6081,16 +6094,8 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 	}
 
 #ifdef HAVE_PTP_1588_CLOCK
-	if (icr & E1000_ICR_TS) {
-		u32 tsicr = E1000_READ_REG(hw, E1000_TSICR);
-
-		if (tsicr & E1000_TSICR_TXTS) {
-			/* acknowledge the interrupt */
-			E1000_WRITE_REG(hw, E1000_TSICR, E1000_TSICR_TXTS);
-			/* retrieve hardware timestamp */
-			schedule_work(&adapter->ptp_tx_work);
-		}
-	}
+	if (icr & E1000_ICR_TS)
+		igb_tsync_interrupt(adapter);
 #endif /* HAVE_PTP_1588_CLOCK */
 
 	/* Check for MDD event */
@@ -6999,16 +7004,8 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 	}
 
 #ifdef HAVE_PTP_1588_CLOCK
-	if (icr & E1000_ICR_TS) {
-		u32 tsicr = E1000_READ_REG(hw, E1000_TSICR);
-
-		if (tsicr & E1000_TSICR_TXTS) {
-			/* acknowledge the interrupt */
-			E1000_WRITE_REG(hw, E1000_TSICR, E1000_TSICR_TXTS);
-			/* retrieve hardware timestamp */
-			schedule_work(&adapter->ptp_tx_work);
-		}
-	}
+	if (icr & E1000_ICR_TS)
+		igb_tsync_interrupt(adapter);
 #endif /* HAVE_PTP_1588_CLOCK */
 
 	napi_schedule(&q_vector->napi);
@@ -7055,16 +7052,8 @@ static irqreturn_t igb_intr(int irq, void *data)
 	}
 
 #ifdef HAVE_PTP_1588_CLOCK
-	if (icr & E1000_ICR_TS) {
-		u32 tsicr = E1000_READ_REG(hw, E1000_TSICR);
-
-		if (tsicr & E1000_TSICR_TXTS) {
-			/* acknowledge the interrupt */
-			E1000_WRITE_REG(hw, E1000_TSICR, E1000_TSICR_TXTS);
-			/* retrieve hardware timestamp */
-			schedule_work(&adapter->ptp_tx_work);
-		}
-	}
+	if (icr & E1000_ICR_TS)
+		igb_tsync_interrupt(adapter);
 #endif /* HAVE_PTP_1588_CLOCK */
 
 	napi_schedule(&q_vector->napi);
