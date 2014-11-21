@@ -59,7 +59,7 @@ unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
 
 void sigint_handler(int signum)
 {
-	fprintf(stderr, "got SIGINT\n");
+	fprintf(stderr, "Received signal %d:leaving...\n", signum);
 #ifdef USE_MRPD
 	if (0 != talker)
 		send_leave();

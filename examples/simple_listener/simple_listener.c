@@ -95,11 +95,11 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 {
 	unsigned char* test_stream_id;
 	struct ethernet_header* eth_header;
-	struct six1883_sample* sample; 
-	uint32_t buf;
-	uint32_t *mybuf;
+	uint32_t *buf;
 	uint32_t frame[2] = { 0 , 0 };
 	int i;
+	(void) args; /* unused */
+	(void) packet_header; /* unused */
 
 #ifdef DEBUG
 	fprintf(stdout,"Got packet.\n");
@@ -129,12 +129,10 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 #ifdef DEBUG
 			fprintf(stdout,"Stream ids matched.\n");
 #endif
-
-			//sample = (struct six1883_sample*) (packet + HEADER_SIZE);
-			mybuf = (uint32_t*) (packet + HEADER_SIZE);
+			buf = (uint32_t*) (packet + HEADER_SIZE);
 			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
 			{	
-				memcpy(&frame[0], &mybuf[i], sizeof(frame));
+				memcpy(&frame[0], &buf[i], sizeof(frame));
 
 				frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
 				frame[1] = ntohl(frame[1]);
@@ -151,8 +149,8 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 
 void sigint_handler(int signum)
 {
-	fprintf(stdout,"Leaving...\n");
-	
+	fprintf(stdout,"Received signal %d:leaving...\n", signum);
+
 	if (0 != talker)
 		send_leave();
 
@@ -178,14 +176,11 @@ void sigint_handler(int signum)
 
 int main(int argc, char *argv[])
 {
-	int ret;
 	char* file_name = NULL;
 	char* dev = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/* The compiled filter expression */
 	char filter_exp[] = "ether dst 91:E0:F0:00:0e:80";	/* The filter expression */
-	struct pcap_pkthdr header;	/* header pcap gives us */
-	const u_char* packet;		/* actual packet */
 
 	signal(SIGINT, sigint_handler);
 

@@ -103,6 +103,8 @@ static void help()
 
 void shutdown_all(int sig)
 {
+	if (sig != 0)
+		fprintf(stdout,"Received signal %d:", sig);
 	fprintf(stdout,"Leaving...\n");
 
 	if (0 != talker) {
@@ -137,13 +139,13 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 {
 	unsigned char* test_stream_id;
 	struct ethernet_header* eth_header;
-	
 	uint32_t* mybuf;
 	uint32_t frame[CHANNELS];
 	jack_default_audio_sample_t jackframe[CHANNELS];
-
 	int cnt;
 	static int total;
+	(void) args; /* unused */
+	(void) packet_header; /* unused */
 
 	eth_header = (struct ethernet_header*)(packet);
 
@@ -192,7 +194,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 
 static int process_jack(jack_nframes_t nframes, void* arg)
 {
-	int cnt;
+	(void) arg; /* unused */
 
 	if (!ready) {
 		return 0;
@@ -223,6 +225,8 @@ static int process_jack(jack_nframes_t nframes, void* arg)
 
 void jack_shutdown(void* arg)
 {
+	(void) arg; /* unused*/
+
 	printf("JACK shutdown\n");
 	shutdown_all(0);
 }
@@ -308,14 +312,10 @@ jack_client_t* init_jack(void)
 
 int main(int argc, char *argv[])
 {
-	int ret;
-
 	char* dev = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/** The compiled filter expression */
 	char filter_exp[] = "ether dst 91:E0:F0:00:0e:80";	/** The filter expression */
-	struct pcap_pkthdr header;	/** header pcap gives us */
-	const u_char* packet;		/** actual packet */
 	
 	signal(SIGINT, shutdown_all);
 	

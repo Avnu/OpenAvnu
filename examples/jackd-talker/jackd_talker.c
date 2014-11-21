@@ -325,6 +325,7 @@ static void* packetizer_thread(void *arg) {
 	unsigned total_samples = 0;
 	int err;
 	int i;
+	(void) arg; /* unused */
 
 	const size_t bytes_to_read = CHANNELS * SAMPLES_PER_FRAME *
 		SAMPLE_SIZE;
@@ -431,8 +432,6 @@ int main(int argc, char *argv[])
 	uint64_t now_local, now_8021as;
 	uint64_t update_8021as;
 	unsigned delta_8021as, delta_local;
-	long double ml_ratio;
-
 	jack_client_t* _jackclient;
 
 	for (;;) {

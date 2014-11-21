@@ -57,14 +57,15 @@ int send_msg(char *data, int data_len)
 int msg_process(char *buf, int buflen)
 {
 	uint32_t id;
-	int j;
+	int j, l;
 
 	fprintf(stderr, "Msg: %s\n", buf);
-	int l = 0;
 	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
 	{
-		l = 6; // skip "Sxx T:"
-		while ('S' != buf[l++]);
+		l = 6; /* skip "Sxx T:" */
+		while ((l < buflen) && ('S' != buf[l++]));
+		if (l = buflen)
+			return -1;
 		l++;
 		for(j = 0; j < 8 ; l+=2, j++)
 		{
