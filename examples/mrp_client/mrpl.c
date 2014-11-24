@@ -146,6 +146,10 @@ int main(int argc, char *argv[])
 	}
 
 	msgbuf = malloc(1500);
+	if (NULL == msgbuf) {
+		printf("malloc failed\n");
+		return -1;
+	}
 
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
@@ -164,5 +168,4 @@ int main(int argc, char *argv[])
 	rc = mprdclient_sendto(msgbuf, 1500);
 
 	return (rc);
-
 }
