@@ -212,12 +212,14 @@ int mrp_disconnect()
 {
 	int rc;
 	char *msgbuf = malloc(1500);
+
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
+
 	sprintf(msgbuf, "BYE");
 	rc = send_msg(msgbuf, 1500);
-
 	free(msgbuf);
+
 	return rc;
 }

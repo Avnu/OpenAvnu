@@ -149,6 +149,8 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 
 void sigint_handler(int signum)
 {
+	int ret;
+
 	fprintf(stdout,"Received signal %d:leaving...\n", signum);
 
 	if (0 != talker)
@@ -157,7 +159,9 @@ void sigint_handler(int signum)
 	if (2 > control_socket)
 	{
 		close(control_socket);
-		mrp_disconnect();
+		ret = mrp_disconnect();
+		if (ret)
+			printf("mrp_disconnect failed\n");
 	}
 
 #ifdef PCAP
