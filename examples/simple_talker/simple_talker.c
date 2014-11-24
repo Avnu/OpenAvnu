@@ -433,16 +433,19 @@ int get_mac_address(char *interface)
 	struct ifreq if_request;
 	int lsock;
 	int rc;
+
 	lsock = socket(PF_PACKET, SOCK_RAW, htons(0x800));
 	if (lsock < 0)
 		return -1;
+
 	memset(&if_request, 0, sizeof(if_request));
-	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name));
+	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name) - 1);
 	rc = ioctl(lsock, SIOCGIFHWADDR, &if_request);
 	if (rc < 0) {
 		close(lsock);
 		return -1;
 	}
+
 	memcpy(STATION_ADDR, if_request.ifr_hwaddr.sa_data,
 	       sizeof(STATION_ADDR));
 	close(lsock);
