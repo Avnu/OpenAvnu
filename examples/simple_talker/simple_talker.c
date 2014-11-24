@@ -634,6 +634,7 @@ int main(int argc, char *argv[])
 	a_packet.offset = 0;
 	a_packet.vaddr = a_page.dma_vaddr + a_packet.offset;
 	a_packet.len = packet_size;
+	a_packet.next = NULL;
 	free_packets = NULL;
 	seqnum = 0;
 	rtp_timestamp = 0; /* Should be random start */
