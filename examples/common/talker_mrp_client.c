@@ -414,10 +414,12 @@ mrp_advertise_stream(uint8_t * streamid,
 {
 	char *msgbuf;
 	int rc;
+
 	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
+
 	sprintf(msgbuf, "S++:S=%02X%02X%02X%02X%02X%02X%02X%02X"
 		",A=%02X%02X%02X%02X%02X%02X"
 		",V=%04X"
@@ -431,9 +433,8 @@ mrp_advertise_stream(uint8_t * streamid,
 		interval, priority << 5, latency);
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);
-
-	/* rc = recv_mrp_okay(); */
 	free(msgbuf);
+
 	return rc;
 }
 

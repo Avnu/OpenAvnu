@@ -767,25 +767,34 @@ int main(int argc, char *argv[])
 	}
 
 	/* 
-	 * subtract 16 bytes for the MAC header/Q-tag - pktsz is limited to the 
-	 * data payload of the ethernet frame .
+	 * subtract 16 bytes for the MAC header/Q-tag - pktsz is limited to the
+	 * data payload of the ethernet frame.
 	 *
-	 * IPG is scaled to the Class (A) observation interval of packets per 125 usec
+	 * IPG is scaled to the Class (A) observation interval of packets per 125 usec.
 	 */
 	fprintf(stderr, "advertising stream ...\n");
 	if( transport == 2 ) {
-		mrp_advertise_stream
-			(STREAM_ID, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
-			 domain_class_a_priority, 3900);
+		err = mrp_advertise_stream(STREAM_ID, dest_addr,
+					domain_class_a_vid, PKT_SZ - 16,
+					L2_PACKET_IPG / 125000,
+					domain_class_a_priority, 3900);
 	} else {
-		/* 1 is the wrong number for frame rate, but fractional values not
-		   allowed, not sure the significance of the value 6, but using it
-		   consistently */
-		mrp_advertise_stream
-			(STREAM_ID, dest_addr, domain_class_a_vid,
-			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1, 
-			 domain_class_a_priority, 3900);
+		/*
+		 * 1 is the wrong number for frame rate, but fractional values
+		 * not allowed, not sure the significance of the value 6, but
+		 * using it consistently
+		 */
+		err = mrp_advertise_stream(STREAM_ID, dest_addr,
+					domain_class_a_vid,
+					sizeof(*l4_headers) + L4_SAMPLES_PER_FRAME * CHANNELS * 2 + 6,
+					1,
+					domain_class_a_priority, 3900);
 	}
+	if (err) {
+		printf("mrp_advertise_stream failed\n");
+		return -1;
+	}
+
 	fprintf(stderr, "awaiting a listener ...\n");
 	mrp_await_listener(STREAM_ID);
 	listeners = 1;
