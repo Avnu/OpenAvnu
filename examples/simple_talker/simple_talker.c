@@ -609,7 +609,12 @@ int main(int argc, char *argv[])
 
 #define PKT_SZ	100
 
-	mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	err = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	if (err) {
+		printf("mrp_register_domain failed\n");
+		return -1;
+	}
+
 	mrp_join_vlan();
 
 	if( transport == 2 ) {
