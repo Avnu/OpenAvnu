@@ -70,6 +70,7 @@ int send_mrp_msg(char *notify_data, int notify_len)
 {
 	struct sockaddr_in addr;
 	socklen_t addr_len;
+
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(MRPD_PORT_DEFAULT);
@@ -390,16 +391,17 @@ int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid)
 {
 	char *msgbuf;
 	int rc;
+
 	msgbuf = malloc(64);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 64);
+
 	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", *class_id, *priority, *vid);
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);
-
-	/* rc = recv_mrp_okay(); */
 	free(msgbuf);
+
 	return rc;
 }
 
@@ -412,10 +414,12 @@ mrp_advertise_stream(uint8_t * streamid,
 {
 	char *msgbuf;
 	int rc;
+
 	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
+
 	sprintf(msgbuf, "S++:S=%02X%02X%02X%02X%02X%02X%02X%02X"
 		",A=%02X%02X%02X%02X%02X%02X"
 		",V=%04X"
@@ -429,9 +433,8 @@ mrp_advertise_stream(uint8_t * streamid,
 		interval, priority << 5, latency);
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);
-
-	/* rc = recv_mrp_okay(); */
 	free(msgbuf);
+
 	return rc;
 }
 

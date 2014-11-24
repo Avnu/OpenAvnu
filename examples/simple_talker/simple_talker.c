@@ -433,16 +433,19 @@ int get_mac_address(char *interface)
 	struct ifreq if_request;
 	int lsock;
 	int rc;
+
 	lsock = socket(PF_PACKET, SOCK_RAW, htons(0x800));
 	if (lsock < 0)
 		return -1;
+
 	memset(&if_request, 0, sizeof(if_request));
-	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name));
+	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name) - 1);
 	rc = ioctl(lsock, SIOCGIFHWADDR, &if_request);
 	if (rc < 0) {
 		close(lsock);
 		return -1;
 	}
+
 	memcpy(STATION_ADDR, if_request.ifr_hwaddr.sa_data,
 	       sizeof(STATION_ADDR));
 	close(lsock);
@@ -606,7 +609,12 @@ int main(int argc, char *argv[])
 
 #define PKT_SZ	100
 
-	mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	err = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	if (err) {
+		printf("mrp_register_domain failed\n");
+		return -1;
+	}
+
 	mrp_join_vlan();
 
 	if( transport == 2 ) {
@@ -634,6 +642,7 @@ int main(int argc, char *argv[])
 	a_packet.offset = 0;
 	a_packet.vaddr = a_page.dma_vaddr + a_packet.offset;
 	a_packet.len = packet_size;
+	a_packet.next = NULL;
 	free_packets = NULL;
 	seqnum = 0;
 	rtp_timestamp = 0; /* Should be random start */
@@ -758,25 +767,34 @@ int main(int argc, char *argv[])
 	}
 
 	/* 
-	 * subtract 16 bytes for the MAC header/Q-tag - pktsz is limited to the 
-	 * data payload of the ethernet frame .
+	 * subtract 16 bytes for the MAC header/Q-tag - pktsz is limited to the
+	 * data payload of the ethernet frame.
 	 *
-	 * IPG is scaled to the Class (A) observation interval of packets per 125 usec
+	 * IPG is scaled to the Class (A) observation interval of packets per 125 usec.
 	 */
 	fprintf(stderr, "advertising stream ...\n");
 	if( transport == 2 ) {
-		mrp_advertise_stream
-			(STREAM_ID, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
-			 domain_class_a_priority, 3900);
+		err = mrp_advertise_stream(STREAM_ID, dest_addr,
+					domain_class_a_vid, PKT_SZ - 16,
+					L2_PACKET_IPG / 125000,
+					domain_class_a_priority, 3900);
 	} else {
-		/* 1 is the wrong number for frame rate, but fractional values not
-		   allowed, not sure the significance of the value 6, but using it
-		   consistently */
-		mrp_advertise_stream
-			(STREAM_ID, dest_addr, domain_class_a_vid,
-			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1, 
-			 domain_class_a_priority, 3900);
+		/*
+		 * 1 is the wrong number for frame rate, but fractional values
+		 * not allowed, not sure the significance of the value 6, but
+		 * using it consistently
+		 */
+		err = mrp_advertise_stream(STREAM_ID, dest_addr,
+					domain_class_a_vid,
+					sizeof(*l4_headers) + L4_SAMPLES_PER_FRAME * CHANNELS * 2 + 6,
+					1,
+					domain_class_a_priority, 3900);
 	}
+	if (err) {
+		printf("mrp_advertise_stream failed\n");
+		return -1;
+	}
+
 	fprintf(stderr, "awaiting a listener ...\n");
 	mrp_await_listener(STREAM_ID);
 	listeners = 1;

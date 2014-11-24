@@ -103,6 +103,10 @@ int main(int argc, char *argv[])
 	}
 
 	msgbuf = (char *)malloc(1500);
+	if (NULL == msgbuf) {
+		printf("malloc failed\n");
+		return -1;
+	}
 
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "M??");
