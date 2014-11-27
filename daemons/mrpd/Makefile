@@ -7,7 +7,7 @@ CC=arm-none-linux-gnueabi-gcc
 else
 CC=gcc
 endif
-INCFLAGS=-I../common ../../examples/mrp_client
+INCFLAGS=-I../common -I../../examples/mrp_client
 
 all: mrpd mrpctl
 

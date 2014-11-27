@@ -37,11 +37,11 @@
 
 #define MRPDCLIENT_MAX_FRAME_SIZE 2000
 
-typedef int (*ptr_process_msg) (char *buf, int buflen);
+typedef int (*ptr_process_mrpd_msg) (char *buf, int buflen);
 
 int mrpdclient_init(void);
-int mrpdclient_recv(ptr_process_msg fn);
-int mrpdclient_sendto(char *notify_data, int notify_len);
-int mrpdclient_close(void);
+int mrpdclient_recv(SOCKET mrpd_sock, ptr_process_mrpd_msg fn);
+int mrpdclient_sendto(SOCKET mrpd_sock, char *notify_data, int notify_len);
+int mrpdclient_close(SOCKET *mrpd_sock);
 
 #endif
