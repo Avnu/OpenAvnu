@@ -7,7 +7,7 @@ CC=arm-none-linux-gnueabi-gcc
 else
 CC=gcc
 endif
-INCFLAGS=-I../common
+INCFLAGS=-I../common ../../examples/mrp_client
 
 all: mrpd mrpctl
 
@@ -15,7 +15,12 @@ VPATH = ../common
 
 mrpd: mrpd.o mvrp.o msrp.o mmrp.o mrp.o parse.o
 
-mrpctl: mrpctl.o
+mrpctl: mrpctl.o ../../examples/mrp_client/mrpdclient.o
+
+../../examples/mrp_client/mrpdclient.o: \
+	../../examples/mrp_client/mrpdclient.c \
+	../../examples/mrp_client/mrpdclient.h
+	make -C ../../examples/mrp_client/ mrpdclient.o
 
 %.o: %.c
 	$(CC) -c $(INCFLAGS) $(CFLAGS) -o $@  $<

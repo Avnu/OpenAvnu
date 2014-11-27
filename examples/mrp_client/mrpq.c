@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 
 	printf("%s\n", version_str);
 
-	rc = mrpdclient_init(MRPD_PORT_DEFAULT);
+	rc = mrpdclient_init();
 	if (rc) {
 		printf("init failed\n");
 		return -1;

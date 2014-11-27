@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 	if (optind < argc)
 		usage();
 
-	rc = mrpdclient_init(MRPD_PORT_DEFAULT);
+	rc = mrpdclient_init();
 	if (rc) {
 		printf("init failed\n");
 		return -1;

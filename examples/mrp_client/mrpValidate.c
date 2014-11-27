@@ -440,7 +440,7 @@ main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	rc = mrpdclient_init(MRPD_PORT_DEFAULT);
+	rc = mrpdclient_init();
 	if (rc) {
 		printf("init failed\n");
 		goto out;

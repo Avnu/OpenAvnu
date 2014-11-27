@@ -57,13 +57,13 @@ static struct timeval rcv_timeout = {
 };
 #endif
 
+#include "mrpd.h"
 #include "mrpdclient.h"
 
 /* global variables */
 static SOCKET control_socket = SOCKET_ERROR;
-static int udp_port = 0;
 
-int mrpdclient_init(int port)
+int mrpdclient_init(void)
 {
 	struct sockaddr_in addr;
 	int rc;
@@ -90,7 +90,6 @@ int mrpdclient_init(int port)
 	if (rc <= SOCKET_ERROR)
 		goto out;
 
-	udp_port = port;
 	return (0);
 
  out:
@@ -135,7 +134,7 @@ int mrpdclient_sendto(char *notify_data, int notify_len)
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(udp_port);
+	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	addr_len = sizeof(addr);
 
