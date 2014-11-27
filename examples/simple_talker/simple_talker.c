@@ -31,41 +31,22 @@
 
 ******************************************************************************/
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <syslog.h>
-#include <signal.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <math.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <sys/mman.h>
-#include <sys/user.h>
-#include <pci/pci.h>
 #include <sys/socket.h>
 #include <linux/if.h>
-#include <netpacket/packet.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <arpa/inet.h>
-#include <net/ethernet.h>
-#include <sys/un.h>
-#include <pthread.h>
-#include <poll.h>
 
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include <pci/pci.h>
 
 #include "igb.h"
 #include "talker_mrp_client.h"
-
-#include <math.h>
-#include <endian.h>
-#include <stdint.h>
 
 typedef struct { 
   int64_t ml_phoffset;
@@ -87,21 +68,14 @@ typedef struct {
 #define SAMPLES_PER_CYCLE (SAMPLES_PER_SECOND/FREQUENCY)
 #define GAIN (.5)
 
-#define L16_PAYLOAD_TYPE 96 /* Should be negotiated via RTSP */
-#define ID_B_HDR_EXT_ID 0 /* Should be negotiated via RTSP */
+#define L16_PAYLOAD_TYPE 96 /* for layer 4 transport - should be negotiated via RTSP */
+#define ID_B_HDR_EXT_ID 0 /* for layer 4 transport - should be negotiated via RTSP */
 
-#define CD_SUBTYPE 0x02		/* for simple audio format */
-#define SV_VER_MR_RS_GV_TV 0x81
-#define RS_TU	0x00
-#define SAMPLE_FORMAT_NON_INTR_FLOAT 0x02
-#define NOMINAL_SAMPLE_RATE 0x09
-#define LINEAR_SAMPLE_MSB 0x20
 #define SAMPLE_SIZE 4		/* 4 bytes */
 #define L2_SAMPLES_PER_FRAME 6
 #define L4_SAMPLES_PER_FRAME 60
 #define L4_SAMPLE_SIZE 2
 #define CHANNELS 2
-#define PAYLOAD_SIZE SAMPLE_SIZE*SAMPLES_PER_FRAME*CHANNELS	/* 6*4 * 2 channels  = 48 bytes */
 
 #define RTP_SUBNS_SCALE_NUM 20000000
 #define RTP_SUBNS_SCALE_DEN  4656613

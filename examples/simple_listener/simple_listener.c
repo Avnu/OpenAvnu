@@ -21,28 +21,17 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-
-#include <arpa/inet.h>
 #include <errno.h>
-#include <netinet/if_ether.h>
-#include <netinet/in.h>
-#include <pcap/pcap.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
+#include <pcap/pcap.h>
 #include <sndfile.h>
 
 #include "listener_mrp_client.h"
 
-//#define DEBUG
-#define PCAP
-#define LIBSND
+#define DEBUG 0
+#define PCAP 1
+#define LIBSND 1
 
 #define ETHERNET_HEADER_SIZE 18
 #define SEVENTEEN22_HEADER_PART1_SIZE 4
@@ -101,34 +90,34 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 	(void) args; /* unused */
 	(void) packet_header; /* unused */
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Got packet.\n");
-#endif	
+#endif /* DEBUG*/
 
 	eth_header = (struct ethernet_header*)(packet);
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Ether Type: 0x%02x%02x\n", eth_header->type[0], eth_header->type[1]);
-#endif
+#endif /* DEBUG*/
 
 	if (0 == memcmp(ETHER_TYPE,eth_header->type,sizeof(eth_header->type)))
 	{		
 		test_stream_id = (unsigned char*)(packet + ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE);
 
-#ifdef DEBUG
+#if DEBUG
 		fprintf(stderr, "Received stream id: %02x%02x%02x%02x%02x%02x%02x%02x\n ",
 			     test_stream_id[0], test_stream_id[1],
 			     test_stream_id[2], test_stream_id[3],
 			     test_stream_id[4], test_stream_id[5],
 			     test_stream_id[6], test_stream_id[7]);
-#endif
+#endif /* DEBUG*/
 
 		if (0 == memcmp(test_stream_id, stream_id, sizeof(STREAM_ID_SIZE)))
 		{
 
-#ifdef DEBUG
+#if DEBUG
 			fprintf(stdout,"Stream ids matched.\n");
-#endif
+#endif /* DEBUG*/
 			buf = (uint32_t*) (packet + HEADER_SIZE);
 			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
 			{	
@@ -164,18 +153,18 @@ void sigint_handler(int signum)
 			printf("mrp_disconnect failed\n");
 	}
 
-#ifdef PCAP
+#if PCAP
 	if (NULL != handle) 
 	{
 		pcap_breakloop(handle);
 		pcap_close(handle);
 	}
-#endif
+#endif /* PCAP */
 	
-#ifdef LIBSND
+#if LIBSND
 	sf_write_sync(snd_file);
 	sf_close(snd_file);
-#endif
+#endif /* LIBSND */
 }
 
 int main(int argc, char *argv[])
@@ -222,12 +211,12 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Waiting for talker...\n");
 	await_talker();	
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Send ready-msg...\n");
-#endif
+#endif /* DEBUG */
 	send_ready();
 		
-#ifdef LIBSND
+#if LIBSND
 	SF_INFO* sf_info = (SF_INFO*)malloc(sizeof(SF_INFO));
 
 	memset(sf_info, 0, sizeof(SF_INFO));
@@ -248,9 +237,9 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	fprintf(stdout,"Created file called %s\n", file_name);	
-#endif
+#endif /* LIBSND */
 
-#ifdef PCAP		
+#if PCAP
 	/** session, get session handler */
 	/* take promiscuous vs. non-promiscuous sniffing? (0 or 1) */
 	handle = pcap_open_live(dev, BUFSIZ, 1, -1, errbuf);
@@ -260,9 +249,9 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Got session handler.\n");
-#endif
+#endif /* DEBUG */
 	/* compile and apply filter */
 	if (-1 == pcap_compile(handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
@@ -276,13 +265,13 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Compiled and applied filter.\n");
-#endif
+#endif /* DEBUG */
 
 	/** loop forever and call callback-function for every received packet */
 	pcap_loop(handle, -1, pcap_callback, NULL);
-#endif
+#endif /* PCAP */
 
 	return 0;
 }

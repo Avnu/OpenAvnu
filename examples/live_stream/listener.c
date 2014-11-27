@@ -16,37 +16,15 @@
   *
   */
 
+#include <arpa/inet.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <math.h>
-#include <poll.h>
+#include <linux/if.h>
+#include <netpacket/packet.h>
 #include <pthread.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
-#include <unistd.h>
-
-#include <arpa/inet.h>
-
-#include <linux/if.h>
-
-#include <netinet/in.h>
-#include <net/ethernet.h>
-#include <netpacket/packet.h>
+#include <sys/ioctl.h>
 
 #include <pci/pci.h>
-
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/queue.h>
-#include <sys/un.h>
-#include <sys/user.h>
 
 #include "avb.h"
 #include "listener_mrp_client.h"
@@ -60,10 +38,10 @@ unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
 void sigint_handler(int signum)
 {
 	fprintf(stderr, "Received signal %d:leaving...\n", signum);
-#ifdef USE_MRPD
+#if USE_MRPD
 	if (0 != talker)
 		send_leave();
-#endif
+#endif /* USE_MRPD */
 	if (2 > control_socket)
 	{
 		close(control_socket);
@@ -92,7 +70,7 @@ int main (int argc, char *argv[ ])
 	}
 	signal(SIGINT, sigint_handler);
 
-#ifdef USE_MRPD
+#if USE_MRPD
 	if (create_socket()) {
 		fprintf(stderr, "Socket creation failed.\n");
 		return errno;
@@ -102,7 +80,7 @@ int main (int argc, char *argv[ ])
 	fprintf(stdout,"Waiting for talker...\n");
 	await_talker();
 	send_ready();
-#endif
+#endif /* USE_MRPD */
 	iface = strdup(argv[1]);
 
 	error = pci_connect(&igb_dev);

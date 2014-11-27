@@ -23,29 +23,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define _GNU_SOURCE
 
-#include <arpa/inet.h>
 #include <errno.h>
-#include <netinet/if_ether.h>
-#include <netinet/in.h>
-#include <pcap/pcap.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <assert.h>
 
+#include <pcap/pcap.h>
 #include <jack/jack.h>
 #include <jack/ringbuffer.h>
-#include <jack/weakmacros.h>
-#include <jack/thread.h>
-
 #include <sndfile.h>
 
-#define LIBSND
+#define LIBSND 1
 
 #include "listener_mrp_client.h"
 
@@ -119,12 +105,12 @@ void shutdown_all(int sig)
 		pcap_close(handle);
 	}
 
-#ifdef LIBSND
+#if LIBSND
 	if (NULL != snd_file) {
 		sf_write_sync(snd_file);
 		sf_close(snd_file);
 	}
-#endif
+#endif /* LIBSND */
 
 	if (NULL != client) {
 		fprintf(stdout, "jack\n");
@@ -186,9 +172,9 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 			ready = 1;
 		}
 
-#ifdef LIBSND
+#if LIBSND
 		sf_writef_float(snd_file, jackframe, 1);
-#endif
+#endif /* LIBSND */
 	}
 }
 
@@ -353,7 +339,7 @@ int main(int argc, char *argv[])
 
 	send_ready();
 
-#ifdef LIBSND
+#if LIBSND
 	char* filename = "listener.wav";
 	SF_INFO* sf_info = (SF_INFO*)malloc(sizeof(SF_INFO));
 
@@ -374,7 +360,7 @@ int main(int argc, char *argv[])
 		shutdown_all(0);
 		return -1;
 	}
-#endif
+#endif /* LIBSND */
 
 	/** session, get session handler */
 	handle = pcap_open_live(dev, BUFSIZ, 1, -1, errbuf);

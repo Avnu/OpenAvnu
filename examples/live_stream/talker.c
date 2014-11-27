@@ -16,38 +16,13 @@
   *
   */
 
-#include <errno.h>
-#include <fcntl.h>
-#include <math.h>
-#include <poll.h>
-#include <pthread.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <sched.h>
-
 #include <arpa/inet.h>
-
+#include <errno.h>
 #include <linux/if.h>
-
-#include <netinet/in.h>
-#include <net/ethernet.h>
-#include <netpacket/packet.h>
+#include <signal.h>
+#include <sys/ioctl.h>
 
 #include <pci/pci.h>
-
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/queue.h>
-#include <sys/un.h>
-#include <sys/user.h>
 
 #include "avb.h"
 #include "talker_mrp_client.h"
