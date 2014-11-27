@@ -60,17 +60,19 @@ int control_socket = -1;
 #define VERSION_STR	"0.0"
 
 static const char *version_str =
-"mrpctl v" VERSION_STR "\n"
-"Copyright (c) 2012, Intel Corporation\n";
+	"mrpctl v" VERSION_STR "\n"
+	"Copyright (c) 2012, Intel Corporation\n";
 
-int
-init_local_ctl( void ) {
-	struct sockaddr_in	addr;
+int init_local_ctl(void)
+{
 	int sock_fd = -1;
 	int sock_flags;
+	struct sockaddr_in addr;
 
 	sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (sock_fd < 0) goto out;
+	if (sock_fd < 0)
+		goto err;
+
 	sock_flags = fcntl(sock_fd, F_GETFL, 0);
 	fcntl(sock_fd, F_SETFL, sock_flags | O_NONBLOCK);
 
@@ -80,7 +82,6 @@ init_local_ctl( void ) {
 	inet_aton("127.0.0.1", &addr.sin_addr);
 
 	/* rc = bind(sock_fd, (struct sockaddr *)&addr, addr_len); */
-	
 	/* if (rc < 0) goto out; */
 
 	memset(&addr, 0, sizeof(addr));
@@ -89,18 +90,21 @@ init_local_ctl( void ) {
 	 * note this is non-portable
 	 */
 
-printf("connected!\n");
+	printf("connected!\n");
 	control_socket = sock_fd;
 
-	return(0);
-out:
-	if (sock_fd != -1) close(sock_fd);
+	return 0;
+err:
+	if (sock_fd != -1)
+		close(sock_fd);
 	sock_fd = -1;
-	return(-1);
+	return -1;
 }
 
-int
-process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client) {
+int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
+{
+	(void)buflen; /* unused */
+	(void)client; /* unused */
 
 	/*
 	 * M?? - query MMRP Registrar MAC Address database
@@ -113,30 +117,26 @@ process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client) {
 	 * V-- - LV a VID (VLAN ID)
 	 */
 
-	/* Unused parameters */
-	(void)buflen;
-	(void)client;
-
-	/* XXX */
 	if (buf[1] == ':')
 		printf("?? RESP:\n%s", buf);
 	else
 		printf("MRPD ---> %s", buf);
 	fflush(stdout);
-	return(0);
+
+	return 0;
 }
 
-int
-recv_ctl_msg() {
-	char			*msgbuf;
-	struct sockaddr_in	client_addr;
-	struct msghdr		msg;
-	struct iovec		iov;
-	int			bytes = 0;
+int recv_ctl_msg(void)
+{
+	char *msgbuf;
+	struct sockaddr_in client_addr;
+	struct msghdr msg;
+	struct iovec iov;
+	int bytes = 0;
 
 	msgbuf = (char *)malloc (MAX_MRPD_CMDSZ);
 	if (NULL == msgbuf) 
-		return -1;
+		goto err;
 	memset(&msg, 0, sizeof(msg));
 	memset(&client_addr, 0, sizeof(client_addr));
 	memset(msgbuf, 0, MAX_MRPD_CMDSZ);
@@ -147,18 +147,19 @@ recv_ctl_msg() {
 	msg.msg_namelen = sizeof(client_addr);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-	bytes = recvmsg(control_socket, &msg, 0); 	if (bytes < 0) goto out;
+	bytes = recvmsg(control_socket, &msg, 0);
+	if (bytes < 0)
+		goto err;
 
-	return(process_ctl_msg(msgbuf, bytes, &client_addr) );
-out:
-	//printf("recv'd bad msg ... \n");
-	free (msgbuf);
+	return process_ctl_msg(msgbuf, bytes, &client_addr);
+err:
+	free(msgbuf);
 	
-	return(-1);
+	return -1;
 }
 
-int
-send_control_msg( char *notify_data, int notify_len) {
+int send_control_msg(char *notify_data, int notify_len)
+{
 	struct sockaddr_in	addr;
 	socklen_t addr_len;
 
@@ -168,22 +169,15 @@ send_control_msg( char *notify_data, int notify_len) {
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	addr_len = sizeof(addr);
 
-	//printf("sending message\n");
-
 	if (control_socket != -1)
-		return(sendto(control_socket, notify_data, notify_len, 0, (struct sockaddr *)&addr, addr_len));
+		return sendto(control_socket, notify_data, notify_len, 0,
+			(struct sockaddr *)&addr, addr_len);
 	else
-		return(0);
+		return 0;
 }
 
-void 
-process_events( void ) {
-
-	/* wait for events, demux the received packets, process packets */
-}
-
-static void
-usage( void ) {
+void usage(void)
+{
 	fprintf(stderr, 
 		"\n"
 		"usage: mrpctl [-h]"
@@ -197,8 +191,8 @@ usage( void ) {
 }
 
 
-int
-main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 	int	c;
 	int	rc = 0;
 	char	*msgbuf;
@@ -206,10 +200,8 @@ main(int argc, char *argv[]) {
 
 	for (;;) {
 		c = getopt(argc, argv, "h");
-
 		if (c < 0)
 			break;
-
 		switch (c) {
 		case 'h':
 			usage();
@@ -219,13 +211,18 @@ main(int argc, char *argv[]) {
 	if (optind < argc)
 		usage();
 
-	rc = init_local_ctl(); if (rc) { printf("init failed\n"); goto out; }
+	rc = init_local_ctl();
+	if (rc) {
+		printf("init_local_ctl failed\n");
+		goto out;
+	}
 
 	msgbuf = malloc(1500);
 	if (NULL == msgbuf) {
-		printf("memory allocation error - exiting\n");
+		printf("malloc failed\n");
 		return -1;
 	}
+
 #ifdef XXX
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"M++:M=010203040506");
@@ -310,28 +307,27 @@ main(int argc, char *argv[]) {
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S-L:L=F00F00F00F00F000");
 	rc = send_control_msg(msgbuf, 1500);
-
-#endif
+#endif /* XXX */
 
 	memset(msgbuf,0,1500);
-	sprintf(msgbuf,"V++:I=0002");
+	sprintf(msgbuf,"V++:I=0002"); /* JOIN_IN VID 2 (SR_PVID, SRP traffic */
 	rc = send_control_msg(msgbuf, 1500 );
 
 #ifdef YYYY	
 	memset(msgbuf,0,1500);
 	sprintf(msgbuf,"S+L:L=0050c24edb0a0001,D=2");
 	rc = send_control_msg(msgbuf, 1500);
-#endif
+#endif /* YYYY */
 
 	do {
 		memset(msgbuf,0,1500);
-		sprintf(msgbuf,"M??");
+		sprintf(msgbuf,"M??"); /* query MMRP Registrar MAC Address database */
 		rc = send_control_msg(msgbuf, 1500);
 		memset(msgbuf,0,1500);
-		sprintf(msgbuf,"V??");
+		sprintf(msgbuf,"V??"); /* query MVRP Registrar VID database */
 		rc = send_control_msg(msgbuf, 1500 );
 		memset(msgbuf,0,1500);
-		sprintf(msgbuf,"S??");
+		sprintf(msgbuf,"S??"); /* query MSRP Registrar database */
 		rc = send_control_msg(msgbuf, 1500 );
 		status = 0;
 		while (status >= 0) {
@@ -339,9 +335,9 @@ main(int argc, char *argv[]) {
 		}
 		sleep(1);
 	} while (1);
+
 out:
 	printf("exiting (rc=%d)\n", rc);
 
-	return(rc);
-
+	return rc;
 }
