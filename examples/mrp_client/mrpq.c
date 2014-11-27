@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "M??");
 	printf(">M??\n");
-	rc = mprdclient_sendto(msgbuf, 1500);
+	rc = mrpdclient_sendto(msgbuf, 1500);
 	rc = mrpdclient_recv(process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "V??");
 	printf(">V??\n");
-	rc = mprdclient_sendto(msgbuf, 1500);
+	rc = mrpdclient_sendto(msgbuf, 1500);
 	rc = mrpdclient_recv(process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
@@ -127,14 +127,14 @@ int main(int argc, char *argv[])
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S??");
 	printf(">S??\n");
-	rc = mprdclient_sendto(msgbuf, 1500);
+	rc = mrpdclient_sendto(msgbuf, 1500);
 	rc = mrpdclient_recv(process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
 	sprintf(msgbuf, "BYE");
-	rc = mprdclient_sendto(msgbuf, 1500);
-	mprdclient_close();
+	rc = mrpdclient_sendto(msgbuf, 1500);
+	mrpdclient_close();
 
 #if defined WIN32
 	WSACleanup();

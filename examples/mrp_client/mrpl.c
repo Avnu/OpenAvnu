@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
 
-	rc = mprdclient_sendto(msgbuf, 1500);
+	rc = mrpdclient_sendto(msgbuf, 1500);
 
 	memset(msgbuf, 0, 1500);
 	if (leave)
@@ -162,10 +162,10 @@ int main(int argc, char *argv[])
 	else
 		sprintf(msgbuf, "S+L:L=A0369F022EEE0000,D=2");
 
-	rc = mprdclient_sendto(msgbuf, 1500);
+	rc = mrpdclient_sendto(msgbuf, 1500);
 
 	sprintf(msgbuf, "BYE");
-	rc = mprdclient_sendto(msgbuf, 1500);
+	rc = mrpdclient_sendto(msgbuf, 1500);
 
 	return (rc);
 }

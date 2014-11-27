@@ -100,7 +100,7 @@ int mrpdclient_init(int port)
 	return (-1);
 }
 
-int mprdclient_close(void)
+int mrpdclient_close(void)
 {
 	if (control_socket != SOCKET_ERROR)
 		closesocket(control_socket);
@@ -128,7 +128,7 @@ int mrpdclient_recv(ptr_process_msg fn)
 	return (-1);
 }
 
-int mprdclient_sendto(char *notify_data, int notify_len)
+int mrpdclient_sendto(char *notify_data, int notify_len)
 {
 	struct sockaddr_in addr;
 	socklen_t addr_len;

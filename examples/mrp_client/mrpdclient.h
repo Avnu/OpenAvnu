@@ -41,7 +41,7 @@ typedef int (*ptr_process_msg) (char *buf, int buflen);
 
 int mrpdclient_init(int port);
 int mrpdclient_recv(ptr_process_msg fn);
-int mprdclient_sendto(char *notify_data, int notify_len);
-int mprdclient_close(void);
+int mrpdclient_sendto(char *notify_data, int notify_len);
+int mrpdclient_close(void);
 
 #endif

@@ -125,25 +125,25 @@ displayStatusMsgs(void) {
 int
 fnMplusplus(void) {
 #define M_PLUS_PLUS "M++:M=" STREAM_DA
-	return (mprdclient_sendto(M_PLUS_PLUS, sizeof(M_PLUS_PLUS)));
+	return (mrpdclient_sendto(M_PLUS_PLUS, sizeof(M_PLUS_PLUS)));
 }
 
 int
 fnMplusquestion(void) {
 #define M_PLUS_QUESTION "M+?:M=" STREAM_DA
-	return (mprdclient_sendto(M_PLUS_QUESTION, sizeof(M_PLUS_QUESTION)));
+	return (mrpdclient_sendto(M_PLUS_QUESTION, sizeof(M_PLUS_QUESTION)));
 }
 
 int
 fnMminusminus(void) {
 #define M_MINUS_MINUS "M--:M=" STREAM_DA
-	return (mprdclient_sendto(M_MINUS_MINUS, sizeof(M_MINUS_MINUS)));
+	return (mrpdclient_sendto(M_MINUS_MINUS, sizeof(M_MINUS_MINUS)));
 }
 
 int
 fnMquestionquestion(void) {
 #define M_QUESTION_QUESTION "M??"
-	mprdclient_sendto(M_QUESTION_QUESTION, sizeof(M_QUESTION_QUESTION));
+	mrpdclient_sendto(M_QUESTION_QUESTION, sizeof(M_QUESTION_QUESTION));
 
 	displayStatusMsgs();
 	return 0;
@@ -160,25 +160,25 @@ fnMquestionquestion(void) {
 int
 fnVplusplus(void) {
 #define V_PLUS_PLUS "V++:I=" VLAN_ID
-	return (mprdclient_sendto(V_PLUS_PLUS, sizeof(V_PLUS_PLUS)));
+	return (mrpdclient_sendto(V_PLUS_PLUS, sizeof(V_PLUS_PLUS)));
 }
 
 int
 fnVplusquestion(void) {
 #define V_PLUS_QUESTION "V+?:I=" VLAN_ID
-	return (mprdclient_sendto(V_PLUS_QUESTION, sizeof(V_PLUS_QUESTION)));
+	return (mrpdclient_sendto(V_PLUS_QUESTION, sizeof(V_PLUS_QUESTION)));
 }
 
 int
 fnVminusminus(void) {
 #define V_MINUS_MINUS "V--:I=" VLAN_ID
-	return (mprdclient_sendto(V_MINUS_MINUS, sizeof(V_MINUS_MINUS)));
+	return (mrpdclient_sendto(V_MINUS_MINUS, sizeof(V_MINUS_MINUS)));
 }
 
 int
 fnVquestionquestion(void) {
 #define V_QUESTION_QUESTION "V??"
-	mprdclient_sendto(V_QUESTION_QUESTION, sizeof(V_QUESTION_QUESTION));
+	mrpdclient_sendto(V_QUESTION_QUESTION, sizeof(V_QUESTION_QUESTION));
 
 	displayStatusMsgs();
 	return 0;
@@ -201,7 +201,7 @@ fnSTplusplus(void) {
                      ",I=" TSPEC_MAX_FRAME_INTERVAL \
                      ",P=" PRIORITY_AND_RANK \
                      ",L=" ACCUMULATED_LATENCY
-	return (mprdclient_sendto(ST_PLUS_PLUS, sizeof(ST_PLUS_PLUS)));
+	return (mrpdclient_sendto(ST_PLUS_PLUS, sizeof(ST_PLUS_PLUS)));
 }
 
 int
@@ -213,19 +213,19 @@ fnSTplusquestion(void) {
                          ",I=" TSPEC_MAX_FRAME_INTERVAL \
                          ",P=" PRIORITY_AND_RANK \
                          ",L=" ACCUMULATED_LATENCY
-	return (mprdclient_sendto(ST_PLUS_QUESTION, sizeof(ST_PLUS_QUESTION)));
+	return (mrpdclient_sendto(ST_PLUS_QUESTION, sizeof(ST_PLUS_QUESTION)));
 }
 
 int
 fnSTminusminus(void) {
 #define ST_MINUS_MINUS "S--:S=" STREAM_ID
-	return (mprdclient_sendto(ST_MINUS_MINUS, sizeof(ST_MINUS_MINUS)));
+	return (mrpdclient_sendto(ST_MINUS_MINUS, sizeof(ST_MINUS_MINUS)));
 }
 
 int
 fnSquestionquestion(void) {
 #define S_QUESTION_QUESTION "S??"
-	mprdclient_sendto(S_QUESTION_QUESTION, sizeof(S_QUESTION_QUESTION));
+	mrpdclient_sendto(S_QUESTION_QUESTION, sizeof(S_QUESTION_QUESTION));
 
 	displayStatusMsgs();
 	return 0;
@@ -250,7 +250,7 @@ fnSTFplusplus(void) {
                      ",L=" ACCUMULATED_LATENCY \
                      ",B=" BRIDGE_ID \
                      ",C=" FAILURE_CODE
-	return (mprdclient_sendto(STF_PLUS_PLUS, sizeof(STF_PLUS_PLUS)));
+	return (mrpdclient_sendto(STF_PLUS_PLUS, sizeof(STF_PLUS_PLUS)));
 }
 
 int
@@ -264,7 +264,7 @@ fnSTFplusquestion(void) {
                          ",L=" ACCUMULATED_LATENCY \
                          ",B=" BRIDGE_ID \
                          ",C=" FAILURE_CODE
-	return (mprdclient_sendto(STF_PLUS_QUESTION, sizeof(STF_PLUS_QUESTION)));
+	return (mrpdclient_sendto(STF_PLUS_QUESTION, sizeof(STF_PLUS_QUESTION)));
 }
 
 
@@ -276,13 +276,13 @@ fnSTFplusquestion(void) {
 int
 fnSLplusplus(void) {
 #define SL_PLUS_PLUS "S+L:L=" STREAM_ID ",D=2"
-	return (mprdclient_sendto(SL_PLUS_PLUS, sizeof(SL_PLUS_PLUS)));
+	return (mrpdclient_sendto(SL_PLUS_PLUS, sizeof(SL_PLUS_PLUS)));
 }
 
 int
 fnSLminusminus(void) {
 #define SL_MINUS_MINUS "S-L:L=" STREAM_ID
-	return (mprdclient_sendto(SL_MINUS_MINUS, sizeof(SL_MINUS_MINUS)));
+	return (mrpdclient_sendto(SL_MINUS_MINUS, sizeof(SL_MINUS_MINUS)));
 }
 
 
@@ -296,7 +296,7 @@ fnSDplusplus(void) {
 #define SD_PLUS_PLUS "S+D:C=" SR_CLASS_ID \
                      ",P=" SR_CLASS_PRIORITY \
                      ",V=" VLAN_ID
-	return (mprdclient_sendto(SD_PLUS_PLUS, sizeof(SD_PLUS_PLUS)));
+	return (mrpdclient_sendto(SD_PLUS_PLUS, sizeof(SD_PLUS_PLUS)));
 }
 
 int
@@ -304,7 +304,7 @@ fnSDminusminus(void) {
 #define SD_MINUS_MINUS "S-D:C=" SR_CLASS_ID \
                        ",P=" SR_CLASS_PRIORITY \
                        ",V=" VLAN_ID
-	return (mprdclient_sendto(SD_MINUS_MINUS, sizeof(SD_MINUS_MINUS)));
+	return (mrpdclient_sendto(SD_MINUS_MINUS, sizeof(SD_MINUS_MINUS)));
 }
 
 
@@ -334,9 +334,9 @@ int fnMonitor(void) {
 	 * cause any MRP attribute declarations or registrations, and are
 	 * therefore the preferred method for doing this for monitoring.
 	 */
-	mprdclient_sendto(M_QUESTION_QUESTION, sizeof(M_QUESTION_QUESTION));
-	mprdclient_sendto(S_QUESTION_QUESTION, sizeof(S_QUESTION_QUESTION));
-	mprdclient_sendto(V_QUESTION_QUESTION, sizeof(V_QUESTION_QUESTION));
+	mrpdclient_sendto(M_QUESTION_QUESTION, sizeof(M_QUESTION_QUESTION));
+	mrpdclient_sendto(S_QUESTION_QUESTION, sizeof(S_QUESTION_QUESTION));
+	mrpdclient_sendto(V_QUESTION_QUESTION, sizeof(V_QUESTION_QUESTION));
 
 	/* Now just wait for any MRPDUs to be received... */
 	while (1) {
@@ -467,7 +467,7 @@ main(int argc, char *argv[]) {
 			strncpy(saved, option, sizeof(option));
 		}
 	}
-	rc = mprdclient_close();
+	rc = mrpdclient_close();
 
 out:
 	return rc;
