@@ -59,39 +59,10 @@
 #include "mrpd.h"
 #include "mrpdclient.h"
 
-/* global variables */
-
 #define VERSION_STR	"0.0"
 
 static const char *version_str =
     "mrpl v" VERSION_STR "\n" "Copyright (c) 2012, Intel Corporation\n";
-
-int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
-{
-
-	/*
-	 * M?? - query MMRP Registrar MAC Address database
-	 * M+? - JOIN_MT a MAC address
-	 * -- note M++ doesn't exist apparently- MMRP doesn't use 'New' --
-	 * M-- - LV a MAC address
-	 * V?? - query MVRP Registrar VID database
-	 * V++ - JOIN_IN a VID (VLAN ID)
-	 * V+? - JOIN_MT a VID (VLAN ID)
-	 * V-- - LV a VID (VLAN ID)
-	 */
-
-	/* XXX */
-	printf("RESP:%s from SRV %d (bytes=%d)\n", buf, client->sin_port,
-	       buflen);
-	fflush(stdout);
-	return (0);
-}
-
-void process_events(void)
-{
-
-	/* wait for events, demux the received packets, process packets */
-}
 
 static void usage(void)
 {
@@ -109,6 +80,7 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
 	int c;
+	SOCKET mrpd_sock = SOCKET_ERROR;
 	int rc = 0;
 	char *msgbuf;
 	int leave = 0;
@@ -139,33 +111,38 @@ int main(int argc, char *argv[])
 	if (optind < argc)
 		usage();
 
-	rc = mrpdclient_init();
-	if (rc) {
-		printf("init failed\n");
-		return -1;
+	mrpd_sock = mrpdclient_init();
+	if (mrpd_sock == SOCKET_ERROR) {
+		printf("mrpdclient_init failed\n");
+		return EXIT_FAILURE;
 	}
 
-	msgbuf = malloc(1500);
+	msgbuf = malloc(MRPDCLIENT_MAX_FRAME_SIZE);
 	if (NULL == msgbuf) {
 		printf("malloc failed\n");
-		return -1;
+		return EXIT_FAILURE;
 	}
 
-	memset(msgbuf, 0, 1500);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
 	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
 
-	rc = mrpdclient_sendto(msgbuf, 1500);
-
-	memset(msgbuf, 0, 1500);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
 	if (leave)
 		sprintf(msgbuf, "S-L:L=A0369F022EEE0000,D=2");
 	else
 		sprintf(msgbuf, "S+L:L=A0369F022EEE0000,D=2");
 
-	rc = mrpdclient_sendto(msgbuf, 1500);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
 
 	sprintf(msgbuf, "BYE");
-	rc = mrpdclient_sendto(msgbuf, 1500);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
 
-	return (rc);
+	free(msgbuf);
+	rc = mrpdclient_close(&mrpd_sock);
+
+	if (-1 == rc)
+		return EXIT_FAILURE;
+	else
+		return EXIT_SUCCESS;
 }
