@@ -82,6 +82,7 @@ void process_events(void)
 
 int main(int argc, char *argv[])
 {
+	SOCKET mrpd_sock = SOCKET_ERROR;
 	int rc = 0;
 	char *msgbuf;
 #if defined WIN32
@@ -96,45 +97,45 @@ int main(int argc, char *argv[])
 
 	printf("%s\n", version_str);
 
-	rc = mrpdclient_init();
-	if (rc) {
-		printf("init failed\n");
-		return -1;
+	mrpd_sock = mrpdclient_init();
+	if (mrpd_sock == SOCKET_ERROR) {
+		printf("mrpdclient_init failed\n");
+		return EXIT_FAILURE;
 	}
 
-	msgbuf = (char *)malloc(1500);
+	msgbuf = (char *)malloc(MRPDCLIENT_MAX_FRAME_SIZE);
 	if (NULL == msgbuf) {
 		printf("malloc failed\n");
 		return -1;
 	}
 
-	memset(msgbuf, 0, 1500);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
 	sprintf(msgbuf, "M??");
 	printf(">M??\n");
-	rc = mrpdclient_sendto(msgbuf, 1500);
-	rc = mrpdclient_recv(process_ctl_msg);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
-	memset(msgbuf, 0, 1500);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
 	sprintf(msgbuf, "V??");
 	printf(">V??\n");
-	rc = mrpdclient_sendto(msgbuf, 1500);
-	rc = mrpdclient_recv(process_ctl_msg);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
-	memset(msgbuf, 0, 1500);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
 	sprintf(msgbuf, "S??");
 	printf(">S??\n");
-	rc = mrpdclient_sendto(msgbuf, 1500);
-	rc = mrpdclient_recv(process_ctl_msg);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
 	sprintf(msgbuf, "BYE");
-	rc = mrpdclient_sendto(msgbuf, 1500);
-	mrpdclient_close();
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	mrpdclient_close(&mrpd_sock);
 
 #if defined WIN32
 	WSACleanup();
