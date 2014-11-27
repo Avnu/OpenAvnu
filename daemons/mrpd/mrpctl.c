@@ -31,26 +31,11 @@
 
 ******************************************************************************/
 
-#include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <syslog.h>
-#include <signal.h>
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/mman.h>
-#include <sys/user.h>
 #include <sys/socket.h>
-#include <linux/if.h>
-#include <netpacket/packet.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <net/ethernet.h>
-#include <sys/un.h>
 
 #include "mrpd.h"
 
