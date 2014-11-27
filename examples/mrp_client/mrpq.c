@@ -32,12 +32,9 @@
 
 ******************************************************************************/
 
-#include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
-#include <errno.h>
 
 #if defined WIN32
 #include <winsock2.h>
