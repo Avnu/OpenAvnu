@@ -67,15 +67,6 @@ typedef struct {
 
 #define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
 
-#define SRC_CHANNELS (2)
-#define SAMPLES_PER_SECOND (48000)
-#define FREQUENCY (480)
-#define SAMPLES_PER_CYCLE (SAMPLES_PER_SECOND/FREQUENCY)
-#define GAIN (.5)
-
-//1722 header
-#define ETH_TYPE 0x22F0
-
 #define IGB_BIND_NAMESZ 24
 
 #define XMIT_DELAY (200000000)	/* us */

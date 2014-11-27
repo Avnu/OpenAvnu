@@ -63,15 +63,11 @@ typedef struct {
 #define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
 
 #define SRC_CHANNELS (2)
-#define SAMPLES_PER_SECOND (48000)
-#define FREQUENCY (480)
-#define SAMPLES_PER_CYCLE (SAMPLES_PER_SECOND/FREQUENCY)
 #define GAIN (.5)
 
 #define L16_PAYLOAD_TYPE 96 /* for layer 4 transport - should be negotiated via RTSP */
 #define ID_B_HDR_EXT_ID 0 /* for layer 4 transport - should be negotiated via RTSP */
 
-#define SAMPLE_SIZE 4		/* 4 bytes */
 #define L2_SAMPLES_PER_FRAME 6
 #define L4_SAMPLES_PER_FRAME 60
 #define L4_SAMPLE_SIZE 2
