@@ -45,19 +45,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SAMPLES_PER_FRAME 6
 #define CHANNELS 2
 
-struct six1883_sample{
-	uint8_t label;
-	uint8_t value[3];
-};
-
 struct ethernet_header{
 	u_char dst[6];
 	u_char src[6];
 	u_char stuff[4];
 	u_char type[2];
 };
-
-typedef int (*process_msg) (char *buf, int buflen);
 
 // global
 pcap_t* handle;
