@@ -32,11 +32,10 @@
 #define STREAMID 0xABCDEF
 #define PACKET_IPG 125000 /* 1 packet every 125 usec */
 
-/* global variables */
-int g_start_feed_socket = 0;
+/* globals */
+
 device_t igb_dev;
 uint32_t payload_length;
-
 unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */

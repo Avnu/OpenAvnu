@@ -52,13 +52,14 @@ struct ethernet_header{
 	u_char type[2];
 };
 
-// global
-pcap_t* handle;
-u_char ETHER_TYPE[] = { 0x22, 0xf0 };
-SNDFILE* snd_file;
+/* globals */
 
 static const char *version_str = "simple_listener v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
+
+pcap_t* handle;
+u_char ETHER_TYPE[] = { 0x22, 0xf0 };
+SNDFILE* snd_file;
 
 static void help()
 {

@@ -161,11 +161,20 @@ typedef struct __attribute__ ((packed)) {
 	uint16_t length;
 } IP_PseudoHeader;
 
-/* global variables */
-device_t igb_dev;
+/* globals */
 
 static const char *version_str = "simple_talker v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
+
+device_t igb_dev;
+static int shm_fd = -1;
+static char *memory_offset_buffer = NULL;
+unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
+unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+/* IEEE 1722 reserved address */
+unsigned char L2_DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
+unsigned char L3_DEST_ADDR[] = { 224, 0, 0, 115 };
+uint16_t L3_PORT = 5004;
 
 uint16_t inet_checksum(uint8_t *ip, int len){
     uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
@@ -249,8 +258,6 @@ static inline uint64_t ST_rdtsc(void)
 	return ret;
 }
 
-static int shm_fd = -1;
-static char *memory_offset_buffer = NULL;
 int gptpinit(void)
 {
 	shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
@@ -374,15 +381,7 @@ int pci_connect()
 	return 0;
 }
 
- unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
- unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-
-/* IEEE 1722 reserved address */
- unsigned char L2_DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
- unsigned char L3_DEST_ADDR[] = { 224, 0, 0, 115 };
-uint16_t L3_PORT = 5004;
-
- void l3_to_l2_multicast( unsigned char *l2, unsigned char *l3 ) {
+void l3_to_l2_multicast( unsigned char *l2, unsigned char *l3 ) {
 	 l2[0]  = 0x1;
 	 l2[1]  = 0x0;
 	 l2[2]  = 0x5e;

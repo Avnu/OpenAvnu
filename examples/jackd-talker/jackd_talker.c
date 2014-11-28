@@ -117,13 +117,14 @@ typedef struct {
 	uint8_t value[3];
 } six1883_sample;
 
-/* global variables */
+/* globals */
+
+static const char *version_str = "simple_talker v" VERSION_STR "\n"
+    "Copyright (c) 2012, Intel Corporation\n";
+
 device_t igb_dev;
 volatile int unleash_jack = 0;
 pthread_t packetizer_id;
-
-/* evil global variables
- * FIXME: move to thread argument struct */
 u_int64_t last_time;
 int seqnum;
 uint32_t time_stamp;
@@ -131,9 +132,12 @@ seventeen22_header *header0;
 six1883_header *header1;
 struct igb_packet *tmp_packet;
 struct igb_packet *free_packets;
-
-static const char *version_str = "simple_talker v" VERSION_STR "\n"
-    "Copyright (c) 2012, Intel Corporation\n";
+static int shm_fd = -1;
+static char *memory_offset_buffer = NULL;
+unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
+unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+/* IEEE 1722 reserved address */
+unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
 
 static inline uint64_t ST_rdtsc(void)
 {
@@ -145,9 +149,6 @@ static inline uint64_t ST_rdtsc(void)
 	ret |= c;
 	return ret;
 }
-
-static int shm_fd = -1;
-static char *memory_offset_buffer = NULL;
 
 int gptpinit(void)
 {
@@ -237,12 +238,6 @@ int pci_connect()
  out:	pci_cleanup(pacc);
 	return 0;
 }
-
-unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
-unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-
-/* IEEE 1722 reserved address */
-unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
 
 int get_mac_address(char *interface)
 {

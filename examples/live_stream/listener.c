@@ -31,8 +31,9 @@
 
 #define USE_MRPD 1
 
-device_t igb_dev;
+/* globals */
 
+device_t igb_dev;
 unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
 
 void sigint_handler(int signum)
