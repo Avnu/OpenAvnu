@@ -78,8 +78,6 @@ typedef struct {
   uint64_t local_time;
 } gPtpTimeData;
 
-typedef enum { false = 0, true = 1 } bool;
-
 typedef struct __attribute__ ((packed)) {
 	uint64_t subtype:7;
 	uint64_t cd_indicator:1;
@@ -263,7 +261,7 @@ int gptpinit(void)
 	glob_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
 	if (glob_shm_fd == -1) {
 		perror("shm_open()");
-		return false;
+		return -1;
 	}
 	glob_memory_offset_buffer =
 	    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -272,9 +270,10 @@ int gptpinit(void)
 		perror("mmap()");
 		glob_memory_offset_buffer = NULL;
 		shm_unlink(SHM_NAME);
-		return false;
+		return -1;
 	}
-	return true;
+
+	return 0;
 }
 
 void gptpdeinit(void)
@@ -287,8 +286,11 @@ void gptpdeinit(void)
 	}
 }
 
-int gptpscaling(gPtpTimeData * td)
+int gptpscaling(gPtpTimeData *td)
 {
+	if (NULL == td)
+		return -1;
+
 	pthread_mutex_lock((pthread_mutex_t *) glob_memory_offset_buffer);
 	memcpy(td, glob_memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
 	pthread_mutex_unlock((pthread_mutex_t *) glob_memory_offset_buffer);
@@ -300,7 +302,7 @@ int gptpscaling(gPtpTimeData * td)
 	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
 		td->ml_freqoffset, td->ls_freqoffset);
 
-	return true;
+	return 0;
 }
 
 void gensine32(int32_t * buf, unsigned count)
@@ -758,10 +760,13 @@ int main(int argc, char *argv[])
 	printf("got a listener ...\n");
 	halt_tx = 0;
 
-	if( gptpinit() == false ) {
+	if(-1 == gptpinit()) {
 		return -1;
 	}
-	gptpscaling(&td);
+
+	if (-1 == gptpscaling(&td)) {
+		return -1;
+	}
 
 	if( igb_get_wallclock( &glob_igb_dev, &now_local, NULL ) > 0 ) {
 	  fprintf( stderr, "Failed to get wallclock time\n" );
