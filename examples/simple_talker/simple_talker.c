@@ -164,7 +164,6 @@ typedef struct __attribute__ ((packed)) {
 static const char *version_str = "simple_talker v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
-device_t glob_igb_dev;
 static int glob_shm_fd = -1;
 static char *glob_memory_offset_buffer = NULL;
 unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
@@ -344,34 +343,34 @@ void sigint_handler(int signum)
 	halt_tx = signum;
 }
 
-int pci_connect()
+int pci_connect(device_t *igb_dev)
 {
 	struct pci_access *pacc;
 	struct pci_dev *dev;
 	int err;
 	char devpath[IGB_BIND_NAMESZ];
-	memset(&glob_igb_dev, 0, sizeof(device_t));
+	memset(igb_dev, 0, sizeof(device_t));
 	pacc = pci_alloc();
 	pci_init(pacc);
 	pci_scan_bus(pacc);
 	for (dev = pacc->devices; dev; dev = dev->next) {
 		pci_fill_info(dev,
 			      PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
-		glob_igb_dev.pci_vendor_id = dev->vendor_id;
-		glob_igb_dev.pci_device_id = dev->device_id;
-		glob_igb_dev.domain = dev->domain;
-		glob_igb_dev.bus = dev->bus;
-		glob_igb_dev.dev = dev->dev;
-		glob_igb_dev.func = dev->func;
+		igb_dev->pci_vendor_id = dev->vendor_id;
+		igb_dev->pci_device_id = dev->device_id;
+		igb_dev->domain = dev->domain;
+		igb_dev->bus = dev->bus;
+		igb_dev->dev = dev->dev;
+		igb_dev->func = dev->func;
 		snprintf(devpath, IGB_BIND_NAMESZ, "%04x:%02x:%02x.%d",
 			 dev->domain, dev->bus, dev->dev, dev->func);
-		err = igb_probe(&glob_igb_dev);
+		err = igb_probe(igb_dev);
 		if (err) {
 			continue;
 		}
 		printf("attaching to %s\n", devpath);
-		err = igb_attach(devpath, &glob_igb_dev);
-		if ( err || igb_attach_tx( &glob_igb_dev )) {
+		err = igb_attach(devpath, igb_dev);
+		if ( err || igb_attach_tx( igb_dev )) {
 			printf("attach failed! (%s)\n", strerror(errno));
 			continue;
 		}
@@ -433,6 +432,7 @@ int main(int argc, char *argv[])
 {
 	unsigned i;
 	int err;
+	device_t igb_dev;
 	struct igb_dma_alloc a_page;
 	struct igb_packet a_packet;
 	struct igb_packet *tmp_packet;
@@ -501,19 +501,19 @@ int main(int argc, char *argv[])
 		printf("socket creation failed\n");
 		return errno;
 	}
-	err = pci_connect();
+	err = pci_connect(&igb_dev);
 	if (err) {
 		printf("connect failed (%s) - are you running as root?\n",
 		       strerror(errno));
 		return errno;
 	}
-	err = igb_init(&glob_igb_dev);
+	err = igb_init(&igb_dev);
 	if (err) {
 		printf("init failed (%s) - is the driver really loaded?\n",
 		       strerror(errno));
 		return errno;
 	}
-	err = igb_dma_malloc_page(&glob_igb_dev, &a_page);
+	err = igb_dma_malloc_page(&igb_dev, &a_page);
 	if (err) {
 		printf("malloc failed (%s) - out of memory?\n",
 		       strerror(errno));
@@ -578,10 +578,10 @@ int main(int argc, char *argv[])
 
 	if( transport == 2 ) {
 		igb_set_class_bandwidth
-			(&glob_igb_dev, 125000/L2_PACKET_IPG, 0, PKT_SZ - 22, 0);
+			(&igb_dev, 125000/L2_PACKET_IPG, 0, PKT_SZ - 22, 0);
 	} else {
 		igb_set_class_bandwidth
-			(&glob_igb_dev, 1, 0,
+			(&igb_dev, 1, 0,
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2, 0);
 	}
 
@@ -768,7 +768,7 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	if( igb_get_wallclock( &glob_igb_dev, &now_local, NULL ) > 0 ) {
+	if( igb_get_wallclock( &igb_dev, &now_local, NULL ) > 0 ) {
 	  fprintf( stderr, "Failed to get wallclock time\n" );
 	  return EXIT_FAILURE;
 	}
@@ -875,7 +875,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		err = igb_xmit(&glob_igb_dev, 0, tmp_packet);
+		err = igb_xmit(&igb_dev, 0, tmp_packet);
 
 		if (!err) {
 			continue;
@@ -889,7 +889,7 @@ int main(int argc, char *argv[])
 		}
 		
 	cleanup:	
-		igb_clean(&glob_igb_dev, &cleaned_packets);
+		igb_clean(&igb_dev, &cleaned_packets);
 		i = 0;
 		while (cleaned_packets) {
 			i++;
@@ -916,13 +916,13 @@ int main(int argc, char *argv[])
 			 domain_class_a_priority, 3900);
 	}
 	
-	igb_set_class_bandwidth(&glob_igb_dev, 0, 0, 0, 0);	/* disable Qav */
+	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */
 	
 	rc = mrp_disconnect();
 	
-	igb_dma_free_page(&glob_igb_dev, &a_page);
+	igb_dma_free_page(&igb_dev, &a_page);
 	
-	err = igb_detach(&glob_igb_dev);
+	err = igb_detach(&igb_dev);
 	
 	pthread_exit(NULL);
 	
