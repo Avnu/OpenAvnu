@@ -169,12 +169,12 @@ static const char *version_str = "simple_talker v" VERSION_STR "\n"
 device_t igb_dev;
 static int shm_fd = -1;
 static char *memory_offset_buffer = NULL;
-unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
-unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
+unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
-unsigned char L2_DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
-unsigned char L3_DEST_ADDR[] = { 224, 0, 0, 115 };
-uint16_t L3_PORT = 5004;
+unsigned char glob_l2_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
+unsigned char glob_l3_dest_addr[] = { 224, 0, 0, 115 };
+uint16_t glob_l3_port = 5004;
 
 uint16_t inet_checksum(uint8_t *ip, int len){
     uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
@@ -408,8 +408,8 @@ int get_mac_address(char *interface)
 		return -1;
 	}
 
-	memcpy(STATION_ADDR, if_request.ifr_hwaddr.sa_data,
-	       sizeof(STATION_ADDR));
+	memcpy(glob_station_addr, if_request.ifr_hwaddr.sa_data,
+	       sizeof(glob_station_addr));
 	close(lsock);
 	return 0;
 }
@@ -524,13 +524,13 @@ int main(int argc, char *argv[])
 		usage();
 	}
 	if( transport == 2 ) {
-		memcpy( dest_addr, L2_DEST_ADDR, sizeof(dest_addr));
+		memcpy( dest_addr, glob_l2_dest_addr, sizeof(dest_addr));
 	} else {
 		memset( &local, 0, sizeof( local ));
 		local.sin_family = PF_INET;
 		local.sin_addr.s_addr = htonl( INADDR_ANY );
-		local.sin_port = htons( L3_PORT );
-		l3_to_l2_multicast( dest_addr, L3_DEST_ADDR );
+		local.sin_port = htons( glob_l3_port );
+		l3_to_l2_multicast( dest_addr, glob_l3_dest_addr );
 		memset( &if_request, 0, sizeof( if_request ));
 		strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name)-1);
 		sd = socket( AF_INET, SOCK_DGRAM, 0 );
@@ -583,8 +583,8 @@ int main(int argc, char *argv[])
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2, 0);
 	}
 
-	memset(STREAM_ID, 0, sizeof(STREAM_ID));
-	memcpy(STREAM_ID, STATION_ADDR, sizeof(STATION_ADDR));
+	memset(glob_stream_id, 0, sizeof(glob_stream_id));
+	memcpy(glob_stream_id, glob_station_addr, sizeof(glob_station_addr));
 
 	if( transport == 2 ) {
 		packet_size = PKT_SZ;
@@ -617,8 +617,8 @@ int main(int argc, char *argv[])
 		tmp_packet->next = free_packets;
 		memset(tmp_packet->vaddr, 0, packet_size);	/* MAC header at least */
 		memcpy(tmp_packet->vaddr, dest_addr, sizeof(dest_addr));
-		memcpy(tmp_packet->vaddr + 6, STATION_ADDR,
-		       sizeof(STATION_ADDR));
+		memcpy(tmp_packet->vaddr + 6, glob_station_addr,
+		       sizeof(glob_station_addr));
 
 		/* Q-tag */
 		((char *)tmp_packet->vaddr)[12] = 0x81;
@@ -649,8 +649,8 @@ int main(int argc, char *argv[])
 			l2_header0->reserved1 = 0;
 			l2_header0->timestamp_uncertain = 0;
 			memset(&(l2_header0->stream_id), 0, sizeof(l2_header0->stream_id));
-			memcpy(&(l2_header0->stream_id), STATION_ADDR,
-				   sizeof(STATION_ADDR));
+			memcpy(&(l2_header0->stream_id), glob_station_addr,
+				   sizeof(glob_station_addr));
 			l2_header0->length = htons(32);
 			l2_header1 = (six1883_header *) (l2_header0 + 1);
 			l2_header1->format_tag = 1;
@@ -674,7 +674,7 @@ int main(int argc, char *argv[])
 		} else {
 			pseudo_hdr.source = l4_local_address;
 			memcpy
-				( &pseudo_hdr.dest, L3_DEST_ADDR, sizeof( pseudo_hdr.dest ));
+				( &pseudo_hdr.dest, glob_l3_dest_addr, sizeof( pseudo_hdr.dest ));
 			pseudo_hdr.zero = 0;
 			pseudo_hdr.protocol = 0x11;
 			pseudo_hdr.length = htons(packet_size-18-20);
@@ -691,7 +691,7 @@ int main(int argc, char *argv[])
 			l4_headers->hdr_cksum = 0;
 			l4_headers->src = l4_local_address;
 			memcpy
-				( &l4_headers->dest, L3_DEST_ADDR, sizeof( l4_headers->dest ));
+				( &l4_headers->dest, glob_l3_dest_addr, sizeof( l4_headers->dest ));
 			{
 				struct iovec iv0;
 				iv0.iov_base = l4_headers;
@@ -700,8 +700,8 @@ int main(int argc, char *argv[])
 					inet_checksum_sg( &iv0, 1 );
 			}
 
-			l4_headers->source_port = htons( L3_PORT );
-			l4_headers->dest_port = htons( L3_PORT );;
+			l4_headers->source_port = htons( glob_l3_port );
+			l4_headers->dest_port = htons( glob_l3_port );;
 			l4_headers->udp_length = htons(packet_size-18-20);
 
 			l4_headers->version_cc = 2;
@@ -731,7 +731,7 @@ int main(int argc, char *argv[])
 	 */
 	fprintf(stderr, "advertising stream ...\n");
 	if( transport == 2 ) {
-		err = mrp_advertise_stream(STREAM_ID, dest_addr,
+		err = mrp_advertise_stream(glob_stream_id, dest_addr,
 					domain_class_a_vid, PKT_SZ - 16,
 					L2_PACKET_IPG / 125000,
 					domain_class_a_priority, 3900);
@@ -741,7 +741,7 @@ int main(int argc, char *argv[])
 		 * not allowed, not sure the significance of the value 6, but
 		 * using it consistently
 		 */
-		err = mrp_advertise_stream(STREAM_ID, dest_addr,
+		err = mrp_advertise_stream(glob_stream_id, dest_addr,
 					domain_class_a_vid,
 					sizeof(*l4_headers) + L4_SAMPLES_PER_FRAME * CHANNELS * 2 + 6,
 					1,
@@ -753,7 +753,7 @@ int main(int argc, char *argv[])
 	}
 
 	fprintf(stderr, "awaiting a listener ...\n");
-	mrp_await_listener(STREAM_ID);
+	mrp_await_listener(glob_stream_id);
 	listeners = 1;
 	printf("got a listener ...\n");
 	halt_tx = 0;
@@ -902,11 +902,11 @@ int main(int argc, char *argv[])
 	
 	if( transport == 2 ) {
 		mrp_unadvertise_stream
-			(STREAM_ID, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
+			(glob_stream_id, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
 			 domain_class_a_priority, 3900);
 	} else {
 		mrp_unadvertise_stream
-			(STREAM_ID, dest_addr, domain_class_a_vid,
+			(glob_stream_id, dest_addr, domain_class_a_vid,
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1,
 			 domain_class_a_priority, 3900);
 	}

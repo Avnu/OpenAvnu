@@ -36,10 +36,10 @@
 
 device_t igb_dev;
 uint32_t payload_length;
-unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
-unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
+unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
-unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
+unsigned char glob_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
 
 uint64_t reverse_64(uint64_t val)
 {
@@ -80,8 +80,8 @@ int get_mac_addr(int8_t *iface)
 		close(lsock);
 		return -1;
 	}
-	memcpy(STATION_ADDR, if_request.ifr_hwaddr.sa_data,
-			sizeof(STATION_ADDR));
+	memcpy(glob_station_addr, if_request.ifr_hwaddr.sa_data,
+			sizeof(glob_station_addr));
 	close(lsock);
 
 	return 0;
@@ -169,8 +169,8 @@ int main(int argc, char *argv[])
 
 	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, packet_size - 22, 0);
 
-	memset(STREAM_ID, 0, sizeof(STREAM_ID));
-	memcpy(STREAM_ID, STATION_ADDR, sizeof(STATION_ADDR));
+	memset(glob_stream_id, 0, sizeof(glob_stream_id));
+	memcpy(glob_stream_id, glob_station_addr, sizeof(glob_station_addr));
 
 	a_packet.dmatime = a_packet.attime = a_packet.flags = 0;
 	a_packet.map.paddr = a_page.dma_paddr;
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
 	avb_set_61883_syt(h61883, 0xffff);
 
 	/* initilaze the source & destination mac address */
-	avb_eth_header_set_mac(stream_packet, DEST_ADDR, iface);
+	avb_eth_header_set_mac(stream_packet, glob_dest_addr, iface);
 
 	/* set 1772 eth type */
 	avb_1722_set_eth_type(stream_packet);
@@ -240,10 +240,10 @@ int main(int argc, char *argv[])
 	 * IPG is scaled to the Class (A) observation interval of packets per 125 usec
 	 */
 	fprintf(stderr, "advertising stream ...\n");
-	mrp_advertise_stream(STREAM_ID, DEST_ADDR, domain_class_a_vid, packet_size - 16,
+	mrp_advertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
 		PACKET_IPG / 125000, domain_class_a_priority, 3900);
 	fprintf(stderr, "awaiting a listener ...\n");
-	mrp_await_listener(STREAM_ID);
+	mrp_await_listener(glob_stream_id);
 #endif
 
 	memset(&sched, 0 , sizeof (sched));
@@ -312,7 +312,7 @@ cleanup:
 	halt_tx = 1;
 	sleep(1);
 #ifdef USE_MRPD
-	mrp_unadvertise_stream(STREAM_ID, DEST_ADDR, domain_class_a_vid, packet_size - 16,
+	mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
 			       PACKET_IPG / 125000, domain_class_a_priority, 3900);
 #endif
 	/* disable Qav */

@@ -67,7 +67,7 @@ static const char *version_str = "jack_listener v" VERSION_STR "\n"
     "Copyright (c) 2013, Katja Rohloff\n";
 
 pcap_t* handle;
-u_char ETHER_TYPE[] = { 0x22, 0xf0 };
+u_char glob_ether_type[] = { 0x22, 0xf0 };
 SNDFILE* snd_file;
 static jack_port_t** outputports;
 static jack_default_audio_sample_t** out;
@@ -135,7 +135,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 
 	eth_header = (struct ethernet_header*)(packet);
 
-	if (0 != memcmp(ETHER_TYPE,eth_header->type,sizeof(eth_header->type))) {
+	if (0 != memcmp(glob_ether_type, eth_header->type,sizeof(eth_header->type))) {
 		return;
 	}
 

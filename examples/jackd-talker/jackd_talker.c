@@ -134,10 +134,10 @@ struct igb_packet *tmp_packet;
 struct igb_packet *free_packets;
 static int shm_fd = -1;
 static char *memory_offset_buffer = NULL;
-unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
-unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
+unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
-unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
+unsigned char glob_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
 
 static inline uint64_t ST_rdtsc(void)
 {
@@ -254,8 +254,8 @@ int get_mac_address(char *interface)
 		close(lsock);
 		return -1;
 	}
-	memcpy(STATION_ADDR, if_request.ifr_hwaddr.sa_data,
-	       sizeof(STATION_ADDR));
+	memcpy(glob_station_addr, if_request.ifr_hwaddr.sa_data,
+	       sizeof(glob_station_addr));
 	close(lsock);
 	return 0;
 }
@@ -457,8 +457,8 @@ int main(int argc, char *argv[])
 	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, PKT_SZ - 22,
 				0);
 
-	memset(STREAM_ID, 0, sizeof(STREAM_ID));
-	memcpy(STREAM_ID, STATION_ADDR, sizeof(STATION_ADDR));
+	memset(glob_stream_id, 0, sizeof(glob_stream_id));
+	memcpy(glob_stream_id, glob_station_addr, sizeof(glob_station_addr));
 
 	a_packet.dmatime = a_packet.attime = a_packet.flags = 0;
 	a_packet.map.paddr = a_page.dma_paddr;
@@ -481,9 +481,9 @@ int main(int argc, char *argv[])
 		tmp_packet->vaddr += tmp_packet->offset;
 		tmp_packet->next = free_packets;
 		memset(tmp_packet->vaddr, 0, PKT_SZ);	/* MAC header at least */
-		memcpy(tmp_packet->vaddr, DEST_ADDR, sizeof(DEST_ADDR));
-		memcpy(tmp_packet->vaddr + 6, STATION_ADDR,
-		       sizeof(STATION_ADDR));
+		memcpy(tmp_packet->vaddr, glob_dest_addr, sizeof(glob_dest_addr));
+		memcpy(tmp_packet->vaddr + 6, glob_station_addr,
+		       sizeof(glob_station_addr));
 
 		/* Q-tag */
 		((char *)tmp_packet->vaddr)[12] = 0x81;
@@ -508,8 +508,8 @@ int main(int argc, char *argv[])
 		header0->reserved1 = 0;
 		header0->timestamp_uncertain = 0;
 		memset(&(header0->stream_id), 0, sizeof(header0->stream_id));
-		memcpy(&(header0->stream_id), STATION_ADDR,
-		       sizeof(STATION_ADDR));
+		memcpy(&(header0->stream_id), glob_station_addr,
+		       sizeof(glob_station_addr));
 		header0->length = htons(32);
 		header1 = (six1883_header *) (header0 + 1);
 		header1->format_tag = 1;
@@ -543,10 +543,10 @@ int main(int argc, char *argv[])
 	_jackclient = init_jack();
 
 	fprintf(stderr, "advertising stream ...\n");
-	mrp_advertise_stream(STREAM_ID, DEST_ADDR, domain_class_a_vid, PKT_SZ - 16,
+	mrp_advertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, PKT_SZ - 16,
 			     PACKET_IPG / 125000, domain_class_a_priority, 3900);
 	fprintf(stderr, "awaiting a listener ...\n");
-	mrp_await_listener(STREAM_ID);
+	mrp_await_listener(glob_stream_id);
 	printf("got a listener ...\n");
 	halt_tx = 0;
 
@@ -578,7 +578,7 @@ int main(int argc, char *argv[])
 		printf("listener left ...\n");
 	halt_tx = 1;
 
-	mrp_unadvertise_stream(STREAM_ID, DEST_ADDR, domain_class_a_vid, PKT_SZ - 16,
+	mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, PKT_SZ - 16,
 			       PACKET_IPG / 125000, domain_class_a_priority, 3900);
 
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */

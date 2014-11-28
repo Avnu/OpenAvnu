@@ -62,7 +62,7 @@ static const char *version_str = "simple_listener v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
 pcap_t* handle;
-u_char ETHER_TYPE[] = { 0x22, 0xf0 };
+u_char glob_ether_type[] = { 0x22, 0xf0 };
 SNDFILE* snd_file;
 
 static void help()
@@ -98,7 +98,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 	fprintf(stdout,"Ether Type: 0x%02x%02x\n", eth_header->type[0], eth_header->type[1]);
 #endif /* DEBUG*/
 
-	if (0 == memcmp(ETHER_TYPE,eth_header->type,sizeof(eth_header->type)))
+	if (0 == memcmp(glob_ether_type,eth_header->type,sizeof(eth_header->type)))
 	{		
 		test_stream_id = (unsigned char*)(packet + ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE);
 

@@ -34,7 +34,7 @@
 /* globals */
 
 device_t igb_dev;
-unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
+unsigned char glob_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
 
 void sigint_handler(int signum)
 {
@@ -125,7 +125,7 @@ int main (int argc, char *argv[ ])
 	mreq.mr_ifindex = ifindex;
 	mreq.mr_type = PACKET_MR_MULTICAST;
 	mreq.mr_alen = 6;
-	memcpy(mreq.mr_address, DEST_ADDR, mreq.mr_alen);
+	memcpy(mreq.mr_address, glob_dest_addr, mreq.mr_alen);
 	error = setsockopt(socket_descriptor, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
 	if (error < 0) {
 		fprintf(stderr, "Failed to add multi-cast addresses to port: %u\n", ifindex);
