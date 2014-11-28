@@ -31,9 +31,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <jack/ringbuffer.h>
 #include <sndfile.h>
 
+#include "listener_mrp_client.h"
+
 #define LIBSND 1
 
-#include "listener_mrp_client.h"
+#define VERSION_STR "1.0"
 
 #define ETHERNET_HEADER_SIZE 18
 #define SEVENTEEN22_HEADER_PART1_SIZE 4
@@ -41,14 +43,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SEVENTEEN22_HEADER_PART2_SIZE 10
 #define SIX1883_HEADER_SIZE 10
 #define HEADER_SIZE ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE + STREAM_ID_SIZE + SEVENTEEN22_HEADER_PART2_SIZE + SIX1883_HEADER_SIZE 
-
 #define SAMPLES_PER_SECOND 48000
 #define SAMPLES_PER_FRAME 6
 #define CHANNELS 2
 #define SAMPLE_SIZE 4
-
 #define DEFAULT_RINGBUFFER_SIZE 32768
-
 #define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
 
 struct ethernet_header{
@@ -71,7 +70,6 @@ jack_client_t* client;
 
 volatile int ready = 0;
 
-#define VERSION_STR	"1.0"
 static const char *version_str = "jack_listener v" VERSION_STR "\n"
     "Copyright (c) 2013, Katja Rohloff\n";
 

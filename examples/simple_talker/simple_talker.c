@@ -48,38 +48,35 @@
 #include "igb.h"
 #include "talker_mrp_client.h"
 
-typedef struct { 
+#define VERSION_STR "1.0"
+
+#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
+#define SHM_NAME  "/ptp"
+#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
+#define SRC_CHANNELS (2)
+#define GAIN (.5)
+#define L16_PAYLOAD_TYPE 96 /* for layer 4 transport - should be negotiated via RTSP */
+#define ID_B_HDR_EXT_ID 0 /* for layer 4 transport - should be negotiated via RTSP */
+#define L2_SAMPLES_PER_FRAME 6
+#define L4_SAMPLES_PER_FRAME 60
+#define L4_SAMPLE_SIZE 2
+#define CHANNELS 2
+#define RTP_SUBNS_SCALE_NUM 20000000
+#define RTP_SUBNS_SCALE_DEN  4656613
+#define IGB_BIND_NAMESZ 24
+#define XMIT_DELAY (200000000) /* us */
+#define RENDER_DELAY (XMIT_DELAY+2000000)	/* us */
+#define L2_PACKET_IPG (125000) /* (1) packet every 125 usec */
+#define L4_PACKET_IPG (1250000)	/* (1) packet every 1.25 millisec */
+#define PKT_SZ 100
+
+typedef struct {
   int64_t ml_phoffset;
   int64_t ls_phoffset;
   long double ml_freqoffset;
   long double ls_freqoffset;
   uint64_t local_time;
 } gPtpTimeData;
-
-
-#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
-#define SHM_NAME  "/ptp"
-
-#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
-
-#define SRC_CHANNELS (2)
-#define GAIN (.5)
-
-#define L16_PAYLOAD_TYPE 96 /* for layer 4 transport - should be negotiated via RTSP */
-#define ID_B_HDR_EXT_ID 0 /* for layer 4 transport - should be negotiated via RTSP */
-
-#define L2_SAMPLES_PER_FRAME 6
-#define L4_SAMPLES_PER_FRAME 60
-#define L4_SAMPLE_SIZE 2
-#define CHANNELS 2
-
-#define RTP_SUBNS_SCALE_NUM 20000000
-#define RTP_SUBNS_SCALE_DEN  4656613
-
-#define IGB_BIND_NAMESZ 24
-
-#define XMIT_DELAY (200000000)	/* us */
-#define RENDER_DELAY (XMIT_DELAY+2000000)	/* us */
 
 typedef enum { false = 0, true = 1 } bool;
 
@@ -167,7 +164,6 @@ typedef struct __attribute__ ((packed)) {
 /* global variables */
 device_t igb_dev;
 
-#define VERSION_STR	"1.0"
 static const char *version_str = "simple_talker v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
@@ -432,9 +428,6 @@ static void usage(void)
 	exit(1);
 }
 
-#define L2_PACKET_IPG	(125000)	/* (1) packet every 125 usec */
-#define L4_PACKET_IPG	(1250000)	/* (1) packet every 1.25 millisec */
-
 int main(int argc, char *argv[])
 {
 	unsigned i;
@@ -573,8 +566,6 @@ int main(int argc, char *argv[])
 	domain_class_a_vid = 2;
 	printf("detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
 	       domain_class_a_vid);
-
-#define PKT_SZ	100
 
 	err = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
 	if (err) {

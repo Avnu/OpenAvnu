@@ -27,6 +27,11 @@
 #include "avb.h"
 #include "talker_mrp_client.h"
 
+#define USE_MRPD 1
+
+#define STREAMID 0xABCDEF
+#define PACKET_IPG 125000 /* 1 packet every 125 usec */
+
 /* global variables */
 int g_start_feed_socket = 0;
 device_t igb_dev;
@@ -36,13 +41,6 @@ unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
 unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
-
-#define STREAMID	0xABCDEF
-
-/* (1) packet every 125 usec */
-#define PACKET_IPG		125000
-
-#define USE_MRPD 1
 
 uint64_t reverse_64(uint64_t val)
 {

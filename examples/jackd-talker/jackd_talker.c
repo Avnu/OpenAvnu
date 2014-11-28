@@ -53,6 +53,17 @@
 #include "jack.h"
 #include "defines.h"
 
+#define VERSION_STR "1.0"
+
+#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
+#define SHM_NAME  "/ptp"
+#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
+#define IGB_BIND_NAMESZ 24
+#define XMIT_DELAY (200000000) /* us */
+#define RENDER_DELAY (XMIT_DELAY+2000000) /* us */
+#define PACKET_IPG (125000) /* (1) packet every 125 usec */
+#define PKT_SZ 100
+
 typedef struct { 
   int64_t ml_phoffset;
   int64_t ls_phoffset;
@@ -60,17 +71,6 @@ typedef struct {
   long double ls_freqoffset;
   int64_t local_time;
 } gPtpTimeData;
-
-
-#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
-#define SHM_NAME  "/ptp"
-
-#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
-
-#define IGB_BIND_NAMESZ 24
-
-#define XMIT_DELAY (200000000)	/* us */
-#define RENDER_DELAY (XMIT_DELAY+2000000)	/* us */
 
 typedef enum { false = 0, true = 1 } bool;
 
@@ -132,8 +132,6 @@ six1883_header *header1;
 struct igb_packet *tmp_packet;
 struct igb_packet *free_packets;
 
-
-#define VERSION_STR	"1.0"
 static const char *version_str = "simple_talker v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
@@ -278,10 +276,6 @@ static void usage(void)
 		"\n" "%s" "\n", version_str);
 	exit(1);
 }
-
-#define PACKET_IPG	(125000)	/* (1) packet every 125 usec */
-
-
 
 static void* packetizer_thread(void *arg) {
 	struct igb_packet *cleaned_packets;
@@ -463,8 +457,6 @@ int main(int argc, char *argv[])
 	domain_class_a_vid = 2;
 	printf("detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
 	       domain_class_a_vid);
-
-#define PKT_SZ	100
 
 	mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
 	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, PKT_SZ - 22,
