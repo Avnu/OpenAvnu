@@ -55,14 +55,14 @@
 
 #define VERSION_STR "1.0"
 
-#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
+#define SHM_SIZE (4 * 8 + sizeof(pthread_mutex_t)) /* 3 - 64 bit and 2 - 32 bits */
 #define SHM_NAME  "/ptp"
-#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
-#define IGB_BIND_NAMESZ 24
+#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t) * 8) -1)) -1)
+#define IGB_BIND_NAMESZ (24)
 #define XMIT_DELAY (200000000) /* us */
 #define RENDER_DELAY (XMIT_DELAY+2000000) /* us */
 #define PACKET_IPG (125000) /* (1) packet every 125 usec */
-#define PKT_SZ 100
+#define PKT_SZ (100)
 
 typedef struct { 
   int64_t ml_phoffset;

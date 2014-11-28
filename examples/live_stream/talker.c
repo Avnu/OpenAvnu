@@ -29,8 +29,8 @@
 
 #define USE_MRPD 1
 
-#define STREAMID 0xABCDEF
-#define PACKET_IPG 125000 /* 1 packet every 125 usec */
+#define STREAMID (0xABCDEF)
+#define PACKET_IPG (125000) /* 1 packet every 125 usec */
 
 /* globals */
 

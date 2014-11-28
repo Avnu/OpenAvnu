@@ -50,25 +50,25 @@
 
 #define VERSION_STR "1.0"
 
-#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
+#define SHM_SIZE (4 * 8 + sizeof(pthread_mutex_t)) /* 3 - 64 bit and 2 - 32 bits */
 #define SHM_NAME  "/ptp"
-#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
+#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t) * 8) -1)) -1)
 #define SRC_CHANNELS (2)
-#define GAIN (.5)
-#define L16_PAYLOAD_TYPE 96 /* for layer 4 transport - should be negotiated via RTSP */
-#define ID_B_HDR_EXT_ID 0 /* for layer 4 transport - should be negotiated via RTSP */
-#define L2_SAMPLES_PER_FRAME 6
-#define L4_SAMPLES_PER_FRAME 60
-#define L4_SAMPLE_SIZE 2
-#define CHANNELS 2
-#define RTP_SUBNS_SCALE_NUM 20000000
-#define RTP_SUBNS_SCALE_DEN  4656613
-#define IGB_BIND_NAMESZ 24
+#define GAIN (0.5)
+#define L16_PAYLOAD_TYPE (96) /* for layer 4 transport - should be negotiated via RTSP */
+#define ID_B_HDR_EXT_ID (0) /* for layer 4 transport - should be negotiated via RTSP */
+#define L2_SAMPLES_PER_FRAME (6)
+#define L4_SAMPLES_PER_FRAME (60)
+#define L4_SAMPLE_SIZE (2)
+#define CHANNELS (2)
+#define RTP_SUBNS_SCALE_NUM (20000000)
+#define RTP_SUBNS_SCALE_DEN (4656613)
+#define IGB_BIND_NAMESZ (24)
 #define XMIT_DELAY (200000000) /* us */
 #define RENDER_DELAY (XMIT_DELAY+2000000)	/* us */
 #define L2_PACKET_IPG (125000) /* (1) packet every 125 usec */
 #define L4_PACKET_IPG (1250000)	/* (1) packet every 1.25 millisec */
-#define PKT_SZ 100
+#define PKT_SZ (100)
 
 typedef struct {
   int64_t ml_phoffset;
