@@ -68,6 +68,7 @@
 #define RENDER_DELAY (XMIT_DELAY+2000000)	/* us */
 #define L2_PACKET_IPG (125000) /* (1) packet every 125 usec */
 #define L4_PACKET_IPG (1250000)	/* (1) packet every 1.25 millisec */
+#define L4_PORT ((uint16_t)5004)
 #define PKT_SZ (100)
 
 typedef struct {
@@ -169,7 +170,6 @@ unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
 unsigned char glob_l2_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
 unsigned char glob_l3_dest_addr[] = { 224, 0, 0, 115 };
-uint16_t glob_l3_port = 5004;
 
 uint16_t inet_checksum(uint8_t *ip, int len){
     uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
@@ -540,7 +540,7 @@ int main(int argc, char *argv[])
 		memset( &local, 0, sizeof( local ));
 		local.sin_family = PF_INET;
 		local.sin_addr.s_addr = htonl( INADDR_ANY );
-		local.sin_port = htons( glob_l3_port );
+		local.sin_port = htons(L4_PORT);
 		l3_to_l2_multicast( dest_addr, glob_l3_dest_addr );
 		memset( &if_request, 0, sizeof( if_request ));
 		strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name)-1);
@@ -711,8 +711,8 @@ int main(int argc, char *argv[])
 					inet_checksum_sg( &iv0, 1 );
 			}
 
-			l4_headers->source_port = htons( glob_l3_port );
-			l4_headers->dest_port = htons( glob_l3_port );;
+			l4_headers->source_port = htons(L4_PORT);
+			l4_headers->dest_port = htons(L4_PORT);
 			l4_headers->udp_length = htons(packet_size-18-20);
 
 			l4_headers->version_cc = 2;
