@@ -164,7 +164,6 @@ typedef struct __attribute__ ((packed)) {
 static const char *version_str = "simple_talker v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
-static char *glob_memory_offset_buffer = NULL;
 unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
@@ -254,7 +253,7 @@ static inline uint64_t ST_rdtsc(void)
 	return ret;
 }
 
-int gptpinit(int *igb_shm_fd)
+int gptpinit(int *igb_shm_fd, char *igb_mmap)
 {
 	if (NULL == igb_shm_fd)
 		return -1;
@@ -264,12 +263,11 @@ int gptpinit(int *igb_shm_fd)
 		perror("shm_open()");
 		return -1;
 	}
-	glob_memory_offset_buffer =
-	    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-			 *igb_shm_fd, 0);
-	if (glob_memory_offset_buffer == (char *)-1) {
+	igb_mmap = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
+				MAP_SHARED, *igb_shm_fd, 0);
+	if (igb_mmap == (char *)-1) {
 		perror("mmap()");
-		glob_memory_offset_buffer = NULL;
+		igb_mmap = NULL;
 		shm_unlink(SHM_NAME);
 		return -1;
 	}
@@ -277,13 +275,14 @@ int gptpinit(int *igb_shm_fd)
 	return 0;
 }
 
-int gptpdeinit(int *igb_shm_fd)
+int gptpdeinit(int *igb_shm_fd, char *igb_mmap)
 {
 	if (NULL == igb_shm_fd)
 		return -1;
 
-	if (glob_memory_offset_buffer != NULL) {
-		munmap(glob_memory_offset_buffer, SHM_SIZE);
+	if (igb_mmap != NULL) {
+		munmap(igb_mmap, SHM_SIZE);
+		igb_mmap = NULL;
 	}
 	if (*igb_shm_fd != -1) {
 		close(*igb_shm_fd);
@@ -293,14 +292,14 @@ int gptpdeinit(int *igb_shm_fd)
 	return 0;
 }
 
-int gptpscaling(gPtpTimeData *td)
+int gptpscaling(char *igb_mmap, gPtpTimeData *td)
 {
 	if (NULL == td)
 		return -1;
 
-	pthread_mutex_lock((pthread_mutex_t *) glob_memory_offset_buffer);
-	memcpy(td, glob_memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
-	pthread_mutex_unlock((pthread_mutex_t *) glob_memory_offset_buffer);
+	pthread_mutex_lock((pthread_mutex_t *) igb_mmap);
+	memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
+	pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
 
 	fprintf( stderr, "local_time = %llu\n",
 			 td->local_time );
@@ -442,6 +441,7 @@ int main(int argc, char *argv[])
 	int err;
 	device_t igb_dev;
 	int igb_shm_fd = -1;
+	char *igb_mmap = NULL;
 	struct igb_dma_alloc a_page;
 	struct igb_packet a_packet;
 	struct igb_packet *tmp_packet;
@@ -769,11 +769,11 @@ int main(int argc, char *argv[])
 	printf("got a listener ...\n");
 	halt_tx = 0;
 
-	if(-1 == gptpinit(&igb_shm_fd)) {
+	if(-1 == gptpinit(&igb_shm_fd, igb_mmap)) {
 		return EXIT_FAILURE;
 	}
 
-	if (-1 == gptpscaling(&td)) {
+	if (-1 == gptpscaling(igb_mmap, &td)) {
 		return EXIT_FAILURE;
 	}
 
@@ -930,7 +930,7 @@ int main(int argc, char *argv[])
 	rc = mrp_disconnect();
 	
 	igb_dma_free_page(&igb_dev, &a_page);
-	rc = gptpdeinit(&igb_shm_fd);
+	rc = gptpdeinit(&igb_shm_fd, igb_mmap);
 	err = igb_detach(&igb_dev);
 	
 	pthread_exit(NULL);
