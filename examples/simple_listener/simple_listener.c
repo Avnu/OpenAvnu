@@ -75,7 +75,7 @@ static void help()
 		"    -i  specify interface for AVB connection\n"
 		"    -f  set the name of the output wav-file\n" 
 		"\n" "%s" "\n", version_str);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const u_char* packet)
@@ -226,13 +226,13 @@ int main(int argc, char *argv[])
 	if (0 == sf_format_check(sf_info))
 	{
 		fprintf(stderr, "Wrong format.");
-		return -1;
+		return EXIT_FAILURE;
 	}
 			
 	if (NULL == (glob_snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
 	{
 		fprintf(stderr, "Could not create file.");
-		return -1;
+		return EXIT_FAILURE;
 	}
 	fprintf(stdout,"Created file called %s\n", file_name);	
 #endif /* LIBSND */
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
 	if (NULL == glob_pcap_handle)
 	{
 		fprintf(stderr, "Could not open device %s: %s\n", dev, errbuf);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 #if DEBUG
@@ -254,13 +254,13 @@ int main(int argc, char *argv[])
 	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
 		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	if (-1 == pcap_setfilter(glob_pcap_handle, &comp_filter_exp))
 	{
 		fprintf(stderr, "Could not install filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 #if DEBUG
@@ -271,5 +271,5 @@ int main(int argc, char *argv[])
 	pcap_loop(glob_pcap_handle, -1, pcap_callback, NULL);
 #endif /* PCAP */
 
-	return 0;
+	return EXIT_SUCCESS;
 }

@@ -84,7 +84,7 @@ static void help()
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
 		"\n" "%s" "\n", version_str);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 void shutdown_all(int sig)
@@ -118,7 +118,7 @@ void shutdown_all(int sig)
 		jack_ringbuffer_free(ringbuffer);
 	}
 
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const u_char* packet)
@@ -229,7 +229,7 @@ jack_client_t* init_jack(void)
 	if (NULL == client) {
 		fprintf (stderr, "jack_client_open() failed\n ");
 		shutdown_all(0);
-		exit (1);
+		exit(EXIT_FAILURE);
 	}
 
 	if (status & JackServerStarted) {
@@ -258,14 +258,14 @@ jack_client_t* init_jack(void)
 		if (asprintf(&portName, "output%d", i) < 0) {
 			fprintf(stderr, "could not create portname for port %d\n", i);
 			shutdown_all(0);
-			exit(1);
+			exit(EXIT_FAILURE);
 		}	
 		
 		outputports[i] = jack_port_register (client, portName, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
 		if (NULL == outputports[i]) {
 			fprintf (stderr, "cannot register output port \"%d\"!\n", i);
 			shutdown_all(0);
-			exit (1);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -273,14 +273,14 @@ jack_client_t* init_jack(void)
 	if (jack_activate (client)) {
 		fprintf (stderr, "cannot activate client\n");		
 		shutdown_all(0);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	ports = jack_get_ports(client, NULL, NULL, JackPortIsPhysical|JackPortIsInput);
 	if(NULL == ports) { 
 		fprintf (stderr, "no physical playback ports\n");		
 		shutdown_all(0);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	int i = 0;
@@ -352,13 +352,13 @@ int main(int argc, char *argv[])
 	if (0 == sf_format_check(sf_info)) {
 		fprintf(stderr, "Wrong format.\n");
 		shutdown_all(0);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	if (NULL == (snd_file = sf_open(filename, SFM_WRITE, sf_info))) {
 		fprintf(stderr, "Could not create file %s.\n", filename);
 		shutdown_all(0);
-		return -1;
+		return EXIT_FAILURE;
 	}
 #endif /* LIBSND */
 
@@ -367,25 +367,26 @@ int main(int argc, char *argv[])
 	if (NULL == handle) {
 		fprintf(stderr, "Could not open device %s: %s.\n", dev, errbuf);
 		shutdown_all(0);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	/** compile and apply filter */
 	if (-1 == pcap_compile(handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN)) {
 		fprintf(stderr, "Could not parse filter %s: %s.\n", filter_exp, pcap_geterr(handle));
 		shutdown_all(0);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	if (-1 == pcap_setfilter(handle, &comp_filter_exp)) {
 		fprintf(stderr, "Could not install filter %s: %s.\n", filter_exp, pcap_geterr(handle));
 		shutdown_all(0);
-		return -1;
+		return EXIT_FAILURE;
 	}
 	
 	/** loop forever and call callback-function for every received packet */
 	pcap_loop(handle, -1, pcap_callback, NULL);
 
 	usleep(-1);
-	return 0;
+
+	return EXIT_SUCCESS;
 }

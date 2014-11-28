@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 
 	if (argc < 2) {
 		fprintf(stderr,"%s <if_name> <payload>\n", argv[0]);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	iface = (int8_t *)strdup(argv[1]);
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 	err = get_mac_addr(iface);
 	if (err) {
 		fprintf(stderr, "failed to open iface(%s)\n",iface);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 #ifdef USE_MRPD
@@ -326,5 +326,5 @@ cleanup:
 
 	pthread_exit(NULL);
 
-	return 0;
+	return EXIT_SUCCESS;
 }

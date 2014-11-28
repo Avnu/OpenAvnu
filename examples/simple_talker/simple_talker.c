@@ -426,7 +426,7 @@ static void usage(void)
 		"    -i  specify interface for AVB connection\n"
 		"    -t  transport equal to 2 for 1722 or 3 for RTP\n"
 		"\n" "%s" "\n", version_str);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[])
@@ -571,7 +571,7 @@ int main(int argc, char *argv[])
 	err = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
 	if (err) {
 		printf("mrp_register_domain failed\n");
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	mrp_join_vlan();
@@ -751,7 +751,7 @@ int main(int argc, char *argv[])
 	}
 	if (err) {
 		printf("mrp_advertise_stream failed\n");
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	fprintf(stderr, "awaiting a listener ...\n");
@@ -761,16 +761,16 @@ int main(int argc, char *argv[])
 	halt_tx = 0;
 
 	if(-1 == gptpinit()) {
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	if (-1 == gptpscaling(&td)) {
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	if( igb_get_wallclock( &glob_igb_dev, &now_local, NULL ) > 0 ) {
 	  fprintf( stderr, "Failed to get wallclock time\n" );
-	  return -1;
+	  return EXIT_FAILURE;
 	}
 	update_8021as = td.local_time - td.ml_phoffset;
 	delta_local = (unsigned)(now_local - td.local_time);
@@ -926,5 +926,5 @@ int main(int argc, char *argv[])
 	
 	pthread_exit(NULL);
 	
-	return 0;
+	return EXIT_SUCCESS;
 }

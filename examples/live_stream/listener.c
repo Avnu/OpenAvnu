@@ -47,10 +47,10 @@ void sigint_handler(int signum)
 	{
 		close(control_socket);
 	}
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
-int main (int argc, char *argv[ ])
+int main(int argc, char *argv[ ])
 {
 	struct ifreq device;
 	int error;
@@ -67,7 +67,7 @@ int main (int argc, char *argv[ ])
 
 	if (argc < 2) {
 		fprintf(stderr, "Usage : %s <interface_name> <payload>\n",argv[0]);
-		return -EINVAL;
+		return EINVAL;
 	}
 	signal(SIGINT, sigint_handler);
 
@@ -99,7 +99,7 @@ int main (int argc, char *argv[ ])
 	socket_descriptor = socket(AF_PACKET, SOCK_RAW, htons(ETHER_TYPE_AVTP));
 	if (socket_descriptor < 0) {
 		fprintf(stderr, "failed to open socket: %s \n", strerror(errno));
-		return -EINVAL;
+		return EINVAL;
 	}
 
 	memset(&device, 0, sizeof(device));
@@ -107,7 +107,7 @@ int main (int argc, char *argv[ ])
 	error = ioctl(socket_descriptor, SIOCGIFINDEX, &device);
 	if (error < 0) {
 		fprintf(stderr, "Failed to get index of iface %s: %s\n", iface, strerror(errno));
-		return -EINVAL;
+		return EINVAL;
 	}
 
 	ifindex = device.ifr_ifindex;
@@ -118,7 +118,7 @@ int main (int argc, char *argv[ ])
 	error = bind(socket_descriptor, (struct sockaddr *) & ifsock_addr, sizeof(ifsock_addr));
 	if (error < 0) {
 		fprintf(stderr, "Failed to bind: %s\n", strerror(errno));
-		return -EINVAL;
+		return EINVAL;
 	}
 
 	memset(&mreq, 0, sizeof(mreq));
@@ -129,7 +129,7 @@ int main (int argc, char *argv[ ])
 	error = setsockopt(socket_descriptor, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
 	if (error < 0) {
 		fprintf(stderr, "Failed to add multi-cast addresses to port: %u\n", ifindex);
-		return -EINVAL;
+		return EINVAL;
 	}
 
 	size = sizeof(ifsock_addr);
@@ -159,7 +159,7 @@ int main (int argc, char *argv[ ])
 	usleep(100);
 	close(socket_descriptor);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 

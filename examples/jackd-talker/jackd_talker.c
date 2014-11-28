@@ -271,7 +271,7 @@ static void usage(void)
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
 		"\n" "%s" "\n", version_str);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 static void* packetizer_thread(void *arg) {
@@ -553,16 +553,16 @@ int main(int argc, char *argv[])
 	halt_tx = 0;
 
 	if(-1 == gptpinit()) {
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	if (-1 == gptpscaling(&td)) {
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	if( igb_get_wallclock( &glob_igb_dev, &now_local, NULL ) != 0 ) {
 	  fprintf( stderr, "Failed to get wallclock time\n" );
-	  return -1;
+	  return EXIT_FAILURE;
 	}
 	update_8021as = td.local_time - td.ml_phoffset;
 	delta_local = (unsigned)(now_local - td.local_time);
@@ -598,5 +598,5 @@ int main(int argc, char *argv[])
 
 	pthread_exit(NULL);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
