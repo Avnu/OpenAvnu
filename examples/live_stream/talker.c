@@ -34,7 +34,6 @@
 
 /* globals */
 
-device_t glob_igb_dev;
 uint32_t glob_payload_length;
 unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -89,6 +88,7 @@ int get_mac_addr(int8_t *iface)
 
 int main(int argc, char *argv[])
 {
+	device_t igb_dev;
 	struct igb_dma_alloc a_page;
 	struct igb_packet a_packet;
 	struct igb_packet *tmp_packet;
@@ -125,19 +125,19 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	err = pci_connect(&glob_igb_dev);
+	err = pci_connect(&igb_dev);
 	if (err) {
 		fprintf(stderr, "connect failed (%s) - are you running as root?\n", strerror(errno));
 		return errno;
 	}
 
-	err = igb_init(&glob_igb_dev);
+	err = igb_init(&igb_dev);
 	if (err) {
 		fprintf(stderr, "init failed (%s) - is the driver really loaded?\n", strerror(errno));
 		return errno;
 	}
 
-	err = igb_dma_malloc_page(&glob_igb_dev, &a_page);
+	err = igb_dma_malloc_page(&igb_dev, &a_page);
 	if (err) {
 		fprintf(stderr, "malloc failed (%s) - out of memory?\n", strerror(errno));
 		return errno;
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority, domain_class_a_vid);
 #endif
 
-	igb_set_class_bandwidth(&glob_igb_dev, PACKET_IPG / 125000, 0, packet_size - 22, 0);
+	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, packet_size - 22, 0);
 
 	memset(glob_stream_id, 0, sizeof(glob_stream_id));
 	memcpy(glob_stream_id, glob_station_addr, sizeof(glob_station_addr));
@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
 		h61883 = (six1883_header *)((uint8_t*)stream_packet + sizeof(eth_header) + sizeof(seventeen22_header));
 		avb_set_61883_data_block_continuity(h61883 , samples_count);
 
-		err = igb_xmit(&glob_igb_dev, 0, tmp_packet);
+		err = igb_xmit(&igb_dev, 0, tmp_packet);
 		if (!err) {
 			fprintf(stderr,"frame sequence = %lld\n", frame_sequence++);
 			continue;
@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
 			free_packets = tmp_packet;
 		}
 cleanup:
-		igb_clean(&glob_igb_dev, &cleaned_packets);
+		igb_clean(&igb_dev, &cleaned_packets);
 		while (cleaned_packets) {
 			tmp_packet = cleaned_packets;
 			cleaned_packets = cleaned_packets->next;
@@ -316,13 +316,13 @@ cleanup:
 			       PACKET_IPG / 125000, domain_class_a_priority, 3900);
 #endif
 	/* disable Qav */
-	igb_set_class_bandwidth(&glob_igb_dev, 0, 0, 0, 0);
+	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);
 #ifdef USE_MRPD
 	err = mrp_disconnect();
 #endif
-	igb_dma_free_page(&glob_igb_dev, &a_page);
+	igb_dma_free_page(&igb_dev, &a_page);
 
-	err = igb_detach(&glob_igb_dev);
+	err = igb_detach(&igb_dev);
 
 	pthread_exit(NULL);
 
