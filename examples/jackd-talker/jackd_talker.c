@@ -130,7 +130,6 @@ seventeen22_header *glob_header1722;
 six1883_header *glob_header61883;
 struct igb_packet *glob_tmp_packet;
 struct igb_packet *glob_free_packets;
-static int glob_shm_fd = -1;
 static char *glob_mem_offset_buf = NULL;
 unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -148,16 +147,19 @@ static inline uint64_t ST_rdtsc(void)
 	return ret;
 }
 
-int gptpinit(void)
+int gptpinit(int *igb_shm_fd)
 {
-	glob_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	if (glob_shm_fd == -1) {
+	if (NULL == igb_shm_fd)
+		return -1;
+
+	*igb_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
+	if (*igb_shm_fd == -1) {
 		perror("shm_open()");
 		return -1;
 	}
 	glob_mem_offset_buf =
 	    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-			 glob_shm_fd, 0);
+			 *igb_shm_fd, 0);
 	if (glob_mem_offset_buf == (char *)-1) {
 		perror("mmap()");
 		glob_mem_offset_buf = NULL;
@@ -168,14 +170,20 @@ int gptpinit(void)
 	return 0;
 }
 
-void gptpdeinit(void)
+int gptpdeinit(int *igb_shm_fd)
 {
+	if (NULL == igb_shm_fd)
+		return -1;
+
 	if (glob_mem_offset_buf != NULL) {
 		munmap(glob_mem_offset_buf, SHM_SIZE);
 	}
-	if (glob_shm_fd != -1) {
-		close(glob_shm_fd);
+	if (*igb_shm_fd != -1) {
+		close(*igb_shm_fd);
+		*igb_shm_fd = -1;
 	}
+
+	return 0;
 }
 
 int gptpscaling(gPtpTimeData *td)
@@ -378,6 +386,7 @@ int main(int argc, char *argv[])
 {
 	unsigned i;
 	int err;
+	int igb_shm_fd = -1;
 	struct igb_dma_alloc a_page;
 	struct igb_packet a_packet;
 	int c;
@@ -552,7 +561,7 @@ int main(int argc, char *argv[])
 	printf("got a listener ...\n");
 	halt_tx = 0;
 
-	if(-1 == gptpinit()) {
+	if(-1 == gptpinit(&igb_shm_fd)) {
 		return EXIT_FAILURE;
 	}
 
@@ -593,7 +602,7 @@ int main(int argc, char *argv[])
 	rc = mrp_disconnect();
 
 	igb_dma_free_page(&glob_igb_dev, &a_page);
-
+	rc = gptpdeinit(&igb_shm_fd);
 	err = igb_detach(&glob_igb_dev);
 
 	pthread_exit(NULL);
