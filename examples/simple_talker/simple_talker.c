@@ -166,9 +166,9 @@ typedef struct __attribute__ ((packed)) {
 static const char *version_str = "simple_talker v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
-device_t igb_dev;
-static int shm_fd = -1;
-static char *memory_offset_buffer = NULL;
+device_t glob_igb_dev;
+static int glob_shm_fd = -1;
+static char *glob_memory_offset_buffer = NULL;
 unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
@@ -260,17 +260,17 @@ static inline uint64_t ST_rdtsc(void)
 
 int gptpinit(void)
 {
-	shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	if (shm_fd == -1) {
+	glob_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
+	if (glob_shm_fd == -1) {
 		perror("shm_open()");
 		return false;
 	}
-	memory_offset_buffer =
+	glob_memory_offset_buffer =
 	    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-			 shm_fd, 0);
-	if (memory_offset_buffer == (char *)-1) {
+			 glob_shm_fd, 0);
+	if (glob_memory_offset_buffer == (char *)-1) {
 		perror("mmap()");
-		memory_offset_buffer = NULL;
+		glob_memory_offset_buffer = NULL;
 		shm_unlink(SHM_NAME);
 		return false;
 	}
@@ -279,19 +279,19 @@ int gptpinit(void)
 
 void gptpdeinit(void)
 {
-	if (memory_offset_buffer != NULL) {
-		munmap(memory_offset_buffer, SHM_SIZE);
+	if (glob_memory_offset_buffer != NULL) {
+		munmap(glob_memory_offset_buffer, SHM_SIZE);
 	}
-	if (shm_fd != -1) {
-		close(shm_fd);
+	if (glob_shm_fd != -1) {
+		close(glob_shm_fd);
 	}
 }
 
 int gptpscaling(gPtpTimeData * td)
 {
-	pthread_mutex_lock((pthread_mutex_t *) memory_offset_buffer);
-	memcpy(td, memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
-	pthread_mutex_unlock((pthread_mutex_t *) memory_offset_buffer);
+	pthread_mutex_lock((pthread_mutex_t *) glob_memory_offset_buffer);
+	memcpy(td, glob_memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
+	pthread_mutex_unlock((pthread_mutex_t *) glob_memory_offset_buffer);
 
 	fprintf( stderr, "local_time = %llu\n",
 			 td->local_time );
@@ -348,28 +348,28 @@ int pci_connect()
 	struct pci_dev *dev;
 	int err;
 	char devpath[IGB_BIND_NAMESZ];
-	memset(&igb_dev, 0, sizeof(device_t));
+	memset(&glob_igb_dev, 0, sizeof(device_t));
 	pacc = pci_alloc();
 	pci_init(pacc);
 	pci_scan_bus(pacc);
 	for (dev = pacc->devices; dev; dev = dev->next) {
 		pci_fill_info(dev,
 			      PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
-		igb_dev.pci_vendor_id = dev->vendor_id;
-		igb_dev.pci_device_id = dev->device_id;
-		igb_dev.domain = dev->domain;
-		igb_dev.bus = dev->bus;
-		igb_dev.dev = dev->dev;
-		igb_dev.func = dev->func;
+		glob_igb_dev.pci_vendor_id = dev->vendor_id;
+		glob_igb_dev.pci_device_id = dev->device_id;
+		glob_igb_dev.domain = dev->domain;
+		glob_igb_dev.bus = dev->bus;
+		glob_igb_dev.dev = dev->dev;
+		glob_igb_dev.func = dev->func;
 		snprintf(devpath, IGB_BIND_NAMESZ, "%04x:%02x:%02x.%d",
 			 dev->domain, dev->bus, dev->dev, dev->func);
-		err = igb_probe(&igb_dev);
+		err = igb_probe(&glob_igb_dev);
 		if (err) {
 			continue;
 		}
 		printf("attaching to %s\n", devpath);
-		err = igb_attach(devpath, &igb_dev);
-		if ( err || igb_attach_tx( &igb_dev )) {
+		err = igb_attach(devpath, &glob_igb_dev);
+		if ( err || igb_attach_tx( &glob_igb_dev )) {
 			printf("attach failed! (%s)\n", strerror(errno));
 			continue;
 		}
@@ -505,13 +505,13 @@ int main(int argc, char *argv[])
 		       strerror(errno));
 		return errno;
 	}
-	err = igb_init(&igb_dev);
+	err = igb_init(&glob_igb_dev);
 	if (err) {
 		printf("init failed (%s) - is the driver really loaded?\n",
 		       strerror(errno));
 		return errno;
 	}
-	err = igb_dma_malloc_page(&igb_dev, &a_page);
+	err = igb_dma_malloc_page(&glob_igb_dev, &a_page);
 	if (err) {
 		printf("malloc failed (%s) - out of memory?\n",
 		       strerror(errno));
@@ -576,10 +576,10 @@ int main(int argc, char *argv[])
 
 	if( transport == 2 ) {
 		igb_set_class_bandwidth
-			(&igb_dev, 125000/L2_PACKET_IPG, 0, PKT_SZ - 22, 0);
+			(&glob_igb_dev, 125000/L2_PACKET_IPG, 0, PKT_SZ - 22, 0);
 	} else {
 		igb_set_class_bandwidth
-			(&igb_dev, 1, 0,
+			(&glob_igb_dev, 1, 0,
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2, 0);
 	}
 
@@ -763,7 +763,7 @@ int main(int argc, char *argv[])
 	}
 	gptpscaling(&td);
 
-	if( igb_get_wallclock( &igb_dev, &now_local, NULL ) > 0 ) {
+	if( igb_get_wallclock( &glob_igb_dev, &now_local, NULL ) > 0 ) {
 	  fprintf( stderr, "Failed to get wallclock time\n" );
 	  return -1;
 	}
@@ -870,7 +870,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		err = igb_xmit(&igb_dev, 0, tmp_packet);
+		err = igb_xmit(&glob_igb_dev, 0, tmp_packet);
 
 		if (!err) {
 			continue;
@@ -884,7 +884,7 @@ int main(int argc, char *argv[])
 		}
 		
 	cleanup:	
-		igb_clean(&igb_dev, &cleaned_packets);
+		igb_clean(&glob_igb_dev, &cleaned_packets);
 		i = 0;
 		while (cleaned_packets) {
 			i++;
@@ -911,13 +911,13 @@ int main(int argc, char *argv[])
 			 domain_class_a_priority, 3900);
 	}
 	
-	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */
+	igb_set_class_bandwidth(&glob_igb_dev, 0, 0, 0, 0);	/* disable Qav */
 	
 	rc = mrp_disconnect();
 	
-	igb_dma_free_page(&igb_dev, &a_page);
+	igb_dma_free_page(&glob_igb_dev, &a_page);
 	
-	err = igb_detach(&igb_dev);
+	err = igb_detach(&glob_igb_dev);
 	
 	pthread_exit(NULL);
 	

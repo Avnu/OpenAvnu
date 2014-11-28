@@ -34,8 +34,8 @@
 
 /* globals */
 
-device_t igb_dev;
-uint32_t payload_length;
+device_t glob_igb_dev;
+uint32_t glob_payload_length;
 unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
 
 	iface = (int8_t *)strdup(argv[1]);
 	packet_size = atoi(argv[2]);;
-	payload_length = atoi(argv[2]);;
+	glob_payload_length = atoi(argv[2]);;
 	packet_size += sizeof(six1883_header) + sizeof(seventeen22_header) + sizeof(eth_header);
 
 #ifdef USE_MRPD
@@ -125,19 +125,19 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	err = pci_connect(&igb_dev);
+	err = pci_connect(&glob_igb_dev);
 	if (err) {
 		fprintf(stderr, "connect failed (%s) - are you running as root?\n", strerror(errno));
 		return errno;
 	}
 
-	err = igb_init(&igb_dev);
+	err = igb_init(&glob_igb_dev);
 	if (err) {
 		fprintf(stderr, "init failed (%s) - is the driver really loaded?\n", strerror(errno));
 		return errno;
 	}
 
-	err = igb_dma_malloc_page(&igb_dev, &a_page);
+	err = igb_dma_malloc_page(&glob_igb_dev, &a_page);
 	if (err) {
 		fprintf(stderr, "malloc failed (%s) - out of memory?\n", strerror(errno));
 		return errno;
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority, domain_class_a_vid);
 #endif
 
-	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, packet_size - 22, 0);
+	igb_set_class_bandwidth(&glob_igb_dev, PACKET_IPG / 125000, 0, packet_size - 22, 0);
 
 	memset(glob_stream_id, 0, sizeof(glob_stream_id));
 	memcpy(glob_stream_id, glob_station_addr, sizeof(glob_station_addr));
@@ -181,9 +181,9 @@ int main(int argc, char *argv[])
 	free_packets = NULL;
 	seq_number = 0;
 
-	frame_size = payload_length + sizeof(six1883_header) + sizeof(seventeen22_header) + sizeof(eth_header);
+	frame_size = glob_payload_length + sizeof(six1883_header) + sizeof(seventeen22_header) + sizeof(eth_header);
 
-	stream_packet = avb_create_packet(payload_length);
+	stream_packet = avb_create_packet(glob_payload_length);
 
 	h1722 = (seventeen22_header *)((uint8_t*)stream_packet + sizeof(eth_header));
 	h61883 = (six1883_header *)((uint8_t*)stream_packet + sizeof(eth_header) +
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
 	/*initalize h1722 header */
 	avb_initialize_h1722_to_defaults(h1722);
 	/* set the length */
-	avb_set_1722_length(h1722, htons(payload_length + sizeof(six1883_header)));
+	avb_set_1722_length(h1722, htons(glob_payload_length + sizeof(six1883_header)));
 	avb_set_1722_stream_id(h1722,reverse_64(STREAMID));
 	avb_set_1722_sid_valid(h1722, 0x1);
 
@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
 		data_ptr = (uint8_t *)((uint8_t*)stream_packet + sizeof(eth_header) + sizeof(seventeen22_header) 
 					+ sizeof(six1883_header));
 		
-		read_bytes = read(0, (void *)data_ptr, payload_length);
+		read_bytes = read(0, (void *)data_ptr, glob_payload_length);
 		/* Error case while reading the input file */
 		if (read_bytes < 0) {
 			fprintf(stderr,"Failed to read from STDIN %s\n", argv[2]);
@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
 		h61883 = (six1883_header *)((uint8_t*)stream_packet + sizeof(eth_header) + sizeof(seventeen22_header));
 		avb_set_61883_data_block_continuity(h61883 , samples_count);
 
-		err = igb_xmit(&igb_dev, 0, tmp_packet);
+		err = igb_xmit(&glob_igb_dev, 0, tmp_packet);
 		if (!err) {
 			fprintf(stderr,"frame sequence = %lld\n", frame_sequence++);
 			continue;
@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
 			free_packets = tmp_packet;
 		}
 cleanup:
-		igb_clean(&igb_dev, &cleaned_packets);
+		igb_clean(&glob_igb_dev, &cleaned_packets);
 		while (cleaned_packets) {
 			tmp_packet = cleaned_packets;
 			cleaned_packets = cleaned_packets->next;
@@ -316,13 +316,13 @@ cleanup:
 			       PACKET_IPG / 125000, domain_class_a_priority, 3900);
 #endif
 	/* disable Qav */
-	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);
+	igb_set_class_bandwidth(&glob_igb_dev, 0, 0, 0, 0);
 #ifdef USE_MRPD
 	err = mrp_disconnect();
 #endif
-	igb_dma_free_page(&igb_dev, &a_page);
+	igb_dma_free_page(&glob_igb_dev, &a_page);
 
-	err = igb_detach(&igb_dev);
+	err = igb_detach(&glob_igb_dev);
 
 	pthread_exit(NULL);
 

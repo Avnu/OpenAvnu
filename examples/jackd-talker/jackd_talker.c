@@ -122,18 +122,18 @@ typedef struct {
 static const char *version_str = "simple_talker v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
-device_t igb_dev;
-volatile int unleash_jack = 0;
-pthread_t packetizer_id;
-u_int64_t last_time;
-int seqnum;
-uint32_t time_stamp;
-seventeen22_header *header0;
-six1883_header *header1;
-struct igb_packet *tmp_packet;
-struct igb_packet *free_packets;
-static int shm_fd = -1;
-static char *memory_offset_buffer = NULL;
+device_t glob_igb_dev;
+volatile int glob_unleash_jack = 0;
+pthread_t glob_packetizer_id;
+u_int64_t glob_last_time;
+int glob_seqnum;
+uint32_t glob_time_stamp;
+seventeen22_header *glob_header1722;
+six1883_header *glob_header61883;
+struct igb_packet *glob_tmp_packet;
+struct igb_packet *glob_free_packets;
+static int glob_shm_fd = -1;
+static char *glob_mem_offset_buf = NULL;
 unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
@@ -152,17 +152,17 @@ static inline uint64_t ST_rdtsc(void)
 
 int gptpinit(void)
 {
-	shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	if (shm_fd == -1) {
+	glob_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
+	if (glob_shm_fd == -1) {
 		perror("shm_open()");
 		return false;
 	}
-	memory_offset_buffer =
+	glob_mem_offset_buf =
 	    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-			 shm_fd, 0);
-	if (memory_offset_buffer == (char *)-1) {
+			 glob_shm_fd, 0);
+	if (glob_mem_offset_buf == (char *)-1) {
 		perror("mmap()");
-		memory_offset_buffer = NULL;
+		glob_mem_offset_buf = NULL;
 		shm_unlink(SHM_NAME);
 		return false;
 	}
@@ -171,19 +171,19 @@ int gptpinit(void)
 
 void gptpdeinit(void)
 {
-	if (memory_offset_buffer != NULL) {
-		munmap(memory_offset_buffer, SHM_SIZE);
+	if (glob_mem_offset_buf != NULL) {
+		munmap(glob_mem_offset_buf, SHM_SIZE);
 	}
-	if (shm_fd != -1) {
-		close(shm_fd);
+	if (glob_shm_fd != -1) {
+		close(glob_shm_fd);
 	}
 }
 
 int gptpscaling(gPtpTimeData * td)
 {
-	pthread_mutex_lock((pthread_mutex_t *) memory_offset_buffer);
-	memcpy(td, memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
-	pthread_mutex_unlock((pthread_mutex_t *) memory_offset_buffer);
+	pthread_mutex_lock((pthread_mutex_t *) glob_mem_offset_buf);
+	memcpy(td, glob_mem_offset_buf + sizeof(pthread_mutex_t), sizeof(*td));
+	pthread_mutex_unlock((pthread_mutex_t *) glob_mem_offset_buf);
 
 	fprintf(stderr, "ml_phoffset = %lld, ls_phoffset = %lld\n",
 		td->ml_phoffset, td->ls_phoffset);
@@ -197,7 +197,7 @@ void sigint_handler(int signum)
 {
 	printf("got SIGINT\n");
 	halt_tx = signum;
-	unleash_jack = 0;
+	glob_unleash_jack = 0;
 }
 
 int pci_connect()
@@ -206,27 +206,27 @@ int pci_connect()
 	struct pci_dev *dev;
 	int err;
 	char devpath[IGB_BIND_NAMESZ];
-	memset(&igb_dev, 0, sizeof(device_t));
+	memset(&glob_igb_dev, 0, sizeof(device_t));
 	pacc = pci_alloc();
 	pci_init(pacc);
 	pci_scan_bus(pacc);
 	for (dev = pacc->devices; dev; dev = dev->next) {
 		pci_fill_info(dev,
 			      PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
-		igb_dev.pci_vendor_id = dev->vendor_id;
-		igb_dev.pci_device_id = dev->device_id;
-		igb_dev.domain = dev->domain;
-		igb_dev.bus = dev->bus;
-		igb_dev.dev = dev->dev;
-		igb_dev.func = dev->func;
+		glob_igb_dev.pci_vendor_id = dev->vendor_id;
+		glob_igb_dev.pci_device_id = dev->device_id;
+		glob_igb_dev.domain = dev->domain;
+		glob_igb_dev.bus = dev->bus;
+		glob_igb_dev.dev = dev->dev;
+		glob_igb_dev.func = dev->func;
 		snprintf(devpath, IGB_BIND_NAMESZ, "%04x:%02x:%02x.%d",
 			 dev->domain, dev->bus, dev->dev, dev->func);
-		err = igb_probe(&igb_dev);
+		err = igb_probe(&glob_igb_dev);
 		if (err) {
 			continue;
 		}
 		printf("attaching to %s\n", devpath);
-		err = igb_attach(devpath, &igb_dev);
+		err = igb_attach(devpath, &glob_igb_dev);
 		if (err) {
 			printf("attach failed! (%s)\n", strerror(errno));
 			continue;
@@ -295,38 +295,38 @@ static void* packetizer_thread(void *arg) {
 
 		while ((jack_ringbuffer_read_space(ringbuffer) >= bytes_to_read)) {
 
-			tmp_packet = free_packets;
-			if (NULL == tmp_packet)
+			glob_tmp_packet = glob_free_packets;
+			if (NULL == glob_tmp_packet)
 				goto cleanup;
-			header0 =
-				(seventeen22_header *) (((char *)tmp_packet->vaddr) + 18);
-			header1 = (six1883_header *) (header0 + 1);
-			free_packets = tmp_packet->next;
+			glob_header1722 =
+				(seventeen22_header *) (((char *)glob_tmp_packet->vaddr) + 18);
+			glob_header61883 = (six1883_header *) (glob_header1722 + 1);
+			glob_free_packets = glob_tmp_packet->next;
 
 			/* unfortuntely unless this thread is at rtprio
 			 * you get pre-empted between fetching the time
 			 * and programming the packet and get a late packet
 			 */
-			tmp_packet->attime = last_time + PACKET_IPG;
-			last_time += PACKET_IPG;
+			glob_tmp_packet->attime = glob_last_time + PACKET_IPG;
+			glob_last_time += PACKET_IPG;
 
 			jack_ringbuffer_read (ringbuffer, (char*)&framebuf[0], bytes_to_read);
 
-			header0->seq_number = seqnum++;
-			if (seqnum % 4 == 0)
-				header0->timestamp_valid = 0;
+			glob_header1722->seq_number = glob_seqnum++;
+			if (glob_seqnum % 4 == 0)
+				glob_header1722->timestamp_valid = 0;
 
 			else
-				header0->timestamp_valid = 1;
+				glob_header1722->timestamp_valid = 1;
 
-			time_stamp = htonl(time_stamp);
-			header0->timestamp = time_stamp;
-			time_stamp = ntohl(time_stamp);
-			time_stamp += PACKET_IPG;
-			header1->data_block_continuity = total_samples;
+			glob_time_stamp = htonl(glob_time_stamp);
+			glob_header1722->timestamp = glob_time_stamp;
+			glob_time_stamp = ntohl(glob_time_stamp);
+			glob_time_stamp += PACKET_IPG;
+			glob_header61883->data_block_continuity = total_samples;
 			total_samples += SAMPLES_PER_FRAME*CHANNELS;
 			sample =
-				(six1883_sample *) (((char *)tmp_packet->vaddr) +
+				(six1883_sample *) (((char *)glob_tmp_packet->vaddr) +
 						(18 + sizeof(seventeen22_header) +
 						 sizeof(six1883_header)));
 
@@ -337,7 +337,7 @@ static void* packetizer_thread(void *arg) {
 						sizeof(sample[i].value));
 			}
 
-			err = igb_xmit(&igb_dev, 0, tmp_packet);
+			err = igb_xmit(&glob_igb_dev, 0, glob_tmp_packet);
 
 			if (!err) {
 				continue;
@@ -346,18 +346,18 @@ static void* packetizer_thread(void *arg) {
 			if (ENOSPC == err) {
 
 				/* put back for now */
-				tmp_packet->next = free_packets;
-				free_packets = tmp_packet;
+				glob_tmp_packet->next = glob_free_packets;
+				glob_free_packets = glob_tmp_packet;
 			}
 
-cleanup:		igb_clean(&igb_dev, &cleaned_packets);
+cleanup:		igb_clean(&glob_igb_dev, &cleaned_packets);
 			i = 0;
 			while (cleaned_packets) {
 			    i++;
-			    tmp_packet = cleaned_packets;
+			    glob_tmp_packet = cleaned_packets;
 			    cleaned_packets = cleaned_packets->next;
-			    tmp_packet->next = free_packets;
-			    free_packets = tmp_packet;
+			    glob_tmp_packet->next = glob_free_packets;
+			    glob_free_packets = glob_tmp_packet;
 			}
 		}
 	}
@@ -367,9 +367,9 @@ cleanup:		igb_clean(&igb_dev, &cleaned_packets);
 
 static void run_packetizer(void)
 {
-	jack_acquire_real_time_scheduling(packetizer_id, 70);
-	unleash_jack = 1;
-	pthread_join (packetizer_id, NULL);
+	jack_acquire_real_time_scheduling(glob_packetizer_id, 70);
+	glob_unleash_jack = 1;
+	pthread_join (glob_packetizer_id, NULL);
 }
 
 int main(int argc, char *argv[])
@@ -421,13 +421,13 @@ int main(int argc, char *argv[])
 		       strerror(errno));
 		return errno;
 	}
-	err = igb_init(&igb_dev);
+	err = igb_init(&glob_igb_dev);
 	if (err) {
 		printf("init failed (%s) - is the driver really loaded?\n",
 		       strerror(errno));
 		return errno;
 	}
-	err = igb_dma_malloc_page(&igb_dev, &a_page);
+	err = igb_dma_malloc_page(&glob_igb_dev, &a_page);
 	if (err) {
 		printf("malloc failed (%s) - out of memory?\n",
 		       strerror(errno));
@@ -454,7 +454,7 @@ int main(int argc, char *argv[])
 	       domain_class_a_vid);
 
 	mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
-	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, PKT_SZ - 22,
+	igb_set_class_bandwidth(&glob_igb_dev, PACKET_IPG / 125000, 0, PKT_SZ - 22,
 				0);
 
 	memset(glob_stream_id, 0, sizeof(glob_stream_id));
@@ -466,71 +466,71 @@ int main(int argc, char *argv[])
 	a_packet.offset = 0;
 	a_packet.vaddr = a_page.dma_vaddr + a_packet.offset;
 	a_packet.len = PKT_SZ;
-	free_packets = NULL;
-	seqnum = 0;
+	glob_free_packets = NULL;
+	glob_seqnum = 0;
 
 	/* divide the dma page into buffers for packets */
 	for (i = 1; i < ((a_page.mmap_size) / PKT_SZ); i++) {
-		tmp_packet = malloc(sizeof(struct igb_packet));
-		if (NULL == tmp_packet) {
+		glob_tmp_packet = malloc(sizeof(struct igb_packet));
+		if (NULL == glob_tmp_packet) {
 			printf("failed to allocate igb_packet memory!\n");
 			return errno;
 		}
-		*tmp_packet = a_packet;
-		tmp_packet->offset = (i * PKT_SZ);
-		tmp_packet->vaddr += tmp_packet->offset;
-		tmp_packet->next = free_packets;
-		memset(tmp_packet->vaddr, 0, PKT_SZ);	/* MAC header at least */
-		memcpy(tmp_packet->vaddr, glob_dest_addr, sizeof(glob_dest_addr));
-		memcpy(tmp_packet->vaddr + 6, glob_station_addr,
+		*glob_tmp_packet = a_packet;
+		glob_tmp_packet->offset = (i * PKT_SZ);
+		glob_tmp_packet->vaddr += glob_tmp_packet->offset;
+		glob_tmp_packet->next = glob_free_packets;
+		memset(glob_tmp_packet->vaddr, 0, PKT_SZ);	/* MAC header at least */
+		memcpy(glob_tmp_packet->vaddr, glob_dest_addr, sizeof(glob_dest_addr));
+		memcpy(glob_tmp_packet->vaddr + 6, glob_station_addr,
 		       sizeof(glob_station_addr));
 
 		/* Q-tag */
-		((char *)tmp_packet->vaddr)[12] = 0x81;
-		((char *)tmp_packet->vaddr)[13] = 0x00;
-		((char *)tmp_packet->vaddr)[14] =
+		((char *)glob_tmp_packet->vaddr)[12] = 0x81;
+		((char *)glob_tmp_packet->vaddr)[13] = 0x00;
+		((char *)glob_tmp_packet->vaddr)[14] =
 		    ((domain_class_a_priority << 13 | domain_class_a_vid)) >> 8;
-		((char *)tmp_packet->vaddr)[15] =
+		((char *)glob_tmp_packet->vaddr)[15] =
 		    ((domain_class_a_priority << 13 | domain_class_a_vid)) & 0xFF;
-		((char *)tmp_packet->vaddr)[16] = 0x22;	/* 1722 eth type */
-		((char *)tmp_packet->vaddr)[17] = 0xF0;
+		((char *)glob_tmp_packet->vaddr)[16] = 0x22;	/* 1722 eth type */
+		((char *)glob_tmp_packet->vaddr)[17] = 0xF0;
 
 		/* 1722 header update + payload */
-		header0 =
-		    (seventeen22_header *) (((char *)tmp_packet->vaddr) + 18);
-		header0->cd_indicator = 0;
-		header0->subtype = 0;
-		header0->sid_valid = 1;
-		header0->version = 0;
-		header0->reset = 0;
-		header0->reserved0 = 0;
-		header0->gateway_valid = 0;
-		header0->reserved1 = 0;
-		header0->timestamp_uncertain = 0;
-		memset(&(header0->stream_id), 0, sizeof(header0->stream_id));
-		memcpy(&(header0->stream_id), glob_station_addr,
+		glob_header1722 =
+		    (seventeen22_header *) (((char *)glob_tmp_packet->vaddr) + 18);
+		glob_header1722->cd_indicator = 0;
+		glob_header1722->subtype = 0;
+		glob_header1722->sid_valid = 1;
+		glob_header1722->version = 0;
+		glob_header1722->reset = 0;
+		glob_header1722->reserved0 = 0;
+		glob_header1722->gateway_valid = 0;
+		glob_header1722->reserved1 = 0;
+		glob_header1722->timestamp_uncertain = 0;
+		memset(&(glob_header1722->stream_id), 0, sizeof(glob_header1722->stream_id));
+		memcpy(&(glob_header1722->stream_id), glob_station_addr,
 		       sizeof(glob_station_addr));
-		header0->length = htons(32);
-		header1 = (six1883_header *) (header0 + 1);
-		header1->format_tag = 1;
-		header1->packet_channel = 0x1F;
-		header1->packet_tcode = 0xA;
-		header1->app_control = 0x0;
-		header1->reserved0 = 0;
-		header1->source_id = 0x3F;
-		header1->data_block_size = 1;
-		header1->fraction_number = 0;
-		header1->quadlet_padding_count = 0;
-		header1->source_packet_header = 0;
-		header1->reserved1 = 0;
-		header1->eoh = 0x2;
-		header1->format_id = 0x10;
-		header1->format_dependent_field = 0x02;
-		header1->syt = 0xFFFF;
-		tmp_packet->len =
+		glob_header1722->length = htons(32);
+		glob_header61883 = (six1883_header *) (glob_header1722 + 1);
+		glob_header61883->format_tag = 1;
+		glob_header61883->packet_channel = 0x1F;
+		glob_header61883->packet_tcode = 0xA;
+		glob_header61883->app_control = 0x0;
+		glob_header61883->reserved0 = 0;
+		glob_header61883->source_id = 0x3F;
+		glob_header61883->data_block_size = 1;
+		glob_header61883->fraction_number = 0;
+		glob_header61883->quadlet_padding_count = 0;
+		glob_header61883->source_packet_header = 0;
+		glob_header61883->reserved1 = 0;
+		glob_header61883->eoh = 0x2;
+		glob_header61883->format_id = 0x10;
+		glob_header61883->format_dependent_field = 0x02;
+		glob_header61883->syt = 0xFFFF;
+		glob_tmp_packet->len =
 		    18 + sizeof(seventeen22_header) + sizeof(six1883_header) +
 		    (SAMPLES_PER_FRAME * CHANNELS * sizeof(six1883_sample));
-		free_packets = tmp_packet;
+		glob_free_packets = glob_tmp_packet;
 	}
 
 	/* 
@@ -553,7 +553,7 @@ int main(int argc, char *argv[])
 	gptpinit();
 	gptpscaling(&td);
 
-	if( igb_get_wallclock( &igb_dev, &now_local, NULL ) != 0 ) {
+	if( igb_get_wallclock( &glob_igb_dev, &now_local, NULL ) != 0 ) {
 	  fprintf( stderr, "Failed to get wallclock time\n" );
 	  return -1;
 	}
@@ -562,12 +562,12 @@ int main(int argc, char *argv[])
 	delta_8021as = (unsigned)(td.ml_freqoffset * delta_local);
 	now_8021as = update_8021as + delta_8021as;
 
-	last_time = now_local + XMIT_DELAY;
-	time_stamp = now_8021as + RENDER_DELAY;
+	glob_last_time = now_local + XMIT_DELAY;
+	glob_time_stamp = now_8021as + RENDER_DELAY;
 
 	rc = nice(-20);
 
-	pthread_create (&packetizer_id, NULL, packetizer_thread, NULL);
+	pthread_create (&glob_packetizer_id, NULL, packetizer_thread, NULL);
 	run_packetizer();
 
 	rc = nice(0);
@@ -581,13 +581,13 @@ int main(int argc, char *argv[])
 	mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, PKT_SZ - 16,
 			       PACKET_IPG / 125000, domain_class_a_priority, 3900);
 
-	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */
+	igb_set_class_bandwidth(&glob_igb_dev, 0, 0, 0, 0);	/* disable Qav */
 
 	rc = mrp_disconnect();
 
-	igb_dma_free_page(&igb_dev, &a_page);
+	igb_dma_free_page(&glob_igb_dev, &a_page);
 
-	err = igb_detach(&igb_dev);
+	err = igb_detach(&glob_igb_dev);
 
 	pthread_exit(NULL);
 

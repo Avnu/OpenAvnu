@@ -61,9 +61,9 @@ struct ethernet_header{
 static const char *version_str = "simple_listener v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
-pcap_t* handle;
+pcap_t* glob_pcap_handle;
 u_char glob_ether_type[] = { 0x22, 0xf0 };
-SNDFILE* snd_file;
+SNDFILE* glob_snd_file;
 
 static void help()
 {
@@ -128,7 +128,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 				frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
 				frame[1] <<= 8;
 
-				sf_writef_int(snd_file, (const int *)frame, 1);
+				sf_writef_int(glob_snd_file, (const int *)frame, 1);
 			}
 		}	
 	}
@@ -152,16 +152,16 @@ void sigint_handler(int signum)
 	}
 
 #if PCAP
-	if (NULL != handle) 
+	if (NULL != glob_pcap_handle)
 	{
-		pcap_breakloop(handle);
-		pcap_close(handle);
+		pcap_breakloop(glob_pcap_handle);
+		pcap_close(glob_pcap_handle);
 	}
 #endif /* PCAP */
 	
 #if LIBSND
-	sf_write_sync(snd_file);
-	sf_close(snd_file);
+	sf_write_sync(glob_snd_file);
+	sf_close(glob_snd_file);
 #endif /* LIBSND */
 }
 
@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 			
-	if (NULL == (snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
+	if (NULL == (glob_snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
 	{
 		fprintf(stderr, "Could not create file.");
 		return -1;
@@ -240,26 +240,26 @@ int main(int argc, char *argv[])
 #if PCAP
 	/** session, get session handler */
 	/* take promiscuous vs. non-promiscuous sniffing? (0 or 1) */
-	handle = pcap_open_live(dev, BUFSIZ, 1, -1, errbuf);
-	if (NULL == handle) 
+	glob_pcap_handle = pcap_open_live(dev, BUFSIZ, 1, -1, errbuf);
+	if (NULL == glob_pcap_handle)
 	{
 		fprintf(stderr, "Could not open device %s: %s\n", dev, errbuf);
 		return -1;
 	}
 
 #if DEBUG
-	fprintf(stdout,"Got session handler.\n");
+	fprintf(stdout,"Got session pcap handler.\n");
 #endif /* DEBUG */
 	/* compile and apply filter */
-	if (-1 == pcap_compile(handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
+	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
-		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
+		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
 		return -1;
 	}
 
-	if (-1 == pcap_setfilter(handle, &comp_filter_exp)) 
+	if (-1 == pcap_setfilter(glob_pcap_handle, &comp_filter_exp))
 	{
-		fprintf(stderr, "Could not install filter %s: %s\n", filter_exp, pcap_geterr(handle));
+		fprintf(stderr, "Could not install filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
 		return -1;
 	}
 
@@ -268,7 +268,7 @@ int main(int argc, char *argv[])
 #endif /* DEBUG */
 
 	/** loop forever and call callback-function for every received packet */
-	pcap_loop(handle, -1, pcap_callback, NULL);
+	pcap_loop(glob_pcap_handle, -1, pcap_callback, NULL);
 #endif /* PCAP */
 
 	return 0;

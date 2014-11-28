@@ -11,8 +11,7 @@
 
 extern volatile int halt_tx;
 extern volatile int listeners;
-extern volatile int unleash_jack;
-
+extern volatile int glob_unleash_jack;
 
 static jack_port_t** inputports;
 static jack_default_audio_sample_t** in;
@@ -34,7 +33,7 @@ static int process(jack_nframes_t nframes, void* arg)
 	(void) arg; /* unused */
 
 	/* Do nothing until we're ready to begin. */
-	if (!unleash_jack) {
+	if (!glob_unleash_jack) {
 		printf ("nothing to do\n");
 		return 0;
 	}
