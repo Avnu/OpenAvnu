@@ -33,7 +33,6 @@
 
 /* globals */
 
-device_t glob_igb_dev;
 unsigned char glob_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
 
 void sigint_handler(int signum)
@@ -52,6 +51,7 @@ void sigint_handler(int signum)
 
 int main(int argc, char *argv[ ])
 {
+	device_t igb_dev;
 	struct ifreq device;
 	int error;
 	struct sockaddr_ll ifsock_addr;
@@ -84,13 +84,13 @@ int main(int argc, char *argv[ ])
 #endif /* USE_MRPD */
 	iface = strdup(argv[1]);
 
-	error = pci_connect(&glob_igb_dev);
+	error = pci_connect(&igb_dev);
 	if (error) {
 		fprintf(stderr, "connect failed (%s) - are you running as root?\n", strerror(errno));
 		return errno;
 	}
 
-	error = igb_init(&glob_igb_dev);
+	error = igb_init(&igb_dev);
 	if (error) {
 		fprintf(stderr, "init failed (%s) - is the driver really loaded?\n", strerror(errno));
 		return errno;
