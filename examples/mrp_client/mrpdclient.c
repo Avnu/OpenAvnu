@@ -117,12 +117,12 @@ int mrpdclient_recv(SOCKET mrpd_sock, ptr_process_mrpd_msg fn)
 	if (SOCKET_ERROR == mrpd_sock)
 		return -1;
 
-	msgbuf = (char *)malloc(MRPDCLIENT_MAX_FRAME_SIZE);
+	msgbuf = (char *)malloc(MRPDCLIENT_MAX_MSG_SIZE);
 	if (NULL == msgbuf)
 		return -1;
 
-	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
-	bytes = recv(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE, 0);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
+	bytes = recv(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE, 0);
 	if (bytes <= SOCKET_ERROR) {
 		goto out;
 	}

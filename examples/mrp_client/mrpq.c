@@ -93,42 +93,42 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	msgbuf = (char *)malloc(MRPDCLIENT_MAX_FRAME_SIZE);
+	msgbuf = (char *)malloc(MRPDCLIENT_MAX_MSG_SIZE);
 	if (NULL == msgbuf) {
 		printf("malloc failed\n");
 		return EXIT_FAILURE;
 	}
 
 	/* query MMRP Registrar MAC Address database */
-	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	sprintf(msgbuf, "M??");
 	printf(">M??\n");
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
 	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
 	/* query MVRP Registrar VID database */
-	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	sprintf(msgbuf, "V??");
 	printf(">V??\n");
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
 	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
 	/* query MSRP Registrar database */
-	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	sprintf(msgbuf, "S??");
 	printf(">S??\n");
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
 	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
-	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	sprintf(msgbuf, "BYE");
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
 
 	free(msgbuf);
 	rc = mrpdclient_close(&mrpd_sock);

@@ -35,7 +35,7 @@
 #ifndef _MRPDCLIENT_H_
 #define _MRPDCLIENT_H_
 
-#define MRPDCLIENT_MAX_FRAME_SIZE 2000
+#define MRPDCLIENT_MAX_MSG_SIZE 2000
 
 typedef int (*ptr_process_mrpd_msg) (char *buf, int buflen);
 

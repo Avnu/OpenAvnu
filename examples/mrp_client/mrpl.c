@@ -100,26 +100,26 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	msgbuf = malloc(MRPDCLIENT_MAX_FRAME_SIZE);
+	msgbuf = malloc(MRPDCLIENT_MAX_MSG_SIZE);
 	if (NULL == msgbuf) {
 		printf("malloc failed\n");
 		return EXIT_FAILURE;
 	}
 
-	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
 
-	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	if (leave)
 		sprintf(msgbuf, "S-L:L=A0369F022EEE0000,D=2");
 	else
 		sprintf(msgbuf, "S+L:L=A0369F022EEE0000,D=2");
 
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
 
 	sprintf(msgbuf, "BYE");
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
 
 	free(msgbuf);
 	rc = mrpdclient_close(&mrpd_sock);

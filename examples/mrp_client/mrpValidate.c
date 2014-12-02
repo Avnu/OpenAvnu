@@ -436,7 +436,7 @@ main(int argc, char *argv[]) {
 
 	printf("%s\n", version_str);
 
-	msgbuf = malloc(MRPDCLIENT_MAX_FRAME_SIZE);
+	msgbuf = malloc(MRPDCLIENT_MAX_MSG_SIZE);
 	if (NULL == msgbuf) {
 		printf("malloc failed\n");
 		return EXIT_FAILURE;
