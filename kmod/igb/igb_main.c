@@ -126,8 +126,14 @@ static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
 static void igb_dma_err_task(struct work_struct *);
 static void igb_dma_err_timer(unsigned long data);
+
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) )
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb);
+#else
 static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb,
 	void *accel_priv, select_queue_fallback_t fallback);
+#endif
+
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
 static struct net_device_stats *igb_get_stats(struct net_device *);
 static int igb_change_mtu(struct net_device *, int);
@@ -5618,8 +5624,12 @@ static inline struct igb_ring *igb_tx_queue_mapping(struct igb_adapter *adapter,
 #error This driver must have multi-queue transmit support enabled (CONFIG_NETDEVICES_MULTIQUEUE)!
 #endif
 
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) )
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb)
+#else
 static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb,
 	void *accel_priv, select_queue_fallback_t fallback)
+#endif
 {
        /* remap normal LAN to best effort queue[3] */
        return (3);
