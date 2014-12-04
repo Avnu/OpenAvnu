@@ -21,44 +21,33 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-
-#include <arpa/inet.h>
 #include <errno.h>
-#include <netinet/if_ether.h>
-#include <netinet/in.h>
-#include <pcap/pcap.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
+#include <pcap/pcap.h>
 #include <sndfile.h>
 
 #include "listener_mrp_client.h"
 
-//#define DEBUG
-#define PCAP
-#define LIBSND
+#define DEBUG 0
+#define PCAP 1
+#define LIBSND 1
 
-#define ETHERNET_HEADER_SIZE 18
-#define SEVENTEEN22_HEADER_PART1_SIZE 4
-#define STREAM_ID_SIZE 8
-#define SEVENTEEN22_HEADER_PART2_SIZE 10
-#define SIX1883_HEADER_SIZE 10
-#define HEADER_SIZE ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE + STREAM_ID_SIZE + SEVENTEEN22_HEADER_PART2_SIZE + SIX1883_HEADER_SIZE 
+#define VERSION_STR "1.1"
 
-#define SAMPLES_PER_SECOND 48000
-#define SAMPLES_PER_FRAME 6
-#define CHANNELS 2
-
-struct six1883_sample{
-	uint8_t label;
-	uint8_t value[3];
-};
+#define ETHERNET_HEADER_SIZE (18)
+#define SEVENTEEN22_HEADER_PART1_SIZE (4)
+#define STREAM_ID_SIZE (8)
+#define SEVENTEEN22_HEADER_PART2_SIZE (10)
+#define SIX1883_HEADER_SIZE (10)
+#define HEADER_SIZE (ETHERNET_HEADER_SIZE		\
+			+ SEVENTEEN22_HEADER_PART1_SIZE \
+			+ STREAM_ID_SIZE		\
+			+ SEVENTEEN22_HEADER_PART2_SIZE \
+			+ SIX1883_HEADER_SIZE)
+#define SAMPLES_PER_SECOND (48000)
+#define SAMPLES_PER_FRAME (6)
+#define CHANNELS (2)
 
 struct ethernet_header{
 	u_char dst[6];
@@ -67,16 +56,14 @@ struct ethernet_header{
 	u_char type[2];
 };
 
-typedef int (*process_msg) (char *buf, int buflen);
+/* globals */
 
-// global
-pcap_t* handle;
-u_char ETHER_TYPE[] = { 0x22, 0xf0 };
-SNDFILE* snd_file;
-
-#define VERSION_STR	"1.1"
 static const char *version_str = "simple_listener v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
+
+pcap_t* glob_pcap_handle;
+u_char glob_ether_type[] = { 0x22, 0xf0 };
+SNDFILE* glob_snd_file;
 
 static void help()
 {
@@ -88,7 +75,7 @@ static void help()
 		"    -i  specify interface for AVB connection\n"
 		"    -f  set the name of the output wav-file\n" 
 		"\n" "%s" "\n", version_str);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const u_char* packet)
@@ -101,34 +88,34 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 	(void) args; /* unused */
 	(void) packet_header; /* unused */
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Got packet.\n");
-#endif	
+#endif /* DEBUG*/
 
 	eth_header = (struct ethernet_header*)(packet);
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Ether Type: 0x%02x%02x\n", eth_header->type[0], eth_header->type[1]);
-#endif
+#endif /* DEBUG*/
 
-	if (0 == memcmp(ETHER_TYPE,eth_header->type,sizeof(eth_header->type)))
+	if (0 == memcmp(glob_ether_type,eth_header->type,sizeof(eth_header->type)))
 	{		
 		test_stream_id = (unsigned char*)(packet + ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE);
 
-#ifdef DEBUG
+#if DEBUG
 		fprintf(stderr, "Received stream id: %02x%02x%02x%02x%02x%02x%02x%02x\n ",
 			     test_stream_id[0], test_stream_id[1],
 			     test_stream_id[2], test_stream_id[3],
 			     test_stream_id[4], test_stream_id[5],
 			     test_stream_id[6], test_stream_id[7]);
-#endif
+#endif /* DEBUG*/
 
 		if (0 == memcmp(test_stream_id, stream_id, sizeof(STREAM_ID_SIZE)))
 		{
 
-#ifdef DEBUG
+#if DEBUG
 			fprintf(stdout,"Stream ids matched.\n");
-#endif
+#endif /* DEBUG*/
 			buf = (uint32_t*) (packet + HEADER_SIZE);
 			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
 			{	
@@ -141,7 +128,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 				frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
 				frame[1] <<= 8;
 
-				sf_writef_int(snd_file, (const int *)frame, 1);
+				sf_writef_int(glob_snd_file, (const int *)frame, 1);
 			}
 		}	
 	}
@@ -164,18 +151,18 @@ void sigint_handler(int signum)
 			printf("mrp_disconnect failed\n");
 	}
 
-#ifdef PCAP
-	if (NULL != handle) 
+#if PCAP
+	if (NULL != glob_pcap_handle)
 	{
-		pcap_breakloop(handle);
-		pcap_close(handle);
+		pcap_breakloop(glob_pcap_handle);
+		pcap_close(glob_pcap_handle);
 	}
-#endif
+#endif /* PCAP */
 	
-#ifdef LIBSND
-	sf_write_sync(snd_file);
-	sf_close(snd_file);
-#endif
+#if LIBSND
+	sf_write_sync(glob_snd_file);
+	sf_close(glob_snd_file);
+#endif /* LIBSND */
 }
 
 int main(int argc, char *argv[])
@@ -222,12 +209,12 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Waiting for talker...\n");
 	await_talker();	
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Send ready-msg...\n");
-#endif
+#endif /* DEBUG */
 	send_ready();
 		
-#ifdef LIBSND
+#if LIBSND
 	SF_INFO* sf_info = (SF_INFO*)malloc(sizeof(SF_INFO));
 
 	memset(sf_info, 0, sizeof(SF_INFO));
@@ -239,50 +226,50 @@ int main(int argc, char *argv[])
 	if (0 == sf_format_check(sf_info))
 	{
 		fprintf(stderr, "Wrong format.");
-		return -1;
+		return EXIT_FAILURE;
 	}
 			
-	if (NULL == (snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
+	if (NULL == (glob_snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
 	{
 		fprintf(stderr, "Could not create file.");
-		return -1;
+		return EXIT_FAILURE;
 	}
 	fprintf(stdout,"Created file called %s\n", file_name);	
-#endif
+#endif /* LIBSND */
 
-#ifdef PCAP		
+#if PCAP
 	/** session, get session handler */
 	/* take promiscuous vs. non-promiscuous sniffing? (0 or 1) */
-	handle = pcap_open_live(dev, BUFSIZ, 1, -1, errbuf);
-	if (NULL == handle) 
+	glob_pcap_handle = pcap_open_live(dev, BUFSIZ, 1, -1, errbuf);
+	if (NULL == glob_pcap_handle)
 	{
 		fprintf(stderr, "Could not open device %s: %s\n", dev, errbuf);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
-#ifdef DEBUG
-	fprintf(stdout,"Got session handler.\n");
-#endif
+#if DEBUG
+	fprintf(stdout,"Got session pcap handler.\n");
+#endif /* DEBUG */
 	/* compile and apply filter */
-	if (-1 == pcap_compile(handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
+	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
-		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
-		return -1;
+		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
+		return EXIT_FAILURE;
 	}
 
-	if (-1 == pcap_setfilter(handle, &comp_filter_exp)) 
+	if (-1 == pcap_setfilter(glob_pcap_handle, &comp_filter_exp))
 	{
-		fprintf(stderr, "Could not install filter %s: %s\n", filter_exp, pcap_geterr(handle));
-		return -1;
+		fprintf(stderr, "Could not install filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
+		return EXIT_FAILURE;
 	}
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Compiled and applied filter.\n");
-#endif
+#endif /* DEBUG */
 
 	/** loop forever and call callback-function for every received packet */
-	pcap_loop(handle, -1, pcap_callback, NULL);
-#endif
+	pcap_loop(glob_pcap_handle, -1, pcap_callback, NULL);
+#endif /* PCAP */
 
-	return 0;
+	return EXIT_SUCCESS;
 }

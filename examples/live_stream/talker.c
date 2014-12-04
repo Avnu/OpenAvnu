@@ -16,58 +16,29 @@
   *
   */
 
-#include <errno.h>
-#include <fcntl.h>
-#include <math.h>
-#include <poll.h>
-#include <pthread.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <sched.h>
-
 #include <arpa/inet.h>
-
+#include <errno.h>
 #include <linux/if.h>
-
-#include <netinet/in.h>
-#include <net/ethernet.h>
-#include <netpacket/packet.h>
+#include <signal.h>
+#include <sys/ioctl.h>
 
 #include <pci/pci.h>
-
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/queue.h>
-#include <sys/un.h>
-#include <sys/user.h>
 
 #include "avb.h"
 #include "talker_mrp_client.h"
 
-/* global variables */
-int g_start_feed_socket = 0;
-device_t igb_dev;
-uint32_t payload_length;
-
-unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
-unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-/* IEEE 1722 reserved address */
-unsigned char DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
-
-#define STREAMID	0xABCDEF
-
-/* (1) packet every 125 usec */
-#define PACKET_IPG		125000
-
 #define USE_MRPD 1
+
+#define STREAMID (0xABCDEF)
+#define PACKET_IPG (125000) /* 1 packet every 125 usec */
+
+/* globals */
+
+uint32_t glob_payload_length;
+unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
+unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+/* IEEE 1722 reserved address */
+unsigned char glob_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
 
 uint64_t reverse_64(uint64_t val)
 {
@@ -108,8 +79,8 @@ int get_mac_addr(int8_t *iface)
 		close(lsock);
 		return -1;
 	}
-	memcpy(STATION_ADDR, if_request.ifr_hwaddr.sa_data,
-			sizeof(STATION_ADDR));
+	memcpy(glob_station_addr, if_request.ifr_hwaddr.sa_data,
+			sizeof(glob_station_addr));
 	close(lsock);
 
 	return 0;
@@ -117,6 +88,7 @@ int get_mac_addr(int8_t *iface)
 
 int main(int argc, char *argv[])
 {
+	device_t igb_dev;
 	struct igb_dma_alloc a_page;
 	struct igb_packet a_packet;
 	struct igb_packet *tmp_packet;
@@ -137,12 +109,12 @@ int main(int argc, char *argv[])
 
 	if (argc < 2) {
 		fprintf(stderr,"%s <if_name> <payload>\n", argv[0]);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	iface = (int8_t *)strdup(argv[1]);
 	packet_size = atoi(argv[2]);;
-	payload_length = atoi(argv[2]);;
+	glob_payload_length = atoi(argv[2]);;
 	packet_size += sizeof(six1883_header) + sizeof(seventeen22_header) + sizeof(eth_header);
 
 #ifdef USE_MRPD
@@ -176,7 +148,7 @@ int main(int argc, char *argv[])
 	err = get_mac_addr(iface);
 	if (err) {
 		fprintf(stderr, "failed to open iface(%s)\n",iface);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 #ifdef USE_MRPD
@@ -197,8 +169,8 @@ int main(int argc, char *argv[])
 
 	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, packet_size - 22, 0);
 
-	memset(STREAM_ID, 0, sizeof(STREAM_ID));
-	memcpy(STREAM_ID, STATION_ADDR, sizeof(STATION_ADDR));
+	memset(glob_stream_id, 0, sizeof(glob_stream_id));
+	memcpy(glob_stream_id, glob_station_addr, sizeof(glob_station_addr));
 
 	a_packet.dmatime = a_packet.attime = a_packet.flags = 0;
 	a_packet.map.paddr = a_page.dma_paddr;
@@ -209,9 +181,9 @@ int main(int argc, char *argv[])
 	free_packets = NULL;
 	seq_number = 0;
 
-	frame_size = payload_length + sizeof(six1883_header) + sizeof(seventeen22_header) + sizeof(eth_header);
+	frame_size = glob_payload_length + sizeof(six1883_header) + sizeof(seventeen22_header) + sizeof(eth_header);
 
-	stream_packet = avb_create_packet(payload_length);
+	stream_packet = avb_create_packet(glob_payload_length);
 
 	h1722 = (seventeen22_header *)((uint8_t*)stream_packet + sizeof(eth_header));
 	h61883 = (six1883_header *)((uint8_t*)stream_packet + sizeof(eth_header) +
@@ -220,7 +192,7 @@ int main(int argc, char *argv[])
 	/*initalize h1722 header */
 	avb_initialize_h1722_to_defaults(h1722);
 	/* set the length */
-	avb_set_1722_length(h1722, htons(payload_length + sizeof(six1883_header)));
+	avb_set_1722_length(h1722, htons(glob_payload_length + sizeof(six1883_header)));
 	avb_set_1722_stream_id(h1722,reverse_64(STREAMID));
 	avb_set_1722_sid_valid(h1722, 0x1);
 
@@ -238,7 +210,7 @@ int main(int argc, char *argv[])
 	avb_set_61883_syt(h61883, 0xffff);
 
 	/* initilaze the source & destination mac address */
-	avb_eth_header_set_mac(stream_packet, DEST_ADDR, iface);
+	avb_eth_header_set_mac(stream_packet, glob_dest_addr, iface);
 
 	/* set 1772 eth type */
 	avb_1722_set_eth_type(stream_packet);
@@ -268,10 +240,10 @@ int main(int argc, char *argv[])
 	 * IPG is scaled to the Class (A) observation interval of packets per 125 usec
 	 */
 	fprintf(stderr, "advertising stream ...\n");
-	mrp_advertise_stream(STREAM_ID, DEST_ADDR, domain_class_a_vid, packet_size - 16,
+	mrp_advertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
 		PACKET_IPG / 125000, domain_class_a_priority, 3900);
 	fprintf(stderr, "awaiting a listener ...\n");
-	mrp_await_listener(STREAM_ID);
+	mrp_await_listener(glob_stream_id);
 #endif
 
 	memset(&sched, 0 , sizeof (sched));
@@ -301,7 +273,7 @@ int main(int argc, char *argv[])
 		data_ptr = (uint8_t *)((uint8_t*)stream_packet + sizeof(eth_header) + sizeof(seventeen22_header) 
 					+ sizeof(six1883_header));
 		
-		read_bytes = read(0, (void *)data_ptr, payload_length);
+		read_bytes = read(0, (void *)data_ptr, glob_payload_length);
 		/* Error case while reading the input file */
 		if (read_bytes < 0) {
 			fprintf(stderr,"Failed to read from STDIN %s\n", argv[2]);
@@ -340,7 +312,7 @@ cleanup:
 	halt_tx = 1;
 	sleep(1);
 #ifdef USE_MRPD
-	mrp_unadvertise_stream(STREAM_ID, DEST_ADDR, domain_class_a_vid, packet_size - 16,
+	mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
 			       PACKET_IPG / 125000, domain_class_a_priority, 3900);
 #endif
 	/* disable Qav */
@@ -354,5 +326,5 @@ cleanup:
 
 	pthread_exit(NULL);
 
-	return 0;
+	return EXIT_SUCCESS;
 }

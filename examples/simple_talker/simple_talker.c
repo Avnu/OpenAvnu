@@ -31,90 +31,53 @@
 
 ******************************************************************************/
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <syslog.h>
-#include <signal.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <math.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <sys/mman.h>
-#include <sys/user.h>
-#include <pci/pci.h>
 #include <sys/socket.h>
 #include <linux/if.h>
-#include <netpacket/packet.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <arpa/inet.h>
-#include <net/ethernet.h>
-#include <sys/un.h>
-#include <pthread.h>
-#include <poll.h>
 
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include <pci/pci.h>
 
 #include "igb.h"
 #include "talker_mrp_client.h"
 
-#include <math.h>
-#include <endian.h>
-#include <stdint.h>
+#define VERSION_STR "1.0"
 
-typedef struct { 
+#define SHM_SIZE (4 * 8 + sizeof(pthread_mutex_t)) /* 3 - 64 bit and 2 - 32 bits */
+#define SHM_NAME  "/ptp"
+#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t) * 8) -1)) -1)
+#define SRC_CHANNELS (2)
+#define GAIN (0.5)
+#define L16_PAYLOAD_TYPE (96) /* for layer 4 transport - should be negotiated via RTSP */
+#define ID_B_HDR_EXT_ID (0) /* for layer 4 transport - should be negotiated via RTSP */
+#define L2_SAMPLES_PER_FRAME (6)
+#define L4_SAMPLES_PER_FRAME (60)
+#define L4_SAMPLE_SIZE (2)
+#define CHANNELS (2)
+#define RTP_SUBNS_SCALE_NUM (20000000)
+#define RTP_SUBNS_SCALE_DEN (4656613)
+#define IGB_BIND_NAMESZ (24)
+#define XMIT_DELAY (200000000) /* us */
+#define RENDER_DELAY (XMIT_DELAY+2000000)	/* us */
+#define L2_PACKET_IPG (125000) /* (1) packet every 125 usec */
+#define L4_PACKET_IPG (1250000)	/* (1) packet every 1.25 millisec */
+#define L4_PORT ((uint16_t)5004)
+#define PKT_SZ (100)
+
+typedef struct {
   int64_t ml_phoffset;
   int64_t ls_phoffset;
   long double ml_freqoffset;
   long double ls_freqoffset;
   uint64_t local_time;
 } gPtpTimeData;
-
-
-#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
-#define SHM_NAME  "/ptp"
-
-#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
-
-#define SRC_CHANNELS (2)
-#define SAMPLES_PER_SECOND (48000)
-#define FREQUENCY (480)
-#define SAMPLES_PER_CYCLE (SAMPLES_PER_SECOND/FREQUENCY)
-#define GAIN (.5)
-
-#define L16_PAYLOAD_TYPE 96 /* Should be negotiated via RTSP */
-#define ID_B_HDR_EXT_ID 0 /* Should be negotiated via RTSP */
-
-#define CD_SUBTYPE 0x02		/* for simple audio format */
-#define SV_VER_MR_RS_GV_TV 0x81
-#define RS_TU	0x00
-#define SAMPLE_FORMAT_NON_INTR_FLOAT 0x02
-#define NOMINAL_SAMPLE_RATE 0x09
-#define LINEAR_SAMPLE_MSB 0x20
-unsigned char GATEWAY_INFO[] =
-    { SAMPLE_FORMAT_NON_INTR_FLOAT, 0, NOMINAL_SAMPLE_RATE, LINEAR_SAMPLE_MSB };
-
-#define SAMPLE_SIZE 4		/* 4 bytes */
-#define L2_SAMPLES_PER_FRAME 6
-#define L4_SAMPLES_PER_FRAME 60
-#define L4_SAMPLE_SIZE 2
-#define CHANNELS 2
-#define PAYLOAD_SIZE SAMPLE_SIZE*SAMPLES_PER_FRAME*CHANNELS	/* 6*4 * 2 channels  = 48 bytes */
-
-#define RTP_SUBNS_SCALE_NUM 20000000
-#define RTP_SUBNS_SCALE_DEN  4656613
-
-#define IGB_BIND_NAMESZ 24
-
-#define XMIT_DELAY (200000000)	/* us */
-#define RENDER_DELAY (XMIT_DELAY+2000000)	/* us */
-
-typedef enum { false = 0, true = 1 } bool;
 
 typedef struct __attribute__ ((packed)) {
 	uint64_t subtype:7;
@@ -197,12 +160,16 @@ typedef struct __attribute__ ((packed)) {
 	uint16_t length;
 } IP_PseudoHeader;
 
-/* global variables */
-device_t igb_dev;
+/* globals */
 
-#define VERSION_STR	"1.0"
 static const char *version_str = "simple_talker v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
+
+unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
+unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+/* IEEE 1722 reserved address */
+unsigned char glob_l2_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
+unsigned char glob_l3_dest_addr[] = { 224, 0, 0, 115 };
 
 uint16_t inet_checksum(uint8_t *ip, int len){
     uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
@@ -286,42 +253,53 @@ static inline uint64_t ST_rdtsc(void)
 	return ret;
 }
 
-static int shm_fd = -1;
-static char *memory_offset_buffer = NULL;
-int gptpinit(void)
+int gptpinit(int *igb_shm_fd, char *igb_mmap)
 {
-	shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	if (shm_fd == -1) {
+	if (NULL == igb_shm_fd)
+		return -1;
+
+	*igb_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
+	if (*igb_shm_fd == -1) {
 		perror("shm_open()");
-		return false;
+		return -1;
 	}
-	memory_offset_buffer =
-	    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-			 shm_fd, 0);
-	if (memory_offset_buffer == (char *)-1) {
+	igb_mmap = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
+				MAP_SHARED, *igb_shm_fd, 0);
+	if (igb_mmap == (char *)-1) {
 		perror("mmap()");
-		memory_offset_buffer = NULL;
+		igb_mmap = NULL;
 		shm_unlink(SHM_NAME);
-		return false;
+		return -1;
 	}
-	return true;
+
+	return 0;
 }
 
-void gptpdeinit(void)
+int gptpdeinit(int *igb_shm_fd, char *igb_mmap)
 {
-	if (memory_offset_buffer != NULL) {
-		munmap(memory_offset_buffer, SHM_SIZE);
+	if (NULL == igb_shm_fd)
+		return -1;
+
+	if (igb_mmap != NULL) {
+		munmap(igb_mmap, SHM_SIZE);
+		igb_mmap = NULL;
 	}
-	if (shm_fd != -1) {
-		close(shm_fd);
+	if (*igb_shm_fd != -1) {
+		close(*igb_shm_fd);
+		*igb_shm_fd = -1;
 	}
+
+	return 0;
 }
 
-int gptpscaling(gPtpTimeData * td)
+int gptpscaling(char *igb_mmap, gPtpTimeData *td)
 {
-	pthread_mutex_lock((pthread_mutex_t *) memory_offset_buffer);
-	memcpy(td, memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
-	pthread_mutex_unlock((pthread_mutex_t *) memory_offset_buffer);
+	if (NULL == td)
+		return -1;
+
+	pthread_mutex_lock((pthread_mutex_t *) igb_mmap);
+	memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
+	pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
 
 	fprintf( stderr, "local_time = %llu\n",
 			 td->local_time );
@@ -330,7 +308,7 @@ int gptpscaling(gPtpTimeData * td)
 	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
 		td->ml_freqoffset, td->ls_freqoffset);
 
-	return true;
+	return 0;
 }
 
 void gensine32(int32_t * buf, unsigned count)
@@ -372,34 +350,34 @@ void sigint_handler(int signum)
 	halt_tx = signum;
 }
 
-int pci_connect()
+int pci_connect(device_t *igb_dev)
 {
 	struct pci_access *pacc;
 	struct pci_dev *dev;
 	int err;
 	char devpath[IGB_BIND_NAMESZ];
-	memset(&igb_dev, 0, sizeof(device_t));
+	memset(igb_dev, 0, sizeof(device_t));
 	pacc = pci_alloc();
 	pci_init(pacc);
 	pci_scan_bus(pacc);
 	for (dev = pacc->devices; dev; dev = dev->next) {
 		pci_fill_info(dev,
 			      PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
-		igb_dev.pci_vendor_id = dev->vendor_id;
-		igb_dev.pci_device_id = dev->device_id;
-		igb_dev.domain = dev->domain;
-		igb_dev.bus = dev->bus;
-		igb_dev.dev = dev->dev;
-		igb_dev.func = dev->func;
+		igb_dev->pci_vendor_id = dev->vendor_id;
+		igb_dev->pci_device_id = dev->device_id;
+		igb_dev->domain = dev->domain;
+		igb_dev->bus = dev->bus;
+		igb_dev->dev = dev->dev;
+		igb_dev->func = dev->func;
 		snprintf(devpath, IGB_BIND_NAMESZ, "%04x:%02x:%02x.%d",
 			 dev->domain, dev->bus, dev->dev, dev->func);
-		err = igb_probe(&igb_dev);
+		err = igb_probe(igb_dev);
 		if (err) {
 			continue;
 		}
 		printf("attaching to %s\n", devpath);
-		err = igb_attach(devpath, &igb_dev);
-		if ( err || igb_attach_tx( &igb_dev )) {
+		err = igb_attach(devpath, igb_dev);
+		if ( err || igb_attach_tx( igb_dev )) {
 			printf("attach failed! (%s)\n", strerror(errno));
 			continue;
 		}
@@ -411,15 +389,7 @@ int pci_connect()
 	return 0;
 }
 
- unsigned char STATION_ADDR[] = { 0, 0, 0, 0, 0, 0 };
- unsigned char STREAM_ID[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-
-/* IEEE 1722 reserved address */
- unsigned char L2_DEST_ADDR[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
- unsigned char L3_DEST_ADDR[] = { 224, 0, 0, 115 };
-uint16_t L3_PORT = 5004;
-
- void l3_to_l2_multicast( unsigned char *l2, unsigned char *l3 ) {
+void l3_to_l2_multicast( unsigned char *l2, unsigned char *l3 ) {
 	 l2[0]  = 0x1;
 	 l2[1]  = 0x0;
 	 l2[2]  = 0x5e;
@@ -446,8 +416,8 @@ int get_mac_address(char *interface)
 		return -1;
 	}
 
-	memcpy(STATION_ADDR, if_request.ifr_hwaddr.sa_data,
-	       sizeof(STATION_ADDR));
+	memcpy(glob_station_addr, if_request.ifr_hwaddr.sa_data,
+	       sizeof(glob_station_addr));
 	close(lsock);
 	return 0;
 }
@@ -462,16 +432,16 @@ static void usage(void)
 		"    -i  specify interface for AVB connection\n"
 		"    -t  transport equal to 2 for 1722 or 3 for RTP\n"
 		"\n" "%s" "\n", version_str);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
-
-#define L2_PACKET_IPG	(125000)	/* (1) packet every 125 usec */
-#define L4_PACKET_IPG	(1250000)	/* (1) packet every 1.25 millisec */
 
 int main(int argc, char *argv[])
 {
 	unsigned i;
 	int err;
+	device_t igb_dev;
+	int igb_shm_fd = -1;
+	char *igb_mmap = NULL;
 	struct igb_dma_alloc a_page;
 	struct igb_packet a_packet;
 	struct igb_packet *tmp_packet;
@@ -540,7 +510,7 @@ int main(int argc, char *argv[])
 		printf("socket creation failed\n");
 		return errno;
 	}
-	err = pci_connect();
+	err = pci_connect(&igb_dev);
 	if (err) {
 		printf("connect failed (%s) - are you running as root?\n",
 		       strerror(errno));
@@ -565,13 +535,13 @@ int main(int argc, char *argv[])
 		usage();
 	}
 	if( transport == 2 ) {
-		memcpy( dest_addr, L2_DEST_ADDR, sizeof(dest_addr));
+		memcpy( dest_addr, glob_l2_dest_addr, sizeof(dest_addr));
 	} else {
 		memset( &local, 0, sizeof( local ));
 		local.sin_family = PF_INET;
 		local.sin_addr.s_addr = htonl( INADDR_ANY );
-		local.sin_port = htons( L3_PORT );
-		l3_to_l2_multicast( dest_addr, L3_DEST_ADDR );
+		local.sin_port = htons(L4_PORT);
+		l3_to_l2_multicast( dest_addr, glob_l3_dest_addr );
 		memset( &if_request, 0, sizeof( if_request ));
 		strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name)-1);
 		sd = socket( AF_INET, SOCK_DGRAM, 0 );
@@ -607,12 +577,10 @@ int main(int argc, char *argv[])
 	printf("detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
 	       domain_class_a_vid);
 
-#define PKT_SZ	100
-
 	err = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
 	if (err) {
 		printf("mrp_register_domain failed\n");
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	mrp_join_vlan();
@@ -626,8 +594,8 @@ int main(int argc, char *argv[])
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2, 0);
 	}
 
-	memset(STREAM_ID, 0, sizeof(STREAM_ID));
-	memcpy(STREAM_ID, STATION_ADDR, sizeof(STATION_ADDR));
+	memset(glob_stream_id, 0, sizeof(glob_stream_id));
+	memcpy(glob_stream_id, glob_station_addr, sizeof(glob_station_addr));
 
 	if( transport == 2 ) {
 		packet_size = PKT_SZ;
@@ -660,8 +628,8 @@ int main(int argc, char *argv[])
 		tmp_packet->next = free_packets;
 		memset(tmp_packet->vaddr, 0, packet_size);	/* MAC header at least */
 		memcpy(tmp_packet->vaddr, dest_addr, sizeof(dest_addr));
-		memcpy(tmp_packet->vaddr + 6, STATION_ADDR,
-		       sizeof(STATION_ADDR));
+		memcpy(tmp_packet->vaddr + 6, glob_station_addr,
+		       sizeof(glob_station_addr));
 
 		/* Q-tag */
 		((char *)tmp_packet->vaddr)[12] = 0x81;
@@ -692,8 +660,8 @@ int main(int argc, char *argv[])
 			l2_header0->reserved1 = 0;
 			l2_header0->timestamp_uncertain = 0;
 			memset(&(l2_header0->stream_id), 0, sizeof(l2_header0->stream_id));
-			memcpy(&(l2_header0->stream_id), STATION_ADDR,
-				   sizeof(STATION_ADDR));
+			memcpy(&(l2_header0->stream_id), glob_station_addr,
+				   sizeof(glob_station_addr));
 			l2_header0->length = htons(32);
 			l2_header1 = (six1883_header *) (l2_header0 + 1);
 			l2_header1->format_tag = 1;
@@ -717,7 +685,7 @@ int main(int argc, char *argv[])
 		} else {
 			pseudo_hdr.source = l4_local_address;
 			memcpy
-				( &pseudo_hdr.dest, L3_DEST_ADDR, sizeof( pseudo_hdr.dest ));
+				( &pseudo_hdr.dest, glob_l3_dest_addr, sizeof( pseudo_hdr.dest ));
 			pseudo_hdr.zero = 0;
 			pseudo_hdr.protocol = 0x11;
 			pseudo_hdr.length = htons(packet_size-18-20);
@@ -734,7 +702,7 @@ int main(int argc, char *argv[])
 			l4_headers->hdr_cksum = 0;
 			l4_headers->src = l4_local_address;
 			memcpy
-				( &l4_headers->dest, L3_DEST_ADDR, sizeof( l4_headers->dest ));
+				( &l4_headers->dest, glob_l3_dest_addr, sizeof( l4_headers->dest ));
 			{
 				struct iovec iv0;
 				iv0.iov_base = l4_headers;
@@ -743,8 +711,8 @@ int main(int argc, char *argv[])
 					inet_checksum_sg( &iv0, 1 );
 			}
 
-			l4_headers->source_port = htons( L3_PORT );
-			l4_headers->dest_port = htons( L3_PORT );;
+			l4_headers->source_port = htons(L4_PORT);
+			l4_headers->dest_port = htons(L4_PORT);
 			l4_headers->udp_length = htons(packet_size-18-20);
 
 			l4_headers->version_cc = 2;
@@ -774,7 +742,7 @@ int main(int argc, char *argv[])
 	 */
 	fprintf(stderr, "advertising stream ...\n");
 	if( transport == 2 ) {
-		err = mrp_advertise_stream(STREAM_ID, dest_addr,
+		err = mrp_advertise_stream(glob_stream_id, dest_addr,
 					domain_class_a_vid, PKT_SZ - 16,
 					L2_PACKET_IPG / 125000,
 					domain_class_a_priority, 3900);
@@ -784,7 +752,7 @@ int main(int argc, char *argv[])
 		 * not allowed, not sure the significance of the value 6, but
 		 * using it consistently
 		 */
-		err = mrp_advertise_stream(STREAM_ID, dest_addr,
+		err = mrp_advertise_stream(glob_stream_id, dest_addr,
 					domain_class_a_vid,
 					sizeof(*l4_headers) + L4_SAMPLES_PER_FRAME * CHANNELS * 2 + 6,
 					1,
@@ -792,23 +760,26 @@ int main(int argc, char *argv[])
 	}
 	if (err) {
 		printf("mrp_advertise_stream failed\n");
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	fprintf(stderr, "awaiting a listener ...\n");
-	mrp_await_listener(STREAM_ID);
+	mrp_await_listener(glob_stream_id);
 	listeners = 1;
 	printf("got a listener ...\n");
 	halt_tx = 0;
 
-	if( gptpinit() == false ) {
-		return -1;
+	if(-1 == gptpinit(&igb_shm_fd, igb_mmap)) {
+		return EXIT_FAILURE;
 	}
-	gptpscaling(&td);
+
+	if (-1 == gptpscaling(igb_mmap, &td)) {
+		return EXIT_FAILURE;
+	}
 
 	if( igb_get_wallclock( &igb_dev, &now_local, NULL ) > 0 ) {
 	  fprintf( stderr, "Failed to get wallclock time\n" );
-	  return -1;
+	  return EXIT_FAILURE;
 	}
 	update_8021as = td.local_time - td.ml_phoffset;
 	delta_local = (unsigned)(now_local - td.local_time);
@@ -945,11 +916,11 @@ int main(int argc, char *argv[])
 	
 	if( transport == 2 ) {
 		mrp_unadvertise_stream
-			(STREAM_ID, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
+			(glob_stream_id, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
 			 domain_class_a_priority, 3900);
 	} else {
 		mrp_unadvertise_stream
-			(STREAM_ID, dest_addr, domain_class_a_vid,
+			(glob_stream_id, dest_addr, domain_class_a_vid,
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1,
 			 domain_class_a_priority, 3900);
 	}
@@ -959,10 +930,10 @@ int main(int argc, char *argv[])
 	rc = mrp_disconnect();
 	
 	igb_dma_free_page(&igb_dev, &a_page);
-	
+	rc = gptpdeinit(&igb_shm_fd, igb_mmap);
 	err = igb_detach(&igb_dev);
 	
 	pthread_exit(NULL);
 	
-	return 0;
+	return EXIT_SUCCESS;
 }
