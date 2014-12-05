@@ -577,11 +577,7 @@ int main(int argc, char *argv[])
 	printf("detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
 	       domain_class_a_vid);
 
-	err = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
-	if (err) {
-		printf("mrp_register_domain failed\n");
-		return EXIT_FAILURE;
-	}
+	mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
 
 	mrp_join_vlan();
 
@@ -742,7 +738,7 @@ int main(int argc, char *argv[])
 	 */
 	fprintf(stderr, "advertising stream ...\n");
 	if( transport == 2 ) {
-		err = mrp_advertise_stream(glob_stream_id, dest_addr,
+		mrp_advertise_stream(glob_stream_id, dest_addr,
 					domain_class_a_vid, PKT_SZ - 16,
 					L2_PACKET_IPG / 125000,
 					domain_class_a_priority, 3900);
@@ -752,15 +748,11 @@ int main(int argc, char *argv[])
 		 * not allowed, not sure the significance of the value 6, but
 		 * using it consistently
 		 */
-		err = mrp_advertise_stream(glob_stream_id, dest_addr,
+		mrp_advertise_stream(glob_stream_id, dest_addr,
 					domain_class_a_vid,
 					sizeof(*l4_headers) + L4_SAMPLES_PER_FRAME * CHANNELS * 2 + 6,
 					1,
 					domain_class_a_priority, 3900);
-	}
-	if (err) {
-		printf("mrp_advertise_stream failed\n");
-		return EXIT_FAILURE;
 	}
 
 	fprintf(stderr, "awaiting a listener ...\n");
