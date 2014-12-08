@@ -566,7 +566,12 @@ int main(int argc, char *argv[])
 		
 	}
 
-	mrp_monitor();
+	rc = mrp_monitor();
+	if (rc) {
+		printf("failed creating MRP monitor thread\n");
+		return EXIT_FAILURE;
+	}
+
 	/* 
 	 * should use mrp_get_domain() but this is a simplification
 	 */
@@ -577,13 +582,17 @@ int main(int argc, char *argv[])
 	printf("detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
 	       domain_class_a_vid);
 
-	err = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
-	if (err) {
+	rc = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	if (rc) {
 		printf("mrp_register_domain failed\n");
 		return EXIT_FAILURE;
 	}
 
-	mrp_join_vlan();
+	rc = mrp_join_vlan();
+	if (rc) {
+		printf("mrp_join_vlan failed\n");
+		return EXIT_FAILURE;
+	}
 
 	if( transport == 2 ) {
 		igb_set_class_bandwidth
@@ -742,7 +751,7 @@ int main(int argc, char *argv[])
 	 */
 	fprintf(stderr, "advertising stream ...\n");
 	if( transport == 2 ) {
-		err = mrp_advertise_stream(glob_stream_id, dest_addr,
+		rc = mrp_advertise_stream(glob_stream_id, dest_addr,
 					domain_class_a_vid, PKT_SZ - 16,
 					L2_PACKET_IPG / 125000,
 					domain_class_a_priority, 3900);
@@ -752,19 +761,23 @@ int main(int argc, char *argv[])
 		 * not allowed, not sure the significance of the value 6, but
 		 * using it consistently
 		 */
-		err = mrp_advertise_stream(glob_stream_id, dest_addr,
+		rc = mrp_advertise_stream(glob_stream_id, dest_addr,
 					domain_class_a_vid,
 					sizeof(*l4_headers) + L4_SAMPLES_PER_FRAME * CHANNELS * 2 + 6,
 					1,
 					domain_class_a_priority, 3900);
 	}
-	if (err) {
+	if (rc) {
 		printf("mrp_advertise_stream failed\n");
 		return EXIT_FAILURE;
 	}
 
 	fprintf(stderr, "awaiting a listener ...\n");
-	mrp_await_listener(glob_stream_id);
+	rc = mrp_await_listener(glob_stream_id);
+	if (rc) {
+		printf("mrp_await_listener failed\n");
+		return EXIT_FAILURE;
+	}
 	listeners = 1;
 	printf("got a listener ...\n");
 	halt_tx = 0;
@@ -915,19 +928,23 @@ int main(int argc, char *argv[])
 	halt_tx = 1;
 	
 	if( transport == 2 ) {
-		mrp_unadvertise_stream
+		rc = mrp_unadvertise_stream
 			(glob_stream_id, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
 			 domain_class_a_priority, 3900);
 	} else {
-		mrp_unadvertise_stream
+		rc = mrp_unadvertise_stream
 			(glob_stream_id, dest_addr, domain_class_a_vid,
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1,
 			 domain_class_a_priority, 3900);
 	}
+	if (rc)
+		printf("mrp_unadvertise_stream failed\n");
 	
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */
 	
 	rc = mrp_disconnect();
+	if (rc)
+		printf("mrp_disconnect failed\n");
 	
 	igb_dma_free_page(&igb_dev, &a_page);
 	rc = gptpdeinit(&igb_shm_fd, igb_mmap);

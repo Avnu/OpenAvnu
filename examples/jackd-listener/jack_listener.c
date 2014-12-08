@@ -89,15 +89,22 @@ static void help()
 
 void shutdown_and_exit(int sig)
 {
+	int ret;
+
 	if (sig != 0)
 		fprintf(stdout,"Received signal %d:", sig);
 	fprintf(stdout,"Leaving...\n");
 
 	if (0 != talker) {
-		send_leave();
+		ret = send_leave();
+		if (ret)
+			printf("send_leave failed\n");
 	}
 
-	mrp_disconnect();
+	ret = mrp_disconnect();
+	if (ret)
+		printf("mrp_disconnect failed\n");
+
 	close(control_socket);
 
 	if (NULL != handle) {
@@ -300,7 +307,8 @@ int main(int argc, char *argv[])
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/** The compiled filter expression */
 	char filter_exp[] = "ether dst 91:E0:F0:00:0e:80";	/** The filter expression */
-	
+	int rc;
+
 	signal(SIGINT, shutdown_and_exit);
 	
 	int c;
@@ -328,14 +336,22 @@ int main(int argc, char *argv[])
 		return errno;
 	}
 
-	report_domain_status();
+	rc = report_domain_status();
+	if (rc) {
+		printf("report_domain_status failed\n");
+		return EXIT_FAILURE;
+	}
 
 	init_jack();
 	
 	fprintf(stdout,"Waiting for talker...\n");
 	await_talker();	
 
-	send_ready();
+	rc = send_ready();
+	if (rc) {
+		printf("send_ready failed\n");
+		return EXIT_FAILURE;
+	}
 
 #if LIBSND
 	char* filename = "listener.wav";

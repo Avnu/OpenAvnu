@@ -32,11 +32,6 @@
 
 ******************************************************************************/
 
-/*
- * simple_talker MRP client part
- * gcc -Wall -c -I../../daemons/mrpd talker_mrp_client.c
- */
-
 #include "talker_mrp_client.h"
 
 /* global variables */
@@ -71,16 +66,18 @@ int send_mrp_msg(char *notify_data, int notify_len)
 	struct sockaddr_in addr;
 	socklen_t addr_len;
 
+	if (control_socket == -1)
+		return -1;
+	if (notify_data == NULL)
+		return -1;
+
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	addr_len = sizeof(addr);
-	if (control_socket != -1)
-		return sendto(control_socket, notify_data, notify_len, 0,
+	return sendto(control_socket, notify_data, notify_len, 0,
 			 (struct sockaddr *)&addr, addr_len);
-	else
-		return 0;
 }
 
 int process_mrp_msg(char *buf, int buflen)
@@ -368,24 +365,28 @@ int mrp_disconnect(void)
 {
 	char *msgbuf;
 	int rc;
-	msgbuf = malloc(64);
+
+	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 64);
 	sprintf(msgbuf, "BYE");
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);
-
-	/* rc = recv_mrp_okay(); */
 	free(msgbuf);
-	return rc;
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 int mrp_monitor(void)
 {
-	pthread_attr_init(&monitor_attr);
-	pthread_create(&monitor_thread, NULL, mrp_monitor_thread, NULL);
-	return 0;
+	int rc;
+	rc = pthread_attr_init(&monitor_attr);
+	rc |= pthread_create(&monitor_thread, NULL, mrp_monitor_thread, NULL);
+	return rc;
 }
 
 int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid)
@@ -393,17 +394,20 @@ int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid)
 	char *msgbuf;
 	int rc;
 
-	msgbuf = malloc(64);
+	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
-	memset(msgbuf, 0, 64);
+	memset(msgbuf, 0, 1500);
 
 	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", *class_id, *priority, *vid);
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 
-	return rc;
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 
@@ -436,7 +440,10 @@ mrp_advertise_stream(uint8_t * streamid,
 	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 
-	return rc;
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 int
@@ -464,32 +471,35 @@ mrp_unadvertise_stream(uint8_t * streamid,
 		interval, priority << 5, latency);
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);
-
-	/* rc = recv_mrp_okay(); */
 	free(msgbuf);
-	return rc;
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 
 int mrp_await_listener(unsigned char *streamid)
 {
 	char *msgbuf;
-	int ret;
+	int rc;
 
 	memcpy(monitor_stream_id, streamid, sizeof(monitor_stream_id));
-	msgbuf = malloc(64);
+	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
-	memset(msgbuf, 0, 64);
+	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S??");
-	ret = send_mrp_msg(msgbuf, 64);
+	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
-	if (ret == -1)
+	if (rc != 1500)
 		return -1;
 
 	/* either already there ... or need to wait ... */
 	while (!halt_tx && (listeners == 0))
 		usleep(20000);
+
 	return 0;
 }
 
@@ -506,14 +516,14 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 	/* we may not get a notification if we are joining late,
 	 * so query for what is already there ...
 	 */
-	msgbuf = malloc(64);
+	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
-	memset(msgbuf, 0, 64);
+	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S??");
-	ret = send_mrp_msg(msgbuf, 64);
+	ret = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
-	if (ret == -1)
+	if (ret != 1500)
 		return -1;
 	while (!halt_tx && (domain_a_valid == 0) && (domain_b_valid == 0))
 		usleep(20000);
@@ -540,21 +550,26 @@ int mrp_join_vlan()
 {
 	char *msgbuf;
 	int rc;
+
 	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "V++:I=0002");
 	rc = send_mrp_msg(msgbuf, 1500);
-
 	free(msgbuf);
-	return rc;
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 int mrp_join_listener(uint8_t * streamid)
 {
 	char *msgbuf;
 	int rc;
+
 	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
@@ -564,10 +579,12 @@ int mrp_join_listener(uint8_t * streamid)
 		streamid[4], streamid[5], streamid[6], streamid[7]);
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);
-
-	/* rc = recv_mrp_okay(); */
 	free(msgbuf);
-	return rc;
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 // TODO remove

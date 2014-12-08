@@ -22,11 +22,6 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-/*
- * simple_listener MRP client part
- * gcc -Wall -c -I../../daemons/mrpd listener_mrp_client.c
- */
-
 #include "listener_mrp_client.h"
 
 /* global variables */
@@ -42,16 +37,19 @@ unsigned char stream_id[8];
 int send_msg(char *data, int data_len)
 {
 	struct sockaddr_in addr;
+
+	if (control_socket == -1)
+		return -1;
+	if (data == NULL)
+		return -1;
+
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	inet_aton("127.0.0.1", &addr.sin_addr);
-	if (-1 != control_socket)
-		return sendto(control_socket, data, data_len, 0,
-			(struct sockaddr*)&addr, (socklen_t)sizeof(addr));
-	else
-		return 0;
+	return sendto(control_socket, data, data_len, 0,
+		(struct sockaddr*)&addr, (socklen_t)sizeof(addr));
 }
 
 int msg_process(char *buf, int buflen)
@@ -83,12 +81,12 @@ int recv_msg()
 	int bytes = 0;
 	int ret;
 
-	databuf = (char *)malloc(2000);
+	databuf = (char *)malloc(1500);
 	if (NULL == databuf)
 		return -1;
 
-	memset(databuf, 0, 2000);
-	bytes = recv(control_socket, databuf, 2000, 0);
+	memset(databuf, 0, 1500);
+	bytes = recv(control_socket, databuf, 1500, 0);
 	if (bytes <= -1)
 	{
 		free(databuf);
@@ -132,32 +130,40 @@ int create_socket() // TODO FIX! =:-|
 
 int report_domain_status()
 {
+	char* msgbuf;
 	int rc;
-	char* msgbuf = malloc(1500);
 
+	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
-	
 	rc = send_msg(msgbuf, 1500);
-
 	free(msgbuf);
-	return rc;
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 int join_vlan()
 {
+	char *msgbuf;
 	int rc;
-	char *msgbuf = malloc(1500);
+
+	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "V++:I=0002");
 	rc = send_msg(msgbuf, 1500);
-
 	free(msgbuf);
-	return rc;
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 int await_talker()
@@ -171,6 +177,7 @@ int send_ready()
 {
 	char *databuf;
 	int rc;
+
 	databuf = malloc(1500);
 	if (NULL == databuf)
 		return -1;
@@ -181,19 +188,19 @@ int send_ready()
 		     stream_id[4], stream_id[5],
 		     stream_id[6], stream_id[7]);
 	rc = send_msg(databuf, 1500);
-
-#ifdef DEBUG
-	fprintf(stdout,"Ready-Msg: %s\n", databuf);
-#endif 
-
 	free(databuf);
-	return rc;
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 int send_leave()
 {
 	char *databuf;
 	int rc;
+
 	databuf = malloc(1500);
 	if (NULL == databuf)
 		return -1;
@@ -205,7 +212,11 @@ int send_leave()
 		     stream_id[6], stream_id[7]);
 	rc = send_msg(databuf, 1500);
 	free(databuf);
-	return rc;
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
 
 int mrp_disconnect()
@@ -221,5 +232,8 @@ int mrp_disconnect()
 	rc = send_msg(msgbuf, 1500);
 	free(msgbuf);
 
-	return rc;
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
 }
