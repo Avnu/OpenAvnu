@@ -152,7 +152,12 @@ int main(int argc, char *argv[])
 	}
 
 #ifdef USE_MRPD
-	mrp_monitor();
+	err = mrp_monitor();
+	if (err) {
+		printf("failed creating MRP monitor thread\n");
+		return EXIT_FAILURE;
+	}
+
 	domain_a_valid = 1;
 	domain_class_a_id = MSRP_SR_CLASS_A;
 	domain_class_a_priority = MSRP_SR_CLASS_A_PRIO;
@@ -160,7 +165,11 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
 	       domain_class_a_vid);
 
-        mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	err = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	if (err) {
+		printf("mrp_register_domain failed\n");
+		return EXIT_FAILURE;
+	}
 
 	domain_a_valid = 1;
 	domain_class_a_vid = 2;
@@ -240,10 +249,20 @@ int main(int argc, char *argv[])
 	 * IPG is scaled to the Class (A) observation interval of packets per 125 usec
 	 */
 	fprintf(stderr, "advertising stream ...\n");
-	mrp_advertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
-		PACKET_IPG / 125000, domain_class_a_priority, 3900);
+	err = mrp_advertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
+				PACKET_IPG / 125000, domain_class_a_priority, 3900);
+	if (err) {
+		printf("mrp_advertise_stream failed\n");
+		return EXIT_FAILURE;
+	}
+
 	fprintf(stderr, "awaiting a listener ...\n");
-	mrp_await_listener(glob_stream_id);
+	err = mrp_await_listener(glob_stream_id);
+	if (err) {
+		printf("mrp_await_listener failed\n");
+		return EXIT_FAILURE;
+	}
+
 #endif
 
 	memset(&sched, 0 , sizeof (sched));
@@ -312,13 +331,19 @@ cleanup:
 	halt_tx = 1;
 	sleep(1);
 #ifdef USE_MRPD
-	mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
+	rc = mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
 			       PACKET_IPG / 125000, domain_class_a_priority, 3900);
+	if (rc) {
+		printf("mrp_unadvertise_stream failed\n");
+		return EXIT_FAILURE;
+	}
 #endif
 	/* disable Qav */
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);
 #ifdef USE_MRPD
 	err = mrp_disconnect();
+	if (err)
+		printf("mrp_disconnect failed\n");
 #endif
 	igb_dma_free_page(&igb_dev, &a_page);
 
