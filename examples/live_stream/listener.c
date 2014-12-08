@@ -37,10 +37,15 @@ unsigned char glob_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
 
 void sigint_handler(int signum)
 {
+	int ret;
+
 	fprintf(stderr, "Received signal %d:leaving...\n", signum);
 #if USE_MRPD
-	if (0 != talker)
-		send_leave();
+	if (0 != talker) {
+		ret = send_leave();
+		if (ret)
+			printf("send_leave failed\n");
+	}
 #endif /* USE_MRPD */
 	if (2 > control_socket)
 	{
@@ -64,6 +69,7 @@ int main(int argc, char *argv[ ])
 	unsigned char frame[MAX_FRAME_SIZE];
 	int size, length;
 	struct sched_param sched;
+	int rc;
 
 	if (argc < 2) {
 		fprintf(stderr, "Usage : %s <interface_name> <payload>\n",argv[0]);
@@ -77,10 +83,20 @@ int main(int argc, char *argv[ ])
 		return errno;
 	}
 
-	report_domain_status();
+	rc = report_domain_status();
+	if (rc) {
+		printf("report_domain_status failed\n");
+		return EXIT_FAILURE;
+	}
+
 	fprintf(stdout,"Waiting for talker...\n");
 	await_talker();
-	send_ready();
+	rc = send_ready();
+	if (rc) {
+		printf("send_ready failed\n");
+		return EXIT_FAILURE;
+	}
+
 #endif /* USE_MRPD */
 	iface = strdup(argv[1]);
 

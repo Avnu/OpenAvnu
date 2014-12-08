@@ -140,8 +140,11 @@ void sigint_handler(int signum)
 
 	fprintf(stdout,"Received signal %d:leaving...\n", signum);
 
-	if (0 != talker)
-		send_leave();
+	if (0 != talker) {
+		ret = send_leave();
+		if (ret)
+			printf("send_leave failed\n");
+	}
 
 	if (2 > control_socket)
 	{
@@ -172,6 +175,7 @@ int main(int argc, char *argv[])
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/* The compiled filter expression */
 	char filter_exp[] = "ether dst 91:E0:F0:00:0e:80";	/* The filter expression */
+	int rc;
 
 	signal(SIGINT, sigint_handler);
 
@@ -203,8 +207,17 @@ int main(int argc, char *argv[])
 		return errno;
 	}
 
-	report_domain_status();
-	join_vlan();
+	rc = report_domain_status();
+	if (rc) {
+		printf("report_domain_status failed\n");
+		return EXIT_FAILURE;
+	}
+
+	rc = join_vlan();
+	if (rc) {
+		printf("join_vlan failed\n");
+		return EXIT_FAILURE;
+	}
 
 	fprintf(stdout,"Waiting for talker...\n");
 	await_talker();	
@@ -212,7 +225,11 @@ int main(int argc, char *argv[])
 #if DEBUG
 	fprintf(stdout,"Send ready-msg...\n");
 #endif /* DEBUG */
-	send_ready();
+	rc = send_ready();
+	if (rc) {
+		printf("send_ready failed\n");
+		return EXIT_FAILURE;
+	}
 		
 #if LIBSND
 	SF_INFO* sf_info = (SF_INFO*)malloc(sizeof(SF_INFO));
