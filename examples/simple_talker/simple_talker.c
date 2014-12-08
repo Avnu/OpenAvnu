@@ -937,10 +937,8 @@ int main(int argc, char *argv[])
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1,
 			 domain_class_a_priority, 3900);
 	}
-	if (rc) {
+	if (rc)
 		printf("mrp_unadvertise_stream failed\n");
-		return EXIT_FAILURE;
-	}
 	
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */
 	

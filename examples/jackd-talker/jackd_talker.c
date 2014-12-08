@@ -613,11 +613,9 @@ int main(int argc, char *argv[])
 	halt_tx = 1;
 
 	rc = mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, PKT_SZ - 16,
-			       PACKET_IPG / 125000, domain_class_a_priority, 3900);
-	if (rc) {
+				PACKET_IPG / 125000, domain_class_a_priority, 3900);
+	if (rc)
 		printf("mrp_unadvertise_stream failed\n");
-		return EXIT_FAILURE;
-	}
 
 	igb_set_class_bandwidth(&glob_igb_dev, 0, 0, 0, 0);	/* disable Qav */
 

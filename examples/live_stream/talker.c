@@ -331,12 +331,10 @@ cleanup:
 	halt_tx = 1;
 	sleep(1);
 #ifdef USE_MRPD
-	rc = mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
-			       PACKET_IPG / 125000, domain_class_a_priority, 3900);
-	if (rc) {
+	err = mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
+				PACKET_IPG / 125000, domain_class_a_priority, 3900);
+	if (err)
 		printf("mrp_unadvertise_stream failed\n");
-		return EXIT_FAILURE;
-	}
 #endif
 	/* disable Qav */
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);
