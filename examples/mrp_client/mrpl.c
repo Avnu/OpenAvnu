@@ -117,6 +117,7 @@ int main(int argc, char *argv[])
 		sprintf(msgbuf, "S+L:L=A0369F022EEE0000,D=2");
 
 	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
+	free(msgbuf);
 
 	rc |= mrpdclient_close(&mrpd_sock);
 

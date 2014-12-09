@@ -125,6 +125,7 @@ int main(int argc, char *argv[])
 	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
+	free(msgbuf);
 
 	rc = mrpdclient_close(&mrpd_sock);
 
