@@ -118,11 +118,7 @@ int main(int argc, char *argv[])
 
 	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
 
-	sprintf(msgbuf, "BYE");
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
-
-	free(msgbuf);
-	rc = mrpdclient_close(&mrpd_sock);
+	rc |= mrpdclient_close(&mrpd_sock);
 
 	if (-1 == rc)
 		return EXIT_FAILURE;

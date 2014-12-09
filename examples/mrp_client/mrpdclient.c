@@ -99,7 +99,13 @@ int mrpdclient_init(void)
 
 int mrpdclient_close(SOCKET *mrpd_sock)
 {
+	int rc;
+
 	if (NULL == mrpd_sock)
+		return -1;
+
+	rc = mrpdclient_sendto(*mrpd_sock, "BYE", strlen("BYE") + 1);
+	if (rc != strlen("BYE") + 1)
 		return -1;
 
 	if (SOCKET_ERROR != *mrpd_sock)

@@ -126,11 +126,6 @@ int main(int argc, char *argv[])
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
-	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
-	sprintf(msgbuf, "BYE");
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
-
-	free(msgbuf);
 	rc = mrpdclient_close(&mrpd_sock);
 
 #if defined WIN32
