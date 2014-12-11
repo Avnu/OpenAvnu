@@ -1,0 +1,880 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>gitnotes</title>
+<!-- 2014-12-10 Wed 23:35 -->
+<meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta  name="generator" content="Org-mode" />
+<meta  name="author" content="Levi Pearson" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2013 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">gitnotes</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1. Git repository philosophy</a></li>
+<li><a href="#sec-2">2. Maintainer vs. Contributor Overhead</a></li>
+<li><a href="#sec-3">3. Short-term change workflow, no remote collaboration planned</a>
+<ul>
+<li><a href="#sec-3-1">3.1. Fork repository to own github account</a></li>
+<li><a href="#sec-3-2">3.2. Create local clone of your github fork</a></li>
+<li><a href="#sec-3-3">3.3. Add main repository as a remote for your local clone</a></li>
+<li><a href="#sec-3-4">3.4. Create a working branch on your local clone</a></li>
+<li><a href="#sec-3-5">3.5. Regularly <b>fetch</b> from upstream</a></li>
+<li><a href="#sec-3-6">3.6. Regularly <b>rebase</b> your working branch to current upstream</a></li>
+<li><a href="#sec-3-7">3.7. (optional) Push your in-progress branch to fork/master marked as private</a></li>
+<li><a href="#sec-3-8">3.8. After your fix is finished/tested, do a final cleanup</a></li>
+<li><a href="#sec-3-9">3.9. Push your local branch to your github fork and initiate a pull request.</a></li>
+<li><a href="#sec-3-10">3.10. (optional) Make another local branch from the pull request branch</a></li>
+<li><a href="#sec-3-11">3.11. (optional) Intermediate/final rebases for long-running pull requests</a></li>
+<li><a href="#sec-3-12">3.12. After upstream merge, delete your change branches</a></li>
+</ul>
+</li>
+<li><a href="#sec-4">4. Task-based collaboration branch workflow</a></li>
+<li><a href="#sec-5">5. Misc git tips</a>
+<ul>
+<li><a href="#sec-5-1">5.1. Using git's "reuse recorded resolution" feature</a></li>
+<li><a href="#sec-5-2">5.2. Splitting a commit</a></li>
+<li><a href="#sec-5-3">5.3. Adding only some of a file's changes to the index</a></li>
+<li><a href="#sec-5-4">5.4. Links to other tips</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-sec-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> Git repository philosophy</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+The main repository should contain a mostly linear history composed of
+complete, well-tested, well-described changes that reflect relatively
+cohesive units of change. Any branch/merge points should be for
+long-running and well-defined units of work, and should similarly be
+mostly linear and have high-quality commits.
+</p>
+
+<p>
+This makes it easy to see how development has progressed over time and
+what work was involved in creating new features and fixing particular
+issues. It also makes it easy to pull complete change-sets for
+features or issue fixes from one branch to another. This will be
+valuable to downstream maintainers of stable code lines for their
+products.
+</p>
+
+<p>
+On the other hand, software development is sometimes a messy process
+and a version control system is invaluable to managing the daily
+process of changing a code base. Engineers should not wait for the
+"perfect change set" before committing changes. Fortunately, git
+provides mechanisms to support both aspects of software change
+management, though it requires application of a bit of discipline in
+the way git commands are applied to everyday work vs. merging complete
+changes with the official repository.
+</p>
+
+<p>
+The dividing line falls between "public change history" vs. "private
+change history". Private history management is fluid and relatively
+un-structured, but maintained separately from public history in forked
+repos and local repo clones. It should involve numerous task-specific
+branches and should be viewed as a cooperative process between git and
+the user in developing a coherent change set for upstream. Individual
+commits are mostly unimportant in the long run; the only thing that
+matters is that the end result is a coherent, well-described and
+well-tested change to submit upstream.
+</p>
+
+<p>
+Once a change is accepted upstream, however, it becomes a permanent
+record of the change it embodies. Every effort should be taken to make
+it correct and <b>useful</b> as an individual commit, because it will be
+forever a part of the repository history. No change should leave
+things in an inconsistent state, even if it only encompasses one
+aspect of a related set of changes. These kinds of commits don't just
+happen; they have to be carefully organized from the chaos of private
+branch history.
+</p>
+
+<p>
+Linus's take on it:
+</p>
+
+<p>
+<a href="http://thread.gmane.org/gmane.comp.video.dri.devel/34739/focus=34744">http://thread.gmane.org/gmane.comp.video.dri.devel/34739/focus=34744</a>
+</p>
+
+<p>
+Articles on mechanics of merge and rebase:
+</p>
+
+<p>
+<a href="http://www.derekgourlay.com/archives/428">http://www.derekgourlay.com/archives/428</a>
+</p>
+
+<p>
+<a href="http://mislav.uniqpath.com/2013/02/merge-vs-rebase/">http://mislav.uniqpath.com/2013/02/merge-vs-rebase/</a>
+</p>
+
+<p>
+<a href="https://medium.com/@porteneuve/getting-solid-at-git-rebase-vs-merge-4fa1a48c53aa">https://medium.com/@porteneuve/getting-solid-at-git-rebase-vs-merge-4fa1a48c53aa</a>
+</p>
+
+<p>
+<a href="http://codeinthehole.com/writing/pull-requests-and-other-good-practices-for-teams-using-github/">http://codeinthehole.com/writing/pull-requests-and-other-good-practices-for-teams-using-github/</a>
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> Maintainer vs. Contributor Overhead</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+Plenty of potential maintainers and contributors are not yet familiar
+with using this style of distributed change management, and there is
+definitely some overhead involved in becoming familiar with using git
+this way. We should view the process of accepting contributions as a
+collaborative one in which we make an effort to guide maintainers and
+collaborators in learning how to prepare good pull requests.
+</p>
+
+<p>
+When contributors are experienced and/or willing to learn proper
+procedures, we should politely suggest how to change their pull
+request to remove extraneous intermediate commits, merges, etc. at the
+beginning of the review process, as doing the required rebase will
+effectively end the pull request tracking. If the contributor doesn't
+have time or is unwilling, then we should again politely inform them
+why the submission can't be accepted in its current form and reject
+it.
+</p>
+
+<p>
+If the change is otherwise good and provides an important needed
+feature or bug-fix, a maintainer should note that they'll be
+cherry-picking the change with attribution to the contributor but that
+it can't be merged as-is. The maintainer will have to manually fetch
+the pull request and rework it into a good change set before merging,
+then close the pull request with a note that it was merged manually.
+</p>
+
+<p>
+Lower priority changes should just be closed after polite suggestions
+on how to re-work them into an acceptable form.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> Short-term change workflow, no remote collaboration planned</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+This workflow applies to small bugfixes, small-scope changes,
+single-user contributions. etc. Although it may seem a little
+complicated, it really represents a model that treats upstream
+similarly to a centralized VCS while giving you the power to manage
+your own development with whatever version control practices suit you.
+</p>
+
+<p>
+<a href="https://guides.github.com/activities/contributing-to-open-source/">https://guides.github.com/activities/contributing-to-open-source/</a>
+</p>
+</div>
+
+<div id="outline-container-sec-3-1" class="outline-3">
+<h3 id="sec-3-1"><span class="section-number-3">3.1</span> Fork repository to own github account</h3>
+<div class="outline-text-3" id="text-3-1">
+<p>
+This will be the <b>public</b> staging area for your contributions, and
+you'll create a branch here when you're ready for code review. This
+need only be done once per contributor/organization; you just need a
+github-managed clone you have write permission on from which to start
+pull requests.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-2" class="outline-3">
+<h3 id="sec-3-2"><span class="section-number-3">3.2</span> Create local clone of your github fork</h3>
+<div class="outline-text-3" id="text-3-2">
+<p>
+This will be the <b>private</b> staging area for your
+contributions. Private changes can be re-written by you at will, as no
+one else will be depending on the repository history structure. This
+only needs to be done once per workstation, of course.
+</p>
+
+<pre class="example">
+git clone &lt;your cloned repo&gt;
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-3-3" class="outline-3">
+<h3 id="sec-3-3"><span class="section-number-3">3.3</span> Add main repository as a remote for your local clone</h3>
+<div class="outline-text-3" id="text-3-3">
+<p>
+This will allow you to fetch updates from the upstream branch you're
+working on and also to push them to your remote fork from a single
+local work area.
+</p>
+
+<p>
+The following creates a new remote named "upstream" that points to the
+main repo's open-avb-next branch:
+</p>
+
+<pre class="example">
+git remote add --track open-avb-next upstream git://github.com/AVnu/OpenAVB.git
+</pre>
+
+<p>
+<b>note</b>: You can use this command to test other people's pull requests
+by adding their pull request branches as remotes, fetching them, and
+checking them out.
+</p>
+
+<p>
+Your own fork remote will be named "origin" unless you told git
+otherwise when you cloned.
+</p>
+
+<p>
+Again, this is a one-time configuration change per clone.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-4" class="outline-3">
+<h3 id="sec-3-4"><span class="section-number-3">3.4</span> Create a working branch on your local clone</h3>
+<div class="outline-text-3" id="text-3-4">
+<p>
+Don't make changes directly to the remote tracking branches for
+upstream or your fork. This would make it difficult to cleanly deal
+with upstream changes that occur while your work is in progress.
+</p>
+
+<p>
+Name your working branch after the topic you'll be working on;
+i.e. fix-issue-35 or add-feature-X. This is a note to yourself and
+others about what the change set you're developing is for, and a
+reminder not to commit unrelated changes in it.
+</p>
+
+<p>
+For example, if you want to submit a change to <code>open-avb-next</code>, you
+would first make sure your fork and local clone are up-to-date, then
+issue:
+</p>
+
+<pre class="example">
+git checkout open-avb-next
+git checkout -b fix_issue_323
+</pre>
+
+<p>
+This new local branch is where you will do all your work. Commit
+regularly. If the work starts to collect a lot of minor changes, use
+interactive rebases (<code>git rebase -i</code>) to clean them up into a small,
+meaningful patchset.
+</p>
+
+<p>
+Keeping the local patchset trimmed regularly will make it easier to
+apply changes from upstream, but doing this too aggressively could
+hamper your ability to use tools like <code>git bisect</code> to track down the
+cause of regressions you introduce, so it's probably best to do it
+after a round of testing.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-5" class="outline-3">
+<h3 id="sec-3-5"><span class="section-number-3">3.5</span> Regularly <b>fetch</b> from upstream</h3>
+<div class="outline-text-3" id="text-3-5">
+<p>
+This keeps your local tracking version of permanent branches
+up-to-date with upstream. Also push these to your fork's permanent
+branches so they stay consistent.
+</p>
+
+<p>
+To do this for the <code>open-avb-next</code> branch:
+</p>
+
+<pre class="example">
+git checkout open-avb-next
+git fetch upstream
+git pull --ff-only upstream
+git push origin open-avb-next
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-3-6" class="outline-3">
+<h3 id="sec-3-6"><span class="section-number-3">3.6</span> Regularly <b>rebase</b> your working branch to current upstream</h3>
+<div class="outline-text-3" id="text-3-6">
+<p>
+Don't <b>merge</b> upstream changes to your private set of changes; this
+will just complicate the upstream history with unnecessary detail when
+your changes are accepted. Rebase instead.
+</p>
+
+<p>
+Rebase rolls back to the branch point, applies upstream changes, then
+re-applies each of your changes to the new upstream head point that
+your branch will now diverge from.
+</p>
+
+<p>
+This will allow your bugfix to be applied as a fast-forward merge to
+upstream, which keeps the history clean and linear while ensuring that
+you're still tracking upstream changes along with your own.
+</p>
+
+<p>
+After you update your <code>open-avb-next</code> branch:
+</p>
+
+<pre class="example">
+git checkout issue-32-working
+git rebase open-avb-next
+</pre>
+
+<p>
+See <code>git help rebase</code> for more information on the rebase command.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-7" class="outline-3">
+<h3 id="sec-3-7"><span class="section-number-3">3.7</span> (optional) Push your in-progress branch to fork/master marked as private</h3>
+<div class="outline-text-3" id="text-3-7">
+<p>
+If you want to ensure your in-progress work is backed-up or have
+others view it, push it to your forked repository but ensure that the
+branch name has "-private" or some other indicator in it that others
+should not attempt to make changes directly to it, as you may change
+the set of changes in it at any point due to rebasing:
+</p>
+
+<pre class="example">
+git push -u --set-upstream origin &lt;local branch name&gt;
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-3-8" class="outline-3">
+<h3 id="sec-3-8"><span class="section-number-3">3.8</span> After your fix is finished/tested, do a final cleanup</h3>
+<div class="outline-text-3" id="text-3-8">
+<p>
+Do a fetch/rebase of upstream/master and re-test if any changes
+occurred. Do an interactive rebase to compact your changes into a
+small, well-documented change set.
+</p>
+
+<pre class="example">
+git rebase -i
+</pre>
+
+<p>
+See the <code>INTERACTIVE MODE</code> section of <code>git help rebase</code>. Note that you
+can easily merge and fix up commit messages this way, but you can also
+split apart commits and otherwise clean things up while the rebase is
+in progress.
+</p>
+
+<p>
+When the change set includes both test changes and code changes that
+make the tests pass, keep the test and code changes in separate
+commits and order them such that the tests can be applied <b>first</b> and
+verified to fail before the code changes that fix them are applied.
+</p>
+
+<p>
+Include audit trail notes (issue references, links to other
+discussion, etc) along with a well-formed and detailed commit message.
+</p>
+
+<p>
+<a href="http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html">http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html</a>
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-9" class="outline-3">
+<h3 id="sec-3-9"><span class="section-number-3">3.9</span> Push your local branch to your github fork and initiate a pull request.</h3>
+<div class="outline-text-3" id="text-3-9">
+<p>
+Initiate the push and create a remote tracking branch:
+</p>
+
+<pre class="example">
+git push -u --set-upstream origin &lt;local branch name&gt;
+</pre>
+
+<p>
+Now go to the GitHub page for your fork, click on the "Pull Requests"
+tab, and then click on the green "New pull request" button. Make sure
+the two refs point at the repositories and branches you want, then
+click the "Create pull request" button.
+</p>
+
+<p>
+This is the beginning of the code review process, and your
+contribution is now <b>public</b>, so you should not do any rebases during
+this period as they will complicate the process of reviewing your
+code.
+</p>
+
+<p>
+If you already pushed your local changes to a private branch on your
+forked github repo, you can initiate a pull request from there, but
+you'll need to remember not to rebase while the review is in progress.
+</p>
+
+<p>
+If your pull request branch was previously pushed but has been rebased
+locally, a normal <code>push</code> command will fail because the remote's update
+won't be a fast-forward. Use the following command instead:
+</p>
+
+<pre class="example">
+git push --force-with-lease
+</pre>
+
+<p>
+This will stop any non-fast-forward update to a remote branch where
+someone has pushed changes that you don't have locally. If you've
+followed good "branch hygiene" it shouldn't be a problem, but if your
+git config has <code>push.default = matching</code> a plain <code>--force</code> could
+potentially cause unintentional changes to your GitHub fork.
+</p>
+
+<p>
+If you are unsure what will happen during a <code>push</code> command, use the
+<code>-n</code> option to do a dry-run first.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-10" class="outline-3">
+<h3 id="sec-3-10"><span class="section-number-3">3.10</span> (optional) Make another local branch from the pull request branch</h3>
+<div class="outline-text-3" id="text-3-10">
+<p>
+This will be a private branch again, so you can freely do interactive
+rebases to clean up your history into a clean patch set. Do a
+fast-forward merge back into the pull request tracking branch when
+you're ready for another round of review and push it to your fork.
+</p>
+
+<p>
+From the head of the pull request branch, just run:
+</p>
+
+<pre class="example">
+git checkout -b &lt;new branch name&gt;
+</pre>
+
+<p>
+When you want to add them to the pull request, do any interactive
+rebasing you would like and then run:
+</p>
+
+<pre class="example">
+git checkout &lt;original pull request branch&gt;
+git merge --ff-only &lt;new branch name&gt;
+</pre>
+
+<p>
+And if you're done with the new work branch:
+</p>
+
+<pre class="example">
+git branch -d &lt;new branch name&gt;
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-3-11" class="outline-3">
+<h3 id="sec-3-11"><span class="section-number-3">3.11</span> (optional) Intermediate/final rebases for long-running pull requests</h3>
+<div class="outline-text-3" id="text-3-11">
+<p>
+If you have to do a significant re-write of your change, or the branch
+your change applies to changes significantly during the review
+process, you may need to re-base your pull request branch onto the tip
+of the branch from which it started. This uses the same commands as
+rebasing before you issued the pull request.
+</p>
+
+<p>
+When this operation is pushed to your forked repo on GitHub, it will
+update the pull request automatically. All comments referring to the
+previous history of the pull request branch will be noted as 'stale',
+though it will hold onto the old references if reviewers need to see
+what the old version of the code looked like.
+</p>
+
+<p>
+You should be aware of anyone who has been tracking your pull request
+branch, as this semi-public rebasing can cause issues if others have
+made changes to local tracking branches of your pull request branch.
+</p>
+
+<p>
+In turn, you should be aware that your own changes to tracking
+branches of the pull request branches of others could have their
+branch points removed. You'll need to cherry-pick your changes onto
+the new pull request after this happens.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-3-12" class="outline-3">
+<h3 id="sec-3-12"><span class="section-number-3">3.12</span> After upstream merge, delete your change branches</h3>
+<div class="outline-text-3" id="text-3-12">
+<p>
+There's no reason to keep them around; they are now part of upstream's
+development history and will show up in your repository via your
+upstream tracking branch. All this messing about with branches and
+rebasing serves to emulate what happens in a centralized VCS such as
+SVN, but it provides developers with a finer-grained control of their
+own patch-set development.
+</p>
+
+<p>
+Delete a local branch (use <code>-D</code> instead if the branch to delete is
+not fully merged):
+</p>
+
+<pre class="example">
+git branch -d &lt;branch name&gt;
+</pre>
+
+<p>
+Delete a local tracking branch (this will return during the next fetch
+if the upstream branch it tracks is still there):
+</p>
+
+<pre class="example">
+git branch -rd &lt;branch name&gt;
+</pre>
+
+<p>
+Delete a remote branch (push to remote branch with an empty ref to
+the local branch, which normally goes before the colon):
+</p>
+
+<pre class="example">
+git push &lt;repository&gt; :&lt;branch name&gt;
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> Task-based collaboration branch workflow</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+&lt;to be written&gt;
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-5" class="outline-2">
+<h2 id="sec-5"><span class="section-number-2">5</span> Misc git tips</h2>
+<div class="outline-text-2" id="text-5">
+</div><div id="outline-container-sec-5-1" class="outline-3">
+<h3 id="sec-5-1"><span class="section-number-3">5.1</span> Using git's "reuse recorded resolution" feature</h3>
+<div class="outline-text-3" id="text-5-1">
+<p>
+When working with multiple repositories and performing a lot of merge
+and rebase operations, you may find yourself having to resolve
+essentially the same merge conflict over and over again. Fortunately,
+git provides a tool to record the resolutions you supply and
+automatically replay them when the conflict matches one with a
+recorded resolution.
+</p>
+
+<p>
+To enable this, run the following command:
+</p>
+
+<pre class="example">
+git config --global rerere.enabled true
+</pre>
+
+<p>
+See the following page, along with <code>git help rerere</code>, for more details:
+</p>
+
+<p>
+<a href="http://git-scm.com/2010/03/03/rerere.htm">http://git-scm.com/2010/03/03/rerere.htm</a>
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-5-2" class="outline-3">
+<h3 id="sec-5-2"><span class="section-number-3">5.2</span> Splitting a commit</h3>
+<div class="outline-text-3" id="text-5-2">
+<p>
+If you are cleaning up a working branch in preparation for a pull
+request, you may find that you mixed multiple logical changes into a
+single commit. Fortunately, it is not too difficult to break it apart
+and group changes in a more sensible order. In fact, it is sometimes
+easier to refactor a particularly messy branch by first squashing it
+into a single commit and then breaking that single commit into a
+logical set of changes.
+</p>
+
+<p>
+The first step is to find the commit <i>before</i> the one you wish to
+split. You can either look it up in the log, or if you have a ref
+already for the one to split, you can use the <code>^</code> syntax to refer to
+the previous one from it. Start an interactive rebase:
+</p>
+
+<pre class="example">
+git rebase -i ref^
+</pre>
+
+<p>
+or
+</p>
+
+<pre class="example">
+git rebase -i prevref
+</pre>
+
+<p>
+Now mark the commit to split with "edit" in your editor, save and
+quit. The edit operation of the rebase will begin, and the changed
+files for the commit will be staged in the index.
+</p>
+
+<p>
+The next thing to do is to un-stage the changed files via the <code>reset</code>
+command, which rolls the checked-out ref back to the version you
+specify <b>without</b> changing the modified files in the working
+directory:
+</p>
+
+<pre class="example">
+git reset HEAD^
+</pre>
+
+<p>
+Now all the changes for the commit you are editing are in the list of
+unstaged but modified files. Just select the first set of edits for
+your new first commit, then stage and commit them. Repeat until the
+desired change set has been built and the working directory is clean,
+then continue the rebase operation:
+</p>
+
+<pre class="example">
+git rebase --continue
+</pre>
+</div>
+</div>
+
+<div id="outline-container-sec-5-3" class="outline-3">
+<h3 id="sec-5-3"><span class="section-number-3">5.3</span> Adding only some of a file's changes to the index</h3>
+<div class="outline-text-3" id="text-5-3">
+<p>
+Sometimes you may find that a single file ends up with edits that
+belong to two or more distinct changes. Fortunately, you can stage
+those edits and commit them separately.
+</p>
+
+<p>
+The first method is to use the <code>--patch</code> option to <code>git add</code>:
+</p>
+
+<pre class="example">
+git add --patch &lt;filename&gt;
+</pre>
+
+<p>
+This will present the diff for the file to you one hunk at a time and
+give you a list of options for each one. You can choose to add the
+hunk, not add it, skip all remaining hunks, split the hunk into two
+(if there are unchanged lines between edits in the hunk) and edit the
+patch for the hunk directly.
+</p>
+
+<p>
+An alternative is to use the <code>--interactive</code> option:
+</p>
+
+<pre class="example">
+git add --interactive [files]
+</pre>
+
+<p>
+This gives you a menu more suited to browsing and teasing apart the
+changes to an entire repository rather than one file. See the man page
+on <code>git add</code> for more information.
+</p>
+
+<p>
+Finally, the <code>git gui</code> interface provides a very convenient way to
+browse changed files and selectively stage files, hunks, or even
+ranges of line-level changes. Clicking on a file icon in the "Unstaged
+Changes" list will stage an entire file. Clicking on the file name
+will view the diff for the file in the large right-hand pane. There
+you can right-click on individual hunks or lines and select the option
+to stage either one; alternatively you can select a range of lines
+with the left mouse button and then right click for the option to
+stage the selected range.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-5-4" class="outline-3">
+<h3 id="sec-5-4"><span class="section-number-3">5.4</span> Links to other tips</h3>
+<div class="outline-text-3" id="text-5-4">
+<p>
+<a href="http://mislav.uniqpath.com/2010/07/git-tips/">http://mislav.uniqpath.com/2010/07/git-tips/</a>
+</p>
+</div>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Levi Pearson</p>
+<p class="date">Created: 2014-12-10 Wed 23:35</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.3.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
