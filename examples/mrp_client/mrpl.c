@@ -109,6 +109,10 @@ int main(int argc, char *argv[])
 	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
 	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
+	if (rc != MRPDCLIENT_MAX_MSG_SIZE) {
+		printf("mrpdclient_sendto failed\n");
+		return EXIT_FAILURE;
+	}
 
 	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	if (leave)
@@ -117,13 +121,13 @@ int main(int argc, char *argv[])
 		sprintf(msgbuf, "S+L:L=A0369F022EEE0000,D=2");
 
 	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
-
-	sprintf(msgbuf, "BYE");
-	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
-
 	free(msgbuf);
-	rc = mrpdclient_close(&mrpd_sock);
+	if (rc != MRPDCLIENT_MAX_MSG_SIZE) {
+		printf("mrpdclient_sendto failed\n");
+		return EXIT_FAILURE;
+	}
 
+	rc = mrpdclient_close(&mrpd_sock);
 	if (-1 == rc)
 		return EXIT_FAILURE;
 	else
