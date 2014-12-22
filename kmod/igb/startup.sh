@@ -2,6 +2,13 @@
 
 # Network interface name (e.g. Fedora=p2p1, Ubuntu=eth2, OpenSUSE=ens01)
 INTERFACE=p2p1
+
+# Replace default interface if provided by argument
+if [ -n "$1" ]
+  then
+    INTERFACE=$1
+fi
+
 export INTERFACE
 
 rmmod igb
