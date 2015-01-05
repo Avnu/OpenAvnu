@@ -13,5 +13,6 @@ install:
   - sudo apt-get update -qq
   - sudo apt-get install -y libpcap-dev libpci-dev libsndfile1-dev libjack-dev linux-headers-3.13.0-36-generic cmake
   - sudo cp /usr/src/linux-headers-3.13.0-36/include/uapi/linux/ethtool.h /usr/include/linux
+  - sudo cp /usr/src/linux-headers-3.13.0-36/include/uapi/linux/ptp_clock.h /usr/include/linux
 script: ./travis.sh
 

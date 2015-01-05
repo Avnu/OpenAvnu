@@ -233,7 +233,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 
 	// Determine the correct PTP clock interface
 	phc_index = findPhcIndex( iface_label );
-if( phc_index < 0 ) {
+	if( phc_index < 0 ) {
 		fprintf( stderr, "Failed to find PTP device index\n" );
 		return false;
 	}
