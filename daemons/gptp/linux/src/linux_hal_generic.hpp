@@ -47,6 +47,7 @@ typedef struct LinuxTimestamperIGBPrivate * LinuxTimestamperIGBPrivate_t;
 class LinuxTimestamperGeneric : public LinuxTimestamper {
 private:
 	int sd;
+	int phc_fd;
 	Timestamp crstamp_system;
 	Timestamp crstamp_device;
 	LinuxTimestamperGenericPrivate_t _private;
@@ -66,8 +67,6 @@ public:
 	bool Adjust( void *tmx );
 	virtual bool HWTimestamper_init
 	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
-
-	void updateCrossStamp( Timestamp *system_time, Timestamp *device_time );
 
 	void pushRXTimestamp( Timestamp *tstamp ) {
 		tstamp->_version = version;

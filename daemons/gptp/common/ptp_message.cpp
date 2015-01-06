@@ -1433,7 +1433,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 			mine_elapsed =  TIMESTAMP_TO_NS(request_tx_timestamp)-TIMESTAMP_TO_NS(prev_peer_ts_mine);
 			theirs_elapsed = TIMESTAMP_TO_NS(remote_req_rx_timestamp)-TIMESTAMP_TO_NS(prev_peer_ts_theirs);
 			theirs_elapsed -= port->getLinkDelay();
-			theirs_elapsed += link_delay;
+			theirs_elapsed += link_delay < 0 ? 0 : link_delay;
 			rate_offset =  ((FrequencyRatio) mine_elapsed)/theirs_elapsed;
 			port->setPeerRateOffset(rate_offset);
 			port->setAsCapable( true );
