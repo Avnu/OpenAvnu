@@ -28,7 +28,6 @@ elseif(WIN32)
   endif()
 
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-  include_directories( include ${CPPUTEST_DIR}/include/Platforms/VisualCpp )
   add_executable (alltests ${EUI64SET_SRC} ${CPPUTEST_SRC} )
   target_link_libraries(alltests CppUTest CppUTestExt)
 endif()
