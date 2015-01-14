@@ -110,7 +110,7 @@ TEST_GROUP(MsrpTestGroup)
     void setup()
     {
         mrpd_reset();
-        msrp_init(1, 0, 0);
+        msrp_init(1, MSRP_INTERESTING_STREAM_ID_COUNT, 0);
     }
 
     void teardown()

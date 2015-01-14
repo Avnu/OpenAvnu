@@ -37,6 +37,11 @@
 #define MSRP_PROT_VER	0x00
 #define MSRP_SR_PVID_DEFAULT	2
 
+/* This is the number of streams IDs supported by the MSRP "I+S" interface */
+#ifndef MSRP_INTERESTING_STREAM_ID_COUNT
+#define MSRP_INTERESTING_STREAM_ID_COUNT 8
+#endif
+
 /*
  * PortMediaType = either AccessControlPort (the case for wired) or
  * Non-DMN shared medium port - we are assuming wired-LAN for this daemon

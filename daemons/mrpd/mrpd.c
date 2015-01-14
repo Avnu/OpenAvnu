@@ -899,7 +899,7 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	rc = msrp_init(msrp_enable, 32, msrp_pruning);
+	rc = msrp_init(msrp_enable, MSRP_INTERESTING_STREAM_ID_COUNT, msrp_pruning);
 	if (rc) {
 		printf("msrp_enable failed\n");
 		goto out;
