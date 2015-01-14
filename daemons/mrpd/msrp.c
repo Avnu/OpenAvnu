@@ -356,9 +356,10 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 	int is_talker_or_listener_attrib = 0;
 	int interested = 1;
 
-	if( rattrib->type == MSRP_TALKER_ADV_TYPE || rattrib->type == MSRP_TALKER_FAILED_TYPE || rattrib->type == MSRP_LISTENER_TYPE )
-	{
-		is_talker_or_listener_attrib = 1;
+	if (NULL != rattrib) {
+		if (rattrib->type == MSRP_TALKER_ADV_TYPE || rattrib->type == MSRP_TALKER_FAILED_TYPE || rattrib->type == MSRP_LISTENER_TYPE) {
+			is_talker_or_listener_attrib = 1;
+		}
 	}
 
 	switch (event) {
