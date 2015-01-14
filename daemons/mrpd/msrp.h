@@ -161,7 +161,7 @@ struct msrp_database {
 	int enable_pruning_of_uninteresting_ids;
 };
 
-int msrp_init(int msrp_enable,int max_interesting_stream_ids);
+int msrp_init(int msrp_enable, int max_interesting_stream_ids, int enable_pruning);
 void msrp_reset(void);
 int msrp_event(int event, struct msrp_attribute *rattrib);
 int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client);

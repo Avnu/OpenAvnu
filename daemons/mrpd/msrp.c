@@ -3668,7 +3668,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	return -1;
 }
 
-int msrp_init(int msrp_enable, int max_interesting_stream_ids)
+int msrp_init(int msrp_enable, int max_interesting_stream_ids, int enable_pruning)
 {
 	int rc;
 
@@ -3698,7 +3698,7 @@ int msrp_init(int msrp_enable, int max_interesting_stream_ids)
 	if( eui64set_init(&MSRP_db->interesting_stream_ids, max_interesting_stream_ids ) < 0 )
 		goto abort_alloc;
 
-	MSRP_db->enable_pruning_of_uninteresting_ids = 0;
+	MSRP_db->enable_pruning_of_uninteresting_ids = enable_pruning;
 
 	memset(MSRP_db, 0, sizeof(struct msrp_database));
 
