@@ -952,7 +952,7 @@ int mrpw_init_protocols(void)
 	}
 
 	if (msrp_enable) {
-		rc = msrp_init(msrp_enable);
+		rc = msrp_init(msrp_enable, 8);
 		if (rc)
 			goto out;
 	}
