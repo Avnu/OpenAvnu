@@ -33,4 +33,5 @@ clean:
 
 indent:
 	indent --linux-style mrpd.c mrpd.h mvrp.c mvrp.h msrp.c msrp.h mmrp.c mmrp.h mrp.c mrp.h \
-		mrpw.c que.c que.h ../common/parse.c ../common/parse.h
+		mrpw.c que.c que.h ../common/parse.c ../common/parse.h ../common/eui64set.c ../common/eui64set.h
+

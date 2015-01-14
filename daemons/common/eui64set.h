@@ -38,10 +38,9 @@
 /**
  * The eui64set_entry struct
  */
-struct eui64set_entry
-{
-    uint64_t eui64;
-    void *p;
+struct eui64set_entry {
+	uint64_t eui64;
+	void *p;
 };
 
 /**
@@ -50,55 +49,54 @@ struct eui64set_entry
  * Returns 0 if lhs == rhs
  * Returns 1 if lhs > rhs
  */
-int eui64set_compare( const void *lhs, const void *rhs );
+int eui64set_compare(const void *lhs, const void *rhs);
 
 /**
  * eui64_read
  * Read a eui64 in network order
  * Returns uint64_t
  */
-uint64_t eui64_read( const uint8_t network_order_buf[8] );
+uint64_t eui64_read(const uint8_t network_order_buf[8]);
 
 /**
  * eui64_write
  * Converts an eui64 in uint64_t into network byte order
  */
-void eui64_write( uint8_t network_order_buf[8], uint64_t v );
+void eui64_write(uint8_t network_order_buf[8], uint64_t v);
 
-struct eui64set
-{
-    /** The memory storage for this set */
-    struct eui64set_entry *storage;
+struct eui64set {
+	/** The memory storage for this set */
+	struct eui64set_entry *storage;
 
-    /** The current number of entries in this set */
-    int num_entries;
+	/** The current number of entries in this set */
+	int num_entries;
 
-    /** The maximum number of entries in this set */
-    int max_entries;
+	/** The maximum number of entries in this set */
+	int max_entries;
 };
 
 /**
  * Initialize an eui64set structure using the specified storage buffer.
  * Returns -1 on error, 0 on success
  */
-int eui64set_init( struct eui64set *self, int max_entries );
+int eui64set_init(struct eui64set *self, int max_entries);
 
 /**
  * Free memory allocated for the eui64set
  */
-void eui64set_free( struct eui64set *self );
+void eui64set_free(struct eui64set *self);
 
 /**
  * Clear all entries in a eui64set structure.
  */
-void eui64set_clear( struct eui64set *self );
+void eui64set_clear(struct eui64set *self);
 
 /**
  * Test if the eui64set is full.
  * Returns 1 if the eui64set is full
  * Returns 0 if the eui64set is not full
  */
-int eui64set_is_full( struct eui64set *self );
+int eui64set_is_full(struct eui64set *self);
 
 /**
  * Insert an eui64 into the eui64set structure, without re-sorting it.
@@ -107,26 +105,26 @@ int eui64set_is_full( struct eui64set *self );
  * Returns 1 on success
  * Returns 0 if the storage area was full
  */
-int eui64set_insert( struct eui64set *self, uint64_t value, void *p );
+int eui64set_insert(struct eui64set *self, uint64_t value, void *p);
 
 /**
  * Sort a eui64set structure
  */
-void eui64set_sort( struct eui64set *self );
+void eui64set_sort(struct eui64set *self);
 
 /**
  * Insert a single eui64 into a eui64set structure and sort it afterwards.
  * Returns 1 on success
  * Returns 0 if the storage area was full
  */
-int eui64set_insert_and_sort( struct eui64set *self, uint64_t value, void *p );
+int eui64set_insert_and_sort(struct eui64set *self, uint64_t value, void *p);
 
 /**
  * Find a eui64 in the eui64set structure. Returns a pointer to the
  * eui64set_entry, or 0 if not found.
  */
-const struct eui64set_entry *eui64set_find( const struct eui64set *self,
-                                            uint64_t value );
+const struct eui64set_entry *eui64set_find(const struct eui64set *self,
+					   uint64_t value);
 
 /**
  * Remove the specified eui64 from the eui64set structure and frees any
@@ -136,6 +134,6 @@ const struct eui64set_entry *eui64set_find( const struct eui64set *self,
  *
  * Returns 0 if not found.
  */
-int eui64set_remove_and_sort( struct eui64set *self, uint64_t value );
+int eui64set_remove_and_sort(struct eui64set *self, uint64_t value);
 
-#endif /* EUI64SET_H_ */
+#endif				/* EUI64SET_H_ */
