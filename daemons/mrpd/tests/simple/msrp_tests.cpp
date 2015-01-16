@@ -57,9 +57,164 @@ extern "C"
 #include "msrp.h"
 #include "parse.h"
 
-    extern struct msrp_database *MSRP_db;
+/* Most MSRP commands operate on the global DB */
+extern struct msrp_database *MSRP_db;
+
+void msrp_event_observer(int event, struct msrp_attribute *attr);
+char *msrp_attrib_type_string(int t);
+char *mrp_event_string(int e);
 
 }
+
+/* This is from a live capture; it contains several messages with Mt
+* and JoinMt events for Talker Advertise, Listener, and Domain
+* VectorAttributes. */
+static unsigned char pkt2[] = {
+	0x01, 0x80, 0xc2, 0x00, 0x00, 0x0e, /* Destination MAC */
+	0x00, 0x0f, 0xd7, 0x00, 0x23, 0x58, /* Source MAC */
+	0x22, 0xea,                         /* Ethertype */
+
+	0x00,         /* Protocol Version */
+
+	/* Message Start */
+	0x01,         /* Attribute Type - Talker Advertise */
+	0x19,         /* Attribute FirstValue Length */
+	0x00, 0xc4,   /* Attribute ListLength */
+
+	/* Vector Header */
+	0x00, 0x01,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x00, 0x23, 0x4d, 0x00, 0x00, /* ID 0x000fd700234d0000 */
+	0x91, 0xe0, 0xf0, 0x00, 0xb7, 0x1a, 0x00, 0x00,
+	0x00, 0x38, 0x00, 0x01, 0x60, 0x00, 0x02, 0x1f,
+	0xd8,
+	/* ThreePackedEvents */
+	0x90,
+
+	/* Vector Header */
+	0x00, 0x13,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x00, 0x23, 0x4d, 0x00, 0x03,
+	0x91, 0xe0, 0xf0, 0x00, 0xb7, 0x1d, 0x00, 0x00,
+	0x00, 0x38, 0x00, 0x01, 0x70, 0x00, 0x02, 0x1f,
+	0xd8,
+	/* ThreePackedEvents */
+	0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0x90,
+
+	/* Vector Header */
+	0x00, 0x0d,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x00, 0x23, 0x58, 0x00, 0x01,
+	0x91, 0xe0, 0xf0, 0x00, 0x88, 0x3d, 0x00, 0x00,
+	0x00, 0x38, 0x00, 0x01, 0x70, 0x00, 0x00, 0x01,
+	0xf4,
+	/* ThreePackedEvents */
+	0x81, 0x81, 0x81, 0x81, 0x6c,
+
+	/* Vector Header */
+	0x00, 0x13,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x00, 0x23, 0xba, 0x00, 0x03,
+	0x91, 0xe0, 0xf0, 0x00, 0x4c, 0x40, 0x00, 0x00,
+	0x00, 0x38, 0x00, 0x01, 0x70, 0x00, 0x02, 0x1f,
+	0xd8,
+	/* ThreePackedEvents */
+	0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0x90,
+
+	/* Vector Header */
+	0x00, 0x06,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x01, 0xa0, 0x05, 0x00, 0x01,
+	0x91, 0xe0, 0xf0, 0x00, 0xdd, 0xd1, 0x00, 0x00,
+	0x00, 0x38, 0x00, 0x01, 0x73, 0x00, 0x02, 0x1f,
+	0xd8,
+	/* ThreePackedEvents */
+	0xac, 0xac,
+
+	/* Vector Header */
+	0x00, 0x1c,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x01, 0xa0, 0x16, 0x00, 0x03,
+	0x91, 0xe0, 0xf0, 0x00, 0x6f, 0xdc, 0x00, 0x00,
+	0x00, 0x38, 0x00, 0x01, 0x70, 0x00, 0x02, 0x1f,
+	0xd8,
+	/* ThreePackedEvents */
+	0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac,
+	0xac, 0x90,
+
+	0x00, 0x00, /* EndMark */
+
+	/* Message Start */
+	0x03,         /* Attribute Type - Listener */
+	0x08,         /* Attribute FirstValue Length */
+	0x00, 0x63,   /* Attribute ListLength */
+
+	/* Vector Header */
+	0x00, 0x01,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x00, 0x23, 0x4d, 0x01, 0x00,
+	/* ThreePackedEvents */
+	0x6c,
+	/* FourPackedEvents */
+	0x80,
+
+	/* Vector Header */
+	0x00, 0x13,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x00, 0x23, 0x4d, 0x02, 0x03,
+	/* ThreePackedEvents */
+	0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x6c,
+	/* FourPackedEvents */
+	0xaa, 0xaa, 0xaa, 0xaa, 0xa8,
+
+	/* Vector Header */
+	0x00, 0x13,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x00, 0x23, 0xba, 0x003, 0x03,
+	/* ThreePackedEvents */
+	0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x6c,
+	/* FourPackedEvents */
+	0xaa, 0xaa, 0xaa, 0xaa, 0xa8,
+
+	/* Vector Header */
+	0x00, 0x06,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x01, 0xa0, 0x05, 0x04, 0x01,
+	/* ThreePackedEvents */
+	0x81, 0x81,
+	/* FourPackedEvents */
+	0xaa, 0xa0,
+
+	/* Vector Header */
+	0x00, 0x1c,
+	/* FirstValue */
+	0x00, 0x0f, 0xd7, 0x01, 0xa0, 0x16, 0x05, 0x03,
+	/* ThreePackedEvents */
+	0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
+	0x81, 0x6c,
+	/* FourPackedEvents */
+	0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
+
+	0x00, 0x00, /* EndMark */
+
+	/* Message Start */
+	0x04,          /* Attribute Type - Domain */
+	0x04,          /* Attribute FirstValue Length */
+	0x00, 0x09,    /* Attribute ListLength */
+
+	/* Vector Header */
+	0x00, 0x01,
+	/* FirstValue */
+	0x06, 0x03, 0x00, 0x02,
+	/* ThreePackedEvents */
+	0x6c,
+
+	0x00, 0x00, /* EndMark */
+
+	0x00, 0x00  /* EndMark */
+};
+
+
 
 // Various parameters used by MMRP, MVRP and MSRP
 // (Note: Defined here in an effort to make it easier to
@@ -103,7 +258,6 @@ static int event_counts_per_type(int the_type, int the_event)
 {
 	return test_state.msrp_event_counts_per_type[MSRP_TYPE_IDX(the_type)][MSRP_EVENT_IDX(the_event)];
 }
-
 
 TEST_GROUP(MsrpTestGroup)
 {
@@ -336,4 +490,79 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
 	CHECK(mrpd_send_packet_count() > 0);
 	CHECK_EQUAL(0, tx_flag_count);
 	LONGS_EQUAL(count, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
+}
+
+/*
+ * This test enables interesting StreamID checking that will prunes
+ * all "uninteresting" IDs from the attribute database.
+ */
+TEST(MsrpTestGroup, Prune_Uninteresting_TA)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	int tx_flag_count = 0;
+	int rv;
+
+	/* enable pruning */
+	msrp_recv_cmd("I+P", strlen("I+P") + 1, &client);
+
+	/* here we fill in a_ref struct with target values, ID comes from inspection of pkt2 */
+	uint64_to_id(0x000fd700234d0000, a_ref.attribute.talk_listen.StreamID);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/*
+	 * Check for RMT event (the new event should occur, but nothing should be in
+	 * the attiribute database)
+	 */
+	CHECK(event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_RMT) > 0);
+
+	/* lookup the created attrib (it should not be present) */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib == NULL);
+}
+
+/*
+* This test enables interesting StreamID checking that will prunes
+* all "uninteresting" IDs from the attribute database.
+*/
+TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	uint64_t id = 0x000fd70023580001; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+	int rv;
+
+	/* enable pruning */
+	msrp_recv_cmd("I+P", strlen("I+P") + 1, &client);
+
+	snprintf(cmd_string, sizeof(cmd_string),
+		"I+S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+
+	/* here we fill in a_ref struct with target values, ID comes from inspection of pkt2 */
+	uint64_to_id(id, a_ref.attribute.talk_listen.StreamID);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	//test_state.msrp_observe = msrp_event_observer;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/*
+	* Check for RMT event (the new event should occur, but nothing should be in
+	* the attiribute database)
+	*/
+	CHECK(event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_RMT) > 0);
+
+	/* lookup the created attrib (it should not be present) */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
 }

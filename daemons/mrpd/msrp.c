@@ -480,7 +480,6 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 	case MRP_EVENT_RIN:
 	case MRP_EVENT_RMT:
 	case MRP_EVENT_RLV:
-		mrp_jointimer_start(&(MSRP_db->mrp_db));
 		if (NULL == rattrib)
 			return -1;	/* XXX internal fault */
 
@@ -489,13 +488,16 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 
 		if( is_talker_or_listener_attrib && MSRP_db->enable_pruning_of_uninteresting_ids ) {
 			/* check for uninteresting  stream IDs */
-			if( eui64set_find( &MSRP_db->interesting_stream_ids,
-					   eui64_read( rattrib->attribute.talk_listen.StreamID ) )==0 ) {
+			if (eui64set_find(&MSRP_db->interesting_stream_ids,
+					  eui64_read(rattrib->attribute.talk_listen.StreamID)) == 0) {
 				/* Not interesting listener stream id */
-				interested=0;
+				interested = 0;
 			}
 		}
 		if( interested ) {
+			/* only start a join timer if we are interested */
+			mrp_jointimer_start(&(MSRP_db->mrp_db));
+
 			/* update state */
 			attrib = msrp_lookup(rattrib);
 
@@ -3504,7 +3506,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	if (buflen < 3)
 		return -1;
 
-	if ('S' != buf[0])
+	if (('S' != buf[0]) && ('I' != buf[0]))
 		return -1;
 
 	/*
@@ -3625,7 +3627,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	} else if (strncmp(buf, "I+P", 3 ) == 0 ) {
 		/* Enable pruning of received uninteresting stream id attributes */
 		MSRP_db->enable_pruning_of_uninteresting_ids = 1;	
-	} else if (strncmp(buf, "I-P", 3 ) == -1 ) {
+	} else if (strncmp(buf, "I-P", 3 ) == 0 ) {
 		/* Disable pruning of received uninteresting stream id attributes */
 		MSRP_db->enable_pruning_of_uninteresting_ids = 0;
 	} else if (strncmp(buf, "I+S", 3 ) == 0 ) {
@@ -3695,12 +3697,12 @@ int msrp_init(int msrp_enable, int max_interesting_stream_ids, int enable_prunin
 		max_interesting_stream_ids = 8;
 	}
 
+	memset(MSRP_db, 0, sizeof(struct msrp_database));
+
 	if( eui64set_init(&MSRP_db->interesting_stream_ids, max_interesting_stream_ids ) < 0 )
 		goto abort_alloc;
 
 	MSRP_db->enable_pruning_of_uninteresting_ids = enable_pruning;
-
-	memset(MSRP_db, 0, sizeof(struct msrp_database));
 
 	/* if registration is FIXED or FORBIDDEN
 	 * updates from MRP are discarded, and
