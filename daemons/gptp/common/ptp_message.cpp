@@ -407,6 +407,7 @@ PTPMessageCommon *buildPTPMessage
 		{
 			PTPMessageAnnounce *annc = new PTPMessageAnnounce();
 			annc->messageType = messageType;
+			int tlv_length = size - PTP_COMMON_HDR_LENGTH + PTP_ANNOUNCE_LENGTH;
 
 			memcpy(&(annc->currentUtcOffset),
 			       buf +
@@ -449,6 +450,13 @@ PTPMessageCommon *buildPTPMessage
 			       buf +
 			       PTP_ANNOUNCE_TIME_SOURCE(PTP_ANNOUNCE_OFFSET),
 			       sizeof(annc->timeSource));
+
+			// Parse TLV if it exists
+			buf += PTP_COMMON_HDR_LENGTH + PTP_ANNOUNCE_LENGTH;
+			if( tlv_length > (int) (2*sizeof(uint16_t)) && PLAT_ntohs(*((uint16_t *)buf)) == PATH_TRACE_TLV_TYPE)  {
+				buf += sizeof(uint16_t);
+				annc->tlv.parseClockIdentity((uint8_t *)buf);
+			}
 
 			msg = annc;
 		}
@@ -680,7 +688,7 @@ void PTPMessageSync::sendPort(IEEE1588Port * port, PortIdentity * destIdentity)
 	ClockIdentity clock_identity;
 
 	id = port->getClock()->getClockIdentity();
-	tlv.setClockIdentity(&id);
+	tlv.appendClockIdentity(&id);
 
 	currentUtcOffset = port->getClock()->getCurrentUtcOffset();
 	grandmasterPriority1 = port->getClock()->getPriority1();
@@ -713,7 +721,7 @@ void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
 	// Create packet in buf
 	// Copy in common header
 	messageLength =
-	    PTP_COMMON_HDR_LENGTH + PTP_ANNOUNCE_LENGTH + sizeof(tlv);
+		PTP_COMMON_HDR_LENGTH + PTP_ANNOUNCE_LENGTH + tlv.length();
 	tspec_msg_t |= messageType & 0xF;
 	buildCommonHeader(buf_ptr);
 	memcpy(buf_ptr + PTP_ANNOUNCE_CURRENT_UTC_OFFSET(PTP_ANNOUNCE_OFFSET),
@@ -743,11 +751,24 @@ void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
 
 void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 {
+	ClockIdentity my_clock_identity;
+
 	// Delete announce receipt timeout
 	port->getClock()->deleteEventTimerLocked
 		(port, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES);
 
 	if( stepsRemoved >= 255 ) goto bail;
+
+	// Reject Announce message from myself
+	my_clock_identity = port->getClock()->getClockIdentity();
+	if( sourcePortIdentity->getClockIdentity() == my_clock_identity ) {
+		goto bail;
+	}
+
+	if(tlv.has(&my_clock_identity)) {
+		goto bail;
+	}
+
 	// Add message to the list
 	port->addQualifiedAnnounce(this);
 
@@ -1411,11 +1432,11 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	}
 
 	XPTPD_INFO
-		("Turn Around Adjustment %Ld",
+		("Turn Around Adjustment %Lf",
 		 ((long long)turn_around * port->getPeerRateOffset()) /
 		 1000000000000LL);
 	XPTPD_INFO
-		("Step #1: Turn Around Adjustment %Ld",
+		("Step #1: Turn Around Adjustment %Lf",
 		 ((long long)turn_around * port->getPeerRateOffset()));
 	XPTPD_INFO("Adjusted Peer turn around is %Lu", turn_around);
 

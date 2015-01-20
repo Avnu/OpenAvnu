@@ -124,6 +124,11 @@ class ClockIdentity {
 		memcpy(this->id, id, PTP_CLOCK_IDENTITY_LENGTH);
 	}
 	void set(LinkLayerAddress * address);
+	void print(const char *str) {
+		XPTPD_INFO
+			( "Clock Identity(%s): %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
+			  str, id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7] );
+	}
 };
 
 #define INVALID_TIMESTAMP_VERSION 0xFF

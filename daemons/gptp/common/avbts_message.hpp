@@ -38,6 +38,9 @@
 #include <avbts_osnet.hpp>
 #include <ieee1588.hpp>
 
+#include <list>
+#include <algorithm>
+
 #define PTP_CODE_STRING_LENGTH 4
 #define PTP_SUBDOMAIN_NAME_LENGTH 16
 #define PTP_FLAGS_LENGTH 2
@@ -223,21 +226,50 @@ protected:
 
 #pragma pack(push,1)
 
+#define PATH_TRACE_TLV_TYPE 0x8
+
 class PathTraceTLV {
  private:
 	uint16_t tlvType;
-	uint16_t lengthField;
-	ClockIdentity identity;
+	typedef std::list<ClockIdentity> IdentityList;
+	IdentityList identityList;
  public:
-	 PathTraceTLV() {
-		tlvType = PLAT_htons(0x8);
-		lengthField = PLAT_htons(sizeof(identity));
+	PathTraceTLV() {
+		tlvType = PLAT_htons(PATH_TRACE_TLV_TYPE);
 	}
-	void setClockIdentity(ClockIdentity * id) {
-		identity = *id;
+	void parseClockIdentity(uint8_t *buffer) {
+		int length = PLAT_ntohs(*((uint16_t *)buffer))/PTP_CLOCK_IDENTITY_LENGTH;
+		buffer += sizeof(uint16_t);
+		for(; length > 0; --length) {
+			ClockIdentity add;
+			add.set(buffer);
+			identityList.push_back(add);
+			buffer += PTP_CLOCK_IDENTITY_LENGTH;
+		}
+	}
+	void appendClockIdentity(ClockIdentity * id) {
+		identityList.push_back(*id);
 	}
 	void toByteString(uint8_t * byte_str) {
-		memcpy(byte_str, this, sizeof(*this));
+		IdentityList::iterator iter;
+		*((uint16_t *)byte_str) = tlvType;
+		byte_str += sizeof(tlvType);
+		*((uint16_t *)byte_str) = PLAT_htons(identityList.size()*PTP_CLOCK_IDENTITY_LENGTH);
+		byte_str += sizeof(uint16_t);
+		for
+			(iter = identityList.begin();
+			 iter != identityList.end(); ++iter) {
+			iter->getIdentityString(byte_str);
+			byte_str += PTP_CLOCK_IDENTITY_LENGTH;
+		}
+	}
+	bool has(ClockIdentity *id) {
+		return std::find
+			(identityList.begin(), identityList.end(), *id) !=
+			identityList.end();
+	}
+	int length() {
+		return 2*sizeof(uint16_t) + PTP_CLOCK_IDENTITY_LENGTH*identityList.size();
 	}
 };
 
