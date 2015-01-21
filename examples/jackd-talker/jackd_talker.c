@@ -766,8 +766,13 @@ int pci_connect()
 		}
 		printf("attaching to %s\n", devpath);
 		err = igb_attach(devpath, &igb_dev);
-		if (err || igb_attach_tx( &igb_dev )) {
+		if (err) {
 			printf("attach failed! (%s)\n", strerror(errno));
+			continue;
+		}
+		err = igb_attach_tx(devpath, &igb_dev);
+		if (err) {
+			printf("igb_attach_tx failed! (%s)\n", strerror(errno));
 			continue;
 		}
 		goto out;
