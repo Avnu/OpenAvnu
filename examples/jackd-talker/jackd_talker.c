@@ -770,6 +770,11 @@ int pci_connect()
 			printf("attach failed! (%s)\n", strerror(errno));
 			continue;
 		}
+		err = igb_attach_tx(devpath, &igb_dev);
+		if (err) {
+			printf("igb_attach_tx failed! (%s)\n", strerror(errno));
+			continue;
+		}
 		goto out;
 	}
 	pci_cleanup(pacc);
