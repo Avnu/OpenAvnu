@@ -226,6 +226,9 @@ protected:
 
 #pragma pack(push,1)
 
+// Path Trace TLV
+// See IEEE 802.1AS doc table 10-8 for details
+
 #define PATH_TRACE_TLV_TYPE 0x8
 
 class PathTraceTLV {
@@ -252,9 +255,10 @@ class PathTraceTLV {
 	}
 	void toByteString(uint8_t * byte_str) {
 		IdentityList::iterator iter;
-		*((uint16_t *)byte_str) = tlvType;
+		*((uint16_t *)byte_str) = tlvType;  // tlvType already in network byte order
 		byte_str += sizeof(tlvType);
-		*((uint16_t *)byte_str) = PLAT_htons(identityList.size()*PTP_CLOCK_IDENTITY_LENGTH);
+		*((uint16_t *)byte_str) =
+			PLAT_htons(identityList.size()*PTP_CLOCK_IDENTITY_LENGTH);
 		byte_str += sizeof(uint16_t);
 		for
 			(iter = identityList.begin();
@@ -269,9 +273,9 @@ class PathTraceTLV {
 			identityList.end();
 	}
 	int length() {
-		// Total length of TLV is length of type field (UINT16) + length of 'length' field (UINT16) + length of
+		// Total length of TLV is length of type field (UINT16) + length of 'length'
+		// field (UINT16) + length of
 		// identities (each PTP_CLOCK_IDENTITY_LENGTH) in the path
-		// See IEEE 802.1AS doc table 10-8 for details
 		return 2*sizeof(uint16_t) + PTP_CLOCK_IDENTITY_LENGTH*identityList.size();
 	}
 };
