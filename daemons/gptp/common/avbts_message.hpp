@@ -269,6 +269,9 @@ class PathTraceTLV {
 			identityList.end();
 	}
 	int length() {
+		// Total length of TLV is length of type field (UINT16) + length of 'length' field (UINT16) + length of
+		// identities (each PTP_CLOCK_IDENTITY_LENGTH) in the path
+		// See IEEE 802.1AS doc table 10-8 for details
 		return 2*sizeof(uint16_t) + PTP_CLOCK_IDENTITY_LENGTH*identityList.size();
 	}
 };
