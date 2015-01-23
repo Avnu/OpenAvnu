@@ -492,6 +492,8 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
 	LONGS_EQUAL(count, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
 
+/**********************************************************************************/
+
 /*
  * This test enables interesting StreamID checking that will prunes
  * all "uninteresting" IDs from the attribute database.
@@ -515,21 +517,15 @@ TEST(MsrpTestGroup, Prune_Uninteresting_TA)
 	rv = msrp_recv_msg();
 	LONGS_EQUAL(0, rv);
 
-	/*
-	 * Check for RMT event (the new event should occur, but nothing should be in
-	 * the attiribute database)
-	 */
-	CHECK(event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_RMT) > 0);
-
 	/* lookup the created attrib (it should not be present) */
 	attrib = msrp_lookup(&a_ref);
 	CHECK(attrib == NULL);
 }
 
 /*
-* This test enables interesting StreamID checking that will prunes
-* all "uninteresting" IDs from the attribute database.
-*/
+ * This test enables interesting StreamID checking that will prunes
+ * all "uninteresting" IDs from the attribute database.
+ */
 TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
 {
 	struct msrp_attribute a_ref;
@@ -542,11 +538,10 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
 	/* enable pruning */
 	msrp_recv_cmd("I+P", strlen("I+P") + 1, &client);
 
-	snprintf(cmd_string, sizeof(cmd_string),
-		"I+S:S=%" PRIx64, id);
+	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
 	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
 
-	/* here we fill in a_ref struct with target values, ID comes from inspection of pkt2 */
+	/* here we fill in a_ref struct with target values */
 	uint64_to_id(id, a_ref.attribute.talk_listen.StreamID);
 	a_ref.type = MSRP_TALKER_ADV_TYPE;
 
@@ -556,13 +551,74 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
 	rv = msrp_recv_msg();
 	LONGS_EQUAL(0, rv);
 
-	/*
-	* Check for RMT event (the new event should occur, but nothing should be in
-	* the attiribute database)
-	*/
-	CHECK(event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_RMT) > 0);
+	/* lookup the created attrib (it should be present) */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+}
 
-	/* lookup the created attrib (it should not be present) */
+/*
+ * This test enables interesting StreamID checking that will prunes
+ * all "uninteresting" IDs from the attribute database.
+ */
+TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_Listener)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	uint64_t id = 0x000fd700234d0203; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+	int rv;
+
+	/* enable pruning */
+	msrp_recv_cmd("I+P", strlen("I+P") + 1, &client);
+
+	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+
+	/* here we fill in a_ref struct with target values */
+	uint64_to_id(id, a_ref.attribute.talk_listen.StreamID);
+	a_ref.type = MSRP_LISTENER_TYPE;
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	//test_state.msrp_observe = msrp_event_observer;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* lookup the created attrib (it should be present) */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+}
+
+/*
+* This test enables interesting StreamID checking that will prunes
+* all "uninteresting" IDs from the attribute database.
+*/
+TEST(MsrpTestGroup, Prune_Uninteresting_Except_New_Listener)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	uint64_t id = 0x000fd70023580001; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+	int rv;
+
+	/* enable pruning */
+	msrp_recv_cmd("I+P", strlen("I+P") + 1, &client);
+
+	/* declare a listener attribute */
+	snprintf(cmd_string, sizeof(cmd_string), "S+L:L=%016" PRIx64 ",D=2", id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	//test_state.msrp_observe = msrp_event_observer;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* lookup the created attrib (it should be present) */
+	uint64_to_id(id, a_ref.attribute.talk_listen.StreamID);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
 	attrib = msrp_lookup(&a_ref);
 	CHECK(attrib != NULL);
 }

@@ -353,12 +353,13 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 	struct msrp_attribute *attrib;
 	int count = 0;
 	int rc;
-	int is_talker_or_listener_attrib = 0;
+	int is_talker_attrib = 0;
 	int interested = 1;
 
 	if (NULL != rattrib) {
-		if (rattrib->type == MSRP_TALKER_ADV_TYPE || rattrib->type == MSRP_TALKER_FAILED_TYPE || rattrib->type == MSRP_LISTENER_TYPE) {
-			is_talker_or_listener_attrib = 1;
+		/* only check talker attributes as listener attributes are filtered by the AVB switch (802.1Q 2011, 35.2.4.4) */
+		if (rattrib->type == MSRP_TALKER_ADV_TYPE || rattrib->type == MSRP_TALKER_FAILED_TYPE ) {
+			is_talker_attrib = 1;
 		}
 	}
 
@@ -486,14 +487,26 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 		/* are we interested? Assume yes */
 		interested=1;
 
-		if( is_talker_or_listener_attrib && MSRP_db->enable_pruning_of_uninteresting_ids ) {
-			/* check for uninteresting  stream IDs */
-			if (eui64set_find(&MSRP_db->interesting_stream_ids,
-					  eui64_read(rattrib->attribute.talk_listen.StreamID)) == 0) {
-				/* Not interesting listener stream id */
+		if( is_talker_attrib && MSRP_db->enable_pruning_of_uninteresting_ids ) {
+			struct msrp_attribute listener_lookup = *rattrib;
+
+			/*
+			 * Having a matching listener declaration in the MSRP database automatically
+			 * makes this ID interesting.
+			 */
+			listener_lookup.type = MSRP_LISTENER_TYPE;
+
+			/* check for uninteresting stream IDs */
+			if ((eui64set_find(&MSRP_db->interesting_stream_ids,
+					  eui64_read(rattrib->attribute.talk_listen.StreamID)) == 0)
+								&&
+				(msrp_lookup(&listener_lookup) == 0)) {
+				
+				/* Not interested in this talker's stream id */
 				interested = 0;
 			}
 		}
+
 		if( interested ) {
 			/* only start a join timer if we are interested */
 			mrp_jointimer_start(&(MSRP_db->mrp_db));
