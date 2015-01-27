@@ -175,6 +175,12 @@ int msrp_reclaim(void);
 void msrp_bye(struct sockaddr_in *client);
 int msrp_recv_msg(void);
 
+/**
+ * Return the number of interesting talker stream ids recorded in the
+ * database.
+ */
+int msrp_interesting_id_count(void);
+
 #ifdef MRP_CPPUTEST
 struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib);
 #endif

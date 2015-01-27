@@ -92,6 +92,11 @@ void eui64set_free(struct eui64set *self);
 void eui64set_clear(struct eui64set *self);
 
 /**
+ * Return the number of entries in a eui64set structure.
+ */
+int eui64set_num_entries(struct eui64set *self);
+
+/**
  * Test if the eui64set is full.
  * Returns 1 if the eui64set is full
  * Returns 0 if the eui64set is not full

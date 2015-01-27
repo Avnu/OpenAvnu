@@ -3768,6 +3768,14 @@ void msrp_reset(void)
 	free(MSRP_db);
 }
 
+int msrp_interesting_id_count(void)
+{
+	if (NULL != MSRP_db)
+		return eui64set_num_entries(&MSRP_db->interesting_stream_ids);
+	else
+		return 0;
+}
+
 void msrp_bye(struct sockaddr_in *client)
 {
 	if (NULL != MSRP_db)

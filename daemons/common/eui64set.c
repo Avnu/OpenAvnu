@@ -109,6 +109,11 @@ void eui64set_clear(struct eui64set *self)
 	self->num_entries = 0;
 }
 
+int eui64set_num_entries(struct eui64set *self)
+{
+	return self->num_entries;
+}
+
 /** Test if the eui64set is full.
  *  Returns 1 if the eui64set is full
  *  Returns 0 if the eui64set is not full
