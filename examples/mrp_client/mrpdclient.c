@@ -38,24 +38,14 @@
 #include <string.h>
 
 #if defined WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-typedef int socklen_t;
 static int rcv_timeout = 100;	/* 100 ms */
 #elif defined __linux__
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-typedef int SOCKET;
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR   -1
-#define closesocket(s) close(s);
 static struct timeval rcv_timeout = {
 	.tv_sec = 0,
 	.tv_usec = 100 * 1000	/* 100 ms */
 };
 #endif
+
 
 #include "mrpd.h"
 #include "mrpdclient.h"
