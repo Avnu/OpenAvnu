@@ -495,8 +495,8 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
 /**********************************************************************************/
 
 /*
- * This test enables interesting StreamID checking that will prunes
- * all "uninteresting" IDs from the attribute database.
+ * This test enables interesting StreamID checking that will prune
+ * all "uninteresting" IDs from the MSRP attribute database.
  */
 TEST(MsrpTestGroup, Prune_Uninteresting_TA)
 {
@@ -507,6 +507,7 @@ TEST(MsrpTestGroup, Prune_Uninteresting_TA)
 
 	/* enable pruning */
 	msrp_recv_cmd("I+P", strlen("I+P") + 1, &client);
+	LONGS_EQUAL(0, msrp_interesting_id_count());
 
 	/* here we fill in a_ref struct with target values, ID comes from inspection of pkt2 */
 	uint64_to_id(0x000fd700234d0000, a_ref.attribute.talk_listen.StreamID);
@@ -520,11 +521,15 @@ TEST(MsrpTestGroup, Prune_Uninteresting_TA)
 	/* lookup the created attrib (it should not be present) */
 	attrib = msrp_lookup(&a_ref);
 	CHECK(attrib == NULL);
+
+	/* no interesting stream ids */
+	LONGS_EQUAL(0, msrp_interesting_id_count());
 }
 
 /*
- * This test enables interesting StreamID checking that will prunes
- * all "uninteresting" IDs from the attribute database.
+ * This test enables interesting StreamID checking that will prune
+ * all "uninteresting" IDs from the attribute database. The id
+ * of a single TalkerAdvertise is marked as interesting.
  */
 TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
 {
@@ -537,9 +542,11 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
 
 	/* enable pruning */
 	msrp_recv_cmd("I+P", strlen("I+P") + 1, &client);
+	LONGS_EQUAL(0, msrp_interesting_id_count());
 
 	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
 	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	LONGS_EQUAL(1, msrp_interesting_id_count());
 
 	/* here we fill in a_ref struct with target values */
 	uint64_to_id(id, a_ref.attribute.talk_listen.StreamID);
@@ -557,10 +564,12 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
 }
 
 /*
- * This test enables interesting StreamID checking that will prunes
- * all "uninteresting" IDs from the attribute database.
+ * This test enables interesting StreamID checking that will prune
+ * all "uninteresting" IDs from the attribute database. With
+ * pruning enabled, make sure incoming listener attributes are
+ * processed.
  */
-TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_Listener)
+TEST(MsrpTestGroup, Prune_Uninteresting_Except_Any_Listener)
 {
 	struct msrp_attribute a_ref;
 	struct msrp_attribute *attrib;
@@ -571,9 +580,6 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_Listener)
 
 	/* enable pruning */
 	msrp_recv_cmd("I+P", strlen("I+P") + 1, &client);
-
-	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
-	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
 
 	/* here we fill in a_ref struct with target values */
 	uint64_to_id(id, a_ref.attribute.talk_listen.StreamID);
@@ -591,9 +597,11 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_Listener)
 }
 
 /*
-* This test enables interesting StreamID checking that will prunes
-* all "uninteresting" IDs from the attribute database.
-*/
+ * This test enables interesting StreamID checking that will prune
+ * all "uninteresting" IDs from the attribute database. With
+ * pruning enabled, a registered listener attribute should cause
+ * the matching TalkerAdv to be processed correctly.
+ */
 TEST(MsrpTestGroup, Prune_Uninteresting_Except_New_Listener)
 {
 	struct msrp_attribute a_ref;
