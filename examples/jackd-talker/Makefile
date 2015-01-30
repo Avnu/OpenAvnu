@@ -1,7 +1,7 @@
 CC = gcc
 OPT = -O2 -g
 CFLAGS = $(OPT) -Wall -Wextra -Wno-parentheses -std=gnu99
-INCFLAGS = -I../../lib/igb -I../../daemons/mrpd -I../common
+INCFLAGS = -I../../lib/igb -I../../daemons/mrpd -I../common -I../../daemons/common
 LDLIBS = -ligb -lpci -lrt -pthread -ljack
 LDFLAGS = -L../../lib/igb
 
