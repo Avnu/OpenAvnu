@@ -87,19 +87,19 @@ out:	pci_cleanup(pacc);
 	return 0;
 }
 
-int gptpinit(int *shm_fd, char *memory_offset_buffer)
+int gptpinit(int *shm_fd, char **memory_offset_buffer)
 {
 	*shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
 	if (*shm_fd == -1) {
 		perror("shm_open()");
 		return false;
 	}
-	memory_offset_buffer =
+	*memory_offset_buffer =
 	    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
 			 *shm_fd, 0);
-	if (memory_offset_buffer == (char *)-1) {
+	if (*memory_offset_buffer == (char *)-1) {
 		perror("mmap()");
-		memory_offset_buffer = NULL;
+		*memory_offset_buffer = NULL;
 		shm_unlink(SHM_NAME);
 		return false;
 	}

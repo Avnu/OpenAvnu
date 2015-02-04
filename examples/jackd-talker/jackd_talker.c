@@ -32,6 +32,7 @@
 ******************************************************************************/
 
 #include <errno.h>
+#include <inttypes.h>
 #include <fcntl.h>
 #include <math.h>
 #include <signal.h>
@@ -146,7 +147,7 @@ static inline uint64_t ST_rdtsc(void)
 	return ret;
 }
 
-int gptpinit(int *igb_shm_fd, char *igb_mmap)
+int gptpinit(int *igb_shm_fd, char **igb_mmap)
 {
 	if (NULL == igb_shm_fd)
 		return -1;
@@ -156,11 +157,11 @@ int gptpinit(int *igb_shm_fd, char *igb_mmap)
 		perror("shm_open()");
 		return -1;
 	}
-	igb_mmap = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
+	*igb_mmap = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
 				MAP_SHARED, *igb_shm_fd, 0);
-	if (igb_mmap == (char *)-1) {
+	if (*igb_mmap == (char *)-1) {
 		perror("mmap()");
-		igb_mmap = NULL;
+		*igb_mmap = NULL;
 		shm_unlink(SHM_NAME);
 		return -1;
 	}
@@ -168,14 +169,14 @@ int gptpinit(int *igb_shm_fd, char *igb_mmap)
 	return 0;
 }
 
-int gptpdeinit(int *igb_shm_fd, char *igb_mmap)
+int gptpdeinit(int *igb_shm_fd, char **igb_mmap)
 {
 	if (NULL == igb_shm_fd)
 		return -1;
 
-	if (igb_mmap != NULL) {
-		munmap(igb_mmap, SHM_SIZE);
-		igb_mmap = NULL;
+	if (*igb_mmap != NULL) {
+		munmap(*igb_mmap, SHM_SIZE);
+		*igb_mmap = NULL;
 	}
 	if (*igb_shm_fd != -1) {
 		close(*igb_shm_fd);
@@ -194,8 +195,8 @@ int gptpscaling(char *igb_mmap, gPtpTimeData *td)
 	memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
 	pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
 
-	fprintf(stderr, "ml_phoffset = %lld, ls_phoffset = %lld\n",
-		td->ml_phoffset, td->ls_phoffset);
+	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",
+			td->ml_phoffset, td->ls_phoffset);
 	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
 		td->ml_freqoffset, td->ls_freqoffset);
 
@@ -579,7 +580,7 @@ int main(int argc, char *argv[])
 	printf("got a listener ...\n");
 	halt_tx = 0;
 
-	if(-1 == gptpinit(&igb_shm_fd, igb_mmap)) {
+	if(-1 == gptpinit(&igb_shm_fd, &igb_mmap)) {
 		return EXIT_FAILURE;
 	}
 
@@ -624,7 +625,7 @@ int main(int argc, char *argv[])
 		printf("mrp_disconnect failed\n");
 
 	igb_dma_free_page(&glob_igb_dev, &a_page);
-	rc = gptpdeinit(&igb_shm_fd, igb_mmap);
+	rc = gptpdeinit(&igb_shm_fd, &igb_mmap);
 	err = igb_detach(&glob_igb_dev);
 
 	pthread_exit(NULL);
