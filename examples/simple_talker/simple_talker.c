@@ -32,6 +32,7 @@
 ******************************************************************************/
 
 #include <errno.h>
+#include <inttypes.h>
 #include <fcntl.h>
 #include <math.h>
 #include <signal.h>
@@ -172,8 +173,8 @@ unsigned char glob_l2_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
 unsigned char glob_l3_dest_addr[] = { 224, 0, 0, 115 };
 
 uint16_t inet_checksum(uint8_t *ip, int len){
-    uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
-	
+	uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
+
 	while(len > 1){
 		sum += *(( uint16_t *) ip); ip += 2;
 		if(sum & 0x80000000)   /* if high order bit set, fold */
@@ -201,7 +202,7 @@ uint16_t inet_checksum(uint8_t *ip, int len){
 
 uint16_t inet_checksum_sg( struct iovec *buf_iov, size_t buf_iovlen ){
 	size_t i;
-    uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
+	uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
 	uint8_t residual;
 	int has_residual = 0;
 
@@ -253,7 +254,7 @@ static inline uint64_t ST_rdtsc(void)
 	return ret;
 }
 
-int gptpinit(int *igb_shm_fd, char *igb_mmap)
+int gptpinit(int *igb_shm_fd, char **igb_mmap)
 {
 	if (NULL == igb_shm_fd)
 		return -1;
@@ -263,11 +264,11 @@ int gptpinit(int *igb_shm_fd, char *igb_mmap)
 		perror("shm_open()");
 		return -1;
 	}
-	igb_mmap = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
+	*igb_mmap = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
 				MAP_SHARED, *igb_shm_fd, 0);
-	if (igb_mmap == (char *)-1) {
+	if (*igb_mmap == (char *)-1) {
 		perror("mmap()");
-		igb_mmap = NULL;
+		*igb_mmap = NULL;
 		shm_unlink(SHM_NAME);
 		return -1;
 	}
@@ -275,14 +276,14 @@ int gptpinit(int *igb_shm_fd, char *igb_mmap)
 	return 0;
 }
 
-int gptpdeinit(int *igb_shm_fd, char *igb_mmap)
+int gptpdeinit(int *igb_shm_fd, char **igb_mmap)
 {
 	if (NULL == igb_shm_fd)
 		return -1;
 
 	if (igb_mmap != NULL) {
-		munmap(igb_mmap, SHM_SIZE);
-		igb_mmap = NULL;
+		munmap(*igb_mmap, SHM_SIZE);
+		*igb_mmap = NULL;
 	}
 	if (*igb_shm_fd != -1) {
 		close(*igb_shm_fd);
@@ -292,19 +293,21 @@ int gptpdeinit(int *igb_shm_fd, char *igb_mmap)
 	return 0;
 }
 
-int gptpscaling(char *igb_mmap, gPtpTimeData *td)
+int gptpscaling(const char *igb_mmap, gPtpTimeData *td)
 {
 	if (NULL == td)
 		return -1;
 
-	pthread_mutex_lock((pthread_mutex_t *) igb_mmap);
-	memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
-	pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
+	(void) pthread_mutex_lock((pthread_mutex_t *) igb_mmap);
+	{
+		memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
+	}
+	(void) pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
 
-	fprintf( stderr, "local_time = %llu\n",
-			 td->local_time );
-	fprintf(stderr, "ml_phoffset = %lld, ls_phoffset = %lld\n",
-		td->ml_phoffset, td->ls_phoffset);
+	fprintf(stderr, "local_time = %" PRIu64 "\n",
+			td->local_time);
+	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",
+			td->ml_phoffset, td->ls_phoffset);
 	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
 		td->ml_freqoffset, td->ls_freqoffset);
 
@@ -396,7 +399,7 @@ void l3_to_l2_multicast( unsigned char *l2, unsigned char *l3 ) {
 	 l2[3]  = l3[1] & 0x7F;
 	 l2[4]  = l3[2];
 	 l2[5]  = l3[3];
- }
+}
 
 int get_mac_address(char *interface)
 {
@@ -782,17 +785,19 @@ int main(int argc, char *argv[])
 	printf("got a listener ...\n");
 	halt_tx = 0;
 
-	if(-1 == gptpinit(&igb_shm_fd, igb_mmap)) {
+	if(-1 == gptpinit(&igb_shm_fd, &igb_mmap)) {
+		fprintf(stderr, "GPTP init failed.\n");
 		return EXIT_FAILURE;
 	}
 
 	if (-1 == gptpscaling(igb_mmap, &td)) {
+		fprintf(stderr, "GPTP scaling failed.\n");
 		return EXIT_FAILURE;
 	}
 
-	if( igb_get_wallclock( &igb_dev, &now_local, NULL ) > 0 ) {
-	  fprintf( stderr, "Failed to get wallclock time\n" );
-	  return EXIT_FAILURE;
+	if(igb_get_wallclock( &igb_dev, &now_local, NULL ) > 0) {
+		fprintf( stderr, "Failed to get wallclock time\n" );
+		return EXIT_FAILURE;
 	}
 	update_8021as = td.local_time - td.ml_phoffset;
 	delta_local = (unsigned)(now_local - td.local_time);
@@ -902,7 +907,7 @@ int main(int argc, char *argv[])
 		if (!err) {
 			continue;
 		}
-		
+
 		if (ENOSPC == err) {
 			
 			/* put back for now */
@@ -947,7 +952,7 @@ int main(int argc, char *argv[])
 		printf("mrp_disconnect failed\n");
 	
 	igb_dma_free_page(&igb_dev, &a_page);
-	rc = gptpdeinit(&igb_shm_fd, igb_mmap);
+	rc = gptpdeinit(&igb_shm_fd, &igb_mmap);
 	err = igb_detach(&igb_dev);
 	
 	pthread_exit(NULL);
