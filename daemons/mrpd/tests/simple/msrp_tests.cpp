@@ -630,3 +630,55 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_New_Listener)
 	attrib = msrp_lookup(&a_ref);
 	CHECK(attrib != NULL);
 }
+
+/*
+ * This test checks behaviour when interesting StreamId
+ * checking is enabled after some number of talker attributes
+ * are present in the MSRP database.
+ *
+ * The action of enabling StreamID checking causes all TA and TF
+ * to be deleted from the MSRP database if and only if there is
+ * no matching listener attribute. The interesting StreamID database
+ * is completely deleted/emptied. The delete operation is silent
+ * in that there is no client notification or LVA sent.
+ */
+//TEST(MsrpTestGroup, Prune_Uninteresting_Disable)
+
+
+/*
+ * This test checks behaviour when pruning is enabled and a
+ * talker stream that was interesting is now marked as not
+ * interesting. In this case there is no matching listener
+ * attribute.
+ *
+ * Because there is not matching listener attribute, the
+ * talker attribute (TA of TF) is deleted from the MRSP
+ * database. The ID is all deleted from the interesting IDs
+ * database. The delete is silent and there is no client
+ * notification.
+ */
+//TEST(MsrpTestGroup, Prune_Uninteresting_Disable_With_TA)
+
+/*
+ * This test checks behaviour when pruning is enabled and a
+ * talker streamID that was previously marked as interesting
+ * is now marked as not interesting. In this case there is a
+ * matching listener attribute.
+ *
+ * Because there is a matching listener attribute, the StreamID
+ * is deleted from the interesting StreamID database. Talker attribute
+ * registrations remain.
+ */
+//TEST(MsrpTestGroup, Prune_Uninteresting_Disable_With_TA_and_Listener)
+
+
+
+/*
+ * This test checks behaviour when pruning is enabled and then
+ * disabled. And pdu with TA is processed.
+ *
+ * After enabling and disabling streamID checking default operation
+ * conditions should prevail and any TA or TF should be recorded in
+ * the MSRP database.
+ */
+//TEST(MsrpTestGroup, Prune_Uninteresting_Enable_Disable)
