@@ -1,0 +1,330 @@
+= AVnu gPTP Code
+:toc:
+:toc-placement!:
+
+toc::[]
+
+[[introduction]]
+== Introduction
+
+[[conventions]]
+=== Conventions
+
+Text in red denotes information that is correct at the time the document
+of writing, but is likely to change
+
+All CAPS text denotes constants or enumerations taken from the OpenAVB
+gPTP code
+
+[[abbreviation-definitions]]
+=== Abbreviation Definitions
+
+GM – Grandmaster. The clock that serves as master for the network
+
+[[references]]
+=== References
+
+*[1]* IEEE 802.1AS-2011: Timing and Synchronization for Time-Sensitive
+Applications in Bridged Local Area Networks
+
+[[common-code]]
+== Common Code
+
+[[clock-ieee1588clock-class-in-avbts_clock.hppieee1588clock.cpp]]
+=== Clock (IEEE1588Clock class in avbts_clock.hpp/ieee1588clock.cpp)
+
+The IEEE1588Clock class is a container for timing functions and state
+that is global across all ports.
+
+[[timers]]
+==== Timers
+
+The timers API is part of the Clock class and is used to deliver events
+to deliver events to Port objects. The event types are:
+
+* STATE_CHANGE_EVENT – causes BMCA algorithm to run +
+This event is scheduled when Announce message is received
+(ptp_message.cpp line 775) +
+This event is handled in code lines 433-540 in ieee1588port.cpp
+* SYNC_INTERVAL_TIMEOUT_EXPIRES
++
+When a port object is in PTP_MASTER mode, this event is delivered once
+per sync interval (see [1] clause 11.2)
++
+This event is handled in code lines 715-844 in ieee1588port.cpp
+* PDELAY_INTERVAL_TIMEOUT_EXPIRES
++
+This event is delivered once per pdelay interval (see [1] clause 11.2)
++
+This event is handled in code lines 612-714 in ieee1588port.cpp
+* ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES
++
+When a port object is in PTP_MASTER mode, this event is delivered once
+per announce interval (see [1] clause 10.2)
++
+This event is handled in code lines 845-862 in ieee1588port.cpp
+* SYNC_RECEIPT_TIMEOUT_EXPIRES
++
+This event is delivered if a sync message is not received before the
+sync receipt timeout occurs (see [1] clause 10.6.3.1)
++
+This event is handled in code lines 541-611 in ieee1588port.cpp
+* ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
++
+This event is delivered if a sync message is not received before the
+sync receipt timeout occurs (see [1] clause 10.6.3.1)
++
+This event is handled in code lines 541-611 in ieee1588port.cpp
+* PDELAY_DEFERRED_PROCESSING
++
+This event is scheduled (code line 1390 in ptp_message.cpp) when a
+pdelay response followup message is received and the corresponding
+pdelay request timestamp is not complete (PDELAY_PENDING_TIMESTAMP)
++
+This event is handled in code lines 866-878 in ieee1588port.cpp
+* PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES
++
+This event is delivered if a pdelay response is not received within the
+timeout interval
++
+This event is handled in code lines 879-882 in ieee1588port.cpp
+* POWERUP – duplicate of INITIALIZE event
+* INITIALIZE
++
+This event causes the port object to initialize and start processing
++
+This event is handled in code lines 380-432 in ieee1588port.cpp
+* FAULT_DETECTED
++
+This event is handled in code lines 863-865 in ieee1588port.cpp
+* QUALIFICATION_TIMEOUT_EXPIRES (unused)
+
+addEventTimer()/addEventTimerLocked() – add event timer and locks the
+underlying OSTimerQueue object in locked version of the call
+
+deleteEventTimer()/deleteEventTimerLocked() – delete event timer and
+locks the underlying OSTimerQueue object in locked version of the call
+
+[[selected-methods]]
+==== Selected Methods
+
+_setMasterOffset_ – this function updates the frequency and phase
+offsets between the 802.1AS grandmaster and the local network device
+clock and between the system (e.g. gettimeofday) and local network
+clock.
+
+This function is called from ptp_message.cpp (code line 1001) when the
+port is in PTP_SLAVE mode and followup message is received. It is also
+called from ieee1588port.cpp (code line 816) when the port is in
+PTP_MASTER mode.
+
+_serializeState_ – this function writes out several clock parameters to
+char buffer. This may be used to cache state for faster startup.
+
+The parameters currently cached are: Local device to GM clock offsets,
+Local device to System clock offset, GM Identity
+
+_restoreSerializedState_ – this function reads clock parameters that
+were previously written out by a call to serializeState
+
+[[port-ieee1588port-class-in-avbts_port.hppieei1588port.cpp]]
+=== Port (IEEE1588Port class in avbts_port.hpp/ieei1588port.cpp)
+
+The IEEE1588Port class is a container for per-port state and methods
+
+[[initialization]]
+==== Initialization
+
+Initialization of port state is done in the constructor. Much of the
+state corresponds closely with the MDPort entity in [1]. The rest of the
+initialization, including initializing the OS/device specific
+timestamper (HWTimestamper derived object) and network device
+(OSNetworkInterface derived object) is completed in init_port which is
+called in main. The initialization operation is split in two functions
+to accommodate future implementations that require additional OS/device
+specific initialization in between. Initialization and the port
+operations is started when the POWERUP/INITIALIZE event is received. The
+openPort method is started in another thread. This thread processes
+incoming messages.
+
+[[selected-methods-1]]
+==== Selected Methods
+
+_openPort_ – receives incoming messages and associated timestamps in
+while loop. Triggers processing of those messages.
+
+_processEvent_ – processes events received by the port. See section I.a
+of this document for message types and associated actions
+
+_serializeState_ – this function writes out several port parameters to
+char buffer. This may be used to cache state for faster startup
+
+_restoreSerializedState_ – this function reads port parameters that were
+previously written out by a call to serializeState
+
+[[message]]
+=== Message
+
+[[class-ptpmessagecommon]]
+==== class PTPMessageCommon
+
+All message types derive from this class. The common methods are:
+
+* _processMessage_ – this code processes a message after it is received
+* _sendPort_ – this code transmits a message
+
+[[derived-message-typesclasses]]
+==== Derived Message Types/Classes
+
+* PTPMessageSync – represents sync message
+* PTPMessageFollowUp – followup message
+* PTPMessagePathDelayReq – pdelay request
+* PTPMessagePathDelayResp – pdelay response
+* PTPMessagePathDelayRespFollowUp – pdelay response followup
+
+[[selected-methods-2]]
+==== Selected Methods
+
+_buildPTPMessage_ – when a message buffer is received, this function is
+called to parse it. The return value is an object representing the
+message or NULL if parsing fails
+
+_buildCommonHeader_ – this function writes the common header information
+(see [1] clause 10.5.2 and clause 11.4.2) to a buffer for transmission
+
+_PTPMessageAnnounce::isBetterThan_ – this function compares this object
+with that of the argument and returns true if this is better (see
+discussion of systemIdentity in [1] clause 10.3.2)
+
+[[sync-tranmission-ptp_master-mode]]
+==== Sync Tranmission (PTP_MASTER mode)
+
+When the SYNC_INTERVAL_TIMEOUT_EXPIRES event (see section I.a of this
+document) is received by the port a new PTPMessageSync object is
+initialized and transmitted. The transmit timestamp is read from the
+timestamper object. A PTPMessageFollowUp object is initialized and the
+timestamp is added to the object and transmitted.
+
+[[sync-reception-ptp_slave-mode]]
+==== Sync Reception (PTP_SLAVE mode)
+
+When a message of type PTPMessageSync is received it is saved along with
+the receive timestamp until either a corresponding message of type
+PTPMessageFollowUp (followup) is received or another sync message is
+received. When a followup message is received
+PTPMessageFollowup::processMessage is executed. The saved sync
+information is retrieved and checked. The preciseOriginTimestamp
+(remote) is used with the sync timestamp (local) to compute the offset
+between the local device clock and the GM clock and calls
+IEEE1588Clock::setMasterOffset. Reception of a valid sync and followup
+restarts the SYNC_RECEIPT_TIMEOUT timer on the corresponding port
+object.
+
+[[pdelay-transmission]]
+==== Pdelay Transmission
+
+When the PDELAY_INTERVAL_TIMEOUT_EXPIRES event (see section I.a of this
+document) is received by the port a new PTPMessagePathDelayReq object is
+initialized and transmitted. The transmit timestamp is read (T1) from
+the timestamper object. The request is stored until a response
+(PTPMessagePathDelayResp) and response followup
+(PTPMessagePathDelayRespFollowUp) is received. The receive timestamp
+from the response is captured (T4). The pdelay response and pdelay
+response followup messages contain remote timestamps for reception of
+the request (T2) and transmission of the response (T3). The link delay
+is calculated:
+
+ LD = ((T4-T1)-(T3-T2))/2
+
+The link delay in the Sync Reception operation.
+
+[[pdelay-reception]]
+==== PDelay Reception
+
+When a message of type PTPMessagePathDelayReq is received a response
+(PTPMessagePathDelayResponse) is initialized, populated with the request
+receive timestamp, and transmitted. A response followup
+(PTPMessagePathDelayRespFollowUp) is initialized, populated with the
+response transmit timestamp, and transmitted.
+
+[[os-abstractions]]
+=== OS Abstractions
+
+The OS abstractions are interface definitions where OS specific
+implementations are provided in the Linux and Windows directories
+providing common OS services (e.g. locking, networking)
+
+* OSCondition (avbts_oscondition.hpp) – condition variable
+abstraction
+* OSNetworkInterface (avbts_osnet.hpp) – network interface
+abstraction, provides and receive operations
+* OSTimerQueue (avbts_ostimerq.hpp) – timer queue interface that
+allows scheduling of multiple events used for add/delete timer methods
+in the clock class
+* OSTimer (avbts_ostimer.hpp) – timer abstraction providing sleep
+method that is approximately millisecond accurate
+* OSThread (avbts_osthread.hpp) – thread abstraction
+* OSLock (avbts_oslock.hpp) – lock abstraction
+* HWTimestamper (ieee1588.hpp) – timestamper abstraction providing
+methods for retrieving transmit and receive timestamps and cross
+timestamps between the network device clock and the system clock
+* OS_IPC (avbts_osipc.hpp) – IPC abstraction used to communicate
+calculated offsets to other application
+
+[[linux-code]]
+== Linux Code
+
+[[common-linux_hal_common.hpp-linux_hal_common.cpp]]
+=== Common (linux_hal_common.hpp/ linux_hal_common.cpp)
+
+Contains:
+
+* Linux specific network interface (LinuxNetworkInterface)
+* Pthread locks (mutex) (LinuxLock)
+* Pthread condition (LinuxCondition)
+* Timer (LinuxTimer)
+* TimerQueue (LinuxTimerQueue)
+* Pthread abstraction (LinuxThread)
+* Shared memory IPC (LinuxSharedMemoryIPC) – Offsets are made available
+to other processes via shared memory
+
+[[generic-linux_hal_generic.hpplinux_hal_generic.cpplinux_hal_generic_adj.cpp]]
+=== Generic
+(linux_hal_generic.hpp/linux_hal_generic.cpp/linux_hal_generic_adj.cpp)
+
+Contains:
+
+* Generic Linux timestamp code (LinuxTimestamperGeneric)
+
+Note: The clock adjustment code in linux_hal_generic_adj.cpp is in a
+separate file due to multiple definitions of time related structs
+
+[[i210-linux_hal_i210.cpp]]
+=== I210 (linux_hal_i210.cpp)
+
+Contains:
+
+* Pulse per second code specific to I210
+
+[[intelce]]
+=== IntelCE
+
+Contains:
+
+* IntelCE specific timestamp code (LinuxTimestamperIntelCE)
+
+[[windows-windows_hal.cppwindows_hal.hpp]]
+== Windows (windows_hal.cpp/windows_hal.hpp)
+
+Contains:
+
+* Windows specific network interface (WindowsPCAPNetworkInterface) using
+PCAP for layer 2 frame transmission and reception
+* Windows locks (mutex) (WindowsLock)
+* WIndows condition variable (WindowsCondition)
+* Timer (WindowsTimer)
+* Windows TimerQueue (WindowsTimerQueue)
+* Windows thread abstraction (WindowsThread)
+* Named pipe IPC (WIndowsNamedPipeIPC) – Offsets are made available to
+other processes named pipe transactions
+* Windows/Intel specific timestamp code (WindowsTimestamper)
