@@ -642,7 +642,11 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_New_Listener)
  * is completely deleted/emptied. The delete operation is silent
  * in that there is no client notification or LVA sent.
  */
-//TEST(MsrpTestGroup, Prune_Uninteresting_Disable)
+
+// Remove option completely - make it a runtime option.
+// Make it a daemon startup option.
+
+//TEST(MsrpTestGroup, Prune_Uninteresting_LateEnable)
 
 
 /*
@@ -657,6 +661,9 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_New_Listener)
  * database. The delete is silent and there is no client
  * notification.
  */
+// Multi-client cases should be be run without "pruning"
+// enabled.
+// "I+S:ID"
 //TEST(MsrpTestGroup, Prune_Uninteresting_Disable_With_TA)
 
 /*
@@ -681,4 +688,5 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_New_Listener)
  * conditions should prevail and any TA or TF should be recorded in
  * the MSRP database.
  */
+// Delete. Enabling pruning is a runtime option only.
 //TEST(MsrpTestGroup, Prune_Uninteresting_Enable_Disable)
