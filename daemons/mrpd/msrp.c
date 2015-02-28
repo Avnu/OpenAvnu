@@ -3516,6 +3516,18 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 
 	rc = mrp_client_add(&(MSRP_db->mrp_db.clients), client);
 
+	/*
+	* If pruning of MSRP streamIDs is enabled, only support a single client.
+	*/
+	if (MSRP_db->enable_pruning_of_uninteresting_ids) {
+		if (mrp_client_count(MSRP_db->mrp_db.clients) > 1) {
+			mrp_client_delete(&(MSRP_db->mrp_db.clients), client);
+			mrpd_send_ctl_msg(client, "ERR pruning enabled too many clients\n", sizeof("ERR pruning enabled too many clients\n") + 1);
+			goto out;
+		}
+	}
+
+
 	if (buflen < 3)
 		return -1;
 
