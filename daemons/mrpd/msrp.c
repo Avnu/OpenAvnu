@@ -3531,8 +3531,6 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	 * S-L   Withdraw a listener status
 	 * S+D   Report a domain status
 	 * S-D   Withdraw a domain status
-	 * I+P   Enable pruning of received uninteresting stream id attributes
-	 * I-P   Disable pruning of received uninteresting stream id attributes
 	 * I+S   Add a stream id to the talker stream id list
 	 * I-S   Remove a stream id from the talker stream id list
 	 * I-A   Remove all stream ids from the interesting talker and listener stream id lists
@@ -3637,12 +3635,6 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		rc = msrp_cmd_join_or_new_stream(&talker_param, attrib_type, mrp_event);
 		if (rc)
 			goto out_ERI;	/* oops - internal error */
-	} else if (strncmp(buf, "I+P", 3 ) == 0 ) {
-		/* Enable pruning of received uninteresting stream id attributes */
-		MSRP_db->enable_pruning_of_uninteresting_ids = 1;	
-	} else if (strncmp(buf, "I-P", 3 ) == 0 ) {
-		/* Disable pruning of received uninteresting stream id attributes */
-		MSRP_db->enable_pruning_of_uninteresting_ids = 0;
 	} else if (strncmp(buf, "I+S", 3 ) == 0 ) {
 		/* Add a stream id to the interesting stream id list */
 		uint8_t stream_id[8];
