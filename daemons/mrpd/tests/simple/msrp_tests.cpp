@@ -295,6 +295,7 @@ TEST(MsrpTestGroup, RegisterTalkerAdv)
 
     /* use string interface to get MSRP to create TalkerAdv attrib in it's database */
     msrp_recv_cmd(cmd_string, sizeof(cmd_string), &client);
+    CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
 
     /* lookup the created attrib */
     a_msrp = msrp_lookup(&a_ref);
@@ -320,6 +321,7 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_clear_tx_flag)
 		",P=" PRIORITY_AND_RANK ",L=" ACCUMULATED_LATENCY;
 
 	msrp_recv_cmd(cmd_string, sizeof(cmd_string), &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
 
     /*
 	 * Generate a LVA event.
@@ -357,6 +359,7 @@ TEST(MsrpTestGroup, TxLVA_TalkerFailed_clear_tx_flag)
 
 	/* declare single TalkerFailed */
 	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
 
 	/*
 	* Generate a LVA event.
@@ -391,6 +394,7 @@ TEST(MsrpTestGroup, TxLVA_Listener_clear_tx_flag)
 
 	/* declare single Listener */
 	msrp_recv_cmd(cmd_string, sizeof(cmd_string), &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
 
 	/*
 	* Generate a LVA event.
@@ -427,6 +431,7 @@ TEST(MsrpTestGroup, TxLVA_Domain_clear_tx_flag)
 
 	/* declare single Domain */
 	msrp_recv_cmd(cmd_string, sizeof(cmd_string), &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
 
 	/*
 	* Generate a LVA event.
@@ -471,6 +476,7 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
 			",I=" TSPEC_MAX_FRAME_INTERVAL ",P=" PRIORITY_AND_RANK ",L=" ACCUMULATED_LATENCY,
 			id, da);
 		msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+		CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
 		/* add 2 to prevent vectorizing */
 		id += 2;
 		da += 2;
