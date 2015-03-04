@@ -3500,7 +3500,7 @@ static int msrp_cmd_report_domain_status(struct msrpdu_domain *domain,
 int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
-	char respbuf[12];
+	char respbuf[64];
 	int mrp_event;
 	unsigned int substate;
 	struct msrpdu_domain domain_param;
