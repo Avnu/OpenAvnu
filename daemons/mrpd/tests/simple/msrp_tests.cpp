@@ -57,6 +57,7 @@ extern "C"
 #include "mrp.h"
 #include "msrp.h"
 #include "parse.h"
+#include "eui64set.h"
 
 /* Most MSRP commands operate on the global DB */
 extern struct msrp_database *MSRP_db;
@@ -257,17 +258,6 @@ int msrp_tests_cmd_ok(const char *zstr)
 		return status;
 }
 
-static void uint64_to_id(uint64_t v, uint8_t *id)
-{
-    int i;
-
-    uint8_t *p = (uint8_t *)&v;
-    for (i = 0; i < 8; i++)
-    {
-        int shift = (7 - i) * 8;
-        id[i] = (uint8_t) (v >> shift);
-    }
-}
 
 static int event_counts_per_type(int the_type, int the_event)
 {
@@ -306,7 +296,7 @@ TEST(MsrpTestGroup, RegisterTalkerAdv)
     CHECK(MSRP_db != NULL);
 
     /* here we fill in a_ref struct with target values */
-    uint64_to_id(0xDEADBEEFBADFCA11ull, a_ref.attribute.talk_listen.StreamID);
+    eui64_write(a_ref.attribute.talk_listen.StreamID, 0xDEADBEEFBADFCA11ull);
     a_ref.type = MSRP_TALKER_ADV_TYPE;
 
     /* use string interface to get MSRP to create TalkerAdv attrib in it's database */
@@ -546,7 +536,7 @@ TEST(MsrpTestGroup, Prune_Uninteresting_TA)
 	LONGS_EQUAL(0, msrp_interesting_id_count());
 
 	/* here we fill in a_ref struct with target values, ID comes from inspection of pkt2 */
-	uint64_to_id(0x000fd700234d0000, a_ref.attribute.talk_listen.StreamID);
+	eui64_write(a_ref.attribute.talk_listen.StreamID, 0x000fd700234d0000ull);
 	a_ref.type = MSRP_TALKER_ADV_TYPE;
 
 	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
@@ -585,7 +575,7 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
 	LONGS_EQUAL(1, msrp_interesting_id_count());
 
 	/* here we fill in a_ref struct with target values */
-	uint64_to_id(id, a_ref.attribute.talk_listen.StreamID);
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
 	a_ref.type = MSRP_TALKER_ADV_TYPE;
 
 	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
@@ -618,7 +608,7 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_Any_Listener)
 	msrp_recv_cmd("I+P", strlen("I+P") + 1, &client);
 
 	/* here we fill in a_ref struct with target values */
-	uint64_to_id(id, a_ref.attribute.talk_listen.StreamID);
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
 	a_ref.type = MSRP_LISTENER_TYPE;
 
 	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
@@ -661,7 +651,7 @@ TEST(MsrpTestGroup, Prune_Uninteresting_Except_New_Listener)
 	LONGS_EQUAL(0, rv);
 
 	/* lookup the created attrib (it should be present) */
-	uint64_to_id(id, a_ref.attribute.talk_listen.StreamID);
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
 	a_ref.type = MSRP_TALKER_ADV_TYPE;
 	attrib = msrp_lookup(&a_ref);
 	CHECK(attrib != NULL);
