@@ -295,6 +295,129 @@ TEST(MsrpPruningTestGroup, Prune_Multiple_Clients)
 	CHECK(!msrp_tests_cmd_ok(test_state.ctl_msg_data));
 }
 
+/*
+* This test enables interesting StreamID checking that will prune
+* all "uninteresting" IDs from the MSRP attribute database.
+*/
+TEST(MsrpPruningTestGroup, Prune_Uninteresting_TA)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	int tx_flag_count = 0;
+	int rv;
+
+	/* here we fill in a_ref struct with target values, ID comes from inspection of pkt2 */
+	eui64_write(a_ref.attribute.talk_listen.StreamID, 0x000fd700234d0000);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* lookup the created attrib (it should not be present) */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib == NULL);
+
+	/* no interesting stream ids */
+	LONGS_EQUAL(0, msrp_interesting_id_count());
+}
+
+/*
+* This test enables interesting StreamID checking that will prune
+* all "uninteresting" IDs from the attribute database. The id
+* of a single TalkerAdvertise is marked as interesting.
+*/
+TEST(MsrpPruningTestGroup, Prune_Uninteresting_Except_One_TA)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	uint64_t id = 0x000fd70023580001; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+	int rv;
+
+	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+	LONGS_EQUAL(1, msrp_interesting_id_count());
+
+	/* here we fill in a_ref struct with target values */
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	//test_state.msrp_observe = msrp_event_observer;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* lookup the created attrib (it should be present) */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+}
+
+/*
+* This test enables interesting StreamID checking that will prune
+* all "uninteresting" IDs from the attribute database. With
+* pruning enabled, make sure incoming listener attributes are
+* processed.
+*/
+TEST(MsrpPruningTestGroup, Prune_Uninteresting_Except_Any_Listener)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	uint64_t id = 0x000fd700234d0203; /* see pkt2 at top of this file */
+	int tx_flag_count = 0;
+	int rv;
+
+	/* here we fill in a_ref struct with target values */
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
+	a_ref.type = MSRP_LISTENER_TYPE;
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	//test_state.msrp_observe = msrp_event_observer;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* lookup the created attrib (it should be present) */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+}
+
+/*
+* This test enables interesting StreamID checking that will prune
+* all "uninteresting" IDs from the attribute database. With
+* pruning enabled, a registered listener attribute should cause
+* the matching TalkerAdv to be processed correctly.
+*/
+TEST(MsrpPruningTestGroup, Prune_Uninteresting_Except_New_Listener)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	uint64_t id = 0x000fd70023580001; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+	int rv;
+
+	/* declare a listener attribute */
+	snprintf(cmd_string, sizeof(cmd_string), "S+L:L=%016" PRIx64 ",D=2", id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	//test_state.msrp_observe = msrp_event_observer;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* lookup the created attrib (it should be present) */
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+}
 
 /*
  * This test checks behaviour when pruning is enabled and a
