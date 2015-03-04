@@ -3650,6 +3650,10 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	} else if (strncmp(buf, "I+S", 3 ) == 0 ) {
 		/* Add a stream id to the interesting stream id list */
 		uint8_t stream_id[8];
+
+		if (!MSRP_db->enable_pruning_of_uninteresting_ids)
+			goto out_ERP;
+
 		rc=msrp_cmd_parse_stream_id(buf,buflen,stream_id,&err_index);
 		if (rc)
 			goto out_ERP;
@@ -3658,7 +3662,11 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 	} else if (strncmp(buf, "I-S", 3 ) == 0 ) {
 		/* Remove a stream id from the interesting stream id list */
 		uint8_t stream_id[8];
-		rc=msrp_cmd_parse_stream_id(buf,buflen,stream_id,&err_index);
+
+		if (!MSRP_db->enable_pruning_of_uninteresting_ids)
+			goto out_ERP;
+
+		rc = msrp_cmd_parse_stream_id(buf, buflen, stream_id, &err_index);
 		if (rc)
 			goto out_ERP;
 		if( eui64set_remove_and_sort( &MSRP_db->interesting_stream_ids, eui64_read(stream_id) )==0 )

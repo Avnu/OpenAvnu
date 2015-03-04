@@ -517,6 +517,25 @@ TEST(MsrpTestGroup, Multiple_Clients)
 	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
 }
 
+/*
+* Without pruning enabled, I+S and I-S fail.
+*/
+TEST(MsrpTestGroup, Pruning_Commands_Fail)
+{
+	uint64_t id = 0x000fd70023580001; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+
+	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(!msrp_tests_cmd_ok(test_state.ctl_msg_data));
+	LONGS_EQUAL(0, msrp_interesting_id_count());
+
+	snprintf(cmd_string, sizeof(cmd_string), "I-S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(!msrp_tests_cmd_ok(test_state.ctl_msg_data));
+	LONGS_EQUAL(0, msrp_interesting_id_count());
+}
 
 /**********************************************************************************/
 
@@ -557,7 +576,7 @@ TEST(MsrpTestGroup, Prune_Uninteresting_TA)
  * all "uninteresting" IDs from the attribute database. The id
  * of a single TalkerAdvertise is marked as interesting.
  */
-TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
+IGNORE_TEST(MsrpTestGroup, Prune_Uninteresting_Except_One_TA)
 {
 	struct msrp_attribute a_ref;
 	struct msrp_attribute *attrib;
