@@ -295,3 +295,29 @@ TEST(MsrpPruningTestGroup, Prune_Multiple_Clients)
 	CHECK(!msrp_tests_cmd_ok(test_state.ctl_msg_data));
 }
 
+
+/*
+ * Adding same stream twice to interesting list returns an error.
+ *
+ * Since there is no reference counting currently implemented,
+ * return an error for multiple requests to mark the same ID
+ * as interesting.
+ */
+TEST(MsrpPruningTestGroup, Prune_Uninteresting_Duplicate)
+{
+	uint64_t id = 0x000fd70023580001; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+
+	/* mark as interesting */
+	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+	LONGS_EQUAL(1, msrp_interesting_id_count());
+
+	/* mark as interesting again */
+	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(!msrp_tests_cmd_ok(test_state.ctl_msg_data));
+	LONGS_EQUAL(1, msrp_interesting_id_count());
+}

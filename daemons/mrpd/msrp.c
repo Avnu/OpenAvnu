@@ -3657,6 +3657,9 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		rc=msrp_cmd_parse_stream_id(buf,buflen,stream_id,&err_index);
 		if (rc)
 			goto out_ERP;
+		/* return error if duplicate */
+		if (eui64set_find(&MSRP_db->interesting_stream_ids, eui64_read(stream_id)))
+			goto out_ERI;
 		if( eui64set_insert_and_sort( &MSRP_db->interesting_stream_ids, eui64_read(stream_id), 0 )==0 )
 			goto out_ERI;
 	} else if (strncmp(buf, "I-S", 3 ) == 0 ) {
