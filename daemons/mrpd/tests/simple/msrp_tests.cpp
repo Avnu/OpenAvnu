@@ -258,12 +258,6 @@ int msrp_tests_cmd_ok(const char *zstr)
 		return status;
 }
 
-
-static int event_counts_per_type(int the_type, int the_event)
-{
-	return test_state.msrp_event_counts_per_type[MSRP_TYPE_IDX(the_type)][MSRP_EVENT_IDX(the_event)];
-}
-
 TEST_GROUP(MsrpTestGroup)
 {
     void setup()
@@ -306,8 +300,8 @@ TEST(MsrpTestGroup, RegisterTalkerAdv)
     a_msrp = msrp_lookup(&a_ref);
     CHECK(a_msrp != NULL);
 
-	/* check for NEW event */
-	LONGS_EQUAL(1, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
+    /* check for NEW event */
+    LONGS_EQUAL(1, msrp_tests_event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
 
 /*
@@ -343,7 +337,7 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_clear_tx_flag)
     }
     CHECK(mrpd_send_packet_count() > 0);
     LONGS_EQUAL(0, tx_flag_count);
-    LONGS_EQUAL(1, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
+    LONGS_EQUAL(1, msrp_tests_event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
 
 /*
@@ -380,7 +374,7 @@ TEST(MsrpTestGroup, TxLVA_TalkerFailed_clear_tx_flag)
 	}
 	CHECK(mrpd_send_packet_count() > 0);
 	LONGS_EQUAL(0, tx_flag_count);
-	LONGS_EQUAL(1, event_counts_per_type(MSRP_TALKER_FAILED_TYPE, MRP_EVENT_NEW));
+	LONGS_EQUAL(1, msrp_tests_event_counts_per_type(MSRP_TALKER_FAILED_TYPE, MRP_EVENT_NEW));
 }
 
 /*
@@ -414,7 +408,7 @@ TEST(MsrpTestGroup, TxLVA_Listener_clear_tx_flag)
 	}
 	CHECK(mrpd_send_packet_count() > 0);
 	LONGS_EQUAL(0, tx_flag_count);
-	LONGS_EQUAL(1, event_counts_per_type(MSRP_LISTENER_TYPE, MRP_EVENT_NEW));
+	LONGS_EQUAL(1, msrp_tests_event_counts_per_type(MSRP_LISTENER_TYPE, MRP_EVENT_NEW));
 }
 
 /*
@@ -450,7 +444,7 @@ TEST(MsrpTestGroup, TxLVA_Domain_clear_tx_flag)
 	}
 	CHECK(mrpd_send_packet_count() > 0);
 	LONGS_EQUAL(0, tx_flag_count);
-	LONGS_EQUAL(1, event_counts_per_type(MSRP_DOMAIN_TYPE, MRP_EVENT_JOIN));
+	LONGS_EQUAL(1, msrp_tests_event_counts_per_type(MSRP_DOMAIN_TYPE, MRP_EVENT_JOIN));
 }
 
 /*
@@ -494,7 +488,7 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
 	}
 	CHECK(mrpd_send_packet_count() > 0);
 	CHECK_EQUAL(0, tx_flag_count);
-	LONGS_EQUAL(count, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
+	LONGS_EQUAL(count, msrp_tests_event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
 
 /*
