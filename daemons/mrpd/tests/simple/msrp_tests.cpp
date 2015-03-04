@@ -53,6 +53,7 @@ extern "C"
 {
 
 #include "mrp_doubles.h"
+#include "msrp_tests.h"
 #include "mrp.h"
 #include "msrp.h"
 #include "parse.h"
@@ -241,6 +242,20 @@ static unsigned char pkt2[] = {
                      ",L=" ACCUMULATED_LATENCY
 
 static struct sockaddr_in client;
+
+int msrp_tests_event_counts_per_type(int the_type, int the_event)
+{
+	return test_state.msrp_event_counts_per_type[MSRP_TYPE_IDX(the_type)][MSRP_EVENT_IDX(the_event)];
+}
+
+int msrp_tests_cmd_ok(const char *zstr)
+{
+	int status;
+
+	status = (zstr[0] != 'E') && (zstr[1] != 'R');
+
+		return status;
+}
 
 static void uint64_to_id(uint64_t v, uint8_t *id)
 {
@@ -491,6 +506,27 @@ TEST(MsrpTestGroup, TxLVA_TalkerAdv_count_64)
 	CHECK_EQUAL(0, tx_flag_count);
 	LONGS_EQUAL(count, event_counts_per_type(MSRP_TALKER_ADV_TYPE, MRP_EVENT_NEW));
 }
+
+/*
+ * Without pruning enabled, more than one client is supported.
+ */
+TEST(MsrpTestGroup, Multiple_Clients)
+{
+	static struct sockaddr_in client1;
+	static struct sockaddr_in client2;
+
+	memset(&client1, 0, sizeof(client1));
+	memset(&client2, 1, sizeof(client2));
+
+	/* no error returned for first client */
+	msrp_recv_cmd("S??", strlen("S??") + 1, &client1);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+
+	/* no error returned for second client */
+	msrp_recv_cmd("S??", strlen("S??") + 1, &client2);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+}
+
 
 /**********************************************************************************/
 
