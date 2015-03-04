@@ -3664,6 +3664,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			goto out_ERI;
 	} else if (strncmp(buf, "I-S", 3 ) == 0 ) {
 		/* Remove a stream id from the interesting stream id list */
+		struct msrp_attribute listener_lookup;
 		uint8_t stream_id[8];
 
 		if (!MSRP_db->enable_pruning_of_uninteresting_ids)
@@ -3674,6 +3675,30 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 			goto out_ERP;
 		if( eui64set_remove_and_sort( &MSRP_db->interesting_stream_ids, eui64_read(stream_id) )==0 )
 			goto out_ERI;
+
+		/* if there is no matching listener, "I-S" removes any TA of TF attributes from the database */
+		listener_lookup.type = MSRP_LISTENER_TYPE;
+		memcpy(listener_lookup.attribute.talk_listen.StreamID, stream_id, sizeof(stream_id));
+		if (msrp_lookup(&listener_lookup) == 0) {
+			struct msrp_attribute *attrib;
+			attrib = MSRP_db->attrib_list;
+			while (NULL != attrib) {
+				struct msrp_attribute *free_sattrib = attrib;
+				attrib = attrib->next;
+				if (((free_sattrib->type == MSRP_TALKER_ADV_TYPE) ||
+					 (free_sattrib->type == MSRP_TALKER_FAILED_TYPE)) &&
+					(memcmp(listener_lookup.attribute.talk_listen.StreamID, stream_id, sizeof(stream_id)) == 0)) {
+						if (NULL != free_sattrib->prev)
+							free_sattrib->prev->next = free_sattrib->next;
+						else
+							MSRP_db->attrib_list = free_sattrib->next;
+						if (NULL != free_sattrib->next)
+							free_sattrib->next->prev = free_sattrib->prev;
+						/* delete attribute */
+						free(free_sattrib);
+				}
+			}
+		}
 	} else if (strncmp(buf, "I-A", 3 ) == 0 ) {
 		/* Remove all stream ids from the interesting stream id lists */
 		eui64set_clear( &MSRP_db->interesting_stream_ids );

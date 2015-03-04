@@ -297,6 +297,64 @@ TEST(MsrpPruningTestGroup, Prune_Multiple_Clients)
 
 
 /*
+ * This test checks behaviour when pruning is enabled and a
+ * talker stream that was interesting is now marked as not
+ * interesting. In this case there is no matching listener
+ * attribute.
+ *
+ * Because there is not matching listener attribute, the
+ * talker attribute (TA of TF) is deleted from the MRSP
+ * database. The ID is all deleted from the interesting IDs
+ * database. The delete is silent and there is no client
+ * notification.
+ */
+// Multi-client cases should be be run without "pruning"
+// enabled.
+// "I+S:ID"
+TEST(MsrpPruningTestGroup, Prune_Uninteresting_Disable_With_TA)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	uint64_t id = 0x000fd70023580001; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+	int rv;
+
+	/* mark as interesting */
+	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+	LONGS_EQUAL(1, msrp_interesting_id_count());
+
+	/* here we fill in a_ref struct with target values */
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	//test_state.msrp_observe = msrp_event_observer;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* lookup the created attrib (it should be present) */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+
+	/*
+	 * At this point there is an interesting ID in the ID database and a TA in the
+	 * MSRP database.
+	 */
+	snprintf(cmd_string, sizeof(cmd_string), "I-S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+	LONGS_EQUAL(0, msrp_interesting_id_count());
+
+	/* lookup the created attrib (it should not be present) */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib == NULL);
+}
+
+/*
  * Adding same stream twice to interesting list returns an error.
  *
  * Since there is no reference counting currently implemented,
@@ -321,3 +379,70 @@ TEST(MsrpPruningTestGroup, Prune_Uninteresting_Duplicate)
 	CHECK(!msrp_tests_cmd_ok(test_state.ctl_msg_data));
 	LONGS_EQUAL(1, msrp_interesting_id_count());
 }
+
+/*
+ * This test checks behaviour when pruning is enabled and a
+ * talker streamID that was previously marked as interesting
+ * is now marked as not interesting. In this case there is a
+ * matching listener attribute.
+ *
+ * Because there is a matching listener attribute, the StreamID
+ * is deleted from the interesting StreamID database. Talker attribute
+ * registrations remain.
+ */
+TEST(MsrpPruningTestGroup, Prune_Uninteresting_Disable_With_TA_and_Listener)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	uint64_t id = 0x000fd70023580001; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+	int rv;
+
+	/* mark as interesting */
+	snprintf(cmd_string, sizeof(cmd_string), "I+S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+	LONGS_EQUAL(1, msrp_interesting_id_count());
+
+	/* declare a listener attribute */
+	snprintf(cmd_string, sizeof(cmd_string), "S+L:L=%016" PRIx64 ",D=2", id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	//test_state.msrp_observe = msrp_event_observer;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* lookup the created attrib (it should be present) */
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+
+	/*
+	 * Setup complete. Client has registered listener and PDU has been
+	 * processed with matching talkerAdvertise and TA is present in
+	 * MSRP attribute database.
+	 *
+	 * Now mark streamID as uninteresting.
+	 */
+
+	/* mark as uninteresting */
+	snprintf(cmd_string, sizeof(cmd_string), "I-S:S=%" PRIx64, id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+
+	/* interesting database should be empty */
+	LONGS_EQUAL(0, msrp_interesting_id_count());
+
+	/* TA should still be listed */
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+}
+
+/*
+ * Remove of listener causes TA to be removed from MSRP database.
+ */
