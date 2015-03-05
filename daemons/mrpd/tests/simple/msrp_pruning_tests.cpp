@@ -568,4 +568,46 @@ TEST(MsrpPruningTestGroup, Prune_Uninteresting_Disable_With_TA_and_Listener)
 
 /*
  * Remove of listener causes TA to be removed from MSRP database.
+ *
+ * When pruning is enabled, registering a listener causes
+ * a matching TalkerAdvertise to be tracked. When the listener
+ * declaration is removed the matching TalkerAdvertise should
+ * also be removed.
  */
+IGNORE_TEST(MsrpPruningTestGroup, Prune_Uninteresting_Listener_Remove)
+{
+	struct msrp_attribute a_ref;
+	struct msrp_attribute *attrib;
+	uint64_t id = 0x000fd70023580001; /* see pkt2 at top of this file */
+	char cmd_string[128];
+	int tx_flag_count = 0;
+	int rv;
+
+	/* declare a listener attribute */
+	snprintf(cmd_string, sizeof(cmd_string), "S+L:L=%016" PRIx64 ",D=2", id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+
+	memcpy(test_state.rx_PDU, pkt2, sizeof pkt2);
+	test_state.rx_PDU_len = sizeof pkt2;
+	//test_state.msrp_observe = msrp_event_observer;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* lookup the created attrib (it should be present) */
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib != NULL);
+
+	/* setup complete, now remove the listener */
+	snprintf(cmd_string, sizeof(cmd_string), "S-L:L=%016" PRIx64 , id);
+	msrp_recv_cmd(cmd_string, strlen(cmd_string) + 1, &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+
+	/* lookup the TA attrib (it should not be present) */
+	eui64_write(a_ref.attribute.talk_listen.StreamID, id);
+	a_ref.type = MSRP_TALKER_ADV_TYPE;
+	attrib = msrp_lookup(&a_ref);
+	CHECK(attrib == NULL);
+}
