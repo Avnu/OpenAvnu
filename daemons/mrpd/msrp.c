@@ -3732,7 +3732,7 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 				attrib = attrib->next;
 				if (((free_sattrib->type == MSRP_TALKER_ADV_TYPE) ||
 					 (free_sattrib->type == MSRP_TALKER_FAILED_TYPE)) &&
-					(memcmp(listener_lookup.attribute.talk_listen.StreamID, stream_id, sizeof(stream_id)) == 0)) {
+					 (memcmp(free_sattrib->attribute.talk_listen.StreamID, stream_id, sizeof(stream_id)) == 0)) {
 						if (NULL != free_sattrib->prev)
 							free_sattrib->prev->next = free_sattrib->next;
 						else
