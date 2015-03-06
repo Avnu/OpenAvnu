@@ -3552,7 +3552,6 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		msrp_dumptable(client);
 
 	} else if (strncmp(buf, "S-L", 3) == 0) {
-
 		/* buf[] should look similar to 'S-L:L=xxyyzz...' */
 		rc = msrp_cmd_parse_withdraw_listener_status(buf, buflen,
 							     &talker_param,
@@ -3562,6 +3561,33 @@ int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 		rc = msrp_cmd_withdraw_listener_status(&talker_param);
 		if (rc)
 			goto out_ERI;	/* oops - internal error */
+
+		/*
+		 * If pruning is enabled and the streamID is not in the
+		 * "interesting" ID database, remove any TalkerAdvertise
+		 * or TalkerFailed declarations.
+		 */
+		if (MSRP_db->enable_pruning_of_uninteresting_ids &&
+			!eui64set_find(&MSRP_db->interesting_stream_ids, eui64_read(talker_param.StreamID))) {
+			struct msrp_attribute *attrib;
+			attrib = MSRP_db->attrib_list;
+			while (NULL != attrib) {
+				struct msrp_attribute *free_sattrib = attrib;
+				attrib = attrib->next;
+				if (((free_sattrib->type == MSRP_TALKER_ADV_TYPE) ||
+					(free_sattrib->type == MSRP_TALKER_FAILED_TYPE)) &&
+					(memcmp(free_sattrib->attribute.talk_listen.StreamID, talker_param.StreamID, sizeof(talker_param.StreamID)) == 0)) {
+					if (NULL != free_sattrib->prev)
+						free_sattrib->prev->next = free_sattrib->next;
+					else
+						MSRP_db->attrib_list = free_sattrib->next;
+					if (NULL != free_sattrib->next)
+						free_sattrib->next->prev = free_sattrib->prev;
+					/* delete attribute */
+					free(free_sattrib);
+				}
+			}
+		}
 	} else if (strncmp(buf, "S-D", 3) == 0) {
 
 		/* buf[] should look similar to 'S-D:C=%d,P=%d,V:%04x" */

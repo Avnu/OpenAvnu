@@ -574,7 +574,7 @@ TEST(MsrpPruningTestGroup, Prune_Uninteresting_Disable_With_TA_and_Listener)
  * declaration is removed the matching TalkerAdvertise should
  * also be removed.
  */
-IGNORE_TEST(MsrpPruningTestGroup, Prune_Uninteresting_Listener_Remove)
+TEST(MsrpPruningTestGroup, Prune_Uninteresting_Listener_Remove)
 {
 	struct msrp_attribute a_ref;
 	struct msrp_attribute *attrib;
