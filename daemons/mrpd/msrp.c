@@ -106,6 +106,25 @@ void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 }
 #endif
 
+int msrp_count_type(int attrib_type)
+{
+	int count = 0;
+	struct msrp_attribute *attrib;
+	int mac_eq;
+
+	if (MSRP_db) {
+		attrib = MSRP_db->attrib_list;
+		while (NULL != attrib) {
+			if (attrib_type == attrib->type) {
+				count++;
+			}
+			attrib = attrib->next;
+		}
+	}
+	return count;
+}
+
+
 struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
 {
 	struct msrp_attribute *attrib;

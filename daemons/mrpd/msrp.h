@@ -176,6 +176,15 @@ void msrp_bye(struct sockaddr_in *client);
 int msrp_recv_msg(void);
 
 /**
+ * Count attributes by type in the MSRP database.
+ * This is helper function that is used in unit testing to monitor
+ * how the database changes as tests are executed.
+ *
+ * \param attrib_type The attribute type to count.
+ */
+int msrp_count_type(int attrib_type);
+
+/**
  * Return the number of interesting talker stream ids recorded in the
  * database.
  */
