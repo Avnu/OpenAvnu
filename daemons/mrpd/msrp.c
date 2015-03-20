@@ -3790,7 +3790,7 @@ int msrp_init(int msrp_enable, int max_interesting_stream_ids, int enable_prunin
 		goto abort_socket;
 
 	if( max_interesting_stream_ids < 8 ) {
-		/* Allow minimum 8 interesting talker stream ids and 8 interesting listener stream ids */
+		/* Allow minimum of 8 interesting talker stream ids */
 		max_interesting_stream_ids = 8;
 	}
 
