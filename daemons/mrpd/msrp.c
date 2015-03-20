@@ -45,6 +45,12 @@
 #include "msrp.h"
 #include "mmrp.h"
 
+/*
+ * Defines related to parsing command strings from an external mrpd client.
+ */
+#define MSRP_CLIENT_CMDSTR_HEADER_LEN (4)  /* "S+L=" part of a comamnd string */
+#define MSRP_CLIENT_CMDSTR_STREAMID_LEN (16)  /* "DEADBEEFDEADBEEF" uint64_t encoded as hex in a cmd string */
+
 int msrp_txpdu(void);
 static struct msrp_attribute *msrp_alloc(void);
 int msrp_send_notifications(struct msrp_attribute *attrib, int notify);
@@ -3284,9 +3290,10 @@ static int msrp_cmd_parse_stream_id(char *buf, int buflen,
 		{"S" PARSE_ASSIGN, parse_c64, stream_id },
 		{0, parse_null, 0 }
 	};
-	if( buflen < 16+4 )
+	if (buflen < MSRP_CLIENT_CMDSTR_STREAMID_LEN + MSRP_CLIENT_CMDSTR_HEADER_LEN)
 		return -1;
-	return parse(buf+4, buflen-4, specs, err_index);
+	return parse(buf + MSRP_CLIENT_CMDSTR_HEADER_LEN,
+		buflen - MSRP_CLIENT_CMDSTR_HEADER_LEN, specs, err_index);
 }
 
 
