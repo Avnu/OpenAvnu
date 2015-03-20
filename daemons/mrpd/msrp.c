@@ -110,7 +110,6 @@ int msrp_count_type(int attrib_type)
 {
 	int count = 0;
 	struct msrp_attribute *attrib;
-	int mac_eq;
 
 	if (MSRP_db) {
 		attrib = MSRP_db->attrib_list;
