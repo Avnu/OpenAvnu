@@ -181,12 +181,15 @@ int msrp_recv_msg(void);
  * how the database changes as tests are executed.
  *
  * \param attrib_type The attribute type to count.
+ * \return The number of attributes of type attrib_type in the MSRP database.
  */
 int msrp_count_type(int attrib_type);
 
 /**
  * Return the number of interesting talker stream ids recorded in the
  * database.
+ *
+ * \return Number of stream ids in the interesting stream id database.
  */
 int msrp_interesting_id_count(void);
 
