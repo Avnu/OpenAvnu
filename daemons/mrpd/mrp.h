@@ -205,6 +205,13 @@ struct mrp_database {
 	int participant;
 };
 
+/**
+ * Examine list of mrp clients and return count.
+ *
+ * \param list List of client sockets.
+ * \return The number of clients.
+ */
+int mrp_client_count(client_t * list);
 int mrp_client_add(client_t ** list, struct sockaddr_in *newclient);
 int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient);
 

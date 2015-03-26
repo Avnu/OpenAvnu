@@ -70,6 +70,7 @@ int daemonize;
 int mmrp_enable;
 int mvrp_enable;
 int msrp_enable;
+int msrp_pruning;
 int logging_enable;
 int mrpd_port;
 
@@ -808,6 +809,7 @@ int main(int argc, char *argv[])
 	mmrp_enable = 0;
 	mvrp_enable = 0;
 	msrp_enable = 0;
+	msrp_pruning = 0;
 	logging_enable = 0;
 	mrpd_port = MRPD_PORT_DEFAULT;
 	interface = NULL;
@@ -837,6 +839,9 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			msrp_enable = 1;
+			break;
+		case 'p':
+			msrp_pruning = 1;
 			break;
 		case 'l':
 			logging_enable = 1;
@@ -894,7 +899,7 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	rc = msrp_init(msrp_enable);
+	rc = msrp_init(msrp_enable, MSRP_INTERESTING_STREAM_ID_COUNT, msrp_pruning);
 	if (rc) {
 		printf("msrp_enable failed\n");
 		goto out;

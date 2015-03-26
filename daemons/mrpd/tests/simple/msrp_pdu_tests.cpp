@@ -115,7 +115,7 @@ TEST_GROUP(MsrpPDUTests)
 	void setup() {
 		mrpd_reset();
 		test_state.forward_msrp_events = 0;
-		msrp_init(1);
+		msrp_init(1, MSRP_INTERESTING_STREAM_ID_COUNT, 0);
 	}
 	void teardown() {
 		msrp_reset();

@@ -3,7 +3,7 @@ project (mrpd)
 enable_testing()
 
 include_directories( . "../common" )
-file(GLOB MRPD_SRC "mrp.c" "mvrp.c" "mmrp.c" "msrp.c" "../common/parse.c")
+file(GLOB MRPD_SRC "mrp.c" "mvrp.c" "mmrp.c" "msrp.c" "../common/parse.c" "../common/eui64set.c" )
 
 if(APPLE)
   add_executable (mrpd ${MRPD_SRC}  "mrpd.c")

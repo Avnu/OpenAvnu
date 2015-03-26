@@ -8,7 +8,7 @@ add_definitions(-DMRP_CPPUTEST)
 
 include_directories( . "../../../common" ${CPPUTEST_DIR}/include )
 file(GLOB CPPUTEST_SRC *.cpp)
-file(GLOB MRPD_SRC ${SRC_DIR}/mrp.c ${SRC_DIR}/mvrp.c ${SRC_DIR}/mmrp.c ${SRC_DIR}/msrp.c "../../../common/parse.c")
+file(GLOB MRPD_SRC ${SRC_DIR}/mrp.c ${SRC_DIR}/mvrp.c ${SRC_DIR}/mmrp.c ${SRC_DIR}/msrp.c "../../../common/parse.c" "../../../common/eui64set.c" )
 
 if(APPLE)
   include_directories( include ${CPPUTEST_DIR}/include/Platforms/Gcc )
@@ -27,7 +27,7 @@ elseif(WIN32)
   endif()
 
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-  include_directories( include $ENV{WPCAP_DIR}/Include ${CPPUTEST_DIR}/include/Platforms/VisualCpp )
+  include_directories( include $ENV{WPCAP_DIR}/Include )
   add_executable (mrpd_simple_test ${MRPD_SRC} ${CPPUTEST_SRC} ${SRC_DIR}/que.c mrp_doubles.c)
   target_link_libraries(mrpd_simple_test wpcap Iphlpapi Ws2_32 CppUTest CppUTestExt)
 endif()

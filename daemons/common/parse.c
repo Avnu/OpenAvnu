@@ -33,7 +33,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #include <inttypes.h>
 #else
 
