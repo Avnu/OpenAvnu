@@ -138,7 +138,8 @@ static cycle_t igb_ptp_read_82580(const struct cyclecounter *cc)
  * SYSTIM read access for I210/I211
  */
 
-static void igb_ptp_read_i210(struct igb_adapter *adapter, struct timespec *ts)
+static void igb_ptp_read_i210(struct igb_adapter *adapter,
+			      struct timespec64 *ts)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 sec, nsec;
@@ -156,7 +157,7 @@ static void igb_ptp_read_i210(struct igb_adapter *adapter, struct timespec *ts)
 }
 
 static void igb_ptp_write_i210(struct igb_adapter *adapter,
-			       const struct timespec *ts)
+			       const struct timespec64 *ts)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
@@ -314,13 +315,13 @@ static int igb_ptp_adjtime_i210(struct ptp_clock_info *ptp, s64 delta)
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
 	unsigned long flags;
-	struct timespec now, then = ns_to_timespec(delta);
+	struct timespec64 now, then = ns_to_timespec64(delta);
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
 	igb_ptp_read_i210(igb, &now);
-	now = timespec_add(now, then);
-	igb_ptp_write_i210(igb, (const struct timespec *)&now);
+	now = timespec64_add(now, then);
+	igb_ptp_write_i210(igb, (const struct timespec64 *)&now);
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
@@ -351,13 +352,11 @@ static int igb_ptp_gettime64_i210(struct ptp_clock_info *ptp,
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
-	struct timespec ts;
 	unsigned long flags;
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
-	igb_ptp_read_i210(igb, &ts);
-	*ts64 = timespec_to_timespec64(ts);
+	igb_ptp_read_i210(igb, ts64);
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
@@ -390,13 +389,11 @@ static int igb_ptp_settime64_i210(struct ptp_clock_info *ptp,
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
-	struct timespec ts;
 	unsigned long flags;
 
-	ts = timespec64_to_timespec(*ts64);
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
-	igb_ptp_write_i210(igb, &ts);
+	igb_ptp_write_i210(igb, ts64);
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
@@ -457,17 +454,11 @@ static int igb_ptp_settime_82576(struct ptp_clock_info *ptp,
 static int igb_ptp_settime_i210(struct ptp_clock_info *ptp,
 				const struct timespec *ts)
 {
-	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
-					       ptp_caps);
-	unsigned long flags;
+	struct timespec64 ts64;
 
-	spin_lock_irqsave(&igb->tmreg_lock, flags);
+	ts64 = timespec_to_timespec64(*ts);
 
-	igb_ptp_write_i210(igb, ts);
-
-	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
-
-	return 0;
+	return igb_ptp_settime64_i210(ptp, &ts64);
 }
 
 #endif
