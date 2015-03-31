@@ -76,6 +76,13 @@ int pci_connect(device_t * igb_dev)
 			printf("attach failed! (%s)\n", strerror(errno));
 			continue;
 		}
+
+		err = igb_attach_tx(igb_dev);
+		if (err) {
+			printf("attach_tx failed! (%s)\n", strerror(errno));
+			continue;
+		}
+
 		goto out;
 	}
 
