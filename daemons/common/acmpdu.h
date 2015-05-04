@@ -159,9 +159,10 @@
  * @param pos offset from base to read the field from;
  * @return the uint64_t controller_entity_id value
  */
-static inline uint64_t acmpdu_get_controller_entity_id( void const *base, ssize_t pos )
+static inline uint64_t acmpdu_get_controller_entity_id(void const *base,
+						       ssize_t pos)
 {
-    return eui64_get( base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID );
+	return eui64_get(base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
 }
 
 /**
@@ -176,9 +177,10 @@ static inline uint64_t acmpdu_get_controller_entity_id( void const *base, ssize_
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_controller_entity_id( uint64_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_controller_entity_id(uint64_t v, void *base,
+						   ssize_t pos)
 {
-    eui64_set( v, base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID );
+	eui64_set(v, base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
 }
 
 /**
@@ -193,9 +195,10 @@ static inline void acmpdu_set_controller_entity_id( uint64_t v, void *base, ssiz
  * @param pos offset from base to read the field from;
  * @return the uint64_t talker_entity_id value
  */
-static inline uint64_t acmpdu_get_talker_entity_id( void const *base, ssize_t pos )
+static inline uint64_t acmpdu_get_talker_entity_id(void const *base,
+						   ssize_t pos)
 {
-    return eui64_get( base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID );
+	return eui64_get(base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
 }
 
 /**
@@ -210,9 +213,10 @@ static inline uint64_t acmpdu_get_talker_entity_id( void const *base, ssize_t po
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_talker_entity_id( uint64_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_talker_entity_id(uint64_t v, void *base,
+					       ssize_t pos)
 {
-    eui64_set( v, base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID );
+	eui64_set(v, base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
 }
 
 /**
@@ -227,9 +231,10 @@ static inline void acmpdu_set_talker_entity_id( uint64_t v, void *base, ssize_t 
  * @param pos offset from base to read the field from;
  * @return the uint64_t listener_entity_id value
  */
-static inline uint64_t acmpdu_get_listener_entity_id( void const *base, ssize_t pos )
+static inline uint64_t acmpdu_get_listener_entity_id(void const *base,
+						     ssize_t pos)
 {
-    return eui64_get( base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID );
+	return eui64_get(base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID);
 }
 
 /**
@@ -244,9 +249,10 @@ static inline uint64_t acmpdu_get_listener_entity_id( void const *base, ssize_t 
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_listener_entity_id( uint64_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_listener_entity_id(uint64_t v, void *base,
+						 ssize_t pos)
 {
-    eui64_set( v, base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID );
+	eui64_set(v, base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID);
 }
 
 /**
@@ -261,9 +267,10 @@ static inline void acmpdu_set_listener_entity_id( uint64_t v, void *base, ssize_
  * @param pos offset from base to read the field from;
  * @return the uint16_t talker_unique_id value
  */
-static inline uint16_t acmpdu_get_talker_unique_id( void const *base, ssize_t pos )
+static inline uint16_t acmpdu_get_talker_unique_id(void const *base,
+						   ssize_t pos)
 {
-    return uint16_get( base, pos + ACMPDU_OFFSET_TALKER_UNIQUE_ID );
+	return uint16_get(base, pos + ACMPDU_OFFSET_TALKER_UNIQUE_ID);
 }
 
 /**
@@ -278,9 +285,10 @@ static inline uint16_t acmpdu_get_talker_unique_id( void const *base, ssize_t po
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_talker_unique_id( uint16_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_talker_unique_id(uint16_t v, void *base,
+					       ssize_t pos)
 {
-    uint16_set( v, base, pos + ACMPDU_OFFSET_TALKER_UNIQUE_ID );
+	uint16_set(v, base, pos + ACMPDU_OFFSET_TALKER_UNIQUE_ID);
 }
 
 /**
@@ -295,9 +303,10 @@ static inline void acmpdu_set_talker_unique_id( uint16_t v, void *base, ssize_t 
  * @param pos offset from base to read the field from;
  * @return the uint16_t listener_unique_id value
  */
-static inline uint16_t acmpdu_get_listener_unique_id( void const *base, ssize_t pos )
+static inline uint16_t acmpdu_get_listener_unique_id(void const *base,
+						     ssize_t pos)
 {
-    return uint16_get( base, pos + ACMPDU_OFFSET_LISTENER_UNIQUE_ID );
+	return uint16_get(base, pos + ACMPDU_OFFSET_LISTENER_UNIQUE_ID);
 }
 
 /**
@@ -312,9 +321,10 @@ static inline uint16_t acmpdu_get_listener_unique_id( void const *base, ssize_t 
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_listener_unique_id( uint16_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_listener_unique_id(uint16_t v, void *base,
+						 ssize_t pos)
 {
-    uint16_set( v, base, pos + ACMPDU_OFFSET_LISTENER_UNIQUE_ID );
+	uint16_set(v, base, pos + ACMPDU_OFFSET_LISTENER_UNIQUE_ID);
 }
 
 /**
@@ -329,9 +339,10 @@ static inline void acmpdu_set_listener_unique_id( uint16_t v, void *base, ssize_
  * @param pos offset from base to read the field from;
  * @return the struct eui48 stream_dest_mac value
  */
-static inline struct eui48 acmpdu_get_stream_dest_mac( void const *base, ssize_t pos )
+static inline struct eui48 acmpdu_get_stream_dest_mac(void const *base,
+						      ssize_t pos)
 {
-    return eui48_get( base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC );
+	return eui48_get(base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
 }
 
 /**
@@ -346,9 +357,10 @@ static inline struct eui48 acmpdu_get_stream_dest_mac( void const *base, ssize_t
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_stream_dest_mac( struct eui48 v, void *base, ssize_t pos )
+static inline void acmpdu_set_stream_dest_mac(struct eui48 v, void *base,
+					      ssize_t pos)
 {
-    eui48_set( v, base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC );
+	eui48_set(v, base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
 }
 
 /**
@@ -363,9 +375,10 @@ static inline void acmpdu_set_stream_dest_mac( struct eui48 v, void *base, ssize
  * @param pos offset from base to read the field from;
  * @return the uint16_t connection_count value
  */
-static inline uint16_t acmpdu_get_connection_count( void const *base, ssize_t pos )
+static inline uint16_t acmpdu_get_connection_count(void const *base,
+						   ssize_t pos)
 {
-    return uint16_get( base, pos + ACMPDU_OFFSET_CONNECTION_COUNT );
+	return uint16_get(base, pos + ACMPDU_OFFSET_CONNECTION_COUNT);
 }
 
 /**
@@ -380,9 +393,10 @@ static inline uint16_t acmpdu_get_connection_count( void const *base, ssize_t po
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_connection_count( uint16_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_connection_count(uint16_t v, void *base,
+					       ssize_t pos)
 {
-    uint16_set( v, base, pos + ACMPDU_OFFSET_CONNECTION_COUNT );
+	uint16_set(v, base, pos + ACMPDU_OFFSET_CONNECTION_COUNT);
 }
 
 /**
@@ -397,9 +411,9 @@ static inline void acmpdu_set_connection_count( uint16_t v, void *base, ssize_t 
  * @param pos offset from base to read the field from;
  * @return the uint16_t sequence_id value
  */
-static inline uint16_t acmpdu_get_sequence_id( void const *base, ssize_t pos )
+static inline uint16_t acmpdu_get_sequence_id(void const *base, ssize_t pos)
 {
-    return uint16_get( base, pos + ACMPDU_OFFSET_SEQUENCE_ID );
+	return uint16_get(base, pos + ACMPDU_OFFSET_SEQUENCE_ID);
 }
 
 /**
@@ -414,9 +428,9 @@ static inline uint16_t acmpdu_get_sequence_id( void const *base, ssize_t pos )
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_sequence_id( uint16_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_sequence_id(uint16_t v, void *base, ssize_t pos)
 {
-    uint16_set( v, base, pos + ACMPDU_OFFSET_SEQUENCE_ID );
+	uint16_set(v, base, pos + ACMPDU_OFFSET_SEQUENCE_ID);
 }
 
 /**
@@ -431,9 +445,9 @@ static inline void acmpdu_set_sequence_id( uint16_t v, void *base, ssize_t pos )
  * @param pos offset from base to read the field from;
  * @return the uint16_t acmp_flags value
  */
-static inline uint16_t acmpdu_get_flags( void const *base, ssize_t pos )
+static inline uint16_t acmpdu_get_flags(void const *base, ssize_t pos)
 {
-    return uint16_get( base, pos + ACMPDU_OFFSET_FLAGS );
+	return uint16_get(base, pos + ACMPDU_OFFSET_FLAGS);
 }
 
 /**
@@ -448,9 +462,9 @@ static inline uint16_t acmpdu_get_flags( void const *base, ssize_t pos )
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_flags( uint16_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_flags(uint16_t v, void *base, ssize_t pos)
 {
-    uint16_set( v, base, pos + ACMPDU_OFFSET_FLAGS );
+	uint16_set(v, base, pos + ACMPDU_OFFSET_FLAGS);
 }
 
 /**
@@ -465,9 +479,9 @@ static inline void acmpdu_set_flags( uint16_t v, void *base, ssize_t pos )
  * @param pos offset from base to read the field from;
  * @return the uint16_t stream_vlan_id value
  */
-static inline uint16_t acmpdu_get_stream_vlan_id( void const *base, ssize_t pos )
+static inline uint16_t acmpdu_get_stream_vlan_id(void const *base, ssize_t pos)
 {
-    return uint16_get( base, pos + ACMPDU_OFFSET_STREAM_VLAN_ID );
+	return uint16_get(base, pos + ACMPDU_OFFSET_STREAM_VLAN_ID);
 }
 
 /**
@@ -482,9 +496,10 @@ static inline uint16_t acmpdu_get_stream_vlan_id( void const *base, ssize_t pos 
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_stream_vlan_id( uint16_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_stream_vlan_id(uint16_t v, void *base,
+					     ssize_t pos)
 {
-    uint16_set( v, base, pos + ACMPDU_OFFSET_STREAM_VLAN_ID );
+	uint16_set(v, base, pos + ACMPDU_OFFSET_STREAM_VLAN_ID);
 }
 
 /**
@@ -499,9 +514,9 @@ static inline void acmpdu_set_stream_vlan_id( uint16_t v, void *base, ssize_t po
  * @param pos offset from base to read the field from;
  * @return the uint16_t reserved value
  */
-static inline uint16_t acmpdu_get_reserved( void const *base, ssize_t pos )
+static inline uint16_t acmpdu_get_reserved(void const *base, ssize_t pos)
 {
-    return uint16_get( base, pos + ACMPDU_OFFSET_RESERVED );
+	return uint16_get(base, pos + ACMPDU_OFFSET_RESERVED);
 }
 
 /**
@@ -516,9 +531,9 @@ static inline uint16_t acmpdu_get_reserved( void const *base, ssize_t pos )
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_reserved( uint16_t v, void *base, ssize_t pos )
+static inline void acmpdu_set_reserved(uint16_t v, void *base, ssize_t pos)
 {
-    uint16_set( v, base, pos + ACMPDU_OFFSET_RESERVED );
+	uint16_set(v, base, pos + ACMPDU_OFFSET_RESERVED);
 }
 
 /*@}*/
@@ -527,27 +542,27 @@ static inline void acmpdu_set_reserved( uint16_t v, void *base, ssize_t pos )
 /*@{*/
 
 /// ACMPDU - Clause 8.2.1
-struct acmpdu
-{
-    uint32_t cd : 1;
-    uint32_t subtype : AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
-    uint32_t sv : 1;
-    uint32_t version : AVTP_SUBTYPE_DATA_VERSION_WIDTH;
-    uint32_t message_type : AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
-    uint32_t status : AVTP_SUBTYPE_DATA_STATUS_WIDTH;
-    uint32_t control_data_length : AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
-    uint64_t stream_id;
-    uint64_t controller_entity_id;
-    uint64_t talker_entity_id;
-    uint64_t listener_entity_id;
-    uint16_t talker_unique_id;
-    uint16_t listener_unique_id;
-    uint64_t stream_dest_mac;
-    uint16_t connection_count;
-    uint16_t sequence_id;
-    uint16_t flags;
-    uint16_t stream_vlan_id;
-    uint16_t reserved;
+struct acmpdu {
+	uint32_t cd:1;
+	uint32_t subtype:AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
+	uint32_t sv:1;
+	uint32_t version:AVTP_SUBTYPE_DATA_VERSION_WIDTH;
+	uint32_t message_type:AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
+	uint32_t status:AVTP_SUBTYPE_DATA_STATUS_WIDTH;
+	 uint32_t
+	    control_data_length:AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
+	uint64_t stream_id;
+	uint64_t controller_entity_id;
+	uint64_t talker_entity_id;
+	uint64_t listener_entity_id;
+	uint16_t talker_unique_id;
+	uint16_t listener_unique_id;
+	uint64_t stream_dest_mac;
+	uint16_t connection_count;
+	uint16_t sequence_id;
+	uint16_t flags;
+	uint16_t stream_vlan_id;
+	uint16_t reserved;
 };
 
 /**
@@ -564,7 +579,8 @@ struct acmpdu
  * @return -1 if the buffer length is insufficent, otherwise the offset of the
  *octet following the structure in the buffer.
  */
-ssize_t acmpdu_read( struct acmpdu *p, void const *base, ssize_t pos, size_t len );
+ssize_t acmpdu_read(struct acmpdu *p, void const *base, ssize_t pos,
+		    size_t len);
 
 /**
  * Store the acmpdu structure to a network buffer.
@@ -580,7 +596,8 @@ ssize_t acmpdu_read( struct acmpdu *p, void const *base, ssize_t pos, size_t len
  * @return -1 if the buffer length is insufficent, otherwise the offset of the
  *octet following the structure in the buffer.
  */
-ssize_t acmpdu_write( struct acmpdu const *p, void *base, size_t pos, size_t len );
+ssize_t acmpdu_write(struct acmpdu const *p, void *base, size_t pos,
+		     size_t len);
 
 /*@}*/
 

@@ -33,47 +33,48 @@
 #include <stdlib.h>
 #include "acmpdu.h"
 
-
-static inline ssize_t acmpdu_read( struct acmpdu *p, void const *base, ssize_t pos, size_t len )
+static inline ssize_t acmpdu_read(struct acmpdu *p, void const *base,
+				  ssize_t pos, size_t len)
 {
-    ssize_t r = validate_range( pos, len, ACMPDU_LEN );
-    if ( r >= 0 )
-    {
-        acmpdu_common_control_header_read( &p->header, base, pos, len );
-        p->controller_entity_id = acmpdu_get_controller_entity_id( base, pos );
-        p->talker_entity_id = acmpdu_get_talker_entity_id( base, pos );
-        p->listener_entity_id = acmpdu_get_listener_entity_id( base, pos );
-        p->talker_unique_id = acmpdu_get_talker_unique_id( base, pos );
-        p->listener_unique_id = acmpdu_get_listener_unique_id( base, pos );
-        p->stream_dest_mac = acmpdu_get_stream_dest_mac( base, pos );
-        p->connection_count = acmpdu_get_connection_count( base, pos );
-        p->sequence_id = acmpdu_get_sequence_id( base, pos );
-        p->flags = acmpdu_get_flags( base, pos );
-        p->stream_vlan_id = acmpdu_get_stream_vlan_id( base, pos );
-        p->reserved = acmpdu_get_reserved( base, pos );
-    }
-    return r;
+	ssize_t r = validate_range(pos, len, ACMPDU_LEN);
+	if (r >= 0) {
+		acmpdu_common_control_header_read(&p->header, base, pos, len);
+		p->controller_entity_id =
+		    acmpdu_get_controller_entity_id(base, pos);
+		p->talker_entity_id = acmpdu_get_talker_entity_id(base, pos);
+		p->listener_entity_id =
+		    acmpdu_get_listener_entity_id(base, pos);
+		p->talker_unique_id = acmpdu_get_talker_unique_id(base, pos);
+		p->listener_unique_id =
+		    acmpdu_get_listener_unique_id(base, pos);
+		p->stream_dest_mac = acmpdu_get_stream_dest_mac(base, pos);
+		p->connection_count = acmpdu_get_connection_count(base, pos);
+		p->sequence_id = acmpdu_get_sequence_id(base, pos);
+		p->flags = acmpdu_get_flags(base, pos);
+		p->stream_vlan_id = acmpdu_get_stream_vlan_id(base, pos);
+		p->reserved = acmpdu_get_reserved(base, pos);
+	}
+	return r;
 }
 
-static inline ssize_t acmpdu_write( struct acmpdu const *p, void *base, size_t pos, size_t len )
+static inline ssize_t acmpdu_write(struct acmpdu const *p, void *base,
+				   size_t pos, size_t len)
 {
-    ssize_t r = validate_range( pos, len, ACMPDU_LEN );
-    if ( r >= 0 )
-    {
-        acmpdu_common_control_header_write( &p->header, base, pos, len );
-        acmpdu_set_controller_entity_id( p->controller_entity_id, base, pos );
-        acmpdu_set_talker_entity_id( p->talker_entity_id, base, pos );
-        acmpdu_set_listener_entity_id( p->listener_entity_id, base, pos );
-        acmpdu_set_talker_unique_id( p->talker_unique_id, base, pos );
-        acmpdu_set_listener_unique_id( p->listener_unique_id, base, pos );
-        acmpdu_set_stream_dest_mac( p->stream_dest_mac, base, pos );
-        acmpdu_set_connection_count( p->connection_count, base, pos );
-        acmpdu_set_sequence_id( p->sequence_id, base, pos );
-        acmpdu_set_flags( p->flags, base, pos );
-        acmpdu_set_stream_vlan_id( p->stream_vlan_id, base, pos );
-        acmpdu_set_reserved( p->reserved, base, pos );
-    }
-    return r;
+	ssize_t r = validate_range(pos, len, ACMPDU_LEN);
+	if (r >= 0) {
+		acmpdu_common_control_header_write(&p->header, base, pos, len);
+		acmpdu_set_controller_entity_id(p->controller_entity_id, base,
+						pos);
+		acmpdu_set_talker_entity_id(p->talker_entity_id, base, pos);
+		acmpdu_set_listener_entity_id(p->listener_entity_id, base, pos);
+		acmpdu_set_talker_unique_id(p->talker_unique_id, base, pos);
+		acmpdu_set_listener_unique_id(p->listener_unique_id, base, pos);
+		acmpdu_set_stream_dest_mac(p->stream_dest_mac, base, pos);
+		acmpdu_set_connection_count(p->connection_count, base, pos);
+		acmpdu_set_sequence_id(p->sequence_id, base, pos);
+		acmpdu_set_flags(p->flags, base, pos);
+		acmpdu_set_stream_vlan_id(p->stream_vlan_id, base, pos);
+		acmpdu_set_reserved(p->reserved, base, pos);
+	}
+	return r;
 }
-
-
