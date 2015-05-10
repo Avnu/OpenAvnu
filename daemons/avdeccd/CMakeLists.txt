@@ -4,7 +4,34 @@ enable_testing()
 
 include_directories( . "../common" )
 file(GLOB AVDECCD_SRC 
-   ../common/acmp_controller.c ../common/acmp_controller.h ../common/acmp_listener.c ../common/acmp_listener.h ../common/acmp_talker.c ../common/acmp_talker.h ../common/acmpdu.c ../common/acmpdu.h ../common/adp_adv.c ../common/adp_adv.h ../common/adpdu.c ../common/adpdu.h ../common/avdecc.h ../common/avtp.c ../common/avtp.h ../common/eui64set.c ../common/eui64set.h ../common/frame.c ../common/frame.h ../common/parse.c ../common/parse.h ../common/pdu.c ../common/pdu.h ../common/srp_info.h  ../common/eui48.c ../common/eui48.h ../common/eui64.c ../common/eui64.h
+   ./acmp_controller.c 
+   ./acmp_controller.h 
+   ./acmp_listener.c 
+   ./acmp_listener.h 
+   ./acmp_talker.c 
+   ./acmp_talker.h 
+   ./adp_adv.c 
+   ./adp_adv.h 
+   ../common/acmpdu.c 
+   ../common/acmpdu.h 
+   ../common/adpdu.c 
+   ../common/adpdu.h 
+   ../common/avdecc.h 
+   ../common/avtp.c 
+   ../common/avtp.h 
+   ../common/eui64set.c 
+   ../common/eui64set.h 
+   ../common/frame.c 
+   ../common/frame.h 
+   ../common/parse.c 
+   ../common/parse.h 
+   ../common/pdu.c 
+   ../common/pdu.h 
+   ../common/srp_info.h  
+   ../common/eui48.c 
+   ../common/eui48.h 
+   ../common/eui64.c 
+   ../common/eui64.h
 )
 
 if(APPLE)
