@@ -88,7 +88,7 @@
 static inline ssize_t avtp_read_subtype(uint8_t * host_value, void const *base,
 					ssize_t pos, size_t len)
 {
-	ssize_t r = validate_range(pos, len, 1);
+	ssize_t r = pdu_validate_range(pos, len, 1);
 	if (r >= 0) {
 		uint8_t const *b = (uint8_t const *)base;
 		*host_value = b[pos + 0];
@@ -100,7 +100,7 @@ static inline ssize_t avtp_read_subtype(uint8_t * host_value, void const *base,
 static inline ssize_t avtp_write_subtype(uint8_t const *host_value, void *base,
 					 ssize_t pos, size_t len)
 {
-	ssize_t r = validate_range(pos, len, 1);
+	ssize_t r = pdu_validate_range(pos, len, 1);
 	if (r >= 0) {
 		uint8_t *b = (uint8_t *) base;
 		b[pos + 0] = *host_value;
@@ -338,7 +338,7 @@ static inline uint64_t avtp_common_control_header_get_stream_id(void const
 								*base,
 								size_t pos)
 {
-	return eui64_get(base,
+	return pdu_eui64_get(base,
 			 pos + AVTP_COMMON_CONTROL_HEADER_OFFSET_STREAM_ID);
 }
 
@@ -346,17 +346,17 @@ static inline void avtp_common_control_header_set_stream_id(uint64_t v,
 							    void *base,
 							    size_t pos)
 {
-	eui64_set(v, base, pos + AVTP_COMMON_CONTROL_HEADER_OFFSET_STREAM_ID);
+	pdu_eui64_set(v, base, pos + AVTP_COMMON_CONTROL_HEADER_OFFSET_STREAM_ID);
 }
 
 struct avtp_common_control_header {
-	uint32_t subtype:AVTP_AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
+    uint32_t subtype:AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
 	uint32_t sv:1;
-	uint32_t version:AVTP_AVTP_SUBTYPE_DATA_VERSION_WIDTH;
-	uint32_t control_data:AVTP_AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
-	uint32_t status:AVTP_AVTP_SUBTYPE_DATA_STATUS_WIDTH;
+    uint32_t version:AVTP_SUBTYPE_DATA_VERSION_WIDTH;
+    uint32_t control_data:AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
+    uint32_t status:AVTP_SUBTYPE_DATA_STATUS_WIDTH;
 	 uint32_t
-	    control_data_length:AVTP_AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
+        control_data_length:AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
 	uint64_t stream_id;
 };
 
@@ -385,7 +385,7 @@ static inline uint32_t avtp_common_stream_header_get_subtype_data(void const
 								  size_t pos)
 {
 	uint32_t subtype_data;
-	uint32_read(&subtype_data,
+	pdu_uint32_read(&subtype_data,
 		    base,
 		    pos + AVTP_COMMON_STREAM_HEADER_OFFSET_SUBTYPE_DATA,
 		    AVTP_COMMON_STREAM_HEADER_OFFSET_SUBTYPE_DATA);
@@ -397,7 +397,7 @@ static inline void avtp_common_stream_header_set_subtype_data(uint32_t
 							      void *base,
 							      size_t pos)
 {
-	uint32_set(subtype_data, base,
+	pdu_uint32_set(subtype_data, base,
 		   pos + AVTP_COMMON_STREAM_HEADER_OFFSET_SUBTYPE_DATA);
 }
 
@@ -502,7 +502,7 @@ static inline void avtp_common_stream_header_set_tu(bool v, void *base,
 static inline uint64_t avtp_common_stream_header_get_stream_id(void const *base,
 							       size_t pos)
 {
-	return eui64_get(base,
+	return pdu_eui64_get(base,
 			 pos + AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_ID);
 }
 
@@ -510,14 +510,14 @@ static inline void avtp_common_stream_header_set_stream_id(uint64_t v,
 							   void *base,
 							   size_t pos)
 {
-	eui64_set(v, base, pos + AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_ID);
+	pdu_eui64_set(v, base, pos + AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_ID);
 }
 
 static inline uint32_t avtp_common_stream_header_get_avtp_timestamp(void const
 								    *base,
 								    size_t pos)
 {
-	return uint32_get(base,
+	return pdu_uint32_get(base,
 			  pos + AVTP_COMMON_STREAM_HEADER_OFFSET_TIMESTAMP);
 }
 
@@ -525,14 +525,14 @@ static inline void avtp_common_stream_header_set_avtp_timestamp(uint32_t v,
 								void *base,
 								size_t pos)
 {
-	uint32_set(v, base, pos + AVTP_COMMON_STREAM_HEADER_OFFSET_TIMESTAMP);
+	pdu_uint32_set(v, base, pos + AVTP_COMMON_STREAM_HEADER_OFFSET_TIMESTAMP);
 }
 
 static inline uint32_t avtp_common_stream_header_get_gateway_info(void const
 								  *base,
 								  size_t pos)
 {
-	return uint32_get(base,
+	return pdu_uint32_get(base,
 			  pos + AVTP_COMMON_STREAM_HEADER_OFFSET_GATEWAY_INFO);
 }
 
@@ -540,7 +540,7 @@ static inline void avtp_common_stream_header_set_avtp_gateway_info(uint32_t v,
 								   void *base,
 								   size_t pos)
 {
-	uint32_set(v, base,
+	pdu_uint32_set(v, base,
 		   pos + AVTP_COMMON_STREAM_HEADER_OFFSET_GATEWAY_INFO);
 }
 
@@ -550,7 +550,7 @@ static inline uint16_t avtp_common_stream_header_get_stream_data_length(void
 									size_t
 									pos)
 {
-	return uint16_get(base,
+	return pdu_uint16_get(base,
 			  pos +
 			  AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_DATA_LENGTH);
 }
@@ -559,7 +559,7 @@ static inline void avtp_common_stream_header_set_stream_data_length(uint16_t v,
 								    void *base,
 								    size_t pos)
 {
-	uint16_set(v, base,
+	pdu_uint16_set(v, base,
 		   pos + AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_DATA_LENGTH);
 }
 
@@ -567,7 +567,7 @@ static inline uint16_t
 avtp_common_stream_header_get_protocol_specific_header(void const *base,
 						       size_t pos)
 {
-	return uint16_get(base,
+	return pdu_uint16_get(base,
 			  pos +
 			  AVTP_COMMON_STREAM_HEADER_OFFSET_PROTOCOL_SPECIFIC_HEADER);
 }
@@ -576,7 +576,7 @@ static inline void
 avtp_common_stream_header_set_protocol_specific_header(uint16_t v, void *base,
 						       size_t pos)
 {
-	uint16_set(v, base,
+	pdu_uint16_set(v, base,
 		   pos +
 		   AVTP_COMMON_STREAM_HEADER_OFFSET_PROTOCOL_SPECIFIC_HEADER);
 }

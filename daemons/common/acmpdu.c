@@ -36,7 +36,7 @@
 static inline ssize_t acmpdu_read(struct acmpdu *p, void const *base,
 				  ssize_t pos, size_t len)
 {
-	ssize_t r = validate_range(pos, len, ACMPDU_LEN);
+	ssize_t r = pdu_validate_range(pos, len, ACMPDU_LEN);
 	if (r >= 0) {
 		acmpdu_common_control_header_read(&p->header, base, pos, len);
 		p->controller_entity_id =
@@ -60,7 +60,7 @@ static inline ssize_t acmpdu_read(struct acmpdu *p, void const *base,
 static inline ssize_t acmpdu_write(struct acmpdu const *p, void *base,
 				   size_t pos, size_t len)
 {
-	ssize_t r = validate_range(pos, len, ACMPDU_LEN);
+	ssize_t r = pdu_validate_range(pos, len, ACMPDU_LEN);
 	if (r >= 0) {
 		acmpdu_common_control_header_write(&p->header, base, pos, len);
 		acmpdu_set_controller_entity_id(p->controller_entity_id, base,

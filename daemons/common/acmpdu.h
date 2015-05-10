@@ -69,18 +69,18 @@
 /** \addtogroup acmpdu ACMPDU - Clause 8.2.1 */
 /*@{*/
 
-#define ACMPDU_OFFSET_CONTROLLER_ENTITY_ID ( COMMON_CONTROL_HEADER_LEN + 0 )
-#define ACMPDU_OFFSET_TALKER_ENTITY_ID ( COMMON_CONTROL_HEADER_LEN + 8 )
-#define ACMPDU_OFFSET_LISTENER_ENTITY_ID ( COMMON_CONTROL_HEADER_LEN + 16 )
-#define ACMPDU_OFFSET_TALKER_UNIQUE_ID ( COMMON_CONTROL_HEADER_LEN + 24 )
-#define ACMPDU_OFFSET_LISTENER_UNIQUE_ID ( COMMON_CONTROL_HEADER_LEN + 26 )
-#define ACMPDU_OFFSET_STREAM_DEST_MAC ( COMMON_CONTROL_HEADER_LEN + 28 )
-#define ACMPDU_OFFSET_CONNECTION_COUNT ( COMMON_CONTROL_HEADER_LEN + 34 )
-#define ACMPDU_OFFSET_SEQUENCE_ID ( COMMON_CONTROL_HEADER_LEN + 36 )
-#define ACMPDU_OFFSET_FLAGS ( COMMON_CONTROL_HEADER_LEN + 38 )
-#define ACMPDU_OFFSET_STREAM_VLAN_ID ( COMMON_CONTROL_HEADER_LEN + 40 )
-#define ACMPDU_OFFSET_RESERVED ( COMMON_CONTROL_HEADER_LEN + 42 )
-#define ACMPDU_LEN ( COMMON_CONTROL_HEADER_LEN + 44 )
+#define ACMPDU_OFFSET_CONTROLLER_ENTITY_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 0 )
+#define ACMPDU_OFFSET_TALKER_ENTITY_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 8 )
+#define ACMPDU_OFFSET_LISTENER_ENTITY_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 16 )
+#define ACMPDU_OFFSET_TALKER_UNIQUE_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 24 )
+#define ACMPDU_OFFSET_LISTENER_UNIQUE_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 26 )
+#define ACMPDU_OFFSET_STREAM_DEST_MAC ( AVTP_COMMON_CONTROL_HEADER_LEN + 28 )
+#define ACMPDU_OFFSET_CONNECTION_COUNT ( AVTP_COMMON_CONTROL_HEADER_LEN + 34 )
+#define ACMPDU_OFFSET_SEQUENCE_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 36 )
+#define ACMPDU_OFFSET_FLAGS ( AVTP_COMMON_CONTROL_HEADER_LEN + 38 )
+#define ACMPDU_OFFSET_STREAM_VLAN_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 40 )
+#define ACMPDU_OFFSET_RESERVED ( AVTP_COMMON_CONTROL_HEADER_LEN + 42 )
+#define ACMPDU_LEN ( AVTP_COMMON_CONTROL_HEADER_LEN + 44 )
 
 /*@}*/
 
@@ -162,7 +162,7 @@
 static inline uint64_t acmpdu_get_controller_entity_id(void const *base,
 						       ssize_t pos)
 {
-	return eui64_get(base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
+	return pdu_eui64_get(base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
 }
 
 /**
@@ -180,7 +180,7 @@ static inline uint64_t acmpdu_get_controller_entity_id(void const *base,
 static inline void acmpdu_set_controller_entity_id(uint64_t v, void *base,
 						   ssize_t pos)
 {
-	eui64_set(v, base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
+	pdu_eui64_set(v, base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
 }
 
 /**
@@ -198,7 +198,7 @@ static inline void acmpdu_set_controller_entity_id(uint64_t v, void *base,
 static inline uint64_t acmpdu_get_talker_entity_id(void const *base,
 						   ssize_t pos)
 {
-	return eui64_get(base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
+	return pdu_eui64_get(base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
 }
 
 /**
@@ -216,7 +216,7 @@ static inline uint64_t acmpdu_get_talker_entity_id(void const *base,
 static inline void acmpdu_set_talker_entity_id(uint64_t v, void *base,
 					       ssize_t pos)
 {
-	eui64_set(v, base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
+	pdu_eui64_set(v, base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
 }
 
 /**
@@ -234,7 +234,7 @@ static inline void acmpdu_set_talker_entity_id(uint64_t v, void *base,
 static inline uint64_t acmpdu_get_listener_entity_id(void const *base,
 						     ssize_t pos)
 {
-	return eui64_get(base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID);
+	return pdu_eui64_get(base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID);
 }
 
 /**
@@ -252,7 +252,7 @@ static inline uint64_t acmpdu_get_listener_entity_id(void const *base,
 static inline void acmpdu_set_listener_entity_id(uint64_t v, void *base,
 						 ssize_t pos)
 {
-	eui64_set(v, base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID);
+	pdu_eui64_set(v, base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID);
 }
 
 /**
@@ -270,7 +270,7 @@ static inline void acmpdu_set_listener_entity_id(uint64_t v, void *base,
 static inline uint16_t acmpdu_get_talker_unique_id(void const *base,
 						   ssize_t pos)
 {
-	return uint16_get(base, pos + ACMPDU_OFFSET_TALKER_UNIQUE_ID);
+	return pdu_uint16_get(base, pos + ACMPDU_OFFSET_TALKER_UNIQUE_ID);
 }
 
 /**
@@ -288,7 +288,7 @@ static inline uint16_t acmpdu_get_talker_unique_id(void const *base,
 static inline void acmpdu_set_talker_unique_id(uint16_t v, void *base,
 					       ssize_t pos)
 {
-	uint16_set(v, base, pos + ACMPDU_OFFSET_TALKER_UNIQUE_ID);
+	pdu_uint16_set(v, base, pos + ACMPDU_OFFSET_TALKER_UNIQUE_ID);
 }
 
 /**
@@ -306,7 +306,7 @@ static inline void acmpdu_set_talker_unique_id(uint16_t v, void *base,
 static inline uint16_t acmpdu_get_listener_unique_id(void const *base,
 						     ssize_t pos)
 {
-	return uint16_get(base, pos + ACMPDU_OFFSET_LISTENER_UNIQUE_ID);
+	return pdu_uint16_get(base, pos + ACMPDU_OFFSET_LISTENER_UNIQUE_ID);
 }
 
 /**
@@ -324,7 +324,7 @@ static inline uint16_t acmpdu_get_listener_unique_id(void const *base,
 static inline void acmpdu_set_listener_unique_id(uint16_t v, void *base,
 						 ssize_t pos)
 {
-	uint16_set(v, base, pos + ACMPDU_OFFSET_LISTENER_UNIQUE_ID);
+	pdu_uint16_set(v, base, pos + ACMPDU_OFFSET_LISTENER_UNIQUE_ID);
 }
 
 /**
@@ -339,10 +339,10 @@ static inline void acmpdu_set_listener_unique_id(uint16_t v, void *base,
  * @param pos offset from base to read the field from;
  * @return the struct eui48 stream_dest_mac value
  */
-static inline struct eui48 acmpdu_get_stream_dest_mac(void const *base,
+static inline struct pdu_eui48 acmpdu_get_stream_dest_mac(void const *base,
 						      ssize_t pos)
 {
-	return eui48_get(base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
+	return pdu_eui48_get(base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
 }
 
 /**
@@ -357,10 +357,10 @@ static inline struct eui48 acmpdu_get_stream_dest_mac(void const *base,
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_stream_dest_mac(struct eui48 v, void *base,
+static inline void acmpdu_set_stream_dest_mac(struct pdu_eui48 v, void *base,
 					      ssize_t pos)
 {
-	eui48_set(v, base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
+	pdu_eui48_set(v, base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
 }
 
 /**
@@ -378,7 +378,7 @@ static inline void acmpdu_set_stream_dest_mac(struct eui48 v, void *base,
 static inline uint16_t acmpdu_get_connection_count(void const *base,
 						   ssize_t pos)
 {
-	return uint16_get(base, pos + ACMPDU_OFFSET_CONNECTION_COUNT);
+	return pdu_uint16_get(base, pos + ACMPDU_OFFSET_CONNECTION_COUNT);
 }
 
 /**
@@ -396,7 +396,7 @@ static inline uint16_t acmpdu_get_connection_count(void const *base,
 static inline void acmpdu_set_connection_count(uint16_t v, void *base,
 					       ssize_t pos)
 {
-	uint16_set(v, base, pos + ACMPDU_OFFSET_CONNECTION_COUNT);
+	pdu_uint16_set(v, base, pos + ACMPDU_OFFSET_CONNECTION_COUNT);
 }
 
 /**
@@ -413,7 +413,7 @@ static inline void acmpdu_set_connection_count(uint16_t v, void *base,
  */
 static inline uint16_t acmpdu_get_sequence_id(void const *base, ssize_t pos)
 {
-	return uint16_get(base, pos + ACMPDU_OFFSET_SEQUENCE_ID);
+	return pdu_uint16_get(base, pos + ACMPDU_OFFSET_SEQUENCE_ID);
 }
 
 /**
@@ -430,7 +430,7 @@ static inline uint16_t acmpdu_get_sequence_id(void const *base, ssize_t pos)
  */
 static inline void acmpdu_set_sequence_id(uint16_t v, void *base, ssize_t pos)
 {
-	uint16_set(v, base, pos + ACMPDU_OFFSET_SEQUENCE_ID);
+	pdu_uint16_set(v, base, pos + ACMPDU_OFFSET_SEQUENCE_ID);
 }
 
 /**
@@ -447,7 +447,7 @@ static inline void acmpdu_set_sequence_id(uint16_t v, void *base, ssize_t pos)
  */
 static inline uint16_t acmpdu_get_flags(void const *base, ssize_t pos)
 {
-	return uint16_get(base, pos + ACMPDU_OFFSET_FLAGS);
+	return pdu_uint16_get(base, pos + ACMPDU_OFFSET_FLAGS);
 }
 
 /**
@@ -464,7 +464,7 @@ static inline uint16_t acmpdu_get_flags(void const *base, ssize_t pos)
  */
 static inline void acmpdu_set_flags(uint16_t v, void *base, ssize_t pos)
 {
-	uint16_set(v, base, pos + ACMPDU_OFFSET_FLAGS);
+	pdu_uint16_set(v, base, pos + ACMPDU_OFFSET_FLAGS);
 }
 
 /**
@@ -481,7 +481,7 @@ static inline void acmpdu_set_flags(uint16_t v, void *base, ssize_t pos)
  */
 static inline uint16_t acmpdu_get_stream_vlan_id(void const *base, ssize_t pos)
 {
-	return uint16_get(base, pos + ACMPDU_OFFSET_STREAM_VLAN_ID);
+	return pdu_uint16_get(base, pos + ACMPDU_OFFSET_STREAM_VLAN_ID);
 }
 
 /**
@@ -499,7 +499,7 @@ static inline uint16_t acmpdu_get_stream_vlan_id(void const *base, ssize_t pos)
 static inline void acmpdu_set_stream_vlan_id(uint16_t v, void *base,
 					     ssize_t pos)
 {
-	uint16_set(v, base, pos + ACMPDU_OFFSET_STREAM_VLAN_ID);
+	pdu_uint16_set(v, base, pos + ACMPDU_OFFSET_STREAM_VLAN_ID);
 }
 
 /**
@@ -516,7 +516,7 @@ static inline void acmpdu_set_stream_vlan_id(uint16_t v, void *base,
  */
 static inline uint16_t acmpdu_get_reserved(void const *base, ssize_t pos)
 {
-	return uint16_get(base, pos + ACMPDU_OFFSET_RESERVED);
+	return pdu_uint16_get(base, pos + ACMPDU_OFFSET_RESERVED);
 }
 
 /**
@@ -533,7 +533,7 @@ static inline uint16_t acmpdu_get_reserved(void const *base, ssize_t pos)
  */
 static inline void acmpdu_set_reserved(uint16_t v, void *base, ssize_t pos)
 {
-	uint16_set(v, base, pos + ACMPDU_OFFSET_RESERVED);
+	pdu_uint16_set(v, base, pos + ACMPDU_OFFSET_RESERVED);
 }
 
 /*@}*/
