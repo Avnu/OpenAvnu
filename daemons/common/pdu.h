@@ -37,6 +37,9 @@
 #include "eui64.h"
 #include "frame.h"
 
+/* If platform does not have/want ieee754 format binary32, define PDU_DISABLE_FLOAT */
+/* If platform does not have/want ieee754 format binary64, define PDU_DISABLE_DOUBLE */
+
 /** \addtogroup util Utilities */
 /*@{*/
 
@@ -113,6 +116,7 @@ ssize_t pdu_uint64_write(uint64_t v, void *base, ssize_t pos,
 
 void pdu_uint64_set(uint64_t v, void *base, ssize_t pos);
 
+#if !defined(PDU_DISABLE_FLOAT)
 ssize_t pdu_float_read(float *host_value, void const *base,
                  ssize_t pos, size_t len);
 
@@ -122,6 +126,9 @@ ssize_t pdu_float_write(float v, void *base, ssize_t pos, size_t len);
 
 void pdu_float_set(float v, void *base, ssize_t pos);
 
+#endif
+
+#if !defined(PDU_DISABLE_DOUBLE) && !defined(PDU_DISABLE_FLOAT)
 ssize_t pdu_double_read(double *host_value, void const *base,
                   ssize_t pos, size_t len);
 
@@ -131,6 +138,7 @@ ssize_t pdu_double_write(double v, void *base, ssize_t pos,
                    size_t len);
 
 void pdu_double_set(double v, void *base, ssize_t pos);
+#endif
 
 /*@}*/
 

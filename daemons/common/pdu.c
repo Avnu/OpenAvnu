@@ -259,6 +259,8 @@ void pdu_uint64_set(uint64_t v, void *base, ssize_t pos)
 }
 
 
+#if !defined(PDU_DISABLE_FLOAT)
+
 ssize_t pdu_float_read(float *host_value, const void *base, ssize_t pos, size_t len)
 {
     ssize_t r = pdu_validate_range(pos, len, sizeof(*host_value));
@@ -309,8 +311,9 @@ void pdu_float_set(float v, void *base, ssize_t pos)
     hp.f = &v;
     pdu_uint32_set(*(hp.host_value_int), base, pos);
 }
+#endif
 
-
+#if !defined(PDU_DISABLE_DOUBLE) && !defined(PDU_DISABLE_FLOAT)
 ssize_t pdu_double_read(double *host_value, const void *base, ssize_t pos, size_t len)
 {
     ssize_t r = pdu_validate_range(pos, len, sizeof(*host_value));
@@ -361,7 +364,7 @@ void pdu_double_set(double v, void *base, ssize_t pos)
     hp.d = &v;
     pdu_uint64_set(*(hp.host_value_int), base, pos);
 }
-
+#endif
 
 ssize_t pdu_eui48_read(struct eui48 *host_value, const void *base, ssize_t pos, size_t len)
 {
