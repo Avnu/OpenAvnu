@@ -33,12 +33,6 @@
 #ifndef AVDECC_H_
 #define AVDECC_H_
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <memory.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include "eui48.h"
 #include "eui64.h"
 #include "frame.h"

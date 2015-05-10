@@ -12,8 +12,10 @@ file(GLOB AVDECCD_SRC
    ./acmp_talker.h 
    ./adp_adv.c 
    ./adp_adv.h 
+   ../common/acmp.h
    ../common/acmpdu.c 
    ../common/acmpdu.h 
+   ../common/adp.h
    ../common/adpdu.c 
    ../common/adpdu.h 
    ../common/avdecc.h 

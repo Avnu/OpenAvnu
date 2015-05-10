@@ -74,7 +74,7 @@
 
 /*@}*/
 
-/** \addtogroup subtype_data AVTP subtype_data field - See IEEE Std 1722-2011 Clause 5.3 */
+/** \addtogroup subtype_data AVTP subtype_data field - See IEEE Std 1722revD13 Clause 5.4 */
 /*@{*/
 
 #define AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH ( 8 )
@@ -389,7 +389,7 @@ ssize_t avtp_common_control_header_write(struct avtp_common_control_header const
 
 /*@}*/
 
-/** \addtogroup avtp_avtp_common_stream_header AVTP common stream header - See IEEE Std 1722-2011 Clause 5.4 */
+/** \addtogroup avtp_common_stream_header AVTP common stream header - See IEEE Std 1722-2011 Clause 5.4 */
 /*@{*/
 
 #define AVTP_COMMON_STREAM_HEADER_OFFSET_SUBTYPE_DATA ( 0 )
