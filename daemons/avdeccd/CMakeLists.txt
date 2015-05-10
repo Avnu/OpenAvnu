@@ -27,8 +27,13 @@ file(GLOB AVDECCD_SRC
    ../common/parse.h 
    ../common/pdu.c 
    ../common/pdu.h 
-   ../common/srp_info.h  
-   ../common/eui48.c 
+   ../common/srp_info.h
+   ../common/srp_info.c
+   ../common/srp_encoding.h
+   ../common/srp_encoding.c
+   ../common/srp.h
+   ../common/srp.c
+   ../common/eui48.c
    ../common/eui48.h 
    ../common/eui64.c 
    ../common/eui64.h

@@ -36,73 +36,7 @@
 #include "pdu.h"
 #include "eui64.h"
 #include "eui48.h"
-
-/** \addtogroup srp_failure_codes
- *  See IEEE Std 802.1Q-2011 Clause 35.2.2.8.7 Table 35-6
- */
-/* @{ */
-
-#define SRP_INFO_NO_FAILURE ( 0 )
-#define SRP_INFO_INSUFFICIENT_BANDWIDTH ( 1 )
-#define SRP_INFO_INSUFFICIENT_BRIDGE_RESOURCES ( 2 )
-#define SRP_INFO_INSUFFICIENT_BANDWIDTH_FOR_TRAFFIC_CLASS ( 3 )
-#define SRP_INFO_STREAM_ID_IN_USE_BY_TALKER ( 4 )
-#define SRP_INFO_STREAM_DESTINATION_ADDRESS_IN_USE ( 5 )
-#define SRP_INFO_STREAM_PREEMPTED_BY_HIGHER_RANK ( 6 )
-#define SRP_INFO_LATENCY_CHANGED ( 7 )
-#define SRP_INFO_PORT_NOT_AVB_CAPABLE ( 8 )
-#define SRP_INFO_USE_DIFFERENT_DESTINATION_ADDRESS ( 9 )
-#define SRP_INFO_OUT_OF_MSRP_RESOURCES ( 10 )
-#define SRP_INFO_OUT_OF_MMRP_RESOURCES ( 11 )
-#define SRP_INFO_CANNOT_STORE_DESTINATION_ADDRESS ( 12 )
-#define SRP_INFO_NOT_SR_CLASS_PRIORITY ( 13 )
-#define SRP_INFO_MAX_FRAME_SIZE_TOO_LARGE ( 14 )
-#define SRP_INFO_MSRP_MAX_FAN_IN_PORTS_REACHED ( 15 )
-#define SRP_INFO_CHANGES_IN_FIRSTVALUE_FOR_STREAMID ( 16 )
-#define SRP_INFO_VLAN_BLOCKED_ON_PORT ( 17 )
-#define SRP_INFO_VLAN_TAGGING_DISABLED_ON_PORT ( 18 )
-#define SRP_INFO_PRIORITY_MISMATCH ( 19 )
-/* @} */
-
-/** \addtogroup srp_attribute_type SRP AttributeTypes
- *  See IEEE Std 802.1Q-2011 Clause 35.2.2.4 Table 35-1
- */
-/* @{ */
-#define SRP_INFO_TALKER_ADVERTISE ( 1 )
-#define SRP_INFO_TALKER_FAILED ( 2 )
-#define SRP_INFO_LISTENER ( 3 )
-#define SRP_INFO_DOMAIN ( 4 )
-/* @} */
-
-/** \addtogroup srp_fourpacked_events FourPackedEvent values
- *  See IEEE Std 802.1Q-2011 Clause 35.2.2.5 Table 35-2
- */
-/* @{ */
-#define SRP_INFO_FOURPACK_IGNORE ( 0 )
-#define SRP_INFO_FOURPACK_ASKING_FAILED ( 1 )
-#define SRP_INFO_FOURPACK_READY ( 2 )
-#define SRP_INFO_FOURPACK_READY_FAILED ( 3 )
-/* @} */
-
-/** \addtogroup srp_threepack_events ThreePackEvent values
- *  See IEEE Std 802.1Q-2011 Clause 10.8.1.2
- */
-/* @{ */
-#define SRP_INFO_THREEPACK_NEW ( 0 )
-#define SRP_INFO_THREEPACK_JOIN_IN ( 1 )
-#define SRP_INFO_THREEPACK_IN ( 2 )
-#define SRP_INFO_THREEPACK_JOIN_MT ( 3 )
-#define SRP_INFO_THREEPACK_MT ( 4 )
-#define SRP_INFO_THREEPACK_LV ( 5 )
-/* @} */
-
-/** \addtogroup srp_class_id SR Class ID values
- *  See IEEE Std 802.1Q-2011 Clause 35.2.2.9.2
- */
-/* @{ */
-#define SRP_INFO_CLASS_A ( 6 )
-#define SRP_INFO_CLASS_B ( 5 )
-/* @} */
+#include "srp.h"
 
 /** SRP Domain Attribute
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.9.1
@@ -113,6 +47,23 @@ struct srp_info_domain
     uint8_t class_priority;
     uint16_t class_vid;
 };
+
+/**
+ * @brief srp_info_domain_init
+ *
+ * Initialize an srp_info_domain object
+ *
+ * @param self
+ * @param class_id
+ * @param class_priority
+ * @param class_vid
+ */
+void srp_info_domain_init(
+        struct srp_info_domain *self,
+        uint8_t class_id,
+        uint8_t class_priority,
+        uint16_t class_vid
+        );
 
 /**
  *  SRP First Value for Talker Advertise and Talker Fail attributes.
@@ -159,6 +110,64 @@ struct srp_info_talker
 };
 
 /**
+ * @brief srp_info_talker_advertise_init
+ *
+ * Initialize an srp_info_talker object to contain a talker advertise
+ *
+ * @param self
+ * @param stream_id
+ * @param destination_address
+ * @param vlan_identifier
+ * @param max_frame_size
+ * @param max_interval_frames
+ * @param data_frame_priority
+ * @param rank
+ * @param accumulated_latency
+ */
+void srp_info_talker_advertise_init(
+        struct srp_info_talker *self,
+        struct eui64 const *stream_id,
+        struct eui48 const *destination_address,
+        uint16_t vlan_identifier,
+        uint16_t max_frame_size,
+        uint16_t max_interval_frames,
+        uint8_t data_frame_priority,
+        uint8_t rank,
+        uint32_t accumulated_latency
+        );
+
+/**
+ * @brief srp_info_talker_fail_init
+ *
+ * Initialize an srp_info_talker object to contain a talker fail
+ *
+ * @param self
+ * @param stream_id
+ * @param destination_address
+ * @param vlan_identifier
+ * @param max_frame_size
+ * @param max_interval_frames
+ * @param data_frame_priority
+ * @param rank
+ * @param accumulated_latency
+ * @param failure_bridge_id
+ * @param failure_code
+ */
+void srp_info_talker_fail_init(
+        struct srp_info_talker *self,
+        struct eui64 const *stream_id,
+        struct eui48 const *destination_address,
+        uint16_t vlan_identifier,
+        uint16_t max_frame_size,
+        uint16_t max_interval_frames,
+        uint8_t data_frame_priority,
+        uint8_t rank,
+        uint32_t accumulated_latency,
+        struct eui64 const *failure_bridge_id,
+        uint8_t failure_code
+        );
+
+/**
  *  SRP First Value for Listener attribute
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.8.1
  */
@@ -167,33 +176,17 @@ struct srp_info_listener
     struct eui64 stream_id;
 };
 
-struct srp_info_talker_advertise_vector
-{
-    struct srp_info_talker first_value;
-    uint16_t number_of_values;
-    uint8_t fourpackedevents[2048];
-};
+/**
+ * @brief srp_info_listener_init
+ *
+ * Initialize an srp_info_listener object to contain a stream_id
+ *
+ * @param self
+ * @param stream_id
+ */
+void srp_info_listener_init(
+        struct srp_info_listener *self,
+        struct eui64 const *stream_id );
 
-struct srp_info_talker_failed_vector
-{
-    struct srp_info_talker first_value;
-    uint16_t number_of_values;
-    uint8_t fourpackedevents[2048];
-};
-
-struct srp_info_listener_vector
-{
-    struct srp_info_listener first_value;
-    uint16_t number_of_values;
-    uint8_t threepackedevents[2048];
-    uint8_t fourpackedevents[2048];
-};
-
-struct srp_info_domain_vector
-{
-    struct srp_info_domain first_value;
-    uint16_t number_of_values;
-    uint8_t threepackedevents[2];
-};
 
 #endif /* SRP_INFO_H_ */
