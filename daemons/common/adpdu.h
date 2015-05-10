@@ -38,33 +38,6 @@
 /** \addtogroup adpdu ADPDU - Clause 6.2.1 */
 /*@{*/
 
-struct adpdu_common_control_header
-{
-    uint32_t subtype : AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
-    uint32_t sv : 1;
-    uint32_t version : AVTP_SUBTYPE_DATA_VERSION_WIDTH;
-    uint32_t message_type : AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
-    uint32_t valid_time : AVTP_SUBTYPE_DATA_STATUS_WIDTH;
-    uint32_t control_data_length : AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
-    struct eui64 entity_id;
-};
-
-static inline ssize_t adpdu_common_control_header_read( struct adpdu_common_control_header *p,
-                                                                   void const *base,
-                                                                   ssize_t pos,
-                                                                   size_t len )
-{
-    return avtp_common_control_header_read( (struct avtp_common_control_header *)p, base, pos, len );
-}
-
-static inline ssize_t adpdu_common_control_header_write( struct adpdu_common_control_header const *p,
-                                                                    void *base,
-                                                                    ssize_t pos,
-                                                                    size_t len )
-{
-    return avtp_common_control_header_write( (struct avtp_common_control_header const *)p, base, pos, len );
-}
-
 #define ADPDU_OFFSET_ENTITY_MODEL_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 0 )
 #define ADPDU_OFFSET_ENTITY_CAPABILITIES ( AVTP_COMMON_CONTROL_HEADER_LEN + 8 )
 #define ADPDU_OFFSET_TALKER_STREAM_SOURCES ( AVTP_COMMON_CONTROL_HEADER_LEN + 12 )
@@ -608,7 +581,13 @@ static inline void adpdu_set_reserved1( uint32_t v, void *base, ssize_t pos )
 /// ADPDU - Clause 6.2.1
 struct adpdu
 {
-    struct adpdu_common_control_header header;
+    uint32_t subtype : AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
+    uint32_t sv : 1;
+    uint32_t version : AVTP_SUBTYPE_DATA_VERSION_WIDTH;
+    uint32_t message_type : AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
+    uint32_t valid_time : AVTP_SUBTYPE_DATA_STATUS_WIDTH;
+    uint32_t control_data_length : AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
+    struct eui64 entity_id;
     struct eui64 entity_model_id;
     uint32_t entity_capabilities;
     uint16_t talker_stream_sources;
@@ -640,30 +619,7 @@ struct adpdu
  * @return -1 if the buffer length is insufficent, otherwise the offset of the
  *octet following the structure in the buffer.
  */
-static inline ssize_t adpdu_read( struct adpdu *p, void const *base, ssize_t pos, size_t len )
-{
-    ssize_t r = pdu_validate_range( pos, len, ADPDU_LEN );
-    if ( r >= 0 )
-    {
-        adpdu_common_control_header_read( &p->header, base, pos, len );
-        p->entity_model_id = adpdu_get_entity_model_id( base, pos );
-        p->entity_capabilities = adpdu_get_entity_capabilities( base, pos );
-        p->talker_stream_sources = adpdu_get_talker_stream_sources( base, pos );
-        p->talker_capabilities = adpdu_get_talker_capabilities( base, pos );
-        p->listener_stream_sinks = adpdu_get_listener_stream_sinks( base, pos );
-        p->listener_capabilities = adpdu_get_listener_capabilities( base, pos );
-        p->controller_capabilities = adpdu_get_controller_capabilities( base, pos );
-        p->available_index = adpdu_get_available_index( base, pos );
-        p->gptp_grandmaster_id = adpdu_get_gptp_grandmaster_id( base, pos );
-        p->gptp_domain_number = adpdu_get_gptp_domain_number( base, pos );
-        p->identify_control_index = adpdu_get_identify_control_index( base, pos );
-        p->interface_index = adpdu_get_interface_index( base, pos );
-        p->reserved0 = adpdu_get_reserved0( base, pos );
-        p->association_id = adpdu_get_association_id( base, pos );
-        p->reserved1 = adpdu_get_reserved1( base, pos );
-    }
-    return r;
-}
+ssize_t adpdu_read( struct adpdu *p, void const *base, ssize_t pos, size_t len );
 
 /**
  * Store the adpdu structure to a network buffer.
@@ -679,30 +635,7 @@ static inline ssize_t adpdu_read( struct adpdu *p, void const *base, ssize_t pos
  * @return -1 if the buffer length is insufficent, otherwise the offset of the
  *octet following the structure in the buffer.
  */
-static inline ssize_t adpdu_write( struct adpdu const *p, void *base, size_t pos, size_t len )
-{
-    ssize_t r = pdu_validate_range( pos, len, ADPDU_LEN );
-    if ( r >= 0 )
-    {
-        adpdu_common_control_header_write( &p->header, base, pos, len );
-        adpdu_set_entity_model_id( p->entity_model_id, base, pos );
-        adpdu_set_entity_capabilities( p->entity_capabilities, base, pos );
-        adpdu_set_talker_stream_sources( p->talker_stream_sources, base, pos );
-        adpdu_set_talker_capabilities( p->talker_capabilities, base, pos );
-        adpdu_set_listener_stream_sinks( p->listener_stream_sinks, base, pos );
-        adpdu_set_listener_capabilities( p->listener_capabilities, base, pos );
-        adpdu_set_controller_capabilities( p->controller_capabilities, base, pos );
-        adpdu_set_available_index( p->available_index, base, pos );
-        adpdu_set_gptp_grandmaster_id( p->gptp_grandmaster_id, base, pos );
-        adpdu_set_gptp_domain_number( p->gptp_domain_number, base, pos );
-        adpdu_set_reserved0( p->reserved0, base, pos );
-        adpdu_set_identify_control_index( p->identify_control_index, base, pos );
-        adpdu_set_interface_index( p->interface_index, base, pos );
-        adpdu_set_association_id( p->association_id, base, pos );
-        adpdu_set_reserved1( p->reserved1, base, pos );
-    }
-    return r;
-}
+ssize_t adpdu_write( struct adpdu const *p, void *base, size_t pos, size_t len );
 
 /*@}*/
 

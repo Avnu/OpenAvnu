@@ -56,12 +56,12 @@ bool adp_adv_init(
     self->received_entity_available_or_departing = received_entity_available_or_departing;
 
     memset( &self->adpdu, 0, sizeof( self->adpdu ) );
-    self->adpdu.header.subtype = AVTP_SUBTYPE_ADP;
-    self->adpdu.header.version = 0;
-    self->adpdu.header.sv = 0;
-    self->adpdu.header.message_type = ADP_MESSAGE_TYPE_ENTITY_AVAILABLE;
-    self->adpdu.header.valid_time = 10;
-    self->adpdu.header.control_data_length = ADPDU_LEN - AVTP_COMMON_CONTROL_HEADER_LEN;
+    self->adpdu.subtype = AVTP_SUBTYPE_ADP;
+    self->adpdu.version = 0;
+    self->adpdu.sv = 0;
+    self->adpdu.message_type = ADP_MESSAGE_TYPE_ENTITY_AVAILABLE;
+    self->adpdu.valid_time = 10;
+    self->adpdu.control_data_length = ADPDU_LEN - AVTP_COMMON_CONTROL_HEADER_LEN;
 
     return true;
 }
@@ -84,15 +84,15 @@ bool adp_adv_receive( struct adp_adv *self,
     if ( adpdu_read( &incoming, buf, 0, len ) > 0 )
     {
         r = true;
-        switch ( incoming.header.message_type )
+        switch ( incoming.message_type )
         {
         case ADP_MESSAGE_TYPE_ENTITY_DISCOVER:
             // only respond to discover messages if we are not stopped
             if ( !self->stopped )
             {
                 // handle the case where the discover message references our entity id or 0
-                if ( eui64_compare( &incoming.header.entity_id, &self->adpdu.header.entity_id )
-                     || eui64_convert_to_uint64( &incoming.header.entity_id ) == 0 )
+                if ( eui64_compare( &incoming.entity_id, &self->adpdu.entity_id )
+                     || eui64_convert_to_uint64( &incoming.entity_id ) == 0 )
                 {
                     self->do_send_entity_available = true;
                     self->early_tick = true;
@@ -128,7 +128,7 @@ void adp_adv_tick( struct adp_adv *self, timestamp_in_microseconds cur_time_in_m
     // calculate the time since the last send
     timestamp_in_microseconds difftime = cur_time_in_micros - self->last_time_in_ms;
 
-    timestamp_in_microseconds valid_time_in_ms = self->adpdu.header.valid_time;
+    timestamp_in_microseconds valid_time_in_ms = self->adpdu.valid_time;
 
     // calculate the time in microseconds between sends.
     // header.valid_time is in 2 second increments. We are to send
@@ -234,7 +234,7 @@ void adp_adv_trigger_send_departing( struct adp_adv *self )
 static void adp_adv_send_entity_available( struct adp_adv *self )
 {
     struct frame f;
-    self->adpdu.header.message_type = ADP_MESSAGE_TYPE_ENTITY_AVAILABLE;
+    self->adpdu.message_type = ADP_MESSAGE_TYPE_ENTITY_AVAILABLE;
     f.length = adpdu_write( &self->adpdu, &f.payload, 0, sizeof( f.payload ) );
 
     if ( f.length > 0 )
@@ -247,7 +247,7 @@ static void adp_adv_send_entity_available( struct adp_adv *self )
 static void adp_adv_send_entity_departing( struct adp_adv *self )
 {
     struct frame f;
-    self->adpdu.header.message_type = ADP_MESSAGE_TYPE_ENTITY_DEPARTING;
+    self->adpdu.message_type = ADP_MESSAGE_TYPE_ENTITY_DEPARTING;
     f.length = adpdu_write( &self->adpdu, &f.payload, 0, sizeof( f.payload ) );
 
     if ( f.length > 0 )
@@ -262,13 +262,13 @@ static void adp_adv_send_entity_discover( struct adp_adv *self )
     struct frame f;
     struct adpdu adpdu;
     memset( &adpdu, 0, sizeof( adpdu ) );
-    adpdu.header.subtype = AVTP_SUBTYPE_ADP;
-    adpdu.header.control_data_length = ADPDU_LEN - AVTP_COMMON_CONTROL_HEADER_LEN;
-    adpdu.header.message_type = ADP_MESSAGE_TYPE_ENTITY_DISCOVER;
-    adpdu.header.sv = 0;
-    adpdu.header.version = 0;
-    adpdu.header.valid_time = 0;
-    eui64_init_from_uint64( &adpdu.header.entity_id, 0 );
+    adpdu.subtype = AVTP_SUBTYPE_ADP;
+    adpdu.control_data_length = ADPDU_LEN - AVTP_COMMON_CONTROL_HEADER_LEN;
+    adpdu.message_type = ADP_MESSAGE_TYPE_ENTITY_DISCOVER;
+    adpdu.sv = 0;
+    adpdu.version = 0;
+    adpdu.valid_time = 0;
+    eui64_init_from_uint64( &adpdu.entity_id, 0 );
 
     f.length = adpdu_write( &self->adpdu, &f.payload, 0, sizeof( f.payload ) );
 
