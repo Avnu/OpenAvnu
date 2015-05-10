@@ -56,7 +56,7 @@ struct acmp_talker_slots {
 						  self,
 						  struct acmp_talker_signals *
 						  sender,
-                          struct srp_info_first_value_talker *
+                          struct srp_info_talker *
 						  srp_info);
 };
 
@@ -74,7 +74,7 @@ struct acmp_talker_signals {
 
 	void (*acmp_talker_start_request) (struct acmp_talker_signals * self,
 					   struct acmp_talker_slots * source,
-                       struct srp_info_first_value_talker * srp_info);
+                       struct srp_info_talker * srp_info);
 
 	void (*acmp_talker_listener_added) (struct acmp_talker_signals * self,
 					    struct acmp_talker_slots * source,

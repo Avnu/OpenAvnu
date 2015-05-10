@@ -116,7 +116,7 @@ struct acmp_listener_slots {
 
     /** Notify the ACMP listener that some talker stream info was received via SRP */
 	void (*srp_talker_info_received) (struct acmp_listener_slots * self,
-                      const struct srp_info_first_value_talker *
+                      const struct srp_info_talker *
 					  stream_info);
 };
 

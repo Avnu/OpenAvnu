@@ -85,7 +85,7 @@
 /* @} */
 
 /** \addtogroup srp_threepack_events ThreePackEvent values
- *  See IEEE STd 802.1Q-2011 Clause 10.8.1.2
+ *  See IEEE Std 802.1Q-2011 Clause 10.8.1.2
  */
 /* @{ */
 #define SRP_INFO_THREEPACK_NEW ( 0 )
@@ -96,8 +96,13 @@
 #define SRP_INFO_THREEPACK_LV ( 5 )
 /* @} */
 
+/** \addtogroup srp_class_id SR Class ID values
+ *  See IEEE Std 802.1Q-2011 Clause 35.2.2.9.2
+ */
+/* @{ */
 #define SRP_INFO_CLASS_A ( 6 )
 #define SRP_INFO_CLASS_B ( 5 )
+/* @} */
 
 /** SRP Domain Attribute
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.9.1
@@ -114,7 +119,7 @@ struct srp_info_domain
  *  A failure code of SRP_INFO_NO_FAILURE means Talker Advertise.
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.8.1
  */
-struct srp_info_first_value_talker
+struct srp_info_talker
 {
 
     /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.2 */
@@ -157,21 +162,28 @@ struct srp_info_first_value_talker
  *  SRP First Value for Listener attribute
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.8.1
  */
-struct srp_info_first_value_listener
+struct srp_info_listener
 {
     struct eui64 stream_id;
 };
 
-struct srp_info_talker_vector
+struct srp_info_talker_advertise_vector
 {
-    struct srp_info_first_value_talker first_value;
+    struct srp_info_talker first_value;
+    uint16_t number_of_values;
+    uint8_t fourpackedevents[2048];
+};
+
+struct srp_info_talker_failed_vector
+{
+    struct srp_info_talker first_value;
     uint16_t number_of_values;
     uint8_t fourpackedevents[2048];
 };
 
 struct srp_info_listener_vector
 {
-    struct srp_info_first_value_listener first_value;
+    struct srp_info_listener first_value;
     uint16_t number_of_values;
     uint8_t threepackedevents[2048];
     uint8_t fourpackedevents[2048];
@@ -181,6 +193,7 @@ struct srp_info_domain_vector
 {
     struct srp_info_domain first_value;
     uint16_t number_of_values;
+    uint8_t threepackedevents[2];
 };
 
 #endif /* SRP_INFO_H_ */
