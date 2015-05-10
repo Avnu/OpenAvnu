@@ -134,7 +134,19 @@ void pdu_double_set(double v, void *base, ssize_t pos);
 
 /*@}*/
 
+/** \addtogroup eui48 EUI48 */
+/*@{*/
+uint64_t pdu_eui48_get(void const *base, ssize_t pos );
 
+void pdu_eui48_set(uint64_t v, void *base, ssize_t pos );
+/*@}*/
+
+/** \addtogroup eui64 EUI64 */
+/*@{*/
+uint64_t pdu_eui64_get(void const *base, ssize_t pos );
+
+void pdu_eui64_set(uint64_t v, void *base, ssize_t pos );
+/*@}*/
 
 
 /** \addtogroup gptp GPTP time */

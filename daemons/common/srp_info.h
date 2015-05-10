@@ -34,6 +34,8 @@
 #define SRP_INFO_H_
 
 #include "pdu.h"
+#include "eui64.h"
+#include "eui48.h"
 
 /** \addtogroup srp_failure_codes
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.8.7 Table 35-6
@@ -116,12 +118,12 @@ struct srp_info_first_value_talker
 {
 
     /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.2 */
-    struct pdu_eui64 stream_id;
+    struct eui64 stream_id;
 
     /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.3 */
     struct
     {
-        struct pdu_eui48 destination_address;
+        struct eui48 destination_address;
         uint16_t vlan_identifier;
     } data_frame_parameters;
 
@@ -146,7 +148,7 @@ struct srp_info_first_value_talker
     /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.7 */
     struct
     {
-        struct pdu_eui64 failure_bridge_id;
+        struct eui64 failure_bridge_id;
         uint8_t failure_code;
     } failure_information;
 };
@@ -157,17 +159,17 @@ struct srp_info_first_value_talker
  */
 struct srp_info_first_value_listener
 {
-    struct pdu_eui64 stream_id;
+    struct eui64 stream_id;
 };
 
-struct srp_info_talker
+struct srp_info_talker_vector
 {
     struct srp_info_first_value_talker first_value;
     uint16_t number_of_values;
     uint8_t fourpackedevents[2048];
 };
 
-struct srp_info_listener
+struct srp_info_listener_vector
 {
     struct srp_info_first_value_listener first_value;
     uint16_t number_of_values;
@@ -175,7 +177,7 @@ struct srp_info_listener
     uint8_t fourpackedevents[2048];
 };
 
-struct srp_info_domain
+struct srp_info_domain_vector
 {
     struct srp_info_domain first_value;
     uint16_t number_of_values;

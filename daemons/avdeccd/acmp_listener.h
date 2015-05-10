@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pdu.h"
 #include "avtp.h"
 #include "acmpdu.h"
+#include "srp_info.h"
 
 #ifndef ACMP_LISTENER_MAX_STREAMS
 #define ACMP_LISTENER_MAX_STREAMS ( 8 )
@@ -117,7 +118,7 @@ struct acmp_listener_slots {
 
     /** Notify the ACMP listener that some talker stream info was received via SRP */
 	void (*srp_talker_info_received) (struct acmp_listener_slots * self,
-					  const struct srp_info_talker *
+                      const struct srp_info_first_value_talker *
 					  stream_info);
 };
 

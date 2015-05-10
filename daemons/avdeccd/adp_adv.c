@@ -28,23 +28,22 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "jdksavb_world.h"
-#include "jdksavb_adp_advertiser.h"
+#include "adp_adv.h"
 
 /// Form the entity available message and send it
-static void jdksavb_adp_send_entity_available( struct jdksavb_adp_advertiser *self );
+static void jdksavb_adp_adv_send_entity_available( struct jdksavb_adp_adv *self );
 
 /// Form the entity departing message and send it
-static void jdksavb_adp_send_entity_departing( struct jdksavb_adp_advertiser *self );
+static void jdksavb_adp_adv_send_entity_departing( struct jdksavb_adp_adv *self );
 
 /// Form the entity discover message and send it
-static void jdksavb_adp_send_entity_discover( struct jdksavb_adp_advertiser *self );
+static void jdksavb_adp_adv_send_entity_discover( struct jdksavb_adp_adv *self );
 
 #ifdef TODO
-bool jdksavb_adp_init(
-    struct jdksavb_adp_advertiser *self,
-    void ( *frame_send )( struct jdksavb_adp_advertiser *self, void *context, uint8_t const *buf, uint16_t len ),
-    void ( *received_entity_available_or_departing )( struct jdksavb_adp_advertiser *self,
+bool jdksavb_adp_adv_init(
+    struct jdksavb_adp_adv *self,
+    void ( *frame_send )( struct jdksavb_adp_adv *self, void *context, uint8_t const *buf, uint16_t len ),
+    void ( *received_entity_available_or_departing )( struct jdksavb_adp_adv *self,
                                                       void *context,
                                                       void const *source_address,
                                                       int source_address_len,
@@ -68,12 +67,12 @@ bool jdksavb_adp_init(
     return true;
 }
 
-void jdksavb_adp_terminate( struct jdksavb_adp_advertiser *self )
+void jdksavb_adp_adv_terminate( struct jdksavb_adp_adv *self )
 {
     (void)self;
 }
 
-bool jdksavb_adp_receive( struct jdksavb_adp_advertiser *self,
+bool jdksavb_adp_adv_receive( struct jdksavb_adp_adv *self,
                           jdksavdecc_timestamp_in_microseconds time_in_microseconds,
                           void const *source_address,
                           int source_address_len,
@@ -124,7 +123,7 @@ bool jdksavb_adp_receive( struct jdksavb_adp_advertiser *self,
     return r;
 }
 
-void jdksavb_adp_tick( struct jdksavb_adp_advertiser *self, jdksavdecc_timestamp_in_microseconds cur_time_in_micros )
+void jdksavb_adp_adv_tick( struct jdksavb_adp_adv *self, jdksavdecc_timestamp_in_microseconds cur_time_in_micros )
 {
 
     // calculate the time since the last send
@@ -168,7 +167,7 @@ void jdksavb_adp_tick( struct jdksavb_adp_advertiser *self, jdksavdecc_timestamp
 
         // send the departing
 
-        jdksavb_adp_send_entity_departing( self );
+        jdksavb_adp_adv_send_entity_departing( self );
 
         // reset the available_index to 0
 
@@ -197,7 +196,7 @@ void jdksavb_adp_tick( struct jdksavb_adp_advertiser *self, jdksavdecc_timestamp
 
             // send the available
 
-            jdksavb_adp_send_entity_available( self );
+            jdksavb_adp_adv_send_entity_available( self );
         }
     }
 
@@ -209,31 +208,31 @@ void jdksavb_adp_tick( struct jdksavb_adp_advertiser *self, jdksavdecc_timestamp
         // yes, clear the flag and send it
 
         self->do_send_entity_discover = false;
-        jdksavb_adp_send_entity_discover( self );
+        jdksavb_adp_adv_send_entity_discover( self );
     }
 }
 
-void jdksavb_adp_trigger_send_discover( struct jdksavb_adp_advertiser *self )
+void jdksavb_adp_adv_trigger_send_discover( struct jdksavb_adp_adv *self )
 {
 
     self->early_tick = true;
     self->do_send_entity_discover = true;
 }
 
-void jdksavb_adp_trigger_send_available( struct jdksavb_adp_advertiser *self )
+void jdksavb_adp_adv_trigger_send_available( struct jdksavb_adp_adv *self )
 {
     self->early_tick = true;
     self->do_send_entity_available = true;
     self->stopped = false;
 }
 
-void jdksavb_adp_trigger_send_departing( struct jdksavb_adp_advertiser *self )
+void jdksavb_adp_adv_trigger_send_departing( struct jdksavb_adp_adv *self )
 {
     self->early_tick = true;
     self->do_send_entity_departing = true;
 }
 
-static void jdksavb_adp_send_entity_available( struct jdksavb_adp_advertiser *self )
+static void jdksavb_adp_adv_send_entity_available( struct jdksavb_adp_adv *self )
 {
     struct jdksavb_frame f;
     self->adpdu.header.message_type = JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE;
@@ -246,7 +245,7 @@ static void jdksavb_adp_send_entity_available( struct jdksavb_adp_advertiser *se
     }
 }
 
-static void jdksavb_adp_send_entity_departing( struct jdksavb_adp_advertiser *self )
+static void jdksavb_adp_adv_send_entity_departing( struct jdksavb_adp_adv *self )
 {
     struct jdksavb_frame f;
     self->adpdu.header.message_type = JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING;
@@ -259,7 +258,7 @@ static void jdksavb_adp_send_entity_departing( struct jdksavb_adp_advertiser *se
     }
 }
 
-static void jdksavb_adp_send_entity_discover( struct jdksavb_adp_advertiser *self )
+static void jdksavb_adp_adv_send_entity_discover( struct jdksavb_adp_adv *self )
 {
     struct jdksavb_frame f;
     struct jdksavdecc_adpdu adpdu;

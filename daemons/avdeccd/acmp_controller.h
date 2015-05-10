@@ -75,9 +75,9 @@ struct acmp_controller_connection {
 		ACMP_CONTROLLER_CONNECTION_ERROR
 	} state;
 	int retry_count;
-	uint64_t talker_entity_id;
+    struct eui64 talker_entity_id;
 	uint16_t talker_unique_id;
-	uint64_t listener_entity_id;
+    struct eui64 listener_entity_id;
 	uint16_t listener_unique_id;
 	struct acmp_controller_stream_source last_talker_connection_info;
 	struct acmp_controller_stream_sink last_listener_info;
@@ -116,19 +116,19 @@ struct acmp_controller_slots {
 
     /** Ask the object to track a specific stream sink */
 	void (*track_stream_sink) (struct acmp_controller_slots * self,
-				   uint64_t listener_entity_id,
+                   struct eui64 listener_entity_id,
 				   uint16_t listener_unique_id, bool enable);
 
     /** Ask the object to track a specific stream source */
 	void (*track_stream_source) (struct acmp_controller_slots * self,
-				     uint64_t talker_entity_id,
+                     struct eui64 talker_entity_id,
 				     uint16_t talker_unique_id, bool enable);
 
     /** Ask the object to connect a stream source to a stream sink */
 	void (*connect_stream) (struct acmp_controller_slots * self,
-				uint64_t talker_entity_id,
+                struct eui64 talker_entity_id,
 				uint16_t talker_unique_id,
-				uint64_t listener_entity_id,
+                struct eui64 listener_entity_id,
 				uint16_t listener_unique_id, bool enable);
 };
 
@@ -258,21 +258,21 @@ void acmp_controller_tick(struct acmp_controller_slots *self,
 
 /** Ask the object to track a specific stream sink */
 void acmp_controller_track_stream_sink(struct acmp_controller_slots *self,
-				       uint64_t listener_entity_id,
+                       struct eui64 listener_entity_id,
 				       uint16_t listener_unique_id,
 				       bool enable);
 
 /** Ask the object to track a specific stream source */
 void acmp_controller_track_stream_source(struct acmp_controller_slots *self,
-					 uint64_t talker_entity_id,
+                     struct eui64 talker_entity_id,
 					 uint16_t talker_unique_id,
 					 bool enable);
 
 /** Ask the object to connect a stream source to a stream sink */
 void acmp_controller_connect_stream(struct acmp_controller_slots *self,
-				    uint64_t talker_entity_id,
+                    struct eui64 talker_entity_id,
 				    uint16_t talker_unique_id,
-				    uint64_t listener_entity_id,
+                    struct eui64 listener_entity_id,
 				    uint16_t listener_unique_id, bool enable);
 
 /*@}*/

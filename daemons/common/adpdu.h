@@ -31,8 +31,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "jdksavdecc_world.h"
-#include "jdksavdecc_pdu.h"
+#include "pdu.h"
 
 #ifdef __cplusplus
 extern "C" {

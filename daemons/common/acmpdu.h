@@ -33,7 +33,6 @@
 #ifndef ACMPDU_H_
 #define ACMPDU_H_
 
-#include "eui64set.h"
 #include "avtp.h"
 
 /** \addtogroup acmp ACMP - Clause 8 */
@@ -339,10 +338,10 @@ static inline void acmpdu_set_listener_unique_id(uint16_t v, void *base,
  * @param pos offset from base to read the field from;
  * @return the struct eui48 stream_dest_mac value
  */
-static inline struct pdu_eui48 acmpdu_get_stream_dest_mac(void const *base,
+static inline struct eui48 acmpdu_get_stream_dest_mac(void const *base,
 						      ssize_t pos)
 {
-	return pdu_eui48_get(base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
+    return eui48_get(base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
 }
 
 /**
@@ -357,10 +356,10 @@ static inline struct pdu_eui48 acmpdu_get_stream_dest_mac(void const *base,
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_stream_dest_mac(struct pdu_eui48 v, void *base,
+static inline void acmpdu_set_stream_dest_mac(struct eui48 v, void *base,
 					      ssize_t pos)
 {
-	pdu_eui48_set(v, base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
+    eui48_set(v, base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
 }
 
 /**
