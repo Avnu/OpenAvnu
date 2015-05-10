@@ -30,11 +30,10 @@
 
 ******************************************************************************/
 
-
-
 #include "eui64.h"
+#include "pdu.h"
 
-void pdu_eui64_init(pdu_eui64 *self)
+void eui64_init(struct eui64 *self)
 {
     size_t i;
     for (i = 0; i < sizeof(self->value); ++i) {
@@ -43,7 +42,7 @@ void pdu_eui64_init(pdu_eui64 *self)
 }
 
 
-void pdu_eui64_zero(pdu_eui64 *self)
+void eui64_zero(struct eui64 *self)
 {
     size_t i;
     for (i = 0; i < sizeof(self->value); ++i) {
@@ -52,7 +51,7 @@ void pdu_eui64_zero(pdu_eui64 *self)
 }
 
 
-void pdu_eui64_init_from_uint64(pdu_eui64 *self, uint64_t other)
+void eui64_init_from_uint64(struct eui64 *self, uint64_t other)
 {
     self->value[0] = (uint8_t) ((other >> (7 * 8)) & 0xff);
     self->value[1] = (uint8_t) ((other >> (6 * 8)) & 0xff);
@@ -65,7 +64,7 @@ void pdu_eui64_init_from_uint64(pdu_eui64 *self, uint64_t other)
 }
 
 
-uint64_t pdu_eui64_convert_to_uint64(const pdu_eui64 *self)
+uint64_t eui64_convert_to_uint64(const struct eui64 *self)
 {
     uint64_t v = 0;
     v |= ((uint64_t) self->value[0]) << (7 * 8);
@@ -80,7 +79,7 @@ uint64_t pdu_eui64_convert_to_uint64(const pdu_eui64 *self)
 }
 
 
-void pdu_eui64_copy(pdu_eui64 *self, const pdu_eui64 *other)
+void eui64_copy(struct eui64 *self, const struct eui64 *other)
 {
     size_t i;
     for (i = 0; i < sizeof(self->value); ++i) {
@@ -89,52 +88,16 @@ void pdu_eui64_copy(pdu_eui64 *self, const pdu_eui64 *other)
 }
 
 
-int pdu_eui64_compare(const pdu_eui64 *self, const pdu_eui64 *other)
+int eui64_compare(const struct eui64 *self, const struct eui64 *other)
 {
     int r = memcmp(self->value, other->value, sizeof(self->value));
     return r;
 }
 
 
-ssize_t pdu_eui64_read(pdu_eui64 *host_value, const void *base, ssize_t pos, size_t len)
-{
-    ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
-    if (r >= 0) {
-        memcpy(host_value->value, ((uint8_t const *)base) + pos,
-               sizeof(host_value->value));
-        r = pos + sizeof(host_value->value);
-    }
-    return r;
-}
 
 
-pdu_eui64 pdu_eui64_get(const void *base, ssize_t pos)
-{
-    struct pdu_eui64 v;
-    memcpy(v.value, ((uint8_t const *)base) + pos, sizeof(v.value));
-    return v;
-}
-
-
-ssize_t pdu_eui64_write(const pdu_eui64 *host_value, void *base, ssize_t pos, size_t len)
-{
-    ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
-    if (r >= 0) {
-        memcpy(((uint8_t *) base) + pos, host_value->value,
-               sizeof(host_value->value));
-        r = pos + sizeof(host_value->value);
-    }
-    return r;
-}
-
-
-void pdu_eui64_set(pdu_eui64 v, void *base, ssize_t pos)
-{
-    memcpy(((uint8_t *) base) + pos, v.value, sizeof(v.value));
-}
-
-
-int pdu_eui64_is_unset(pdu_eui64 v)
+int eui64_is_unset(struct eui64 v)
 {
     int r = 0;
     if (v.value[0] == 0xff && v.value[1] == 0xff && v.value[2] == 0xff
@@ -146,7 +109,7 @@ int pdu_eui64_is_unset(pdu_eui64 v)
 }
 
 
-int pdu_eui64_is_set(pdu_eui64 v)
+int eui64_is_set(struct eui64 v)
 {
     int r = 0;
     if (v.value[0] != 0xff || v.value[1] != 0xff || v.value[2] != 0xff
@@ -158,7 +121,7 @@ int pdu_eui64_is_set(pdu_eui64 v)
 }
 
 
-int pdu_eui64_is_zero(pdu_eui64 v)
+int eui64_is_zero(struct eui64 v)
 {
     int r = 0;
     if (v.value[0] == 0x00 && v.value[1] == 0x00 && v.value[2] == 0x00
@@ -170,7 +133,7 @@ int pdu_eui64_is_zero(pdu_eui64 v)
 }
 
 
-int pdu_eui64_is_not_zero(pdu_eui64 v)
+int eui64_is_not_zero(struct eui64 v)
 {
     int r = 0;
     if (v.value[0] != 0x00 || v.value[1] != 0x00 || v.value[2] != 0x00

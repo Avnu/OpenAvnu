@@ -268,6 +268,18 @@ static inline void avtp_subtype_data_set_tu(bool v, void *base, size_t pos)
 #define AVTP_COMMON_CONTROL_HEADER_OFFSET_STREAM_ID ( 4 )
 #define AVTP_COMMON_CONTROL_HEADER_LEN ( 12 )
 
+static inline uint8_t avtp_common_control_header_get_subtype(void const *base,
+                                 size_t pos)
+{
+    return avtp_subtype_data_get_subtype(base, pos);
+}
+
+static inline void avtp_common_control_header_set_subtype(uint8_t v, void *base,
+                             size_t pos)
+{
+    avtp_subtype_data_set_subtype(v, base, pos);
+}
+
 static inline uint32_t avtp_common_control_header_get_sv(void const *base,
 							 size_t pos)
 {
@@ -409,7 +421,7 @@ static inline void avtp_common_stream_header_set_subtype_data(uint32_t
 		   pos + AVTP_COMMON_STREAM_HEADER_OFFSET_SUBTYPE_DATA);
 }
 
-static inline uint32_t avtp_common_stream_header_get_subtype(void const *base,
+static inline uint8_t avtp_common_stream_header_get_subtype(void const *base,
 							     size_t pos)
 {
 	return avtp_subtype_data_get_subtype(base, pos);
@@ -507,13 +519,13 @@ static inline void avtp_common_stream_header_set_tu(bool v, void *base,
 	avtp_subtype_data_set_tu(v, base, pos);
 }
 
-static inline uint64_t avtp_common_stream_header_get_stream_id(void const *base,
+static inline struct eui64 avtp_common_stream_header_get_stream_id(void const *base,
 							       size_t pos)
 {
     return pdu_eui64_get(base, pos + AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_ID);
 }
 
-static inline void avtp_common_stream_header_set_stream_id(uint64_t v,
+static inline void avtp_common_stream_header_set_stream_id(struct eui64 v,
 							   void *base,
 							   size_t pos)
 {

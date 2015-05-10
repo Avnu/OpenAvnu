@@ -44,28 +44,65 @@ struct eui48 {
     uint8_t value[6];
 };
 
+/**
+ * @brief eui48_init
+ *
+ * Initialize an EUI48 value with FF:FF:FF:FF:FF:FF
+ *
+ * @param self pointer to eui48 to initialize
+ */
 void eui48_init(struct eui48 *self);
 
+/**
+ * @brief eui48_zero
+ *
+ * Set an EUI48 structure's value with 00:00:00:00:00:00
+ *
+ * @param self pointer to eui48 to set to 0
+ */
 void eui48_zero(struct eui48 *self);
 
+/**
+ * @brief eui48_init_from_uint64
+ *
+ * Initialize an EUI48 structure's value based on the lower 48 bits of an uint64_t.
+ *
+ * @param self pointer to eui48
+ * @param other uint64_t value
+ */
 void eui48_init_from_uint64(struct eui48 *self, uint64_t other);
 
+/**
+ * @brief eui48_convert_to_uint64
+ *
+ * Load the eui48 structure's value into the lower 48 bits of an uint64_t
+ *
+ * @param self pointer to const eui48 struct
+ * @return
+ */
 uint64_t eui48_convert_to_uint64(struct eui48 const *self);
 
+/**
+ * @brief eui48_copy
+ *
+ * Copy an eui48 structure
+ *
+ * @param self Destination
+ * @param other Source
+ */
 void eui48_copy(struct eui48 *self, struct eui48 const *other);
 
+/**
+ * @brief eui48_compare
+ *
+ * Compare the value of two eui48 structures
+ *
+ * @param self Left hand side value
+ * @param other Right hand side value
+ * @return -1 if LHS < RHS, 0 if LHS == RHS, 1 if LHS > RHS
+ */
 int eui48_compare(struct eui48 const *self,
                 struct eui48 const *other);
-
-ssize_t eui48_read(struct eui48 *host_value, void const *base,
-                 ssize_t pos, size_t len);
-
-struct eui48 eui48_get(void const *base, ssize_t pos);
-
-ssize_t eui48_write(struct eui48 const *host_value, void *base,
-                  ssize_t pos, size_t len);
-
-void eui48_set(struct eui48 v, void *base, ssize_t pos);
 
 int eui48_is_unset(struct eui48 v);
 

@@ -363,15 +363,79 @@ void pdu_double_set(double v, void *base, ssize_t pos)
 }
 
 
+ssize_t pdu_eui48_read(struct eui48 *host_value, const void *base, ssize_t pos, size_t len)
+{
+    ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
+    if (r >= 0) {
+        memcpy(host_value->value, ((uint8_t const *)base) + pos,
+               sizeof(host_value->value));
+    }
+    return r;
+}
+
+ssize_t pdu_eui48_write(const struct eui48 *host_value, void *base, ssize_t pos, size_t len)
+{
+    ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
+    if (r >= 0) {
+        memcpy(((uint8_t *) base) + pos, host_value->value,
+               sizeof(host_value->value));
+    }
+    return r;
+}
 
 
-void pdu_gptp_seconds_init(gptp_seconds *self)
+struct eui48 pdu_eui48_get(const void *base, ssize_t pos)
+{
+    struct eui48 v;
+    memcpy(v.value, ((uint8_t const *)base) + pos, sizeof(v.value));
+    return v;
+}
+
+ssize_t pdu_eui64_read(struct eui64 *host_value, const void *base, ssize_t pos, size_t len)
+{
+    ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
+    if (r >= 0) {
+        memcpy(host_value->value, ((uint8_t const *)base) + pos,
+               sizeof(host_value->value));
+        r = pos + sizeof(host_value->value);
+    }
+    return r;
+}
+
+
+struct eui64 pdu_eui64_get(const void *base, ssize_t pos)
+{
+    struct eui64 v;
+    memcpy(v.value, ((uint8_t const *)base) + pos, sizeof(v.value));
+    return v;
+}
+
+
+ssize_t pdu_eui64_write(const struct eui64 *host_value, void *base, ssize_t pos, size_t len)
+{
+    ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
+    if (r >= 0) {
+        memcpy(((uint8_t *) base) + pos, host_value->value,
+               sizeof(host_value->value));
+        r = pos + sizeof(host_value->value);
+    }
+    return r;
+}
+
+
+void pdu_eui64_set(struct eui64 v, void *base, ssize_t pos)
+{
+    memcpy(((uint8_t *) base) + pos, v.value, sizeof(v.value));
+}
+
+
+void pdu_gptp_seconds_init(struct gptp_seconds *self)
 {
     self->seconds = 0;
 }
 
 
-void pdu_gptp_seconds_read(gptp_seconds *host_value, const void *base, ssize_t pos)
+void pdu_gptp_seconds_read(struct gptp_seconds *host_value, const void *base, ssize_t pos)
 {
     uint8_t const *b = ((uint8_t const *)base) + pos;
     host_value->seconds =
@@ -381,7 +445,7 @@ void pdu_gptp_seconds_read(gptp_seconds *host_value, const void *base, ssize_t p
 }
 
 
-gptp_seconds pdu_gptp_seconds_get(const void *base, ssize_t pos)
+struct gptp_seconds pdu_gptp_seconds_get(const void *base, ssize_t pos)
 {
     struct gptp_seconds v;
     uint8_t const *b = ((uint8_t const *)base) + pos;
@@ -396,7 +460,7 @@ gptp_seconds pdu_gptp_seconds_get(const void *base, ssize_t pos)
 }
 
 
-ssize_t pdu_gptp_seconds_write(gptp_seconds host_value, void *base, ssize_t pos, ssize_t len)
+ssize_t pdu_gptp_seconds_write(struct gptp_seconds host_value, void *base, ssize_t pos, ssize_t len)
 {
     ssize_t r = pdu_validate_range(pos, len, 6);
     if (r >= 0) {
@@ -413,7 +477,7 @@ ssize_t pdu_gptp_seconds_write(gptp_seconds host_value, void *base, ssize_t pos,
 }
 
 
-void pdu_gptp_seconds_set(gptp_seconds v, void *base, ssize_t pos)
+void pdu_gptp_seconds_set(struct gptp_seconds v, void *base, ssize_t pos)
 {
     uint8_t *b = ((uint8_t *) base) + pos;
     b[0] = (uint8_t) ((v.seconds) >> (8 * 5)) & 0xff;

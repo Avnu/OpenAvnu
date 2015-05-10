@@ -31,8 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef ACMP_LISTENER_H_
 #define ACMP_LISTENER_H_
 
-#include "pdu.h"
-#include "avtp.h"
 #include "acmpdu.h"
 #include "srp_info.h"
 

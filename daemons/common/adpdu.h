@@ -1,5 +1,3 @@
-#pragma once
-
 /*
   Copyright (c) 2013, J.D. Koftinoff Software, Ltd.
   All rights reserved.
@@ -31,70 +29,75 @@
   POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "pdu.h"
+#ifndef ADPDU_H_
+#define ADPDU_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "avdecc.h"
 
 /** \addtogroup adp ADP - Clause 6 */
 /*@{*/
 
+
 /** \addtogroup adpdu_msg ADP Message Types - Clause 6.2.1.5 */
 /*@{*/
-#define JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE ( 0 )
-#define JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING ( 1 )
-#define JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER ( 2 )
+#define ADP_MESSAGE_TYPE_ENTITY_AVAILABLE ( 0 )
+#define ADP_MESSAGE_TYPE_ENTITY_DEPARTING ( 1 )
+#define ADP_MESSAGE_TYPE_ENTITY_DISCOVER ( 2 )
+
+#define ADP_UNASSIGNED_IPV4 "0.0.0.0"
+#define ADP_UNASSIGNED_IPV6 "0::0"
+#define ADP_AVDECC_UDP_PORT "17221"
+#define ADP_MDNS_MULTICAST_IPV4 "224.0.0.251"
+#define ADP_MDNS_MULTICAST_IPV6 "ff02::fb"
 
 /*@}*/
 
 /** \addtogroup adpdu ADPDU - Clause 6.2.1 */
 /*@{*/
 
-struct jdksavdecc_adpdu_common_control_header
+struct adpdu_common_control_header
 {
-    uint32_t cd : 1;
-    uint32_t subtype : JDKSAVDECC_SUBTYPE_DATA_SUBTYPE_WIDTH;
+    uint32_t subtype : AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
     uint32_t sv : 1;
-    uint32_t version : JDKSAVDECC_SUBTYPE_DATA_VERSION_WIDTH;
-    uint32_t message_type : JDKSAVDECC_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
-    uint32_t valid_time : JDKSAVDECC_SUBTYPE_DATA_STATUS_WIDTH;
-    uint32_t control_data_length : JDKSAVDECC_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
-    struct jdksavdecc_eui64 entity_id;
+    uint32_t version : AVTP_SUBTYPE_DATA_VERSION_WIDTH;
+    uint32_t message_type : AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
+    uint32_t valid_time : AVTP_SUBTYPE_DATA_STATUS_WIDTH;
+    uint32_t control_data_length : AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
+    struct eui64 entity_id;
 };
 
-static inline ssize_t jdksavdecc_adpdu_common_control_header_read( struct jdksavdecc_adpdu_common_control_header *p,
+static inline ssize_t adpdu_common_control_header_read( struct adpdu_common_control_header *p,
                                                                    void const *base,
                                                                    ssize_t pos,
                                                                    size_t len )
 {
-    return jdksavdecc_common_control_header_read( (struct jdksavdecc_common_control_header *)p, base, pos, len );
+    return avtp_common_control_header_read( (struct avtp_common_control_header *)p, base, pos, len );
 }
 
-static inline ssize_t jdksavdecc_adpdu_common_control_header_write( struct jdksavdecc_adpdu_common_control_header const *p,
+static inline ssize_t adpdu_common_control_header_write( struct adpdu_common_control_header const *p,
                                                                     void *base,
                                                                     ssize_t pos,
                                                                     size_t len )
 {
-    return jdksavdecc_common_control_header_write( (struct jdksavdecc_common_control_header const *)p, base, pos, len );
+    return avtp_common_control_header_write( (struct avtp_common_control_header const *)p, base, pos, len );
 }
 
-#define JDKSAVDECC_ADPDU_OFFSET_ENTITY_MODEL_ID ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 0 )
-#define JDKSAVDECC_ADPDU_OFFSET_ENTITY_CAPABILITIES ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 8 )
-#define JDKSAVDECC_ADPDU_OFFSET_TALKER_STREAM_SOURCES ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 12 )
-#define JDKSAVDECC_ADPDU_OFFSET_TALKER_CAPABILITIES ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 14 )
-#define JDKSAVDECC_ADPDU_OFFSET_LISTENER_STREAM_SINKS ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 16 )
-#define JDKSAVDECC_ADPDU_OFFSET_LISTENER_CAPABILITIES ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 18 )
-#define JDKSAVDECC_ADPDU_OFFSET_CONTROLLER_CAPABILITIES ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 20 )
-#define JDKSAVDECC_ADPDU_OFFSET_AVAILABLE_INDEX ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 24 )
-#define JDKSAVDECC_ADPDU_OFFSET_GPTP_GRANDMASTER_ID ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 28 )
-#define JDKSAVDECC_ADPDU_OFFSET_GPTP_DOMAIN_NUMBER ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 36 )
-#define JDKSAVDECC_ADPDU_OFFSET_RESERVED0 ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 37 )
-#define JDKSAVDECC_ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 40 )
-#define JDKSAVDECC_ADPDU_OFFSET_INTERFACE_INDEX ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 42 )
-#define JDKSAVDECC_ADPDU_OFFSET_ASSOCIATION_ID ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 44 )
-#define JDKSAVDECC_ADPDU_OFFSET_RESERVED1 ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 52 )
-#define JDKSAVDECC_ADPDU_LEN ( JDKSAVDECC_COMMON_CONTROL_HEADER_LEN + 56 )
+#define ADPDU_OFFSET_ENTITY_MODEL_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 0 )
+#define ADPDU_OFFSET_ENTITY_CAPABILITIES ( AVTP_COMMON_CONTROL_HEADER_LEN + 8 )
+#define ADPDU_OFFSET_TALKER_STREAM_SOURCES ( AVTP_COMMON_CONTROL_HEADER_LEN + 12 )
+#define ADPDU_OFFSET_TALKER_CAPABILITIES ( AVTP_COMMON_CONTROL_HEADER_LEN + 14 )
+#define ADPDU_OFFSET_LISTENER_STREAM_SINKS ( AVTP_COMMON_CONTROL_HEADER_LEN + 16 )
+#define ADPDU_OFFSET_LISTENER_CAPABILITIES ( AVTP_COMMON_CONTROL_HEADER_LEN + 18 )
+#define ADPDU_OFFSET_CONTROLLER_CAPABILITIES ( AVTP_COMMON_CONTROL_HEADER_LEN + 20 )
+#define ADPDU_OFFSET_AVAILABLE_INDEX ( AVTP_COMMON_CONTROL_HEADER_LEN + 24 )
+#define ADPDU_OFFSET_GPTP_GRANDMASTER_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 28 )
+#define ADPDU_OFFSET_GPTP_DOMAIN_NUMBER ( AVTP_COMMON_CONTROL_HEADER_LEN + 36 )
+#define ADPDU_OFFSET_RESERVED0 ( AVTP_COMMON_CONTROL_HEADER_LEN + 37 )
+#define ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX ( AVTP_COMMON_CONTROL_HEADER_LEN + 40 )
+#define ADPDU_OFFSET_INTERFACE_INDEX ( AVTP_COMMON_CONTROL_HEADER_LEN + 42 )
+#define ADPDU_OFFSET_ASSOCIATION_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 44 )
+#define ADPDU_OFFSET_RESERVED1 ( AVTP_COMMON_CONTROL_HEADER_LEN + 52 )
+#define ADPDU_LEN ( AVTP_COMMON_CONTROL_HEADER_LEN + 56 )
 
 /*@}*/
 
@@ -102,60 +105,60 @@ static inline ssize_t jdksavdecc_adpdu_common_control_header_write( struct jdksa
  * entity_capabilities field - Clause 6.2.1.10 */
 /*@{*/
 
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_EFU_MODE_BIT ( 31 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_EFU_MODE ( 0x00000001UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_EFU_MODE_MASK ( ~( 0x00000001UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ADDRESS_ACCESS_SUPPORTED_BIT ( 30 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ADDRESS_ACCESS_SUPPORTED ( 0x00000002UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ADDRESS_ACCESS_SUPPORTED_MASK ( ~( 0x00000002UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_GATEWAY_ENTITY_BIT ( 29 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_GATEWAY_ENTITY ( 0x00000004UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_GATEWAY_ENTITY_MASK ( ~( 0x00000004UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_SUPPORTED_BIT ( 28 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_SUPPORTED ( 0x00000008UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_SUPPORTED_MASK ( ~( 0x00000008UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_LEGACY_AVC_BIT ( 27 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_LEGACY_AVC ( 0x00000010UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_LEGACY_AVC_MASK ( ~( 0x00000010UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_SUPPORTED_BIT ( 26 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_SUPPORTED ( 0x00000020UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_SUPPORTED_MASK ( ~( 0x00000020UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_VALID_BIT ( 25 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_VALID ( 0x00000040UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_VALID_MASK ( ~( 0x00000040UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_VENDOR_UNIQUE_SUPPORTED_BIT ( 24 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_VENDOR_UNIQUE_SUPPORTED ( 0x00000080UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_VENDOR_UNIQUE_SUPPORTED_MASK ( ~( 0x00000080UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED_BIT ( 23 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED ( 0x00000100UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED_MASK ( ~( 0x00000100UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_B_SUPPORTED_BIT ( 22 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_B_SUPPORTED ( 0x00000200UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_CLASS_B_SUPPORTED_MASK ( ~( 0x00000200UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED_BIT ( 21 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED ( 0x00000400UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED_MASK ( ~( 0x00000400UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_SUPPORTED_BIT ( 20 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_SUPPORTED ( 0x00000800UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_SUPPORTED_MASK ( ~( 0x00000800UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_REQUIRED_BIT ( 19 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_REQUIRED ( 0x00001000UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_REQUIRED_MASK ( ~( 0x00001000UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_PERSISTENT_ACQUIRE_SUPPORTED_BIT ( 18 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_PERSISTENT_ACQUIRE_SUPPORTED ( 0x00002000UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_PERSISTENT_ACQUIRE_SUPPORTED_MASK ( ~( 0x00002000UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_IDENTIFY_CONTROL_INDEX_VALID_BIT ( 17 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_IDENTIFY_CONTROL_INDEX_VALID ( 0x00004000UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_IDENTIFY_CONTROL_INDEX_VALID_MASK ( ~( 0x00004000UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_INTERFACE_INDEX_VALID_BIT ( 16 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_INTERFACE_INDEX_VALID ( 0x00008000UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_AEM_INTERFACE_INDEX_VALID_MASK ( ~( 0x00008000UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_GENERAL_CONTROLLER_IGNORE_BIT ( 15 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_GENERAL_CONTROLLER_IGNORE ( 0x00010000UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_GENERAL_CONTROLLER_IGNORE_MASK ( ~( 0x00010000UL ) )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ENTITY_NOT_READY_BIT ( 15 )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ENTITY_NOT_READY ( 0x00020000UL )
-#define JDKSAVDECC_ADP_ENTITY_CAPABILITY_ENTITY_NOT_READY_MASK ( ~( 0x00020000UL ) )
+#define ADP_ENTITY_CAPABILITY_EFU_MODE_BIT ( 31 )
+#define ADP_ENTITY_CAPABILITY_EFU_MODE ( 0x00000001UL )
+#define ADP_ENTITY_CAPABILITY_EFU_MODE_MASK ( ~( 0x00000001UL ) )
+#define ADP_ENTITY_CAPABILITY_ADDRESS_ACCESS_SUPPORTED_BIT ( 30 )
+#define ADP_ENTITY_CAPABILITY_ADDRESS_ACCESS_SUPPORTED ( 0x00000002UL )
+#define ADP_ENTITY_CAPABILITY_ADDRESS_ACCESS_SUPPORTED_MASK ( ~( 0x00000002UL ) )
+#define ADP_ENTITY_CAPABILITY_GATEWAY_ENTITY_BIT ( 29 )
+#define ADP_ENTITY_CAPABILITY_GATEWAY_ENTITY ( 0x00000004UL )
+#define ADP_ENTITY_CAPABILITY_GATEWAY_ENTITY_MASK ( ~( 0x00000004UL ) )
+#define ADP_ENTITY_CAPABILITY_AEM_SUPPORTED_BIT ( 28 )
+#define ADP_ENTITY_CAPABILITY_AEM_SUPPORTED ( 0x00000008UL )
+#define ADP_ENTITY_CAPABILITY_AEM_SUPPORTED_MASK ( ~( 0x00000008UL ) )
+#define ADP_ENTITY_CAPABILITY_LEGACY_AVC_BIT ( 27 )
+#define ADP_ENTITY_CAPABILITY_LEGACY_AVC ( 0x00000010UL )
+#define ADP_ENTITY_CAPABILITY_LEGACY_AVC_MASK ( ~( 0x00000010UL ) )
+#define ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_SUPPORTED_BIT ( 26 )
+#define ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_SUPPORTED ( 0x00000020UL )
+#define ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_SUPPORTED_MASK ( ~( 0x00000020UL ) )
+#define ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_VALID_BIT ( 25 )
+#define ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_VALID ( 0x00000040UL )
+#define ADP_ENTITY_CAPABILITY_ASSOCIATION_ID_VALID_MASK ( ~( 0x00000040UL ) )
+#define ADP_ENTITY_CAPABILITY_VENDOR_UNIQUE_SUPPORTED_BIT ( 24 )
+#define ADP_ENTITY_CAPABILITY_VENDOR_UNIQUE_SUPPORTED ( 0x00000080UL )
+#define ADP_ENTITY_CAPABILITY_VENDOR_UNIQUE_SUPPORTED_MASK ( ~( 0x00000080UL ) )
+#define ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED_BIT ( 23 )
+#define ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED ( 0x00000100UL )
+#define ADP_ENTITY_CAPABILITY_CLASS_A_SUPPORTED_MASK ( ~( 0x00000100UL ) )
+#define ADP_ENTITY_CAPABILITY_CLASS_B_SUPPORTED_BIT ( 22 )
+#define ADP_ENTITY_CAPABILITY_CLASS_B_SUPPORTED ( 0x00000200UL )
+#define ADP_ENTITY_CAPABILITY_CLASS_B_SUPPORTED_MASK ( ~( 0x00000200UL ) )
+#define ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED_BIT ( 21 )
+#define ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED ( 0x00000400UL )
+#define ADP_ENTITY_CAPABILITY_GPTP_SUPPORTED_MASK ( ~( 0x00000400UL ) )
+#define ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_SUPPORTED_BIT ( 20 )
+#define ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_SUPPORTED ( 0x00000800UL )
+#define ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_SUPPORTED_MASK ( ~( 0x00000800UL ) )
+#define ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_REQUIRED_BIT ( 19 )
+#define ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_REQUIRED ( 0x00001000UL )
+#define ADP_ENTITY_CAPABILITY_AEM_AUTHENTICATION_REQUIRED_MASK ( ~( 0x00001000UL ) )
+#define ADP_ENTITY_CAPABILITY_AEM_PERSISTENT_ACQUIRE_SUPPORTED_BIT ( 18 )
+#define ADP_ENTITY_CAPABILITY_AEM_PERSISTENT_ACQUIRE_SUPPORTED ( 0x00002000UL )
+#define ADP_ENTITY_CAPABILITY_AEM_PERSISTENT_ACQUIRE_SUPPORTED_MASK ( ~( 0x00002000UL ) )
+#define ADP_ENTITY_CAPABILITY_AEM_IDENTIFY_CONTROL_INDEX_VALID_BIT ( 17 )
+#define ADP_ENTITY_CAPABILITY_AEM_IDENTIFY_CONTROL_INDEX_VALID ( 0x00004000UL )
+#define ADP_ENTITY_CAPABILITY_AEM_IDENTIFY_CONTROL_INDEX_VALID_MASK ( ~( 0x00004000UL ) )
+#define ADP_ENTITY_CAPABILITY_AEM_INTERFACE_INDEX_VALID_BIT ( 16 )
+#define ADP_ENTITY_CAPABILITY_AEM_INTERFACE_INDEX_VALID ( 0x00008000UL )
+#define ADP_ENTITY_CAPABILITY_AEM_INTERFACE_INDEX_VALID_MASK ( ~( 0x00008000UL ) )
+#define ADP_ENTITY_CAPABILITY_GENERAL_CONTROLLER_IGNORE_BIT ( 15 )
+#define ADP_ENTITY_CAPABILITY_GENERAL_CONTROLLER_IGNORE ( 0x00010000UL )
+#define ADP_ENTITY_CAPABILITY_GENERAL_CONTROLLER_IGNORE_MASK ( ~( 0x00010000UL ) )
+#define ADP_ENTITY_CAPABILITY_ENTITY_NOT_READY_BIT ( 15 )
+#define ADP_ENTITY_CAPABILITY_ENTITY_NOT_READY ( 0x00020000UL )
+#define ADP_ENTITY_CAPABILITY_ENTITY_NOT_READY_MASK ( ~( 0x00020000UL ) )
 
 /*@}*/
 
@@ -163,9 +166,9 @@ static inline ssize_t jdksavdecc_adpdu_common_control_header_write( struct jdksa
  * adp_controller_capabilities field - Clause 6.2.1.15  */
 /*@{*/
 
-#define JDKSAVDECC_ADP_CONTROLLER_CAPABILITY_IMPLEMENTED_BIT ( 31 )
-#define JDKSAVDECC_ADP_CONTROLLER_CAPABILITY_IMPLEMENTED ( 0x00000001UL )
-#define JDKSAVDECC_ADP_CONTROLLER_CAPABILITY_IMPLEMENTED_MASK ( ~( 0x00000001UL ) )
+#define ADP_CONTROLLER_CAPABILITY_IMPLEMENTED_BIT ( 31 )
+#define ADP_CONTROLLER_CAPABILITY_IMPLEMENTED ( 0x00000001UL )
+#define ADP_CONTROLLER_CAPABILITY_IMPLEMENTED_MASK ( ~( 0x00000001UL ) )
 
 /*@}*/
 
@@ -173,30 +176,30 @@ static inline ssize_t jdksavdecc_adpdu_common_control_header_write( struct jdksa
  * - Clause 6.2.1.12  */
 /*@{*/
 
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_IMPLEMENTED_BIT ( 15 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_IMPLEMENTED ( 0x0001 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_IMPLEMENTED_MASK ( ~0x0001 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_OTHER_SOURCE_BIT ( 6 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_OTHER_SOURCE ( 0x0200 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_OTHER_SOURCE_MASK ( ~0x0200 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_CONTROL_SOURCE_BIT ( 5 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_CONTROL_SOURCE ( 0x0400 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_CONTROL_SOURCE_MASK ( ~0x0400 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_MEDIA_CLOCK_SOURCE_BIT ( 4 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_MEDIA_CLOCK_SOURCE ( 0x0800 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_MEDIA_CLOCK_SOURCE_MASK ( ~0x0800 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_SMPTE_SOURCE_BIT ( 3 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_SMPTE_SOURCE ( 0x1000 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_SMPTE_SOURCE_MASK ( ~0x1000 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_MIDI_SOURCE_BIT ( 2 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_MIDI_SOURCE ( 0x2000 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_MIDI_SOURCE_MASK ( ~0x2000 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_AUDIO_SOURCE_BIT ( 1 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_AUDIO_SOURCE ( 0x4000 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_AUDIO_SOURCE_MASK ( ~0x4000 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_VIDEO_SOURCE_BIT ( 0 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_VIDEO_SOURCE ( 0x8000 )
-#define JDKSAVDECC_ADP_TALKER_CAPABILITY_VIDEO_SOURCE_MASK ( ~0x8000 )
+#define ADP_TALKER_CAPABILITY_IMPLEMENTED_BIT ( 15 )
+#define ADP_TALKER_CAPABILITY_IMPLEMENTED ( 0x0001 )
+#define ADP_TALKER_CAPABILITY_IMPLEMENTED_MASK ( ~0x0001 )
+#define ADP_TALKER_CAPABILITY_OTHER_SOURCE_BIT ( 6 )
+#define ADP_TALKER_CAPABILITY_OTHER_SOURCE ( 0x0200 )
+#define ADP_TALKER_CAPABILITY_OTHER_SOURCE_MASK ( ~0x0200 )
+#define ADP_TALKER_CAPABILITY_CONTROL_SOURCE_BIT ( 5 )
+#define ADP_TALKER_CAPABILITY_CONTROL_SOURCE ( 0x0400 )
+#define ADP_TALKER_CAPABILITY_CONTROL_SOURCE_MASK ( ~0x0400 )
+#define ADP_TALKER_CAPABILITY_MEDIA_CLOCK_SOURCE_BIT ( 4 )
+#define ADP_TALKER_CAPABILITY_MEDIA_CLOCK_SOURCE ( 0x0800 )
+#define ADP_TALKER_CAPABILITY_MEDIA_CLOCK_SOURCE_MASK ( ~0x0800 )
+#define ADP_TALKER_CAPABILITY_SMPTE_SOURCE_BIT ( 3 )
+#define ADP_TALKER_CAPABILITY_SMPTE_SOURCE ( 0x1000 )
+#define ADP_TALKER_CAPABILITY_SMPTE_SOURCE_MASK ( ~0x1000 )
+#define ADP_TALKER_CAPABILITY_MIDI_SOURCE_BIT ( 2 )
+#define ADP_TALKER_CAPABILITY_MIDI_SOURCE ( 0x2000 )
+#define ADP_TALKER_CAPABILITY_MIDI_SOURCE_MASK ( ~0x2000 )
+#define ADP_TALKER_CAPABILITY_AUDIO_SOURCE_BIT ( 1 )
+#define ADP_TALKER_CAPABILITY_AUDIO_SOURCE ( 0x4000 )
+#define ADP_TALKER_CAPABILITY_AUDIO_SOURCE_MASK ( ~0x4000 )
+#define ADP_TALKER_CAPABILITY_VIDEO_SOURCE_BIT ( 0 )
+#define ADP_TALKER_CAPABILITY_VIDEO_SOURCE ( 0x8000 )
+#define ADP_TALKER_CAPABILITY_VIDEO_SOURCE_MASK ( ~0x8000 )
 
 /*@}*/
 
@@ -204,30 +207,30 @@ static inline ssize_t jdksavdecc_adpdu_common_control_header_write( struct jdksa
  * capabilities field - Clause 6.2.1.14  */
 /*@{*/
 
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED_BIT ( 15 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED ( 0x0001 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_IMPLEMENTED_MASK ( ~0x0001 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_OTHER_SINK_BIT ( 6 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_OTHER_SINK ( 0x0200 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_OTHER_SINK_MASK ( ~0x0200 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_CONTROL_SINK_BIT ( 5 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_CONTROL_SINK ( 0x0400 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_CONTROL_SINK_MASK ( ~0x0400 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_MEDIA_CLOCK_SINK_BIT ( 4 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_MEDIA_CLOCK_SINK ( 0x0800 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_MEDIA_CLOCK_SINK_MASK ( ~0x0800 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_SMPTE_SINK_BIT ( 3 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_SMPTE_SINK ( 0x1000 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_SMPTE_SINK_MASK ( ~0x1000 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_MIDI_SINK_BIT ( 2 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_MIDI_SINK ( 0x2000 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_MIDI_SINK_MASK ( ~0x2000 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK_BIT ( 1 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK ( 0x4000 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_AUDIO_SINK_MASK ( ~0x4000 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_VIDEO_SINK_BIT ( 0 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_VIDEO_SINK ( 0x8000 )
-#define JDKSAVDECC_ADP_LISTENER_CAPABILITY_VIDEO_SINK_MASK ( ~0x8000 )
+#define ADP_LISTENER_CAPABILITY_IMPLEMENTED_BIT ( 15 )
+#define ADP_LISTENER_CAPABILITY_IMPLEMENTED ( 0x0001 )
+#define ADP_LISTENER_CAPABILITY_IMPLEMENTED_MASK ( ~0x0001 )
+#define ADP_LISTENER_CAPABILITY_OTHER_SINK_BIT ( 6 )
+#define ADP_LISTENER_CAPABILITY_OTHER_SINK ( 0x0200 )
+#define ADP_LISTENER_CAPABILITY_OTHER_SINK_MASK ( ~0x0200 )
+#define ADP_LISTENER_CAPABILITY_CONTROL_SINK_BIT ( 5 )
+#define ADP_LISTENER_CAPABILITY_CONTROL_SINK ( 0x0400 )
+#define ADP_LISTENER_CAPABILITY_CONTROL_SINK_MASK ( ~0x0400 )
+#define ADP_LISTENER_CAPABILITY_MEDIA_CLOCK_SINK_BIT ( 4 )
+#define ADP_LISTENER_CAPABILITY_MEDIA_CLOCK_SINK ( 0x0800 )
+#define ADP_LISTENER_CAPABILITY_MEDIA_CLOCK_SINK_MASK ( ~0x0800 )
+#define ADP_LISTENER_CAPABILITY_SMPTE_SINK_BIT ( 3 )
+#define ADP_LISTENER_CAPABILITY_SMPTE_SINK ( 0x1000 )
+#define ADP_LISTENER_CAPABILITY_SMPTE_SINK_MASK ( ~0x1000 )
+#define ADP_LISTENER_CAPABILITY_MIDI_SINK_BIT ( 2 )
+#define ADP_LISTENER_CAPABILITY_MIDI_SINK ( 0x2000 )
+#define ADP_LISTENER_CAPABILITY_MIDI_SINK_MASK ( ~0x2000 )
+#define ADP_LISTENER_CAPABILITY_AUDIO_SINK_BIT ( 1 )
+#define ADP_LISTENER_CAPABILITY_AUDIO_SINK ( 0x4000 )
+#define ADP_LISTENER_CAPABILITY_AUDIO_SINK_MASK ( ~0x4000 )
+#define ADP_LISTENER_CAPABILITY_VIDEO_SINK_BIT ( 0 )
+#define ADP_LISTENER_CAPABILITY_VIDEO_SINK ( 0x8000 )
+#define ADP_LISTENER_CAPABILITY_VIDEO_SINK_MASK ( ~0x8000 )
 
 /*@}*/
 
@@ -244,11 +247,11 @@ static inline ssize_t jdksavdecc_adpdu_common_control_header_write( struct jdksa
  *
  * @param base pointer to raw memory buffer to read from.
  * @param pos offset from base to read the field from;
- * @return the jdksavdecc_eui64 entity_model_id value
+ * @return the eui64 entity_model_id value
  */
-static inline struct jdksavdecc_eui64 jdksavdecc_adpdu_get_entity_model_id( void const *base, ssize_t pos )
+static inline struct eui64 adpdu_get_entity_model_id( void const *base, ssize_t pos )
 {
-    return jdksavdecc_eui64_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_ENTITY_MODEL_ID );
+    return pdu_eui64_get( base, pos + ADPDU_OFFSET_ENTITY_MODEL_ID );
 }
 
 /**
@@ -259,13 +262,13 @@ static inline struct jdksavdecc_eui64 jdksavdecc_adpdu_get_entity_model_id( void
  * No bounds checking of the memory buffer is done. It is the caller's
  *responsibility to pre-validate base and pos.
  *
- * @param v The jdksavdecc_eui64 entity_model_id value.
+ * @param v The eui64 entity_model_id value.
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_entity_model_id( struct jdksavdecc_eui64 v, void *base, ssize_t pos )
+static inline void adpdu_set_entity_model_id( struct eui64 v, void *base, ssize_t pos )
 {
-    jdksavdecc_eui64_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_ENTITY_MODEL_ID );
+    pdu_eui64_set( v, base, pos + ADPDU_OFFSET_ENTITY_MODEL_ID );
 }
 
 /**
@@ -280,9 +283,9 @@ static inline void jdksavdecc_adpdu_set_entity_model_id( struct jdksavdecc_eui64
  * @param pos offset from base to read the field from;
  * @return the uint32_t entity_capabilities value
  */
-static inline uint32_t jdksavdecc_adpdu_get_entity_capabilities( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_entity_capabilities( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint32_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_ENTITY_CAPABILITIES );
+    return pdu_uint32_get( base, pos + ADPDU_OFFSET_ENTITY_CAPABILITIES );
 }
 
 /**
@@ -297,9 +300,9 @@ static inline uint32_t jdksavdecc_adpdu_get_entity_capabilities( void const *bas
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_entity_capabilities( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_entity_capabilities( uint32_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint32_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_ENTITY_CAPABILITIES );
+    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_ENTITY_CAPABILITIES );
 }
 
 /**
@@ -314,9 +317,9 @@ static inline void jdksavdecc_adpdu_set_entity_capabilities( uint32_t v, void *b
  * @param pos offset from base to read the field from;
  * @return the uint16_t talker_stream_sources value
  */
-static inline uint16_t jdksavdecc_adpdu_get_talker_stream_sources( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_talker_stream_sources( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint16_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_TALKER_STREAM_SOURCES );
+    return pdu_uint16_get( base, pos + ADPDU_OFFSET_TALKER_STREAM_SOURCES );
 }
 
 /**
@@ -331,9 +334,9 @@ static inline uint16_t jdksavdecc_adpdu_get_talker_stream_sources( void const *b
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_talker_stream_sources( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_talker_stream_sources( uint16_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint16_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_TALKER_STREAM_SOURCES );
+    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_TALKER_STREAM_SOURCES );
 }
 
 /**
@@ -348,9 +351,9 @@ static inline void jdksavdecc_adpdu_set_talker_stream_sources( uint16_t v, void 
  * @param pos offset from base to read the field from;
  * @return the uint16_t talker_capabilities value
  */
-static inline uint16_t jdksavdecc_adpdu_get_talker_capabilities( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_talker_capabilities( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint16_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_TALKER_CAPABILITIES );
+    return pdu_uint16_get( base, pos + ADPDU_OFFSET_TALKER_CAPABILITIES );
 }
 
 /**
@@ -365,9 +368,9 @@ static inline uint16_t jdksavdecc_adpdu_get_talker_capabilities( void const *bas
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_talker_capabilities( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_talker_capabilities( uint16_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint16_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_TALKER_CAPABILITIES );
+    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_TALKER_CAPABILITIES );
 }
 
 /**
@@ -382,9 +385,9 @@ static inline void jdksavdecc_adpdu_set_talker_capabilities( uint16_t v, void *b
  * @param pos offset from base to read the field from;
  * @return the uint16_t listener_stream_sinks value
  */
-static inline uint16_t jdksavdecc_adpdu_get_listener_stream_sinks( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_listener_stream_sinks( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint16_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_LISTENER_STREAM_SINKS );
+    return pdu_uint16_get( base, pos + ADPDU_OFFSET_LISTENER_STREAM_SINKS );
 }
 
 /**
@@ -399,9 +402,9 @@ static inline uint16_t jdksavdecc_adpdu_get_listener_stream_sinks( void const *b
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_listener_stream_sinks( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_listener_stream_sinks( uint16_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint16_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_LISTENER_STREAM_SINKS );
+    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_LISTENER_STREAM_SINKS );
 }
 
 /**
@@ -416,9 +419,9 @@ static inline void jdksavdecc_adpdu_set_listener_stream_sinks( uint16_t v, void 
  * @param pos offset from base to read the field from;
  * @return the uint16_t listener_capabilities value
  */
-static inline uint16_t jdksavdecc_adpdu_get_listener_capabilities( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_listener_capabilities( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint16_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_LISTENER_CAPABILITIES );
+    return pdu_uint16_get( base, pos + ADPDU_OFFSET_LISTENER_CAPABILITIES );
 }
 
 /**
@@ -433,9 +436,9 @@ static inline uint16_t jdksavdecc_adpdu_get_listener_capabilities( void const *b
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_listener_capabilities( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_listener_capabilities( uint16_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint16_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_LISTENER_CAPABILITIES );
+    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_LISTENER_CAPABILITIES );
 }
 
 /**
@@ -450,9 +453,9 @@ static inline void jdksavdecc_adpdu_set_listener_capabilities( uint16_t v, void 
  * @param pos offset from base to read the field from;
  * @return the uint32_t controller_capabilities value
  */
-static inline uint32_t jdksavdecc_adpdu_get_controller_capabilities( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_controller_capabilities( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint32_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_CONTROLLER_CAPABILITIES );
+    return pdu_uint32_get( base, pos + ADPDU_OFFSET_CONTROLLER_CAPABILITIES );
 }
 
 /**
@@ -467,9 +470,9 @@ static inline uint32_t jdksavdecc_adpdu_get_controller_capabilities( void const 
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_controller_capabilities( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_controller_capabilities( uint32_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint32_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_CONTROLLER_CAPABILITIES );
+    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_CONTROLLER_CAPABILITIES );
 }
 
 /**
@@ -484,9 +487,9 @@ static inline void jdksavdecc_adpdu_set_controller_capabilities( uint32_t v, voi
  * @param pos offset from base to read the field from;
  * @return the uint32_t available_index value
  */
-static inline uint32_t jdksavdecc_adpdu_get_available_index( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_available_index( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint32_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_AVAILABLE_INDEX );
+    return pdu_uint32_get( base, pos + ADPDU_OFFSET_AVAILABLE_INDEX );
 }
 
 /**
@@ -501,9 +504,9 @@ static inline uint32_t jdksavdecc_adpdu_get_available_index( void const *base, s
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_available_index( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_available_index( uint32_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint32_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_AVAILABLE_INDEX );
+    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_AVAILABLE_INDEX );
 }
 
 /**
@@ -516,11 +519,11 @@ static inline void jdksavdecc_adpdu_set_available_index( uint32_t v, void *base,
  *
  * @param base pointer to raw memory buffer to read from.
  * @param pos offset from base to read the field from;
- * @return the struct jdksavdecc_eui64 as_grandmaster_id value
+ * @return the struct eui64 as_grandmaster_id value
  */
-static inline struct jdksavdecc_eui64 jdksavdecc_adpdu_get_gptp_grandmaster_id( void const *base, ssize_t pos )
+static inline struct eui64 adpdu_get_gptp_grandmaster_id( void const *base, ssize_t pos )
 {
-    return jdksavdecc_eui64_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_GPTP_GRANDMASTER_ID );
+    return pdu_eui64_get( base, pos + ADPDU_OFFSET_GPTP_GRANDMASTER_ID );
 }
 
 /**
@@ -531,13 +534,13 @@ static inline struct jdksavdecc_eui64 jdksavdecc_adpdu_get_gptp_grandmaster_id( 
  * No bounds checking of the memory buffer is done. It is the caller's
  *responsibility to pre-validate base and pos.
  *
- * @param v The struct jdksavdecc_eui64 as_grandmaster_id value.
+ * @param v The struct eui64 as_grandmaster_id value.
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_gptp_grandmaster_id( struct jdksavdecc_eui64 v, void *base, ssize_t pos )
+static inline void adpdu_set_gptp_grandmaster_id( struct eui64 v, void *base, ssize_t pos )
 {
-    jdksavdecc_eui64_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_GPTP_GRANDMASTER_ID );
+    pdu_eui64_set( v, base, pos + ADPDU_OFFSET_GPTP_GRANDMASTER_ID );
 }
 
 /**
@@ -552,9 +555,9 @@ static inline void jdksavdecc_adpdu_set_gptp_grandmaster_id( struct jdksavdecc_e
  * @param pos offset from base to read the field from;
  * @return the uint8_t gptp_domain_number value
  */
-static inline uint8_t jdksavdecc_adpdu_get_gptp_domain_number( void const *base, ssize_t pos )
+static inline uint8_t adpdu_get_gptp_domain_number( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint8_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_GPTP_DOMAIN_NUMBER );
+    return pdu_uint8_get( base, pos + ADPDU_OFFSET_GPTP_DOMAIN_NUMBER );
 }
 
 /**
@@ -569,9 +572,9 @@ static inline uint8_t jdksavdecc_adpdu_get_gptp_domain_number( void const *base,
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_gptp_domain_number( uint8_t v, void *base, ssize_t pos )
+static inline void adpdu_set_gptp_domain_number( uint8_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint8_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_GPTP_DOMAIN_NUMBER );
+    pdu_uint8_set( v, base, pos + ADPDU_OFFSET_GPTP_DOMAIN_NUMBER );
 }
 
 /**
@@ -586,9 +589,9 @@ static inline void jdksavdecc_adpdu_set_gptp_domain_number( uint8_t v, void *bas
  * @param pos offset from base to read the field from;
  * @return the uint32_t reserved0 value (24 bits)
  */
-static inline uint32_t jdksavdecc_adpdu_get_reserved0( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_reserved0( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint32_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_RESERVED0 ) & 0x00ffffffUL;
+    return pdu_uint32_get( base, pos + ADPDU_OFFSET_RESERVED0 ) & 0x00ffffffUL;
 }
 
 /**
@@ -603,12 +606,12 @@ static inline uint32_t jdksavdecc_adpdu_get_reserved0( void const *base, ssize_t
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_reserved0( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_reserved0( uint32_t v, void *base, ssize_t pos )
 {
-    uint32_t top = jdksavdecc_uint8_get( base, pos );
+    uint32_t top = pdu_uint8_get( base, pos );
     v &= 0x00ffffffUL;
     v |= top << 24;
-    jdksavdecc_uint32_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_RESERVED0 );
+    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_RESERVED0 );
 }
 
 /**
@@ -623,9 +626,9 @@ static inline void jdksavdecc_adpdu_set_reserved0( uint32_t v, void *base, ssize
  * @param pos offset from base to read the field from;
  * @return the uint16_t identify_control_index value
  */
-static inline uint16_t jdksavdecc_adpdu_get_identify_control_index( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_identify_control_index( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint16_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX );
+    return pdu_uint16_get( base, pos + ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX );
 }
 
 /**
@@ -640,9 +643,9 @@ static inline uint16_t jdksavdecc_adpdu_get_identify_control_index( void const *
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_identify_control_index( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_identify_control_index( uint16_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint16_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX );
+    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX );
 }
 
 /**
@@ -657,9 +660,9 @@ static inline void jdksavdecc_adpdu_set_identify_control_index( uint16_t v, void
  * @param pos offset from base to read the field from;
  * @return the uint16_t interface_index value
  */
-static inline uint16_t jdksavdecc_adpdu_get_interface_index( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_interface_index( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint16_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_INTERFACE_INDEX );
+    return pdu_uint16_get( base, pos + ADPDU_OFFSET_INTERFACE_INDEX );
 }
 
 /**
@@ -674,9 +677,9 @@ static inline uint16_t jdksavdecc_adpdu_get_interface_index( void const *base, s
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_interface_index( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_interface_index( uint16_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint16_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_INTERFACE_INDEX );
+    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_INTERFACE_INDEX );
 }
 
 /**
@@ -689,11 +692,11 @@ static inline void jdksavdecc_adpdu_set_interface_index( uint16_t v, void *base,
  *
  * @param base pointer to raw memory buffer to read from.
  * @param pos offset from base to read the field from;
- * @return the struct jdksavdecc_eui64 association_id value
+ * @return the struct eui64 association_id value
  */
-static inline struct jdksavdecc_eui64 jdksavdecc_adpdu_get_association_id( void const *base, ssize_t pos )
+static inline struct eui64 adpdu_get_association_id( void const *base, ssize_t pos )
 {
-    return jdksavdecc_eui64_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_ASSOCIATION_ID );
+    return pdu_eui64_get( base, pos + ADPDU_OFFSET_ASSOCIATION_ID );
 }
 
 /**
@@ -704,13 +707,13 @@ static inline struct jdksavdecc_eui64 jdksavdecc_adpdu_get_association_id( void 
  * No bounds checking of the memory buffer is done. It is the caller's
  *responsibility to pre-validate base and pos.
  *
- * @param v The struct jdksavdecc_eui64 association_id value.
+ * @param v The struct eui64 association_id value.
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_association_id( struct jdksavdecc_eui64 v, void *base, ssize_t pos )
+static inline void adpdu_set_association_id( struct eui64 v, void *base, ssize_t pos )
 {
-    jdksavdecc_eui64_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_ASSOCIATION_ID );
+    pdu_eui64_set( v, base, pos + ADPDU_OFFSET_ASSOCIATION_ID );
 }
 
 /**
@@ -725,9 +728,9 @@ static inline void jdksavdecc_adpdu_set_association_id( struct jdksavdecc_eui64 
  * @param pos offset from base to read the field from;
  * @return the uint32_t reserved1 value
  */
-static inline uint32_t jdksavdecc_adpdu_get_reserved1( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_reserved1( void const *base, ssize_t pos )
 {
-    return jdksavdecc_uint32_get( base, pos + JDKSAVDECC_ADPDU_OFFSET_RESERVED1 );
+    return pdu_uint32_get( base, pos + ADPDU_OFFSET_RESERVED1 );
 }
 
 /**
@@ -742,9 +745,9 @@ static inline uint32_t jdksavdecc_adpdu_get_reserved1( void const *base, ssize_t
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void jdksavdecc_adpdu_set_reserved1( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_reserved1( uint32_t v, void *base, ssize_t pos )
 {
-    jdksavdecc_uint32_set( v, base, pos + JDKSAVDECC_ADPDU_OFFSET_RESERVED1 );
+    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_RESERVED1 );
 }
 
 /*@}*/
@@ -753,10 +756,10 @@ static inline void jdksavdecc_adpdu_set_reserved1( uint32_t v, void *base, ssize
 /*@{*/
 
 /// ADPDU - Clause 6.2.1
-struct jdksavdecc_adpdu
+struct adpdu
 {
-    struct jdksavdecc_adpdu_common_control_header header;
-    struct jdksavdecc_eui64 entity_model_id;
+    struct adpdu_common_control_header header;
+    struct eui64 entity_model_id;
     uint32_t entity_capabilities;
     uint16_t talker_stream_sources;
     uint16_t talker_capabilities;
@@ -764,17 +767,17 @@ struct jdksavdecc_adpdu
     uint16_t listener_capabilities;
     uint32_t controller_capabilities;
     uint32_t available_index;
-    struct jdksavdecc_eui64 gptp_grandmaster_id;
+    struct eui64 gptp_grandmaster_id;
     uint8_t gptp_domain_number;
     uint32_t reserved0;
     uint16_t identify_control_index;
     uint16_t interface_index;
-    struct jdksavdecc_eui64 association_id;
+    struct eui64 association_id;
     uint32_t reserved1;
 };
 
 /**
- * Extract the jdksavdecc_adpdu structure from a network buffer.
+ * Extract the adpdu structure from a network buffer.
  *
  *
  *
@@ -787,33 +790,33 @@ struct jdksavdecc_adpdu
  * @return -1 if the buffer length is insufficent, otherwise the offset of the
  *octet following the structure in the buffer.
  */
-static inline ssize_t jdksavdecc_adpdu_read( struct jdksavdecc_adpdu *p, void const *base, ssize_t pos, size_t len )
+static inline ssize_t adpdu_read( struct adpdu *p, void const *base, ssize_t pos, size_t len )
 {
-    ssize_t r = jdksavdecc_validate_range( pos, len, JDKSAVDECC_ADPDU_LEN );
+    ssize_t r = pdu_validate_range( pos, len, ADPDU_LEN );
     if ( r >= 0 )
     {
-        jdksavdecc_adpdu_common_control_header_read( &p->header, base, pos, len );
-        p->entity_model_id = jdksavdecc_adpdu_get_entity_model_id( base, pos );
-        p->entity_capabilities = jdksavdecc_adpdu_get_entity_capabilities( base, pos );
-        p->talker_stream_sources = jdksavdecc_adpdu_get_talker_stream_sources( base, pos );
-        p->talker_capabilities = jdksavdecc_adpdu_get_talker_capabilities( base, pos );
-        p->listener_stream_sinks = jdksavdecc_adpdu_get_listener_stream_sinks( base, pos );
-        p->listener_capabilities = jdksavdecc_adpdu_get_listener_capabilities( base, pos );
-        p->controller_capabilities = jdksavdecc_adpdu_get_controller_capabilities( base, pos );
-        p->available_index = jdksavdecc_adpdu_get_available_index( base, pos );
-        p->gptp_grandmaster_id = jdksavdecc_adpdu_get_gptp_grandmaster_id( base, pos );
-        p->gptp_domain_number = jdksavdecc_adpdu_get_gptp_domain_number( base, pos );
-        p->identify_control_index = jdksavdecc_adpdu_get_identify_control_index( base, pos );
-        p->interface_index = jdksavdecc_adpdu_get_interface_index( base, pos );
-        p->reserved0 = jdksavdecc_adpdu_get_reserved0( base, pos );
-        p->association_id = jdksavdecc_adpdu_get_association_id( base, pos );
-        p->reserved1 = jdksavdecc_adpdu_get_reserved1( base, pos );
+        adpdu_common_control_header_read( &p->header, base, pos, len );
+        p->entity_model_id = adpdu_get_entity_model_id( base, pos );
+        p->entity_capabilities = adpdu_get_entity_capabilities( base, pos );
+        p->talker_stream_sources = adpdu_get_talker_stream_sources( base, pos );
+        p->talker_capabilities = adpdu_get_talker_capabilities( base, pos );
+        p->listener_stream_sinks = adpdu_get_listener_stream_sinks( base, pos );
+        p->listener_capabilities = adpdu_get_listener_capabilities( base, pos );
+        p->controller_capabilities = adpdu_get_controller_capabilities( base, pos );
+        p->available_index = adpdu_get_available_index( base, pos );
+        p->gptp_grandmaster_id = adpdu_get_gptp_grandmaster_id( base, pos );
+        p->gptp_domain_number = adpdu_get_gptp_domain_number( base, pos );
+        p->identify_control_index = adpdu_get_identify_control_index( base, pos );
+        p->interface_index = adpdu_get_interface_index( base, pos );
+        p->reserved0 = adpdu_get_reserved0( base, pos );
+        p->association_id = adpdu_get_association_id( base, pos );
+        p->reserved1 = adpdu_get_reserved1( base, pos );
     }
     return r;
 }
 
 /**
- * Store the jdksavdecc_adpdu structure to a network buffer.
+ * Store the adpdu structure to a network buffer.
  *
  *
  *
@@ -826,27 +829,27 @@ static inline ssize_t jdksavdecc_adpdu_read( struct jdksavdecc_adpdu *p, void co
  * @return -1 if the buffer length is insufficent, otherwise the offset of the
  *octet following the structure in the buffer.
  */
-static inline ssize_t jdksavdecc_adpdu_write( struct jdksavdecc_adpdu const *p, void *base, size_t pos, size_t len )
+static inline ssize_t adpdu_write( struct adpdu const *p, void *base, size_t pos, size_t len )
 {
-    ssize_t r = jdksavdecc_validate_range( pos, len, JDKSAVDECC_ADPDU_LEN );
+    ssize_t r = pdu_validate_range( pos, len, ADPDU_LEN );
     if ( r >= 0 )
     {
-        jdksavdecc_adpdu_common_control_header_write( &p->header, base, pos, len );
-        jdksavdecc_adpdu_set_entity_model_id( p->entity_model_id, base, pos );
-        jdksavdecc_adpdu_set_entity_capabilities( p->entity_capabilities, base, pos );
-        jdksavdecc_adpdu_set_talker_stream_sources( p->talker_stream_sources, base, pos );
-        jdksavdecc_adpdu_set_talker_capabilities( p->talker_capabilities, base, pos );
-        jdksavdecc_adpdu_set_listener_stream_sinks( p->listener_stream_sinks, base, pos );
-        jdksavdecc_adpdu_set_listener_capabilities( p->listener_capabilities, base, pos );
-        jdksavdecc_adpdu_set_controller_capabilities( p->controller_capabilities, base, pos );
-        jdksavdecc_adpdu_set_available_index( p->available_index, base, pos );
-        jdksavdecc_adpdu_set_gptp_grandmaster_id( p->gptp_grandmaster_id, base, pos );
-        jdksavdecc_adpdu_set_gptp_domain_number( p->gptp_domain_number, base, pos );
-        jdksavdecc_adpdu_set_reserved0( p->reserved0, base, pos );
-        jdksavdecc_adpdu_set_identify_control_index( p->identify_control_index, base, pos );
-        jdksavdecc_adpdu_set_interface_index( p->interface_index, base, pos );
-        jdksavdecc_adpdu_set_association_id( p->association_id, base, pos );
-        jdksavdecc_adpdu_set_reserved1( p->reserved1, base, pos );
+        adpdu_common_control_header_write( &p->header, base, pos, len );
+        adpdu_set_entity_model_id( p->entity_model_id, base, pos );
+        adpdu_set_entity_capabilities( p->entity_capabilities, base, pos );
+        adpdu_set_talker_stream_sources( p->talker_stream_sources, base, pos );
+        adpdu_set_talker_capabilities( p->talker_capabilities, base, pos );
+        adpdu_set_listener_stream_sinks( p->listener_stream_sinks, base, pos );
+        adpdu_set_listener_capabilities( p->listener_capabilities, base, pos );
+        adpdu_set_controller_capabilities( p->controller_capabilities, base, pos );
+        adpdu_set_available_index( p->available_index, base, pos );
+        adpdu_set_gptp_grandmaster_id( p->gptp_grandmaster_id, base, pos );
+        adpdu_set_gptp_domain_number( p->gptp_domain_number, base, pos );
+        adpdu_set_reserved0( p->reserved0, base, pos );
+        adpdu_set_identify_control_index( p->identify_control_index, base, pos );
+        adpdu_set_interface_index( p->interface_index, base, pos );
+        adpdu_set_association_id( p->association_id, base, pos );
+        adpdu_set_reserved1( p->reserved1, base, pos );
     }
     return r;
 }
@@ -855,6 +858,4 @@ static inline ssize_t jdksavdecc_adpdu_write( struct jdksavdecc_adpdu const *p, 
 
 /*@}*/
 
-#ifdef __cplusplus
-}
-#endif
+#endif /* ADPDU_H_ */

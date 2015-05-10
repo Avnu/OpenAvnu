@@ -59,16 +59,6 @@ void eui64_copy(struct eui64 *self, struct eui64 const *other);
 int eui64_compare(struct eui64 const *self,
                 struct eui64 const *other);
 
-ssize_t eui64_read(struct eui64 *host_value, void const *base,
-                 ssize_t pos, size_t len);
-
-struct eui64 eui64_get(void const *base, ssize_t pos);
-
-ssize_t eui64_write(struct eui64 const *host_value, void *base,
-                  ssize_t pos, size_t len);
-
-void eui64_set(struct eui64 v, void *base, ssize_t pos);
-
 int eui64_is_unset(struct eui64 v);
 
 int eui64_is_set(struct eui64 v);

@@ -31,8 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef ACMP_CONTROLLER_H_
 #define ACMP_CONTROLLER_H_
 
-#include "pdu.h"
-#include "avtp.h"
 #include "acmpdu.h"
 
 struct acmp_controller_stream_source;
@@ -184,10 +182,10 @@ struct acmp_controller_signals {
 
 struct acmp_controller {
     /** The list of messages that the controller can receive */
-	struct acmp_controller_slots slots;
+    struct acmp_controller_slots incoming_slots;
 
     /** The list of signals that the controller can send */
-	struct acmp_controller_signals *signals;
+    struct acmp_controller_signals *outgoing_signals;
 
 	enum {
 		ACMP_CONTROLLER_STOPPED,

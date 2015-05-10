@@ -119,11 +119,11 @@ ssize_t frame_write( struct frame const *p, void *base, ssize_t pos, size_t len 
     return r;
 }
 
-void frame_init(frame *p)
+void frame_init(struct frame *p)
 {
     p->time = 0;
-    pdu_eui48_init( &p->dest_address );
-    pdu_eui48_init( &p->src_address );
+    eui48_init( &p->dest_address );
+    eui48_init( &p->src_address );
     p->ethertype = 0;
     p->length = 0;
     p->tpid = 0;

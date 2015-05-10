@@ -136,16 +136,30 @@ void pdu_double_set(double v, void *base, ssize_t pos);
 
 /** \addtogroup eui48 EUI48 */
 /*@{*/
-uint64_t pdu_eui48_get(void const *base, ssize_t pos );
+struct eui48 pdu_eui48_get(void const *base, ssize_t pos );
 
-void pdu_eui48_set(uint64_t v, void *base, ssize_t pos );
+void pdu_eui48_set(struct eui48 v, void *base, ssize_t pos );
+
+ssize_t pdu_eui48_read(struct eui48 *host_value, void const *base,
+                 ssize_t pos, size_t len);
+
+ssize_t pdu_eui48_write(struct eui48 const *host_value, void *base,
+                  ssize_t pos, size_t len);
+
 /*@}*/
 
 /** \addtogroup eui64 EUI64 */
 /*@{*/
-uint64_t pdu_eui64_get(void const *base, ssize_t pos );
+struct eui64 pdu_eui64_get(void const *base, ssize_t pos );
 
-void pdu_eui64_set(uint64_t v, void *base, ssize_t pos );
+void pdu_eui64_set(struct eui64 v, void *base, ssize_t pos );
+
+ssize_t pdu_eui64_read(struct eui64 *host_value, void const *base,
+                 ssize_t pos, size_t len);
+
+ssize_t pdu_eui64_write(struct eui64 const *host_value, void *base,
+                  ssize_t pos, size_t len);
+
 /*@}*/
 
 

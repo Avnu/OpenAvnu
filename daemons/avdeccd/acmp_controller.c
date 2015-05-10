@@ -49,8 +49,8 @@ void acmp_controller_init(struct acmp_controller *self,
 			  int max_connections,
 			  struct acmp_controller_connection *stream_connections)
 {
-	self->slots = acmp_controller_slots_table;
-	self->signals = 0;
+    self->incoming_slots = acmp_controller_slots_table;
+    self->outgoing_signals = 0;
 	self->state = ACMP_CONTROLLER_STOPPED;
 	self->max_stream_sources = max_stream_sources;
 	self->num_stream_sources = 0;
@@ -67,8 +67,8 @@ void acmp_controller_init(struct acmp_controller *self,
 void acmp_controller_terminate(struct acmp_controller_slots *self_)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
-	if (self->signals) {
-		self_->disconnect_signals(self_, self->signals);
+    if (self->outgoing_signals) {
+        self_->disconnect_signals(self_, self->outgoing_signals);
 	}
 }
 
@@ -77,7 +77,7 @@ void acmp_controller_connect_signals(struct acmp_controller_slots *self_, struct
 				     *destination_signals)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
-	self->signals = destination_signals;
+    self->outgoing_signals = destination_signals;
 	destination_signals->acmp_controller_connected(destination_signals,
 						       self_);
 }
@@ -88,7 +88,7 @@ void acmp_controller_disconnect_signals(struct acmp_controller_slots *self_, str
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
 	destination_signals->acmp_controller_disconnected(destination_signals);
-	self->signals = 0;
+    self->outgoing_signals = 0;
 }
 
 /** Ask the object to start processing */
@@ -98,8 +98,8 @@ void acmp_controller_start(struct acmp_controller_slots *self_)
 	if (ACMP_CONTROLLER_STOPPED == self->state) {
 		/* TODO: Initialize state machines */
 		self->state = ACMP_CONTROLLER_STARTED;
-		if (self->signals) {
-			self->signals->acmp_controller_started(self->signals);
+        if (self->outgoing_signals) {
+            self->outgoing_signals->acmp_controller_started(self->outgoing_signals);
 		}
 	}
 }
@@ -112,8 +112,8 @@ void acmp_controller_stop(struct acmp_controller_slots *self_)
 	if (ACMP_CONTROLLER_STARTED == self->state) {
 		/* TODO: Halt state machines */
 		self->state = ACMP_CONTROLLER_STOPPED;
-		if (self->signals) {
-			self->signals->acmp_controller_stopped(self->signals);
+        if (self->outgoing_signals) {
+            self->outgoing_signals->acmp_controller_stopped(self->outgoing_signals);
 		}
 	}
 }

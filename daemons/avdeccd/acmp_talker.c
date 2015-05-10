@@ -38,16 +38,16 @@ void acmp_talker_stream_source_init(struct acmp_talker_stream_source *self,
 {
 	self->context = context;
 	self->talker_unique_id = talker_unique_id;
-	pdu_eui48_init(&self->destination_mac_address);
-	pdu_eui64_init(&self->stream_id);
+    eui48_init(&self->destination_mac_address);
+    eui64_init(&self->stream_id);
 	self->flags = 0;
 	self->stream_vlan_id = 0;
 	acmp_talker_stream_source_clear_listeners(self);
 }
 
 void acmp_talker_stream_source_update(struct acmp_talker_stream_source *self,
-				      uint64_t new_stream_id,
-				      uint64_t new_destination_mac_address,
+                      struct eui64 new_stream_id,
+                      struct eui48 new_destination_mac_address,
 				      uint16_t new_stream_vlan_id)
 {
 	self->stream_id = new_stream_id;
@@ -62,13 +62,13 @@ void acmp_talker_stream_source_clear_listeners(struct acmp_talker_stream_source
 
 	self->connection_count = 0;
 	for (i = 0; i < ACMP_TALKER_MAX_LISTENERS_PER_STREAM; ++i) {
-		pdu_eui64_init(&self->listener_entity_id[i]);
+        eui64_init(&self->listener_entity_id[i]);
 		self->listener_unique_id[i] = 0;
 	}
 }
 
 bool acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source
-					    *self, uint64_t listener_entity_id,
+                        *self, struct eui64 listener_entity_id,
 					    uint16_t listener_unique_id)
 {
 	bool r = false;
@@ -84,14 +84,14 @@ bool acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source
 
 bool acmp_talker_stream_source_remove_listener(struct acmp_talker_stream_source
 					       * self,
-					       uint64_t listener_entity_id,
+                           struct eui64 listener_entity_id,
 					       uint16_t listener_unique_id)
 {
 	bool r = false;
 	int i;
 	for (i = 0; i < self->connection_count; ++i) {
 		if (self->listener_unique_id[i] == listener_unique_id
-		    && pdu_eui64_compare(&self->listener_entity_id[i],
+            && eui64_compare(&self->listener_entity_id[i],
 				     &listener_entity_id) == 0) {
 			/* Found it. Replace it with the last one in the list if there is one and it isn't this one */
 			if (self->connection_count > 0) {
@@ -102,7 +102,7 @@ bool acmp_talker_stream_source_remove_listener(struct acmp_talker_stream_source
 					self->listener_unique_id[i] =
 					    self->listener_unique_id[last_item];
 					/* and erase the old last item so debugging is nicer */
-					pdu_eui64_init(&self->listener_entity_id
+                    eui64_init(&self->listener_entity_id
 						   [last_item]);
 					self->listener_unique_id[i] = 0;
 				}

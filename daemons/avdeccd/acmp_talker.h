@@ -31,9 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef ACMP_TALKER_H_
 #define ACMP_TALKER_H_
 
-#include "pdu.h"
-#include "avtp.h"
 #include "acmpdu.h"
+#include "srp_info.h"
 
 struct acmp_talker_signals;
 
@@ -57,7 +56,7 @@ struct acmp_talker_slots {
 						  self,
 						  struct acmp_talker_signals *
 						  sender,
-						  struct srp_info_talker *
+                          struct srp_info_first_value_talker *
 						  srp_info);
 };
 
@@ -75,7 +74,7 @@ struct acmp_talker_signals {
 
 	void (*acmp_talker_start_request) (struct acmp_talker_signals * self,
 					   struct acmp_talker_slots * source,
-					   struct srp_info_talker * srp_info);
+                       struct srp_info_first_value_talker * srp_info);
 
 	void (*acmp_talker_listener_added) (struct acmp_talker_signals * self,
 					    struct acmp_talker_slots * source,
@@ -122,12 +121,12 @@ struct acmp_talker_stream_source {
     /**
      * @brief The stream sources's currently assigned destination_mac_address, or FF:FF:FF:FF:FF:FF if none assigned.
      */
-	uint64_t destination_mac_address;
+    struct eui48 destination_mac_address;
 
     /**
      * @brief The stream source's currently assigned stream_id, or FF:FF:FF:FF:FF:FF:FF:FF is none assigned
      */
-	uint64_t stream_id;
+    struct eui64 stream_id;
 
     /**
      * @brief The current talker stream flags, See IEEE Std 1722.1-2013 Clause 8.2.1.17 and ACMP_FLAG_*
@@ -148,7 +147,7 @@ struct acmp_talker_stream_source {
     /**
      * @brief The current list the Entity ID's of the listeners that are registered to listen via ACMP
      */
-	uint64_t listener_entity_id[ACMP_TALKER_MAX_LISTENERS_PER_STREAM];
+    struct eui64 listener_entity_id[ACMP_TALKER_MAX_LISTENERS_PER_STREAM];
 
     /**
      * @brief The current list of listener unique ID's for each listener in listener_entity_id
@@ -173,8 +172,8 @@ void acmp_talker_stream_source_init(struct acmp_talker_stream_source *self,
  * @param new_stream_vlan_id
  */
 void acmp_talker_stream_source_update(struct acmp_talker_stream_source *self,
-				      uint64_t new_stream_id,
-				      uint64_t new_destination_mac_address,
+                      struct eui64 new_stream_id,
+                      struct eui48 new_destination_mac_address,
 				      uint16_t new_stream_vlan_id);
 
 /**
@@ -192,7 +191,7 @@ void acmp_talker_stream_source_clear_listeners(struct acmp_talker_stream_source
  * @return true on success, false if there is no room to add it
  */
 bool acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source
-					    *self, uint64_t listener_entity_id,
+                        *self, struct eui64 listener_entity_id,
 					    uint16_t listener_unique_id);
 
 /**
@@ -208,7 +207,7 @@ bool acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source
  */
 bool acmp_talker_stream_source_remove_listener(struct acmp_talker_stream_source
 					       *self,
-					       uint64_t listener_entity_id,
+                           struct eui64 listener_entity_id,
 					       uint16_t listener_unique_id);
 
 struct acmp_talker {

@@ -33,12 +33,12 @@
 #include <stdlib.h>
 #include "acmpdu.h"
 
-static inline ssize_t acmpdu_read(struct acmpdu *p, void const *base,
+ssize_t acmpdu_read(struct acmpdu *p, void const *base,
 				  ssize_t pos, size_t len)
 {
 	ssize_t r = pdu_validate_range(pos, len, ACMPDU_LEN);
 	if (r >= 0) {
-		acmpdu_common_control_header_read(&p->header, base, pos, len);
+        avtp_common_control_header_read((struct avtp_common_control_header *)p, base, pos, len);
 		p->controller_entity_id =
 		    acmpdu_get_controller_entity_id(base, pos);
 		p->talker_entity_id = acmpdu_get_talker_entity_id(base, pos);
@@ -57,12 +57,12 @@ static inline ssize_t acmpdu_read(struct acmpdu *p, void const *base,
 	return r;
 }
 
-static inline ssize_t acmpdu_write(struct acmpdu const *p, void *base,
+ssize_t acmpdu_write(struct acmpdu const *p, void *base,
 				   size_t pos, size_t len)
 {
 	ssize_t r = pdu_validate_range(pos, len, ACMPDU_LEN);
 	if (r >= 0) {
-		acmpdu_common_control_header_write(&p->header, base, pos, len);
+        avtp_common_control_header_write((struct avtp_common_control_header const *)p, base, pos, len);
 		acmpdu_set_controller_entity_id(p->controller_entity_id, base,
 						pos);
 		acmpdu_set_talker_entity_id(p->talker_entity_id, base, pos);

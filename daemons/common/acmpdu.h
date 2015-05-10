@@ -33,7 +33,7 @@
 #ifndef ACMPDU_H_
 #define ACMPDU_H_
 
-#include "avtp.h"
+#include "avdecc.h"
 
 /** \addtogroup acmp ACMP - Clause 8 */
 /*@{*/
@@ -137,7 +137,7 @@
 #define ACMP_STATUS_INCOMPATIBLE_REQUEST ( 17 )
 
 /// New: The AVDECC Listener is being asked to connect to something that it cannot listen to, e.g. it is being asked to
-/// listen to it's own AVDECC Talker stream.
+/// listen to its own AVDECC Talker stream.
 #define ACMP_STATUS_LISTENER_INVALID_CONNECTION ( 18 )
 #define ACMP_STATUS_NOT_SUPPORTED ( 31 )
 
@@ -158,10 +158,10 @@
  * @param pos offset from base to read the field from;
  * @return the uint64_t controller_entity_id value
  */
-static inline uint64_t acmpdu_get_controller_entity_id(void const *base,
+static inline struct eui64 acmpdu_get_controller_entity_id(void const *base,
 						       ssize_t pos)
 {
-	return pdu_eui64_get(base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
+    return pdu_eui64_get(base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
 }
 
 /**
@@ -176,10 +176,10 @@ static inline uint64_t acmpdu_get_controller_entity_id(void const *base,
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_controller_entity_id(uint64_t v, void *base,
+static inline void acmpdu_set_controller_entity_id(struct eui64 v, void *base,
 						   ssize_t pos)
 {
-	pdu_eui64_set(v, base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
+    pdu_eui64_set(v, base, pos + ACMPDU_OFFSET_CONTROLLER_ENTITY_ID);
 }
 
 /**
@@ -194,10 +194,10 @@ static inline void acmpdu_set_controller_entity_id(uint64_t v, void *base,
  * @param pos offset from base to read the field from;
  * @return the uint64_t talker_entity_id value
  */
-static inline uint64_t acmpdu_get_talker_entity_id(void const *base,
+static inline struct eui64 acmpdu_get_talker_entity_id(void const *base,
 						   ssize_t pos)
 {
-	return pdu_eui64_get(base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
+    return pdu_eui64_get(base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
 }
 
 /**
@@ -212,10 +212,10 @@ static inline uint64_t acmpdu_get_talker_entity_id(void const *base,
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_talker_entity_id(uint64_t v, void *base,
+static inline void acmpdu_set_talker_entity_id(struct eui64 v, void *base,
 					       ssize_t pos)
 {
-	pdu_eui64_set(v, base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
+    pdu_eui64_set(v, base, pos + ACMPDU_OFFSET_TALKER_ENTITY_ID);
 }
 
 /**
@@ -230,7 +230,7 @@ static inline void acmpdu_set_talker_entity_id(uint64_t v, void *base,
  * @param pos offset from base to read the field from;
  * @return the uint64_t listener_entity_id value
  */
-static inline uint64_t acmpdu_get_listener_entity_id(void const *base,
+static inline struct eui64 acmpdu_get_listener_entity_id(void const *base,
 						     ssize_t pos)
 {
 	return pdu_eui64_get(base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID);
@@ -248,7 +248,7 @@ static inline uint64_t acmpdu_get_listener_entity_id(void const *base,
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void acmpdu_set_listener_entity_id(uint64_t v, void *base,
+static inline void acmpdu_set_listener_entity_id(struct eui64 v, void *base,
 						 ssize_t pos)
 {
 	pdu_eui64_set(v, base, pos + ACMPDU_OFFSET_LISTENER_ENTITY_ID);
@@ -341,7 +341,7 @@ static inline void acmpdu_set_listener_unique_id(uint16_t v, void *base,
 static inline struct eui48 acmpdu_get_stream_dest_mac(void const *base,
 						      ssize_t pos)
 {
-    return eui48_get(base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
+    return pdu_eui48_get(base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
 }
 
 /**
@@ -359,7 +359,7 @@ static inline struct eui48 acmpdu_get_stream_dest_mac(void const *base,
 static inline void acmpdu_set_stream_dest_mac(struct eui48 v, void *base,
 					      ssize_t pos)
 {
-    eui48_set(v, base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
+    pdu_eui48_set(v, base, pos + ACMPDU_OFFSET_STREAM_DEST_MAC);
 }
 
 /**
@@ -542,21 +542,20 @@ static inline void acmpdu_set_reserved(uint16_t v, void *base, ssize_t pos)
 
 /// ACMPDU - Clause 8.2.1
 struct acmpdu {
-	uint32_t cd:1;
 	uint32_t subtype:AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
 	uint32_t sv:1;
 	uint32_t version:AVTP_SUBTYPE_DATA_VERSION_WIDTH;
 	uint32_t message_type:AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
 	uint32_t status:AVTP_SUBTYPE_DATA_STATUS_WIDTH;
-	 uint32_t
+    uint32_t
 	    control_data_length:AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
-	uint64_t stream_id;
-	uint64_t controller_entity_id;
-	uint64_t talker_entity_id;
-	uint64_t listener_entity_id;
+    struct eui64 stream_id;
+    struct eui64 controller_entity_id;
+    struct eui64 talker_entity_id;
+    struct eui64 listener_entity_id;
 	uint16_t talker_unique_id;
 	uint16_t listener_unique_id;
-	uint64_t stream_dest_mac;
+    struct eui48 stream_dest_mac;
 	uint16_t connection_count;
 	uint16_t sequence_id;
 	uint16_t flags;
