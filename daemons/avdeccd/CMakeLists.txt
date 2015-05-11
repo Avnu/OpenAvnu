@@ -2,6 +2,8 @@ cmake_minimum_required (VERSION 2.8)
 project (avdeccd)
 enable_testing()
 
+set( CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-Wall -Wpedantic" )
+
 include_directories( . "../common" )
 file(GLOB AVDECCD_SRC 
    ./acmp_controller.c 
@@ -34,7 +36,6 @@ file(GLOB AVDECCD_SRC
    ../common/srp_encoding.h
    ../common/srp_encoding.c
    ../common/srp.h
-   ../common/srp.c
    ../common/eui48.c
    ../common/eui48.h 
    ../common/eui64.c 
