@@ -98,7 +98,7 @@ struct adp_adv {
 	struct adpdu adpdu;
 
 	/// The system time in microseconds that the last ADPDU was sent
-    timestamp_in_microseconds last_time_in_microseconds;
+	timestamp_in_microseconds last_time_in_microseconds;
 
 	/// A flag used to notify the state machine to trigger the sending of a
 	/// discover message immediately
