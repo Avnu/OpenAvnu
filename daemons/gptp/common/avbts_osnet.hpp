@@ -53,8 +53,7 @@ class LinkLayerAddress:public InterfaceLabel {
 	uint8_t addr[ETHER_ADDR_OCTETS];
  public:
 	/**
-	 * Simple constructor. It does not provide
-	 * any manipulation on the internal Ethernet address
+	 * Default constructor
 	 */
 	LinkLayerAddress() {
 	};
@@ -154,7 +153,7 @@ class InterfaceName: public InterfaceLabel {
 	char *name;
  public:
 	/**
-	 * Simple constructor. Does not do anything
+	 * Default constructor
 	 */
 	InterfaceName() { }
 	/**
@@ -264,51 +263,54 @@ class factory_name_t {
 
 /**
  * Enumeration net_result:
- * 	- net_tffail
+ * 	- net_trfail
  * 	- net_fatal
  * 	- net_succeed
  */
 typedef enum { net_trfail, net_fatal, net_succeed } net_result;
 
 /**
- * Provides an abstraction for the Network Interface
+ * Provides a generic network interface
  */
 class OSNetworkInterface {
  public:
 	 /**
-	  * @brief  Sends data on as specific network interface
-	  * @param  addr Mac address \todo: destination or source?
-	  * @param  payload Data to send
-	  * @param  length Length of data
-	  * @param  timestamp Timestamp flag - true, has timestamp.
+	  * @brief Sends data on as specific network interface
+	  * @param addr Destination Mac Address
+	  * @param payload Data to send
+	  * @param length Length of data
+	  * @param timestamp Timestamp flag: TRUE = has timestamp, FALSE otherwise
 	  * @return net_result enumeration
 	  */
-	virtual net_result send
-	(LinkLayerAddress * addr, uint8_t * payload, size_t length,
-	 bool timestamp) = 0;
+	 virtual net_result send
+		 (LinkLayerAddress * addr, uint8_t * payload, size_t length,
+		  bool timestamp) = 0;
 
-	/**
-	 * @brief  Receives data
-	 * @param  addr Mac address
-	 * @param  payload [out] Payload received
-	 * @param  length [out] Received length
-	 * @return net_result enumeration
-	 */
-	virtual net_result nrecv
-	(LinkLayerAddress * addr, uint8_t * payload, size_t & length) = 0;
+	 /**
+	  * @brief  Receives data
+	  * @param  addr Destination Mac Address
+	  * @param  payload [out] Payload received
+	  * @param  length [out] Received length
+	  * @return net_result enumeration
+	  */
+	 virtual net_result nrecv
+		 (LinkLayerAddress * addr, uint8_t * payload, size_t & length) = 0;
 
-	/**
-	 * @brief Get Link Layer address (mac address)
-	 * @param addr [out] Link Layer address
-	 * @return void
-	 */
-	virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
+	 /**
+	  * @brief Get Link Layer address (mac address)
+	  * @param addr [out] Link Layer address
+	  * @return void
+	  */
+	 virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
 
-	/**
-	 * @brief  \todo I still dont understand how that is used
-	 */
-	virtual unsigned getPayloadOffset() = 0;
-	virtual ~OSNetworkInterface() = 0;
+	 /**
+	  * @brief  Provides generic method for getting the payload offset
+	  */
+	 virtual unsigned getPayloadOffset() = 0;
+	 /**
+	  * Native support for polimorphic destruction
+	  */
+	 virtual ~OSNetworkInterface() = 0;
 };
 
 inline OSNetworkInterface::~OSNetworkInterface() {}
@@ -324,7 +326,8 @@ class OSNetworkInterfaceFactory {
  public:
 	 /**
 	  * @brief  Registers network factory
-	  * @param  factory Factory name
+	  * @param id
+	  * @param factory Factory name
 	  * @return TRUE success, FALSE when could not register it.
 	  */
 	static bool registerFactory

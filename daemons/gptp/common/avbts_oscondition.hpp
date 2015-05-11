@@ -34,24 +34,63 @@
 #ifndef AVBTS_OSSIGNAL_HPP
 #define AVBTS_OSSIGNAL_HPP
 
+/**
+ * Provides a generic interface for OS's locking condition
+ */
 class OSCondition {
 private:
 	int wait_count;
 public:
+	/**
+	 * @brief Waits until a condition is met
+	 * @return TRUE after waiting
+	 */
 	virtual bool wait() = 0;
+
+	/**
+	 * @brief Waits for lock
+	 * @return TRUE after waiting
+	 */
 	virtual bool wait_prelock() = 0;
+
+	/**
+	 * @brief Sends a signal to unblock other threads
+	 * @return TRUE
+	 */
 	virtual bool signal() = 0;
+
+	/**
+	 * Deletes previously declared flags
+	 */
 	virtual ~OSCondition() = 0;
 protected:
+	/**
+	 * Default constructor. Initializes internal variables
+	 */
 	OSCondition() {
 		wait_count = 0;
 	};
+
+	/**
+	 * @brief  Counts up waiting condition
+	 * @return void
+	 */
 	void up() {
 		++wait_count;
-	} 
+	}
+
+	/**
+	 * @brief  Conds down waiting condition
+	 * @return void
+	 */
 	void down() {
 		--wait_count;
-	} 
+	}
+
+	/**
+	 * @brief  Checks if OS is waiting
+	 * @return TRUE if up counter is greater than zero. FALSE otherwise.
+	 */
 	bool waiting() {
 		return wait_count > 0;
 	}
@@ -59,9 +98,20 @@ protected:
 
 inline OSCondition::~OSCondition() { }
 
+/*
+ * Provides factory design patter for OS Condition class
+ */
 class OSConditionFactory {
 public:
+	/**
+	 * @brief  Creates OSCondition class
+	 * @return Pointer to OSCondition object
+	 */
 	virtual OSCondition * createCondition() = 0;
+
+	/*
+	 * Destroys OSCondition objects
+	 */
 	virtual ~OSConditionFactory() = 0;
 };
 

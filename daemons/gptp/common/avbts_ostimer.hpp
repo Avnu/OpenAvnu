@@ -34,17 +34,40 @@
 #ifndef AVBTS_OSTIMER_HPP
 #define AVBTS_OSTIMER_HPP
 
+/**
+ * OSTimer generic interface
+ */
 class OSTimer {
 public:
+	/**
+	 * @brief Sleep for a given amount of time
+	 * @param  micro Time in micro-seconds
+	 * @return Implmentation specific
+	 */
 	virtual unsigned long sleep(unsigned long micro) = 0;
+
+	/*
+	 * Virtual destructor
+	 */
 	virtual ~OSTimer() = 0;
 };
 
 inline OSTimer::~OSTimer() {}
 
+/*
+ * Provides factory design patter for OSTimer class
+ */
 class OSTimerFactory {
 public:
+	/**
+	 * @brief Creates the OSTimer
+	 * @return Pointer to OSTimer object
+	 */
 	virtual OSTimer * createTimer() = 0;
+
+	/*
+	 * Destroys the OSTimer previsouly created
+	 */
 	virtual ~OSTimerFactory() = 0;
 };
 

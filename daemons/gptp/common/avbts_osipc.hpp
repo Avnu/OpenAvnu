@@ -38,6 +38,9 @@
 #include <ptptypes.hpp>
 #include <avbts_port.hpp>
 
+/*
+ * Generic interface for Inter Process Communication arguments
+ */
 class OS_IPC_ARG {
 public:
 	virtual ~OS_IPC_ARG() = 0;
@@ -45,14 +48,36 @@ public:
 
 inline OS_IPC_ARG::~OS_IPC_ARG () { }
 
+/*
+ * Generic interface for Inter Process Communication
+ */
 class OS_IPC {
 public:
+	/**
+	 * @brief  Initializes the IPC
+	 * @return Implementation dependent
+	 */
     virtual bool init( OS_IPC_ARG *arg = NULL ) = 0;
+
+	/**
+	 * @brief  Updates IPC values
+	 * @param ml_phoffset Master to local phase offset
+	 * @param ls_phoffset Local to slave phase offset
+	 * @param ml_freqoffset Master to local frequency offset
+	 * @param sync_count Count of syncs
+	 * @param pdelay_count Count of pdelays
+	 * @param port_state Port's state
+	 * @return Implementation dependent.
+	 */
     virtual bool update
 	( int64_t  ml_phoffset,   int64_t ls_phoffset,
 	  FrequencyRatio  ml_freqoffset, FrequencyRatio ls_freq_offset,
 	  uint64_t local_time, uint32_t sync_count, uint32_t pdelay_count,
 	  PortState port_state ) = 0;
+
+	/*
+	 * Destroys IPC
+	 */
 	virtual ~OS_IPC() = 0;
 };
 

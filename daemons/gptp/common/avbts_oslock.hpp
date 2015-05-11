@@ -36,25 +36,60 @@
 typedef enum { oslock_recursive, oslock_nonrecursive } OSLockType;
 typedef enum { oslock_ok, oslock_self, oslock_held, oslock_fail } OSLockResult;
 
+/**
+ * Provides a generic mechanism for locking critical sections.
+ */
 class OSLock {
- public:
-	virtual OSLockResult lock() = 0;
-	virtual OSLockResult unlock() = 0;
-	virtual OSLockResult trylock() = 0;
- protected:
-	OSLock() { }
-	bool initialize(OSLockType type) {
-		return false;
-	}
-	virtual ~OSLock() = 0;
+	public:
+		/**
+		 * @brief  Locks a critical section
+		 * @return OSLockResult enumeration
+		 */
+		virtual OSLockResult lock() = 0;
+
+		/**
+		 * @brief  Unlocks a critical section
+		 * @return OSLockResult enumeration
+		 */
+		virtual OSLockResult unlock() = 0;
+
+		/**
+		 * @brief  Tries locking a critical section
+		 * @return OSLockResult enumeration
+		 */
+		virtual OSLockResult trylock() = 0;
+	protected:
+		/**
+		 * Default constructor
+		 */
+		OSLock() { }
+
+		/**
+		 * @brief  Initializes locking mechanism
+		 * @param  type Enumeration OSLockType
+		 * @return FALSE
+		 */
+		bool initialize(OSLockType type) {
+			return false;
+		}
+		virtual ~OSLock() = 0;
 };
 
 inline OSLock::~OSLock() {}
 
+/*
+ * Provides a factory pattern for OSLock
+ */
 class OSLockFactory {
-public:
-	virtual OSLock * createLock(OSLockType type) = 0;
-	virtual ~OSLockFactory() = 0;
+	public:
+
+		/**
+		 * @brief  Creates locking mechanism
+		 * @param  type Enumeration OSLockType
+		 * @return Pointer to an enumeration of type OSLock
+		 */
+		virtual OSLock * createLock(OSLockType type) = 0;
+		virtual ~OSLockFactory() = 0;
 };
 
 inline OSLockFactory::~OSLockFactory () {}
