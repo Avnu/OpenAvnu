@@ -89,10 +89,10 @@
 #define AVTP_SUBTYPE_DATA_STREAM_SEQUENCE_NUM_WIDTH (8)
 #define AVTP_SUBTYPE_DATA_STREAM_TU_WIDTH (1)
 
-static inline ssize_t avtp_read_subtype(uint8_t *host_value, void const *base,
-					ssize_t pos, size_t len)
+static inline int avtp_read_subtype(uint8_t *host_value, void const *base,
+				    int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 1);
+	int r = pdu_validate_range(pos, len, 1);
 	if (r >= 0) {
 		uint8_t const *b = (uint8_t const *)base;
 		*host_value = b[pos + 0];
@@ -101,10 +101,10 @@ static inline ssize_t avtp_read_subtype(uint8_t *host_value, void const *base,
 	return r;
 }
 
-static inline ssize_t avtp_write_subtype(uint8_t const *host_value, void *base,
-					 ssize_t pos, size_t len)
+static inline int avtp_write_subtype(uint8_t const *host_value, void *base,
+				     int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 1);
+	int r = pdu_validate_range(pos, len, 1);
 	if (r >= 0) {
 		uint8_t *b = (uint8_t *)base;
 		b[pos + 0] = *host_value;
@@ -112,75 +112,70 @@ static inline ssize_t avtp_write_subtype(uint8_t const *host_value, void *base,
 	return r;
 }
 
-static inline uint8_t avtp_subtype_data_get_subtype(void const *base,
-						    size_t pos)
+static inline uint8_t avtp_subtype_data_get_subtype(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
 	return *p;
 }
 
-static inline void avtp_subtype_data_set_subtype(uint8_t v, void *base,
-						 size_t pos)
+static inline void avtp_subtype_data_set_subtype(uint8_t v, void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[0] = v;
 }
 
-static inline bool subtype_data_get_sv(void const *base, size_t pos)
+static inline int subtype_data_get_sv(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
-	return (bool)(((p[1] >> 7) & 1) != 0);
+	return (int)(((p[1] >> 7) & 1) != 0);
 }
 
-static inline void avtp_subtype_data_set_sv(bool v, void *base, size_t pos)
+static inline void avtp_subtype_data_set_sv(int v, void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[1] = (p[1] & 0x7f) | (v ? 0x80 : 0x00);
 }
 
-static inline uint8_t avtp_subtype_data_get_version(void const *base,
-						    size_t pos)
+static inline uint8_t avtp_subtype_data_get_version(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
 	return (p[1] & 0x70) >> 4;
 }
 
-static inline void avtp_subtype_data_set_version(uint8_t v, void *base,
-						 size_t pos)
+static inline void avtp_subtype_data_set_version(uint8_t v, void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[1] = (p[1] & 0x8f) | ((v & 0x7) << 4);
 }
 
 static inline uint8_t avtp_subtype_data_get_control_data(void const *base,
-							 size_t pos)
+							 int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
 	return (p[1] & 0xf) >> 0;
 }
 
-static inline void
-avtp_avtp_subtype_data_set_control_data(uint8_t v, void *base, size_t pos)
+static inline void avtp_avtp_subtype_data_set_control_data(uint8_t v,
+							   void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[1] = (p[1] & 0xf0) | ((v & 0xf) << 0);
 }
 
-static inline uint8_t avtp_subtype_data_get_status(void const *base, size_t pos)
+static inline uint8_t avtp_subtype_data_get_status(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
 	return (p[2] & 0xf8) >> 3;
 }
 
-static inline void avtp_subtype_data_set_status(uint8_t v, void *base,
-						size_t pos)
+static inline void avtp_subtype_data_set_status(uint8_t v, void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[2] = (p[2] & 0x07) | ((v & 0x1f) << 3);
 }
 
 static inline uint16_t
-avtp_subtype_data_get_control_data_length(void const *base, size_t pos)
+avtp_subtype_data_get_control_data_length(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
 	uint16_t v = ((uint16_t)p[2]) + (((uint16_t)p[3]) & 0x3ff);
@@ -188,70 +183,70 @@ avtp_subtype_data_get_control_data_length(void const *base, size_t pos)
 }
 
 static inline void
-avtp_subtype_data_set_control_data_length(uint16_t v, void *base, size_t pos)
+avtp_subtype_data_set_control_data_length(uint16_t v, void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[2] = (p[2] & 0xf8) + (uint8_t)((v >> 8) & 0x07);
 	p[3] = (uint8_t)(v & 0xff);
 }
 
-static inline bool avtp_subtype_data_get_mr(void const *base, size_t pos)
+static inline int avtp_subtype_data_get_mr(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
-	return (bool)((p[1] >> 3) & 1);
+	return (int)((p[1] >> 3) & 1);
 }
 
-static inline void avtp_subtype_data_set_mr(bool v, void *base, size_t pos)
+static inline void avtp_subtype_data_set_mr(int v, void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[1] = (p[1] & 0xf7) | (v ? 0x08 : 0x00);
 }
 
-static inline bool avtp_subtype_data_get_gv(void const *base, size_t pos)
+static inline int avtp_subtype_data_get_gv(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
-	return (bool)((p[1] >> 1) & 1);
+	return (int)((p[1] >> 1) & 1);
 }
 
-static inline void avtp_subtype_data_set_gv(bool v, void *base, size_t pos)
+static inline void avtp_subtype_data_set_gv(int v, void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[1] = (p[1] & 0xfd) | (v ? 0x02 : 0x00);
 }
 
-static inline bool avtp_subtype_data_get_tv(void const *base, size_t pos)
+static inline int avtp_subtype_data_get_tv(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
-	return (bool)((p[1] >> 0) & 1);
+	return (int)((p[1] >> 0) & 1);
 }
 
-static inline void avtp_subtype_data_set_tv(bool v, void *base, size_t pos)
+static inline void avtp_subtype_data_set_tv(int v, void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[1] = (p[1] & 0xfe) | (v ? 0x01 : 0x00);
 }
 
 static inline uint8_t avtp_subtype_data_get_sequence_num(void const *base,
-							 size_t pos)
+							 int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
 	return p[2];
 }
 
 static inline void avtp_subtype_data_set_sequence_num(uint8_t v, void *base,
-						      size_t pos)
+						      int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[2] = v;
 }
 
-static inline bool avtp_subtype_data_get_tu(void const *base, size_t pos)
+static inline int avtp_subtype_data_get_tu(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
-	return (bool)((p[3] >> 0) & 1);
+	return (int)((p[3] >> 0) & 1);
 }
 
-static inline void avtp_subtype_data_set_tu(bool v, void *base, size_t pos)
+static inline void avtp_subtype_data_set_tu(int v, void *base, int pos)
 {
 	uint8_t *p = ((uint8_t *)base) + pos;
 	p[3] = (p[3] & 0xfe) | (v ? 0x01 : 0x00);
@@ -268,67 +263,66 @@ static inline void avtp_subtype_data_set_tu(bool v, void *base, size_t pos)
 #define AVTP_COMMON_CONTROL_HEADER_LEN (12)
 
 static inline uint8_t avtp_common_control_header_get_subtype(void const *base,
-							     size_t pos)
+							     int pos)
 {
 	return avtp_subtype_data_get_subtype(base, pos);
 }
 
 static inline void avtp_common_control_header_set_subtype(uint8_t v, void *base,
-							  size_t pos)
+							  int pos)
 {
 	avtp_subtype_data_set_subtype(v, base, pos);
 }
 
 static inline uint32_t avtp_common_control_header_get_sv(void const *base,
-							 size_t pos)
+							 int pos)
 {
 	return subtype_data_get_sv(base, pos);
 }
 
-static inline void avtp_common_control_header_set_sv(bool v, void *base,
-						     size_t pos)
+static inline void avtp_common_control_header_set_sv(int v, void *base, int pos)
 {
 	avtp_subtype_data_set_sv(v, base, pos);
 }
 
 static inline uint32_t avtp_common_control_header_get_version(void const *base,
-							      size_t pos)
+							      int pos)
 {
 	return avtp_subtype_data_get_version(base, pos);
 }
 
 static inline void avtp_common_control_header_set_version(uint8_t v, void *base,
-							  size_t pos)
+							  int pos)
 {
 	avtp_subtype_data_set_version(v, base, pos);
 }
 
 static inline uint8_t
-avtp_common_control_header_get_control_data(void const *base, size_t pos)
+avtp_common_control_header_get_control_data(void const *base, int pos)
 {
 	return avtp_subtype_data_get_control_data(base, pos);
 }
 
 static inline void
-avtp_common_control_header_set_control_data(uint8_t v, void *base, size_t pos)
+avtp_common_control_header_set_control_data(uint8_t v, void *base, int pos)
 {
 	avtp_avtp_subtype_data_set_control_data(v, base, pos);
 }
 
 static inline uint32_t avtp_common_control_header_get_status(void const *base,
-							     size_t pos)
+							     int pos)
 {
 	return avtp_subtype_data_get_status(base, pos);
 }
 
 static inline void avtp_common_control_header_set_status(uint8_t v, void *base,
-							 size_t pos)
+							 int pos)
 {
 	avtp_subtype_data_set_status(v, base, pos);
 }
 
 static inline uint16_t
-avtp_common_control_header_get_control_data_length(void const *base, size_t pos)
+avtp_common_control_header_get_control_data_length(void const *base, int pos)
 {
 	uint8_t const *p = ((uint8_t const *)base) + pos;
 	return (((uint16_t)(p[2] & 0x07)) << 8) + p[3];
@@ -336,13 +330,13 @@ avtp_common_control_header_get_control_data_length(void const *base, size_t pos)
 
 static inline void
 avtp_common_control_header_set_control_data_length(uint16_t v, void *base,
-						   size_t pos)
+						   int pos)
 {
 	avtp_subtype_data_set_control_data_length(v, base, pos);
 }
 
 static inline uint64_t
-avtp_common_control_header_get_stream_id(void const *base, size_t pos)
+avtp_common_control_header_get_stream_id(void const *base, int pos)
 {
 	const uint8_t *pb = (const uint8_t *)base;
 	const struct eui64 *p = (const struct eui64 *)&pb
@@ -351,8 +345,8 @@ avtp_common_control_header_get_stream_id(void const *base, size_t pos)
 	return eui64_convert_to_uint64(p);
 }
 
-static inline void
-avtp_common_control_header_set_stream_id(uint64_t v, void *base, size_t pos)
+static inline void avtp_common_control_header_set_stream_id(uint64_t v,
+							    void *base, int pos)
 {
 	uint8_t *pb = (uint8_t *)base;
 	struct eui64 *p =
@@ -373,12 +367,10 @@ struct avtp_common_control_header {
 	uint64_t stream_id;
 };
 
-ssize_t avtp_common_control_header_read(struct avtp_common_control_header *p,
-					void const *base, ssize_t pos,
-					size_t len);
-ssize_t
-avtp_common_control_header_write(struct avtp_common_control_header const *p,
-				 void *base, ssize_t pos, size_t len);
+int avtp_common_control_header_read(struct avtp_common_control_header *p,
+				    void const *base, int pos, int len);
+int avtp_common_control_header_write(struct avtp_common_control_header const *p,
+				     void *base, int pos, int len);
 
 /*@}*/
 
@@ -395,7 +387,7 @@ avtp_common_control_header_write(struct avtp_common_control_header const *p,
 #define AVTP_COMMON_STREAM_HEADER_LEN (24)
 
 static inline uint32_t
-avtp_common_stream_header_get_subtype_data(void const *base, size_t pos)
+avtp_common_stream_header_get_subtype_data(void const *base, int pos)
 {
 	uint32_t subtype_data;
 	pdu_uint32_read(&subtype_data, base,
@@ -406,153 +398,143 @@ avtp_common_stream_header_get_subtype_data(void const *base, size_t pos)
 
 static inline void
 avtp_common_stream_header_set_subtype_data(uint32_t subtype_data, void *base,
-					   size_t pos)
+					   int pos)
 {
 	pdu_uint32_set(subtype_data, base,
 		       pos + AVTP_COMMON_STREAM_HEADER_OFFSET_SUBTYPE_DATA);
 }
 
 static inline uint8_t avtp_common_stream_header_get_subtype(void const *base,
-							    size_t pos)
+							    int pos)
 {
 	return avtp_subtype_data_get_subtype(base, pos);
 }
 
 static inline void avtp_common_stream_header_set_subtype(uint8_t v, void *base,
-							 size_t pos)
+							 int pos)
 {
 	avtp_subtype_data_set_subtype(v, base, pos);
 }
 
 static inline uint32_t avtp_common_stream_header_get_sv(void const *base,
-							size_t pos)
+							int pos)
 {
 	return subtype_data_get_sv(base, pos);
 }
 
-static inline void avtp_common_stream_header_set_sv(bool v, void *base,
-						    size_t pos)
+static inline void avtp_common_stream_header_set_sv(int v, void *base, int pos)
 {
 	avtp_subtype_data_set_sv(v, base, pos);
 }
 
 static inline uint32_t avtp_common_stream_header_get_version(void const *base,
-							     size_t pos)
+							     int pos)
 {
 	return avtp_subtype_data_get_version(base, pos);
 }
 
 static inline void avtp_common_stream_header_set_version(uint8_t v, void *base,
-							 size_t pos)
+							 int pos)
 {
 	avtp_subtype_data_set_version(v, base, pos);
 }
 
-static inline bool avtp_common_stream_header_get_mr(void const *base,
-						    size_t pos)
+static inline int avtp_common_stream_header_get_mr(void const *base, int pos)
 {
 	return avtp_subtype_data_get_mr(base, pos);
 }
 
-static inline void avtp_common_stream_header_set_mr(bool v, void *base,
-						    size_t pos)
+static inline void avtp_common_stream_header_set_mr(int v, void *base, int pos)
 {
 	avtp_subtype_data_set_mr(v, base, pos);
 }
 
-static inline bool avtp_common_stream_header_get_gv(void const *base,
-						    size_t pos)
+static inline int avtp_common_stream_header_get_gv(void const *base, int pos)
 {
 	return avtp_subtype_data_get_gv(base, pos);
 }
 
-static inline void avtp_common_stream_header_set_gv(bool v, void *base,
-						    size_t pos)
+static inline void avtp_common_stream_header_set_gv(int v, void *base, int pos)
 {
 	avtp_subtype_data_set_gv(v, base, pos);
 }
 
-static inline bool avtp_common_stream_header_get_tv(void const *base,
-						    size_t pos)
+static inline int avtp_common_stream_header_get_tv(void const *base, int pos)
 {
 	return avtp_subtype_data_get_tv(base, pos);
 }
 
-static inline void avtp_common_stream_header_set_tv(bool v, void *base,
-						    size_t pos)
+static inline void avtp_common_stream_header_set_tv(int v, void *base, int pos)
 {
 	avtp_subtype_data_set_tv(v, base, pos);
 }
 
 static inline uint8_t
-avtp_common_stream_header_get_sequence_num(void const *base, size_t pos)
+avtp_common_stream_header_get_sequence_num(void const *base, int pos)
 {
 	return avtp_subtype_data_get_sequence_num(base, pos);
 }
 
 static inline void
-avtp_common_stream_header_set_sequence_num(uint8_t v, void *base, size_t pos)
+avtp_common_stream_header_set_sequence_num(uint8_t v, void *base, int pos)
 {
 	avtp_subtype_data_set_sequence_num(v, base, pos);
 }
 
-static inline bool avtp_common_stream_header_get_tu(void const *base,
-						    size_t pos)
+static inline int avtp_common_stream_header_get_tu(void const *base, int pos)
 {
 	return avtp_subtype_data_get_tu(base, pos);
 }
 
-static inline void avtp_common_stream_header_set_tu(bool v, void *base,
-						    size_t pos)
+static inline void avtp_common_stream_header_set_tu(int v, void *base, int pos)
 {
 	avtp_subtype_data_set_tu(v, base, pos);
 }
 
 static inline struct eui64
-avtp_common_stream_header_get_stream_id(void const *base, size_t pos)
+avtp_common_stream_header_get_stream_id(void const *base, int pos)
 {
 	return pdu_eui64_get(base,
 			     pos + AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_ID);
 }
 
-static inline void
-avtp_common_stream_header_set_stream_id(struct eui64 v, void *base, size_t pos)
+static inline void avtp_common_stream_header_set_stream_id(struct eui64 v,
+							   void *base, int pos)
 {
 	pdu_eui64_set(v, base,
 		      pos + AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_ID);
 }
 
 static inline uint32_t
-avtp_common_stream_header_get_avtp_timestamp(void const *base, size_t pos)
+avtp_common_stream_header_get_avtp_timestamp(void const *base, int pos)
 {
 	return pdu_uint32_get(base,
 			      pos + AVTP_COMMON_STREAM_HEADER_OFFSET_TIMESTAMP);
 }
 
 static inline void
-avtp_common_stream_header_set_avtp_timestamp(uint32_t v, void *base, size_t pos)
+avtp_common_stream_header_set_avtp_timestamp(uint32_t v, void *base, int pos)
 {
 	pdu_uint32_set(v, base,
 		       pos + AVTP_COMMON_STREAM_HEADER_OFFSET_TIMESTAMP);
 }
 
 static inline uint32_t
-avtp_common_stream_header_get_gateway_info(void const *base, size_t pos)
+avtp_common_stream_header_get_gateway_info(void const *base, int pos)
 {
 	return pdu_uint32_get(
 	    base, pos + AVTP_COMMON_STREAM_HEADER_OFFSET_GATEWAY_INFO);
 }
 
-static inline void avtp_common_stream_header_set_avtp_gateway_info(uint32_t v,
-								   void *base,
-								   size_t pos)
+static inline void
+avtp_common_stream_header_set_avtp_gateway_info(uint32_t v, void *base, int pos)
 {
 	pdu_uint32_set(v, base,
 		       pos + AVTP_COMMON_STREAM_HEADER_OFFSET_GATEWAY_INFO);
 }
 
 static inline uint16_t
-avtp_common_stream_header_get_stream_data_length(void const *base, size_t pos)
+avtp_common_stream_header_get_stream_data_length(void const *base, int pos)
 {
 	return pdu_uint16_get(
 	    base, pos + AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_DATA_LENGTH);
@@ -560,7 +542,7 @@ avtp_common_stream_header_get_stream_data_length(void const *base, size_t pos)
 
 static inline void avtp_common_stream_header_set_stream_data_length(uint16_t v,
 								    void *base,
-								    size_t pos)
+								    int pos)
 {
 	pdu_uint16_set(
 	    v, base, pos + AVTP_COMMON_STREAM_HEADER_OFFSET_STREAM_DATA_LENGTH);
@@ -568,7 +550,7 @@ static inline void avtp_common_stream_header_set_stream_data_length(uint16_t v,
 
 static inline uint16_t
 avtp_common_stream_header_get_protocol_specific_header(void const *base,
-						       size_t pos)
+						       int pos)
 {
 	return pdu_uint16_get(
 	    base,
@@ -577,7 +559,7 @@ avtp_common_stream_header_get_protocol_specific_header(void const *base,
 
 static inline void
 avtp_common_stream_header_set_protocol_specific_header(uint16_t v, void *base,
-						       size_t pos)
+						       int pos)
 {
 	pdu_uint16_set(
 	    v, base,

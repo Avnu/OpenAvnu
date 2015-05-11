@@ -66,8 +66,7 @@ struct adp_adv_slots {
 				uint8_t new_gptp_domain_id);
 
 	void (*network_port_link_status_changed)(struct adp_adv_slots *self,
-						 struct eui48 mac_addr,
-						 bool up);
+						 struct eui48 mac_addr, int up);
 
 	void (*start)(struct adp_adv_slots *self);
 
@@ -89,8 +88,8 @@ struct adp_adv {
 
 	struct adp_adv_signals *adv_signals;
 
-	bool stopped;
-	bool early_tick;
+	int stopped;
+	int early_tick;
 	void *context;
 	struct frame_sender *frame_send;
 
@@ -102,15 +101,15 @@ struct adp_adv {
 
 	/// A flag used to notify the state machine to trigger the sending of a
 	/// discover message immediately
-	bool do_send_entity_discover;
+	int do_send_entity_discover;
 
 	/// A flag used to notify the state machine to trigger the sending of an
 	/// entity available message immediately
-	bool do_send_entity_available;
+	int do_send_entity_available;
 
 	/// A flag used to notify the state machine to send departing message
 	/// instead of available
-	bool do_send_entity_departing;
+	int do_send_entity_departing;
 
 	/// The function that the adp calls if it received an entity available
 	/// or entity available
@@ -123,25 +122,25 @@ struct adp_adv {
 
 /// Initialize an adp with the specified context and frame_send function and
 /// received_entity_available_or_departing function
-bool adp_adv_init(struct adp_adv *self, void *context,
-		  void (*frame_send)(struct adp_adv *self, void *context,
-				     uint8_t const *buf, uint16_t len),
-		  void (*received_entity_available_or_departing)(
-		      struct adp_adv *self, void *context,
-		      void const *source_address, int source_address_len,
-		      struct adpdu *adpdu));
+int adp_adv_init(struct adp_adv *self, void *context,
+		 void (*frame_send)(struct adp_adv *self, void *context,
+				    uint8_t const *buf, uint16_t len),
+		 void (*received_entity_available_or_departing)(
+		     struct adp_adv *self, void *context,
+		     void const *source_address, int source_address_len,
+		     struct adpdu *adpdu));
 
 /// Destroy any resources that the adp uses
 void adp_adv_terminate(struct adp_adv *self);
 
 /// Receive an ADPU and process it
-bool adp_receive(struct adp_adv *self,
-		 timestamp_in_microseconds time_in_microseconds,
-		 void const *source_address, int source_address_len,
-		 uint8_t const *buf, uint16_t len);
+int adp_receive(struct adp_adv *self,
+		timestamp_in_microseconds time_in_microseconds,
+		void const *source_address, int source_address_len,
+		uint8_t const *buf, uint16_t len);
 
 /// Notify the state machine that time has passed. Call asap if early_tick is
-/// true.
+/// 1.
 void adp_tick(struct adp_adv *self,
 	      timestamp_in_microseconds cur_time_in_micros);
 

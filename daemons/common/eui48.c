@@ -3,7 +3,7 @@
 
 void eui48_init(struct eui48 *self)
 {
-	size_t i;
+	int i;
 	for (i = 0; i < sizeof(self->value); ++i) {
 		self->value[i] = 0xff;
 	}
@@ -11,7 +11,7 @@ void eui48_init(struct eui48 *self)
 
 void eui48_zero(struct eui48 *self)
 {
-	size_t i;
+	int i;
 	for (i = 0; i < sizeof(self->value); ++i) {
 		self->value[i] = 0x00;
 	}
@@ -41,7 +41,7 @@ uint64_t eui48_convert_to_uint64(const struct eui48 *self)
 
 void eui48_copy(struct eui48 *self, const struct eui48 *other)
 {
-	size_t i;
+	int i;
 	for (i = 0; i < sizeof(self->value); ++i) {
 		self->value[i] = other->value[i];
 	}
@@ -53,7 +53,7 @@ int eui48_compare(const struct eui48 *self, const struct eui48 *other)
 	return r;
 }
 
-void pdu_eui48_set(struct eui48 v, void *base, ssize_t pos)
+void pdu_eui48_set(struct eui48 v, void *base, int pos)
 {
 	memcpy(((uint8_t *)base) + pos, v.value, sizeof(v.value));
 }

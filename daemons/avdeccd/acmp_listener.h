@@ -148,16 +148,16 @@ struct acmp_listener {
 	struct acmp_listener_context listener_sink[ACMP_LISTENER_MAX_STREAMS];
 };
 
-bool acmp_listener_init(struct acmp_listener *self);
+int acmp_listener_init(struct acmp_listener *self);
 
 /// Destroy any resources that the acmp_listener uses
 void acmp_listener_terminate(struct acmp_listener *self);
 
 /// Receive an ACMPDU and process it
-bool acmp_listener_rx_frame(void *self, struct frame *rx_frame, size_t pos);
+int acmp_listener_rx_frame(void *self, struct frame *rx_frame, int pos);
 
 /// Notify the state machine that time has passed. Call asap if early_tick is
-/// true.
+/// 1.
 void acmp_listener_tick(void *self, timestamp_in_microseconds timestamp);
 
 /*@}*/

@@ -67,27 +67,27 @@ void acmp_talker_stream_source_clear_listeners(
 	}
 }
 
-bool
+int
 acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source *self,
 				       struct eui64 listener_entity_id,
 				       uint16_t listener_unique_id)
 {
-	bool r = false;
+	int r = 0;
 	int item = self->connection_count;
 	if (item < ACMP_TALKER_MAX_LISTENERS_PER_STREAM) {
 		self->connection_count++;
 		self->listener_entity_id[item] = listener_entity_id;
 		self->listener_unique_id[item] = listener_unique_id;
-		r = true;
+		r = 1;
 	}
 	return r;
 }
 
-bool acmp_talker_stream_source_remove_listener(
+int acmp_talker_stream_source_remove_listener(
     struct acmp_talker_stream_source *self, struct eui64 listener_entity_id,
     uint16_t listener_unique_id)
 {
-	bool r = false;
+	int r = 0;
 	int i;
 	for (i = 0; i < self->connection_count; ++i) {
 		if (self->listener_unique_id[i] == listener_unique_id &&
@@ -110,7 +110,7 @@ bool acmp_talker_stream_source_remove_listener(
 				}
 			}
 
-			r = true;
+			r = 1;
 			break;
 		}
 	}

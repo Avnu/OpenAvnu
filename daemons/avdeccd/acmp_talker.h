@@ -195,9 +195,9 @@ void acmp_talker_stream_source_clear_listeners(
  * @param self The talker stream source object
  * @param listener_entity_id
  * @param listener_unique_id
- * @return true on success, false if there is no room to add it
+ * @return 1 on success, 0 if there is no room to add it
  */
-bool
+int
 acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source *self,
 				       struct eui64 listener_entity_id,
 				       uint16_t listener_unique_id);
@@ -212,9 +212,9 @@ acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source *self,
  * @param self The talker stream source object
  * @param listener_entity_id
  * @param listener_unique_id
- * @return true on success, false if the listener was not in the list
+ * @return 1 on success, 0 if the listener was not in the list
  */
-bool acmp_talker_stream_source_remove_listener(
+int acmp_talker_stream_source_remove_listener(
     struct acmp_talker_stream_source *self, struct eui64 listener_entity_id,
     uint16_t listener_unique_id);
 
@@ -226,18 +226,18 @@ struct acmp_talker {
 	struct acmp_talker_stream_source talker_source[ACMP_TALKER_MAX_STREAMS];
 };
 
-bool acmp_talker_init(struct acmp_talker *self,
-		      struct acmp_talker_signals const *outgoing_signals);
+int acmp_talker_init(struct acmp_talker *self,
+		     struct acmp_talker_signals const *outgoing_signals);
 
 /// Destroy any resources that the acmp_talker uses
 void acmp_talker_terminate(struct acmp_talker *self);
 
 /// Receive an ACMPDU and process it
-bool acmp_talker_rx_frame(struct acmp_talker *self, struct frame *rx_frame,
-			  size_t pos);
+int acmp_talker_rx_frame(struct acmp_talker *self, struct frame *rx_frame,
+			 int pos);
 
 /// Notify the state machine that time has passed. Call asap if early_tick is
-/// true.
+/// 1.
 void acmp_talker_tick(struct acmp_talker *self,
 		      timestamp_in_microseconds timestamp);
 

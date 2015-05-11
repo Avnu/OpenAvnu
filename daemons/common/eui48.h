@@ -33,9 +33,9 @@
 #ifndef EUI48_H_
 #define EUI48_H_
 
-#include <stdint.h>
-#include <stdbool.h>
+#include <string.h>
 #include <memory.h>
+#include <stdint.h>
 
 /** \addtogroup eui48 eui48 */
 /*@{*/

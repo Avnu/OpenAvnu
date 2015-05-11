@@ -113,19 +113,19 @@ struct acmp_controller_slots {
 	/** Ask the object to track a specific stream sink */
 	void (*track_stream_sink)(struct acmp_controller_slots *self,
 				  struct eui64 listener_entity_id,
-				  uint16_t listener_unique_id, bool enable);
+				  uint16_t listener_unique_id, int enable);
 
 	/** Ask the object to track a specific stream source */
 	void (*track_stream_source)(struct acmp_controller_slots *self,
 				    struct eui64 talker_entity_id,
-				    uint16_t talker_unique_id, bool enable);
+				    uint16_t talker_unique_id, int enable);
 
 	/** Ask the object to connect a stream source to a stream sink */
 	void (*connect_stream)(struct acmp_controller_slots *self,
 			       struct eui64 talker_entity_id,
 			       uint16_t talker_unique_id,
 			       struct eui64 listener_entity_id,
-			       uint16_t listener_unique_id, bool enable);
+			       uint16_t listener_unique_id, int enable);
 };
 
 /** The signals that an ACMP Controller can send to another object */
@@ -250,21 +250,19 @@ void acmp_controller_tick(struct acmp_controller_slots *self,
 /** Ask the object to track a specific stream sink */
 void acmp_controller_track_stream_sink(struct acmp_controller_slots *self,
 				       struct eui64 listener_entity_id,
-				       uint16_t listener_unique_id,
-				       bool enable);
+				       uint16_t listener_unique_id, int enable);
 
 /** Ask the object to track a specific stream source */
 void acmp_controller_track_stream_source(struct acmp_controller_slots *self,
 					 struct eui64 talker_entity_id,
-					 uint16_t talker_unique_id,
-					 bool enable);
+					 uint16_t talker_unique_id, int enable);
 
 /** Ask the object to connect a stream source to a stream sink */
 void acmp_controller_connect_stream(struct acmp_controller_slots *self,
 				    struct eui64 talker_entity_id,
 				    uint16_t talker_unique_id,
 				    struct eui64 listener_entity_id,
-				    uint16_t listener_unique_id, bool enable);
+				    uint16_t listener_unique_id, int enable);
 
 /*@}*/
 

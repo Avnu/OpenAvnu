@@ -33,11 +33,11 @@
 #include "frame.h"
 #include "pdu.h"
 
-ssize_t frame_read(struct frame *p, void const *base, ssize_t pos, size_t len)
+int frame_read(struct frame *p, void const *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 14);
+    int r = pdu_validate_range(pos, len, 14);
 	if (r >= 0) {
-		size_t payload_offset;
+        int payload_offset;
 		uint16_t tag;
 
 		p->dest_address =
@@ -83,11 +83,11 @@ ssize_t frame_read(struct frame *p, void const *base, ssize_t pos, size_t len)
 	return r;
 }
 
-ssize_t frame_write(struct frame const *p, void *base, ssize_t pos, size_t len)
+int frame_write(struct frame const *p, void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, FRAME_HEADER_LEN);
+    int r = pdu_validate_range(pos, len, FRAME_HEADER_LEN);
 	if (r >= 0) {
-		size_t payload_offset;
+        int payload_offset;
 
 		pdu_eui48_set(p->dest_address, base,
 			      pos + FRAME_HEADER_DA_OFFSET);

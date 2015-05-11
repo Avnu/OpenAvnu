@@ -69,8 +69,8 @@ struct frame {
 
 void frame_init(struct frame *p);
 
-ssize_t frame_read(struct frame *p, void const *base, ssize_t pos, size_t len);
-ssize_t frame_write(struct frame const *p, void *base, ssize_t pos, size_t len);
+int frame_read(struct frame *p, void const *base, int pos, int len);
+int frame_write(struct frame const *p, void *base, int pos, int len);
 
 /*@}*/
 

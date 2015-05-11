@@ -53,7 +53,7 @@
  * @param elem_size element size, in octets
  * @return -1 if element does not fit, bufpos+elem_size if it does.
  */
-ssize_t pdu_validate_range(ssize_t bufpos, size_t buflen, size_t elem_size);
+int pdu_validate_range(int bufpos, int buflen, int elem_size);
 
 /** \addtogroup endian Endian helpers / data access */
 /*@{*/
@@ -69,99 +69,93 @@ uint64_t pdu_endian_reverse_uint64(uint64_t const *vin);
 
 /// Read the uint8_t value at base[pos] and store it in *host_value. Returns new
 /// pos, or -1 if pos is out of bounds.
-ssize_t pdu_uint8_read(uint8_t *host_value, void const *base, ssize_t pos,
-		       ssize_t len);
+int pdu_uint8_read(uint8_t *host_value, void const *base, int pos, int len);
 
 /// get the uint8_t value at base[pos] and return it without bounds checking
-uint8_t pdu_uint8_get(void const *base, ssize_t pos);
+uint8_t pdu_uint8_get(void const *base, int pos);
 
 /// store the uint8_t value v into base[pos]. Returns -1 if pos is out of
 /// bounds.
-ssize_t pdu_uint8_write(uint8_t v, void *base, ssize_t pos, ssize_t len);
+int pdu_uint8_write(uint8_t v, void *base, int pos, int len);
 
 /// Set the uint8_t value at base[pos] to v without bounds checking
-void pdu_uint8_set(uint8_t v, void *base, ssize_t pos);
+void pdu_uint8_set(uint8_t v, void *base, int pos);
 
 /// Read the network order Doublet value at base[pos] and store it in
 /// *host_value. Returns new pos, or -1 if pos is out of bounds.
-ssize_t uint16_read(uint16_t *host_value, void const *base, ssize_t pos,
-		    ssize_t len);
+int uint16_read(uint16_t *host_value, void const *base, int pos, int len);
 
 /// get the uint8_t value at base[pos] and return it without bounds checking
-uint16_t pdu_uint16_get(void const *base, ssize_t pos);
+uint16_t pdu_uint16_get(void const *base, int pos);
 
-ssize_t pdu_uint16_write(uint16_t v, void *base, ssize_t pos, ssize_t len);
+int pdu_uint16_write(uint16_t v, void *base, int pos, int len);
 
-void pdu_uint16_set(uint16_t v, void *base, ssize_t pos);
+void pdu_uint16_set(uint16_t v, void *base, int pos);
 
-ssize_t pdu_uint32_read(uint32_t *host_value, void const *base, ssize_t pos,
-			ssize_t len);
+int pdu_uint32_read(uint32_t *host_value, void const *base, int pos, int len);
 
-uint32_t pdu_uint32_get(void const *base, ssize_t pos);
+uint32_t pdu_uint32_get(void const *base, int pos);
 
-ssize_t pdu_uint32_write(uint32_t v, void *base, ssize_t pos, ssize_t len);
+int pdu_uint32_write(uint32_t v, void *base, int pos, int len);
 
-void pdu_uint32_set(uint32_t v, void *base, ssize_t pos);
+void pdu_uint32_set(uint32_t v, void *base, int pos);
 
-ssize_t pdu_uint64_read(uint64_t *host_value, void const *base, ssize_t pos,
-			ssize_t len);
+int pdu_uint64_read(uint64_t *host_value, void const *base, int pos, int len);
 
-uint64_t pdu_uint64_get(void const *base, ssize_t pos);
+uint64_t pdu_uint64_get(void const *base, int pos);
 
-ssize_t pdu_uint64_write(uint64_t v, void *base, ssize_t pos, ssize_t len);
+int pdu_uint64_write(uint64_t v, void *base, int pos, int len);
 
-void pdu_uint64_set(uint64_t v, void *base, ssize_t pos);
+void pdu_uint64_set(uint64_t v, void *base, int pos);
 
 #if !defined(PDU_DISABLE_FLOAT)
-ssize_t pdu_float_read(float *host_value, void const *base, ssize_t pos,
-		       size_t len);
+int pdu_float_read(float *host_value, void const *base, int pos, int len);
 
-float pdu_float_get(void const *base, ssize_t pos);
+float pdu_float_get(void const *base, int pos);
 
-ssize_t pdu_float_write(float v, void *base, ssize_t pos, size_t len);
+int pdu_float_write(float v, void *base, int pos, int len);
 
-void pdu_float_set(float v, void *base, ssize_t pos);
+void pdu_float_set(float v, void *base, int pos);
 
 #endif
 
 #if !defined(PDU_DISABLE_DOUBLE) && !defined(PDU_DISABLE_FLOAT)
-ssize_t pdu_double_read(double *host_value, void const *base, ssize_t pos,
-			size_t len);
+int pdu_double_read(double *host_value, void const *base, int pos, int len);
 
-double pdu_double_get(void const *base, ssize_t pos);
+double pdu_double_get(void const *base, int pos);
 
-ssize_t pdu_double_write(double v, void *base, ssize_t pos, size_t len);
+int pdu_double_write(double v, void *base, int pos, int len);
 
-void pdu_double_set(double v, void *base, ssize_t pos);
+void pdu_double_set(double v, void *base, int pos);
 #endif
 
 /*@}*/
 
 /** \addtogroup eui48 EUI48 */
 /*@{*/
-struct eui48 pdu_eui48_get(void const *base, ssize_t pos);
+struct eui48 pdu_eui48_get(void const *base, int pos);
 
-void pdu_eui48_set(struct eui48 v, void *base, ssize_t pos);
+void pdu_eui48_set(struct eui48 v, void *base, int pos);
 
-ssize_t pdu_eui48_read(struct eui48 *host_value, void const *base, ssize_t pos,
-		       size_t len);
+int pdu_eui48_read(struct eui48 *host_value, void const *base, int pos,
+		   int len);
 
-ssize_t pdu_eui48_write(struct eui48 const *host_value, void *base, ssize_t pos,
-			size_t len);
+int pdu_eui48_write(struct eui48 const *host_value, void *base, int pos,
+		    int len);
 
 /*@}*/
 
 /** \addtogroup eui64 EUI64 */
 /*@{*/
-struct eui64 pdu_eui64_get(void const *base, ssize_t pos);
+struct eui64 pdu_eui64_get(void const *base, int pos);
 
-void pdu_eui64_set(struct eui64 v, void *base, ssize_t pos);
+void pdu_eui64_set(struct eui64 v, void *base, int pos);
 
-ssize_t pdu_eui64_read(struct eui64 *host_value, void const *base, ssize_t pos,
-		       size_t len);
+int pdu_eui64_read(struct eui64 *host_value, void const *base, int pos,
+		   int len);
 
-ssize_t pdu_eui64_write(struct eui64 const *host_value, void *base, ssize_t pos,
-			size_t len);
+int pdu_eui64_write(struct eui64 const *host_value, void *base, int pos,
+		    int len);
 
 /*@}*/
 
@@ -175,14 +169,14 @@ struct gptp_seconds {
 void pdu_gptp_seconds_init(struct gptp_seconds *self);
 
 void pdu_gptp_seconds_read(struct gptp_seconds *host_value, void const *base,
-			   ssize_t pos);
+			   int pos);
 
-struct gptp_seconds pdu_gptp_seconds_get(void const *base, ssize_t pos);
+struct gptp_seconds pdu_gptp_seconds_get(void const *base, int pos);
 
-ssize_t pdu_gptp_seconds_write(struct gptp_seconds host_value, void *base,
-			       ssize_t pos, ssize_t len);
+int pdu_gptp_seconds_write(struct gptp_seconds host_value, void *base, int pos,
+			   int len);
 
-void pdu_gptp_seconds_set(struct gptp_seconds v, void *base, ssize_t pos);
+void pdu_gptp_seconds_set(struct gptp_seconds v, void *base, int pos);
 
 /*@}*/
 

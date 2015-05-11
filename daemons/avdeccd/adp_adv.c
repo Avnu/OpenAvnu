@@ -39,18 +39,18 @@ static void adp_adv_send_entity_departing(struct adp_adv *self);
 /// Form the entity discover message and send it
 static void adp_adv_send_entity_discover(struct adp_adv *self);
 
-bool adp_adv_init(struct adp_adv *self, void *context,
-		  void (*frame_send)(struct adp_adv *self, void *context,
-				     uint8_t const *buf, uint16_t len),
-		  void (*received_entity_available_or_departing)(
-		      struct adp_adv *self, void *context,
-		      void const *source_address, int source_address_len,
-		      struct adpdu *adpdu))
+int adp_adv_init(struct adp_adv *self, void *context,
+		 void (*frame_send)(struct adp_adv *self, void *context,
+				    uint8_t const *buf, uint16_t len),
+		 void (*received_entity_available_or_departing)(
+		     struct adp_adv *self, void *context,
+		     void const *source_address, int source_address_len,
+		     struct adpdu *adpdu))
 {
 	self->last_time_in_microseconds = 0;
-	self->do_send_entity_available = true;
-	self->do_send_entity_departing = false;
-	self->do_send_entity_discover = false;
+	self->do_send_entity_available = 1;
+	self->do_send_entity_departing = 0;
+	self->do_send_entity_discover = 0;
 	self->received_entity_available_or_departing =
 	    received_entity_available_or_departing;
 
@@ -63,21 +63,21 @@ bool adp_adv_init(struct adp_adv *self, void *context,
 	self->adpdu.control_data_length =
 	    ADPDU_LEN - AVTP_COMMON_CONTROL_HEADER_LEN;
 
-	return true;
+	return 1;
 }
 
 void adp_adv_terminate(struct adp_adv *self) { (void)self; }
 
-bool adp_adv_receive(struct adp_adv *self,
-		     timestamp_in_microseconds time_in_microseconds,
-		     void const *source_address, int source_address_len,
-		     uint8_t const *buf, uint16_t len)
+int adp_adv_receive(struct adp_adv *self,
+		    timestamp_in_microseconds time_in_microseconds,
+		    void const *source_address, int source_address_len,
+		    uint8_t const *buf, uint16_t len)
 {
 	struct adpdu incoming;
-	bool r = false;
+	int r = 0;
 	(void)time_in_microseconds;
 	if (adpdu_read(&incoming, buf, 0, len) > 0) {
-		r = true;
+		r = 1;
 		switch (incoming.message_type) {
 		case ADP_MESSAGE_TYPE_ENTITY_DISCOVER:
 			// only respond to discover messages if we are not
@@ -89,8 +89,8 @@ bool adp_adv_receive(struct adp_adv *self,
 						  &self->adpdu.entity_id) ||
 				    eui64_convert_to_uint64(
 					&incoming.entity_id) == 0) {
-					self->do_send_entity_available = true;
-					self->early_tick = true;
+					self->do_send_entity_available = 1;
+					self->early_tick = 1;
 				}
 			}
 			break;
@@ -140,7 +140,7 @@ void adp_adv_tick(struct adp_adv *self,
 	}
 
 	// clear any early tick flag
-	self->early_tick = false;
+	self->early_tick = 0;
 
 	// only send messages available/departing messages if we are not stopped
 
@@ -150,12 +150,12 @@ void adp_adv_tick(struct adp_adv *self,
 		// yes, we are sending an entity departing message.
 		// clear any do_send flags
 
-		self->do_send_entity_departing = false;
-		self->do_send_entity_available = false;
+		self->do_send_entity_departing = 0;
+		self->do_send_entity_available = 0;
 
 		// change into pause state
 
-		self->stopped = true;
+		self->stopped = 1;
 
 		// record the time we send it
 
@@ -174,7 +174,7 @@ void adp_adv_tick(struct adp_adv *self,
 		// if we are running and it is time to send an available, set
 		// the flag
 		if (difftime > valid_time_in_ms) {
-			self->do_send_entity_available = true;
+			self->do_send_entity_available = 1;
 		}
 
 		// if the flag is set for whatever reason and we are running
@@ -183,7 +183,7 @@ void adp_adv_tick(struct adp_adv *self,
 			// we are to send entity available message
 			// clear the request flag
 
-			self->do_send_entity_available = false;
+			self->do_send_entity_available = 0;
 
 			// record the time we send it
 
@@ -201,7 +201,7 @@ void adp_adv_tick(struct adp_adv *self,
 
 		// yes, clear the flag and send it
 
-		self->do_send_entity_discover = false;
+		self->do_send_entity_discover = 0;
 		adp_adv_send_entity_discover(self);
 	}
 }
@@ -209,21 +209,21 @@ void adp_adv_tick(struct adp_adv *self,
 void adp_adv_trigger_send_discover(struct adp_adv *self)
 {
 
-	self->early_tick = true;
-	self->do_send_entity_discover = true;
+	self->early_tick = 1;
+	self->do_send_entity_discover = 1;
 }
 
 void adp_adv_trigger_send_available(struct adp_adv *self)
 {
-	self->early_tick = true;
-	self->do_send_entity_available = true;
-	self->stopped = false;
+	self->early_tick = 1;
+	self->do_send_entity_available = 1;
+	self->stopped = 0;
 }
 
 void adp_adv_trigger_send_departing(struct adp_adv *self)
 {
-	self->early_tick = true;
-	self->do_send_entity_departing = true;
+	self->early_tick = 1;
+	self->do_send_entity_departing = 1;
 }
 
 static void adp_adv_send_entity_available(struct adp_adv *self)

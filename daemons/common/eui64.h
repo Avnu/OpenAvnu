@@ -33,7 +33,7 @@
 #ifndef EUI64_H_
 #define EUI64_H_
 
-#include <stdbool.h>
+#include <string.h>
 #include <memory.h>
 #include <stdint.h>
 

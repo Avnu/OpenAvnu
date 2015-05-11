@@ -33,9 +33,9 @@
 #include <stdlib.h>
 #include "acmpdu.h"
 
-ssize_t acmpdu_read(struct acmpdu *p, void const *base, ssize_t pos, size_t len)
+int acmpdu_read(struct acmpdu *p, void const *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, ACMPDU_LEN);
+	int r = pdu_validate_range(pos, len, ACMPDU_LEN);
 	if (r >= 0) {
 		p->subtype = avtp_common_control_header_get_subtype(base, pos);
 		p->sv = avtp_common_control_header_get_sv(base, pos);
@@ -67,9 +67,9 @@ ssize_t acmpdu_read(struct acmpdu *p, void const *base, ssize_t pos, size_t len)
 	return r;
 }
 
-ssize_t acmpdu_write(struct acmpdu const *p, void *base, size_t pos, size_t len)
+int acmpdu_write(struct acmpdu const *p, void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, ACMPDU_LEN);
+	int r = pdu_validate_range(pos, len, ACMPDU_LEN);
 	if (r >= 0) {
 		avtp_common_control_header_set_subtype(p->subtype, base, pos);
 		avtp_common_control_header_set_sv(p->sv, base, pos);

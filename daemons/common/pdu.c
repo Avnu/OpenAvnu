@@ -32,11 +32,11 @@
 
 #include "pdu.h"
 
-ssize_t pdu_validate_range(ssize_t bufpos, size_t buflen, size_t elem_size)
+int pdu_validate_range(int bufpos, int buflen, int elem_size)
 {
-	return ((size_t)(bufpos) + (size_t)elem_size <= (size_t)buflen)
-		   ? (ssize_t)(bufpos + elem_size)
-		   : (ssize_t)-1;
+	return ((int)(bufpos) + (int)elem_size <= (int)buflen)
+		   ? (int)(bufpos + elem_size)
+		   : (int)-1;
 }
 
 uint16_t pdu_endian_reverse_uint16(const uint16_t *vin)
@@ -61,10 +61,9 @@ uint64_t pdu_endian_reverse_uint64(const uint64_t *vin)
 	       ((uint64_t)(p[1]) << 48) + ((uint64_t)(p[0]) << 56);
 }
 
-ssize_t pdu_uint8_read(uint8_t *host_value, const void *base, ssize_t pos,
-		       ssize_t len)
+int pdu_uint8_read(uint8_t *host_value, const void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 1);
+	int r = pdu_validate_range(pos, len, 1);
 	if (r >= 0) {
 		uint8_t const *b = (uint8_t const *)base;
 		*host_value = b[pos];
@@ -72,15 +71,15 @@ ssize_t pdu_uint8_read(uint8_t *host_value, const void *base, ssize_t pos,
 	return r;
 }
 
-uint8_t pdu_uint8_get(const void *base, ssize_t pos)
+uint8_t pdu_uint8_get(const void *base, int pos)
 {
 	uint8_t const *b = (uint8_t const *)base;
 	return b[pos];
 }
 
-ssize_t pdu_uint8_write(uint8_t v, void *base, ssize_t pos, ssize_t len)
+int pdu_uint8_write(uint8_t v, void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 1);
+	int r = pdu_validate_range(pos, len, 1);
 	if (r >= 0) {
 		uint8_t const *host_value = (uint8_t const *)&v;
 		uint8_t *b = ((uint8_t *)base) + pos;
@@ -90,16 +89,15 @@ ssize_t pdu_uint8_write(uint8_t v, void *base, ssize_t pos, ssize_t len)
 	return r;
 }
 
-void pdu_uint8_set(uint8_t v, void *base, ssize_t pos)
+void pdu_uint8_set(uint8_t v, void *base, int pos)
 {
 	uint8_t *b = (uint8_t *)base;
 	b[pos] = v;
 }
 
-ssize_t uint16_read(uint16_t *host_value, const void *base, ssize_t pos,
-		    ssize_t len)
+int uint16_read(uint16_t *host_value, const void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 2);
+	int r = pdu_validate_range(pos, len, 2);
 	if (r >= 0) {
 		uint8_t const *b = ((uint8_t const *)base) + pos;
 		*host_value = (((uint16_t)b[0]) << (8 * 1)) + b[1];
@@ -107,15 +105,15 @@ ssize_t uint16_read(uint16_t *host_value, const void *base, ssize_t pos,
 	return r;
 }
 
-uint16_t pdu_uint16_get(const void *base, ssize_t pos)
+uint16_t pdu_uint16_get(const void *base, int pos)
 {
 	uint8_t const *b = ((uint8_t const *)base) + pos;
 	return (((uint16_t)b[0]) << 8) + b[1];
 }
 
-ssize_t pdu_uint16_write(uint16_t v, void *base, ssize_t pos, ssize_t len)
+int pdu_uint16_write(uint16_t v, void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 2);
+	int r = pdu_validate_range(pos, len, 2);
 	if (r >= 0) {
 		uint16_t const *host_value = (uint16_t const *)&v;
 		uint8_t *b = ((uint8_t *)base) + pos;
@@ -126,17 +124,16 @@ ssize_t pdu_uint16_write(uint16_t v, void *base, ssize_t pos, ssize_t len)
 	return r;
 }
 
-void pdu_uint16_set(uint16_t v, void *base, ssize_t pos)
+void pdu_uint16_set(uint16_t v, void *base, int pos)
 {
 	uint8_t *b = ((uint8_t *)base) + pos;
 	b[0] = (uint8_t)((v) >> 8) & 0xff;
 	b[1] = (uint8_t)((v) >> 0) & 0xff;
 }
 
-ssize_t pdu_uint32_read(uint32_t *host_value, const void *base, ssize_t pos,
-			ssize_t len)
+int pdu_uint32_read(uint32_t *host_value, const void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 4);
+	int r = pdu_validate_range(pos, len, 4);
 	if (r >= 0) {
 		uint8_t const *b = ((uint8_t const *)base) + pos;
 		*host_value = (((uint32_t)b[0]) << (8 * 3)) +
@@ -146,16 +143,16 @@ ssize_t pdu_uint32_read(uint32_t *host_value, const void *base, ssize_t pos,
 	return r;
 }
 
-uint32_t pdu_uint32_get(const void *base, ssize_t pos)
+uint32_t pdu_uint32_get(const void *base, int pos)
 {
 	uint8_t const *b = ((uint8_t const *)base) + pos;
 	return (((uint32_t)b[0]) << 24) + (((uint32_t)b[1]) << 16) +
 	       (((uint32_t)b[2]) << 8) + b[3];
 }
 
-ssize_t pdu_uint32_write(uint32_t v, void *base, ssize_t pos, ssize_t len)
+int pdu_uint32_write(uint32_t v, void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 4);
+	int r = pdu_validate_range(pos, len, 4);
 	if (r >= 0) {
 		uint32_t const *host_value = (uint32_t const *)&v;
 		uint8_t *b = ((uint8_t *)base) + pos;
@@ -168,7 +165,7 @@ ssize_t pdu_uint32_write(uint32_t v, void *base, ssize_t pos, ssize_t len)
 	return r;
 }
 
-void pdu_uint32_set(uint32_t v, void *base, ssize_t pos)
+void pdu_uint32_set(uint32_t v, void *base, int pos)
 {
 	uint8_t *b = ((uint8_t *)base) + pos;
 	b[0] = (uint8_t)((v) >> 24) & 0xff;
@@ -177,10 +174,9 @@ void pdu_uint32_set(uint32_t v, void *base, ssize_t pos)
 	b[3] = (uint8_t)((v) >> 0) & 0xff;
 }
 
-ssize_t pdu_uint64_read(uint64_t *host_value, const void *base, ssize_t pos,
-			ssize_t len)
+int pdu_uint64_read(uint64_t *host_value, const void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 8);
+	int r = pdu_validate_range(pos, len, 8);
 	if (r >= 0) {
 		uint8_t const *b = ((uint8_t const *)base) + pos;
 		*host_value = (((uint64_t)b[0]) << (8 * 7)) +
@@ -194,7 +190,7 @@ ssize_t pdu_uint64_read(uint64_t *host_value, const void *base, ssize_t pos,
 	return r;
 }
 
-uint64_t pdu_uint64_get(const void *base, ssize_t pos)
+uint64_t pdu_uint64_get(const void *base, int pos)
 {
 	uint8_t const *b = ((uint8_t const *)base) + pos;
 
@@ -204,9 +200,9 @@ uint64_t pdu_uint64_get(const void *base, ssize_t pos)
 	       (((uint64_t)b[6]) << (8 * 1)) + b[7];
 }
 
-ssize_t pdu_uint64_write(uint64_t v, void *base, ssize_t pos, ssize_t len)
+int pdu_uint64_write(uint64_t v, void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 8);
+	int r = pdu_validate_range(pos, len, 8);
 	if (r >= 0) {
 		uint64_t const *host_value = (uint64_t const *)&v;
 		uint8_t *b = ((uint8_t *)base) + pos;
@@ -223,7 +219,7 @@ ssize_t pdu_uint64_write(uint64_t v, void *base, ssize_t pos, ssize_t len)
 	return r;
 }
 
-void pdu_uint64_set(uint64_t v, void *base, ssize_t pos)
+void pdu_uint64_set(uint64_t v, void *base, int pos)
 {
 	uint8_t *b = ((uint8_t *)base) + pos;
 	b[0] = (uint8_t)((v) >> (8 * 7)) & 0xff;
@@ -238,10 +234,9 @@ void pdu_uint64_set(uint64_t v, void *base, ssize_t pos)
 
 #if !defined(PDU_DISABLE_FLOAT)
 
-ssize_t pdu_float_read(float *host_value, const void *base, ssize_t pos,
-		       size_t len)
+int pdu_float_read(float *host_value, const void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, sizeof(*host_value));
+	int r = pdu_validate_range(pos, len, sizeof(*host_value));
 
 	if (r >= 0) {
 		union {
@@ -254,7 +249,7 @@ ssize_t pdu_float_read(float *host_value, const void *base, ssize_t pos,
 	return r;
 }
 
-float pdu_float_get(const void *base, ssize_t pos)
+float pdu_float_get(const void *base, int pos)
 {
 	union {
 		uint32_t host_value_int;
@@ -264,9 +259,9 @@ float pdu_float_get(const void *base, ssize_t pos)
 	return hp.f;
 }
 
-ssize_t pdu_float_write(float v, void *base, ssize_t pos, size_t len)
+int pdu_float_write(float v, void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 4);
+	int r = pdu_validate_range(pos, len, 4);
 
 	if (r >= 0) {
 		float *fp = &v;
@@ -277,7 +272,7 @@ ssize_t pdu_float_write(float v, void *base, ssize_t pos, size_t len)
 	return r;
 }
 
-void pdu_float_set(float v, void *base, ssize_t pos)
+void pdu_float_set(float v, void *base, int pos)
 {
 	union {
 		uint32_t *host_value_int;
@@ -289,10 +284,9 @@ void pdu_float_set(float v, void *base, ssize_t pos)
 #endif
 
 #if !defined(PDU_DISABLE_DOUBLE) && !defined(PDU_DISABLE_FLOAT)
-ssize_t pdu_double_read(double *host_value, const void *base, ssize_t pos,
-			size_t len)
+int pdu_double_read(double *host_value, const void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, sizeof(*host_value));
+	int r = pdu_validate_range(pos, len, sizeof(*host_value));
 
 	if (r >= 0) {
 		union {
@@ -305,7 +299,7 @@ ssize_t pdu_double_read(double *host_value, const void *base, ssize_t pos,
 	return r;
 }
 
-double pdu_double_get(const void *base, ssize_t pos)
+double pdu_double_get(const void *base, int pos)
 {
 	union {
 		uint64_t host_value_int;
@@ -315,9 +309,9 @@ double pdu_double_get(const void *base, ssize_t pos)
 	return hp.d;
 }
 
-ssize_t pdu_double_write(double v, void *base, ssize_t pos, size_t len)
+int pdu_double_write(double v, void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 8);
+	int r = pdu_validate_range(pos, len, 8);
 
 	if (r >= 0) {
 		double *dp = &v;
@@ -328,7 +322,7 @@ ssize_t pdu_double_write(double v, void *base, ssize_t pos, size_t len)
 	return r;
 }
 
-void pdu_double_set(double v, void *base, ssize_t pos)
+void pdu_double_set(double v, void *base, int pos)
 {
 	union {
 		uint64_t *host_value_int;
@@ -339,10 +333,9 @@ void pdu_double_set(double v, void *base, ssize_t pos)
 }
 #endif
 
-ssize_t pdu_eui48_read(struct eui48 *host_value, const void *base, ssize_t pos,
-		       size_t len)
+int pdu_eui48_read(struct eui48 *host_value, const void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
+	int r = pdu_validate_range(pos, len, sizeof(host_value->value));
 	if (r >= 0) {
 		memcpy(host_value->value, ((uint8_t const *)base) + pos,
 		       sizeof(host_value->value));
@@ -350,10 +343,10 @@ ssize_t pdu_eui48_read(struct eui48 *host_value, const void *base, ssize_t pos,
 	return r;
 }
 
-ssize_t pdu_eui48_write(const struct eui48 *host_value, void *base, ssize_t pos,
-			size_t len)
+int pdu_eui48_write(const struct eui48 *host_value, void *base, int pos,
+		    int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
+	int r = pdu_validate_range(pos, len, sizeof(host_value->value));
 	if (r >= 0) {
 		memcpy(((uint8_t *)base) + pos, host_value->value,
 		       sizeof(host_value->value));
@@ -361,17 +354,16 @@ ssize_t pdu_eui48_write(const struct eui48 *host_value, void *base, ssize_t pos,
 	return r;
 }
 
-struct eui48 pdu_eui48_get(const void *base, ssize_t pos)
+struct eui48 pdu_eui48_get(const void *base, int pos)
 {
 	struct eui48 v;
 	memcpy(v.value, ((uint8_t const *)base) + pos, sizeof(v.value));
 	return v;
 }
 
-ssize_t pdu_eui64_read(struct eui64 *host_value, const void *base, ssize_t pos,
-		       size_t len)
+int pdu_eui64_read(struct eui64 *host_value, const void *base, int pos, int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
+	int r = pdu_validate_range(pos, len, sizeof(host_value->value));
 	if (r >= 0) {
 		memcpy(host_value->value, ((uint8_t const *)base) + pos,
 		       sizeof(host_value->value));
@@ -380,17 +372,17 @@ ssize_t pdu_eui64_read(struct eui64 *host_value, const void *base, ssize_t pos,
 	return r;
 }
 
-struct eui64 pdu_eui64_get(const void *base, ssize_t pos)
+struct eui64 pdu_eui64_get(const void *base, int pos)
 {
 	struct eui64 v;
 	memcpy(v.value, ((uint8_t const *)base) + pos, sizeof(v.value));
 	return v;
 }
 
-ssize_t pdu_eui64_write(const struct eui64 *host_value, void *base, ssize_t pos,
-			size_t len)
+int pdu_eui64_write(const struct eui64 *host_value, void *base, int pos,
+		    int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, sizeof(host_value->value));
+	int r = pdu_validate_range(pos, len, sizeof(host_value->value));
 	if (r >= 0) {
 		memcpy(((uint8_t *)base) + pos, host_value->value,
 		       sizeof(host_value->value));
@@ -399,7 +391,7 @@ ssize_t pdu_eui64_write(const struct eui64 *host_value, void *base, ssize_t pos,
 	return r;
 }
 
-void pdu_eui64_set(struct eui64 v, void *base, ssize_t pos)
+void pdu_eui64_set(struct eui64 v, void *base, int pos)
 {
 	memcpy(((uint8_t *)base) + pos, v.value, sizeof(v.value));
 }
@@ -407,7 +399,7 @@ void pdu_eui64_set(struct eui64 v, void *base, ssize_t pos)
 void pdu_gptp_seconds_init(struct gptp_seconds *self) { self->seconds = 0; }
 
 void pdu_gptp_seconds_read(struct gptp_seconds *host_value, const void *base,
-			   ssize_t pos)
+			   int pos)
 {
 	uint8_t const *b = ((uint8_t const *)base) + pos;
 	host_value->seconds =
@@ -416,7 +408,7 @@ void pdu_gptp_seconds_read(struct gptp_seconds *host_value, const void *base,
 	    (((uint64_t)b[4]) << (8 * 1)) + b[5];
 }
 
-struct gptp_seconds pdu_gptp_seconds_get(const void *base, ssize_t pos)
+struct gptp_seconds pdu_gptp_seconds_get(const void *base, int pos)
 {
 	struct gptp_seconds v;
 	uint8_t const *b = ((uint8_t const *)base) + pos;
@@ -429,10 +421,10 @@ struct gptp_seconds pdu_gptp_seconds_get(const void *base, ssize_t pos)
 	return v;
 }
 
-ssize_t pdu_gptp_seconds_write(struct gptp_seconds host_value, void *base,
-			       ssize_t pos, ssize_t len)
+int pdu_gptp_seconds_write(struct gptp_seconds host_value, void *base, int pos,
+			   int len)
 {
-	ssize_t r = pdu_validate_range(pos, len, 6);
+	int r = pdu_validate_range(pos, len, 6);
 	if (r >= 0) {
 		uint8_t *b = ((uint8_t *)base) + pos;
 
@@ -446,7 +438,7 @@ ssize_t pdu_gptp_seconds_write(struct gptp_seconds host_value, void *base,
 	return r;
 }
 
-void pdu_gptp_seconds_set(struct gptp_seconds v, void *base, ssize_t pos)
+void pdu_gptp_seconds_set(struct gptp_seconds v, void *base, int pos)
 {
 	uint8_t *b = ((uint8_t *)base) + pos;
 	b[0] = (uint8_t)((v.seconds) >> (8 * 5)) & 0xff;

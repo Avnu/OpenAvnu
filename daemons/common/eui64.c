@@ -35,7 +35,7 @@
 
 void eui64_init(struct eui64 *self)
 {
-	size_t i;
+	int i;
 	for (i = 0; i < sizeof(self->value); ++i) {
 		self->value[i] = 0xff;
 	}
@@ -43,7 +43,7 @@ void eui64_init(struct eui64 *self)
 
 void eui64_zero(struct eui64 *self)
 {
-	size_t i;
+	int i;
 	for (i = 0; i < sizeof(self->value); ++i) {
 		self->value[i] = 0x00;
 	}
@@ -77,7 +77,7 @@ uint64_t eui64_convert_to_uint64(const struct eui64 *self)
 
 void eui64_copy(struct eui64 *self, const struct eui64 *other)
 {
-	size_t i;
+	int i;
 	for (i = 0; i < sizeof(self->value); ++i) {
 		self->value[i] = other->value[i];
 	}

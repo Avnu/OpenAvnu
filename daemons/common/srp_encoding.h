@@ -49,11 +49,11 @@ void srp_encoding_talker_advertise_vector_init(
     struct srp_encoding_talker_advertise_vector *self,
     struct srp_info_talker const *talker);
 
-bool srp_encoding_talker_advertise_vector_add_event(
+int srp_encoding_talker_advertise_vector_add_event(
     struct srp_encoding_talker_advertise_vector *self, uint8_t fourpackedevent);
 
 uint8_t srp_encoding_talker_advertise_vector_get_threepacked_event_for_item(
-    struct srp_encoding_talker_advertise_vector const *self, size_t item);
+    struct srp_encoding_talker_advertise_vector const *self, int item);
 
 #define SRP_ENCODING_MAX_TALKER_FAILED_EVENTS_PER_VECTOR 2048
 
@@ -68,11 +68,11 @@ void srp_encoding_talker_failed_vector_init(
     struct srp_encoding_talker_advertise_vector *self,
     struct srp_info_talker const *talker);
 
-bool srp_encoding_talker_failed_vector_add_event(
+int srp_encoding_talker_failed_vector_add_event(
     struct srp_encoding_talker_failed_vector *self, uint8_t fourpackedevent);
 
 uint8_t srp_encoding_talker_failed_vector_get_threepacked_event_for_item(
-    struct srp_encoding_talker_failed_vector const *self, size_t item);
+    struct srp_encoding_talker_failed_vector const *self, int item);
 
 #define SRP_ENCODING_MAX_LISTENER_EVENTS_PER_VECTOR 2048
 
@@ -87,15 +87,15 @@ void
 srp_encoding_listener_vector_init(struct srp_encoding_listener_vector *self,
 				  struct srp_info_listener const *first_value);
 
-bool srp_encoding_listener_vector_add_event(
+int srp_encoding_listener_vector_add_event(
     struct srp_encoding_listener_vector *self, uint8_t threepackedevent,
     uint8_t fourpackedevent);
 
 uint8_t srp_encoding_listener_vector_get_threepacked_event_for_item(
-    struct srp_encoding_listener_vector const *self, size_t item);
+    struct srp_encoding_listener_vector const *self, int item);
 
 uint8_t srp_encoding_listener_vector_get_fourpacked_event_for_item(
-    struct srp_encoding_listener_vector const *self, size_t item);
+    struct srp_encoding_listener_vector const *self, int item);
 
 #define SRP_ENCODING_MAX_DOMAIN_EVENTS_PER_VECTOR 2
 
@@ -119,12 +119,12 @@ void
 srp_encoding_domain_vector_init(struct srp_encoding_domain_vector *self,
 				struct srp_info_listener const *first_value);
 
-bool
+int
 srp_encoding_domain_vector_add_event(struct srp_encoding_domain_vector *self,
 				     uint8_t threepackedevent);
 
 uint8_t srp_encoding_domain_vector_get_threepacked_event_for_item(
-    struct srp_encoding_domain_vector const *self, size_t item);
+    struct srp_encoding_domain_vector const *self, int item);
 
 /**
  * @brief srp_encoding_talker_inc_first_value
