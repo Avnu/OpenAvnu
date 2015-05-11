@@ -41,7 +41,7 @@
 /*@{*/
 
 struct eui48 {
-    uint8_t value[6];
+	uint8_t value[6];
 };
 
 /**
@@ -65,7 +65,8 @@ void eui48_zero(struct eui48 *self);
 /**
  * @brief eui48_init_from_uint64
  *
- * Initialize an EUI48 structure's value based on the lower 48 bits of an uint64_t.
+ * Initialize an EUI48 structure's value based on the lower 48 bits of an
+ *uint64_t.
  *
  * @param self pointer to eui48
  * @param other uint64_t value
@@ -101,8 +102,7 @@ void eui48_copy(struct eui48 *self, struct eui48 const *other);
  * @param other Right hand side value
  * @return -1 if LHS < RHS, 0 if LHS == RHS, 1 if LHS > RHS
  */
-int eui48_compare(struct eui48 const *self,
-                struct eui48 const *other);
+int eui48_compare(struct eui48 const *self, struct eui48 const *other);
 
 int eui48_is_unset(struct eui48 v);
 
@@ -114,4 +114,3 @@ int eui48_is_not_zero(struct eui48 v);
 
 /*@}*/
 #endif
-

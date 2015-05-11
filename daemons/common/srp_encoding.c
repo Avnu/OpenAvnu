@@ -32,26 +32,27 @@
 
 #include "srp_encoding.h"
 
-void srp_encoding_talker_inc_first_value( struct srp_info_talker *self )
+void srp_encoding_talker_inc_first_value(struct srp_info_talker *self)
 {
-    uint64_t stream_id_value = eui64_convert_to_uint64( &self->stream_id );
-    uint64_t destination_address_value = eui48_convert_to_uint64( &self->data_frame_parameters.destination_address );
-    stream_id_value++;
-    destination_address_value++;
-    eui64_init_from_uint64( &self->stream_id, stream_id_value );
-    eui48_init_from_uint64( &self->data_frame_parameters.destination_address, destination_address_value );
+	uint64_t stream_id_value = eui64_convert_to_uint64(&self->stream_id);
+	uint64_t destination_address_value = eui48_convert_to_uint64(
+	    &self->data_frame_parameters.destination_address);
+	stream_id_value++;
+	destination_address_value++;
+	eui64_init_from_uint64(&self->stream_id, stream_id_value);
+	eui48_init_from_uint64(&self->data_frame_parameters.destination_address,
+			       destination_address_value);
 }
 
-void srp_encoding_listener_inc_first_value( struct srp_info_listener *self )
+void srp_encoding_listener_inc_first_value(struct srp_info_listener *self)
 {
-    uint64_t stream_id_value = eui64_convert_to_uint64( &self->stream_id );
-    stream_id_value++;
-    eui64_init_from_uint64( &self->stream_id, stream_id_value );
+	uint64_t stream_id_value = eui64_convert_to_uint64(&self->stream_id);
+	stream_id_value++;
+	eui64_init_from_uint64(&self->stream_id, stream_id_value);
 }
 
-void srp_encoding_domain_inc_first_value( struct srp_info_domain *self )
+void srp_encoding_domain_inc_first_value(struct srp_info_domain *self)
 {
-    self->class_id++;
-    self->class_priority++;
+	self->class_id++;
+	self->class_priority++;
 }
-

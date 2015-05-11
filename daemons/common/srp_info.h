@@ -41,11 +41,10 @@
 /** SRP Domain Attribute
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.9.1
  */
-struct srp_info_domain
-{
-    uint8_t class_id;
-    uint8_t class_priority;
-    uint16_t class_vid;
+struct srp_info_domain {
+	uint8_t class_id;
+	uint8_t class_priority;
+	uint16_t class_vid;
 };
 
 /**
@@ -58,55 +57,46 @@ struct srp_info_domain
  * @param class_priority
  * @param class_vid
  */
-void srp_info_domain_init(
-        struct srp_info_domain *self,
-        uint8_t class_id,
-        uint8_t class_priority,
-        uint16_t class_vid
-        );
+void srp_info_domain_init(struct srp_info_domain *self, uint8_t class_id,
+			  uint8_t class_priority, uint16_t class_vid);
 
 /**
  *  SRP First Value for Talker Advertise and Talker Fail attributes.
  *  A failure code of SRP_INFO_NO_FAILURE means Talker Advertise.
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.8.1
  */
-struct srp_info_talker
-{
+struct srp_info_talker {
 
-    /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.2 */
-    struct eui64 stream_id;
+	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.2 */
+	struct eui64 stream_id;
 
-    /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.3 */
-    struct
-    {
-        struct eui48 destination_address;
-        uint16_t vlan_identifier;
-    } data_frame_parameters;
+	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.3 */
+	struct {
+		struct eui48 destination_address;
+		uint16_t vlan_identifier;
+	} data_frame_parameters;
 
-    /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.4 */
-    struct
-    {
-        uint16_t max_frame_size;
-        uint16_t max_interval_frames;
-    } tspec;
+	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.4 */
+	struct {
+		uint16_t max_frame_size;
+		uint16_t max_interval_frames;
+	} tspec;
 
-    /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.5 */
-    struct
-    {
-        uint8_t data_frame_priority : 3;
-        uint8_t rank : 1;
-        uint8_t reserved : 4;
-    } priority_and_rank;
+	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.5 */
+	struct {
+		uint8_t data_frame_priority : 3;
+		uint8_t rank : 1;
+		uint8_t reserved : 4;
+	} priority_and_rank;
 
-    /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.6 */
-    uint32_t accumulated_latency;
+	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.6 */
+	uint32_t accumulated_latency;
 
-    /** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.7 */
-    struct
-    {
-        struct eui64 failure_bridge_id;
-        uint8_t failure_code;
-    } failure_information;
+	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.7 */
+	struct {
+		struct eui64 failure_bridge_id;
+		uint8_t failure_code;
+	} failure_information;
 };
 
 /**
@@ -125,16 +115,10 @@ struct srp_info_talker
  * @param accumulated_latency
  */
 void srp_info_talker_advertise_init(
-        struct srp_info_talker *self,
-        struct eui64 const *stream_id,
-        struct eui48 const *destination_address,
-        uint16_t vlan_identifier,
-        uint16_t max_frame_size,
-        uint16_t max_interval_frames,
-        uint8_t data_frame_priority,
-        uint8_t rank,
-        uint32_t accumulated_latency
-        );
+    struct srp_info_talker *self, struct eui64 const *stream_id,
+    struct eui48 const *destination_address, uint16_t vlan_identifier,
+    uint16_t max_frame_size, uint16_t max_interval_frames,
+    uint8_t data_frame_priority, uint8_t rank, uint32_t accumulated_latency);
 
 /**
  * @brief srp_info_talker_fail_init
@@ -154,26 +138,18 @@ void srp_info_talker_advertise_init(
  * @param failure_code
  */
 void srp_info_talker_fail_init(
-        struct srp_info_talker *self,
-        struct eui64 const *stream_id,
-        struct eui48 const *destination_address,
-        uint16_t vlan_identifier,
-        uint16_t max_frame_size,
-        uint16_t max_interval_frames,
-        uint8_t data_frame_priority,
-        uint8_t rank,
-        uint32_t accumulated_latency,
-        struct eui64 const *failure_bridge_id,
-        uint8_t failure_code
-        );
+    struct srp_info_talker *self, struct eui64 const *stream_id,
+    struct eui48 const *destination_address, uint16_t vlan_identifier,
+    uint16_t max_frame_size, uint16_t max_interval_frames,
+    uint8_t data_frame_priority, uint8_t rank, uint32_t accumulated_latency,
+    struct eui64 const *failure_bridge_id, uint8_t failure_code);
 
 /**
  *  SRP First Value for Listener attribute
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.8.1
  */
-struct srp_info_listener
-{
-    struct eui64 stream_id;
+struct srp_info_listener {
+	struct eui64 stream_id;
 };
 
 /**
@@ -184,9 +160,7 @@ struct srp_info_listener
  * @param self
  * @param stream_id
  */
-void srp_info_listener_init(
-        struct srp_info_listener *self,
-        struct eui64 const *stream_id );
-
+void srp_info_listener_init(struct srp_info_listener *self,
+			    struct eui64 const *stream_id);
 
 #endif /* SRP_INFO_H_ */

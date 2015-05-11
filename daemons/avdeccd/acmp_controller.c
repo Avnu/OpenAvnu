@@ -33,24 +33,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "acmpdu.h"
 #include "acmp_controller.h"
 
-static struct acmp_controller_slots acmp_controller_slots_table
-    = { acmp_controller_terminate, acmp_controller_connect_signals,
-	acmp_controller_disconnect_signals, acmp_controller_start,
-	acmp_controller_stop, acmp_controller_handle_pdu,
-	acmp_controller_tick, acmp_controller_track_stream_sink,
-	acmp_controller_track_stream_source, acmp_controller_connect_stream
-};
+static struct acmp_controller_slots acmp_controller_slots_table = {
+    acmp_controller_terminate, acmp_controller_connect_signals,
+    acmp_controller_disconnect_signals, acmp_controller_start,
+    acmp_controller_stop, acmp_controller_handle_pdu, acmp_controller_tick,
+    acmp_controller_track_stream_sink, acmp_controller_track_stream_source,
+    acmp_controller_connect_stream};
 
-void acmp_controller_init(struct acmp_controller *self,
-			  int max_stream_sources,
+void acmp_controller_init(struct acmp_controller *self, int max_stream_sources,
 			  struct acmp_controller_stream_source *stream_sources,
 			  int max_stream_sinks,
 			  struct acmp_controller_stream_sink *stream_sinks,
 			  int max_connections,
 			  struct acmp_controller_connection *stream_connections)
 {
-    self->incoming_slots = acmp_controller_slots_table;
-    self->outgoing_signals = 0;
+	self->incoming_slots = acmp_controller_slots_table;
+	self->outgoing_signals = 0;
 	self->state = ACMP_CONTROLLER_STOPPED;
 	self->max_stream_sources = max_stream_sources;
 	self->num_stream_sources = 0;
@@ -67,28 +65,30 @@ void acmp_controller_init(struct acmp_controller *self,
 void acmp_controller_terminate(struct acmp_controller_slots *self_)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
-    if (self->outgoing_signals) {
-        self_->disconnect_signals(self_, self->outgoing_signals);
+	if (self->outgoing_signals) {
+		self_->disconnect_signals(self_, self->outgoing_signals);
 	}
 }
 
 /** Ask the object to send its signals to destination_signals */
-void acmp_controller_connect_signals(struct acmp_controller_slots *self_, struct acmp_controller_signals
-				     *destination_signals)
+void acmp_controller_connect_signals(
+    struct acmp_controller_slots *self_,
+    struct acmp_controller_signals *destination_signals)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
-    self->outgoing_signals = destination_signals;
+	self->outgoing_signals = destination_signals;
 	destination_signals->acmp_controller_connected(destination_signals,
 						       self_);
 }
 
 /** Ask the object to disconnect the destination_signals */
-void acmp_controller_disconnect_signals(struct acmp_controller_slots *self_, struct acmp_controller_signals
-					*destination_signals)
+void acmp_controller_disconnect_signals(
+    struct acmp_controller_slots *self_,
+    struct acmp_controller_signals *destination_signals)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
 	destination_signals->acmp_controller_disconnected(destination_signals);
-    self->outgoing_signals = 0;
+	self->outgoing_signals = 0;
 }
 
 /** Ask the object to start processing */
@@ -98,8 +98,9 @@ void acmp_controller_start(struct acmp_controller_slots *self_)
 	if (ACMP_CONTROLLER_STOPPED == self->state) {
 		/* TODO: Initialize state machines */
 		self->state = ACMP_CONTROLLER_STARTED;
-        if (self->outgoing_signals) {
-            self->outgoing_signals->acmp_controller_started(self->outgoing_signals);
+		if (self->outgoing_signals) {
+			self->outgoing_signals->acmp_controller_started(
+			    self->outgoing_signals);
 		}
 	}
 }
@@ -112,8 +113,9 @@ void acmp_controller_stop(struct acmp_controller_slots *self_)
 	if (ACMP_CONTROLLER_STARTED == self->state) {
 		/* TODO: Halt state machines */
 		self->state = ACMP_CONTROLLER_STOPPED;
-        if (self->outgoing_signals) {
-            self->outgoing_signals->acmp_controller_stopped(self->outgoing_signals);
+		if (self->outgoing_signals) {
+			self->outgoing_signals->acmp_controller_stopped(
+			    self->outgoing_signals);
 		}
 	}
 }
@@ -134,7 +136,7 @@ void acmp_controller_tick(struct acmp_controller_slots *self_,
 
 /** Ask the object to track a specific stream sink */
 void acmp_controller_track_stream_sink(struct acmp_controller_slots *self_,
-                       struct eui64 listener_entity_id,
+				       struct eui64 listener_entity_id,
 				       uint16_t listener_unique_id, bool enable)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
@@ -142,7 +144,7 @@ void acmp_controller_track_stream_sink(struct acmp_controller_slots *self_,
 
 /** Ask the object to track a specific stream source */
 void acmp_controller_track_stream_source(struct acmp_controller_slots *self_,
-                     struct eui64 talker_entity_id,
+					 struct eui64 talker_entity_id,
 					 uint16_t talker_unique_id, bool enable)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
@@ -150,9 +152,9 @@ void acmp_controller_track_stream_source(struct acmp_controller_slots *self_,
 
 /** Ask the object to connect a stream source to a stream sink */
 void acmp_controller_connect_stream(struct acmp_controller_slots *self_,
-                    struct eui64 talker_entity_id,
+				    struct eui64 talker_entity_id,
 				    uint16_t talker_unique_id,
-                    struct eui64 listener_entity_id,
+				    struct eui64 listener_entity_id,
 				    uint16_t listener_unique_id, bool enable)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;

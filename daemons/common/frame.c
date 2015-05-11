@@ -33,102 +33,110 @@
 #include "frame.h"
 #include "pdu.h"
 
-ssize_t frame_read( struct frame *p, void const *base, ssize_t pos, size_t len )
+ssize_t frame_read(struct frame *p, void const *base, ssize_t pos, size_t len)
 {
-    ssize_t r = pdu_validate_range( pos, len, 14 );
-    if ( r >= 0 )
-    {
-        size_t payload_offset;
-        uint16_t tag;
+	ssize_t r = pdu_validate_range(pos, len, 14);
+	if (r >= 0) {
+		size_t payload_offset;
+		uint16_t tag;
 
-        p->dest_address = pdu_eui48_get( base, pos + FRAME_HEADER_DA_OFFSET );
-        p->src_address = pdu_eui48_get( base, pos + FRAME_HEADER_SA_OFFSET );
-        tag = pdu_uint16_get( base, pos + FRAME_HEADER_ETHERTYPE_OFFSET );
+		p->dest_address =
+		    pdu_eui48_get(base, pos + FRAME_HEADER_DA_OFFSET);
+		p->src_address =
+		    pdu_eui48_get(base, pos + FRAME_HEADER_SA_OFFSET);
+		tag = pdu_uint16_get(base, pos + FRAME_HEADER_ETHERTYPE_OFFSET);
 
-        if ( tag == FRAME_TAG_ETHERTYPE )
-        {
-            payload_offset = FRAME_PAYLOAD_OFFSET + FRAME_TAG_LEN;
-            p->tpid = tag;
-            r = pdu_validate_range( pos, len, pos + payload_offset );
-            if ( r >= 0 )
-            {
-                uint16_t tci = pdu_uint16_get( base, pos + FRAME_HEADER_TAG_OFFSET );
+		if (tag == FRAME_TAG_ETHERTYPE) {
+			payload_offset = FRAME_PAYLOAD_OFFSET + FRAME_TAG_LEN;
+			p->tpid = tag;
+			r = pdu_validate_range(pos, len, pos + payload_offset);
+			if (r >= 0) {
+				uint16_t tci = pdu_uint16_get(
+				    base, pos + FRAME_HEADER_TAG_OFFSET);
 
-                p->pcp = ( tci >> 13 ) & 0x7;
-                p->dei = ( tci >> 12 ) & 1;
-                p->vid = tci & 0xfff;
+				p->pcp = (tci >> 13) & 0x7;
+				p->dei = (tci >> 12) & 1;
+				p->vid = tci & 0xfff;
 
-                p->ethertype = pdu_uint16_get( base, pos + FRAME_HEADER_ETHERTYPE_OFFSET + FRAME_TAG_LEN );
-            }
-        }
-        else
-        {
-            payload_offset = FRAME_PAYLOAD_OFFSET;
-            p->tpid = 0;
-            p->dei = 0;
-            p->pcp = 0;
-            p->vid = 0;
+				p->ethertype = pdu_uint16_get(
+				    base, pos + FRAME_HEADER_ETHERTYPE_OFFSET +
+					      FRAME_TAG_LEN);
+			}
+		} else {
+			payload_offset = FRAME_PAYLOAD_OFFSET;
+			p->tpid = 0;
+			p->dei = 0;
+			p->pcp = 0;
+			p->vid = 0;
 
-            p->ethertype = tag;
-        }
+			p->ethertype = tag;
+		}
 
-        if ( r >= 0 )
-        {
-            p->length = ( uint16_t )( len - payload_offset );
-            memcpy( p->payload, ( (uint8_t *)base ) + pos + payload_offset, p->length );
-            r = len;
-        }
-    }
-    return r;
+		if (r >= 0) {
+			p->length = (uint16_t)(len - payload_offset);
+			memcpy(p->payload,
+			       ((uint8_t *)base) + pos + payload_offset,
+			       p->length);
+			r = len;
+		}
+	}
+	return r;
 }
 
-ssize_t frame_write( struct frame const *p, void *base, ssize_t pos, size_t len )
+ssize_t frame_write(struct frame const *p, void *base, ssize_t pos, size_t len)
 {
-    ssize_t r = pdu_validate_range( pos, len, FRAME_HEADER_LEN );
-    if ( r >= 0 )
-    {
-        size_t payload_offset;
+	ssize_t r = pdu_validate_range(pos, len, FRAME_HEADER_LEN);
+	if (r >= 0) {
+		size_t payload_offset;
 
-        pdu_eui48_set( p->dest_address, base, pos + FRAME_HEADER_DA_OFFSET );
-        pdu_eui48_set( p->src_address, base, pos + FRAME_HEADER_SA_OFFSET );
-        if ( p->tpid == FRAME_TAG_ETHERTYPE )
-        {
-            payload_offset = FRAME_PAYLOAD_OFFSET + FRAME_TAG_LEN;
-            r = pdu_validate_range( pos, len, payload_offset );
-            if ( r >= 0 )
-            {
-                uint16_t tci = ( ( p->pcp & 0x7 ) << 13 ) | ( ( p->dei & 1 ) << 12 ) | ( ( p->vid ) & 0xfff );
-                pdu_uint16_set( p->tpid, base, pos + FRAME_HEADER_TAG_OFFSET );
-                pdu_uint16_set( tci, base, pos + FRAME_HEADER_TAG_OFFSET + FRAME_TAG_LEN );
-                pdu_uint16_set( p->ethertype, base, pos + FRAME_HEADER_ETHERTYPE_OFFSET + FRAME_TAG_LEN );
-            }
-        }
-        else
-        {
-            payload_offset = FRAME_PAYLOAD_OFFSET;
-            pdu_uint16_set( p->ethertype, base, pos + FRAME_HEADER_ETHERTYPE_OFFSET );
-        }
+		pdu_eui48_set(p->dest_address, base,
+			      pos + FRAME_HEADER_DA_OFFSET);
+		pdu_eui48_set(p->src_address, base,
+			      pos + FRAME_HEADER_SA_OFFSET);
+		if (p->tpid == FRAME_TAG_ETHERTYPE) {
+			payload_offset = FRAME_PAYLOAD_OFFSET + FRAME_TAG_LEN;
+			r = pdu_validate_range(pos, len, payload_offset);
+			if (r >= 0) {
+				uint16_t tci = ((p->pcp & 0x7) << 13) |
+					       ((p->dei & 1) << 12) |
+					       ((p->vid) & 0xfff);
+				pdu_uint16_set(p->tpid, base,
+					       pos + FRAME_HEADER_TAG_OFFSET);
+				pdu_uint16_set(tci, base,
+					       pos + FRAME_HEADER_TAG_OFFSET +
+						   FRAME_TAG_LEN);
+				pdu_uint16_set(
+				    p->ethertype, base,
+				    pos + FRAME_HEADER_ETHERTYPE_OFFSET +
+					FRAME_TAG_LEN);
+			}
+		} else {
+			payload_offset = FRAME_PAYLOAD_OFFSET;
+			pdu_uint16_set(p->ethertype, base,
+				       pos + FRAME_HEADER_ETHERTYPE_OFFSET);
+		}
 
-        r = pdu_validate_range( pos, len, pos + payload_offset + p->length );
-        if ( r >= 0 )
-        {
-            memcpy( ( (uint8_t *)base ) + pos + payload_offset, p->payload, p->length );
-        }
-    }
+		r = pdu_validate_range(pos, len,
+				       pos + payload_offset + p->length);
+		if (r >= 0) {
+			memcpy(((uint8_t *)base) + pos + payload_offset,
+			       p->payload, p->length);
+		}
+	}
 
-    return r;
+	return r;
 }
 
 void frame_init(struct frame *p)
 {
-    p->time = 0;
-    eui48_init( &p->dest_address );
-    eui48_init( &p->src_address );
-    p->ethertype = 0;
-    p->length = 0;
-    p->tpid = 0;
-    p->pcp = 0;
-    p->dei = 0;
-    p->vid = 0;
-    memset( p->payload, 0, sizeof( p->payload ) );
+	p->time = 0;
+	eui48_init(&p->dest_address);
+	eui48_init(&p->src_address);
+	p->ethertype = 0;
+	p->length = 0;
+	p->tpid = 0;
+	p->pcp = 0;
+	p->dei = 0;
+	p->vid = 0;
+	memset(p->payload, 0, sizeof(p->payload));
 }

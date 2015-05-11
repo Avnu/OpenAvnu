@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "srp_info.h"
 
 #ifndef ACMP_LISTENER_MAX_STREAMS
-#define ACMP_LISTENER_MAX_STREAMS ( 8 )
+#define ACMP_LISTENER_MAX_STREAMS (8)
 #endif
 
 struct acmp_listener_slots;
@@ -43,94 +43,91 @@ struct acmp_listener_slots;
 /** These are the signals that can come from an acmp_listener state machine */
 struct acmp_listener_signals {
 
-    /** The signals were connected */
-	void (*acmp_listener_connected) (struct acmp_listener_signals * self,
-					 struct acmp_listener_slots *
-					 acmp_controller_slots);
+	/** The signals were connected */
+	void (*acmp_listener_connected)(
+	    struct acmp_listener_signals *self,
+	    struct acmp_listener_slots *acmp_controller_slots);
 
-    /** The signals were disconnected */
-	void (*acmp_listener_disconnected) (struct acmp_listener_signals *
-					    self);
+	/** The signals were disconnected */
+	void (*acmp_listener_disconnected)(struct acmp_listener_signals *self);
 
-    /** The object was started */
-	void (*acmp_listener_started) (struct acmp_listener_signals * self,
-				       struct acmp_listener_slots * source);
+	/** The object was started */
+	void (*acmp_listener_started)(struct acmp_listener_signals *self,
+				      struct acmp_listener_slots *source);
 
-    /** The object was stopped */
-	void (*acmp_listener_stopped) (struct acmp_listener_signals * self,
-				       struct acmp_listener_slots * source);
+	/** The object was stopped */
+	void (*acmp_listener_stopped)(struct acmp_listener_signals *self,
+				      struct acmp_listener_slots *source);
 
-    /** The object is asking to send an ethernet frame */
-	void (*acmp_listener_send_pdu) (void *self, struct frame * acmpdu);
+	/** The object is asking to send an ethernet frame */
+	void (*acmp_listener_send_pdu)(void *self, struct frame *acmpdu);
 
-    /** The object is asking to be notified about the specified talker stream id  */
-	void (*acmp_listener_srp_info_request) (struct acmp_listener_signals *
-						self,
-						struct acmp_listener_slots *
-						source,
-						uint64_t talker_stream_id);
+	/** The object is asking to be notified about the specified talker
+	 * stream id  */
+	void (*acmp_listener_srp_info_request)(
+	    struct acmp_listener_signals *self,
+	    struct acmp_listener_slots *source, uint64_t talker_stream_id);
 
-    /** The object is listening to a talker */
-	void (*acmp_listener_talker_added) (struct acmp_listener_signals * self,
-					    struct acmp_listener_slots * source,
-					    uint64_t talker_stream_id,
-					    uint64_t talker_mac,
-					    uint16_t talker_vid);
+	/** The object is listening to a talker */
+	void (*acmp_listener_talker_added)(struct acmp_listener_signals *self,
+					   struct acmp_listener_slots *source,
+					   uint64_t talker_stream_id,
+					   uint64_t talker_mac,
+					   uint16_t talker_vid);
 
-    /** The object is no longer listening to a talker */
-	void (*acmp_listener_talker_removed) (struct acmp_listener_signals *
-					      self,
-					      struct acmp_listener_slots *
-					      source,
-					      uint64_t talker_stream_id);
+	/** The object is no longer listening to a talker */
+	void (*acmp_listener_talker_removed)(struct acmp_listener_signals *self,
+					     struct acmp_listener_slots *source,
+					     uint64_t talker_stream_id);
 };
 
-/** These are the the messages that an acmp listener state machine can receive */
+/** These are the the messages that an acmp listener state machine can receive
+ */
 struct acmp_listener_slots {
-    /** Ask the object to to terminate */
-	void (*terminate) (struct acmp_listener_slots * self);
+	/** Ask the object to to terminate */
+	void (*terminate)(struct acmp_listener_slots *self);
 
-    /** Ask the object to send its signals to destination_signals */
-	void (*connect_signals) (struct acmp_listener_slots * self,
-				 struct acmp_listener_signals *
-				 destination_signals);
+	/** Ask the object to send its signals to destination_signals */
+	void (*connect_signals)(
+	    struct acmp_listener_slots *self,
+	    struct acmp_listener_signals *destination_signals);
 
-    /** Ask the object to disconnect the destination_signals */
-	void (*disconnect_signals) (struct acmp_listener_slots * self,
-				    struct acmp_listener_signals *
-				    destination_signals);
+	/** Ask the object to disconnect the destination_signals */
+	void (*disconnect_signals)(
+	    struct acmp_listener_slots *self,
+	    struct acmp_listener_signals *destination_signals);
 
-    /** Ask the object to start processing */
-	void (*start) (struct acmp_listener_slots * self);
+	/** Ask the object to start processing */
+	void (*start)(struct acmp_listener_slots *self);
 
-    /** Ask the object to stop processing */
-	void (*stop) (struct acmp_listener_slots * self);
+	/** Ask the object to stop processing */
+	void (*stop)(struct acmp_listener_slots *self);
 
-    /** Ask the object to handle the specified ethernet frame */
-	void (*handle_pdu) (struct acmp_listener_slots * self,
-			    struct frame * frame);
+	/** Ask the object to handle the specified ethernet frame */
+	void (*handle_pdu)(struct acmp_listener_slots *self,
+			   struct frame *frame);
 
-    /** Ask the object to process any periodic timers */
-	void (*tick) (struct acmp_listener_slots * self,
-		      timestamp_in_microseconds current_time);
+	/** Ask the object to process any periodic timers */
+	void (*tick)(struct acmp_listener_slots *self,
+		     timestamp_in_microseconds current_time);
 
-    /** Notify the ACMP listener that some talker stream info was received via SRP */
-	void (*srp_talker_info_received) (struct acmp_listener_slots * self,
-                      const struct srp_info_talker *
-					  stream_info);
+	/** Notify the ACMP listener that some talker stream info was received
+	 * via SRP */
+	void (*srp_talker_info_received)(
+	    struct acmp_listener_slots *self,
+	    const struct srp_info_talker *stream_info);
 };
 
 /** \addtogroup acmp_talker ACMP Listener State Machine */
 /*@{*/
 
 struct acmp_listener_context {
-	enum {
-		ACMP_LISTENER_STATE_DISABLED = 0,
-		ACMP_LISTENER_STATE_DISCONNECTED,
-		ACMP_LISTENER_STATE_FAST_CONNECTION_IN_PROGRESS,
-		ACMP_LISTENER_STATE_CONNECTION_IN_PROGRESS,
-		ACMP_LISTENER_STATE_CONNECTED,
-		ACMP_LISTENER_STATE_DISCONNECTION_IN_PROGRESS,
+	enum { ACMP_LISTENER_STATE_DISABLED = 0,
+	       ACMP_LISTENER_STATE_DISCONNECTED,
+	       ACMP_LISTENER_STATE_FAST_CONNECTION_IN_PROGRESS,
+	       ACMP_LISTENER_STATE_CONNECTION_IN_PROGRESS,
+	       ACMP_LISTENER_STATE_CONNECTED,
+	       ACMP_LISTENER_STATE_DISCONNECTION_IN_PROGRESS,
 	} state;
 
 	uint64_t destination_mac_address;
@@ -145,7 +142,7 @@ struct acmp_listener_context {
 struct acmp_listener {
 	struct acmp_listener_slots incoming_slots;
 	struct acmp_listener_signals outgoing_signals;
-	void (*terminate) (struct acmp_listener * self);
+	void (*terminate)(struct acmp_listener *self);
 
 	uint16_t listener_stream_sinks;
 	struct acmp_listener_context listener_sink[ACMP_LISTENER_MAX_STREAMS];
@@ -159,9 +156,10 @@ void acmp_listener_terminate(struct acmp_listener *self);
 /// Receive an ACMPDU and process it
 bool acmp_listener_rx_frame(void *self, struct frame *rx_frame, size_t pos);
 
-/// Notify the state machine that time has passed. Call asap if early_tick is true.
+/// Notify the state machine that time has passed. Call asap if early_tick is
+/// true.
 void acmp_listener_tick(void *self, timestamp_in_microseconds timestamp);
 
 /*@}*/
 
-#endif				/* ACMP_LISTENER_H_ */
+#endif /* ACMP_LISTENER_H_ */

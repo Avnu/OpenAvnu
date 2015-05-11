@@ -35,112 +35,100 @@
 
 void eui64_init(struct eui64 *self)
 {
-    size_t i;
-    for (i = 0; i < sizeof(self->value); ++i) {
-        self->value[i] = 0xff;
-    }
+	size_t i;
+	for (i = 0; i < sizeof(self->value); ++i) {
+		self->value[i] = 0xff;
+	}
 }
-
 
 void eui64_zero(struct eui64 *self)
 {
-    size_t i;
-    for (i = 0; i < sizeof(self->value); ++i) {
-        self->value[i] = 0x00;
-    }
+	size_t i;
+	for (i = 0; i < sizeof(self->value); ++i) {
+		self->value[i] = 0x00;
+	}
 }
-
 
 void eui64_init_from_uint64(struct eui64 *self, uint64_t other)
 {
-    self->value[0] = (uint8_t) ((other >> (7 * 8)) & 0xff);
-    self->value[1] = (uint8_t) ((other >> (6 * 8)) & 0xff);
-    self->value[2] = (uint8_t) ((other >> (5 * 8)) & 0xff);
-    self->value[3] = (uint8_t) ((other >> (4 * 8)) & 0xff);
-    self->value[4] = (uint8_t) ((other >> (3 * 8)) & 0xff);
-    self->value[5] = (uint8_t) ((other >> (2 * 8)) & 0xff);
-    self->value[6] = (uint8_t) ((other >> (1 * 8)) & 0xff);
-    self->value[7] = (uint8_t) ((other >> (0 * 8)) & 0xff);
+	self->value[0] = (uint8_t)((other >> (7 * 8)) & 0xff);
+	self->value[1] = (uint8_t)((other >> (6 * 8)) & 0xff);
+	self->value[2] = (uint8_t)((other >> (5 * 8)) & 0xff);
+	self->value[3] = (uint8_t)((other >> (4 * 8)) & 0xff);
+	self->value[4] = (uint8_t)((other >> (3 * 8)) & 0xff);
+	self->value[5] = (uint8_t)((other >> (2 * 8)) & 0xff);
+	self->value[6] = (uint8_t)((other >> (1 * 8)) & 0xff);
+	self->value[7] = (uint8_t)((other >> (0 * 8)) & 0xff);
 }
-
 
 uint64_t eui64_convert_to_uint64(const struct eui64 *self)
 {
-    uint64_t v = 0;
-    v |= ((uint64_t) self->value[0]) << (7 * 8);
-    v |= ((uint64_t) self->value[1]) << (6 * 8);
-    v |= ((uint64_t) self->value[2]) << (5 * 8);
-    v |= ((uint64_t) self->value[3]) << (4 * 8);
-    v |= ((uint64_t) self->value[4]) << (3 * 8);
-    v |= ((uint64_t) self->value[5]) << (2 * 8);
-    v |= ((uint64_t) self->value[6]) << (1 * 8);
-    v |= ((uint64_t) self->value[7]) << (0 * 8);
-    return v;
+	uint64_t v = 0;
+	v |= ((uint64_t)self->value[0]) << (7 * 8);
+	v |= ((uint64_t)self->value[1]) << (6 * 8);
+	v |= ((uint64_t)self->value[2]) << (5 * 8);
+	v |= ((uint64_t)self->value[3]) << (4 * 8);
+	v |= ((uint64_t)self->value[4]) << (3 * 8);
+	v |= ((uint64_t)self->value[5]) << (2 * 8);
+	v |= ((uint64_t)self->value[6]) << (1 * 8);
+	v |= ((uint64_t)self->value[7]) << (0 * 8);
+	return v;
 }
-
 
 void eui64_copy(struct eui64 *self, const struct eui64 *other)
 {
-    size_t i;
-    for (i = 0; i < sizeof(self->value); ++i) {
-        self->value[i] = other->value[i];
-    }
+	size_t i;
+	for (i = 0; i < sizeof(self->value); ++i) {
+		self->value[i] = other->value[i];
+	}
 }
-
 
 int eui64_compare(const struct eui64 *self, const struct eui64 *other)
 {
-    int r = memcmp(self->value, other->value, sizeof(self->value));
-    return r;
+	int r = memcmp(self->value, other->value, sizeof(self->value));
+	return r;
 }
-
-
-
 
 int eui64_is_unset(struct eui64 v)
 {
-    int r = 0;
-    if (v.value[0] == 0xff && v.value[1] == 0xff && v.value[2] == 0xff
-            && v.value[3] == 0xff && v.value[4] == 0xff && v.value[5] == 0xff
-            && v.value[6] == 0xff && v.value[7] == 0xff) {
-        r = 1;
-    }
-    return r;
+	int r = 0;
+	if (v.value[0] == 0xff && v.value[1] == 0xff && v.value[2] == 0xff &&
+	    v.value[3] == 0xff && v.value[4] == 0xff && v.value[5] == 0xff &&
+	    v.value[6] == 0xff && v.value[7] == 0xff) {
+		r = 1;
+	}
+	return r;
 }
-
 
 int eui64_is_set(struct eui64 v)
 {
-    int r = 0;
-    if (v.value[0] != 0xff || v.value[1] != 0xff || v.value[2] != 0xff
-            || v.value[3] != 0xff || v.value[4] != 0xff || v.value[5] != 0xff
-            || v.value[6] != 0xff || v.value[7] != 0xff) {
-        r = 1;
-    }
-    return r;
+	int r = 0;
+	if (v.value[0] != 0xff || v.value[1] != 0xff || v.value[2] != 0xff ||
+	    v.value[3] != 0xff || v.value[4] != 0xff || v.value[5] != 0xff ||
+	    v.value[6] != 0xff || v.value[7] != 0xff) {
+		r = 1;
+	}
+	return r;
 }
-
 
 int eui64_is_zero(struct eui64 v)
 {
-    int r = 0;
-    if (v.value[0] == 0x00 && v.value[1] == 0x00 && v.value[2] == 0x00
-            && v.value[3] == 0x00 && v.value[4] == 0x00 && v.value[5] == 0x00
-            && v.value[6] == 0x00 && v.value[7] == 0x00) {
-        r = 1;
-    }
-    return r;
+	int r = 0;
+	if (v.value[0] == 0x00 && v.value[1] == 0x00 && v.value[2] == 0x00 &&
+	    v.value[3] == 0x00 && v.value[4] == 0x00 && v.value[5] == 0x00 &&
+	    v.value[6] == 0x00 && v.value[7] == 0x00) {
+		r = 1;
+	}
+	return r;
 }
-
 
 int eui64_is_not_zero(struct eui64 v)
 {
-    int r = 0;
-    if (v.value[0] != 0x00 || v.value[1] != 0x00 || v.value[2] != 0x00
-            || v.value[3] != 0x00 || v.value[4] != 0x00 || v.value[5] != 0x00
-            || v.value[6] != 0x00 || v.value[7] != 0x00) {
-        r = 1;
-    }
-    return r;
+	int r = 0;
+	if (v.value[0] != 0x00 || v.value[1] != 0x00 || v.value[2] != 0x00 ||
+	    v.value[3] != 0x00 || v.value[4] != 0x00 || v.value[5] != 0x00 ||
+	    v.value[6] != 0x00 || v.value[7] != 0x00) {
+		r = 1;
+	}
+	return r;
 }
-

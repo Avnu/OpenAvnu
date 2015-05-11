@@ -33,22 +33,23 @@
 #include <stdlib.h>
 #include "acmpdu.h"
 
-ssize_t acmpdu_read(struct acmpdu *p, void const *base,
-				  ssize_t pos, size_t len)
+ssize_t acmpdu_read(struct acmpdu *p, void const *base, ssize_t pos, size_t len)
 {
 	ssize_t r = pdu_validate_range(pos, len, ACMPDU_LEN);
 	if (r >= 0) {
-        p->subtype = avtp_common_control_header_get_subtype(base, pos);
-        p->sv = avtp_common_control_header_get_sv(base, pos);
-        p->version = avtp_common_control_header_get_version(base, pos);
-        p->message_type =
-            avtp_common_control_header_get_control_data(base, pos);
-        p->status = avtp_common_control_header_get_status(base, pos);
-        p->control_data_length =
-            avtp_common_control_header_get_control_data_length(base,
-                                       pos);
-        eui64_init_from_uint64(&p->stream_id,avtp_common_control_header_get_stream_id(base, pos));
-        p->controller_entity_id =
+		p->subtype = avtp_common_control_header_get_subtype(base, pos);
+		p->sv = avtp_common_control_header_get_sv(base, pos);
+		p->version = avtp_common_control_header_get_version(base, pos);
+		p->message_type =
+		    avtp_common_control_header_get_control_data(base, pos);
+		p->status = avtp_common_control_header_get_status(base, pos);
+		p->control_data_length =
+		    avtp_common_control_header_get_control_data_length(base,
+								       pos);
+		eui64_init_from_uint64(
+		    &p->stream_id,
+		    avtp_common_control_header_get_stream_id(base, pos));
+		p->controller_entity_id =
 		    acmpdu_get_controller_entity_id(base, pos);
 		p->talker_entity_id = acmpdu_get_talker_entity_id(base, pos);
 		p->listener_entity_id =
@@ -66,22 +67,21 @@ ssize_t acmpdu_read(struct acmpdu *p, void const *base,
 	return r;
 }
 
-ssize_t acmpdu_write(struct acmpdu const *p, void *base,
-				   size_t pos, size_t len)
+ssize_t acmpdu_write(struct acmpdu const *p, void *base, size_t pos, size_t len)
 {
 	ssize_t r = pdu_validate_range(pos, len, ACMPDU_LEN);
 	if (r >= 0) {
-        avtp_common_control_header_set_subtype(p->subtype, base, pos);
-        avtp_common_control_header_set_sv(p->sv, base, pos);
-        avtp_common_control_header_set_version(p->version, base, pos);
-        avtp_common_control_header_set_control_data(p->message_type,
-                                base, pos);
-        avtp_common_control_header_set_status(p->status, base, pos);
-        avtp_common_control_header_set_control_data_length
-            (p->control_data_length, base, pos);
-        avtp_common_control_header_set_stream_id( eui64_convert_to_uint64( &p->stream_id ), base,
-                             pos);
-        acmpdu_set_controller_entity_id(p->controller_entity_id, base,
+		avtp_common_control_header_set_subtype(p->subtype, base, pos);
+		avtp_common_control_header_set_sv(p->sv, base, pos);
+		avtp_common_control_header_set_version(p->version, base, pos);
+		avtp_common_control_header_set_control_data(p->message_type,
+							    base, pos);
+		avtp_common_control_header_set_status(p->status, base, pos);
+		avtp_common_control_header_set_control_data_length(
+		    p->control_data_length, base, pos);
+		avtp_common_control_header_set_stream_id(
+		    eui64_convert_to_uint64(&p->stream_id), base, pos);
+		acmpdu_set_controller_entity_id(p->controller_entity_id, base,
 						pos);
 		acmpdu_set_talker_entity_id(p->talker_entity_id, base, pos);
 		acmpdu_set_listener_entity_id(p->listener_entity_id, base, pos);

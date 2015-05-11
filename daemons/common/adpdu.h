@@ -38,22 +38,24 @@
 /** \addtogroup adpdu ADPDU - Clause 6.2.1 */
 /*@{*/
 
-#define ADPDU_OFFSET_ENTITY_MODEL_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 0 )
-#define ADPDU_OFFSET_ENTITY_CAPABILITIES ( AVTP_COMMON_CONTROL_HEADER_LEN + 8 )
-#define ADPDU_OFFSET_TALKER_STREAM_SOURCES ( AVTP_COMMON_CONTROL_HEADER_LEN + 12 )
-#define ADPDU_OFFSET_TALKER_CAPABILITIES ( AVTP_COMMON_CONTROL_HEADER_LEN + 14 )
-#define ADPDU_OFFSET_LISTENER_STREAM_SINKS ( AVTP_COMMON_CONTROL_HEADER_LEN + 16 )
-#define ADPDU_OFFSET_LISTENER_CAPABILITIES ( AVTP_COMMON_CONTROL_HEADER_LEN + 18 )
-#define ADPDU_OFFSET_CONTROLLER_CAPABILITIES ( AVTP_COMMON_CONTROL_HEADER_LEN + 20 )
-#define ADPDU_OFFSET_AVAILABLE_INDEX ( AVTP_COMMON_CONTROL_HEADER_LEN + 24 )
-#define ADPDU_OFFSET_GPTP_GRANDMASTER_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 28 )
-#define ADPDU_OFFSET_GPTP_DOMAIN_NUMBER ( AVTP_COMMON_CONTROL_HEADER_LEN + 36 )
-#define ADPDU_OFFSET_RESERVED0 ( AVTP_COMMON_CONTROL_HEADER_LEN + 37 )
-#define ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX ( AVTP_COMMON_CONTROL_HEADER_LEN + 40 )
-#define ADPDU_OFFSET_INTERFACE_INDEX ( AVTP_COMMON_CONTROL_HEADER_LEN + 42 )
-#define ADPDU_OFFSET_ASSOCIATION_ID ( AVTP_COMMON_CONTROL_HEADER_LEN + 44 )
-#define ADPDU_OFFSET_RESERVED1 ( AVTP_COMMON_CONTROL_HEADER_LEN + 52 )
-#define ADPDU_LEN ( AVTP_COMMON_CONTROL_HEADER_LEN + 56 )
+#define ADPDU_OFFSET_ENTITY_MODEL_ID (AVTP_COMMON_CONTROL_HEADER_LEN + 0)
+#define ADPDU_OFFSET_ENTITY_CAPABILITIES (AVTP_COMMON_CONTROL_HEADER_LEN + 8)
+#define ADPDU_OFFSET_TALKER_STREAM_SOURCES (AVTP_COMMON_CONTROL_HEADER_LEN + 12)
+#define ADPDU_OFFSET_TALKER_CAPABILITIES (AVTP_COMMON_CONTROL_HEADER_LEN + 14)
+#define ADPDU_OFFSET_LISTENER_STREAM_SINKS (AVTP_COMMON_CONTROL_HEADER_LEN + 16)
+#define ADPDU_OFFSET_LISTENER_CAPABILITIES (AVTP_COMMON_CONTROL_HEADER_LEN + 18)
+#define ADPDU_OFFSET_CONTROLLER_CAPABILITIES                                   \
+	(AVTP_COMMON_CONTROL_HEADER_LEN + 20)
+#define ADPDU_OFFSET_AVAILABLE_INDEX (AVTP_COMMON_CONTROL_HEADER_LEN + 24)
+#define ADPDU_OFFSET_GPTP_GRANDMASTER_ID (AVTP_COMMON_CONTROL_HEADER_LEN + 28)
+#define ADPDU_OFFSET_GPTP_DOMAIN_NUMBER (AVTP_COMMON_CONTROL_HEADER_LEN + 36)
+#define ADPDU_OFFSET_RESERVED0 (AVTP_COMMON_CONTROL_HEADER_LEN + 37)
+#define ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX                                    \
+	(AVTP_COMMON_CONTROL_HEADER_LEN + 40)
+#define ADPDU_OFFSET_INTERFACE_INDEX (AVTP_COMMON_CONTROL_HEADER_LEN + 42)
+#define ADPDU_OFFSET_ASSOCIATION_ID (AVTP_COMMON_CONTROL_HEADER_LEN + 44)
+#define ADPDU_OFFSET_RESERVED1 (AVTP_COMMON_CONTROL_HEADER_LEN + 52)
+#define ADPDU_LEN (AVTP_COMMON_CONTROL_HEADER_LEN + 56)
 
 /*@}*/
 
@@ -72,9 +74,10 @@
  * @param pos offset from base to read the field from;
  * @return the eui64 entity_model_id value
  */
-static inline struct eui64 adpdu_get_entity_model_id( void const *base, ssize_t pos )
+static inline struct eui64 adpdu_get_entity_model_id(void const *base,
+						     ssize_t pos)
 {
-    return pdu_eui64_get( base, pos + ADPDU_OFFSET_ENTITY_MODEL_ID );
+	return pdu_eui64_get(base, pos + ADPDU_OFFSET_ENTITY_MODEL_ID);
 }
 
 /**
@@ -89,9 +92,10 @@ static inline struct eui64 adpdu_get_entity_model_id( void const *base, ssize_t 
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_entity_model_id( struct eui64 v, void *base, ssize_t pos )
+static inline void adpdu_set_entity_model_id(struct eui64 v, void *base,
+					     ssize_t pos)
 {
-    pdu_eui64_set( v, base, pos + ADPDU_OFFSET_ENTITY_MODEL_ID );
+	pdu_eui64_set(v, base, pos + ADPDU_OFFSET_ENTITY_MODEL_ID);
 }
 
 /**
@@ -106,9 +110,10 @@ static inline void adpdu_set_entity_model_id( struct eui64 v, void *base, ssize_
  * @param pos offset from base to read the field from;
  * @return the uint32_t entity_capabilities value
  */
-static inline uint32_t adpdu_get_entity_capabilities( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_entity_capabilities(void const *base,
+						     ssize_t pos)
 {
-    return pdu_uint32_get( base, pos + ADPDU_OFFSET_ENTITY_CAPABILITIES );
+	return pdu_uint32_get(base, pos + ADPDU_OFFSET_ENTITY_CAPABILITIES);
 }
 
 /**
@@ -123,9 +128,10 @@ static inline uint32_t adpdu_get_entity_capabilities( void const *base, ssize_t 
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_entity_capabilities( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_entity_capabilities(uint32_t v, void *base,
+						 ssize_t pos)
 {
-    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_ENTITY_CAPABILITIES );
+	pdu_uint32_set(v, base, pos + ADPDU_OFFSET_ENTITY_CAPABILITIES);
 }
 
 /**
@@ -140,9 +146,10 @@ static inline void adpdu_set_entity_capabilities( uint32_t v, void *base, ssize_
  * @param pos offset from base to read the field from;
  * @return the uint16_t talker_stream_sources value
  */
-static inline uint16_t adpdu_get_talker_stream_sources( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_talker_stream_sources(void const *base,
+						       ssize_t pos)
 {
-    return pdu_uint16_get( base, pos + ADPDU_OFFSET_TALKER_STREAM_SOURCES );
+	return pdu_uint16_get(base, pos + ADPDU_OFFSET_TALKER_STREAM_SOURCES);
 }
 
 /**
@@ -157,9 +164,10 @@ static inline uint16_t adpdu_get_talker_stream_sources( void const *base, ssize_
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_talker_stream_sources( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_talker_stream_sources(uint16_t v, void *base,
+						   ssize_t pos)
 {
-    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_TALKER_STREAM_SOURCES );
+	pdu_uint16_set(v, base, pos + ADPDU_OFFSET_TALKER_STREAM_SOURCES);
 }
 
 /**
@@ -174,9 +182,10 @@ static inline void adpdu_set_talker_stream_sources( uint16_t v, void *base, ssiz
  * @param pos offset from base to read the field from;
  * @return the uint16_t talker_capabilities value
  */
-static inline uint16_t adpdu_get_talker_capabilities( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_talker_capabilities(void const *base,
+						     ssize_t pos)
 {
-    return pdu_uint16_get( base, pos + ADPDU_OFFSET_TALKER_CAPABILITIES );
+	return pdu_uint16_get(base, pos + ADPDU_OFFSET_TALKER_CAPABILITIES);
 }
 
 /**
@@ -191,9 +200,10 @@ static inline uint16_t adpdu_get_talker_capabilities( void const *base, ssize_t 
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_talker_capabilities( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_talker_capabilities(uint16_t v, void *base,
+						 ssize_t pos)
 {
-    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_TALKER_CAPABILITIES );
+	pdu_uint16_set(v, base, pos + ADPDU_OFFSET_TALKER_CAPABILITIES);
 }
 
 /**
@@ -208,9 +218,10 @@ static inline void adpdu_set_talker_capabilities( uint16_t v, void *base, ssize_
  * @param pos offset from base to read the field from;
  * @return the uint16_t listener_stream_sinks value
  */
-static inline uint16_t adpdu_get_listener_stream_sinks( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_listener_stream_sinks(void const *base,
+						       ssize_t pos)
 {
-    return pdu_uint16_get( base, pos + ADPDU_OFFSET_LISTENER_STREAM_SINKS );
+	return pdu_uint16_get(base, pos + ADPDU_OFFSET_LISTENER_STREAM_SINKS);
 }
 
 /**
@@ -225,9 +236,10 @@ static inline uint16_t adpdu_get_listener_stream_sinks( void const *base, ssize_
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_listener_stream_sinks( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_listener_stream_sinks(uint16_t v, void *base,
+						   ssize_t pos)
 {
-    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_LISTENER_STREAM_SINKS );
+	pdu_uint16_set(v, base, pos + ADPDU_OFFSET_LISTENER_STREAM_SINKS);
 }
 
 /**
@@ -242,9 +254,10 @@ static inline void adpdu_set_listener_stream_sinks( uint16_t v, void *base, ssiz
  * @param pos offset from base to read the field from;
  * @return the uint16_t listener_capabilities value
  */
-static inline uint16_t adpdu_get_listener_capabilities( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_listener_capabilities(void const *base,
+						       ssize_t pos)
 {
-    return pdu_uint16_get( base, pos + ADPDU_OFFSET_LISTENER_CAPABILITIES );
+	return pdu_uint16_get(base, pos + ADPDU_OFFSET_LISTENER_CAPABILITIES);
 }
 
 /**
@@ -259,9 +272,10 @@ static inline uint16_t adpdu_get_listener_capabilities( void const *base, ssize_
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_listener_capabilities( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_listener_capabilities(uint16_t v, void *base,
+						   ssize_t pos)
 {
-    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_LISTENER_CAPABILITIES );
+	pdu_uint16_set(v, base, pos + ADPDU_OFFSET_LISTENER_CAPABILITIES);
 }
 
 /**
@@ -276,9 +290,10 @@ static inline void adpdu_set_listener_capabilities( uint16_t v, void *base, ssiz
  * @param pos offset from base to read the field from;
  * @return the uint32_t controller_capabilities value
  */
-static inline uint32_t adpdu_get_controller_capabilities( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_controller_capabilities(void const *base,
+							 ssize_t pos)
 {
-    return pdu_uint32_get( base, pos + ADPDU_OFFSET_CONTROLLER_CAPABILITIES );
+	return pdu_uint32_get(base, pos + ADPDU_OFFSET_CONTROLLER_CAPABILITIES);
 }
 
 /**
@@ -293,9 +308,10 @@ static inline uint32_t adpdu_get_controller_capabilities( void const *base, ssiz
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_controller_capabilities( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_controller_capabilities(uint32_t v, void *base,
+						     ssize_t pos)
 {
-    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_CONTROLLER_CAPABILITIES );
+	pdu_uint32_set(v, base, pos + ADPDU_OFFSET_CONTROLLER_CAPABILITIES);
 }
 
 /**
@@ -310,9 +326,9 @@ static inline void adpdu_set_controller_capabilities( uint32_t v, void *base, ss
  * @param pos offset from base to read the field from;
  * @return the uint32_t available_index value
  */
-static inline uint32_t adpdu_get_available_index( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_available_index(void const *base, ssize_t pos)
 {
-    return pdu_uint32_get( base, pos + ADPDU_OFFSET_AVAILABLE_INDEX );
+	return pdu_uint32_get(base, pos + ADPDU_OFFSET_AVAILABLE_INDEX);
 }
 
 /**
@@ -327,9 +343,10 @@ static inline uint32_t adpdu_get_available_index( void const *base, ssize_t pos 
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_available_index( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_available_index(uint32_t v, void *base,
+					     ssize_t pos)
 {
-    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_AVAILABLE_INDEX );
+	pdu_uint32_set(v, base, pos + ADPDU_OFFSET_AVAILABLE_INDEX);
 }
 
 /**
@@ -344,9 +361,10 @@ static inline void adpdu_set_available_index( uint32_t v, void *base, ssize_t po
  * @param pos offset from base to read the field from;
  * @return the struct eui64 as_grandmaster_id value
  */
-static inline struct eui64 adpdu_get_gptp_grandmaster_id( void const *base, ssize_t pos )
+static inline struct eui64 adpdu_get_gptp_grandmaster_id(void const *base,
+							 ssize_t pos)
 {
-    return pdu_eui64_get( base, pos + ADPDU_OFFSET_GPTP_GRANDMASTER_ID );
+	return pdu_eui64_get(base, pos + ADPDU_OFFSET_GPTP_GRANDMASTER_ID);
 }
 
 /**
@@ -361,9 +379,10 @@ static inline struct eui64 adpdu_get_gptp_grandmaster_id( void const *base, ssiz
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_gptp_grandmaster_id( struct eui64 v, void *base, ssize_t pos )
+static inline void adpdu_set_gptp_grandmaster_id(struct eui64 v, void *base,
+						 ssize_t pos)
 {
-    pdu_eui64_set( v, base, pos + ADPDU_OFFSET_GPTP_GRANDMASTER_ID );
+	pdu_eui64_set(v, base, pos + ADPDU_OFFSET_GPTP_GRANDMASTER_ID);
 }
 
 /**
@@ -378,9 +397,10 @@ static inline void adpdu_set_gptp_grandmaster_id( struct eui64 v, void *base, ss
  * @param pos offset from base to read the field from;
  * @return the uint8_t gptp_domain_number value
  */
-static inline uint8_t adpdu_get_gptp_domain_number( void const *base, ssize_t pos )
+static inline uint8_t adpdu_get_gptp_domain_number(void const *base,
+						   ssize_t pos)
 {
-    return pdu_uint8_get( base, pos + ADPDU_OFFSET_GPTP_DOMAIN_NUMBER );
+	return pdu_uint8_get(base, pos + ADPDU_OFFSET_GPTP_DOMAIN_NUMBER);
 }
 
 /**
@@ -395,9 +415,10 @@ static inline uint8_t adpdu_get_gptp_domain_number( void const *base, ssize_t po
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_gptp_domain_number( uint8_t v, void *base, ssize_t pos )
+static inline void adpdu_set_gptp_domain_number(uint8_t v, void *base,
+						ssize_t pos)
 {
-    pdu_uint8_set( v, base, pos + ADPDU_OFFSET_GPTP_DOMAIN_NUMBER );
+	pdu_uint8_set(v, base, pos + ADPDU_OFFSET_GPTP_DOMAIN_NUMBER);
 }
 
 /**
@@ -412,9 +433,10 @@ static inline void adpdu_set_gptp_domain_number( uint8_t v, void *base, ssize_t 
  * @param pos offset from base to read the field from;
  * @return the uint32_t reserved0 value (24 bits)
  */
-static inline uint32_t adpdu_get_reserved0( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_reserved0(void const *base, ssize_t pos)
 {
-    return pdu_uint32_get( base, pos + ADPDU_OFFSET_RESERVED0 ) & 0x00ffffffUL;
+	return pdu_uint32_get(base, pos + ADPDU_OFFSET_RESERVED0) &
+	       0x00ffffffUL;
 }
 
 /**
@@ -429,12 +451,12 @@ static inline uint32_t adpdu_get_reserved0( void const *base, ssize_t pos )
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_reserved0( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_reserved0(uint32_t v, void *base, ssize_t pos)
 {
-    uint32_t top = pdu_uint8_get( base, pos );
-    v &= 0x00ffffffUL;
-    v |= top << 24;
-    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_RESERVED0 );
+	uint32_t top = pdu_uint8_get(base, pos);
+	v &= 0x00ffffffUL;
+	v |= top << 24;
+	pdu_uint32_set(v, base, pos + ADPDU_OFFSET_RESERVED0);
 }
 
 /**
@@ -449,9 +471,10 @@ static inline void adpdu_set_reserved0( uint32_t v, void *base, ssize_t pos )
  * @param pos offset from base to read the field from;
  * @return the uint16_t identify_control_index value
  */
-static inline uint16_t adpdu_get_identify_control_index( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_identify_control_index(void const *base,
+							ssize_t pos)
 {
-    return pdu_uint16_get( base, pos + ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX );
+	return pdu_uint16_get(base, pos + ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX);
 }
 
 /**
@@ -466,9 +489,10 @@ static inline uint16_t adpdu_get_identify_control_index( void const *base, ssize
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_identify_control_index( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_identify_control_index(uint16_t v, void *base,
+						    ssize_t pos)
 {
-    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX );
+	pdu_uint16_set(v, base, pos + ADPDU_OFFSET_IDENTIFY_CONTROL_INDEX);
 }
 
 /**
@@ -483,9 +507,9 @@ static inline void adpdu_set_identify_control_index( uint16_t v, void *base, ssi
  * @param pos offset from base to read the field from;
  * @return the uint16_t interface_index value
  */
-static inline uint16_t adpdu_get_interface_index( void const *base, ssize_t pos )
+static inline uint16_t adpdu_get_interface_index(void const *base, ssize_t pos)
 {
-    return pdu_uint16_get( base, pos + ADPDU_OFFSET_INTERFACE_INDEX );
+	return pdu_uint16_get(base, pos + ADPDU_OFFSET_INTERFACE_INDEX);
 }
 
 /**
@@ -500,9 +524,10 @@ static inline uint16_t adpdu_get_interface_index( void const *base, ssize_t pos 
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_interface_index( uint16_t v, void *base, ssize_t pos )
+static inline void adpdu_set_interface_index(uint16_t v, void *base,
+					     ssize_t pos)
 {
-    pdu_uint16_set( v, base, pos + ADPDU_OFFSET_INTERFACE_INDEX );
+	pdu_uint16_set(v, base, pos + ADPDU_OFFSET_INTERFACE_INDEX);
 }
 
 /**
@@ -517,9 +542,10 @@ static inline void adpdu_set_interface_index( uint16_t v, void *base, ssize_t po
  * @param pos offset from base to read the field from;
  * @return the struct eui64 association_id value
  */
-static inline struct eui64 adpdu_get_association_id( void const *base, ssize_t pos )
+static inline struct eui64 adpdu_get_association_id(void const *base,
+						    ssize_t pos)
 {
-    return pdu_eui64_get( base, pos + ADPDU_OFFSET_ASSOCIATION_ID );
+	return pdu_eui64_get(base, pos + ADPDU_OFFSET_ASSOCIATION_ID);
 }
 
 /**
@@ -534,9 +560,10 @@ static inline struct eui64 adpdu_get_association_id( void const *base, ssize_t p
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_association_id( struct eui64 v, void *base, ssize_t pos )
+static inline void adpdu_set_association_id(struct eui64 v, void *base,
+					    ssize_t pos)
 {
-    pdu_eui64_set( v, base, pos + ADPDU_OFFSET_ASSOCIATION_ID );
+	pdu_eui64_set(v, base, pos + ADPDU_OFFSET_ASSOCIATION_ID);
 }
 
 /**
@@ -551,9 +578,9 @@ static inline void adpdu_set_association_id( struct eui64 v, void *base, ssize_t
  * @param pos offset from base to read the field from;
  * @return the uint32_t reserved1 value
  */
-static inline uint32_t adpdu_get_reserved1( void const *base, ssize_t pos )
+static inline uint32_t adpdu_get_reserved1(void const *base, ssize_t pos)
 {
-    return pdu_uint32_get( base, pos + ADPDU_OFFSET_RESERVED1 );
+	return pdu_uint32_get(base, pos + ADPDU_OFFSET_RESERVED1);
 }
 
 /**
@@ -568,9 +595,9 @@ static inline uint32_t adpdu_get_reserved1( void const *base, ssize_t pos )
  * @param base pointer to raw memory buffer to write to.
  * @param pos offset from base to write the field to;
  */
-static inline void adpdu_set_reserved1( uint32_t v, void *base, ssize_t pos )
+static inline void adpdu_set_reserved1(uint32_t v, void *base, ssize_t pos)
 {
-    pdu_uint32_set( v, base, pos + ADPDU_OFFSET_RESERVED1 );
+	pdu_uint32_set(v, base, pos + ADPDU_OFFSET_RESERVED1);
 }
 
 /*@}*/
@@ -579,30 +606,30 @@ static inline void adpdu_set_reserved1( uint32_t v, void *base, ssize_t pos )
 /*@{*/
 
 /// ADPDU - Clause 6.2.1
-struct adpdu
-{
-    uint32_t subtype : AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
-    uint32_t sv : 1;
-    uint32_t version : AVTP_SUBTYPE_DATA_VERSION_WIDTH;
-    uint32_t message_type : AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
-    uint32_t valid_time : AVTP_SUBTYPE_DATA_STATUS_WIDTH;
-    uint32_t control_data_length : AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
-    struct eui64 entity_id;
-    struct eui64 entity_model_id;
-    uint32_t entity_capabilities;
-    uint16_t talker_stream_sources;
-    uint16_t talker_capabilities;
-    uint16_t listener_stream_sinks;
-    uint16_t listener_capabilities;
-    uint32_t controller_capabilities;
-    uint32_t available_index;
-    struct eui64 gptp_grandmaster_id;
-    uint8_t gptp_domain_number;
-    uint32_t reserved0;
-    uint16_t identify_control_index;
-    uint16_t interface_index;
-    struct eui64 association_id;
-    uint32_t reserved1;
+struct adpdu {
+	uint32_t subtype : AVTP_SUBTYPE_DATA_SUBTYPE_WIDTH;
+	uint32_t sv : 1;
+	uint32_t version : AVTP_SUBTYPE_DATA_VERSION_WIDTH;
+	uint32_t message_type : AVTP_SUBTYPE_DATA_CONTROL_DATA_WIDTH;
+	uint32_t valid_time : AVTP_SUBTYPE_DATA_STATUS_WIDTH;
+	uint32_t control_data_length
+	    : AVTP_SUBTYPE_DATA_CONTROL_DATA_LENGTH_WIDTH;
+	struct eui64 entity_id;
+	struct eui64 entity_model_id;
+	uint32_t entity_capabilities;
+	uint16_t talker_stream_sources;
+	uint16_t talker_capabilities;
+	uint16_t listener_stream_sinks;
+	uint16_t listener_capabilities;
+	uint32_t controller_capabilities;
+	uint32_t available_index;
+	struct eui64 gptp_grandmaster_id;
+	uint8_t gptp_domain_number;
+	uint32_t reserved0;
+	uint16_t identify_control_index;
+	uint16_t interface_index;
+	struct eui64 association_id;
+	uint32_t reserved1;
 };
 
 /**
@@ -619,7 +646,7 @@ struct adpdu
  * @return -1 if the buffer length is insufficent, otherwise the offset of the
  *octet following the structure in the buffer.
  */
-ssize_t adpdu_read( struct adpdu *p, void const *base, ssize_t pos, size_t len );
+ssize_t adpdu_read(struct adpdu *p, void const *base, ssize_t pos, size_t len);
 
 /**
  * Store the adpdu structure to a network buffer.
@@ -635,7 +662,7 @@ ssize_t adpdu_read( struct adpdu *p, void const *base, ssize_t pos, size_t len )
  * @return -1 if the buffer length is insufficent, otherwise the offset of the
  *octet following the structure in the buffer.
  */
-ssize_t adpdu_write( struct adpdu const *p, void *base, size_t pos, size_t len );
+ssize_t adpdu_write(struct adpdu const *p, void *base, size_t pos, size_t len);
 
 /*@}*/
 

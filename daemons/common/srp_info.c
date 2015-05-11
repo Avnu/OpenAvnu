@@ -32,71 +32,53 @@
 
 #include "srp_info.h"
 
-
-
-void srp_info_domain_init(
-        struct srp_info_domain *self,
-        uint8_t class_id,
-        uint8_t class_priority,
-        uint16_t class_vid)
+void srp_info_domain_init(struct srp_info_domain *self, uint8_t class_id,
+			  uint8_t class_priority, uint16_t class_vid)
 {
-    self->class_id = class_id;
-    self->class_priority = class_priority;
-    self->class_vid = class_vid;
+	self->class_id = class_id;
+	self->class_priority = class_priority;
+	self->class_vid = class_vid;
 }
-
 
 void srp_info_talker_advertise_init(
-        struct srp_info_talker *self,
-        const struct eui64 *stream_id,
-        const struct eui48 *destination_address,
-        uint16_t vlan_identifier,
-        uint16_t max_frame_size,
-        uint16_t max_interval_frames,
-        uint8_t data_frame_priority,
-        uint8_t rank,
-        uint32_t accumulated_latency)
+    struct srp_info_talker *self, const struct eui64 *stream_id,
+    const struct eui48 *destination_address, uint16_t vlan_identifier,
+    uint16_t max_frame_size, uint16_t max_interval_frames,
+    uint8_t data_frame_priority, uint8_t rank, uint32_t accumulated_latency)
 {
-    self->stream_id = *stream_id;
-    self->data_frame_parameters.destination_address = *destination_address;
-    self->data_frame_parameters.vlan_identifier = vlan_identifier;
-    self->tspec.max_frame_size = max_frame_size;
-    self->tspec.max_interval_frames = max_interval_frames;
-    self->priority_and_rank.data_frame_priority = data_frame_priority;
-    self->priority_and_rank.rank = rank;
-    self->accumulated_latency = accumulated_latency;
-    self->failure_information.failure_code = SRP_NO_FAILURE;
-    eui64_init(&self->failure_information.failure_bridge_id);
+	self->stream_id = *stream_id;
+	self->data_frame_parameters.destination_address = *destination_address;
+	self->data_frame_parameters.vlan_identifier = vlan_identifier;
+	self->tspec.max_frame_size = max_frame_size;
+	self->tspec.max_interval_frames = max_interval_frames;
+	self->priority_and_rank.data_frame_priority = data_frame_priority;
+	self->priority_and_rank.rank = rank;
+	self->accumulated_latency = accumulated_latency;
+	self->failure_information.failure_code = SRP_NO_FAILURE;
+	eui64_init(&self->failure_information.failure_bridge_id);
 }
-
 
 void srp_info_talker_fail_init(
-        struct srp_info_talker *self,
-        const struct eui64 *stream_id,
-        const struct eui48 *destination_address,
-        uint16_t vlan_identifier,
-        uint16_t max_frame_size,
-        uint16_t max_interval_frames,
-        uint8_t data_frame_priority,
-        uint8_t rank,
-        uint32_t accumulated_latency,
-        const struct eui64 *failure_bridge_id,
-        uint8_t failure_code)
+    struct srp_info_talker *self, const struct eui64 *stream_id,
+    const struct eui48 *destination_address, uint16_t vlan_identifier,
+    uint16_t max_frame_size, uint16_t max_interval_frames,
+    uint8_t data_frame_priority, uint8_t rank, uint32_t accumulated_latency,
+    const struct eui64 *failure_bridge_id, uint8_t failure_code)
 {
-    self->stream_id = *stream_id;
-    self->data_frame_parameters.destination_address = *destination_address;
-    self->data_frame_parameters.vlan_identifier = vlan_identifier;
-    self->tspec.max_frame_size = max_frame_size;
-    self->tspec.max_interval_frames = max_interval_frames;
-    self->priority_and_rank.data_frame_priority = data_frame_priority;
-    self->priority_and_rank.rank = rank;
-    self->accumulated_latency = accumulated_latency;
-    self->failure_information.failure_bridge_id = *failure_bridge_id;
-    self->failure_information.failure_code = failure_code;
+	self->stream_id = *stream_id;
+	self->data_frame_parameters.destination_address = *destination_address;
+	self->data_frame_parameters.vlan_identifier = vlan_identifier;
+	self->tspec.max_frame_size = max_frame_size;
+	self->tspec.max_interval_frames = max_interval_frames;
+	self->priority_and_rank.data_frame_priority = data_frame_priority;
+	self->priority_and_rank.rank = rank;
+	self->accumulated_latency = accumulated_latency;
+	self->failure_information.failure_bridge_id = *failure_bridge_id;
+	self->failure_information.failure_code = failure_code;
 }
 
-
-void srp_info_listener_init(struct srp_info_listener *self, const struct eui64 *stream_id)
+void srp_info_listener_init(struct srp_info_listener *self,
+			    const struct eui64 *stream_id)
 {
-    self->stream_id = *stream_id;
+	self->stream_id = *stream_id;
 }

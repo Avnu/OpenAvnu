@@ -40,46 +40,44 @@
 
 typedef uint64_t timestamp_in_microseconds;
 
-#define FRAME_HEADER_DA_OFFSET ( 0 )
-#define FRAME_HEADER_SA_OFFSET ( 6 )
-#define FRAME_HEADER_TAG_OFFSET ( 12 )
-#define FRAME_TAG_LEN ( 4 )
-#define FRAME_HEADER_ETHERTYPE_OFFSET ( 12 )
-#define FRAME_HEADER_LEN ( 14 )
-#define FRAME_PAYLOAD_OFFSET ( 14 )
-#define FRAME_ETHERTYPE_LEN ( 2 )
-#define FRAME_TAG_ETHERTYPE ( 0x8100 )
+#define FRAME_HEADER_DA_OFFSET (0)
+#define FRAME_HEADER_SA_OFFSET (6)
+#define FRAME_HEADER_TAG_OFFSET (12)
+#define FRAME_TAG_LEN (4)
+#define FRAME_HEADER_ETHERTYPE_OFFSET (12)
+#define FRAME_HEADER_LEN (14)
+#define FRAME_PAYLOAD_OFFSET (14)
+#define FRAME_ETHERTYPE_LEN (2)
+#define FRAME_TAG_ETHERTYPE (0x8100)
 
 #ifndef FRAME_MAX_PAYLOAD_SIZE
-#define FRAME_MAX_PAYLOAD_SIZE ( 1500 )
+#define FRAME_MAX_PAYLOAD_SIZE (1500)
 #endif
 
-struct frame
-{
-    timestamp_in_microseconds time;
-    struct eui48 dest_address;
-    struct eui48 src_address;
-    uint16_t ethertype;
-    uint16_t tpid;
-    uint16_t pcp : 3;
-    uint16_t dei : 1;
-    uint16_t vid : 12;
-    uint16_t length;
-    uint8_t payload[FRAME_MAX_PAYLOAD_SIZE];
+struct frame {
+	timestamp_in_microseconds time;
+	struct eui48 dest_address;
+	struct eui48 src_address;
+	uint16_t ethertype;
+	uint16_t tpid;
+	uint16_t pcp : 3;
+	uint16_t dei : 1;
+	uint16_t vid : 12;
+	uint16_t length;
+	uint8_t payload[FRAME_MAX_PAYLOAD_SIZE];
 };
 
-static inline void frame_init( struct frame *p );
+static inline void frame_init(struct frame *p);
 
-ssize_t frame_read( struct frame *p, void const *base, ssize_t pos, size_t len );
-ssize_t frame_write( struct frame const *p, void *base, ssize_t pos, size_t len );
+ssize_t frame_read(struct frame *p, void const *base, ssize_t pos, size_t len);
+ssize_t frame_write(struct frame const *p, void *base, ssize_t pos, size_t len);
 
 /*@}*/
 
 /** frame sender class */
-struct frame_sender
-{
-    void ( *terminate )( struct frame_sender * );
-    void ( *send )( struct frame_sender *, struct frame const *frame );
+struct frame_sender {
+	void (*terminate)(struct frame_sender *);
+	void (*send)(struct frame_sender *, struct frame const *frame);
 };
 
 /*@}*/

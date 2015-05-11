@@ -34,10 +34,11 @@
 #include "avtp.h"
 
 ssize_t avtp_common_control_header_read(struct avtp_common_control_header *p,
-					void const *base,
-					ssize_t pos, size_t len)
+					void const *base, ssize_t pos,
+					size_t len)
 {
-	ssize_t r = pdu_validate_range(pos, len, AVTP_COMMON_CONTROL_HEADER_LEN);
+	ssize_t r =
+	    pdu_validate_range(pos, len, AVTP_COMMON_CONTROL_HEADER_LEN);
 	if (r >= 0) {
 		p->subtype = avtp_common_control_header_get_subtype(base, pos);
 		p->sv = avtp_common_control_header_get_sv(base, pos);
@@ -54,11 +55,12 @@ ssize_t avtp_common_control_header_read(struct avtp_common_control_header *p,
 	return r;
 }
 
-ssize_t avtp_common_control_header_write(struct avtp_common_control_header const
-					 *p, void *base, ssize_t pos,
-					 size_t len)
+ssize_t
+avtp_common_control_header_write(struct avtp_common_control_header const *p,
+				 void *base, ssize_t pos, size_t len)
 {
-	ssize_t r = pdu_validate_range(pos, len, AVTP_COMMON_CONTROL_HEADER_LEN);
+	ssize_t r =
+	    pdu_validate_range(pos, len, AVTP_COMMON_CONTROL_HEADER_LEN);
 	if (r >= 0) {
 		avtp_common_control_header_set_subtype(p->subtype, base, pos);
 		avtp_common_control_header_set_sv(p->sv, base, pos);
@@ -66,8 +68,8 @@ ssize_t avtp_common_control_header_write(struct avtp_common_control_header const
 		avtp_common_control_header_set_control_data(p->control_data,
 							    base, pos);
 		avtp_common_control_header_set_status(p->status, base, pos);
-		avtp_common_control_header_set_control_data_length
-		    (p->control_data_length, base, pos);
+		avtp_common_control_header_set_control_data_length(
+		    p->control_data_length, base, pos);
 		avtp_common_control_header_set_stream_id(p->stream_id, base,
 							 pos);
 	}

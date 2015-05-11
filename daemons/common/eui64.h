@@ -42,7 +42,7 @@
 
 ///
 struct eui64 {
-    uint8_t value[8];
+	uint8_t value[8];
 };
 
 void eui64_init(struct eui64 *self);
@@ -51,13 +51,11 @@ void eui64_zero(struct eui64 *self);
 
 void eui64_init_from_uint64(struct eui64 *self, uint64_t other);
 
-
 uint64_t eui64_convert_to_uint64(struct eui64 const *self);
 
 void eui64_copy(struct eui64 *self, struct eui64 const *other);
 
-int eui64_compare(struct eui64 const *self,
-                struct eui64 const *other);
+int eui64_compare(struct eui64 const *self, struct eui64 const *other);
 
 int eui64_is_unset(struct eui64 v);
 
@@ -69,6 +67,4 @@ int eui64_is_not_zero(struct eui64 v);
 
 /*@}*/
 
-
 #endif
-
