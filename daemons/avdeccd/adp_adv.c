@@ -47,7 +47,7 @@ bool adp_adv_init(struct adp_adv *self, void *context,
 		      void const *source_address, int source_address_len,
 		      struct adpdu *adpdu))
 {
-    self->last_time_in_microseconds = 0;
+	self->last_time_in_microseconds = 0;
 	self->do_send_entity_available = true;
 	self->do_send_entity_departing = false;
 	self->do_send_entity_discover = false;
@@ -125,7 +125,7 @@ void adp_adv_tick(struct adp_adv *self,
 
 	// calculate the time since the last send
 	timestamp_in_microseconds difftime =
-        cur_time_in_micros - self->last_time_in_microseconds;
+	    cur_time_in_micros - self->last_time_in_microseconds;
 
 	timestamp_in_microseconds valid_time_in_ms = self->adpdu.valid_time;
 
@@ -159,7 +159,7 @@ void adp_adv_tick(struct adp_adv *self,
 
 		// record the time we send it
 
-        self->last_time_in_microseconds = cur_time_in_micros;
+		self->last_time_in_microseconds = cur_time_in_micros;
 
 		// send the departing
 
@@ -187,7 +187,7 @@ void adp_adv_tick(struct adp_adv *self,
 
 			// record the time we send it
 
-            self->last_time_in_microseconds = cur_time_in_micros;
+			self->last_time_in_microseconds = cur_time_in_micros;
 
 			// send the available
 
