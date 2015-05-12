@@ -134,29 +134,29 @@ int adp_adv_init(struct adp_adv *self, void *context,
 void adp_adv_terminate(struct adp_adv *self);
 
 /// Receive an ADPU and process it
-int adp_receive(struct adp_adv *self,
+int adp_adv_receive(struct adp_adv *self,
 		timestamp_in_microseconds time_in_microseconds,
 		void const *source_address, int source_address_len,
 		uint8_t const *buf, uint16_t len);
 
 /// Notify the state machine that time has passed. Call asap if early_tick is
 /// 1.
-void adp_tick(struct adp_adv *self,
+void adp_adv_tick(struct adp_adv *self,
 	      timestamp_in_microseconds cur_time_in_micros);
 
 /// Request the state machine to send an entity discover message on the next
 /// tick.
-void adp_trigger_send_discover(struct adp_adv *self);
+void adp_adv_trigger_send_discover(struct adp_adv *self);
 
 /// Request the state machine to send an entity available message on the next
 /// tick.
 /// Starts the state machine if is was stopped.
-void adp_trigger_send_available(struct adp_adv *self);
+void adp_adv_trigger_send_available(struct adp_adv *self);
 
 /// Request the state machine to send an entity departing message on the next
 /// tick and
 /// then transition to stopped mode and reset available_index to 0
-void adp_trigger_send_departing(struct adp_adv *self);
+void adp_adv_trigger_send_departing(struct adp_adv *self);
 
 /*@}*/
 
