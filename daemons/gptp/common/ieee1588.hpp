@@ -160,7 +160,7 @@ class ClockIdentity {
 	 */
 	bool operator>(const ClockIdentity & cmp)const {
 		return memcmp(this->id, cmp.id,
-			      PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
+			      PTP_CLOCK_IDENTITY_LENGTH) > 0 ? true : false;
 	}
 
 	/**
