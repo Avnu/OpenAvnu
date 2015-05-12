@@ -213,10 +213,20 @@ class ClockIdentity {
 #define MAX_NANOSECONDS 1000000000
 #define MAX_TIMESTAMP_STRLEN 28
 
+/**
+ * Provides a Timestamp interface
+ */
 class Timestamp {
 private:
 	char output_string[MAX_TIMESTAMP_STRLEN];
 public:
+	/**
+	 * @brief  Creates a Timestamp instance
+	 * @param  ns 32 bit nano-seconds value
+	 * @param  s_l 32 bit seconds field LSB
+	 * @param  s_m 32 bit seconds field MSB
+	 * @param  ver 8 bit version field
+	 */
 	Timestamp
 	(uint32_t ns, uint32_t s_l, uint16_t s_m,
 	 uint8_t ver = INVALID_TIMESTAMP_VERSION) {
@@ -225,13 +235,23 @@ public:
 		seconds_ms = s_m;
 		_version = ver;
 	}
+	/*
+	 * Default constructor. Initializes
+	 * the private parameters
+	 */
 	Timestamp() {
 		output_string[0] = '\0';
 	}
-	uint32_t nanoseconds;
-	uint32_t seconds_ls;
-	uint16_t seconds_ms;
-	uint8_t _version;
+	uint32_t nanoseconds;	//!< 32 bit nanoseconds value
+	uint32_t seconds_ls;	//!< 32 bit seconds LSB value
+	uint16_t seconds_ms;	//!< 32 bit seconds MSB value
+	uint8_t _version;		//!< 8 bit version value
+
+	/**
+	 * @brief Copies the timestamp to the internal string in the following format:
+	 * seconds_ms seconds_ls nanoseconds
+	 * @return Formated string (as a char *)
+	 */
 	char *toString() {
 		PLAT_snprintf
 			( output_string, 28, "%hu %u %u", seconds_ms, seconds_ls
@@ -239,6 +259,12 @@ public:
 			  nanoseconds );
 		return output_string;
 	}
+
+	/**
+	 * @brief Implements the operator '+' overloading method.
+	 * @param o Constant reference to the timestamp to be added
+	 * @return Object's timestamp + o.
+	 */
 	Timestamp operator+( const Timestamp& o ) {
 		uint32_t nanoseconds;
 		uint32_t seconds_ls;
@@ -267,6 +293,12 @@ public:
 			INVALID_TIMESTAMP_VERSION;
 		return Timestamp( nanoseconds, seconds_ls, seconds_ms, version );
 	}
+
+	/**
+	 * @brief  Implements the operator '-' overloading method.
+	 * @param  o Constant reference to the timestamp to be subtracted
+	 * @return Object's timestamp - o.
+	 */
 	Timestamp operator-( const Timestamp& o ) {
 		uint32_t nanoseconds;
 		uint32_t seconds_ls;
@@ -307,6 +339,12 @@ public:
 			INVALID_TIMESTAMP_VERSION;
 		return Timestamp( nanoseconds, seconds_ls, seconds_ms, version );
 	}
+
+	/**
+	 * @brief  Sets a 64bit value to the object's timestamp
+	 * @param  value Value to be set
+	 * @return void
+	 */
 	void set64( uint64_t value ) {
 		nanoseconds = value % 1000000000;
 		seconds_ls = (uint32_t) (value / 1000000000);
@@ -321,6 +359,11 @@ public:
 			       << sizeof((ts).seconds_ls)*8) + \
 			      (ts).seconds_ls)*1000000000LL + (ts).nanoseconds)
 
+/**
+ * @brief  Swaps out byte-a-byte a 64 bit value
+ * @param  in Value to be swapped
+ * @return Swapped value
+ */
 static inline uint64_t byte_swap64(uint64_t in)
 {
 	uint8_t *s = (uint8_t *) & in;
@@ -339,6 +382,12 @@ static inline uint64_t byte_swap64(uint64_t in)
 #define NS_PER_SECOND 1000000000
 #define LS_SEC_MAX 0xFFFFFFFFull
 
+/**
+ * @brief  Subtracts a nanosecond value from the timestamp
+ * @param  ts [inout] Timestamp value
+ * @param  ns Nanoseconds value to subtract from ts
+ * @return void
+ */
 static inline void TIMESTAMP_SUB_NS( Timestamp &ts, uint64_t ns ) {
        uint64_t secs = (uint64_t)ts.seconds_ls | ((uint64_t)ts.seconds_ms) << 32;
 	   uint64_t nanos = (uint64_t)ts.nanoseconds;
@@ -359,6 +408,12 @@ static inline void TIMESTAMP_SUB_NS( Timestamp &ts, uint64_t ns ) {
 	   ts.nanoseconds = (uint32_t)nanos;
 }
 
+/**
+ * @brief  Adds a nanosecond value to the timestamp
+ * @param  ts [inout] Timestamp value
+ * @param  ns Nanoseconds value to add to ts
+ * @return void
+ */
 static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
        uint64_t secs = (uint64_t)ts.seconds_ls | ((uint64_t)ts.seconds_ms) << 32;
 	   uint64_t nanos = (uint64_t)ts.nanoseconds;
@@ -379,61 +434,152 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
 
 #define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096
 
+/**
+ * Provides a generic interface for hardware timestamping
+ */
 class HWTimestamper {
 protected:
-  uint8_t version;
+	uint8_t version;
 public:
-  virtual bool HWTimestamper_init
-  ( InterfaceLabel *iface_label, OSNetworkInterface *iface )
-  { return true; }
+	/**
+	 * @brief Initializes the hardware timestamp unit
+	 * @param iface_label [in] Interface label
+	 * @param iface [in] Network interface
+	 * @return true
+	 */
+	virtual bool HWTimestamper_init
+		( InterfaceLabel *iface_label, OSNetworkInterface *iface )
+		{ return true; }
+
+	/**
+	 * @brief  Finalizes the hardware timestamp unit
+	 * @return void
+	 */
 	virtual void HWTimestamper_final(void) {
 	}
 
-  virtual bool HWTimestamper_adjclockrate( float frequency_offset )
-  { return false; }
-  virtual bool HWTimestamper_adjclockphase( int64_t phase_adjust )
-  { return false; }
+	/**
+	 * @brief  Adjusts the clock frequency
+	 * @param  frequency_offset Frequency offset
+	 * @return false
+	 */
+	virtual bool HWTimestamper_adjclockrate( float frequency_offset )
+	{ return false; }
 
+	/**
+	 * @brief  Adjusts the clock phase
+	 * @param  phase_adjust Phase offset
+	 * @return false
+	 */
+	virtual bool HWTimestamper_adjclockphase( int64_t phase_adjust )
+	{ return false; }
+
+	/**
+	 * @brief  Get information about the local time
+	 * @param  system_time [inout] System time
+	 * @param  device_time [inout] Device time
+	 * @param  local_clock [inout] Local clock
+	 * @param  nominal_clock_rate [out] Nominal clock rate
+	 * @return True or False
+	 */
 	virtual bool HWTimestamper_gettime(Timestamp * system_time,
-					   Timestamp * device_time,
-					   uint32_t * local_clock,
-					   uint32_t * nominal_clock_rate) = 0;
+			Timestamp * device_time,
+			uint32_t * local_clock,
+			uint32_t * nominal_clock_rate) = 0;
 
+	/**
+	 * @brief  Get tx timestamp
+	 * @param  identity PTP port identity
+	 * @param  sequenceId Sequence ID
+	 * @param  Timestamp [inout] Timestamp value
+	 * @param  clock_value [inout] Clock value
+	 * @param  last Boolean flag
+	 * @return A signed integer
+	 */
 	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
-					      uint16_t sequenceId,
-					      Timestamp & timestamp,
-					      unsigned &clock_value,
-					      bool last) = 0;
+			uint16_t sequenceId,
+			Timestamp & timestamp,
+			unsigned &clock_value,
+			bool last) = 0;
 
+	/**
+	 * @brief  Get rx timestamp
+	 * @param  identity PTP port identity
+	 * @param  sequenceId Sequence ID
+	 * @param  Timestamp [inout] Timestamp value
+	 * @param  clock_value [inout] Clock value
+	 * @param  last Boolean flag
+	 * @return A signed integer
+	 */
 	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
-					      uint16_t sequenceId,
-					      Timestamp & timestamp,
-					      unsigned &clock_value,
-					      bool last) = 0;
+			uint16_t sequenceId,
+			Timestamp & timestamp,
+			unsigned &clock_value,
+			bool last) = 0;
 
+	/**
+	 * @brief  Get external clock offset
+	 * @param  local_time [inout] Local time
+	 * @param  clk_offset [inout] clock offset
+	 * @param  ppt_freq_offset [inout] Frequency offset in ppts
+	 * @return false
+	 */
 	virtual bool HWTimestamper_get_extclk_offset(Timestamp * local_time,
-						     int64_t * clk_offset,
-						     int32_t *
-						     ppt_freq_offset) {
+			int64_t * clk_offset,
+			int32_t *
+			ppt_freq_offset) {
 		return false;
 	}
 
+	/**
+	 * @brief  Gets a string with the error
+	 * @param  msg [out] String error
+	 * @return void
+	 */
 	virtual void HWTimestamper_get_extderror(char *msg) {
 		*msg = '\0';
 	}
 
-  virtual bool HWTimestamper_PPS_start() { return false; };
-  virtual bool HWTimestamper_PPS_stop() { return true; };
+	/**
+	 * @brief  Starts the PPS (pulse per second) interface
+	 * @return false
+	 */
+	virtual bool HWTimestamper_PPS_start() { return false; };
 
-  int getVersion() {
-    return version;
-  }
-  HWTimestamper() { version = 0; }
-  virtual ~HWTimestamper() { }
+	/**
+	 * @brief  Stops the PPS (pulse per second) interface
+	 * @return true
+	 */
+	virtual bool HWTimestamper_PPS_stop() { return true; };
+
+	/**
+	 * @brief  Gets the HWTimestamper version
+	 * @return version (signed integer)
+	 */
+	int getVersion() {
+		return version;
+	}
+
+	/**
+	 * Default constructor. Sets version to zero.
+	 */
+	HWTimestamper() { version = 0; }
+
+	/*Deletes HWtimestamper object
+	*/
+	virtual ~HWTimestamper() { }
 };
 
+/**
+ * @brief  Builds a PTP message
+ * @param  buf [in] message buffer to send
+ * @param  size message length
+ * @param  remote Destination link layer address
+ * @param  port [in] IEEE1588 port
+ * @return PTP message instace of PTPMessageCommon
+ */
 PTPMessageCommon *buildPTPMessage(char *buf, int size,
-				  LinkLayerAddress * remote,
-				  IEEE1588Port * port);
+		LinkLayerAddress * remote,
+		IEEE1588Port * port);
 
 #endif
