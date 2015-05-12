@@ -7,3 +7,6 @@
 [submodule "thirdparty/uvrawpkt"]
 	path = thirdparty/uvrawpkt
 	url = ../../jdkoftinoff/uvrawpkt.git
+[submodule "thirdparty/jdksavdecc-c"]
+	path = thirdparty/jdksavdecc-c
+	url = ../../jdkoftinoff/jdksavdecc-c.git
