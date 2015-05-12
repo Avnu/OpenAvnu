@@ -1,3 +1,9 @@
 [submodule "thirdparty/cpputest"]
 	path = thirdparty/cpputest
 	url = git@github.com:cpputest/cpputest.git
+[submodule "thirdparty/libuv"]
+	path = thirdparty/libuv
+	url = ../../jdkoftinoff/libuv.git
+[submodule "thirdparty/uvrawpkt"]
+	path = thirdparty/uvrawpkt
+	url = ../../jdkoftinoff/uvrawpkt.git
