@@ -135,14 +135,14 @@ void adp_adv_terminate(struct adp_adv *self);
 
 /// Receive an ADPU and process it
 int adp_adv_receive(struct adp_adv *self,
-		timestamp_in_microseconds time_in_microseconds,
-		void const *source_address, int source_address_len,
-		uint8_t const *buf, uint16_t len);
+		    timestamp_in_microseconds time_in_microseconds,
+		    void const *source_address, int source_address_len,
+		    uint8_t const *buf, uint16_t len);
 
 /// Notify the state machine that time has passed. Call asap if early_tick is
 /// 1.
 void adp_adv_tick(struct adp_adv *self,
-	      timestamp_in_microseconds cur_time_in_micros);
+		  timestamp_in_microseconds cur_time_in_micros);
 
 /// Request the state machine to send an entity discover message on the next
 /// tick.
