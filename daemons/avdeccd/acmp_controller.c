@@ -28,9 +28,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "pdu.h"
-#include "avtp.h"
-#include "acmpdu.h"
 #include "acmp_controller.h"
 
 static struct acmp_controller_slots acmp_controller_slots_table = {
@@ -122,21 +119,21 @@ void acmp_controller_stop(struct acmp_controller_slots *self_)
 
 /** Ask the object to handle the specified ethernet frame */
 void acmp_controller_handle_pdu(struct acmp_controller_slots *self_,
-				struct frame *frame)
+                struct jdksavdecc_frame *frame)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
 }
 
 /** Ask the object to process any periodic timers */
 void acmp_controller_tick(struct acmp_controller_slots *self_,
-			  timestamp_in_microseconds current_time)
+              jdksavdecc_timestamp_in_microseconds current_time)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
 }
 
 /** Ask the object to track a specific stream sink */
 void acmp_controller_track_stream_sink(struct acmp_controller_slots *self_,
-				       struct eui64 listener_entity_id,
+                       struct jdksavdecc_eui64 listener_entity_id,
 				       uint16_t listener_unique_id, int enable)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
@@ -144,7 +141,7 @@ void acmp_controller_track_stream_sink(struct acmp_controller_slots *self_,
 
 /** Ask the object to track a specific stream source */
 void acmp_controller_track_stream_source(struct acmp_controller_slots *self_,
-					 struct eui64 talker_entity_id,
+                     struct jdksavdecc_eui64 talker_entity_id,
 					 uint16_t talker_unique_id, int enable)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;
@@ -152,9 +149,9 @@ void acmp_controller_track_stream_source(struct acmp_controller_slots *self_,
 
 /** Ask the object to connect a stream source to a stream sink */
 void acmp_controller_connect_stream(struct acmp_controller_slots *self_,
-				    struct eui64 talker_entity_id,
+                    struct jdksavdecc_eui64 talker_entity_id,
 				    uint16_t talker_unique_id,
-				    struct eui64 listener_entity_id,
+                    struct jdksavdecc_eui64 listener_entity_id,
 				    uint16_t listener_unique_id, int enable)
 {
 	struct acmp_controller *self = (struct acmp_controller *)self_;

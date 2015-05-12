@@ -28,7 +28,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "adpdu.h"
+#include "jdksavdecc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,11 +42,11 @@ struct adp_adv_signals {
 	void (*adp_adv_stopped)(struct adp_adv_signals *self);
 
 	void (*adp_adv_send_pdu)(struct adp_adv_signals *self,
-				 struct frame *pdu);
+                 struct jdksavdecc_frame *pdu);
 
 	void (*adp_adv_schedule_next_tick)(
 	    struct adp_adv_signals *self,
-	    timestamp_in_microseconds next_absolute_time);
+        jdksavdecc_timestamp_in_microseconds next_absolute_time);
 };
 
 struct adp_adv_slots {
@@ -59,23 +59,23 @@ struct adp_adv_slots {
 				   struct adp_adv_signals *destination_signals);
 
 	void (*set_adpdu)(struct adp_adv_slots *self,
-			  struct adpdu adpdu_params);
+              struct jdksavdecc_adpdu adpdu_params);
 
 	void (*gptp_gm_changed)(struct adp_adv_slots *self,
-				struct eui64 new_gtp_gm_id,
+                struct jdksavdecc_eui64 new_gtp_gm_id,
 				uint8_t new_gptp_domain_id);
 
 	void (*network_port_link_status_changed)(struct adp_adv_slots *self,
-						 struct eui48 mac_addr, int up);
+                         struct jdksavdecc_eui48 mac_addr, int up);
 
 	void (*start)(struct adp_adv_slots *self);
 
 	void (*stop)(struct adp_adv_slots *self);
 
-	void (*handle_pdu)(struct adp_adv_slots *self, struct frame *frame);
+    void (*handle_pdu)(struct adp_adv_slots *self, struct jdksavdecc_frame *frame);
 
 	void (*tick)(struct adp_adv_slots *self,
-		     timestamp_in_microseconds current_time);
+             jdksavdecc_timestamp_in_microseconds current_time);
 };
 
 /** \addtogroup adpdu_msg ADP Message Types - Clause 6.2.1.5 */
@@ -91,13 +91,13 @@ struct adp_adv {
 	int stopped;
 	int early_tick;
 	void *context;
-	struct frame_sender *frame_send;
+    struct jdksavdecc_frame_sender *frame_send;
 
 	/// The current ADPDU that is sent
-	struct adpdu adpdu;
+    struct jdksavdecc_adpdu adpdu;
 
 	/// The system time in microseconds that the last ADPDU was sent
-	timestamp_in_microseconds last_time_in_microseconds;
+    jdksavdecc_timestamp_in_microseconds last_time_in_microseconds;
 
 	/// A flag used to notify the state machine to trigger the sending of a
 	/// discover message immediately
@@ -117,7 +117,7 @@ struct adp_adv {
 	/// does not care.
 	void (*received_entity_available_or_departing)(
 	    struct adp_adv *self, void *context, void const *source_address,
-	    int source_address_len, struct adpdu *adpdu);
+        int source_address_len, struct jdksavdecc_adpdu *adpdu);
 };
 
 /// Initialize an adp with the specified context and frame_send function and
@@ -128,21 +128,21 @@ int adp_adv_init(struct adp_adv *self, void *context,
 		 void (*received_entity_available_or_departing)(
 		     struct adp_adv *self, void *context,
 		     void const *source_address, int source_address_len,
-		     struct adpdu *adpdu));
+             struct jdksavdecc_adpdu *adpdu));
 
 /// Destroy any resources that the adp uses
 void adp_adv_terminate(struct adp_adv *self);
 
 /// Receive an ADPU and process it
 int adp_adv_receive(struct adp_adv *self,
-		    timestamp_in_microseconds time_in_microseconds,
+            jdksavdecc_timestamp_in_microseconds time_in_microseconds,
 		    void const *source_address, int source_address_len,
 		    uint8_t const *buf, uint16_t len);
 
 /// Notify the state machine that time has passed. Call asap if early_tick is
 /// 1.
 void adp_adv_tick(struct adp_adv *self,
-		  timestamp_in_microseconds cur_time_in_micros);
+          jdksavdecc_timestamp_in_microseconds cur_time_in_micros);
 
 /// Request the state machine to send an entity discover message on the next
 /// tick.

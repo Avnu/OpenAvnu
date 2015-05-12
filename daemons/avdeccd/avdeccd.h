@@ -31,12 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef AVDECCD_H_
 #define AVDECCD_H_
 
-#include <stdlib.h>
-#include <stdio.h>
-
-#include "avdecc.h"
-#include "acmpdu.h"
-#include "adpdu.h"
+#include "jdksavdecc.h"
 #include "acmp_talker.h"
 #include "acmp_listener.h"
 #include "acmp_controller.h"

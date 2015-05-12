@@ -32,6 +32,8 @@
 #ifndef ADP_H_
 #define ADP_H_
 
+#include "avtp.h"
+
 /** \addtogroup adp ADP - Clause 6 */
 /*@{*/
 

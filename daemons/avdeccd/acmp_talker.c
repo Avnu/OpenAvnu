@@ -28,9 +28,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "pdu.h"
-#include "avtp.h"
-#include "acmpdu.h"
 #include "acmp_talker.h"
 
 void acmp_talker_stream_source_init(struct acmp_talker_stream_source *self,
@@ -38,16 +35,16 @@ void acmp_talker_stream_source_init(struct acmp_talker_stream_source *self,
 {
 	self->context = context;
 	self->talker_unique_id = talker_unique_id;
-	eui48_init(&self->destination_mac_address);
-	eui64_init(&self->stream_id);
+    jdksavdecc_eui48_init(&self->destination_mac_address);
+    jdksavdecc_eui64_init(&self->stream_id);
 	self->flags = 0;
 	self->stream_vlan_id = 0;
 	acmp_talker_stream_source_clear_listeners(self);
 }
 
 void acmp_talker_stream_source_update(struct acmp_talker_stream_source *self,
-				      struct eui64 new_stream_id,
-				      struct eui48 new_destination_mac_address,
+                      struct jdksavdecc_eui64 new_stream_id,
+                      struct jdksavdecc_eui48 new_destination_mac_address,
 				      uint16_t new_stream_vlan_id)
 {
 	self->stream_id = new_stream_id;
@@ -62,14 +59,14 @@ void acmp_talker_stream_source_clear_listeners(
 
 	self->connection_count = 0;
 	for (i = 0; i < ACMP_TALKER_MAX_LISTENERS_PER_STREAM; ++i) {
-		eui64_init(&self->listener_entity_id[i]);
+        jdksavdecc_eui64_init(&self->listener_entity_id[i]);
 		self->listener_unique_id[i] = 0;
 	}
 }
 
 int
 acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source *self,
-				       struct eui64 listener_entity_id,
+                       struct jdksavdecc_eui64 listener_entity_id,
 				       uint16_t listener_unique_id)
 {
 	int r = 0;
@@ -84,14 +81,14 @@ acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source *self,
 }
 
 int acmp_talker_stream_source_remove_listener(
-    struct acmp_talker_stream_source *self, struct eui64 listener_entity_id,
+    struct acmp_talker_stream_source *self, struct jdksavdecc_eui64 listener_entity_id,
     uint16_t listener_unique_id)
 {
 	int r = 0;
 	int i;
 	for (i = 0; i < self->connection_count; ++i) {
 		if (self->listener_unique_id[i] == listener_unique_id &&
-		    eui64_compare(&self->listener_entity_id[i],
+            jdksavdecc_eui64_compare(&self->listener_entity_id[i],
 				  &listener_entity_id) == 0) {
 			/* Found it. Replace it with the last one in the list if
 			 * there is one and it isn't this one */
@@ -104,7 +101,7 @@ int acmp_talker_stream_source_remove_listener(
 					    self->listener_unique_id[last_item];
 					/* and erase the old last item so
 					 * debugging is nicer */
-					eui64_init(&self->listener_entity_id
+                    jdksavdecc_eui64_init(&self->listener_entity_id
 							[last_item]);
 					self->listener_unique_id[i] = 0;
 				}
