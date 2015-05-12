@@ -32,8 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 struct entity_state {
 	struct adp_adv advertiser;
-    struct jdksavdecc_eui64 entity_id;
-    struct jdksavdecc_eui64 entity_model_id;
+	struct jdksavdecc_eui64 entity_id;
+	struct jdksavdecc_eui64 entity_model_id;
 
 	int socket_fd;
 } the_entity;
@@ -188,6 +188,18 @@ static void received_ethernet_frame(uv_rawpkt_t *rawpkt, ssize_t nread,
 			printf("\n");
 		}
 #endif
+		for (bufnum = 0; bufnum < nread; ++bufnum) {
+			if (buf[bufnum].len > JDKSAVDECC_FRAME_HEADER_LEN) {
+				const uint8_t *p =
+				    (const uint8_t *)buf[bufnum].base;
+				size_t len = buf[bufnum].len -
+					     JDKSAVDECC_FRAME_HEADER_LEN;
+				adp_adv_receive(
+				    &the_entity.advertiser, uv_hrtime() / 1000,
+				    p + JDKSAVDECC_FRAME_HEADER_SA_OFFSET, 6,
+				    p + JDKSAVDECC_FRAME_HEADER_LEN, len);
+			}
+		}
 	} else {
 		/*
 		 * Notify user that the socket was closed
@@ -253,7 +265,7 @@ static void found_interface(uv_rawpkt_network_port_iterator_t *iter,
 				 * Open the uv_rawpkt_t object to listen on this
 				 * network port for any IPv4 Ethertype messages
 				 */
-                uint16_t ethertype = JDKSAVDECC_AVTP_ETHERTYPE;
+				uint16_t ethertype = JDKSAVDECC_AVTP_ETHERTYPE;
 				status = uv_rawpkt_open(
 				    &context->rawpkt, network_port, 128, 1, 1,
 				    &ethertype, rawpkt_closed);
@@ -347,8 +359,10 @@ void entity_state_init(struct entity_state *entity)
 {
 	adp_adv_init(&entity->advertiser, entity, frame_send, 0);
 
-    jdksavdecc_eui64_init_from_uint64(&entity->entity_id, 0x70B3d5edc0000002UL);
-    jdksavdecc_eui64_init_from_uint64(&entity->entity_model_id, 0x70B3d5edc0000003UL);
+	jdksavdecc_eui64_init_from_uint64(&entity->entity_id,
+					  0x70B3d5edc0000002UL);
+	jdksavdecc_eui64_init_from_uint64(&entity->entity_model_id,
+					  0x70B3d5edc0000003UL);
 
 	/* TODO: initialize entity_state */
 }

@@ -42,9 +42,10 @@ void srp_info_domain_init(struct srp_info_domain *self, uint8_t class_id,
 
 void srp_info_talker_advertise_init(
     struct srp_info_talker *self, const struct jdksavdecc_eui64 *stream_id,
-    const struct jdksavdecc_eui48 *destination_address, uint16_t vlan_identifier,
-    uint16_t max_frame_size, uint16_t max_interval_frames,
-    uint8_t data_frame_priority, uint8_t rank, uint32_t accumulated_latency)
+    const struct jdksavdecc_eui48 *destination_address,
+    uint16_t vlan_identifier, uint16_t max_frame_size,
+    uint16_t max_interval_frames, uint8_t data_frame_priority, uint8_t rank,
+    uint32_t accumulated_latency)
 {
 	self->stream_id = *stream_id;
 	self->data_frame_parameters.destination_address = *destination_address;
@@ -54,15 +55,16 @@ void srp_info_talker_advertise_init(
 	self->priority_and_rank.data_frame_priority = data_frame_priority;
 	self->priority_and_rank.rank = rank;
 	self->accumulated_latency = accumulated_latency;
-    self->failure_information.failure_code = SRP_NO_FAILURE;
-    jdksavdecc_eui64_init(&self->failure_information.failure_bridge_id);
+	self->failure_information.failure_code = SRP_NO_FAILURE;
+	jdksavdecc_eui64_init(&self->failure_information.failure_bridge_id);
 }
 
 void srp_info_talker_fail_init(
     struct srp_info_talker *self, const struct jdksavdecc_eui64 *stream_id,
-    const struct jdksavdecc_eui48 *destination_address, uint16_t vlan_identifier,
-    uint16_t max_frame_size, uint16_t max_interval_frames,
-    uint8_t data_frame_priority, uint8_t rank, uint32_t accumulated_latency,
+    const struct jdksavdecc_eui48 *destination_address,
+    uint16_t vlan_identifier, uint16_t max_frame_size,
+    uint16_t max_interval_frames, uint8_t data_frame_priority, uint8_t rank,
+    uint32_t accumulated_latency,
     const struct jdksavdecc_eui64 *failure_bridge_id, uint8_t failure_code)
 {
 	self->stream_id = *stream_id;
@@ -78,7 +80,7 @@ void srp_info_talker_fail_init(
 }
 
 void srp_info_listener_init(struct srp_info_listener *self,
-                const struct jdksavdecc_eui64 *stream_id)
+			    const struct jdksavdecc_eui64 *stream_id)
 {
 	self->stream_id = *stream_id;
 }

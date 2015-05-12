@@ -60,7 +60,8 @@ struct acmp_listener_signals {
 				      struct acmp_listener_slots *source);
 
 	/** The object is asking to send an ethernet frame */
-    void (*acmp_listener_send_pdu)(void *self, struct jdksavdecc_frame *acmpdu);
+	void (*acmp_listener_send_pdu)(void *self,
+				       struct jdksavdecc_frame *acmpdu);
 
 	/** The object is asking to be notified about the specified talker
 	 * stream id  */
@@ -70,7 +71,7 @@ struct acmp_listener_signals {
 
 	/** The object is listening to a talker */
 	void (*acmp_listener_talker_added)(struct acmp_listener_signals *self,
-                       struct acmp_listener_slots *source,
+					   struct acmp_listener_slots *source,
 					   uint64_t talker_stream_id,
 					   uint64_t talker_mac,
 					   uint16_t talker_vid);
@@ -105,11 +106,11 @@ struct acmp_listener_slots {
 
 	/** Ask the object to handle the specified ethernet frame */
 	void (*handle_pdu)(struct acmp_listener_slots *self,
-               struct jdksavdecc_frame *frame);
+			   struct jdksavdecc_frame *frame);
 
 	/** Ask the object to process any periodic timers */
 	void (*tick)(struct acmp_listener_slots *self,
-             jdksavdecc_timestamp_in_microseconds current_time);
+		     jdksavdecc_timestamp_in_microseconds current_time);
 
 	/** Notify the ACMP listener that some talker stream info was received
 	 * via SRP */
@@ -154,11 +155,13 @@ int acmp_listener_init(struct acmp_listener *self);
 void acmp_listener_terminate(struct acmp_listener *self);
 
 /// Receive an ACMPDU and process it
-int acmp_listener_rx_frame(void *self, struct jdksavdecc_frame *rx_frame, int pos);
+int acmp_listener_rx_frame(void *self, struct jdksavdecc_frame *rx_frame,
+			   int pos);
 
 /// Notify the state machine that time has passed. Call asap if early_tick is
 /// 1.
-void acmp_listener_tick(void *self, jdksavdecc_timestamp_in_microseconds timestamp);
+void acmp_listener_tick(void *self,
+			jdksavdecc_timestamp_in_microseconds timestamp);
 
 /*@}*/
 

@@ -46,11 +46,11 @@ struct acmp_talker_slots {
 
 	void (*handle_pdu)(struct acmp_talker_slots *self,
 			   struct acmp_talker_signals *sender,
-               struct jdksavdecc_frame *frame);
+			   struct jdksavdecc_frame *frame);
 
 	void (*tick)(struct acmp_talker_slots *self,
 		     struct acmp_talker_signals *sender,
-             jdksavdecc_timestamp_in_microseconds current_time);
+		     jdksavdecc_timestamp_in_microseconds current_time);
 
 	void (*acmp_talker_stream_info_assigned)(
 	    struct acmp_talker_slots *self, struct acmp_talker_signals *sender,
@@ -67,7 +67,7 @@ struct acmp_talker_signals {
 
 	void (*acmp_talker_send_pdu)(struct acmp_talker_signals *self,
 				     struct acmp_talker_slots *source,
-                     struct jdksavdecc_frame *pdu);
+				     struct jdksavdecc_frame *pdu);
 
 	void (*acmp_talker_start_request)(struct acmp_talker_signals *self,
 					  struct acmp_talker_slots *source,
@@ -119,13 +119,13 @@ struct acmp_talker_stream_source {
 	 * @brief The stream sources's currently assigned
 	 * destination_mac_address, or FF:FF:FF:FF:FF:FF if none assigned.
 	 */
-    struct jdksavdecc_eui48 destination_mac_address;
+	struct jdksavdecc_eui48 destination_mac_address;
 
 	/**
 	 * @brief The stream source's currently assigned stream_id, or
 	 * FF:FF:FF:FF:FF:FF:FF:FF is none assigned
 	 */
-    struct jdksavdecc_eui64 stream_id;
+	struct jdksavdecc_eui64 stream_id;
 
 	/**
 	 * @brief The current talker stream flags, See IEEE Std 1722.1-2013
@@ -149,7 +149,8 @@ struct acmp_talker_stream_source {
 	 * @brief The current list the Entity ID's of the listeners that are
 	 * registered to listen via ACMP
 	 */
-    struct jdksavdecc_eui64 listener_entity_id[ACMP_TALKER_MAX_LISTENERS_PER_STREAM];
+	struct jdksavdecc_eui64
+	    listener_entity_id[ACMP_TALKER_MAX_LISTENERS_PER_STREAM];
 
 	/**
 	 * @brief The current list of listener unique ID's for each listener in
@@ -176,10 +177,11 @@ void acmp_talker_stream_source_init(struct acmp_talker_stream_source *self,
  * @param new_destination_mac_address
  * @param new_stream_vlan_id
  */
-void acmp_talker_stream_source_update(struct acmp_talker_stream_source *self,
-                      struct jdksavdecc_eui64 new_stream_id,
-                      struct jdksavdecc_eui48 new_destination_mac_address,
-				      uint16_t new_stream_vlan_id);
+void acmp_talker_stream_source_update(
+    struct acmp_talker_stream_source *self,
+    struct jdksavdecc_eui64 new_stream_id,
+    struct jdksavdecc_eui48 new_destination_mac_address,
+    uint16_t new_stream_vlan_id);
 
 /**
  * @brief acmp_talker_stream_source_clear_listeners clears the list of active
@@ -197,10 +199,9 @@ void acmp_talker_stream_source_clear_listeners(
  * @param listener_unique_id
  * @return 1 on success, 0 if there is no room to add it
  */
-int
-acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source *self,
-                       struct jdksavdecc_eui64 listener_entity_id,
-				       uint16_t listener_unique_id);
+int acmp_talker_stream_source_add_listener(
+    struct acmp_talker_stream_source *self,
+    struct jdksavdecc_eui64 listener_entity_id, uint16_t listener_unique_id);
 
 /**
  * @brief acmp_talker_stream_source_remove_listener removes the listener from
@@ -215,8 +216,8 @@ acmp_talker_stream_source_add_listener(struct acmp_talker_stream_source *self,
  * @return 1 on success, 0 if the listener was not in the list
  */
 int acmp_talker_stream_source_remove_listener(
-    struct acmp_talker_stream_source *self, struct jdksavdecc_eui64 listener_entity_id,
-    uint16_t listener_unique_id);
+    struct acmp_talker_stream_source *self,
+    struct jdksavdecc_eui64 listener_entity_id, uint16_t listener_unique_id);
 
 struct acmp_talker {
 	struct acmp_talker_signals outgoing_signals;
@@ -233,13 +234,13 @@ int acmp_talker_init(struct acmp_talker *self,
 void acmp_talker_terminate(struct acmp_talker *self);
 
 /// Receive an ACMPDU and process it
-int acmp_talker_rx_frame(struct acmp_talker *self, struct jdksavdecc_frame *rx_frame,
-			 int pos);
+int acmp_talker_rx_frame(struct acmp_talker *self,
+			 struct jdksavdecc_frame *rx_frame, int pos);
 
 /// Notify the state machine that time has passed. Call asap if early_tick is
 /// 1.
 void acmp_talker_tick(struct acmp_talker *self,
-              jdksavdecc_timestamp_in_microseconds timestamp);
+		      jdksavdecc_timestamp_in_microseconds timestamp);
 
 /*@}*/
 

@@ -66,11 +66,11 @@ void srp_info_domain_init(struct srp_info_domain *self, uint8_t class_id,
 struct srp_info_talker {
 
 	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.2 */
-    struct jdksavdecc_eui64 stream_id;
+	struct jdksavdecc_eui64 stream_id;
 
 	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.3 */
 	struct {
-        struct jdksavdecc_eui48 destination_address;
+		struct jdksavdecc_eui48 destination_address;
 		uint16_t vlan_identifier;
 	} data_frame_parameters;
 
@@ -92,7 +92,7 @@ struct srp_info_talker {
 
 	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.7 */
 	struct {
-        struct jdksavdecc_eui64 failure_bridge_id;
+		struct jdksavdecc_eui64 failure_bridge_id;
 		uint8_t failure_code;
 	} failure_information;
 };
@@ -114,9 +114,10 @@ struct srp_info_talker {
  */
 void srp_info_talker_advertise_init(
     struct srp_info_talker *self, struct jdksavdecc_eui64 const *stream_id,
-    struct jdksavdecc_eui48 const *destination_address, uint16_t vlan_identifier,
-    uint16_t max_frame_size, uint16_t max_interval_frames,
-    uint8_t data_frame_priority, uint8_t rank, uint32_t accumulated_latency);
+    struct jdksavdecc_eui48 const *destination_address,
+    uint16_t vlan_identifier, uint16_t max_frame_size,
+    uint16_t max_interval_frames, uint8_t data_frame_priority, uint8_t rank,
+    uint32_t accumulated_latency);
 
 /**
  * @brief srp_info_talker_fail_init
@@ -137,9 +138,10 @@ void srp_info_talker_advertise_init(
  */
 void srp_info_talker_fail_init(
     struct srp_info_talker *self, struct jdksavdecc_eui64 const *stream_id,
-    struct jdksavdecc_eui48 const *destination_address, uint16_t vlan_identifier,
-    uint16_t max_frame_size, uint16_t max_interval_frames,
-    uint8_t data_frame_priority, uint8_t rank, uint32_t accumulated_latency,
+    struct jdksavdecc_eui48 const *destination_address,
+    uint16_t vlan_identifier, uint16_t max_frame_size,
+    uint16_t max_interval_frames, uint8_t data_frame_priority, uint8_t rank,
+    uint32_t accumulated_latency,
     struct jdksavdecc_eui64 const *failure_bridge_id, uint8_t failure_code);
 
 /**
@@ -147,7 +149,7 @@ void srp_info_talker_fail_init(
  *  See IEEE Std 802.1Q-2011 Clause 35.2.2.8.1
  */
 struct srp_info_listener {
-    struct jdksavdecc_eui64 stream_id;
+	struct jdksavdecc_eui64 stream_id;
 };
 
 /**
@@ -159,6 +161,6 @@ struct srp_info_listener {
  * @param stream_id
  */
 void srp_info_listener_init(struct srp_info_listener *self,
-                struct jdksavdecc_eui64 const *stream_id);
+			    struct jdksavdecc_eui64 const *stream_id);
 
 #endif /* SRP_INFO_H_ */

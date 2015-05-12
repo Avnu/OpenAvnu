@@ -41,26 +41,26 @@ struct acmp_controller_slots;
 
 struct jdksavdecc_acmpdu_list_item {
 
-    struct jdksavdecc_acmpdu acmpdu;
+	struct jdksavdecc_acmpdu acmpdu;
 };
 
 struct jdksavdecc_acmpdu_list {
 	int max_items;
 	int num_items;
-    struct jdksavdecc_acmpdu *items;
+	struct jdksavdecc_acmpdu *items;
 };
 
-void acmpdu_list_init(struct jdksavdecc_acmpdu_list *self, struct jdksavdecc_acmpdu *items,
-		      int max_items);
+void acmpdu_list_init(struct jdksavdecc_acmpdu_list *self,
+		      struct jdksavdecc_acmpdu *items, int max_items);
 
 struct acmp_controller_stream_source {
-    jdksavdecc_timestamp_in_microseconds last_talker_refresh_time;
-    struct jdksavdecc_acmpdu acmpdu;
+	jdksavdecc_timestamp_in_microseconds last_talker_refresh_time;
+	struct jdksavdecc_acmpdu acmpdu;
 };
 
 struct acmp_controller_stream_sink {
-    jdksavdecc_timestamp_in_microseconds last_listener_refresh_time;
-    struct jdksavdecc_acmpdu acmpdu;
+	jdksavdecc_timestamp_in_microseconds last_listener_refresh_time;
+	struct jdksavdecc_acmpdu acmpdu;
 };
 
 struct acmp_controller_connection {
@@ -71,9 +71,9 @@ struct acmp_controller_connection {
 	       ACMP_CONTROLLER_CONNECTION_DISCONNECTING,
 	       ACMP_CONTROLLER_CONNECTION_ERROR } state;
 	int retry_count;
-    struct jdksavdecc_eui64 talker_entity_id;
+	struct jdksavdecc_eui64 talker_entity_id;
 	uint16_t talker_unique_id;
-    struct jdksavdecc_eui64 listener_entity_id;
+	struct jdksavdecc_eui64 listener_entity_id;
 	uint16_t listener_unique_id;
 	struct acmp_controller_stream_source last_talker_connection_info;
 	struct acmp_controller_stream_sink last_listener_info;
@@ -104,27 +104,27 @@ struct acmp_controller_slots {
 
 	/** Ask the object to handle the specified ethernet frame */
 	void (*handle_pdu)(struct acmp_controller_slots *self,
-               struct jdksavdecc_frame *frame);
+			   struct jdksavdecc_frame *frame);
 
 	/** Ask the object to process any periodic timers */
 	void (*tick)(struct acmp_controller_slots *self,
-             jdksavdecc_timestamp_in_microseconds current_time);
+		     jdksavdecc_timestamp_in_microseconds current_time);
 
 	/** Ask the object to track a specific stream sink */
 	void (*track_stream_sink)(struct acmp_controller_slots *self,
-                  struct jdksavdecc_eui64 listener_entity_id,
+				  struct jdksavdecc_eui64 listener_entity_id,
 				  uint16_t listener_unique_id, int enable);
 
 	/** Ask the object to track a specific stream source */
 	void (*track_stream_source)(struct acmp_controller_slots *self,
-                    struct jdksavdecc_eui64 talker_entity_id,
+				    struct jdksavdecc_eui64 talker_entity_id,
 				    uint16_t talker_unique_id, int enable);
 
 	/** Ask the object to connect a stream source to a stream sink */
 	void (*connect_stream)(struct acmp_controller_slots *self,
-                   struct jdksavdecc_eui64 talker_entity_id,
+			       struct jdksavdecc_eui64 talker_entity_id,
 			       uint16_t talker_unique_id,
-                   struct jdksavdecc_eui64 listener_entity_id,
+			       struct jdksavdecc_eui64 listener_entity_id,
 			       uint16_t listener_unique_id, int enable);
 };
 
@@ -147,7 +147,7 @@ struct acmp_controller_signals {
 
 	/** The object is asking to send an ethernet frame */
 	void (*acmp_controller_send_pdu)(struct acmp_controller_signals *self,
-                     struct jdksavdecc_frame *acmpdu);
+					 struct jdksavdecc_frame *acmpdu);
 
 	/** The object is notifying that a stream source has been discovered or
 	 * updated */
@@ -241,27 +241,29 @@ void acmp_controller_stop(struct acmp_controller_slots *self);
 
 /** Ask the object to handle the specified ethernet frame */
 void acmp_controller_handle_pdu(struct acmp_controller_slots *self,
-                struct jdksavdecc_frame *frame);
+				struct jdksavdecc_frame *frame);
 
 /** Ask the object to process any periodic timers */
 void acmp_controller_tick(struct acmp_controller_slots *self,
-              jdksavdecc_timestamp_in_microseconds current_time);
+			  jdksavdecc_timestamp_in_microseconds current_time);
 
 /** Ask the object to track a specific stream sink */
-void acmp_controller_track_stream_sink(struct acmp_controller_slots *self,
-                       struct jdksavdecc_eui64 listener_entity_id,
-				       uint16_t listener_unique_id, int enable);
+void
+acmp_controller_track_stream_sink(struct acmp_controller_slots *self,
+				  struct jdksavdecc_eui64 listener_entity_id,
+				  uint16_t listener_unique_id, int enable);
 
 /** Ask the object to track a specific stream source */
-void acmp_controller_track_stream_source(struct acmp_controller_slots *self,
-                     struct jdksavdecc_eui64 talker_entity_id,
-					 uint16_t talker_unique_id, int enable);
+void
+acmp_controller_track_stream_source(struct acmp_controller_slots *self,
+				    struct jdksavdecc_eui64 talker_entity_id,
+				    uint16_t talker_unique_id, int enable);
 
 /** Ask the object to connect a stream source to a stream sink */
 void acmp_controller_connect_stream(struct acmp_controller_slots *self,
-                    struct jdksavdecc_eui64 talker_entity_id,
+				    struct jdksavdecc_eui64 talker_entity_id,
 				    uint16_t talker_unique_id,
-                    struct jdksavdecc_eui64 listener_entity_id,
+				    struct jdksavdecc_eui64 listener_entity_id,
 				    uint16_t listener_unique_id, int enable);
 
 /*@}*/
