@@ -37,16 +37,19 @@
 #include <sys/types.h>
 #include <ptptypes.hpp>
 
+/**
+ * Provides a data structure for gPTP time
+ */
 typedef struct { 
-	int64_t ml_phoffset;
-	int64_t ls_phoffset;
-	FrequencyRatio ml_freqoffset;
-	FrequencyRatio ls_freqoffset;
-	int64_t local_time;
-	uint32_t sync_count;
-	uint32_t pdelay_count;
-	PortState port_state;
-	pid_t  process_id;
+	int64_t ml_phoffset;			//!< Master to local phase offset
+	int64_t ls_phoffset;			//!< Local to system phase offset
+	FrequencyRatio ml_freqoffset;	//!< Master to local frequency offset
+	FrequencyRatio ls_freqoffset;	//!< Local to system frequency offset
+	int64_t local_time;				//!< Local time of last update
+	uint32_t sync_count;			//!< Sync messages count
+	uint32_t pdelay_count;			//!< pdelay emssages count
+	PortState port_state;			//!< gPTP port state
+	pid_t  process_id;				//!< Linux process id number
 } gPtpTimeData;
 
 

@@ -47,12 +47,31 @@
 #define UPPER_FREQ_LIMIT  250.0
 #define LOWER_FREQ_LIMIT -250.0
 
+/**
+ * Provides the clock quality abstraction.
+ * Represents the quality of the clock
+ * Defined at IEEE 802.1AS-2011
+ * Clause 6.3.3.8
+ */
 struct ClockQuality {
-	unsigned char cq_class;
-	unsigned char clockAccuracy;
-	int16_t offsetScaledLogVariance;
+	unsigned char cq_class;				/*!< Clock Class - Clause 8.6.2.2
+										  Denotes the tracebility of the synchronized time
+										  distributed by a clock master when it is grandmaster. */
+	unsigned char clockAccuracy; 		/*!< Clock Accuracy - clause 8.6.2.3.
+										  Indicates the expected time accuracy of
+										  a clock master.*/
+	int16_t offsetScaledLogVariance;	/*!< Offset Scaled log variance - Clause 8.6.2.4.
+										  Is the scaled, offset representation
+										  of an estimate of the PTP variance. The
+										  PTP variance characterizes the
+										  precision and frequency stability of the clock
+										  master. The PTP variance is the square of
+										  PTPDEV (See B.1.3.2). */
 };
 
+/**
+ *
+ */
 class IEEE1588Clock {
 private:
 	ClockIdentity clock_identity;
@@ -111,183 +130,425 @@ private:
 
   OSLock *timerq_lock;
 public:
-	IEEE1588Clock
-	(bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
-	 HWTimestamper *timestamper, OSTimerQueueFactory * timerq_factory,
-	 OS_IPC * ipc, OSLockFactory *lock_factory );
-	~IEEE1588Clock(void);
+  /**
+   * @brief Instantiates a IEEE 1588 Clock
+   * @param forceOrdinarySlave Forces it to be an ordinary slave
+   * @param syntonize if TRUE, clock will syntonize to the master clock
+   * @param priority1 It is used in the execution of BCMA. See IEEE 802.1AS Clause 10.3
+   * @param timestamper [in] Provides an object for hardware timestamp
+   * @param timerq_factory [in] Provides a factory object for creating timer queues (managing events)
+   * @param ipc [in] Inter process communication object
+   * @param lock_factory [in] Provides a factory object for creating locking a locking mechanism
+   */
+  IEEE1588Clock
+	  (bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
+	   HWTimestamper *timestamper, OSTimerQueueFactory * timerq_factory,
+	   OS_IPC * ipc, OSLockFactory *lock_factory );
 
-	bool serializeState( void *buf, long *count );
-	bool restoreSerializedState( void *buf, long *count );
+  /*
+   * Destroys the IEEE 1588 clock entity
+   */
+  ~IEEE1588Clock(void);
 
-	Timestamp getTime(void);
-	Timestamp getPreciseTime(void);
+  /**
+   * @brief  Updates the frequencyRatio information
+   * @param  buf [out] Stores the serialized clock quality state
+   * @param  count [inout] Provides the size of buffer. Its decremented internally
+   * @return TRUE in case of success, FALSE if it has failed
+   */
+  bool serializeState( void *buf, long *count );
 
-	bool isBetterThan(PTPMessageAnnounce * msg);
+  /**
+   * @brief  Restores the frequencyRatio with the serialized input buffer data
+   * @param  buf [in] serialized frequencyRatio information
+   * @param  count [inout] Size of buffer. It is incremented internally
+   * @return TRUE in case of success, FALSE otherwise.
+   */
+  bool restoreSerializedState( void *buf, long *count );
+
+  /**
+   * @brief  Gets the current time from system clock
+   * @return System time
+   */
+  Timestamp getTime(void);
+
+  /**
+   * @brief  Gets the timestamp from hardware (Deprecated)
+   * @return Hardware timestamp
+   */
+  Timestamp getPreciseTime(void);
+
+  /**
+   * @brief  Compares the 1588 Clock to the grandmaster clock
+   * @param  msg [in] PTP announce message
+   * @return TRUE if the 1588 clock 
+   */
+  bool isBetterThan(PTPMessageAnnounce * msg);
 	
-	ClockIdentity getLastEBestIdentity( void ) {
-		return LastEBestIdentity;
-	}
-	void setLastEBestIdentity( ClockIdentity id ) {
-		LastEBestIdentity = id;
-		return;
-	}
-	
-	void setClockIdentity(char *id) {
-		clock_identity.set((uint8_t *) id);
-	}
-	void setClockIdentity(LinkLayerAddress * addr) {
-		clock_identity.set(addr);
-	}
-	
-	unsigned char getDomain(void) {
-		return domain_number;
-	}
+  /**
+   * @brief  Gets the Last Best clock identity
+   * @return clock identity
+   */
+  ClockIdentity getLastEBestIdentity( void ) {
+	  return LastEBestIdentity;
+  }
 
-	ClockIdentity getGrandmasterClockIdentity(void) {
-		return grandmaster_clock_identity;
-	}
-	void setGrandmasterClockIdentity(ClockIdentity id) {
-		if (id != grandmaster_clock_identity) {
-			fprintf(stderr, "New Grandmaster \"%s\" (previous \"%s\")\n", id.getIdentityString().c_str(), grandmaster_clock_identity.getIdentityString().c_str());
-			grandmaster_clock_identity = id;
-		}
-	}
+  /**
+   * @brief  Sets the last Best clock identity
+   * @param  id ClockIdentity object to be set
+   * @return void
+   */
+  void setLastEBestIdentity( ClockIdentity id ) {
+	  LastEBestIdentity = id;
+	  return;
+  }
+
+  /**
+   * @brief  Sets clock identity by id
+   * @param  id [id] Clock identity (as an octet array)
+   * @return void
+   */
+  void setClockIdentity(char *id) {
+	  clock_identity.set((uint8_t *) id);
+  }
+
+  /**
+   * @brief  Sets the link layer address as clock identity, and pad it with 0xfeff in the 4th
+   * and 5th octets. Id has size 8 and Link layer addr has size 6.
+   * @param  addr [in] Link layer address
+   * @return void
+   */
+  void setClockIdentity(LinkLayerAddress * addr) {
+	  clock_identity.set(addr);
+  }
+
+  /**
+   * @brief  Gets the domain number
+   * @return domain number
+   */
+  unsigned char getDomain(void) {
+	  return domain_number;
+  }
+
+  /**
+   * @brief  Gets grandmaster clock ID
+   * @return GM clock ID
+   */
+  ClockIdentity getGrandmasterClockIdentity(void) {
+	  return grandmaster_clock_identity;
+  }
+
+  /**
+   * @brief  Sets a new GM clock ID
+   * @param  id New id
+   * @return void
+   */
+  void setGrandmasterClockIdentity(ClockIdentity id) {
+	  if (id != grandmaster_clock_identity) {
+		  fprintf(stderr, "New Grandmaster \"%s\" (previous \"%s\")\n", id.getIdentityString().c_str(), grandmaster_clock_identity.getIdentityString().c_str());
+		  grandmaster_clock_identity = id;
+	  }
+  }
+
+  /**
+   * @brief  Gets grandmaster clock quality object
+   * @return Clock quality
+   */
+  ClockQuality getGrandmasterClockQuality(void) {
+	  return grandmaster_clock_quality;
+  }
+
+  /**
+   * @brief  Sets grandmaster clock quality
+   * @param  clock_quality ClockQuality object to be set
+   * @return void
+   */
+  void setGrandmasterClockQuality( ClockQuality clock_quality ) {
+	  grandmaster_clock_quality = clock_quality;
+  }
+
+  /**
+   * @brief  Gets the IEEE 1588 Clock quality
+   * @return ClockQuality
+   */
+  ClockQuality getClockQuality(void) {
+	  return clock_quality;
+  }
+
+  /**
+   * @brief  Gets grandmaster priority1 attribute (IEEE 802.1AS clause 10.5.3.2.2)
+   * @return Grandmaster priority1
+   */
+  unsigned char getGrandmasterPriority1(void) {
+	  return grandmaster_priority1;
+  }
+
+  /**
+   * @brief  Gets grandmaster priotity2 attribute (IEEE 802.1AS clause 10.5.3.2.4)
+   * @return Grandmaster priority2
+   */
+  unsigned char getGrandmasterPriority2(void) {
+	  return grandmaster_priority2;
+  }
+
+  /**
+   * @brief  Sets grandmaster's priority1 attribute (IEEE 802.1AS clause 10.5.3.2.2)
+   * @param  priority1 value to be set
+   * @return void
+   */
+  void setGrandmasterPriority1( unsigned char priority1 ) {
+	  grandmaster_priority1 = priority1;
+  }
+
+  /**
+   * @brief  Sets grandmaster's priority2 attribute (IEEE 802.1AS clause 10.5.3.2.4)
+   * @param  priority2 Value to be set
+   * @return void
+   */
+  void setGrandmasterPriority2( unsigned char priority2 ) {
+	  grandmaster_priority2 = priority2;
+  }
+
+  /**
+   * @brief  Gets master steps removed (IEEE 802.1AS clause 10.3.3)
+   * @return steps removed value
+   */
+  uint16_t getMasterStepsRemoved(void) {
+	  return steps_removed;
+  }
 	
-	ClockQuality getGrandmasterClockQuality(void) {
-		return grandmaster_clock_quality;
-	}
-	void setGrandmasterClockQuality( ClockQuality clock_quality ) {
-		grandmaster_clock_quality = clock_quality;
-	}
-	
-	ClockQuality getClockQuality(void) {
-		return clock_quality;
-	}
-	
-	unsigned char getGrandmasterPriority1(void) {
-		return grandmaster_priority1;
-	}
-	
-	unsigned char getGrandmasterPriority2(void) {
-		return grandmaster_priority2;
-	}
-	void setGrandmasterPriority1( unsigned char priority1 ) {
-		grandmaster_priority1 = priority1;
-	}
-	
-	void setGrandmasterPriority2( unsigned char priority2 ) {
-		grandmaster_priority2 = priority2;
-	}
-	
-	uint16_t getMasterStepsRemoved(void) {
-		return steps_removed;
-	}
-	
-	uint16_t getCurrentUtcOffset(void) {
-		return current_utc_offset;
-	}
-	
-	uint8_t getTimeSource(void) {
-		return time_source;
-	}
-	
-	unsigned char getPriority1(void) {
-		return priority1;
-	}
+  /**
+   * @brief  Gets the currentUtcOffset attribute (IEEE 802.1AS clause 10.3.8.9)
+   * @return currentUtcOffset
+   */
+  uint16_t getCurrentUtcOffset(void) {
+	  return current_utc_offset;
+  }
 
-	unsigned char getPriority2(void) {
-		return priority2;
-	}
-	uint16_t getNextPortId(void) {
-		return (number_ports++ % (MAX_PORTS + 1)) + 1;
-	}
-	void registerPort(IEEE1588Port * port, uint16_t index) {
-		if (index < MAX_PORTS) {
-			port_list[index - 1] = port;
-		}
-		++number_ports;
-	}
-	void getPortList(int &count, IEEE1588Port ** &ports) {
-		ports = this->port_list;
-		count = number_ports;
-		return;
-	}
-	
-	static Timestamp getSystemTime(void);
-	
-	void addEventTimer
-	( IEEE1588Port * target, Event e, unsigned long long time_ns );
-	void deleteEventTimer(IEEE1588Port * target, Event e);
+  /**
+   * @brief  Gets the TimeSource attribute (IEEE 802.1AS-2011 clause 10.3.8.10)
+   * @return TimeSource
+   */
+  uint8_t getTimeSource(void) {
+	  return time_source;
+  }
 
-	void addEventTimerLocked
-	( IEEE1588Port * target, Event e, unsigned long long time_ns );
-	void deleteEventTimerLocked(IEEE1588Port * target, Event e);
+  /**
+   * @brief  Gets IEEE1588Clock priority1 value (IEEE 802.1AS clause 8.6.2.1)
+   * @return Priority1 value
+   */
+  unsigned char getPriority1(void) {
+	  return priority1;
+  }
 
-	FrequencyRatio calcMasterLocalClockRateDifference
-	( Timestamp master_time, Timestamp sync_time );
-	FrequencyRatio calcLocalSystemClockRateDifference
-	( Timestamp local_time, Timestamp system_time );
+  /**
+   * @brief  Gets IEEE1588Clock priority2 attribute (IEEE 802.1AS clause 8.6.2.5) 
+   * @return Priority2 value
+   */
+  unsigned char getPriority2(void) {
+	  return priority2;
+  }
 
-	void setMasterOffset
-	( int64_t master_local_offset, Timestamp local_time,
-	  FrequencyRatio master_local_freq_offset,
-	  int64_t local_system_offset,
-	  Timestamp system_time,
-	  FrequencyRatio local_system_freq_offset,
-	  unsigned sync_count, unsigned pdelay_count, PortState port_state );
-	
-	ClockIdentity getClockIdentity() {
-		return clock_identity;
-	}
+  /**
+   * @brief  Gets nextPortId value
+   * @return The remaining value from the division of current number of ports by
+   * (maximum number of ports + 1) + 1
+   */
+  uint16_t getNextPortId(void) {
+	  return (number_ports++ % (MAX_PORTS + 1)) + 1;
+  }
 
-	void newSyntonizationSetPoint() {
-		_new_syntonization_set_point = true;
-	}
+  /**
+   * @brief  Registers a new IEEE1588 port
+   * @param  port  [in] IEEE1588port instance
+   * @param  index Port's index
+   * @return void
+   */
+  void registerPort(IEEE1588Port * port, uint16_t index) {
+	  if (index < MAX_PORTS) {
+		  port_list[index - 1] = port;
+	  }
+	  ++number_ports;
+  }
 
-	int getTxLockAll() {
-		int number_ports, i, j = 0;
-		IEEE1588Port **ports;
+  /**
+   * @brief  Gets the current port list instance
+   * @param  count [out] Number of ports
+   * @param  ports [out] Pointer to the port list
+   * @return 
+   */
+  void getPortList(int &count, IEEE1588Port ** &ports) {
+	  ports = this->port_list;
+	  count = number_ports;
+	  return;
+  }
 
-		getPortList( number_ports, ports );
+  /**
+   * @brief  Gets current system time
+   * @return Instance of a Timestamp object
+   */
+  static Timestamp getSystemTime(void);
 
-		for( i = 0; i < number_ports; ++i ) {
-			while( ports[j] == NULL ) ++j;
-			if( ports[j]->getTxLock() == false ) {
-				return false;
-			}
-		}
+  /**
+   * @brief  Add a new event to the timer queue
+   * @param  target IEEE1588Port target
+   * @param  e Event to be added
+   * @param  time_ns Time in nanoseconds
+   */
+  void addEventTimer
+	  ( IEEE1588Port * target, Event e, unsigned long long time_ns );
 
-		return true;
-	}
+  /**
+   * @brief  Deletes an event from the timer queue
+   * @param  target Target port to remove the event from
+   * @param  e Event to be removed
+   * @return void
+   */
+  void deleteEventTimer(IEEE1588Port * target, Event e);
 
-	int putTxLockAll() {
-		int number_ports, i, j = 0;
-		IEEE1588Port **ports;
+  /**
+   * @brief  Adds an event to the timer queue using a lock
+   * @param  target IEEE1588Port target
+   * @param  e Event to be added
+   * @param  time_ns current time in nanoseconds
+   * @return void
+   */
+  void addEventTimerLocked
+	  ( IEEE1588Port * target, Event e, unsigned long long time_ns );
 
-		getPortList( number_ports, ports );
-		
-		for( i = 0; i < number_ports; ++i ) {
-			while( ports[j] == NULL ) ++j;
-			if( ports[j]->putTxLock() == false ) {
-				return false;
-			}
-		}
-		
-		return true;
-	}
+  /**
+   * @brief  Deletes and event from the timer queue using a lock
+   * @param  target Target port to remove the event from
+   * @param  e Event to be deleted
+   * @return 
+   */
+  void deleteEventTimerLocked(IEEE1588Port * target, Event e);
 
-	friend void tick_handler(int sig);
+  /**
+   * @brief  Calculates the master to local clock rate difference
+   * @param  master_time Master time
+   * @param  sync_time Local time
+   * @return The offset in ppt (parts per trillion)
+   */
+  FrequencyRatio calcMasterLocalClockRateDifference
+	  ( Timestamp master_time, Timestamp sync_time );
 
-	OSLockResult getTimerQLock() {
-		return timerq_lock->lock();
-	}
-	OSLockResult putTimerQLock() {
-		return timerq_lock->unlock();
-	}
-	OSLock *timerQLock() {
-		return timerq_lock;
-	}
+  /**
+   * @brief  Calculates the local to system clock rate difference
+   * @param  local_time Local time
+   * @param  system_time System time
+   * @return The offset in ppt (parts per trillion)
+   */
+  FrequencyRatio calcLocalSystemClockRateDifference
+	  ( Timestamp local_time, Timestamp system_time );
+
+  /**
+   * @brief  Sets the master offset, sintonyze and adjusts the frequency offset
+   * @param  master_local_offset Master to local phase offset
+   * @param  local_time Local time
+   * @param  master_local_freq_offset Master to local frequency offset
+   * @param  local_system_offset Local time to system time phase offset
+   * @param  system_time System time
+   * @param  local_system_freq_offset Local to system frequency offset
+   * @param  sync_count Sync messages count
+   * @param  pdelay_count PDelay messages count
+   * @param  port_state PortState instance
+   */
+  void setMasterOffset
+	  ( int64_t master_local_offset, Timestamp local_time,
+		FrequencyRatio master_local_freq_offset,
+		int64_t local_system_offset,
+		Timestamp system_time,
+		FrequencyRatio local_system_freq_offset,
+		unsigned sync_count, unsigned pdelay_count, PortState port_state );
+
+  /**
+   * @brief  Get the IEEE1588Clock identity value
+   * @return clock identity
+   */
+  ClockIdentity getClockIdentity() {
+	  return clock_identity;
+  }
+
+  /**
+   * @brief  Sets a flag that will allow syntonization during setMasterOffset calls
+   * @return void
+   */
+  void newSyntonizationSetPoint() {
+	  _new_syntonization_set_point = true;
+  }
+
+  /**
+   * @brief  Gets all TX locks
+   * @return void
+   */
+  int getTxLockAll() {
+	  int number_ports, i, j = 0;
+	  IEEE1588Port **ports;
+
+	  getPortList( number_ports, ports );
+
+	  for( i = 0; i < number_ports; ++i ) {
+		  while( ports[j] == NULL ) ++j;
+		  if( ports[j]->getTxLock() == false ) {
+			  return false;
+		  }
+	  }
+
+	  return true;
+  }
+
+  /**
+   * @brief  Release all TX locks
+   * @return void
+   */
+  int putTxLockAll() {
+	  int number_ports, i, j = 0;
+	  IEEE1588Port **ports;
+
+	  getPortList( number_ports, ports );
+
+	  for( i = 0; i < number_ports; ++i ) {
+		  while( ports[j] == NULL ) ++j;
+		  if( ports[j]->putTxLock() == false ) {
+			  return false;
+		  }
+	  }
+
+	  return true;
+  }
+
+  
+  /**
+   * @brief  Declares a friend instance of tick_handler method
+   * @param  sig Signal 
+   * @return void
+   */
+  friend void tick_handler(int sig);
+
+  /**
+   * @brief  Gets the timer queue lock
+   * @return OSLockResult structure
+   */
+  OSLockResult getTimerQLock() {
+	  return timerq_lock->lock();
+  }
+
+  /**
+   * @brief  Releases the timer queue lock
+   * @return OSLockResult structure
+   */
+  OSLockResult putTimerQLock() {
+	  return timerq_lock->unlock();
+  }
+
+  /**
+   * @brief  Gets a pointer to the timer queue lock object
+   * @return OSLock instance
+   */
+  OSLock *timerQLock() {
+	  return timerq_lock;
+  }
 };
 
 void tick_handler(int sig);
