@@ -4,7 +4,8 @@ enable_testing()
 
 set( CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-Wall -Wpedantic" )
 
-include_directories( . "../common" )
+
+include_directories( . "../common" "../../thirdparty/libuv/include" "../../thirdparty/uvrawpkt/include")
 file(GLOB AVDECCD_SRC 
    ./acmp_controller.c 
    ./acmp_controller.h 
@@ -42,10 +43,15 @@ file(GLOB AVDECCD_SRC
    ../common/eui64.h
 )
 
+add_executable (avdeccd ${AVDECCD_SRC} "avdeccd.c" "avdeccd.h")
+
+target_link_libraries( avdeccd uvrawpkt uv)
+
 if(APPLE)
-  add_executable (avdeccd ${AVDECCD_SRC} "avdeccd.c" "avdeccd.h")
+  target_link_libraries(avdeccd pcap)
 elseif(UNIX)
-  add_executable (avdeccd ${AVDECCD_SRC} "avdeccd.c" "avdeccd.h")
-  target_link_libraries(pthread)
+  target_link_libraries(avdeccd pcap pthread)
 endif()
+
+
 

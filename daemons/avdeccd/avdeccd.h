@@ -42,4 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "acmp_controller.h"
 #include "adp_adv.h"
 
+#include "uv.h"
+#include "uv-rawpkt.h"
+
 #endif /* AVDECCD_H_ */
