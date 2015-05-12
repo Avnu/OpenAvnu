@@ -37,6 +37,9 @@
 #include <linux_hal_common.hpp>
 #include <ismd_core.h>
 
+/**
+ * Extends the LinuxTimestamper to IntelCE cards
+ */
 class LinuxTimestamperIntelCE : public LinuxTimestamper {
 private:
 	ismd_clock_t iclock;
@@ -46,27 +49,74 @@ private:
 	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
 	  unsigned &clock_value, bool tx );
 public:
+
+	/**
+	 * @brief  Initializes the hardware timestamp unit.
+	 * @param  iface_label [in] Interface label
+	 * @param  iface [in] Network interface
+	 * @return TRUE if success, FALSE otherwise
+	 */
 	virtual bool HWTimestamper_init
 	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
 
+	/**
+	 * @brief  Gets the TX hardware timestamp value
+	 * @param  identity Clock Identity
+	 * @param  sequenceId Sequence ID
+	 * @param  timestamp [out] Reference to the TX timestamps
+	 * @param  clock_value [out] 64 bit timestamp value
+	 * @param  last Not used
+	 * @return 0 if success. -72 if there is an error in the captured sequence or if there
+	 * is no data available. -1 in case of error when reading data from hardware interface.
+	 */
 	virtual int HWTimestamper_txtimestamp
 	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last );
 
+	/**
+	 * @brief  Gets the RX hardware timestamp value
+	 * @param  identity Clock identity
+	 * @param  sequenceId Sequence ID
+	 * @param  timestamp [out] Reference to the RX timestamps
+	 * @param  clock_value [out] 64 bit timestamp value
+	 * @param  last Not used
+	 * @return 0 if success. -72 if there is an error in the captured sequence or if there
+	 * is no data available. -1 in case of error when reading data from hardware interface.
+	 */
 	virtual int HWTimestamper_rxtimestamp
 	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last );
 
+	/**
+	 * @brief  Post initialization procedure. Configures hardware ptp filter
+	 * @param  ifindex Not used
+	 * @param  sd Not used
+	 * @param  lock Not used
+	 * @return TRUE if success, FALSE otherwise.
+	 */
 	bool post_init( int ifindex, int sd, TicketingLock *lock );
 
+	/**
+	 * Destroys timestamper
+	 */
 	virtual ~LinuxTimestamperIntelCE() {
 	}
 
+	/**
+	 * Default constructor. Initialize some internal variables
+	 */
 	LinuxTimestamperIntelCE() {
 		last_tx_time = 0;
 		last_rx_time = 0;
 	}
 
+	/**
+	 * @brief  Gets time from hardware interface and stores internally in the object's memory.
+	 * @param  system_time Not used
+	 * @param  device_time Not used
+	 * @param  local_clock Not used
+	 * @param  nominal_clock_rate Not used
+	 */
 	virtual bool HWTimestamper_gettime
 	( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
 	  uint32_t *nominal_clock_rate );

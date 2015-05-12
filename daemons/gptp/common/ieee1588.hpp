@@ -439,7 +439,7 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
  */
 class HWTimestamper {
 protected:
-	uint8_t version;
+	uint8_t version; //!< HWTimestamper version
 public:
 	/**
 	 * @brief Initializes the hardware timestamp unit
@@ -491,7 +491,7 @@ public:
 	 * @brief  Get tx timestamp
 	 * @param  identity PTP port identity
 	 * @param  sequenceId Sequence ID
-	 * @param  Timestamp [inout] Timestamp value
+	 * @param  timestamp [inout] Timestamp value
 	 * @param  clock_value [inout] Clock value
 	 * @param  last Boolean flag
 	 * @return A signed integer
@@ -506,7 +506,7 @@ public:
 	 * @brief  Get rx timestamp
 	 * @param  identity PTP port identity
 	 * @param  sequenceId Sequence ID
-	 * @param  Timestamp [inout] Timestamp value
+	 * @param  timestamp [inout] Timestamp value
 	 * @param  clock_value [inout] Clock value
 	 * @param  last Boolean flag
 	 * @return A signed integer
