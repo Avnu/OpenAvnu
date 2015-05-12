@@ -64,6 +64,10 @@ class IEEE1588Port;
 class IEEE1588Clock;
 class OSNetworkInterface;
 
+/**
+ * IEEE 1588 event enumeration type
+ * Defined at: IEEE 1588-2008 Clause 9.2.6
+ */
 typedef enum {
 	NULL_EVENT = 0,
 	POWERUP = 5,
@@ -80,50 +84,124 @@ typedef enum {
 	PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,
 } Event;
 
+/**
+ * Defines an event descriptor type
+ */
 typedef struct {
-	IEEE1588Port *port;
-	Event event;
+	IEEE1588Port *port;	//!< IEEE 1588 Port
+	Event event;	//!< Event enumeration
 } event_descriptor_t;
 
+/**
+ * Provides a generic InterfaceLabel class
+ */
 class InterfaceLabel {
  public:
 	virtual ~ InterfaceLabel() {
 	};
 };
 
+/**
+ * Provides a ClockIdentity abstraction
+ * See IEEE 802.1AS-2011 Clause 8.5.2.2
+ */
 class ClockIdentity {
  private:
 	uint8_t id[PTP_CLOCK_IDENTITY_LENGTH];
  public:
+	/**
+	 * Default constructor. Sets ID to zero
+	 */
 	ClockIdentity() {
 		memset( id, 0, PTP_CLOCK_IDENTITY_LENGTH );
 	}
+
+	/**
+	 * @brief  Constructs the object and sets its ID
+	 * @param  id [in] clock id as an octet array
+	 */
 	ClockIdentity( uint8_t *id ) {
 		set(id);
 	}
+
+	/**
+	 * @brief  Implements the operator '==' overloading method.
+	 * @param  cmp Reference to the ClockIdentity comparing value
+	 * @return TRUE if cmp equals to the object's clock identity. FALSE otherwise
+	 */
 	bool operator==(const ClockIdentity & cmp) const {
 		return memcmp(this->id, cmp.id,
 			      PTP_CLOCK_IDENTITY_LENGTH) == 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Implements the operator '!=' overloading method.
+	 * @param  cmp Reference to the ClockIdentity comparing value
+	 * @return TRUE if cmp differs from the object's clock identity. FALSE otherwise.
+	 */
     bool operator!=( const ClockIdentity &cmp ) const {
         return memcmp( this->id, cmp.id, PTP_CLOCK_IDENTITY_LENGTH ) != 0 ? true : false;
 	}
+	
+	/**
+	 * @brief  Implements the operator '<' overloading method.
+	 * @param  cmp Reference to the ClockIdentity comparing value
+	 * @return TRUE if cmp value is lower than the object's clock identity value. FALSE otherwise.
+	 */
 	bool operator<(const ClockIdentity & cmp)const {
 		return memcmp(this->id, cmp.id,
 			      PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Implements the operator '>' overloading method.
+	 * @param  cmp Reference to the ClockIdentity comparing value
+	 * @return TRUE if cmp value is greater than the object's clock identity value. FALSE otherwise
+	 */
 	bool operator>(const ClockIdentity & cmp)const {
 		return memcmp(this->id, cmp.id,
 			      PTP_CLOCK_IDENTITY_LENGTH) < 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Gets the identity string from the ClockIdentity object
+	 * @return String containing the clock identity
+	 */
 	std::string getIdentityString();
+
+	/**
+	 * @brief  Gets the identity string from the ClockIdentity object
+	 * @param  id [out] Value copied from the object ClockIdentity
+	 * @return void
+	 */
 	void getIdentityString(uint8_t *id) {
 		memcpy(id, this->id, PTP_CLOCK_IDENTITY_LENGTH);
-	} 
+	}
+
+	/**
+	 * @brief  Set the clock id to the object
+	 * @param  id [in] Value to be set
+	 * @return void
+	 */
 	void set(uint8_t * id) {
 		memcpy(this->id, id, PTP_CLOCK_IDENTITY_LENGTH);
 	}
+	
+	/**
+	 * @brief  Set clock id based on the link layer address. Clock id is 8 octets
+	 * long whereas link layer address is 6 octets long. This method pads 0xFEFF after the 3
+	 * first octets
+	 * @param  address Link layer address
+	 * @return void
+	 */
 	void set(LinkLayerAddress * address);
+	
+	/**
+	 * @brief  This method is only enabled at compiling time. When enabled, it prints on the
+	 * stderr output the clock identity information
+	 * @param  str [in] String to be print out before the clock identity value
+	 * @return void
+	 */
 	void print(const char *str) {
 		XPTPD_INFO
 			( "Clock Identity(%s): %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
