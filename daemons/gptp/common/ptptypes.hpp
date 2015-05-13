@@ -40,6 +40,9 @@ typedef long double FrequencyRatio;
 #define IP_ADDR_OCTETS		4
 #define PTP_ETHERTYPE 0x88F7
 
+/**
+ * PortState enumeration
+ */
 typedef enum {
 	PTP_MASTER = 7,
 	PTP_PRE_MASTER,

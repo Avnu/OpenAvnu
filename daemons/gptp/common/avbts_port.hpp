@@ -57,61 +57,138 @@
 #define SYNC_RECEIPT_TIMEOUT_MULTIPLIER 3
 #define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3
 
+/**
+ * PortType enumeration. Selects between delay request-response (E2E) mechanism
+ * or PTPV1 or PTPV2 P2P (peer delay) mechanism.
+ */
 typedef enum {
 	V1,
 	V2_E2E,
 	V2_P2P
 } PortType;
 
+/**
+ * PortIdentity interface
+ * Defined at IEEE 802.1AS Clause 8.5.2
+ */
 class PortIdentity {
 private:
 	ClockIdentity clock_id;
 	uint16_t portNumber;
 public:
+	/**
+	 * Default Constructor
+	 */
 	PortIdentity() { };
+
+	/**
+	 * @brief  Constructs PortIdentity interface.
+	 * @param  clock_id Clock ID value as defined at IEEE 802.1AS Clause 8.5.2.2
+	 * @param  portNumber Port Number
+	 */
 	PortIdentity(uint8_t * clock_id, uint16_t * portNumber) {
 		this->portNumber = *portNumber;
 		this->portNumber = PLAT_ntohs(this->portNumber);
 		this->clock_id.set(clock_id);
 	}
+
+	/**
+	 * @brief  Implements the operator '!=' overloading method. Compares clock_id and portNumber.
+	 * @param  cmp Constant PortIdentity value to be compared against.
+	 * @return TRUE if the comparison value differs from the object's PortIdentity value. FALSE otherwise.
+	 */
 	bool operator!=(const PortIdentity & cmp) const {
 		return
 			!(this->clock_id == cmp.clock_id) ||
 			this->portNumber != cmp.portNumber ? true : false;
 	}
+
+	/**
+	 * @brief  Implements the operator '==' overloading method. Compares clock_id and portNumber.
+	 * @param  cmp Constant PortIdentity value to be compared against.
+	 * @return TRUE if the comparison value equals to the object's PortIdentity value. FALSE otherwise.
+	 */
 	bool operator==(const PortIdentity & cmp)const {
 		return
 			this->clock_id == cmp.clock_id &&
 			this->portNumber == cmp.portNumber ? true : false;
 	}
+
+	/**
+	 * @brief  Implements the operator '<' overloading method. Compares clock_id and portNumber.
+	 * @param  cmp Constant PortIdentity value to be compared against.
+	 * @return TRUE if the comparison value is lower than the object's PortIdentity value. FALSE otherwise.
+	 */
 	bool operator<(const PortIdentity & cmp)const {
 		return
 			this->clock_id < cmp.clock_id ?
 			true : this->clock_id == cmp.clock_id &&
 			this->portNumber < cmp.portNumber ? true : false;
 	}
+
+	/**
+	 * @brief  Implements the operator '>' overloading method. Compares clock_id and portNumber.
+	 * @param  cmp Constant PortIdentity value to be compared against.
+	 * @return TRUE if the comparison value is greater than the object's PortIdentity value. FALSE otherwise.
+	 */
 	bool operator>(const PortIdentity & cmp)const {
 		return
 			this->clock_id > cmp.clock_id ?
 			true : this->clock_id == cmp.clock_id &&
 			this->portNumber > cmp.portNumber ? true : false;
 	}
+
+	/**
+	 * @brief  Gets the ClockIdentity string
+	 * @param  id [out] Pointer to an array of octets.
+	 * @return void
+	 */
 	void getClockIdentityString(uint8_t *id) {
 		clock_id.getIdentityString(id);
 	}
+
+	/**
+	 * @brief  Sets the ClockIdentity.
+	 * @param  clock_id Clock Identity to be set.
+	 * @return void
+	 */
 	void setClockIdentity(ClockIdentity clock_id) {
 		this->clock_id = clock_id;
 	}
+
+	/**
+	 * @brief  Gets the clockIdentity value
+	 * @return A copy of Clock identity value.
+	 */
     ClockIdentity getClockIdentity( void ) {
         return this->clock_id;
     }
+
+	/**
+	 * @brief  Gets the port number following the network byte order, i.e. Big-Endian.
+	 * @param  id [out] Port number
+	 * @return void
+	 */
 	void getPortNumberNO(uint16_t * id) {	// Network byte order
 		uint16_t portNumberNO = PLAT_htons(portNumber);
 		*id = portNumberNO;
 	}
+
+	/**
+	 * @brief  Gets the port number in the host byte order, which can be either Big-Endian
+	 * or Little-Endian, depending on the processor where it is running.
+	 * @param  id Port number
+	 * @return void
+	 */
 	void getPortNumber(uint16_t * id) {	// Host byte order
 		*id = portNumber;
 	}
+
+	/**
+	 * @brief  Sets the Port number
+	 * @param  id [in] Port number
+	 * @return void
+	 */
 	void setPortNumber(uint16_t * id) {
 		portNumber = *id;
 	}
@@ -209,26 +286,87 @@ class IEEE1588Port {
 	
 	bool pdelay_started;
  public:
-	// Added for testing
-	bool forceSlave;
+	bool forceSlave;	//!< Forces port to be slave. Added for testing.
 	
+	/**
+	 * @brief  Serializes (i.e. copy over buf pointer) the information from
+	 * the variables (in that order):
+	 *  - asCapable;
+	 *  - Port Sate;
+	 *  - Link Delay;
+	 *  - Neighbor Rate Ratio
+	 * @param  buf [out] Buffer where to put the results.
+	 * @param  count [inout] Length of buffer. It contains maximum lenght to be written
+	 * when the function is called, and the value is decremented by the same amount the
+	 * buf size increases.
+	 * @return TRUE if it has successfully written to buf all the values or if buf is NULL.
+	 * FALSE otherwise.
+	 */
 	bool serializeState( void *buf, long *count );
+
+	/**
+	 * @brief  Restores the serialized state from the buffer. Copies the information from buffer
+	 * to the variables (in that order):
+	 *  - asCapable;
+	 *  - Port State;
+	 *  - Link Delay;
+	 *  - Neighbor Rate Ratio 
+	 * @param  buf Buffer containing the serialized state.
+	 * @param  count Buffer lenght. It is decremented by the same size of the variables that are
+	 * being copied.
+	 * @return TRUE if everything was copied successfully, FALSE otherwise.
+	 */
 	bool restoreSerializedState( void *buf, long *count );
+
+	/**
+	 * @brief  Switches port to a gPTP master
+	 * @param  annc If TRUE, starts announce event timer.
+	 * @return void
+	 */
 	void becomeMaster( bool annc );
-	void becomeSlave( bool );
+
+	/**
+	 * @brief  Switches port to a gPTP slave.
+	 * @param  restart_syntonization if TRUE, restarts the syntonization
+	 * @return void
+	 */
+	void becomeSlave( bool restart_syntonization );
 	
+	/**
+	 * @brief  Starts pDelay event timer.
+	 * @return void
+	 */
 	void startPDelay();
+
+	/**
+	 * @brief  Starts announce event timer
+	 * @return void
+	 */
 	void startAnnounce();
-	
+
+	/**
+	 * @brief  Starts pDelay event timer if not yet started.
+	 * @return void
+	 */
 	void syncDone() {
 		if( !pdelay_started ) {
 			startPDelay();
 		}
 	}
 
+	/**
+	 * @brief  Gets a pointer to timer_factory object
+	 * @return timer_factory pointer
+	 */
 	OSTimerFactory *getTimerFactory() {
 		return timer_factory;
 	}
+
+	/**
+	 * @brief  Sets asCapable flag
+	 * @param  ascap flag to be set. If FALSE, marks peer_offset_init as false.
+	 * @return void
+	 */
 	void setAsCapable(bool ascap) {
 		if (ascap != asCapable) {
 			fprintf(stderr, "AsCapable: %s\n",
@@ -239,8 +377,26 @@ class IEEE1588Port {
 		}
 		asCapable = ascap;
 	}
-	
+
+	/**
+	 * Destroys a IEEE1588Port
+	 */
 	~IEEE1588Port();
+
+	/**
+	 * @brief  Creates the IEEE1588Port interface.
+	 * @param  clock IEEE1588Clock instance
+	 * @param  index Interface index
+	 * @param  forceSlave Forces port to be slave
+	 * @param  accelerated_sync_count If non-zero, then start 16ms sync timer
+	 * @param  timestamper Hardware timestamper instance
+	 * @param  offset  Initial clock offset
+	 * @param  net_label Network label
+	 * @param  condition_factory OSConditionFactory instance
+	 * @param  thread_factory OSThreadFactory instance
+	 * @param  timer_factory OSTimerFactory instance
+	 * @param  lock_factory OSLockFactory instance
+	 */
 	IEEE1588Port
 	(IEEE1588Clock * clock, uint16_t index,
 	 bool forceSlave, int accelerated_sync_count,
@@ -250,132 +406,368 @@ class IEEE1588Port {
 	 OSThreadFactory * thread_factory,
 	 OSTimerFactory * timer_factory,
 	 OSLockFactory * lock_factory);
+
+	/**
+	 * @brief  Initializes the port. Creates network interface, initializes
+	 * hardware timestamper and create OS locks conditions
+	 * @return FALSE if error during building the interface. TRUE if success
+	 */
 	bool init_port();
 
+	/**
+	 * @brief  Currently doesnt do anything. Just returns.
+	 * @return void
+	 */
 	void recoverPort(void);
+
+	/**
+	 * @brief Receives messages from the network interface
+	 * @return Its an infinite loop. Returns NULL in case of error.
+	 */
 	void *openPort(void);
+
+	/**
+	 * @brief Get the payload offset inside a packet
+	 * @return 0
+	 */
 	unsigned getPayloadOffset();
+
+	/**
+	 * @brief  Sends and event to a IEEE1588 port. It includes timestamp
+	 * @param  buf [in] Pointer to the data buffer
+	 * @param  len Size of the message
+	 * @param  mcast_type Enumeration MulticastType (pdlay, none or other)
+	 * @param  destIdentity Destination port identity
+	 * @return void
+	 */
 	void sendEventPort
 	(uint8_t * buf, int len, MulticastType mcast_type,
 	 PortIdentity * destIdentity);
+
+	/**
+	 * @brief Sends a general message to a port. No timestamps
+	 * @param buf [in] Pointer to the data buffer
+	 * @param len Size of the message
+	 * @param mcast_type Enumeration MulticastType (pdelay, none or other)
+	 * @param destIdentity Destination port identity
+	 * @return void
+	 */
 	void sendGeneralPort
 	(uint8_t * buf, int len, MulticastType mcast_type,
 	 PortIdentity * destIdentity);
+
+	/**
+	 * @brief  Process all events for a IEEE1588Port
+	 * @param  e Event to be processed
+	 * @return void
+	 */
 	void processEvent(Event e);
 
+	/**
+	 * @brief  Gets the "best" announce
+	 * @return Pointer to PTPMessageAnnounce
+	 */
 	PTPMessageAnnounce *calculateERBest(void);
 
+	/**
+	 * @brief  Adds a foreign master.
+	 * @param  msg [in] PTP announce message
+	 * @return void
+	 * @todo Currently not implemented
+	 */
 	void addForeignMaster(PTPMessageAnnounce * msg);
+
+	/**
+	 * @brief  Remove a foreign master.
+	 * @param  msg [in] PTP announce message
+	 * @return void
+	 * @todo Currently not implemented
+	 */
 	void removeForeignMaster(PTPMessageAnnounce * msg);
+
+	/**
+	 * @brief  Remove all foreign masters.
+	 * @return void
+	 * @todo Currently not implemented
+	 */
 	void removeForeignMasterAll(void);
 
+
+	/**
+	 * @brief  Adds a new qualified announce the port. IEEE 802.1AS Clause 10.3.10.2
+	 * @param  msg PTP announce message
+	 * @return void
+	 */
 	void addQualifiedAnnounce(PTPMessageAnnounce * msg) {
 		if( qualified_announce != NULL ) delete qualified_announce;
 		qualified_announce = msg;
 	}
 
+	/**
+	 * @brief  Gets the sync interval value
+	 * @return Sync Interval
+	 */
 	char getSyncInterval(void) {
 		return log_mean_sync_interval;
 	}
+
+	/**
+	 * @brief  Gets the announce interval
+	 * @return Announce interval
+	 */
 	char getAnnounceInterval(void) {
 		return log_mean_announce_interval;
 	}
+
+	/**
+	 * @brief  Gets the pDelay minimum interval
+	 * @return PDelay interval
+	 */
 	char getPDelayInterval(void) {
 		return log_min_mean_pdelay_req_interval;
 	}
+
+	/**
+	 * @brief  Gets the portState information
+	 * @return PortState
+	 */
 	PortState getPortState(void) {
 		return port_state;
 	}
+
+	/**
+	 * @brief Sets the PortState
+	 * @param state value to be set
+	 * @return void
+	 */
 	void setPortState( PortState state ) {
 		port_state = state;
 	}
+
+	/**
+	 * @brief  Gets port identity
+	 * @param  identity [out] Reference to PortIdentity
+	 * @return void
+	 */
 	void getPortIdentity(PortIdentity & identity) {
 		identity = this->port_identity;
 	}
+
+	/**
+	 * @brief  Gets the burst_enabled flag
+	 * @return burst_enabled
+	 */
 	bool burstEnabled(void) {
 		return burst_enabled;
 	}
+
+	/**
+	 * @brief  Increments announce sequence id and returns
+	 * @return Next announce sequence id.
+	 */
 	uint16_t getNextAnnounceSequenceId(void) {
 		return announce_sequence_id++;
 	}
+
+	/**
+	 * @brief  Increments sync sequence ID and returns
+	 * @return Next synce sequence id.
+	 */
 	uint16_t getNextSyncSequenceId(void) {
 		return sync_sequence_id++;
 	}
+
+	/**
+	 * @brief  Increments PDelay sequence ID and returns.
+	 * @return Next PDelay sequence id.
+	 */
 	uint16_t getNextPDelaySequenceId(void) {
 		return pdelay_sequence_id++;
 	}
 
+	/**
+	 * @brief  Gets last sync sequence number from parent
+	 * @return Parent last sync sequence number
+	 * @todo Not currently implemented.
+	 */
 	uint16_t getParentLastSyncSequenceNumber(void);
+
+	/**
+	 * @brief  Sets last sync sequence number from parent
+	 * @param  num Sequence number
+	 * @return void
+	 * @todo Currently not implemented.
+	 */
 	void setParentLastSyncSequenceNumber(uint16_t num);
 
+	/**
+	 * @brief  Gets a pointer to IEEE1588Clock
+	 * @return Pointer to clock
+	 */
 	IEEE1588Clock *getClock(void);
 
+	/**
+	 * @brief  Sets last sync ptp message
+	 * @param  msg PTP sync message
+	 * @return void
+	 */
 	void setLastSync(PTPMessageSync * msg) {
 		last_sync = msg;
 	}
+
+	/**
+	 * @brief  Gets last sync message
+	 * @return PTPMessageSync last sync
+	 */
 	PTPMessageSync *getLastSync(void) {
 		return last_sync;
 	}
 
+	/**
+	 * @brief  Locks PDelay RX
+	 * @return TRUE if acquired the lock. FALSE otherwise
+	 */
 	bool getPDelayRxLock() {
 		return pdelay_rx_lock->lock() == oslock_ok ? true : false;
 	}
 
+	/**
+	 * @brief  Do a trylock on the PDelay RX
+	 * @return TRUE if acquired the lock. FALSE otherwise.
+	 */
 	bool tryPDelayRxLock() {
 		return pdelay_rx_lock->trylock() == oslock_ok ? true : false;
 	}
 
+	/**
+	 * @brief  Unlocks PDelay RX.
+	 * @return TRUE if success. FALSE otherwise
+	 */
 	bool putPDelayRxLock() {
 		return pdelay_rx_lock->unlock() == oslock_ok ? true : false;
 	}
 
+	/**
+	 * @brief  Locks the TX port
+	 * @return TRUE if success. FALSE otherwise.
+	 */
 	bool getTxLock() {
 		return port_tx_lock->lock() == oslock_ok ? true : false;
 	}
+
+	/**
+	 * @brief  Unlocks the port TX.
+	 * @return TRUE if success. FALSE otherwise.
+	 */
 	bool putTxLock() {
 		return port_tx_lock->unlock() == oslock_ok ? true : false;
 	}
+
+	/**
+	 * @brief  Gets the hardware timestamper version
+	 * @return HW timestamper version
+	 */
 	int getTimestampVersion() {
 		return _hw_timestamper->getVersion();
 	}
+
+	/**
+	 * @brief  Sets the last_pdelay_req message
+	 * @param  msg [in] PTPMessagePathDelayReq message to set
+	 * @return void
+	 */
 	void setLastPDelayReq(PTPMessagePathDelayReq * msg) {
 		last_pdelay_req = msg;
 	}
+
+	/**
+	 * @brief  Gets the last PTPMessagePathDelayReq message
+	 * @return Last pdelay request
+	 */
 	PTPMessagePathDelayReq *getLastPDelayReq(void) {
 		return last_pdelay_req;
 	}
 
+	/**
+	 * @brief  Sets the last PTPMessagePathDelayResp message
+	 * @param  msg [in] Last pdelay response
+	 * @return void
+	 */
 	void setLastPDelayResp(PTPMessagePathDelayResp * msg) {
 		last_pdelay_resp = msg;
 	}
+
+	/**
+	 * @brief  Gets the last PTPMessagePathDelayResp message
+	 * @return Last pdelay response
+	 */
 	PTPMessagePathDelayResp *getLastPDelayResp(void) {
 		return last_pdelay_resp;
 	}
 
+	/**
+	 * @brief  Sets the last PTPMessagePathDelayRespFollowUp message
+	 * @param  msg [in] last pdelay response follow up
+	 * @return void
+	 */
 	void setLastPDelayRespFollowUp(PTPMessagePathDelayRespFollowUp * msg) {
 		last_pdelay_resp_fwup = msg;
 	}
+
+	/**
+	 * @brief  Gets the last PTPMessagePathDelayRespFollowUp message
+	 * @return last pdelay response follow up
+	 */
 	PTPMessagePathDelayRespFollowUp *getLastPDelayRespFollowUp(void) {
 		return last_pdelay_resp_fwup;
 	}
 
+	/**
+	 * @brief  Gets the Peer rate offset
+	 * @return FrequencyRatio peer rate offset
+	 */
 	FrequencyRatio getPeerRateOffset(void) {
 		return _peer_rate_offset;
 	}
+
+	/**
+	 * @brief  Sets the peer rate offset
+	 * @param  offset Offset to be set
+	 * @return void
+	 */
 	void setPeerRateOffset( FrequencyRatio offset ) {
 		_peer_rate_offset = offset;
 	}
+
+	/**
+	 * @brief  Sets peer offset timestamps
+	 * @param  mine Local timestamps
+	 * @param  theirs Remote timestamps
+	 * @return void
+	 */
 	void setPeerOffset(Timestamp mine, Timestamp theirs) {
 		_peer_offset_ts_mine = mine;
 		_peer_offset_ts_theirs = theirs;
 		_peer_offset_init = true;
 	}
+
+	/**
+	 * @brief  Gets peer offset timestamps
+	 * @param  mine [out] Reference to local timestamps
+	 * @param  theirs [out] Reference to remote timestamps
+	 * @return TRUE if peer offset has already been initialized. FALSE otherwise.
+	 */
 	bool getPeerOffset(Timestamp & mine, Timestamp & theirs) {
 		mine = _peer_offset_ts_mine;
 		theirs = _peer_offset_ts_theirs;
 		return _peer_offset_init;
 	}
 
+	/**
+	 * @brief  Adjusts the clock frequency.
+	 * @param  freq_offset Frequency offset
+	 * @return TRUE if adjusted. FALSE otherwise.
+	 */
 	bool _adjustClockRate( FrequencyRatio freq_offset ) {
 		if( _hw_timestamper ) {
 			return _hw_timestamper->HWTimestamper_adjclockrate((float) freq_offset );
@@ -383,10 +775,20 @@ class IEEE1588Port {
 		return false;
 	}
 
+	/**
+	 * @brief  Adjusts the clock frequency.
+	 * @param  freq_offset Frequency offset
+	 * @return TRUE if adjusted. FALSE otherwise.
+	 */
 	bool adjustClockRate( FrequencyRatio freq_offset ) {
 		return _adjustClockRate( freq_offset );
 	}
 
+	/**
+	 * @brief  Gets extended error message from hardware timestamper
+	 * @param  msg [out] Extended error message
+	 * @return void
+	 */
 	void getExtendedError(char *msg) {
 		if (_hw_timestamper) {
 			_hw_timestamper->HWTimestamper_get_extderror(msg);
@@ -395,47 +797,139 @@ class IEEE1588Port {
 		}
 	}
 
+	/**
+	 * @brief  Gets RX timestamp based on port identity
+	 * @param  sourcePortIdentity [in] Source port identity
+	 * @param  sequenceId Sequence ID
+	 * @param  timestamp [out] RX timestamp
+	 * @param  counter_value [out] timestamp count value
+	 * @param  last If true, removes the rx lock.
+	 * @return -1 error, -72 to try again. 0 Success.
+	 */
 	int getRxTimestamp
 	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
 	 Timestamp & timestamp, unsigned &counter_value, bool last);
+
+	/**
+	 * @brief  Gets TX timestamp based on port identity
+	 * @param  sourcePortIdentity [in] Source port identity
+	 * @param  sequenceId Sequence ID
+	 * @param  timestamp [out] TX timestamp
+	 * @param  counter_value [out] timestamp count value
+	 * @param  last If true, removes the TX lock
+	 * @return -1 error, -72 to try again. 0 Success.
+	 */
 	int getTxTimestamp
 	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
 	 Timestamp & timestamp, unsigned &counter_value, bool last);
 
+	/**
+	 * @brief  Gets TX timestamp based on PTP message
+	 * @param  msg PTPMessageCommon message
+	 * @param  timestamp [out] TX timestamp
+	 * @param  counter_value [out] timestamp count value
+	 * @param  last If true, removes the TX lock
+	 * @return -1 error, -72 to try again. 0 Success.
+	 */
 	int getTxTimestamp
 	(PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,
 	 bool last);
+
+	/**
+	 * @brief  Gets RX timestamp based on PTP message
+	 * @param  msg PTPMessageCommon message
+	 * @param  timestamp [out] RX timestamp
+	 * @param  counter_value [out] timestamp count value
+	 * @param  last If true, removes the RX lock
+	 * @return -1 error, -72 to try again. 0 Success.
+	 */
 	int getRxTimestamp
 	(PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,
 	 bool last);
 
+	/**
+	 * @brief  Gets the ptp clock time information
+	 * @param  system_time [out] System time
+	 * @param  device_time [out] Device time
+	 * @param  local_clock Not Used
+	 * @param  nominal_clock_rate Not Used
+	 * @return TRUE if got the time successfully, FALSE otherwise
+	 */
 	void getDeviceTime
 	(Timestamp & system_time, Timestamp & device_time, uint32_t & local_clock,
 	 uint32_t & nominal_clock_rate);
 
+	/**
+	 * @brief  Gets the link delay information
+	 * @return one way delay if delay > 0, or zero otherwise.
+	 */
 	uint64_t getLinkDelay(void) {
 		return one_way_delay > 0LL ? one_way_delay : 0LL;
 	}
+
+	/**
+	 * @brief  Sets link delay information
+	 * @param  delay Link delay
+	 * @return void
+	 */
 	void setLinkDelay(int64_t delay) {
 		one_way_delay = delay;
 	}
 
+	/**
+	 * @brief  Changes the port state
+	 * @param  state Current state
+	 * @param  changed_external_master TRUE if external master has changed, FALSE otherwise
+	 * @return void
+	 */
 	void recommendState(PortState state, bool changed_external_master);
 
+	/**
+	 * @brief  Maps socket addr to the remote link layer address
+	 * @param  destIdentity [in] PortIdentity remote
+	 * @param  remote [in] remote link layer address
+	 * @return void
+	 */
 	void mapSocketAddr
 	(PortIdentity * destIdentity, LinkLayerAddress * remote);
+
+	/**
+	 * @brief  Adds New sock addr map
+	 * @param  destIdentity [in] PortIdentity remote
+	 * @param  remote [in] remote link layer address
+	 * @return void
+	 */
 	void addSockAddrMap
 	(PortIdentity * destIdentity, LinkLayerAddress * remote);
 
+	/**
+	 * @brief  Increments Pdelay count
+	 * @return void
+	 */
 	void incPdelayCount() {
 		++pdelay_count;
 	}
+
+	/**
+	 * @brief  Gets current pdelay count value
+	 * @return pdelay count
+	 */
 	unsigned getPdelayCount() {
 		return pdelay_count;
 	}
+
+	/**
+	 * @brief  Increments sync count
+	 * @return void
+	 */
 	void incSyncCount() {
 		++sync_count;
 	}
+
+	/**
+	 * @brief  Gets current sync count value
+	 * @return sync count
+	 */
 	unsigned getSyncCount() {
 		return sync_count;
 	}

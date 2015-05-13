@@ -121,6 +121,9 @@
 #define TX_TIMEOUT_BASE 1000 /* microseconds */
 #define TX_TIMEOUT_ITER 6
 
+/**
+ * Enumeration message type. IEEE 1588-2008 Clause 13.3.2.2
+ */
 enum MessageType {
 	SYNC_MESSAGE = 0,
 	DELAY_REQ_MESSAGE = 1,
@@ -134,6 +137,9 @@ enum MessageType {
 	MANAGEMENT_MESSAGE = 0xD,
 };
 
+/**
+ * Enumeration legacy message type
+ */
 enum LegacyMessageType {
 	SYNC,
 	DELAY_REQ,
@@ -143,6 +149,9 @@ enum LegacyMessageType {
 	MESSAGE_OTHER
 };
 
+/**
+ * Enumeration multicast type.
+ */
 enum MulticastType {
 	MCAST_NONE,
 	MCAST_PDELAY,
