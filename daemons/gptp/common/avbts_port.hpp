@@ -49,13 +49,15 @@
 #include <map>
 #include <list>
 
-#define GPTP_MULTICAST 0x0180C200000EULL
-#define PDELAY_MULTICAST GPTP_MULTICAST
-#define OTHER_MULTICAST GPTP_MULTICAST
+/**@file*/
 
-#define PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER 3
-#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER 3
-#define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3
+#define GPTP_MULTICAST 0x0180C200000EULL		/*!< GPTP multicast adddress */
+#define PDELAY_MULTICAST GPTP_MULTICAST			/*!< PDELAY Multicast value */
+#define OTHER_MULTICAST GPTP_MULTICAST			/*!< OTHER multicast value */
+
+#define PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER 3	/*!< PDelay timeout multiplier*/
+#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER 3			/*!< Sync receipt timeout multiplier*/
+#define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3		/*!< Announce receipt timeout multiplier*/
 
 /**
  * PortType enumeration. Selects between delay request-response (E2E) mechanism
@@ -194,8 +196,14 @@ public:
 	}
 };
 
+/**
+ * Provides a map for the identityMap member of IEEE1588Port class
+ */
 typedef std::map < PortIdentity, LinkLayerAddress > IdentityMap_t;
 
+/**
+ * Provides the IEEE 1588 port interface
+ */
 class IEEE1588Port {
 	static LinkLayerAddress other_multicast;
 	static LinkLayerAddress pdelay_multicast;

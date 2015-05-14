@@ -33,10 +33,22 @@
 
 #ifndef AVBTS_OSTHREAD_HPP
 #define AVBTS_OSTHREAD_HPP
+
+/**@file*/
+
+/**
+ * thread exit codes. Possible values are:
+ * 	- osthread_ok;
+ * 	- osthread_error;
+ */
 typedef enum { osthread_ok, osthread_error } OSThreadExitCode;
+
+/**
+ * Provides the OSThreadExitCode callback format
+ */
 typedef OSThreadExitCode(*OSThreadFunction) (void *);
 
-/*
+/**
  * Provides a generic interface for threads
  */
 class OSThread {
@@ -60,7 +72,7 @@ public:
 
 inline OSThread::~OSThread() {}
 
-/*
+/**
  * Provides factory design patter for OSThread class
  */
 class OSThreadFactory {

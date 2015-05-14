@@ -36,7 +36,12 @@
 
 #include <linux_hal_common.hpp>
 
+/**@file*/
+
 struct LinuxTimestamperGenericPrivate;
+/**
+ * Povides LinuxTimestamperGeneric a private type
+ */
 typedef struct LinuxTimestamperGenericPrivate * LinuxTimestamperGenericPrivate_t;
 
 #ifdef WITH_IGBLIB
@@ -44,6 +49,9 @@ struct LinuxTimestamperIGBPrivate;
 typedef struct LinuxTimestamperIGBPrivate * LinuxTimestamperIGBPrivate_t;
 #endif
 
+/**
+ * Linux timestamper generic interface
+ */
 class LinuxTimestamperGeneric : public LinuxTimestamper {
 private:
 	int sd;
@@ -90,7 +98,6 @@ public:
 	 */
 	virtual bool HWTimestamper_init
 	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
-
 
 	/**
 	 * @brief  Inserts a new timestamp to the beginning of the
@@ -177,7 +184,7 @@ public:
 	bool HWTimestamper_PPS_stop();
 #endif
 
-	/*
+	/**
 	 * deletes LinuxTimestamperGeneric object
 	 */
 	virtual ~LinuxTimestamperGeneric();

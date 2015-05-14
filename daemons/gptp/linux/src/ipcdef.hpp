@@ -37,6 +37,8 @@
 #include <sys/types.h>
 #include <ptptypes.hpp>
 
+/**@file*/
+
 /**
  * Provides a data structure for gPTP time
  */

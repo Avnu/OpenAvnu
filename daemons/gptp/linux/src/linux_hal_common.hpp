@@ -34,6 +34,8 @@
 #ifndef LINUX_HAL_COMMON_HPP
 #define LINUX_HAL_COMMON_HPP
 
+/**@file*/
+
 #include "avbts_osnet.hpp"
 #include "avbts_oslock.hpp"
 #include "avbts_oscondition.hpp"
@@ -45,17 +47,26 @@
 
 #include <list>
 
-#define ONE_WAY_PHY_DELAY 400
-#define P8021AS_MULTICAST "\x01\x80\xC2\x00\x00\x0E"
-#define PTP_DEVICE "/dev/ptpXX"
-#define PTP_DEVICE_IDX_OFFS 8
-#define CLOCKFD 3
-#define FD_TO_CLOCKID(fd)       ((~(clockid_t) (fd) << 3) | CLOCKFD)
-
+#define ONE_WAY_PHY_DELAY 400	/*!< One way phy delay. TX or RX phy delay default value*/
+#define P8021AS_MULTICAST "\x01\x80\xC2\x00\x00\x0E"	/*!< Default multicast address*/
+#define PTP_DEVICE "/dev/ptpXX"			/*!< Default PTP device */
+#define PTP_DEVICE_IDX_OFFS 8			/*!< PTP device index offset*/
+#define CLOCKFD 3						/*!< Clock file descriptor */
+#define FD_TO_CLOCKID(fd)       ((~(clockid_t) (fd) << 3) | CLOCKFD)	/*!< Converts an FD to CLOCKID */
 struct timespec;
+
+/**
+ * @brief  Converts timestamp in the struct timespec format to Timestamp
+ * @param  ts Timestamp on struct timespec format
+ * @return timestamp on the Timestamp format
+ */
 extern Timestamp tsToTimestamp(struct timespec *ts);
 
 struct TicketingLockPrivate;
+
+/**
+ * Provides the type for the TicketingLock private structure
+ */
 typedef struct TicketingLockPrivate * TicketingLockPrivate_t;
 	
 /**
@@ -114,7 +125,7 @@ private:
  */
 class LinuxTimestamper : public HWTimestamper {
 public:
-	/*
+	/**
 	 * Destructor
 	 */
 	virtual ~LinuxTimestamper() = 0;
@@ -187,18 +198,32 @@ public:
 		*addr = local_addr;
 	}
 
-	// No offset needed for Linux SOCK_DGRAM packet
+	/**
+	 *  No offset needed for Linux SOCK_DGRAM packet
+	 */
 	virtual unsigned getPayloadOffset() {
 		return 0;
 	}
+	/**
+	 * Destroys the network interface
+	 */
 	~LinuxNetworkInterface();
 protected:
+	/**
+	 * Default constructor
+	 */
 	LinuxNetworkInterface() {};
 };
 
+/**
+ * Provides a list of LinuxNetworkInterface members
+ */
 typedef std::list<LinuxNetworkInterface *> LinuxNetworkInterfaceList;
 
 struct LinuxLockPrivate;
+/**
+ * Provides a type for the LinuxLock class
+ */
 typedef LinuxLockPrivate * LinuxLockPrivate_t;
 
 /**
@@ -270,9 +295,12 @@ public:
 };
 
 struct LinuxConditionPrivate;
+/**
+ * Provides a private type for the LinuxCondition class
+ */
 typedef struct LinuxConditionPrivate * LinuxConditionPrivate_t;
 
-/*
+/**
  * Extends OSCondition class to Linux
  */
 class LinuxCondition : public OSCondition {
@@ -320,7 +348,7 @@ public:
 	}
 };
 
-/*
+/**
  * Implements factory design pattern for LinuxCondition class
  */
 class LinuxConditionFactory : public OSConditionFactory {
@@ -337,19 +365,30 @@ public:
 
 struct LinuxTimerQueueActionArg;
 
+/**
+ * Provides a map type for the LinuxTimerQueue class
+ */
 typedef std::map < int, struct LinuxTimerQueueActionArg *> LinuxTimerQueueMap_t;
 
+/**
+ * @brief  Linux timer queue handler. Deals with linux queues
+ * @param  arg [in] LinuxTimerQueue arguments
+ * @return void
+ */
 void *LinuxTimerQueueHandler( void *arg );
 
 struct LinuxTimerQueuePrivate;
+/**
+ * Provides a private type for the LinuxTimerQueue class
+ */
 typedef struct LinuxTimerQueuePrivate * LinuxTimerQueuePrivate_t;
 
-/*
+/**
  * Extends OSTimerQueue to Linux
  */
 class LinuxTimerQueue : public OSTimerQueue {
 	friend class LinuxTimerQueueFactory;
-	friend void *LinuxTimerQueueHandler( void *);
+	friend void *LinuxTimerQueueHandler( void * arg );
 private:
 	LinuxTimerQueueMap_t timerQueueMap;
 	int key;
@@ -358,7 +397,7 @@ private:
 	OSLock *lock;
 	void LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg );
 protected:
-	/*
+	/**
 	 * Default constructor
 	 */
 	LinuxTimerQueue() {
@@ -399,7 +438,7 @@ public:
 	bool cancelEvent( int type, unsigned *event );
 };
 
-/*
+/**
  * Implements factory design pattern for linux
  */
 class LinuxTimerQueueFactory : public OSTimerQueueFactory {
@@ -431,7 +470,7 @@ class LinuxTimer : public OSTimer {
 	LinuxTimer() {};
 };
 
-/*
+/**
  * Provides factory design pattern for LinuxTimer
  */
 class LinuxTimerFactory : public OSTimerFactory {
@@ -445,18 +484,29 @@ class LinuxTimerFactory : public OSTimerFactory {
 	}
 };
 
+/**
+ * Privdes the default arguments for the OSThread class
+ */
 struct OSThreadArg {
-	OSThreadFunction func;
-	void *arg;
-	OSThreadExitCode ret;
+	OSThreadFunction func;  /*!< Callback function */
+	void *arg;	/*!< Input arguments */
+	OSThreadExitCode ret; /*!< Return code */
 };
 
+/**
+ * @brief  OSThread callback
+ * @param  input OSThreadArg structure
+ * @return void
+ */
 void *OSThreadCallback(void *input);
 
 struct LinuxThreadPrivate;
+/**
+ * Provides a private type for the LinuxThread class
+ */
 typedef LinuxThreadPrivate * LinuxThreadPrivate_t;
 
-/*
+/**
  * Extends OSThread class to Linux
  */
 class LinuxThread : public OSThread {
@@ -498,7 +548,7 @@ class LinuxThreadFactory:public OSThreadFactory {
 	 }
 };
 
-/*
+/**
  * Extends OSNetworkInterfaceFactory for LinuxNetworkInterface
  */
 class LinuxNetworkInterfaceFactory : public OSNetworkInterfaceFactory {
@@ -515,7 +565,7 @@ public:
 	  HWTimestamper *timestamper );
 };
 
-/*
+/**
  * Extends IPC ARG generic interface to linux
  */
 class LinuxIPCArg : public OS_IPC_ARG {
@@ -532,7 +582,7 @@ public:
 		strncpy( this->group_name, group_name, len+1 );
 		this->group_name[len] = '\0';
 	}
-	/*
+	/**
 	 * Destroys IPCArg internal variables
 	 */
 	virtual ~LinuxIPCArg() {
@@ -541,9 +591,9 @@ public:
 	friend class LinuxSharedMemoryIPC;
 };
 
-#define DEFAULT_GROUPNAME "ptp"
+#define DEFAULT_GROUPNAME "ptp"		/*!< Default groupname for the shared memory interface*/
 
-/*
+/**
  * Linux shared memory interface
  */
 class LinuxSharedMemoryIPC:public OS_IPC {
@@ -552,7 +602,7 @@ private:
 	char *master_offset_buffer;
 	int err;
 public:
-	/*
+	/**
 	 * Initializes the internal flags
 	 */
 	LinuxSharedMemoryIPC() {
@@ -573,10 +623,12 @@ public:
 	virtual bool init( OS_IPC_ARG *barg = NULL );
 
 	/**
-	 * @brief  Updates IPC values
+	 * @brief Updates IPC values
 	 * @param ml_phoffset Master to local phase offset
 	 * @param ls_phoffset Local to slave phase offset
 	 * @param ml_freqoffset Master to local frequency offset
+	 * @param ls_freqoffset Local to slave frequency offset
+	 * @param local_time Local time
 	 * @param sync_count Count of syncs
 	 * @param pdelay_count Count of pdelays
 	 * @param port_state Port's state

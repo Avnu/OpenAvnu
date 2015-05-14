@@ -33,7 +33,22 @@
 
 #ifndef AVBTS_OSLOCK_HPP
 #define AVBTS_OSLOCK_HPP
+
+/**@file*/
+
+/**
+ * Lock type enumeration. The possible values are:
+ * 	- oslock_recursive;
+ * 	- oslock_nonrecursive;
+ */
 typedef enum { oslock_recursive, oslock_nonrecursive } OSLockType;
+/**
+ * Lock result enumeration. The possible values are:
+ * 	- oslock_ok;
+ * 	- oslock_self;
+ * 	- oslock_held;
+ * 	- oslock_fail;
+ */
 typedef enum { oslock_ok, oslock_self, oslock_held, oslock_fail } OSLockResult;
 
 /**
@@ -77,7 +92,7 @@ class OSLock {
 
 inline OSLock::~OSLock() {}
 
-/*
+/**
  * Provides a factory pattern for OSLock
  */
 class OSLockFactory {

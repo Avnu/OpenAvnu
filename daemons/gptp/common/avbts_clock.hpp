@@ -40,12 +40,14 @@
 #include <avbts_ostimerq.hpp>
 #include <avbts_osipc.hpp>
 
-#define EVENT_TIMER_GRANULARITY 5000000
+/**@file*/
 
-#define INTEGRAL 0.0024
-#define PROPORTIONAL 1.0
-#define UPPER_FREQ_LIMIT  250.0
-#define LOWER_FREQ_LIMIT -250.0
+#define EVENT_TIMER_GRANULARITY 5000000		/*!< Event timer granularity*/
+
+#define INTEGRAL 0.0024				/*!< PI controller integral factor*/
+#define PROPORTIONAL 1.0			/*!< PI controller proportional factor*/
+#define UPPER_FREQ_LIMIT  250.0		/*!< Upper frequency limit */
+#define LOWER_FREQ_LIMIT -250.0		/*!< Lower frequency limit */
 
 /**
  * Provides the clock quality abstraction.
@@ -70,7 +72,7 @@ struct ClockQuality {
 };
 
 /**
- *
+ * Provides the 1588 clock interface
  */
 class IEEE1588Clock {
 private:

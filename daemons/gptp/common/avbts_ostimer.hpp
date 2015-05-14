@@ -34,6 +34,8 @@
 #ifndef AVBTS_OSTIMER_HPP
 #define AVBTS_OSTIMER_HPP
 
+/**@file*/
+
 /**
  * OSTimer generic interface
  */
@@ -54,7 +56,7 @@ public:
 
 inline OSTimer::~OSTimer() {}
 
-/*
+/**
  * Provides factory design patter for OSTimer class
  */
 class OSTimerFactory {

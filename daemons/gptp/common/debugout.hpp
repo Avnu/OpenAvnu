@@ -34,13 +34,15 @@
 #ifndef DEBUGOUT_HPP
 #define DEBUGOUT_HPP
 
+/**@file*/
+
 #include <stdio.h>
 
-#define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
+#define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)	/*!< Prints errors at stderr output*/
 #ifdef PTP_DEBUG
-#define XPTPD_INFO(fmt,...) fprintf( stderr, "DEBUG at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
+#define XPTPD_INFO(fmt,...) fprintf( stderr, "DEBUG at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__) /*!< Prints debugs at stderr output */
 #else
-#define XPTPD_INFO(fmt,...)
+#define XPTPD_INFO(fmt,...)	/*!< debugs disabled*/
 #endif
 
 #endif/*DEBUGOUT_HPP*/

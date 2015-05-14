@@ -40,8 +40,10 @@
 #include <ieee1588.hpp>
 #include <ptptypes.hpp>
 
-#define FACTORY_NAME_LENGTH 48
-#define DEFAULT_TIMEOUT 1	// milliseconds
+/**@file*/
+
+#define FACTORY_NAME_LENGTH 48		/*!< Factory name maximum length */
+#define DEFAULT_TIMEOUT 1			/*!< Default timeout in milliseconds*/
 
 /**
  * LinkLayerAddress Class
@@ -212,7 +214,7 @@ class InterfaceName: public InterfaceLabel {
 	}
 };
 
-/*
+/**
  * factory_name_t class
  * Provides a gereric class to be used as a key to create factory maps.
  */
@@ -317,6 +319,9 @@ inline OSNetworkInterface::~OSNetworkInterface() {}
 
 class OSNetworkInterfaceFactory;
 
+/**
+ * Provides a map for the OSNetworkInterfaceFactory::registerFactory method
+ */
 typedef std::map < factory_name_t, OSNetworkInterfaceFactory * >FactoryMap_t;
 
 /**

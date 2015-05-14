@@ -50,8 +50,8 @@
 #define GPTP_VERSION 2			/*!< GPTP version */
 #define PTP_NETWORK_VERSION 1	/*!< PTP Network version */
 
-#define PTP_ETHER 1
-#define PTP_DEFAULT 255
+#define PTP_ETHER 1		/*!< @todo Not used */
+#define PTP_DEFAULT 255	/*!< @todo Not used */
 /**
  * @addtogroup PTP_COMMON_HDR
 * @{
@@ -154,7 +154,7 @@
 #define PTP_PTPTIMESCALE_BIT 3	/*!< PTPTIMESCAPE bit offset on PTPTIMESCALE byte*/
 
 #define TX_TIMEOUT_BASE 1000 	/*!< Timeout base in microseconds */
-#define TX_TIMEOUT_ITER 6
+#define TX_TIMEOUT_ITER 6		/*!< Number of timeout iteractions for sending/receiving messages*/
 
 /**
  * Enumeration message type. IEEE 1588-2008 Clause 13.3.2.2
@@ -361,6 +361,7 @@ protected:
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
+/*!< Exact fit. No padding*/
 #pragma pack(push,1)
 
 #define PATH_TRACE_TLV_TYPE 0x8		/*!< This is the value that indicates the
@@ -456,8 +457,12 @@ class PathTraceTLV {
 	}
 };
 
+/*!< back to whatever the previous packing mode was */
 #pragma pack(pop)
 
+/**
+ * Provides the PTPMessageAnnounce interface
+ */
 class PTPMessageAnnounce:public PTPMessageCommon {
  private:
 	uint8_t grandmasterIdentity[PTP_CLOCK_IDENTITY_LENGTH];
@@ -474,79 +479,190 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 
 	 PTPMessageAnnounce(void);
  public:
+	 /**
+	  * Creates the PTPMessageAnnounce interface
+	  * Defines a new ClockQuality object
+	  */
 	 PTPMessageAnnounce(IEEE1588Port * port);
+
+	 /**
+	  * Destroys the PTPMessageAnnounce interface
+	  */
 	~PTPMessageAnnounce();
 
+	/**
+	 * @brief  Compare announce messages against
+	 * grandmaster capabilities.
+	 * @param  msg [in] PTPMessageAnnounce to be compared
+	 * @return TRUE if it is better. FALSE otherwise.
+	 */
 	bool isBetterThan(PTPMessageAnnounce * msg);
 
+	/**
+	 * @brief  Gets grandmaster's priority1 value
+	 * @return Grandmaster priority1
+	 */
 	unsigned char getGrandmasterPriority1(void) {
 		return grandmasterPriority1;
 	}
+
+	/**
+	 * @brief  Gets grandmaster's priority2 value
+	 * @return Grandmaster priority2
+	 */
 	unsigned char getGrandmasterPriority2(void) {
 		return grandmasterPriority2;
 	}
 
+	/**
+	 * @brief  Gets grandmaster clock quality
+	 * @return Pointer to a ClockQuality object.
+	 */
 	ClockQuality *getGrandmasterClockQuality(void) {
 		return grandmasterClockQuality;
 	}
 
+	/**
+	 * @brief  Gets the steps removed value. See IEEE 802.1AS clause 10.3.3
+	 * @return steps removed value
+	 */
 	uint16_t getStepsRemoved(void) {
 		return stepsRemoved;
 	}
 
+	/**
+	 * @brief Gets grandmaster identity value
+	 * @param  identity [out] Grandmaster identity
+	 * @return void
+	 */
 	void getGrandmasterIdentity(char *identity) {
 		memcpy(identity, grandmasterIdentity, PTP_CLOCK_IDENTITY_LENGTH);
 	}
+
+	/**
+	 * @brief  Gets grandmaster's clockIdentity value
+	 * @return Grandmaster ClockIdentity
+	 */
 	ClockIdentity getGrandmasterClockIdentity() {
 		ClockIdentity ret;
 		ret.set( grandmasterIdentity );
 		return ret;
 	}
 
+	/**
+	 * @brief  Processes PTP message
+	 * @param  port IEEE1588Port
+	 * @return void
+	 */
 	void processMessage(IEEE1588Port * port);
 
+	/**
+	 * @brief  Assembles PTPMessageAnnounce message on the IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
 
+	/**
+	 * @brief  Builds ptp message
+	 * @param  buf [out] PTP message
+	 * @param  size Size of message
+	 * @param  remote Remote LinkLayerAddress
+	 * @param  port IEEE1588Port where the PTP message is being built.
+	 */
 	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
 						 LinkLayerAddress * remote,
 						 IEEE1588Port * port);
 };
 
+/**
+ * Provides the PTP message sync interface
+ */
 class PTPMessageSync : public PTPMessageCommon {
  private:
 	Timestamp originTimestamp;
 
 	PTPMessageSync();
  public:
+	/**
+	 * @brief Default constructor. Creates PTPMessageSync 
+	 * @param port IEEE1588Port
+	 */
 	PTPMessageSync(IEEE1588Port * port);
+
+	/**
+	 * Destroys PTPMessageSync interface
+	 */
 	~PTPMessageSync();
+
+	/**
+	 * @brief  Processes PTP messages
+	 * @param  port [in] IEEE1588Port
+	 * @return void
+	 */
 	void processMessage(IEEE1588Port * port);
 
+	/**
+	 * @brief  Gets origin timestamp value
+	 * @return Origin Timestamp
+	 */
 	Timestamp getOriginTimestamp(void) {
 		return originTimestamp;
 	}
 
+	/**
+	 * @brief  Assembles PTPMessageSync message on the IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
 
+	/**
+	 * @brief  Builds ptp message
+	 * @param  buf [out] PTP message
+	 * @param  size Size of message
+	 * @param  remote Remote LinkLayerAddress
+	 * @param  port IEEE1588Port where the PTP message is being built.
+	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
+/*!< Exact fit. No padding*/
 #pragma pack(push,1)
 
+/**
+ * Provides a scaledNs interface
+ * The scaledNs type represents signed values of time and time interval in units of 2e-16 ns.
+ */
 class scaledNs {
  private:
 	int32_t ms;
 	uint64_t ls;
  public:
-	 scaledNs() {
+	/**
+	 * Builds scaledNs interface
+	 */
+	scaledNs() {
 		ms = 0;
 		ls = 0;
-	} void toByteString(uint8_t * byte_str) {
+	}
+
+	/**
+	 * @brief  Gets scaledNs in a byte string format
+	 * @param  byte_str [out] scaledNs value
+	 * @return void
+	 */
+	void toByteString(uint8_t * byte_str) {
 		memcpy(byte_str, this, sizeof(*this));
 	}
 };
 
+/**
+ * Provides a follow up TLV interface
+ */
 class FollowUpTLV {
  private:
 	uint16_t tlvType;
@@ -559,6 +675,9 @@ class FollowUpTLV {
 	scaledNs scaledLastGmPhaseChange;
 	int32_t scaledLastGmFreqChange;
  public:
+	/**
+	 * Builds the FollowUpTLV interface
+	 */
 	FollowUpTLV() {
 		tlvType = PLAT_htons(0x3);
 		lengthField = PLAT_htons(28);
@@ -571,16 +690,30 @@ class FollowUpTLV {
 		gmTimeBaseIndicator = PLAT_htons(0);
 		scaledLastGmFreqChange = PLAT_htonl(0);
 	}
+
+	/**
+	 * @brief  Gets FollowUpTLV information in a byte string format
+	 * @param  byte_str [out] FollowUpTLV values
+	 */
 	void toByteString(uint8_t * byte_str) {
 		memcpy(byte_str, this, sizeof(*this));
 	}
+
+	/**
+	 * @brief  Gets the cummulative scaledRateOffset
+	 * @return 32 bit signed value with the rate offset information.
+	 */
 	int32_t getRateOffset() {
 		return cumulativeScaledRateOffset;
 	}
 };
 
+/*!< back to whatever the previous packing mode was */
 #pragma pack(pop)
 
+/**
+ * Provides the PTPMessageFollowUp interface
+ */
 class PTPMessageFollowUp:public PTPMessageCommon {
 private:
 	Timestamp preciseOriginTimestamp;
@@ -589,21 +722,56 @@ private:
 	
 	PTPMessageFollowUp(void) { }
 public:
+	/**
+	 * Builds the PTPMessageFollowUP object
+	 */
 	PTPMessageFollowUp(IEEE1588Port * port);
+
+	/**
+	 * @brief  Assembles PTPMessageFollowUp message on the IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
-	void processMessage(IEEE1588Port * port);
-	
+
+	/**
+	 * @brief  Processes PTP messages
+	 * @param  port [in] IEEE1588Port
+	 * @return void
+	 */
+	void processMessage(IEEE1588Port * port); 
+	/**
+	 * @brief  Gets the precise origin timestamp value
+	 * @return preciseOriginTimestamp value
+	 */
 	Timestamp getPreciseOriginTimestamp(void) {
 		return preciseOriginTimestamp;
 	}
+
+	/**
+	 * @brief  Sets the precis origin timestamp value
+	 * @param  timestamp Timestamp to be set
+	 * @return void
+	 */
 	void setPreciseOriginTimestamp(Timestamp & timestamp) {
 		preciseOriginTimestamp = timestamp;
 	}
 	
+	/**
+	 * @brief  Builds ptp message
+	 * @param  buf [out] PTP message
+	 * @param  size Size of message
+	 * @param  remote Remote LinkLayerAddress
+	 * @param  port IEEE1588Port where the PTP message is being built.
+	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
+/**
+ * Provides a PTPMessagePathDelayReq interface
+ */
 class PTPMessagePathDelayReq : public PTPMessageCommon {
  private:
 	Timestamp originTimestamp;
@@ -612,20 +780,54 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 		return;
 	}
  public:
+	/**
+	 * Destroys the PTPMessagePathDelayReq object
+	 */
 	~PTPMessagePathDelayReq() {
 	}
+
+	/**
+	 * Builds the PTPMessagePathDelayReq message
+	 */
 	PTPMessagePathDelayReq(IEEE1588Port * port);
+
+	/**
+	 * @brief  Assembles PTPMessagePathDelayReq message on the IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+
+	/**
+	 * @brief  Processes PTP messages
+	 * @param  port [in] IEEE1588Port
+	 * @return void
+	 */
 	void processMessage(IEEE1588Port * port);
-	
+
+	/**
+	 * @brief  Gets origin timestamp value
+	 * @return Origin Timestamp
+	 */
 	Timestamp getOriginTimestamp(void) {
 		return originTimestamp;
 	}
 	
+	/**
+	 * @brief  Builds ptp message
+	 * @param  buf [out] PTP message
+	 * @param  size Size of message
+	 * @param  remote Remote LinkLayerAddress
+	 * @param  port IEEE1588Port where the PTP message is being built.
+	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
+/**
+ * Provides the PTP message path delay response interface
+ */
 class PTPMessagePathDelayResp:public PTPMessageCommon {
 private:
 	PortIdentity * requestingPortIdentity;
@@ -634,26 +836,74 @@ private:
 	PTPMessagePathDelayResp(void) {	
 	}
 public:
+	/**
+	 * Destroys the PTPMessagePathDelayResp object
+	 */
 	~PTPMessagePathDelayResp();
+	/**
+	 * Builds the PTPMessagePathDelayResp object
+	 */
 	PTPMessagePathDelayResp(IEEE1588Port * port);
+
+	/**
+	 * @brief  Assembles PTPMessagePathDelayResp message on the IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+
+	/**
+	 * @brief  Processes PTP messages
+	 * @param  port [in] IEEE1588Port
+	 * @return void
+	 */
 	void processMessage(IEEE1588Port * port);
 	
+	/**
+	 * @brief  Sets the request receipt timestamp
+	 * @param  timestamp Timestamp to be set
+	 * @return void
+	 */
 	void setRequestReceiptTimestamp(Timestamp timestamp) {
 		requestReceiptTimestamp = timestamp;
 	}
 	
+	/**
+	 * @brief  Sets requesting port identity
+	 * @param  identity [in] PortIdentity to be set
+	 * @return void
+	 */
 	void setRequestingPortIdentity(PortIdentity * identity);
+	/**
+	 * @brief  Gets requesting port identity
+	 * @param  identity [out] Requested PortIdentity
+	 * @return void
+	 */
 	void getRequestingPortIdentity(PortIdentity * identity);
 	
+	/**
+	 * @brief  Gets the request receipt timestamp
+	 * @return requestReceiptTimestamp
+	 */
 	Timestamp getRequestReceiptTimestamp(void) {
 		return requestReceiptTimestamp;
 	}
-	
+
+	/**
+	 * @brief  Builds ptp message
+	 * @param  buf [out] PTP message
+	 * @param  size Size of message
+	 * @param  remote Remote LinkLayerAddress
+	 * @param  port IEEE1588Port where the PTP message is being built.
+	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
+/**
+ * Provides the PTP message path delay response follow up interface
+ */
 class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
  private:
 	Timestamp responseOriginTimestamp;
@@ -661,23 +911,68 @@ class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
 
 	PTPMessagePathDelayRespFollowUp(void) { }
 public:
-	 PTPMessagePathDelayRespFollowUp(IEEE1588Port * port);
+	/**
+	 * Builds the PTPMessagePathDelayRespFollowUp object
+	 */
+	PTPMessagePathDelayRespFollowUp(IEEE1588Port * port);
+
+	/**
+	 * Destroys the PTPMessagePathDelayRespFollowUp object
+	 */
 	~PTPMessagePathDelayRespFollowUp();
+
+	/**
+	 * @brief  Assembles PTPMessageRespFollowUp message on the IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+
+	/**
+	 * @brief  Processes PTP messages
+	 * @param  port [in] IEEE1588Port
+	 * @return void
+	 */
 	void processMessage(IEEE1588Port * port);
 
+	/**
+	 * @brief  Sets the response origin timestamp
+	 * @param  timestamp Timestamp to be set
+	 * @return void
+	 */
 	void setResponseOriginTimestamp(Timestamp timestamp) {
 		responseOriginTimestamp = timestamp;
 	}
+	/**
+	 * @brief  Sets the requesting port identity
+	 * @param  identity [in] PortIdentity to be set
+	 * @return void
+	 */
 	void setRequestingPortIdentity(PortIdentity * identity);
 
+	/**
+	 * @brief  Gets the response origin timestamp
+	 * @return responseOriginTimestamp
+	 */
 	Timestamp getResponseOriginTimestamp(void) {
 		return responseOriginTimestamp;
 	}
+	/**
+	 * @brief Gets the requesting port identity
+	 * @return Pointer to requesting PortIdentity object
+	 */
 	PortIdentity *getRequestingPortIdentity(void) {
 		return requestingPortIdentity;
 	}
 
+	/**
+	 * @brief  Builds ptp message
+	 * @param  buf [out] PTP message
+	 * @param  size Size of message
+	 * @param  remote Remote LinkLayerAddress
+	 * @param  port IEEE1588Port where the PTP message is being built.
+	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };

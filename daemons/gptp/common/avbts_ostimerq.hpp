@@ -34,11 +34,16 @@
 #ifndef AVBTS_OSTIMERQ_HPP
 #define AVBTS_OSTIMERQ_HPP
 
+/**@file*/
+
+/**
+ * ostimerq callback definition
+ */
 typedef void (*ostimerq_handler) (void *);
 
 class IEEE1588Clock;
 
-/*
+/**
  * OSTimerQueue generic interface
  */
 class OSTimerQueue {
@@ -49,7 +54,7 @@ protected:
 	 */
 	virtual bool init() { return true; }
 
-	/*
+	/**
 	 * Default constructor
 	 */
 	OSTimerQueue() {}

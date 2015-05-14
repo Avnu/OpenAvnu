@@ -34,6 +34,8 @@
 #ifndef AVBTS_OSSIGNAL_HPP
 #define AVBTS_OSSIGNAL_HPP
 
+/**@file*/
+
 /**
  * Provides a generic interface for OS's locking condition
  */
@@ -98,7 +100,7 @@ protected:
 
 inline OSCondition::~OSCondition() { }
 
-/*
+/**
  * Provides factory design patter for OS Condition class
  */
 class OSConditionFactory {
@@ -109,7 +111,7 @@ public:
 	 */
 	virtual OSCondition * createCondition() = 0;
 
-	/*
+	/**
 	 * Destroys OSCondition objects
 	 */
 	virtual ~OSConditionFactory() = 0;

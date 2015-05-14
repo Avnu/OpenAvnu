@@ -34,11 +34,13 @@
 #ifndef WINPTP_TYPES_HPP
 #define WINPTP_TYPES_HPP
 
+/**@file*/
+
 typedef long double FrequencyRatio;
 
-#define ETHER_ADDR_OCTETS	6
-#define IP_ADDR_OCTETS		4
-#define PTP_ETHERTYPE 0x88F7
+#define ETHER_ADDR_OCTETS	6		/*!< Number of octets in a link layer address*/
+#define IP_ADDR_OCTETS		4		/*!< Number of octets in a ip address*/
+#define PTP_ETHERTYPE 0x88F7		/*!< PTP ethertype */
 
 /**
  * PortState enumeration

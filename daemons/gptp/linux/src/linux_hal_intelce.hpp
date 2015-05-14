@@ -37,6 +37,8 @@
 #include <linux_hal_common.hpp>
 #include <ismd_core.h>
 
+/**@file*/
+
 /**
  * Extends the LinuxTimestamper to IntelCE cards
  */

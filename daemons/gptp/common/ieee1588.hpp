@@ -34,6 +34,8 @@
 #ifndef IEEE1588_HPP
 #define IEEE1588_HPP
 
+/** @file */
+
 #include <string>
 
 #include <stdint.h>
@@ -47,9 +49,9 @@
 
 #include <debugout.hpp>
 
-#define MAX_PORTS 32
+#define MAX_PORTS 32	/*!< Maximum number of IEEE1588Port instances */
 
-#define PTP_CLOCK_IDENTITY_LENGTH 8
+#define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of ClockIdentity instance*/
 
 class LinkLayerAddress;
 struct ClockQuality;
@@ -209,9 +211,9 @@ class ClockIdentity {
 	}
 };
 
-#define INVALID_TIMESTAMP_VERSION 0xFF
-#define MAX_NANOSECONDS 1000000000
-#define MAX_TIMESTAMP_STRLEN 28
+#define INVALID_TIMESTAMP_VERSION 0xFF		/*!< Value defining invalid timestamp version*/
+#define MAX_NANOSECONDS 1000000000			/*!< Maximum value of nanoseconds (1 second)*/
+#define MAX_TIMESTAMP_STRLEN 28				/*!< Maximum size of timestamp strlen*/
 
 /**
  * Provides a Timestamp interface
@@ -352,12 +354,12 @@ public:
 	}
 };
 
-#define INVALID_TIMESTAMP (Timestamp( 0xC0000000, 0, 0 ))
-#define PDELAY_PENDING_TIMESTAMP (Timestamp( 0xC0000001, 0, 0 ))
+#define INVALID_TIMESTAMP (Timestamp( 0xC0000000, 0, 0 ))	/*!< Defines an invalid timestamp using a Timestamp instance and a fixed value*/
+#define PDELAY_PENDING_TIMESTAMP (Timestamp( 0xC0000001, 0, 0 ))	/*!< PDelay is pending timestamp */
 
 #define TIMESTAMP_TO_NS(ts) (((static_cast<long long int>((ts).seconds_ms) \
 			       << sizeof((ts).seconds_ls)*8) + \
-			      (ts).seconds_ls)*1000000000LL + (ts).nanoseconds)
+			      (ts).seconds_ls)*1000000000LL + (ts).nanoseconds)		/*!< Converts timestamp value into nanoseconds value*/
 
 /**
  * @brief  Swaps out byte-a-byte a 64 bit value
@@ -379,8 +381,8 @@ static inline uint64_t byte_swap64(uint64_t in)
 	return in;
 }
 
-#define NS_PER_SECOND 1000000000
-#define LS_SEC_MAX 0xFFFFFFFFull
+#define NS_PER_SECOND 1000000000		/*!< Amount of nanoseconds in a second*/
+#define LS_SEC_MAX 0xFFFFFFFFull		/*!< Maximum value of seconds LSB field */
 
 /**
  * @brief  Subtracts a nanosecond value from the timestamp
@@ -432,7 +434,7 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
 	   ts.nanoseconds = (uint32_t)nanos;
 }
 
-#define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096
+#define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096	/*!< Maximum size of HWTimestamper extended message */
 
 /**
  * Provides a generic interface for hardware timestamping
