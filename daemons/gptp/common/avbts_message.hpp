@@ -41,84 +41,119 @@
 #include <list>
 #include <algorithm>
 
-#define PTP_CODE_STRING_LENGTH 4
-#define PTP_SUBDOMAIN_NAME_LENGTH 16
-#define PTP_FLAGS_LENGTH 2
+/** @file **/
 
-#define GPTP_VERSION 2
-#define PTP_NETWORK_VERSION 1
+#define PTP_CODE_STRING_LENGTH 4		/*!< PTP code string length in bytes */
+#define PTP_SUBDOMAIN_NAME_LENGTH 16	/*!< PTP subdomain name lenght in bytes */
+#define PTP_FLAGS_LENGTH 2				/*!< PTP flags length in bytes */
+
+#define GPTP_VERSION 2			/*!< GPTP version */
+#define PTP_NETWORK_VERSION 1	/*!< PTP Network version */
 
 #define PTP_ETHER 1
 #define PTP_DEFAULT 255
+/**
+ * @addtogroup PTP_COMMON_HDR
+* @{
+*/
+#define PTP_COMMON_HDR_OFFSET 0		/*!< PTP common header offset */
+#define PTP_COMMON_HDR_LENGTH 34	/*!< PTP common header length in bytes */
+#define PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(x) x	/*!< Gets the message type offset on PTP header */
+#define PTP_COMMON_HDR_PTP_VERSION(x) x+1		/*!< Gets the ptp version offset on PTP header */
+#define PTP_COMMON_HDR_MSG_LENGTH(x) x+2		/*!< Gets the message length offset on PTP header */
+#define PTP_COMMON_HDR_DOMAIN_NUMBER(x) x+4		/*!< Gets the domain number offset on PTP header */
+#define PTP_COMMON_HDR_FLAGS(x) x+6				/*!< Gets the flags offset on PTP header */
+#define PTP_COMMON_HDR_CORRECTION(x) x+8		/*!< Gets the correction field offset on PTP header */
+#define PTP_COMMON_HDR_SOURCE_CLOCK_ID(x) x+20	/*!< Gets the source clock id offset on PTP header */
+#define PTP_COMMON_HDR_SOURCE_PORT_ID(x) x+28	/*!< Gets the source port id offset on PTP header */
+#define PTP_COMMON_HDR_SEQUENCE_ID(x) x+30		/*!< Gets the sequence id offset on PTP header */
+#define PTP_COMMON_HDR_CONTROL(x) x+32			/*!< Gets the control offset on PTP header */
+#define PTP_COMMON_HDR_LOG_MSG_INTRVL(x) x+33	/*!< Gets the log message interval offset on PTP header */
+/**@} */
 
-#define PTP_COMMON_HDR_OFFSET 0
-#define PTP_COMMON_HDR_LENGTH 34
-#define PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(x) x
-#define PTP_COMMON_HDR_PTP_VERSION(x) x+1
-#define PTP_COMMON_HDR_MSG_LENGTH(x) x+2
-#define PTP_COMMON_HDR_DOMAIN_NUMBER(x) x+4
-#define PTP_COMMON_HDR_FLAGS(x) x+6
-#define PTP_COMMON_HDR_CORRECTION(x) x+8
-#define PTP_COMMON_HDR_SOURCE_CLOCK_ID(x) x+20
-#define PTP_COMMON_HDR_SOURCE_PORT_ID(x) x+28
-#define PTP_COMMON_HDR_SEQUENCE_ID(x) x+30
-#define PTP_COMMON_HDR_CONTROL(x) x+32
-#define PTP_COMMON_HDR_LOG_MSG_INTRVL(x) x+33
+/**
+ * @addtogroup PTP_ANNOUNCE
+ * @{
+ */
+#define PTP_ANNOUNCE_OFFSET 34							/*!< PTP announce offset */
+#define PTP_ANNOUNCE_LENGTH 30							/*!< PTP announce length in bytes */
+#define PTP_ANNOUNCE_CURRENT_UTC_OFFSET(x) x+10			/*!< Gets PTP announce current UTC offset */
+#define PTP_ANNOUNCE_GRANDMASTER_PRIORITY1(x) x+13		/*!< Gets Grandmaster priority1 offset on announce fields */
+#define PTP_ANNOUNCE_GRANDMASTER_CLOCK_QUALITY(x) x+14	/*!< Gets Grandmaster clock quality offset on announce fields */
+#define PTP_ANNOUNCE_GRANDMASTER_PRIORITY2(x) x+18		/*!< Gets Grandmasdter priority2 offset on announce fields*/
+#define PTP_ANNOUNCE_GRANDMASTER_IDENTITY(x) x+19		/*!< Gets Grandmaster identity offset on announce fields*/
+#define PTP_ANNOUNCE_STEPS_REMOVED(x) x+27				/*!< Gets steps removed offset on announce fields*/
+#define PTP_ANNOUNCE_TIME_SOURCE(x) x+29				/*!< Gets time source offset on announce fields*/
+/**@}*/
 
-#define PTP_ANNOUNCE_OFFSET 34
-#define PTP_ANNOUNCE_LENGTH 30
-#define PTP_ANNOUNCE_CURRENT_UTC_OFFSET(x) x+10
-#define PTP_ANNOUNCE_GRANDMASTER_PRIORITY1(x) x+13
-#define PTP_ANNOUNCE_GRANDMASTER_CLOCK_QUALITY(x) x+14
-#define PTP_ANNOUNCE_GRANDMASTER_PRIORITY2(x) x+18
-#define PTP_ANNOUNCE_GRANDMASTER_IDENTITY(x) x+19
-#define PTP_ANNOUNCE_STEPS_REMOVED(x) x+27
-#define PTP_ANNOUNCE_TIME_SOURCE(x) x+29
+/**
+ * @addtogroup PTP_SYNC
+ * @{
+ */
+#define PTP_SYNC_OFFSET 34		/*!< PTP SYNC base offset */
+#define PTP_SYNC_LENGTH 10		/*!< PTP SYNC length in bytes */
+#define PTP_SYNC_SEC_MS(x) x	/*!< PTP SYNC seconds MSB offset */
+#define PTP_SYNC_SEC_LS(x) x+2	/*!< PTP SYNC seconds LSB offset */
+#define PTP_SYNC_NSEC(x) x+6	/*!< PTP SYNC nanoseconds offset */
+/** @} */
 
-#define PTP_SYNC_OFFSET 34
-#define PTP_SYNC_LENGTH 10
-#define PTP_SYNC_SEC_MS(x) x
-#define PTP_SYNC_SEC_LS(x) x+2
-#define PTP_SYNC_NSEC(x) x+6
+/**
+ * @addtogroup PTP_FOLLOWUP
+ * @{
+ */
+#define PTP_FOLLOWUP_OFFSET 34		/*!< PTP FOLLOWUP base offset */
+#define PTP_FOLLOWUP_LENGTH 10		/*!< PTP FOLLOWUP length in bytes */
+#define PTP_FOLLOWUP_SEC_MS(x) x	/*!< Gets the followup seconds MSB offset */
+#define PTP_FOLLOWUP_SEC_LS(x) x+2	/*!< Gets the followup seconds LSB offset */
+#define PTP_FOLLOWUP_NSEC(x) x+6	/*!< Gets tne followup nanoseconds offset */
+/** @}*/
 
-#define PTP_FOLLOWUP_OFFSET 34
-#define PTP_FOLLOWUP_LENGTH 10
-#define PTP_FOLLOWUP_SEC_MS(x) x
-#define PTP_FOLLOWUP_SEC_LS(x) x+2
-#define PTP_FOLLOWUP_NSEC(x) x+6
+/**
+ * @addtogroup PTP_PDELAY_REQ
+ */
+#define PTP_PDELAY_REQ_OFFSET 34		/*!< PTP PDELAY REQUEST base offset */
+#define PTP_PDELAY_REQ_LENGTH 20		/*!< PTP PDELAY REQUEST length in bytes */
+#define PTP_PDELAY_REQ_SEC_MS(x) x		/*!< Gets the pdelay request seconds MSB offset */
+#define PTP_PDELAY_REQ_SEC_LS(x) x+2	/*!< Gets the pdelay request seconds LSB offset */
+#define PTP_PDELAY_REQ_NSEC(x) x+6		/*!< Gets the pdelay request nanoseconds offset */
+/*@}*/
 
-#define PTP_PDELAY_REQ_OFFSET 34
-#define PTP_PDELAY_REQ_LENGTH 20
-#define PTP_PDELAY_REQ_SEC_MS(x) x
-#define PTP_PDELAY_REQ_SEC_LS(x) x+2
-#define PTP_PDELAY_REQ_NSEC(x) x+6
+/**
+ * @addtogroup PTP_PDELAY_RESP
+ * @{
+ */
+#define PTP_PDELAY_RESP_OFFSET 34				/*!< PDELAY RESPONSE base offset */
+#define PTP_PDELAY_RESP_LENGTH 20				/*!< PDELAY RESPONSE length in bytes */
+#define PTP_PDELAY_RESP_SEC_MS(x) x				/*!< Gets the pdelay response seconds MSB offset */
+#define PTP_PDELAY_RESP_SEC_LS(x) x+2			/*!< Gets the pdelay response seconds LSB offset */
+#define PTP_PDELAY_RESP_NSEC(x) x+6				/*!< Gets the pdelay nanoseconds offset */
+#define PTP_PDELAY_RESP_REQ_CLOCK_ID(x) x+10	/*!< Gets the pdelay response request clock id offset */
+#define PTP_PDELAY_RESP_REQ_PORT_ID(x) x+18		/*!< Gets the pdelay response request port id offset */
+/*@}*/
 
-#define PTP_PDELAY_RESP_OFFSET 34
-#define PTP_PDELAY_RESP_LENGTH 20
-#define PTP_PDELAY_RESP_SEC_MS(x) x
-#define PTP_PDELAY_RESP_SEC_LS(x) x+2
-#define PTP_PDELAY_RESP_NSEC(x) x+6
-#define PTP_PDELAY_RESP_REQ_CLOCK_ID(x) x+10
-#define PTP_PDELAY_RESP_REQ_PORT_ID(x) x+18
 
-#define PTP_PDELAY_FOLLOWUP_OFFSET 34
-#define PTP_PDELAY_FOLLOWUP_LENGTH 20
-#define PTP_PDELAY_FOLLOWUP_SEC_MS(x) x
-#define PTP_PDELAY_FOLLOWUP_SEC_LS(x) x+2
-#define PTP_PDELAY_FOLLOWUP_NSEC(x) x+6
-#define PTP_PDELAY_FOLLOWUP_REQ_CLOCK_ID(x) x+10
-#define PTP_PDELAY_FOLLOWUP_REQ_PORT_ID(x) x+18
+/**
+ * @addtogroup PTP_PDELAY_FOLLOWUP
+ */
+#define PTP_PDELAY_FOLLOWUP_OFFSET 34				/*!< PTP PDELAY FOLLOWUP base offset*/
+#define PTP_PDELAY_FOLLOWUP_LENGTH 20				/*!< PTP PDELAY FOLLOWUP length in bytes */
+#define PTP_PDELAY_FOLLOWUP_SEC_MS(x) x				/*!< Gets the pdelay followup seconds MSB offset*/
+#define PTP_PDELAY_FOLLOWUP_SEC_LS(x) x+2			/*!< Gets the pdelay followup seconds LSB offset*/
+#define PTP_PDELAY_FOLLOWUP_NSEC(x) x+6				/*!< Gets the pdelay followup nanoseconds offset*/
+#define PTP_PDELAY_FOLLOWUP_REQ_CLOCK_ID(x) x+10	/*!< Gets the pdelay followup request clock id offset*/
+#define PTP_PDELAY_FOLLOWUP_REQ_PORT_ID(x) x+18		/*!< Gets the pdelay followup request port id offset*/
+/**@}*/
 
-#define PTP_LI_61_BYTE 1
-#define PTP_LI_61_BIT 0
-#define PTP_LI_59_BYTE 1
-#define PTP_LI_59_BIT 1
-#define PTP_ASSIST_BYTE 0
-#define PTP_ASSIST_BIT 1
-#define PTP_PTPTIMESCALE_BYTE 1
-#define PTP_PTPTIMESCALE_BIT 3
+#define PTP_LI_61_BYTE 1		/*!< PTP_LI_61(leap61) byte offset on flags field */
+#define PTP_LI_61_BIT 0			/*!< PTP_LI_61(leap61) bit offset on PTP_LI_61 byte*/
+#define PTP_LI_59_BYTE 1		/*!< PTP_LI_59(leap59) byte offset on flags field*/
+#define PTP_LI_59_BIT 1			/*!< PTP_LI_59(leap59) bit offset on PTP_LI_59 byte*/
+#define PTP_ASSIST_BYTE 0		/*!< PTP_ASSIST(two step flag) byte offset on flags field*/
+#define PTP_ASSIST_BIT 1		/*!< PTP_ASSIST(two step flag) bit on PTP_ASSIST byte*/
+#define PTP_PTPTIMESCALE_BYTE 1	/*!< PTPTIMESCALE byte offset on flags field*/
+#define PTP_PTPTIMESCALE_BIT 3	/*!< PTPTIMESCAPE bit offset on PTPTIMESCALE byte*/
 
-#define TX_TIMEOUT_BASE 1000 /* microseconds */
+#define TX_TIMEOUT_BASE 1000 	/*!< Timeout base in microseconds */
 #define TX_TIMEOUT_ITER 6
 
 /**
@@ -158,77 +193,170 @@ enum MulticastType {
 	MCAST_OTHER
 };
 
+/**
+ * Provides the PTPMessage common interface
+ */
 class PTPMessageCommon {
 protected:
-	unsigned char versionPTP;
-	uint16_t versionNetwork;
-	MessageType messageType;
+	unsigned char versionPTP;	/*!< PTP version */
+	uint16_t versionNetwork;	/*!< Network version */
+	MessageType messageType;	/*!< MessageType to be built */
 	
-	PortIdentity *sourcePortIdentity;
+	PortIdentity *sourcePortIdentity;	/*!< PortIdentity from source*/
 	
-	uint16_t sequenceId;
-	LegacyMessageType control;
-	unsigned char flags[2];
+	uint16_t sequenceId;		/*!< PTP message sequence ID*/
+	LegacyMessageType control;	/*!< Control message type of LegacyMessageType */
+	unsigned char flags[2];		/*!< PTP flags field */
 	
-	uint16_t messageLength;
-	char logMeanMessageInterval;
-	long long correctionField;
-	unsigned char domainNumber;
+	uint16_t messageLength;			/*!< PTP message length */
+	char logMeanMessageInterval;	/*!< LogMessageInterval (IEEE 1588-2008 table 24)*/
+	long long correctionField;		/*!< Correction Field (IEEE 1588-2008 table 21) */
+	unsigned char domainNumber;		/*!< PTP domain number */
 	
-	Timestamp _timestamp;
-	unsigned _timestamp_counter_value;
-	bool _gc;
+	Timestamp _timestamp;	/*!< PTP message timestamp */
+	unsigned _timestamp_counter_value;	/*!< PTP timestamp counter value */
+	bool _gc;	/*!< Garbage collection flag */
 	
+	/**
+	 * Default constructor
+	 */
 	PTPMessageCommon(void) { };
  public:
+	/**
+	 * @brief Creates the PTPMessageCommon interface
+	 * @param port IEEE1588Port where the message interface is connected to.
+	 */
 	PTPMessageCommon(IEEE1588Port * port);
+	/**
+	 * Destroys PTPMessageCommon interface
+	 */
 	virtual ~PTPMessageCommon(void);
 
+	/**
+	 * @brief  Gets a pointer to the flags field within the PTP message.
+	 * @return Pointer to the flags field
+	 */
 	unsigned char *getFlags(void) {
 		return flags;
 	}
 
+	/**
+	 * @brief  Gets the sequenceId value within a ptp message
+	 * @return Sequence ID value
+	 */
 	uint16_t getSequenceId(void) {
 		return sequenceId;
 	}
+	/**
+	 * @brief  Sets the sequence ID value to the PTP message.
+	 * @param  seq Sequence id value to be set.
+	 * @return void
+	 */
 	void setSequenceId(uint16_t seq) {
 		sequenceId = seq;
 	}
 
+	/**
+	 * @brief  Gets the MessageType field within the PTP message.
+	 * @return MessageType
+	 */
 	MessageType getMessageType(void) {
 		return messageType;
 	}
 
+	/**
+	 * @brief  Gets the correctionField value in a Little-Endian format.
+	 * @return correctionField
+	 * @todo Little endian format could be removed by adding endianess discovery on
+	 * compile/run time.
+	 */
 	long long getCorrectionField(void) {
 		return correctionField;
 	}
+	/**
+	 * @brief  Sets the correction field. It expects Little-Endian format
+	 * @param  correctionAmount
+	 * @return void
+	 * @todo Little endian format could be removed by adding endianess discovery on
+	 * compile/run time.
+	 */
 	void setCorrectionField(long long correctionAmount) {
 		correctionField = correctionAmount;
 	}
 
+	/**
+	 * @brief  Gets PortIdentity field
+	 * @param  identity [out] Source port identity
+	 * @return void
+	 */
 	void getPortIdentity(PortIdentity * identity);
+	/**
+	 * @brief  Sets PortIdentity value
+	 * @param  identity Source port identity value to be set.
+	 * @return void
+	 */
 	void setPortIdentity(PortIdentity * identity);
 
+	/**
+	 * @brief  Gets the current Timestamp value from the PTP message
+	 * @return Current Timestamp value
+	 */
 	Timestamp getTimestamp(void) {
 		return _timestamp;
 	}
+	/**
+	 * @brief  Gets the timestamp counter value set during the RX timestamp method.
+	 * @return timestamp counter value
+	 */
 	uint32_t getTimestampCounterValue(void) {
 		return _timestamp_counter_value;;
 	}
+	/**
+	 * @brief  Sets the timestamp value
+	 * @param  timestamp [in] Reference to Timestamp value
+	 * @return void
+	 */
 	void setTimestamp(Timestamp & timestamp) {
 		_timestamp = timestamp;
 	}
 
+	/**
+	 * @brief Gets the garbage collection status
+	 * @return TRUE when it needs to be clean. FALSE otherwise.
+	 */
 	bool garbage() {
 		return _gc;
 	}
 
+	/**
+	 * @brief  Determine whether the message was sent by given communication technology, uuid, and
+	 * port id fields
+	 * @param  portIdentity PortIdentity value
+	 * @return TRUE if sender equals to internal PTPCommon values, FALSE otherwise.
+	 */
 	bool isSenderEqual(PortIdentity portIdentity);
 
+	/**
+	 * @brief  Generic interface for processing PTP message
+	 * @param  port IEEE1588 port
+	 * @return void
+	 */
 	virtual void processMessage(IEEE1588Port * port);
 
+	/**
+	 * @brief  Builds PTP common header
+	 * @param  buf [out] PTP message
+	 * @return void
+	 */
 	void buildCommonHeader(uint8_t * buf);
 
+	/**
+	 * @brief  Builds ptp message
+	 * @param  buf [out] PTP message
+	 * @param  size Size of message
+	 * @param  remote Remote LinkLayerAddress
+	 * @param  port IEEE1588Port where the PTP message is being built.
+	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };

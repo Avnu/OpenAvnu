@@ -860,7 +860,7 @@ class IEEE1588Port {
 	 uint32_t & nominal_clock_rate);
 
 	/**
-	 * @brief  Gets the link delay information
+	 * @brief  Gets the link delay information.
 	 * @return one way delay if delay > 0, or zero otherwise.
 	 */
 	uint64_t getLinkDelay(void) {
@@ -868,7 +868,9 @@ class IEEE1588Port {
 	}
 
 	/**
-	 * @brief  Sets link delay information
+	 * @brief  Sets link delay information.
+	 * Signed value allows this to be negative result because
+	 * of inaccurate timestamps.
 	 * @param  delay Link delay
 	 * @return void
 	 */
@@ -911,7 +913,8 @@ class IEEE1588Port {
 	}
 
 	/**
-	 * @brief  Gets current pdelay count value
+	 * @brief  Gets current pdelay count value. It is set to zero
+	 * when asCapable is false.
 	 * @return pdelay count
 	 */
 	unsigned getPdelayCount() {
@@ -927,7 +930,8 @@ class IEEE1588Port {
 	}
 
 	/**
-	 * @brief  Gets current sync count value
+	 * @brief  Gets current sync count value. It is set to zero
+	 * when master and ++ each sync receive for slave.
 	 * @return sync count
 	 */
 	unsigned getSyncCount() {
