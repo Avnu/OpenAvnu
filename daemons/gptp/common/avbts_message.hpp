@@ -363,20 +363,36 @@ protected:
 
 #pragma pack(push,1)
 
-// Path Trace TLV
-// See IEEE 802.1AS doc table 10-8 for details
+#define PATH_TRACE_TLV_TYPE 0x8		/*!< This is the value that indicates the
+									  TLV is a path trace TLV, as specified in
+									  16.2.7.1 and Table 34 of IEEE Std
+									  1588-2008. The value is specified there
+									  as PATH_TRACE, whose value is 0x8. */
 
-#define PATH_TRACE_TLV_TYPE 0x8
-
+/**
+ * Provides the PathTraceTLV interface
+ * The fields of the path TLV shall be as specified in Table 10-8 and in
+ * 10.5.4.3.2 through 10.5.4.3.9 from IEEE 802.1AS. This TLV,
+ * and its use, are defined in IEEE Std 1588-2008 (see 16.2 and Table 34 of IEEE Std 1588-2008).
+ */
 class PathTraceTLV {
  private:
 	uint16_t tlvType;
 	typedef std::list<ClockIdentity> IdentityList;
 	IdentityList identityList;
  public:
+	/**
+	 * Creates the PathTraceTLV interface.
+	 * Sets tlvType to PATH_TRACE_TLV_TYPE using network byte order
+	 */
 	PathTraceTLV() {
 		tlvType = PLAT_htons(PATH_TRACE_TLV_TYPE);
 	}
+	/**
+	 * @brief  Parses ClockIdentity from message buffer
+	 * @param  buffer [in] Message buffer
+	 * @return void
+	 */
 	void parseClockIdentity(uint8_t *buffer) {
 		int length = PLAT_ntohs(*((uint16_t *)buffer))/PTP_CLOCK_IDENTITY_LENGTH;
 		buffer += sizeof(uint16_t);
@@ -387,9 +403,21 @@ class PathTraceTLV {
 			buffer += PTP_CLOCK_IDENTITY_LENGTH;
 		}
 	}
+
+	/**
+	 * @brief  Appends new ClockIdentity to internal ClockIdentity list
+	 * @param  id ClockIdentity to be appended
+	 * @return void
+	 */
 	void appendClockIdentity(ClockIdentity * id) {
 		identityList.push_back(*id);
 	}
+
+	/**
+	 * @brief  Gets TLV value in a byte string format
+	 * @param  byte_str [out] Output byte string
+	 * @return void
+	 */
 	void toByteString(uint8_t * byte_str) {
 		IdentityList::iterator iter;
 		*((uint16_t *)byte_str) = tlvType;  // tlvType already in network byte order
@@ -404,15 +432,26 @@ class PathTraceTLV {
 			byte_str += PTP_CLOCK_IDENTITY_LENGTH;
 		}
 	}
+
+	/**
+	 * @brief  Looks for a specific ClockIdentity on the current TLV
+	 * @param  id [in] Desired ClockIdentity
+	 * @return TRUE if it has found it, FALSE otherwise.
+	 */
 	bool has(ClockIdentity *id) {
 		return std::find
 			(identityList.begin(), identityList.end(), *id) !=
 			identityList.end();
 	}
+
+	/**
+	 * @brief  Gets the total length of TLV.
+	 * Total length of TLV is length of type field (UINT16) + length of 'length'
+	 * field (UINT16) + length of
+	 * identities (each PTP_CLOCK_IDENTITY_LENGTH) in the path
+	 * @return Total length
+	 */
 	int length() {
-		// Total length of TLV is length of type field (UINT16) + length of 'length'
-		// field (UINT16) + length of
-		// identities (each PTP_CLOCK_IDENTITY_LENGTH) in the path
 		return 2*sizeof(uint16_t) + PTP_CLOCK_IDENTITY_LENGTH*identityList.size();
 	}
 };
