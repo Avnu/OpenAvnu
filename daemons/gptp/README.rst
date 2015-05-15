@@ -32,8 +32,9 @@ Linux Specific
 ++++++++++++++
 
 Requirements for documentation on a ubuntu based system:
-    - cmake: apt-get install cmake
-    - doxygen: apt-get install doxygen
+    - cmake: sudo apt-get install cmake
+    - doxygen: sudo apt-get install doxygen
+    - graphviz: sudo apt-get install graphviz
 
 To build, execute the linux/build makefile.
 
