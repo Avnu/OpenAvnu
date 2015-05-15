@@ -49,7 +49,7 @@ typedef struct {
 	FrequencyRatio ls_freqoffset;	//!< Local to system frequency offset
 	int64_t local_time;				//!< Local time of last update
 	uint32_t sync_count;			//!< Sync messages count
-	uint32_t pdelay_count;			//!< pdelay emssages count
+	uint32_t pdelay_count;			//!< pdelay messages count
 	PortState port_state;			//!< gPTP port state
 	pid_t  process_id;				//!< Linux process id number
 } gPtpTimeData;
@@ -72,7 +72,7 @@ typedef struct {
 
 */
 
-#define SHM_SIZE (sizeof(gPtpTimeData) + sizeof(pthread_mutex_t))
-#define SHM_NAME  "/ptp"
+#define SHM_SIZE (sizeof(gPtpTimeData) + sizeof(pthread_mutex_t)) 	/*!< Shared memory size*/
+#define SHM_NAME  "/ptp"		/*!< Shared memory name*/
 
 #endif/*IPCDEF_HPP*/

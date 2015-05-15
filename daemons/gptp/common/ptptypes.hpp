@@ -36,7 +36,7 @@
 
 /**@file*/
 
-typedef long double FrequencyRatio;
+typedef long double FrequencyRatio; /*!< Frequency Ratio */
 
 #define ETHER_ADDR_OCTETS	6		/*!< Number of octets in a link layer address*/
 #define IP_ADDR_OCTETS		4		/*!< Number of octets in a ip address*/

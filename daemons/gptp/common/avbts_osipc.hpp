@@ -64,9 +64,9 @@ public:
 	/**
 	 * @brief  Updates IPC values
 	 * @param ml_phoffset Master to local phase offset
-	 * @param ls_phoffset Local to slave phase offset
+	 * @param ls_phoffset Local to system phase offset
 	 * @param ml_freqoffset Master to local frequency offset
-	 * @param ls_freq_offset Local to slave frequency offset
+	 * @param ls_freq_offset Local to system frequency offset
 	 * @param local_time Local time
 	 * @param sync_count Count of syncs
 	 * @param pdelay_count Count of pdelays
