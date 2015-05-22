@@ -52,10 +52,7 @@
 
 #define PTP_ETHER 1		/*!< @todo Not used */
 #define PTP_DEFAULT 255	/*!< @todo Not used */
-/**
- * @addtogroup PTP_COMMON_HDR
-* @{
-*/
+
 #define PTP_COMMON_HDR_OFFSET 0		/*!< PTP common header offset */
 #define PTP_COMMON_HDR_LENGTH 34	/*!< PTP common header length in bytes */
 #define PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(x) x	/*!< Gets the message type offset on PTP header */
@@ -69,12 +66,7 @@
 #define PTP_COMMON_HDR_SEQUENCE_ID(x) x+30		/*!< Gets the sequence id offset on PTP header */
 #define PTP_COMMON_HDR_CONTROL(x) x+32			/*!< Gets the control offset on PTP header */
 #define PTP_COMMON_HDR_LOG_MSG_INTRVL(x) x+33	/*!< Gets the log message interval offset on PTP header */
-/**@} */
 
-/**
- * @addtogroup PTP_ANNOUNCE
- * @{
- */
 #define PTP_ANNOUNCE_OFFSET 34							/*!< PTP announce offset */
 #define PTP_ANNOUNCE_LENGTH 30							/*!< PTP announce length in bytes */
 #define PTP_ANNOUNCE_CURRENT_UTC_OFFSET(x) x+10			/*!< Gets PTP announce current UTC offset */
@@ -84,44 +76,25 @@
 #define PTP_ANNOUNCE_GRANDMASTER_IDENTITY(x) x+19		/*!< Gets Grandmaster identity offset on announce fields*/
 #define PTP_ANNOUNCE_STEPS_REMOVED(x) x+27				/*!< Gets steps removed offset on announce fields*/
 #define PTP_ANNOUNCE_TIME_SOURCE(x) x+29				/*!< Gets time source offset on announce fields*/
-/**@}*/
 
-/**
- * @addtogroup PTP_SYNC
- * @{
- */
 #define PTP_SYNC_OFFSET 34		/*!< PTP SYNC base offset */
 #define PTP_SYNC_LENGTH 10		/*!< PTP SYNC length in bytes */
 #define PTP_SYNC_SEC_MS(x) x	/*!< PTP SYNC seconds MSB offset */
 #define PTP_SYNC_SEC_LS(x) x+2	/*!< PTP SYNC seconds LSB offset */
 #define PTP_SYNC_NSEC(x) x+6	/*!< PTP SYNC nanoseconds offset */
-/** @} */
 
-/**
- * @addtogroup PTP_FOLLOWUP
- * @{
- */
 #define PTP_FOLLOWUP_OFFSET 34		/*!< PTP FOLLOWUP base offset */
 #define PTP_FOLLOWUP_LENGTH 10		/*!< PTP FOLLOWUP length in bytes */
 #define PTP_FOLLOWUP_SEC_MS(x) x	/*!< Gets the followup seconds MSB offset */
 #define PTP_FOLLOWUP_SEC_LS(x) x+2	/*!< Gets the followup seconds LSB offset */
 #define PTP_FOLLOWUP_NSEC(x) x+6	/*!< Gets tne followup nanoseconds offset */
-/** @}*/
 
-/**
- * @addtogroup PTP_PDELAY_REQ
- */
 #define PTP_PDELAY_REQ_OFFSET 34		/*!< PTP PDELAY REQUEST base offset */
 #define PTP_PDELAY_REQ_LENGTH 20		/*!< PTP PDELAY REQUEST length in bytes */
 #define PTP_PDELAY_REQ_SEC_MS(x) x		/*!< Gets the pdelay request seconds MSB offset */
 #define PTP_PDELAY_REQ_SEC_LS(x) x+2	/*!< Gets the pdelay request seconds LSB offset */
 #define PTP_PDELAY_REQ_NSEC(x) x+6		/*!< Gets the pdelay request nanoseconds offset */
-/*@}*/
 
-/**
- * @addtogroup PTP_PDELAY_RESP
- * @{
- */
 #define PTP_PDELAY_RESP_OFFSET 34				/*!< PDELAY RESPONSE base offset */
 #define PTP_PDELAY_RESP_LENGTH 20				/*!< PDELAY RESPONSE length in bytes */
 #define PTP_PDELAY_RESP_SEC_MS(x) x				/*!< Gets the pdelay response seconds MSB offset */
@@ -129,12 +102,7 @@
 #define PTP_PDELAY_RESP_NSEC(x) x+6				/*!< Gets the pdelay nanoseconds offset */
 #define PTP_PDELAY_RESP_REQ_CLOCK_ID(x) x+10	/*!< Gets the pdelay response request clock id offset */
 #define PTP_PDELAY_RESP_REQ_PORT_ID(x) x+18		/*!< Gets the pdelay response request port id offset */
-/*@}*/
 
-
-/**
- * @addtogroup PTP_PDELAY_FOLLOWUP
- */
 #define PTP_PDELAY_FOLLOWUP_OFFSET 34				/*!< PTP PDELAY FOLLOWUP base offset*/
 #define PTP_PDELAY_FOLLOWUP_LENGTH 20				/*!< PTP PDELAY FOLLOWUP length in bytes */
 #define PTP_PDELAY_FOLLOWUP_SEC_MS(x) x				/*!< Gets the pdelay followup seconds MSB offset*/
@@ -142,7 +110,6 @@
 #define PTP_PDELAY_FOLLOWUP_NSEC(x) x+6				/*!< Gets the pdelay followup nanoseconds offset*/
 #define PTP_PDELAY_FOLLOWUP_REQ_CLOCK_ID(x) x+10	/*!< Gets the pdelay followup request clock id offset*/
 #define PTP_PDELAY_FOLLOWUP_REQ_PORT_ID(x) x+18		/*!< Gets the pdelay followup request port id offset*/
-/**@}*/
 
 #define PTP_LI_61_BYTE 1		/*!< PTP_LI_61(leap61) byte offset on flags field */
 #define PTP_LI_61_BIT 0			/*!< PTP_LI_61(leap61) bit offset on PTP_LI_61 byte*/

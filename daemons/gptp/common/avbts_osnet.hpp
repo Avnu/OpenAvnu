@@ -216,7 +216,7 @@ class InterfaceName: public InterfaceLabel {
 
 /**
  * factory_name_t class
- * Provides a gereric class to be used as a key to create factory maps.
+ * Provides a generic class to be used as a key to create factory maps.
  */
 class factory_name_t {
  private:

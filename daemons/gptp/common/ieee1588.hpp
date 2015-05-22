@@ -51,7 +51,7 @@
 
 #define MAX_PORTS 32	/*!< Maximum number of IEEE1588Port instances */
 
-#define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of ClockIdentity instance*/
+#define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS Clause 8.5.2.4*/
 
 class LinkLayerAddress;
 struct ClockQuality;
@@ -71,19 +71,19 @@ class OSNetworkInterface;
  * Defined at: IEEE 1588-2008 Clause 9.2.6
  */
 typedef enum {
-	NULL_EVENT = 0,
-	POWERUP = 5,
-	INITIALIZE,
-	STATE_CHANGE_EVENT,
-	SYNC_INTERVAL_TIMEOUT_EXPIRES,
-	PDELAY_INTERVAL_TIMEOUT_EXPIRES,
-	SYNC_RECEIPT_TIMEOUT_EXPIRES,
-	QUALIFICATION_TIMEOUT_EXPIRES,
-	ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
-	ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES,
-	FAULT_DETECTED,
-	PDELAY_DEFERRED_PROCESSING,
-	PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,
+	NULL_EVENT = 0,						//!< Null Event. Used to initialize events.
+	POWERUP = 5,						//!< Power Up. Initialize state machines.
+	INITIALIZE,							//!< Same as POWERUP.
+	STATE_CHANGE_EVENT,					//!< Signalizes that something has changed. Recalculates best master.
+	SYNC_INTERVAL_TIMEOUT_EXPIRES,		//!< Sync interval expired. Its time to send a sync message.
+	PDELAY_INTERVAL_TIMEOUT_EXPIRES,	//!< PDELAY interval expired. Its time to send pdelay_req message
+	SYNC_RECEIPT_TIMEOUT_EXPIRES,		//!< Sync receipt timeout. Restart timers and take actions based on port's state.
+	QUALIFICATION_TIMEOUT_EXPIRES,		//!< Qualification timeout. Event not currently used
+	ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,	//!< Announce receipt timeout. Same as SYNC_RECEIPT_TIMEOUT_EXPIRES
+	ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES,	//!< Announce interval timout. Its time to send an announce message if asCapable is true
+	FAULT_DETECTED,						//!< A fault was detected.
+	PDELAY_DEFERRED_PROCESSING,			//!< Defers pdelay processing
+	PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,	//!< Pdelay response message timeout
 } Event;
 
 /**
@@ -122,17 +122,17 @@ class ClockIdentity {
 	 * @brief  Constructs the object and sets its ID
 	 * @param  id [in] clock id as an octet array
 	 */
-	ClockIdentity( uint8_t *id ) {
-		set(id);
-	}
+		ClockIdentity( uint8_t *id ) {
+			set(id);
+		}
 
-	/**
-	 * @brief  Implements the operator '==' overloading method.
-	 * @param  cmp Reference to the ClockIdentity comparing value
-	 * @return TRUE if cmp equals to the object's clock identity. FALSE otherwise
-	 */
-	bool operator==(const ClockIdentity & cmp) const {
-		return memcmp(this->id, cmp.id,
+		/**
+		 * @brief  Implements the operator '==' overloading method.
+		 * @param  cmp Reference to the ClockIdentity comparing value
+		 * @return TRUE if cmp equals to the object's clock identity. FALSE otherwise
+		 */
+		bool operator==(const ClockIdentity & cmp) const {
+			return memcmp(this->id, cmp.id,
 			      PTP_CLOCK_IDENTITY_LENGTH) == 0 ? true : false;
 	}
 
@@ -173,7 +173,7 @@ class ClockIdentity {
 
 	/**
 	 * @brief  Gets the identity string from the ClockIdentity object
-	 * @param  id [out] Value copied from the object ClockIdentity
+	 * @param  id [out] Value copied from the object ClockIdentity. Needs to be PTP_CLOCK_IDENTITY_LENGTH long.
 	 * @return void
 	 */
 	void getIdentityString(uint8_t *id) {
@@ -191,8 +191,8 @@ class ClockIdentity {
 	
 	/**
 	 * @brief  Set clock id based on the link layer address. Clock id is 8 octets
-	 * long whereas link layer address is 6 octets long. This method pads 0xFEFF after the 3
-	 * first octets
+	 * long whereas link layer address is 6 octets long and it is turned into a
+	 * clock identity as per the 802.1AS standard described in clause 8.5.2.2
 	 * @param  address Link layer address
 	 * @return void
 	 */
