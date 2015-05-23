@@ -51,7 +51,7 @@
  */
 class LinkLayerAddress:public InterfaceLabel {
  private:
-	//<! Ethernet address
+	//!< Ethernet address
 	uint8_t addr[ETHER_ADDR_OCTETS];
  public:
 	/**
@@ -61,7 +61,7 @@ class LinkLayerAddress:public InterfaceLabel {
 	};
 
 	/**
-	 * Gets a 64bit scalar
+	 * Receives a 64bit scalar
 	 * address and initializes its internal octet array with
 	 * the first 48 bits.
 	 * @param address_scalar 64 bit address
@@ -76,7 +76,7 @@ class LinkLayerAddress:public InterfaceLabel {
 	}
 
 	/**
-	 * Gets an address as an array of octets
+	 * Receives an address as an array of octets
 	 * and copies the first 6 over the internal ethernet address.
 	 * @param address_octet_array Array of octets containing the address
 	 * @todo Verify if address_octet_array is not null
@@ -277,12 +277,12 @@ typedef enum { net_trfail, net_fatal, net_succeed } net_result;
 class OSNetworkInterface {
  public:
 	 /**
-	  * @brief Sends data on as specific network interface
-	  * @param addr Destination Mac Address
-	  * @param payload Data to send
-	  * @param length Length of data
-	  * @param timestamp Timestamp flag: TRUE = has timestamp, FALSE otherwise
-	  * @return net_result enumeration
+	  * @brief Sends a packet to a remote address
+	  * @param addr [in] Remote link layer address
+	  * @param payload [in] Data buffer
+	  * @param length Size of data buffer
+	  * @param timestamp TRUE if to use the event socket with the PTP multicast address. FALSE if to use
+	  * a general socket.
 	  */
 	 virtual net_result send
 		 (LinkLayerAddress * addr, uint8_t * payload, size_t length,
@@ -290,7 +290,7 @@ class OSNetworkInterface {
 
 	 /**
 	  * @brief  Receives data
-	  * @param  addr Destination Mac Address
+	  * @param  addr [out] Destination Mac Address
 	  * @param  payload [out] Payload received
 	  * @param  length [out] Received length
 	  * @return net_result enumeration

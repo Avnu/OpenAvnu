@@ -159,7 +159,8 @@ public:
 	 * @param addr [in] Remote link layer address
 	 * @param payload [in] Data buffer
 	 * @param length Size of data buffer
-	 * @param timestamp TRUE: has timestamp; FALSE: No timestamp
+	 * @param timestamp TRUE if to use the event socket with the PTP multicast address. FALSE if to use
+	 * a general socket.
 	 * @return net_fatal if error, net_success if success
 	 */
 	virtual net_result send
@@ -190,7 +191,7 @@ public:
 	void reenable_rx_queue();
 
 	/**
-	 * @brief  Gets the locl link layer address
+	 * @brief  Gets the local link layer address
 	 * @param  addr [out] Pointer to the LinkLayerAddress object
 	 * @return void
 	 */
@@ -199,7 +200,8 @@ public:
 	}
 
 	/**
-	 *  No offset needed for Linux SOCK_DGRAM packet
+	 *  @brief Gets the payload offset
+	 *  @return payload offset
 	 */
 	virtual unsigned getPayloadOffset() {
 		return 0;
@@ -459,8 +461,8 @@ class LinuxTimer : public OSTimer {
  public:
 	/**
 	 * @brief Sleeps for a given amount of time in microsseconds
-	 * @param  micros Time in microsseconds
-	 * @return -1 if error, micros if success
+	 * @param  micros Time in micro-seconds
+	 * @return -1 if error, micros (input argument) if success
 	 */
 	virtual unsigned long sleep(unsigned long micros);
  protected:

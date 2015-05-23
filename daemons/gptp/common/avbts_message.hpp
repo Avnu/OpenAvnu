@@ -358,7 +358,7 @@ class PathTraceTLV {
 	}
 	/**
 	 * @brief  Parses ClockIdentity from message buffer
-	 * @param  buffer [in] Message buffer
+	 * @param  buffer [in] Message buffer. It should be at least ::PTP_CLOCK_IDENTITY_LENGTH bytes long.
 	 * @return void
 	 */
 	void parseClockIdentity(uint8_t *buffer) {
@@ -628,7 +628,7 @@ class scaledNs {
 };
 
 /**
- * Provides a follow up TLV interface
+ * Provides a follow-up TLV interface back to the previous packing mode
  */
 class FollowUpTLV {
  private:

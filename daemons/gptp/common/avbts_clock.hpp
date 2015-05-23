@@ -62,7 +62,7 @@ struct ClockQuality {
 	unsigned char clockAccuracy; 		/*!< Clock Accuracy - clause 8.6.2.3.
 										  Indicates the expected time accuracy of
 										  a clock master.*/
-	int16_t offsetScaledLogVariance;	/*!< Offset Scaled log variance - Clause 8.6.2.4.
+	int16_t offsetScaledLogVariance;	/*!< ::Offset Scaled log variance - Clause 8.6.2.4.
 										  Is the scaled, offset representation
 										  of an estimate of the PTP variance. The
 										  PTP variance characterizes the
@@ -156,7 +156,7 @@ public:
    * @brief  Updates the frequencyRatio information
    * @param  buf [out] Stores the serialized clock quality state
    * @param  count [inout] Provides the size of buffer. Its decremented internally
-   * @return TRUE in case of success, FALSE if it has failed
+   * @return TRUE in case of success, FALSE when the count should be updated with the right size.
    */
   bool serializeState( void *buf, long *count );
 
@@ -215,9 +215,10 @@ public:
   }
 
   /**
-   * @brief  Sets the link layer address as clock identity, and pad it with 0xfeff in the 4th
-   * and 5th octets. Id has size 8 and Link layer addr has size 6.
-   * @param  addr [in] Link layer address
+   * @brief  Set clock id based on the link layer address. Clock id is 8 octets
+   * long whereas link layer address is 6 octets long and it is turned into a
+   * clock identity as per the 802.1AS standard described in clause 8.5.2.2
+   * @param  address Link layer address
    * @return void
    */
   void setClockIdentity(LinkLayerAddress * addr) {

@@ -304,11 +304,11 @@ class IEEE1588Port {
 	 *  - Link Delay;
 	 *  - Neighbor Rate Ratio
 	 * @param  buf [out] Buffer where to put the results.
-	 * @param  count [inout] Length of buffer. It contains maximum lenght to be written
+	 * @param  count [inout] Length of buffer. It contains maximum length to be written
 	 * when the function is called, and the value is decremented by the same amount the
 	 * buf size increases.
 	 * @return TRUE if it has successfully written to buf all the values or if buf is NULL.
-	 * FALSE otherwise.
+	 * FALSE if count should be updated with the right size.
 	 */
 	bool serializeState( void *buf, long *count );
 
@@ -444,7 +444,7 @@ class IEEE1588Port {
 	 * @brief  Sends and event to a IEEE1588 port. It includes timestamp
 	 * @param  buf [in] Pointer to the data buffer
 	 * @param  len Size of the message
-	 * @param  mcast_type Enumeration MulticastType (pdlay, none or other)
+	 * @param  mcast_type Enumeration MulticastType (pdlay, none or other). Depracated.
 	 * @param  destIdentity Destination port identity
 	 * @return void
 	 */
@@ -456,7 +456,7 @@ class IEEE1588Port {
 	 * @brief Sends a general message to a port. No timestamps
 	 * @param buf [in] Pointer to the data buffer
 	 * @param len Size of the message
-	 * @param mcast_type Enumeration MulticastType (pdelay, none or other)
+	 * @param mcast_type Enumeration MulticastType (pdelay, none or other). Depracated.
 	 * @param destIdentity Destination port identity
 	 * @return void
 	 */
@@ -616,7 +616,7 @@ class IEEE1588Port {
 
 	/**
 	 * @brief  Sets last sync ptp message
-	 * @param  msg PTP sync message
+	 * @param  msg [in] PTP sync message
 	 * @return void
 	 */
 	void setLastSync(PTPMessageSync * msg) {
@@ -731,7 +731,7 @@ class IEEE1588Port {
 	}
 
 	/**
-	 * @brief  Gets the Peer rate offset
+	 * @brief  Gets the Peer rate offset. Used to calculate neighbor rate ratio.
 	 * @return FrequencyRatio peer rate offset
 	 */
 	FrequencyRatio getPeerRateOffset(void) {
@@ -739,7 +739,7 @@ class IEEE1588Port {
 	}
 
 	/**
-	 * @brief  Sets the peer rate offset
+	 * @brief  Sets the peer rate offset. Used to calculate neighbor rate ratio.
 	 * @param  offset Offset to be set
 	 * @return void
 	 */
@@ -856,12 +856,17 @@ class IEEE1588Port {
 	 bool last);
 
 	/**
-	 * @brief  Gets the ptp clock time information
+	 * @brief  Get the cross timestamping information. 
+	 * The gPTP subsystem uses these samples to calculate
+	 * ratios which can be used to translate or extrapolate
+	 * one clock into another clock reference. The gPTP service
+	 * uses these supplied cross timestamps to perform internal
+	 * rate estimation and conversion functions.
 	 * @param  system_time [out] System time
 	 * @param  device_time [out] Device time
-	 * @param  local_clock Not Used
-	 * @param  nominal_clock_rate Not Used
-	 * @return TRUE if got the time successfully, FALSE otherwise
+	 * @param  local_clock [out] Local clock
+	 * @param  nominal_clock_rate [out] Nominal clock rate
+	 * @return True in case of success. FALSE in case of error
 	 */
 	void getDeviceTime
 	(Timestamp & system_time, Timestamp & device_time, uint32_t & local_clock,
@@ -939,7 +944,7 @@ class IEEE1588Port {
 
 	/**
 	 * @brief  Gets current sync count value. It is set to zero
-	 * when master and ++ each sync receive for slave.
+	 * when master and incremented at each sync received for slave.
 	 * @return sync count
 	 */
 	unsigned getSyncCount() {

@@ -76,7 +76,7 @@ public:
 	LinuxTimestamperGeneric();
 
 	/**
-	 * @brief Resets frequency adjustment value to zero and call
+	 * @brief Resets frequency adjustment value to zero and calls
 	 * linux system calls for frequency adjustment.
 	 * @return TRUE if success, FALSE if error.
 	 */
@@ -133,12 +133,12 @@ public:
 
 	/**
 	 * @brief  Gets the TX timestamp from hardware interface
-	 * @param  identity  Not Used
-	 * @param sequenceId Not Used
-	 * @param timestamp [out] Reference to the HW timestamp object
-	 * @param clock_value Not Used
-	 * @param last Flag that unlocks the net_lock lock when its done if is set to TRUE
-	 * @return -1 Error, -72 to try again (EAGAIN), 0 success.
+	 * @param  identity PTP port identity
+	 * @param  sequenceId Sequence ID
+	 * @param  timestamp [out] Timestamp value
+	 * @param  clock_value [out] Clock value
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
+	 * @return 0 no error, -1 error, -72 try again.
 	 */
 	virtual int HWTimestamper_txtimestamp
 	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
@@ -146,13 +146,13 @@ public:
 
 	/**
 	 * @brief  Gets the RX timestamp from the hardware interface. This
-	 * method is not currently in use by the LinuxTimestamperGeneric.
-	 * @param identity Not Used
-	 * @param sequenceId Not Used
-	 * @param timestamp Not Used
-	 * @param clock_value Not Used
-	 * @param last Not Used
-	 * @return -1 error, -72 to try again. 0 Success.
+	 * Currently the RX timestamp is retrieved at LinuxNetworkInterface::nrecv method.
+	 * @param  identity PTP port identity
+	 * @param  sequenceId Sequence ID
+	 * @param  timestamp [out] Timestamp value
+	 * @param  clock_value [out] Clock value
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
+	 * @return 0 no error, -1 error, -72 try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp
 	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,

@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -67,6 +67,7 @@ class IEEE1588Clock;
 class OSNetworkInterface;
 
 /**
+ * @enum Event
  * IEEE 1588 event enumeration type
  * Defined at: IEEE 1588-2008 Clause 9.2.6
  */
@@ -144,7 +145,7 @@ class ClockIdentity {
     bool operator!=( const ClockIdentity &cmp ) const {
         return memcmp( this->id, cmp.id, PTP_CLOCK_IDENTITY_LENGTH ) != 0 ? true : false;
 	}
-	
+
 	/**
 	 * @brief  Implements the operator '<' overloading method.
 	 * @param  cmp Reference to the ClockIdentity comparing value
@@ -173,7 +174,7 @@ class ClockIdentity {
 
 	/**
 	 * @brief  Gets the identity string from the ClockIdentity object
-	 * @param  id [out] Value copied from the object ClockIdentity. Needs to be PTP_CLOCK_IDENTITY_LENGTH long.
+	 * @param  id [out] Value copied from the object ClockIdentity. Needs to be at least ::PTP_CLOCK_IDENTITY_LENGTH long.
 	 * @return void
 	 */
 	void getIdentityString(uint8_t *id) {
@@ -188,7 +189,7 @@ class ClockIdentity {
 	void set(uint8_t * id) {
 		memcpy(this->id, id, PTP_CLOCK_IDENTITY_LENGTH);
 	}
-	
+
 	/**
 	 * @brief  Set clock id based on the link layer address. Clock id is 8 octets
 	 * long whereas link layer address is 6 octets long and it is turned into a
@@ -197,7 +198,7 @@ class ClockIdentity {
 	 * @return void
 	 */
 	void set(LinkLayerAddress * address);
-	
+
 	/**
 	 * @brief  This method is only enabled at compiling time. When enabled, it prints on the
 	 * stderr output the clock identity information
@@ -322,7 +323,7 @@ public:
 		borrow_this =
 			borrow_total > seconds_ls ||
 			seconds_ls - borrow_total < o.seconds_ls;
-		seconds_ls  = 
+		seconds_ls  =
 			borrow_this ? seconds_ls - o.seconds_ls + (uint32_t)-1 :
 			(seconds_ls - borrow_total) - o.seconds_ls;
 		borrow_total = borrow_this ? borrow_total + 1 : 0;
@@ -332,7 +333,7 @@ public:
 		borrow_this =
 			borrow_total > seconds_ms ||
 			seconds_ms - borrow_total < o.seconds_ms;
-		seconds_ms  = 
+		seconds_ms  =
 			borrow_this ? seconds_ms - o.seconds_ms + (uint32_t)-1 :
 			(seconds_ms - borrow_total) - o.seconds_ms;
 		borrow_total = borrow_this ? borrow_total + 1 : 0;
@@ -396,15 +397,15 @@ static inline void TIMESTAMP_SUB_NS( Timestamp &ts, uint64_t ns ) {
 
        secs -= ns / NS_PER_SECOND;
 	   ns = ns % NS_PER_SECOND;
-	   
+
 	   if(ns > nanos)
 	   {  //borrow
           nanos += NS_PER_SECOND;
 		  --secs;
 	   }
-	   
+
 	   nanos -= ns;
-	   
+
 	   ts.seconds_ms = (uint16_t)(secs >> 32);
 	   ts.seconds_ls = (uint32_t)(secs & LS_SEC_MAX);
 	   ts.nanoseconds = (uint32_t)nanos;
@@ -422,13 +423,13 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
 
        secs += ns / NS_PER_SECOND;
 	   nanos += ns % NS_PER_SECOND;
-	   
+
 	   if(nanos > NS_PER_SECOND)
 	   {  //carry
           nanos -= NS_PER_SECOND;
 		  ++secs;
 	   }
-	   
+
 	   ts.seconds_ms = (uint16_t)(secs >> 32);
 	   ts.seconds_ls = (uint32_t)(secs & LS_SEC_MAX);
 	   ts.nanoseconds = (uint32_t)nanos;
@@ -454,14 +455,14 @@ public:
 		{ return true; }
 
 	/**
-	 * @brief  Finalizes the hardware timestamp unit
+	 * @brief  This method is called before the object is de-allocated.
 	 * @return void
 	 */
 	virtual void HWTimestamper_final(void) {
 	}
 
 	/**
-	 * @brief  Adjusts the clock frequency
+	 * @brief  Adjusts the hardware clock frequency
 	 * @param  frequency_offset Frequency offset
 	 * @return false
 	 */
@@ -469,7 +470,7 @@ public:
 	{ return false; }
 
 	/**
-	 * @brief  Adjusts the clock phase
+	 * @brief  Adjusts the hardware clock phase
 	 * @param  phase_adjust Phase offset
 	 * @return false
 	 */
@@ -477,12 +478,17 @@ public:
 	{ return false; }
 
 	/**
-	 * @brief  Get information about the local time
-	 * @param  system_time [inout] System time
-	 * @param  device_time [inout] Device time
-	 * @param  local_clock [inout] Local clock
+	 * @brief  Get the cross timestamping information. 
+	 * The gPTP subsystem uses these samples to calculate
+	 * ratios which can be used to translate or extrapolate
+	 * one clock into another clock reference. The gPTP service
+	 * uses these supplied cross timestamps to perform internal
+	 * rate estimation and conversion functions.
+	 * @param  system_time [out] System time
+	 * @param  device_time [out] Device time
+	 * @param  local_clock [out] Local clock
 	 * @param  nominal_clock_rate [out] Nominal clock rate
-	 * @return True or False
+	 * @return True in case of success. FALSE in case of error
 	 */
 	virtual bool HWTimestamper_gettime(Timestamp * system_time,
 			Timestamp * device_time,
@@ -490,13 +496,13 @@ public:
 			uint32_t * nominal_clock_rate) = 0;
 
 	/**
-	 * @brief  Get tx timestamp
+	 * @brief  Gets the tx timestamp from hardware
 	 * @param  identity PTP port identity
 	 * @param  sequenceId Sequence ID
-	 * @param  timestamp [inout] Timestamp value
-	 * @param  clock_value [inout] Clock value
-	 * @param  last Boolean flag
-	 * @return A signed integer
+	 * @param  timestamp [out] Timestamp value
+	 * @param  clock_value [out] Clock value
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
+	 * @return 0 no error, -1 error, -72 try again.
 	 */
 	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
 			uint16_t sequenceId,
@@ -508,10 +514,10 @@ public:
 	 * @brief  Get rx timestamp
 	 * @param  identity PTP port identity
 	 * @param  sequenceId Sequence ID
-	 * @param  timestamp [inout] Timestamp value
-	 * @param  clock_value [inout] Clock value
-	 * @param  last Boolean flag
-	 * @return A signed integer
+	 * @param  timestamp [out] Timestamp value
+	 * @param  clock_value [out] Clock value
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
+	 * @return 0 no error, -1 error, -72 try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
 			uint16_t sequenceId,
@@ -525,6 +531,7 @@ public:
 	 * @param  clk_offset [inout] clock offset
 	 * @param  ppt_freq_offset [inout] Frequency offset in ppts
 	 * @return false
+	 * @todo This method is not currently used anywhere, so it has no implementation.
 	 */
 	virtual bool HWTimestamper_get_extclk_offset(Timestamp * local_time,
 			int64_t * clk_offset,
@@ -534,9 +541,10 @@ public:
 	}
 
 	/**
-	 * @brief  Gets a string with the error
+	 * @brief  Gets a string with the error from the hardware timestamp block
 	 * @param  msg [out] String error
 	 * @return void
+	 * @todo There is no current implementation for this method.
 	 */
 	virtual void HWTimestamper_get_extderror(char *msg) {
 		*msg = '\0';

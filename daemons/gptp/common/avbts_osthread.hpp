@@ -73,7 +73,7 @@ public:
 inline OSThread::~OSThread() {}
 
 /**
- * Provides factory design patter for OSThread class
+ * Provides factory design pattern for OSThread class
  */
 class OSThreadFactory {
 public:

@@ -50,8 +50,8 @@ typedef struct {
 	int64_t local_time;				//!< Local time of last update
 	uint32_t sync_count;			//!< Sync messages count
 	uint32_t pdelay_count;			//!< pdelay messages count
-	PortState port_state;			//!< gPTP port state
-	pid_t  process_id;				//!< Linux process id number
+	PortState port_state;			//!< gPTP port state. It can assume values defined at ::PortState
+	pid_t  process_id;				//!< Process id number
 } gPtpTimeData;
 
 
