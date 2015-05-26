@@ -162,7 +162,7 @@ public:
 	}
 	/**
 	 * @brief  Gets pipe message type
-	 * @return Pipe message type
+	 * @return ::NPIPE_MSG_TYPE
 	 */
 	NPIPE_MSG_TYPE getType() { return type; }
 };
@@ -204,11 +204,11 @@ public:
 	}
 	/**
 	 * @brief  Initializes the interface with specific values
-	 * @param  ml_phoffset Master to local phase offset
-	 * @param  ml_freqoffset Master to local frequency offset
-	 * @param  ls_phoffset Local to system phase offset
-	 * @param  ls_freqoffset Local to system frequency offset
-	 * @param  local_time Local time
+	 * @param  ml_phoffset Master to local phase offset in nano-seconds
+	 * @param  ml_freqoffset Master to local frequency offset in the ::FrequencyRatio format
+	 * @param  ls_phoffset Local to system phase offset in nano-seconds
+	 * @param  ls_freqoffset Local to system frequency offset in the ::FrequencyRatio format
+	 * @param  local_time Local time in nanoseconds
 	 * @return void
 	 */
 	void init( int64_t ml_phoffset, FrequencyRatio ml_freqoffset, int64_t ls_phoffset, FrequencyRatio ls_freqoffset, uint64_t local_time ) {
@@ -344,7 +344,7 @@ public:
 	/**
 	 * @brief  Initializes Interface's internal variables and sets
 	 * control and addresses values
-	 * @param  which Control enumeration
+	 * @param  which ::CtrlWhich enumeration
 	 * @param  addr Peer addresses
 	 * @return void
 	 */
@@ -367,25 +367,26 @@ public:
 	void setPeerAddr( PeerAddr addr ) { this->addr = addr; }
 	/**
 	 * @brief  Gets control type
-	 * @return CtrlWhich type
+	 * @return ::CtrlWhich type
 	 */
 	CtrlWhich getCtrlWhich() { return which; }
 	/**
 	 * @brief  Sets control message type
-	 * @param  which CtrlWhich message
+	 * @param  which ::CtrlWhich message
 	 * @return void
 	 */
 	void setCtrlWhich( CtrlWhich which ) { this->which = which; }
 	/**
 	 * @brief  Gets internal flags
 	 * @return Internal flags
+	 * @todo What are these flags used for? Apparently its not in use.
 	 */
 	uint16_t getFlags() { return flags; }
 };
 
 /**
  * WindowsNPipeQueryMessage is sent from the client to gPTP daemon to query the
- * offset.  The daemon sends WindowsNPipeMessage in response.
+ * offset of type ::NPIPE_MSG_TYPE.  The daemon sends WindowsNPipeMessage in response.
  * Currently there is no data associated with this message.
  */
 class WinNPipeQueryMessage : public WindowsNPipeMessage {
@@ -399,6 +400,7 @@ public:
 
 /**
  * Provides the client's named pipe interface
+ * @todo Not in use and should be removed.
  */
 typedef union {
 	WinNPipeCtrlMessage a;	/*!< Control message */
@@ -407,6 +409,7 @@ typedef union {
 
 /**
  * Provides the server's named pipe interface
+ * @todo Not in use and should be removed.
  */
 typedef union {
 	WinNPipeOffsetUpdateMessage a;	/*!< Offset update message */

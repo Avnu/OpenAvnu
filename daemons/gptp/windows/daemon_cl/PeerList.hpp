@@ -173,7 +173,7 @@ done:
 		this->handler_arg = init_arg;
 	}
 	/**
-	 * @brief  Sets peer rm handler
+	 * @brief  Sets peer remove callback on the PeerList object
 	 * @param  rm rm handler
 	 * @return void
 	 */

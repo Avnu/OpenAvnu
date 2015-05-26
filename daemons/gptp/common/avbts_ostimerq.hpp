@@ -65,7 +65,7 @@ public:
 	 * @param type  Event type
 	 * @param func Callback
 	 * @param arg inner argument of type event_descriptor_t
-	 * @param dynamic Flag to be used internally (for instance rm)
+	 * @param dynamic when true, allows elements to be deleted from the queue
 	 * @param event [inout] Pointer to the event
 	 * @return TRUE success, FALSE fail
 	 */

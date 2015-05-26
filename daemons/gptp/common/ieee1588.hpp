@@ -586,7 +586,7 @@ public:
  * @param  size message length
  * @param  remote Destination link layer address
  * @param  port [in] IEEE1588 port
- * @return PTP message instace of PTPMessageCommon
+ * @return PTP message instance of PTPMessageCommon
  */
 PTPMessageCommon *buildPTPMessage(char *buf, int size,
 		LinkLayerAddress * remote,

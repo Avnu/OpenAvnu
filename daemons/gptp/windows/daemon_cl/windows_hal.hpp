@@ -58,7 +58,8 @@
 #include <list>
 
 /**
- * PCAP network interface
+ * WindowsPCAPNetworkInterface implements an interface to the network adapter
+ * through calls to the publicly available libraries known as PCap.
  */
 class WindowsPCAPNetworkInterface : public OSNetworkInterface {
 	friend class WindowsPCAPNetworkInterfaceFactory;
@@ -96,7 +97,7 @@ public:
 		return net_succeed;
 	}
 	/**
-	 * @brief  Get local link layer address
+	 * @brief  Gets the link layer address (MAC) of the network adapter
 	 * @param  addr [out] Link layer address
 	 * @return void
 	 */
@@ -104,8 +105,8 @@ public:
 		*addr = local_addr;
 	}
 	/**
-	 * @brief  Get payload offset
-	 * @return PACKET_HDR_LENGTH
+	 * @brief  Gets the offset to the start of data in the Layer 2 Frame
+	 * @return ::PACKET_HDR_LENGTH
 	 */
 	virtual unsigned getPayloadOffset() {
 		return PACKET_HDR_LENGTH;
@@ -125,7 +126,8 @@ protected:
 };
 
 /**
- * PCAP network interface factory
+ * WindowsPCAPNetworkInterface implements an interface to the network adapter
+ * through calls to the publicly available libraries known as PCap.
  */
 class WindowsPCAPNetworkInterfaceFactory : public OSNetworkInterfaceFactory {
 public:
@@ -329,6 +331,7 @@ struct TimerQueue_t;
 
 /**
  * Timer queue handler arguments structure
+ * @todo Needs more details from original developer
  */
 struct WindowsTimerQueueHandlerArg {
 	HANDLE timer_handle;	/*!< timer handler */
@@ -350,7 +353,7 @@ typedef std::list<WindowsTimerQueueHandlerArg *> TimerArgList_t;
  */
 struct TimerQueue_t {
 	TimerArgList_t arg_list;		/*!< Argument list */
-	HANDLE queue_handle;			/*!< Queue handler */
+	HANDLE queue_handle;			/*!< Handle to the timer queue */
 	SRWLOCK lock;					/*!< Lock type */
 };
 
@@ -399,12 +402,12 @@ public:
 	/**
 	 * @brief  Create a new event and add it to the timer queue
 	 * @param  micros Time in microsseconds
-	 * @param  type Event type
+	 * @param  type ::Event type
 	 * @param  func Callback function
 	 * @param  arg [in] Event arguments
-	 * @param  rm Remove flag
+	 * @param  rm when true, allows elements to be deleted from the queue
 	 * @param  event [in] Pointer to the event to be created
-	 * @return Always true
+	 * @return Always return true
 	 */
 	bool addEvent( unsigned long micros, int type, ostimerq_handler func, event_descriptor_t *arg, bool rm, unsigned *event ) {
 		WindowsTimerQueueHandlerArg *outer_arg = new WindowsTimerQueueHandlerArg();
@@ -428,7 +431,7 @@ public:
 	}
 	/**
 	 * @brief  Cancels an event from the queue
-	 * @param  type Event type
+	 * @param  type ::Event type
 	 * @param  event [in] Pointer to the event to be removed
 	 * @return Always returns true.
 	 */
@@ -636,12 +639,17 @@ public:
 	 */
 	virtual bool HWTimestamper_init( InterfaceLabel *iface_label, OSNetworkInterface *net_iface );
 	/**
-	 * @brief  Get system time
-	 * @param  system_time [out] System time in Timestamp format
-	 * @param  device_time [out] Device time in Timestamp format
-	 * @param  local_clock [out] Not used
-	 * @param  nominal_clock_rate [out] Not used
-	 * @return TRUE if success; FALSE if error
+	 * @brief  Get the cross timestamping information. 
+	 * The gPTP subsystem uses these samples to calculate
+	 * ratios which can be used to translate or extrapolate
+	 * one clock into another clock reference. The gPTP service
+	 * uses these supplied cross timestamps to perform internal
+	 * rate estimation and conversion functions.
+	 * @param  system_time [out] System time
+	 * @param  device_time [out] Device time
+	 * @param  local_clock [out] Local clock
+	 * @param  nominal_clock_rate [out] Nominal clock rate
+	 * @return True in case of success. FALSE in case of error
 	 */
     virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock, uint32_t *nominal_clock_rate )
     {
@@ -754,8 +762,8 @@ public:
 	}
 	/**
 	 * @brief  Initializes the IPC arguments
-	 * @param  arg [in] IPC arguments
-	 * @return TRUE if success; FALSE otherwise
+	 * @param  arg [in] IPC arguments. Not in use
+	 * @return Always returns TRUE.
 	 */
 	virtual bool init(OS_IPC_ARG *arg = NULL);
 	/**

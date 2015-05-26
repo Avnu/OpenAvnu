@@ -161,7 +161,8 @@ enum MulticastType {
 };
 
 /**
- * Provides the PTPMessage common interface
+ * Provides the PTPMessage common interface used during building of
+ * PTP messages.
  */
 class PTPMessageCommon {
 protected:
@@ -241,7 +242,7 @@ protected:
 		return correctionField;
 	}
 	/**
-	 * @brief  Sets the correction field. It expects Little-Endian format
+	 * @brief  Sets the correction field. It expects the host format.
 	 * @param  correctionAmount
 	 * @return void
 	 * @todo Little endian format could be removed by adding endianess discovery on
@@ -259,7 +260,7 @@ protected:
 	void getPortIdentity(PortIdentity * identity);
 	/**
 	 * @brief  Sets PortIdentity value
-	 * @param  identity Source port identity value to be set.
+	 * @param  identity [in] Source port identity value to be set.
 	 * @return void
 	 */
 	void setPortIdentity(PortIdentity * identity);
@@ -317,18 +318,11 @@ protected:
 	 */
 	void buildCommonHeader(uint8_t * buf);
 
-	/**
-	 * @brief  Builds ptp message
-	 * @param  buf [out] PTP message
-	 * @param  size Size of message
-	 * @param  remote Remote LinkLayerAddress
-	 * @param  port IEEE1588Port where the PTP message is being built.
-	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
-/*!< Exact fit. No padding*/
+/*Exact fit. No padding*/
 #pragma pack(push,1)
 
 #define PATH_TRACE_TLV_TYPE 0x8		/*!< This is the value that indicates the
@@ -424,11 +418,14 @@ class PathTraceTLV {
 	}
 };
 
-/*!< back to whatever the previous packing mode was */
+/* back to whatever the previous packing mode was */
 #pragma pack(pop)
 
 /**
  * Provides the PTPMessageAnnounce interface
+ * The PTPMessageAnnounce class is used to create
+ * announce messages on the 802.1AS format when building
+ * the ptp messages.
  */
 class PTPMessageAnnounce:public PTPMessageCommon {
  private:
@@ -448,7 +445,6 @@ class PTPMessageAnnounce:public PTPMessageCommon {
  public:
 	 /**
 	  * Creates the PTPMessageAnnounce interface
-	  * Defines a new ClockQuality object
 	  */
 	 PTPMessageAnnounce(IEEE1588Port * port);
 
@@ -458,8 +454,8 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	~PTPMessageAnnounce();
 
 	/**
-	 * @brief  Compare announce messages against
-	 * grandmaster capabilities.
+	 * @brief  Compare gramdmaster's capabilities comming on the
+	 * announce messages against the current grandmaster capabilities.
 	 * @param  msg [in] PTPMessageAnnounce to be compared
 	 * @return TRUE if it is better. FALSE otherwise.
 	 */
@@ -531,20 +527,13 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	 */
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
 
-	/**
-	 * @brief  Builds ptp message
-	 * @param  buf [out] PTP message
-	 * @param  size Size of message
-	 * @param  remote Remote LinkLayerAddress
-	 * @param  port IEEE1588Port where the PTP message is being built.
-	 */
 	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
 						 LinkLayerAddress * remote,
 						 IEEE1588Port * port);
 };
 
 /**
- * Provides the PTP message sync interface
+ * Provides a class for building the PTP Sync message
  */
 class PTPMessageSync : public PTPMessageCommon {
  private:
@@ -586,18 +575,11 @@ class PTPMessageSync : public PTPMessageCommon {
 	 */
 	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
 
-	/**
-	 * @brief  Builds ptp message
-	 * @param  buf [out] PTP message
-	 * @param  size Size of message
-	 * @param  remote Remote LinkLayerAddress
-	 * @param  port IEEE1588Port where the PTP message is being built.
-	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
-/*!< Exact fit. No padding*/
+/* Exact fit. No padding*/
 #pragma pack(push,1)
 
 /**
@@ -675,11 +657,11 @@ class FollowUpTLV {
 	}
 };
 
-/*!< back to whatever the previous packing mode was */
+/* back to whatever the previous packing mode was */
 #pragma pack(pop)
 
 /**
- * Provides the PTPMessageFollowUp interface
+ * Provides a class for a class for building a PTP follow up message
  */
 class PTPMessageFollowUp:public PTPMessageCommon {
 private:
@@ -725,19 +707,12 @@ public:
 		preciseOriginTimestamp = timestamp;
 	}
 	
-	/**
-	 * @brief  Builds ptp message
-	 * @param  buf [out] PTP message
-	 * @param  size Size of message
-	 * @param  remote Remote LinkLayerAddress
-	 * @param  port IEEE1588Port where the PTP message is being built.
-	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 /**
- * Provides a PTPMessagePathDelayReq interface
+ * Provides a class for building the PTP Path Delay Request message
  */
 class PTPMessagePathDelayReq : public PTPMessageCommon {
  private:
@@ -781,19 +756,12 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 		return originTimestamp;
 	}
 	
-	/**
-	 * @brief  Builds ptp message
-	 * @param  buf [out] PTP message
-	 * @param  size Size of message
-	 * @param  remote Remote LinkLayerAddress
-	 * @param  port IEEE1588Port where the PTP message is being built.
-	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 /**
- * Provides the PTP message path delay response interface
+ * Provides a class for building the PTP Path Delay Response message.
  */
 class PTPMessagePathDelayResp:public PTPMessageCommon {
 private:
@@ -857,19 +825,12 @@ public:
 		return requestReceiptTimestamp;
 	}
 
-	/**
-	 * @brief  Builds ptp message
-	 * @param  buf [out] PTP message
-	 * @param  size Size of message
-	 * @param  remote Remote LinkLayerAddress
-	 * @param  port IEEE1588Port where the PTP message is being built.
-	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 /**
- * Provides the PTP message path delay response follow up interface
+ * Provides a class for building the PTP Path Delay Response follow up message.
  */
 class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
  private:
@@ -933,13 +894,6 @@ public:
 		return requestingPortIdentity;
 	}
 
-	/**
-	 * @brief  Builds ptp message
-	 * @param  buf [out] PTP message
-	 * @param  size Size of message
-	 * @param  remote Remote LinkLayerAddress
-	 * @param  port IEEE1588Port where the PTP message is being built.
-	 */
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
