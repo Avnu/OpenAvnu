@@ -531,7 +531,8 @@ public:
 	 * @param  clk_offset [inout] clock offset
 	 * @param  ppt_freq_offset [inout] Frequency offset in ppts
 	 * @return false
-	 * @todo This method is not currently used anywhere, so it has no implementation.
+	 * @todo  This code should be removed.  It was a hack to get a specific board
+	 * working. 
 	 */
 	virtual bool HWTimestamper_get_extclk_offset(Timestamp * local_time,
 			int64_t * clk_offset,
