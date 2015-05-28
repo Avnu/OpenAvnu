@@ -218,7 +218,7 @@ public:
    * @brief  Set clock id based on the link layer address. Clock id is 8 octets
    * long whereas link layer address is 6 octets long and it is turned into a
    * clock identity as per the 802.1AS standard described in clause 8.5.2.2
-   * @param  address Link layer address
+   * @param  addr Link layer address
    * @return void
    */
   void setClockIdentity(LinkLayerAddress * addr) {
