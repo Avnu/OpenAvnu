@@ -239,6 +239,8 @@ class IEEE1588Port {
 		}
 		asCapable = ascap;
 	}
+
+	bool getAsCapable() { return( asCapable ); }
 	
 	~IEEE1588Port();
 	IEEE1588Port
