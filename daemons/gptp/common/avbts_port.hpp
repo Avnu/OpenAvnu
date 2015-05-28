@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -218,7 +218,7 @@ class IEEE1588Port {
 	/* Port Status */
 	unsigned sync_count;  // 0 for master, ++ for each sync receive as slave
 	// set to 0 when asCapable is false, increment for each pdelay recvd
-	unsigned pdelay_count; 
+	unsigned pdelay_count;
 
 	/* Port Configuration */
 	unsigned char delay_mechanism;
@@ -265,7 +265,7 @@ class IEEE1588Port {
 
 	/* Network socket description
 	   physical interface number that object represents */
-	uint16_t ifindex;	
+	uint16_t ifindex;
 
 	IdentityMap_t identity_map;
 
@@ -288,14 +288,14 @@ class IEEE1588Port {
 	 PortIdentity * destIdentity, bool timestamp);
 
 	InterfaceLabel *net_label;
-	
+
 	OSLockFactory *lock_factory;
 	OSConditionFactory *condition_factory;
-	
+
 	bool pdelay_started;
  public:
 	bool forceSlave;	//!< Forces port to be slave. Added for testing.
-	
+
 	/**
 	 * @brief  Serializes (i.e. copy over buf pointer) the information from
 	 * the variables (in that order):
@@ -318,7 +318,7 @@ class IEEE1588Port {
 	 *  - asCapable;
 	 *  - Port State;
 	 *  - Link Delay;
-	 *  - Neighbor Rate Ratio 
+	 *  - Neighbor Rate Ratio
 	 * @param  buf Buffer containing the serialized state.
 	 * @param  count Buffer lenght. It is decremented by the same size of the variables that are
 	 * being copied.
@@ -339,7 +339,7 @@ class IEEE1588Port {
 	 * @return void
 	 */
 	void becomeSlave( bool restart_syntonization );
-	
+
 	/**
 	 * @brief  Starts pDelay event timer.
 	 * @return void
@@ -385,6 +385,12 @@ class IEEE1588Port {
 		}
 		asCapable = ascap;
 	}
+
+	/**
+	 * @brief  Gets the asCapable flag
+	 * @return asCapable flag
+	 */
+	bool getAsCapable() { return( asCapable ); }
 
 	/**
 	 * Destroys a IEEE1588Port
@@ -856,7 +862,7 @@ class IEEE1588Port {
 	 bool last);
 
 	/**
-	 * @brief  Get the cross timestamping information. 
+	 * @brief  Get the cross timestamping information.
 	 * The gPTP subsystem uses these samples to calculate
 	 * ratios which can be used to translate or extrapolate
 	 * one clock into another clock reference. The gPTP service
