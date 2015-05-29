@@ -10,7 +10,7 @@ if(BUILD_DOCUMENTATION)
 	endif()
 
 	set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
-	set(doxyfile ${CMAKE_SOURCE_DIR}/Doxyfile)
+	set(doxyfile ${CMAKE_CURRENT_SOURCE_DIR}/build/Doxyfile)
 
 	configure_file(${doxyfile_in} ${doxyfile} @ONLY)
 
