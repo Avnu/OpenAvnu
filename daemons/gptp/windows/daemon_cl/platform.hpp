@@ -31,18 +31,52 @@
 
 ******************************************************************************/
 
+/**@file*/
 
 #ifndef PLATFORM_HPP
 #define PLATFORM_HPP
 
 #include <stdio.h>
 
+/**
+ * Provides strncpy
+ */
 errno_t PLAT_strncpy( char *dest, const char *src, rsize_t max );
+/**
+ * provides snprintf
+ */
 #define PLAT_snprintf(buffer,count,...) _snprintf_s(buffer,count,count,__VA_ARGS__);
 
+/**
+ * @brief  Converts the unsigned short integer hostshort
+ * from host byte order to network byte order.
+ * @param s short host byte order
+ * @return short value in network order
+ */
 uint16_t PLAT_htons( uint16_t s );
+
+/**
+ * @brief  Converts the unsigned integer hostlong
+ * from host byte order to network byte order.
+ * @param  l Host long byte order
+ * @return value in network byte order
+ */
 uint32_t PLAT_htonl( uint32_t l );
+
+/**
+ * @brief  Converts the unsigned short integer netshort
+ * from network byte order to host byte order.
+ * @param s Network order short integer
+ * @return host order value
+ */
 uint16_t PLAT_ntohs( uint16_t s );
+
+/**
+ * @brief  Converts the unsigned integer netlong
+ * from network byte order to host byte order.
+ * @param l Long value in network order
+ * @return Long value on host byte order
+ */
 uint32_t PLAT_ntohl( uint32_t l );
 
 #endif

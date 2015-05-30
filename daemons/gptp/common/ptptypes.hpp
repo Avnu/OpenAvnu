@@ -34,21 +34,26 @@
 #ifndef WINPTP_TYPES_HPP
 #define WINPTP_TYPES_HPP
 
-typedef long double FrequencyRatio;
+/**@file*/
 
-#define ETHER_ADDR_OCTETS	6
-#define IP_ADDR_OCTETS		4
-#define PTP_ETHERTYPE 0x88F7
+typedef long double FrequencyRatio; /*!< Frequency Ratio */
 
+#define ETHER_ADDR_OCTETS	6		/*!< Number of octets in a link layer address*/
+#define IP_ADDR_OCTETS		4		/*!< Number of octets in a ip address*/
+#define PTP_ETHERTYPE 0x88F7		/*!< PTP ethertype */
+
+/**
+ * PortState enumeration
+ */
 typedef enum {
-	PTP_MASTER = 7,
-	PTP_PRE_MASTER,
-	PTP_SLAVE,
-	PTP_UNCALIBRATED,
-	PTP_DISABLED,
-	PTP_FAULTY,
-	PTP_INITIALIZING,
-	PTP_LISTENING
+	PTP_MASTER = 7,		//!< Port is PTP Master
+	PTP_PRE_MASTER,		//!< Port is not PTP Master yet.
+	PTP_SLAVE,			//!< Port is PTP Slave
+	PTP_UNCALIBRATED,	//!< Port is uncalibrated.
+	PTP_DISABLED,		//!< Port is not PTP enabled. All messages are ignored when in this state.
+	PTP_FAULTY,			//!< Port is in a faulty state. Recovery is implementation specific.
+	PTP_INITIALIZING,	//!< Port's initial state.
+	PTP_LISTENING		//!< Port is in a PTP listening state. Currently not in use.
 } PortState;
 
 #endif/*WINPTP_TYPES_HPP*/
