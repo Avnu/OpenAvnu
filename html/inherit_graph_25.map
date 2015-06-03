@@ -1,0 +1,5 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$d8/d2e/classOSTimerFactory.html" title="OSTimerFactory" alt="" coords="6,31,125,57"/>
+<area shape="rect" id="node2" href="$d9/d7c/classLinuxTimerFactory.html" title="LinuxTimerFactory" alt="" coords="185,5,316,32"/>
+<area shape="rect" id="node3" href="$d3/d68/classWindowsTimerFactory.html" title="WindowsTimerFactory" alt="" coords="174,56,327,83"/>
+</map>

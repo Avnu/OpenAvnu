@@ -1,0 +1,4 @@
+<map id="OSTimerQueue" name="OSTimerQueue">
+<area shape="rect" id="node2" href="$de/d12/classLinuxTimerQueue.html" title="{LinuxTimerQueue\n||+ ~LinuxTimerQueue()\l+ addEvent()\l+ cancelEvent()\l# LinuxTimerQueue()\l# init()\l}" alt="" coords="5,189,157,325"/>
+<area shape="rect" id="node3" href="$d3/d46/classWindowsTimerQueue.html" title="{WindowsTimerQueue\n||+ addEvent()\l+ cancelEvent()\l# WindowsTimerQueue()\l}" alt="" coords="182,204,348,311"/>
+</map>

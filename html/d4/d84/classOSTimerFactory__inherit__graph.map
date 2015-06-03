@@ -1,0 +1,4 @@
+<map id="OSTimerFactory" name="OSTimerFactory">
+<area shape="rect" id="node2" href="$d9/d7c/classLinuxTimerFactory.html" title="{LinuxTimerFactory\n||+ createTimer()\l}" alt="" coords="4,147,133,224"/>
+<area shape="rect" id="node3" href="$d3/d68/classWindowsTimerFactory.html" title="{WindowsTimerFactory\n||+ createTimer()\l}" alt="" coords="158,147,311,224"/>
+</map>

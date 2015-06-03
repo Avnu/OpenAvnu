@@ -1,0 +1,4 @@
+<map id="InterfaceLabel" name="InterfaceLabel">
+<area shape="rect" id="node2" href="$d1/dab/classInterfaceName.html" title="{InterfaceName\n||+ InterfaceName()\l+ InterfaceName()\l+ operator==()\l+ operator\&lt;()\l+ operator\&gt;()\l+ toString()\l}" alt="" coords="5,138,133,289"/>
+<area shape="rect" id="node3" href="$da/d74/classLinkLayerAddress.html" title="{LinkLayerAddress\n||+ LinkLayerAddress()\l+ LinkLayerAddress()\l+ LinkLayerAddress()\l+ operator==()\l+ operator\&lt;()\l+ operator\&gt;()\l+ toOctetArray()\l}" alt="" coords="157,131,304,296"/>
+</map>

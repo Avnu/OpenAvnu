@@ -1,0 +1,5 @@
+<map id="WindowsNPipeMsgClient" name="WindowsNPipeMsgClient">
+<area shape="rect" id="node2" href="$da/db9/classWinNPipeQueryMessage.html" title="{WinNPipeQueryMessage\n||+ init()\l}" alt="" coords="5,295,173,372"/>
+<area shape="rect" id="node3" href="$df/dc4/classWindowsNPipeMessage.html" title="{WindowsNPipeMessage\n|# sz\l# type\l# ol_read\l# ol_read_req\l|+ init()\l+ write()\l+ read_ol()\l+ read_ol_complete()\l+ read()\l+ getType()\l}" alt="" coords="119,5,283,200"/>
+<area shape="rect" id="node4" href="$d6/d57/classWinNPipeCtrlMessage.html" title="{WinNPipeCtrlMessage\n||+ init()\l+ init()\l+ getPeerAddr()\l+ setPeerAddr()\l+ getCtrlWhich()\l+ setCtrlWhich()\l+ getFlags()\l}" alt="" coords="199,251,352,416"/>
+</map>

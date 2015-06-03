@@ -1,0 +1,4 @@
+<map id="LinuxTimestamperIntelCE" name="LinuxTimestamperIntelCE">
+<area shape="rect" id="node2" href="$d9/dad/classLinuxTimestamper.html" title="{LinuxTimestamper\n||+ ~LinuxTimestamper()\l+ post_init()\l}" alt="" coords="41,337,199,429"/>
+<area shape="rect" id="node3" href="$d4/d44/classHWTimestamper.html" title="{HWTimestamper\n|# version\l|+ HWTimestamper_init()\l+ HWTimestamper_final()\l+ HWTimestamper_adjclockrate()\l+ HWTimestamper_adjclockphase()\l+ HWTimestamper_gettime()\l+ HWTimestamper_txtimestamp()\l+ HWTimestamper_rxtimestamp()\l+ HWTimestamper_get_extclk\l_offset()\l+ HWTimestamper_get_extderror()\l+ HWTimestamper_PPS_start()\l+ HWTimestamper_PPS_stop()\l+ getVersion()\l+ HWTimestamper()\l+ ~HWTimestamper()\l}" alt="" coords="5,5,235,288"/>
+</map>

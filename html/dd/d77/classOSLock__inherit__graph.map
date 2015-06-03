@@ -1,0 +1,4 @@
+<map id="OSLock" name="OSLock">
+<area shape="rect" id="node2" href="$d4/dc6/classLinuxLock.html" title="{LinuxLock\n||# LinuxLock()\l# initialize()\l# ~LinuxLock()\l# lock()\l# trylock()\l# unlock()\l}" alt="" coords="5,206,112,357"/>
+<area shape="rect" id="node3" href="$db/deb/classWindowsLock.html" title="{WindowsLock\n||# WindowsLock()\l# initialize()\l# lock()\l# trylock()\l# unlock()\l}" alt="" coords="137,213,260,349"/>
+</map>

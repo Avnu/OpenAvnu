@@ -1,0 +1,4 @@
+<map id="OSLockFactory" name="OSLockFactory">
+<area shape="rect" id="node2" href="$d5/d46/classLinuxLockFactory.html" title="{LinuxLockFactory\n||+ createLock()\l}" alt="" coords="5,147,131,224"/>
+<area shape="rect" id="node3" href="$d2/d30/classWindowsLockFactory.html" title="{WindowsLockFactory\n||+ createLock()\l}" alt="" coords="155,147,303,224"/>
+</map>

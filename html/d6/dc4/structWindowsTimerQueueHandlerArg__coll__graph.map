@@ -1,0 +1,7 @@
+<map id="WindowsTimerQueueHandlerArg" name="WindowsTimerQueueHandlerArg">
+<area shape="rect" id="node2" href="$dc/de9/structevent__descriptor__t.html" title="{event_descriptor_t\n|+ event\l|}" alt="" coords="26,308,155,385"/>
+<area shape="rect" id="node3" href="$df/d0f/classIEEE1588Port.html" title="{IEEE1588Port\n|+ forceSlave\l|+ serializeState()\l+ restoreSerializedState()\l+ becomeMaster()\l+ becomeSlave()\l+ startPDelay()\l+ startAnnounce()\l+ syncDone()\l+ getTimerFactory()\l+ setAsCapable()\l+ getAsCapable()\land 62 more...\l}" alt="" coords="5,5,176,229"/>
+<area shape="rect" id="node4" href="$d7/dc5/structTimerQueue__t.html" title="{TimerQueue_t\n|+ arg_list\l+ queue_handle\l+ lock\l|}" alt="" coords="180,293,295,400"/>
+<area shape="rect" id="node5" href="$d3/d46/classWindowsTimerQueue.html" title="{WindowsTimerQueue\n||+ addEvent()\l+ cancelEvent()\l# WindowsTimerQueue()\l}" alt="" coords="319,293,485,400"/>
+<area shape="rect" id="node6" href="$d6/d7e/classOSTimerQueue.html" title="{OSTimerQueue\n||+ addEvent()\l+ cancelEvent()\l+ ~OSTimerQueue()\l# init()\l# OSTimerQueue()\l}" alt="" coords="333,49,472,185"/>
+</map>
