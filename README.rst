@@ -65,6 +65,13 @@ by Intel.
 The Open AVB project has a development mailing list. To subscribe, visit
 https://lists.sourceforge.net/lists/listinfo/open-avb-devel to sign up.
 
+WEBSITE
+=======
+
+A github based website for Open-AVB can be found here.
+
++ http://avnu.github.io/Open-AVB
+
 GIT SUBMODULES
 ==============
 
