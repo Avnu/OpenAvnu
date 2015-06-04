@@ -31,6 +31,11 @@ Meaning of IPC provided values
 Linux Specific
 ++++++++++++++
 
+Requirements for documentation on a ubuntu based system:
+    - cmake: sudo apt-get install cmake
+    - doxygen: sudo apt-get install doxygen
+    - graphviz: sudo apt-get install graphviz
+
 To build, execute the linux/build makefile.
 
 To build for I210:

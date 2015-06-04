@@ -31,19 +31,30 @@
 
 ******************************************************************************/
 
+/**@file*/
+
 #ifndef TSC_HPP
 #define TSC_HPP
 
 #include <intrin.h>
 #include <stdint.h>
 
-#define BASE_FREQUENCY  100000000
+#define BASE_FREQUENCY  100000000		/*!< Base frequency in HZ */
 
+/**
+ * @brief  Gets the processor timestamp
+ * @return processor timestamp
+ */
 inline unsigned __int64 PLAT_rdtsc()
 {
 	return __rdtsc();
 }
 
+/**
+ * @brief  Gets the TSC frequnecy
+ * @param  millis time in miliseconds
+ * @return TSC frequency
+ */
 inline uint64_t getTSCFrequency( unsigned millis ) {
 	UINT16 multiplierx2;
 	uint64_t frequency = 0;

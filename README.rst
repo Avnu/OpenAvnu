@@ -1,6 +1,11 @@
 
 .. image:: avnu_logo.png
 
+|
+
+.. image:: https://travis-ci.org/AVnu/Open-AVB.svg?branch=open-avb-next
+   :target: https://travis-ci.org/AVnu/Open-AVB
+
 Open AVB
 ========
 
@@ -59,6 +64,39 @@ by Intel.
 
 The Open AVB project has a development mailing list. To subscribe, visit
 https://lists.sourceforge.net/lists/listinfo/open-avb-devel to sign up.
+
+WEBSITE
+=======
+
+A github based website for Open-AVB can be found here.
+
++ http://avnu.github.io/Open-AVB
+
+GIT SUBMODULES
+==============
+
+After checking out the Open-AVB git repository submodules should be
+configured by going::
+
+    git submodule init
+    git submodule update
+
+CMAKE
+=====
+
+cmake is a cross-platform build system generator. cmake build files are
+currently available to build mrpd in Windows and linux and CppUTest unit
+tests for mrpd. The recommended usage for cmake is to create an out-of-tree
+directory for cmake output of generated makefiles or MSVC project files.
+
+Starting from the Open-AVB dir, one would go::
+
+    mkdir tmp
+    cd tmp
+    cmake .. -G "Unix Makefiles"
+    make
+
+to build in Open-AVB/tmp
 
 RELATED OPEN SOURCE PROJECTS
 ============================

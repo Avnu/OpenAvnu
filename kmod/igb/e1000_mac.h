@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -29,13 +26,16 @@
 #define _E1000_MAC_H_
 
 void e1000_init_mac_ops_generic(struct e1000_hw *hw);
+#ifndef E1000_REMOVED
+#define E1000_REMOVED(a) (0)
+#endif /* E1000_REMOVED */
 void e1000_null_mac_generic(struct e1000_hw *hw);
 s32  e1000_null_ops_generic(struct e1000_hw *hw);
 s32  e1000_null_link_info(struct e1000_hw *hw, u16 *s, u16 *d);
 bool e1000_null_mng_mode(struct e1000_hw *hw);
 void e1000_null_update_mc(struct e1000_hw *hw, u8 *h, u32 a);
 void e1000_null_write_vfta(struct e1000_hw *hw, u32 a, u32 b);
-void e1000_null_rar_set(struct e1000_hw *hw, u8 *h, u32 a);
+int  e1000_null_rar_set(struct e1000_hw *hw, u8 *h, u32 a);
 s32  e1000_blink_led_generic(struct e1000_hw *hw);
 s32  e1000_check_for_copper_link_generic(struct e1000_hw *hw);
 s32  e1000_check_for_fiber_link_generic(struct e1000_hw *hw);
@@ -70,6 +70,7 @@ u32  e1000_hash_mc_addr_generic(struct e1000_hw *hw, u8 *mc_addr);
 void e1000_clear_hw_cntrs_base_generic(struct e1000_hw *hw);
 void e1000_clear_vfta_generic(struct e1000_hw *hw);
 void e1000_init_rx_addrs_generic(struct e1000_hw *hw, u16 rar_count);
+void e1000_pcix_mmrbc_workaround_generic(struct e1000_hw *hw);
 void e1000_put_hw_semaphore_generic(struct e1000_hw *hw);
 s32  e1000_check_alt_mac_addr_generic(struct e1000_hw *hw);
 void e1000_reset_adaptive_generic(struct e1000_hw *hw);

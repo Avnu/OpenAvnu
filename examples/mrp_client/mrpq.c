@@ -32,12 +32,9 @@
 
 ******************************************************************************/
 
-#include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
-#include <errno.h>
 
 #if defined WIN32
 #include <winsock2.h>
@@ -67,21 +64,15 @@ int process_ctl_msg(char *buf, int buflen)
 	 * V-- - LV a VID (VLAN ID)
 	 */
 
-	/* XXX */
 	printf("<%s\n", buf);
 	fflush(stdout);
 	free(buf);
 	return (0);
 }
 
-void process_events(void)
-{
-
-	/* wait for events, demux the received packets, process packets */
-}
-
 int main(int argc, char *argv[])
 {
+	SOCKET mrpd_sock = SOCKET_ERROR;
 	int rc = 0;
 	char *msgbuf;
 #if defined WIN32
@@ -96,44 +87,54 @@ int main(int argc, char *argv[])
 
 	printf("%s\n", version_str);
 
-	rc = mrpdclient_init(MRPD_PORT_DEFAULT);
-	if (rc) {
-		printf("init failed\n");
-		return -1;
+	mrpd_sock = mrpdclient_init();
+	if (mrpd_sock == SOCKET_ERROR) {
+		printf("mrpdclient_init failed\n");
+		return EXIT_FAILURE;
 	}
 
-	msgbuf = (char *)malloc(1500);
+	msgbuf = (char *)malloc(MRPDCLIENT_MAX_MSG_SIZE);
+	if (NULL == msgbuf) {
+		printf("malloc failed\n");
+		return EXIT_FAILURE;
+	}
 
-	memset(msgbuf, 0, 1500);
+	/* query MMRP Registrar MAC Address database */
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	sprintf(msgbuf, "M??");
 	printf(">M??\n");
-	rc = mprdclient_sendto(msgbuf, 1500);
-	rc = mrpdclient_recv(process_ctl_msg);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
+	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
-	memset(msgbuf, 0, 1500);
+	/* query MVRP Registrar VID database */
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	sprintf(msgbuf, "V??");
 	printf(">V??\n");
-	rc = mprdclient_sendto(msgbuf, 1500);
-	rc = mrpdclient_recv(process_ctl_msg);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
+	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
 
-	memset(msgbuf, 0, 1500);
+	/* query MSRP Registrar database */
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
 	sprintf(msgbuf, "S??");
 	printf(">S??\n");
-	rc = mprdclient_sendto(msgbuf, 1500);
-	rc = mrpdclient_recv(process_ctl_msg);
+	rc = mrpdclient_sendto(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE);
+	rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
 	if (rc <= SOCKET_ERROR)
 		printf("recv error\n");
+	free(msgbuf);
 
-	sprintf(msgbuf, "BYE");
-	rc = mprdclient_sendto(msgbuf, 1500);
-	mprdclient_close();
+	rc = mrpdclient_close(&mrpd_sock);
 
 #if defined WIN32
 	WSACleanup();
 #endif
-	return (rc);
+
+	if (-1 == rc)
+		return EXIT_FAILURE;
+	else
+		return EXIT_SUCCESS;
 }

@@ -36,12 +36,28 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <Windows.h>
 
+/**@file*/
+
+/**
+ * Provides a lock abstraction
+ */
 class Lockable {
 private:
 	SRWLOCK lock;
 public:
+	/**
+	 * Initializes lock interface
+	 */
 	Lockable() { InitializeSRWLock( &lock ); }
+	/**
+	 * @brief  Acquires lock
+	 * @return void
+	 */
 	void get() { AcquireSRWLockExclusive( &lock ); }
+	/**
+	 * @brief  Releases lock
+	 * @return void
+	 */
 	void put() { ReleaseSRWLockExclusive( &lock ); }
 };
 

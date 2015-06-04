@@ -21,45 +21,33 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-
-#include <arpa/inet.h>
 #include <errno.h>
-#include <netinet/if_ether.h>
-#include <netinet/in.h>
-#include <pcap/pcap.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
+#include <pcap/pcap.h>
 #include <sndfile.h>
 
-//#define DEBUG
-#define PCAP
-#define LIBSND
+#include "listener_mrp_client.h"
 
-#define MAX_MRPD_CMDSZ 1500
-#define MRPD_PORT_DEFAULT 7500
+#define DEBUG 0
+#define PCAP 1
+#define LIBSND 1
 
-#define ETHERNET_HEADER_SIZE 18
-#define SEVENTEEN22_HEADER_PART1_SIZE 4
-#define STREAM_ID_SIZE 8
-#define SEVENTEEN22_HEADER_PART2_SIZE 10
-#define SIX1883_HEADER_SIZE 10
-#define HEADER_SIZE ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE + STREAM_ID_SIZE + SEVENTEEN22_HEADER_PART2_SIZE + SIX1883_HEADER_SIZE 
+#define VERSION_STR "1.1"
 
-#define SAMPLES_PER_SECOND 48000
-#define SAMPLES_PER_FRAME 6
-#define CHANNELS 2
-
-struct six1883_sample{
-	uint8_t label;
-	uint8_t value[3];
-};
+#define ETHERNET_HEADER_SIZE (18)
+#define SEVENTEEN22_HEADER_PART1_SIZE (4)
+#define STREAM_ID_SIZE (8)
+#define SEVENTEEN22_HEADER_PART2_SIZE (10)
+#define SIX1883_HEADER_SIZE (10)
+#define HEADER_SIZE (ETHERNET_HEADER_SIZE		\
+			+ SEVENTEEN22_HEADER_PART1_SIZE \
+			+ STREAM_ID_SIZE		\
+			+ SEVENTEEN22_HEADER_PART2_SIZE \
+			+ SIX1883_HEADER_SIZE)
+#define SAMPLES_PER_SECOND (48000)
+#define SAMPLES_PER_FRAME (6)
+#define CHANNELS (2)
 
 struct ethernet_header{
 	u_char dst[6];
@@ -68,19 +56,14 @@ struct ethernet_header{
 	u_char type[2];
 };
 
-typedef int (*process_msg) (char *buf, int buflen);
+/* globals */
 
-// global
-unsigned char stream_id[8];
-volatile int talker = 0;
-int control_socket;
-pcap_t* handle;
-u_char ETHER_TYPE[] = { 0x22, 0xf0 };
-SNDFILE* snd_file;
-
-#define VERSION_STR	"1.1"
 static const char *version_str = "simple_listener v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
+
+pcap_t* glob_pcap_handle;
+u_char glob_ether_type[] = { 0x22, 0xf0 };
+SNDFILE* glob_snd_file;
 
 static void help()
 {
@@ -92,52 +75,51 @@ static void help()
 		"    -i  specify interface for AVB connection\n"
 		"    -f  set the name of the output wav-file\n" 
 		"\n" "%s" "\n", version_str);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const u_char* packet)
 {
 	unsigned char* test_stream_id;
 	struct ethernet_header* eth_header;
-	struct six1883_sample* sample; 
-	uint32_t buf;
-	uint32_t *mybuf;
+	uint32_t *buf;
 	uint32_t frame[2] = { 0 , 0 };
+	int i;
+	(void) args; /* unused */
+	(void) packet_header; /* unused */
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Got packet.\n");
-#endif	
+#endif /* DEBUG*/
 
 	eth_header = (struct ethernet_header*)(packet);
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Ether Type: 0x%02x%02x\n", eth_header->type[0], eth_header->type[1]);
-#endif
+#endif /* DEBUG*/
 
-	if (0 == memcmp(ETHER_TYPE,eth_header->type,sizeof(eth_header->type)))
+	if (0 == memcmp(glob_ether_type,eth_header->type,sizeof(eth_header->type)))
 	{		
 		test_stream_id = (unsigned char*)(packet + ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE);
 
-#ifdef DEBUG
+#if DEBUG
 		fprintf(stderr, "Received stream id: %02x%02x%02x%02x%02x%02x%02x%02x\n ",
 			     test_stream_id[0], test_stream_id[1],
 			     test_stream_id[2], test_stream_id[3],
 			     test_stream_id[4], test_stream_id[5],
 			     test_stream_id[6], test_stream_id[7]);
-#endif
+#endif /* DEBUG*/
 
 		if (0 == memcmp(test_stream_id, stream_id, sizeof(STREAM_ID_SIZE)))
 		{
 
-#ifdef DEBUG
+#if DEBUG
 			fprintf(stdout,"Stream ids matched.\n");
-#endif
-
-			//sample = (struct six1883_sample*) (packet + HEADER_SIZE);
-			mybuf = (uint32_t*) (packet + HEADER_SIZE);
-			for(int i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
+#endif /* DEBUG*/
+			buf = (uint32_t*) (packet + HEADER_SIZE);
+			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
 			{	
-				memcpy(&frame[0], &mybuf[i], sizeof(frame));
+				memcpy(&frame[0], &buf[i], sizeof(frame));
 
 				frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
 				frame[1] = ntohl(frame[1]);
@@ -146,222 +128,54 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 				frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
 				frame[1] <<= 8;
 
-				sf_writef_int(snd_file, frame, 1);
+				sf_writef_int(glob_snd_file, (const int *)frame, 1);
 			}
 		}	
 	}
 }
 
-int create_socket()
-{
-	struct sockaddr_in addr;
-	control_socket = socket(AF_INET, SOCK_DGRAM, 0);
-		
-	/** in POSIX fd 0,1,2 are reserved */
-	if (2 > control_socket)
-	{
-		if (-1 > control_socket)
-			close(control_socket);
-	return -1;
-	}
-	
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(0);
-	
-	if(0 > (bind(control_socket, (struct sockaddr*)&addr, sizeof(addr)))) 
-	{
-		fprintf(stderr, "Could not bind socket.\n");
-		close(control_socket);
-		return -1;
-	}
-	return 0;
-}
-
-
-int msg_process(char *buf, int buflen)
-{
-	uint32_t id;
-	fprintf(stderr, "Msg: %s\n", buf);
- 	int l = 0;
-	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
-	{
-		l = 6; // skip "Sxx T:"
-		while ('S' != buf[l++]);
-		l++;
-		for(int j = 0; j < 8 ; l+=2, j++)
-		{
-			sscanf(&buf[l],"%02x",&id);
-			stream_id[j] = (unsigned char)id;
-		}
-		talker = 1;
-	}
-	return (0);
-}
-
-int recv_msg()
-{
-	char *databuf;
-	int bytes = 0;
-
-	databuf = (char *)malloc(2000);
-	if (NULL == databuf)
-		return -1;
-
-	memset(databuf, 0, 2000);
-	bytes = recv(control_socket, databuf, 2000, 0);
-	if (bytes <= -1) 
-	{
-		free(databuf);
-		return (-1);
-	}
-	return msg_process(databuf, bytes);
-
-}
-
-int await_talker()
-{
-	while (0 == talker)	
-		recv_msg();
-	return 0;
-}
-
-int send_msg(char *data, int data_len)
-{
-	struct sockaddr_in addr;
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(MRPD_PORT_DEFAULT);
-	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	inet_aton("127.0.0.1", &addr.sin_addr);
-	if (-1 != control_socket)
-		return (sendto(control_socket, data, data_len, 0, (struct sockaddr*)&addr, (socklen_t)sizeof(addr)));
-	else 
-		return 0;
-}
-
-int join_vlan()
-{
-	int rc;
-	char *msgbuf = malloc(1500);
-	if (NULL == msgbuf)
-		return -1;
-	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "V++:I=0002");
-	rc = send_msg(msgbuf, 1500);
-
-	free(msgbuf);
-	return rc;
-}
-
-int mrp_disconnect()
-{
-	int rc;
-	char *msgbuf = malloc(1500);
-	if (NULL == msgbuf)
-		return -1;
-	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "BYE");
-	rc = send_msg(msgbuf, 1500);
-
-	free(msgbuf);
-	return rc;
-}
-	
-int report_domain_status()
-{
-	int rc;
-	char* msgbuf = malloc(1500);
-
-	if (NULL == msgbuf)
-		return -1;
-	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
-	
-	rc = send_msg(msgbuf, 1500);
-
-	free(msgbuf);
-	return rc;
-}
-
-int send_ready()
-{
-	char *databuf;
-	int rc;
-	databuf = malloc(1500);
-	if (NULL == databuf)
-		return -1;
-	memset(databuf, 0, 1500);
-	sprintf(databuf, "S+L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=2",
-		     stream_id[0], stream_id[1],
-		     stream_id[2], stream_id[3],
-		     stream_id[4], stream_id[5],
-		     stream_id[6], stream_id[7]);
-	rc = send_msg(databuf, 1500);
-
-#ifdef DEBUG
-	fprintf(stdout,"Ready-Msg: %s\n", databuf);
-#endif 
-
-	free(databuf);
-	return rc;
-}
-
-int send_leave()
-{
-	char *databuf;
-	int rc;
-	databuf = malloc(1500);
-	if (NULL == databuf)
-		return -1;
-	memset(databuf, 0, 1500);
-	sprintf(databuf, "S-L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=3",
-		     stream_id[0], stream_id[1],
-		     stream_id[2], stream_id[3],
-		     stream_id[4], stream_id[5],
-		     stream_id[6], stream_id[7]);
-	rc = send_msg(databuf, 1500);
-	free(databuf);
-	return rc;
-}
-
 void sigint_handler(int signum)
 {
-	fprintf(stdout,"Leaving...\n");
-	
-	if (0 != talker)
-		send_leave();
+	int ret;
+
+	fprintf(stdout,"Received signal %d:leaving...\n", signum);
+
+	if (0 != talker) {
+		ret = send_leave();
+		if (ret)
+			printf("send_leave failed\n");
+	}
 
 	if (2 > control_socket)
 	{
 		close(control_socket);
-		mrp_disconnect();
+		ret = mrp_disconnect();
+		if (ret)
+			printf("mrp_disconnect failed\n");
 	}
 
-#ifdef PCAP
-	if (NULL != handle) 
+#if PCAP
+	if (NULL != glob_pcap_handle)
 	{
-		pcap_breakloop(handle);
-		pcap_close(handle);
+		pcap_breakloop(glob_pcap_handle);
+		pcap_close(glob_pcap_handle);
 	}
-#endif
+#endif /* PCAP */
 	
-#ifdef LIBSND
-	sf_write_sync(snd_file);
-	sf_close(snd_file);
-#endif
+#if LIBSND
+	sf_write_sync(glob_snd_file);
+	sf_close(glob_snd_file);
+#endif /* LIBSND */
 }
 
 int main(int argc, char *argv[])
 {
-	int ret;
 	char* file_name = NULL;
 	char* dev = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/* The compiled filter expression */
 	char filter_exp[] = "ether dst 91:E0:F0:00:0e:80";	/* The filter expression */
-	struct pcap_pkthdr header;	/* header pcap gives us */
-	const u_char* packet;		/* actual packet */
+	int rc;
 
 	signal(SIGINT, sigint_handler);
 
@@ -390,21 +204,34 @@ int main(int argc, char *argv[])
 	if (create_socket())
 	{
 		fprintf(stderr, "Socket creation failed.\n");
-		return (errno);
+		return errno;
 	}
 
-	report_domain_status();
-	join_vlan();
+	rc = report_domain_status();
+	if (rc) {
+		printf("report_domain_status failed\n");
+		return EXIT_FAILURE;
+	}
+
+	rc = join_vlan();
+	if (rc) {
+		printf("join_vlan failed\n");
+		return EXIT_FAILURE;
+	}
 
 	fprintf(stdout,"Waiting for talker...\n");
 	await_talker();	
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Send ready-msg...\n");
-#endif
-	send_ready();
+#endif /* DEBUG */
+	rc = send_ready();
+	if (rc) {
+		printf("send_ready failed\n");
+		return EXIT_FAILURE;
+	}
 		
-#ifdef LIBSND
+#if LIBSND
 	SF_INFO* sf_info = (SF_INFO*)malloc(sizeof(SF_INFO));
 
 	memset(sf_info, 0, sizeof(SF_INFO));
@@ -416,50 +243,50 @@ int main(int argc, char *argv[])
 	if (0 == sf_format_check(sf_info))
 	{
 		fprintf(stderr, "Wrong format.");
-		return -1;
+		return EXIT_FAILURE;
 	}
 			
-	if (NULL == (snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
+	if (NULL == (glob_snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
 	{
 		fprintf(stderr, "Could not create file.");
-		return -1;
+		return EXIT_FAILURE;
 	}
 	fprintf(stdout,"Created file called %s\n", file_name);	
-#endif
+#endif /* LIBSND */
 
-#ifdef PCAP		
+#if PCAP
 	/** session, get session handler */
 	/* take promiscuous vs. non-promiscuous sniffing? (0 or 1) */
-	handle = pcap_open_live(dev, BUFSIZ, 1, -1, errbuf);
-	if (NULL == handle) 
+	glob_pcap_handle = pcap_open_live(dev, BUFSIZ, 1, -1, errbuf);
+	if (NULL == glob_pcap_handle)
 	{
 		fprintf(stderr, "Could not open device %s: %s\n", dev, errbuf);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
-#ifdef DEBUG
-	fprintf(stdout,"Got session handler.\n");
-#endif
+#if DEBUG
+	fprintf(stdout,"Got session pcap handler.\n");
+#endif /* DEBUG */
 	/* compile and apply filter */
-	if (-1 == pcap_compile(handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
+	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
-		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
-		return -1;
+		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
+		return EXIT_FAILURE;
 	}
 
-	if (-1 == pcap_setfilter(handle, &comp_filter_exp)) 
+	if (-1 == pcap_setfilter(glob_pcap_handle, &comp_filter_exp))
 	{
-		fprintf(stderr, "Could not install filter %s: %s\n", filter_exp, pcap_geterr(handle));
-		return -1;
+		fprintf(stderr, "Could not install filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
+		return EXIT_FAILURE;
 	}
 
-#ifdef DEBUG
+#if DEBUG
 	fprintf(stdout,"Compiled and applied filter.\n");
-#endif
+#endif /* DEBUG */
 
 	/** loop forever and call callback-function for every received packet */
-	pcap_loop(handle, -1, pcap_callback, NULL);
-#endif
+	pcap_loop(glob_pcap_handle, -1, pcap_callback, NULL);
+#endif /* PCAP */
 
-	return 0;
+	return EXIT_SUCCESS;
 }

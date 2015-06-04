@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -87,6 +84,7 @@
 #define E1000_PBS	0x01008  /* Packet Buffer Size */
 #define E1000_EEMNGCTL	0x01010  /* MNG EEprom Control */
 #define E1000_EEARBC	0x01024  /* EEPROM Auto Read Bus Control */
+#define E1000_EEARBC_I210	0x12024 /* EEPROM Auto Read Bus Control */
 #define E1000_EEWR	0x0102C  /* EEPROM Write Register - RW */
 #define E1000_FLOP	0x0103C  /* FLASH Opcode Register */
 #define E1000_I2CCMD	0x01028  /* SFPI2C Command Register - RW */
@@ -150,6 +148,7 @@
 
 /* QAV Tx mode control register */
 #define E1000_I210_TQAVCTRL	0x3570
+
 #define E1000_DTXMXPKTSZ	0x0355C
 
 /* High credit registers where _n can be 0 or 1. */
@@ -157,6 +156,8 @@
 
 /* Queues fetch arbitration priority control register */
 #define E1000_I210_TQAVARBCTRL			0x3574
+/* Queues priority masks where _n and _p can be 0-3. */
+#define E1000_TQAVARBCTRL_QUEUE_PRI(_n, _p)	((_p) << (2 * _n))
 /* QAV Tx mode control registers where _n can be 0 or 1. */
 #define E1000_I210_TQAVCC(_n)			(0x3004 + 0x40 * (_n))
 
@@ -438,8 +439,6 @@
 #define E1000_PBACL	0x05B68  /* MSIx PBA Clear - Read/Write 1's to clear */
 #define E1000_FFLT	0x05F00  /* Flexible Filter Length Table - RW Array */
 #define E1000_HOST_IF	0x08800  /* Host Interface */
-#define E1000_FFMT	0x09000  /* Flexible Filter Mask Table - RW Array */
-#define E1000_FFVT	0x09800  /* Flexible Filter Value Table - RW Array */
 #define E1000_HIBBA	0x8F40   /* Host Interface Buffer Base Address */
 /* Flexible Host Filter Table */
 #define E1000_FHFT(_n)	(0x09000 + ((_n) * 0x100))
@@ -535,6 +534,8 @@
 #define E1000_SYSTIMR	0x0B6F8 /* System time register Residue */
 #define E1000_TSICR	0x0B66C /* Interrupt Cause Register */
 #define E1000_TSIM	0x0B674 /* Interrupt Mask Register */
+#define E1000_AUXSTMPL0 0x0B65C /* Auxiliary Time Stamp 0 Reg - Low */
+#define E1000_AUXSTMPH0 0x0B660 /* Auxiliary Time Stamp 0 Reg - Low */
 
 /* Filtering Registers */
 #define E1000_SAQF(_n)	(0x05980 + (4 * (_n))) /* Source Address Queue Fltr */

@@ -114,7 +114,7 @@ int gptpscaling(gPtpTimeData * td, char *memory_offset_buffer);
 
 void gptpdeinit(int shm_fd, char *memory_offset_buffer);
 
-int gptpinit(int *shm_fd, char *memory_offset_buffer);
+int gptpinit(int *shm_fd, char **memory_offset_buffer);
 
 void avb_set_1722_cd_indicator(seventeen22_header *h1722, uint64_t cd_indicator);
 uint64_t avb_get_1722_cd_indicator(seventeen22_header *h1722);

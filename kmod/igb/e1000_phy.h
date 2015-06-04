@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -123,7 +120,6 @@ bool e1000_is_mphy_ready(struct e1000_hw *hw);
 #define GS40G_MAC_LB			0x4140
 #define GS40G_MAC_SPEED_1G		0X0006
 #define GS40G_COPPER_SPEC		0x0010
-#define GS40G_CS_POWER_DOWN		0x0002
 
 #define HV_INTC_FC_PAGE_START		768
 #define I82578_ADDR_REG			29
@@ -160,6 +156,7 @@ bool e1000_is_mphy_ready(struct e1000_hw *hw);
 #define E1000_82580_PM_D0_LPLU		0x0002 /* For D0a states */
 #define E1000_82580_PM_D3_LPLU		0x0004 /* For all other states */
 #define E1000_82580_PM_GO_LINKD		0x0020 /* Go Link Disconnect */
+
 #define E1000_MPHY_DIS_ACCESS		0x80000000 /* disable_access bit */
 #define E1000_MPHY_ENA_ACCESS		0x40000000 /* enable_access bit */
 #define E1000_MPHY_BUSY			0x00010000 /* busy bit */

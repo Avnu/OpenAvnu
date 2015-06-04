@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -66,6 +63,7 @@
 #define E1000_CTRL_EXT_EE_RST	0x00002000 /* Reinitialize from EEPROM */
 /* Physical Func Reset Done Indication */
 #define E1000_CTRL_EXT_PFRSTD	0x00004000
+#define E1000_CTRL_EXT_SDLPE	0X00040000  /* SerDes Low Power Enable */
 #define E1000_CTRL_EXT_SPD_BYPS	0x00008000 /* Speed Select Bypass */
 #define E1000_CTRL_EXT_RO_DIS	0x00020000 /* Relaxed Ordering disable */
 #define E1000_CTRL_EXT_DMA_DYN_CLK_EN	0x00080000 /* DMA Dynamic Clk Gating */
@@ -81,6 +79,7 @@
 #define E1000_CTRL_EXT_DRV_LOAD		0x10000000 /* Drv loaded bit for FW */
 #define E1000_CTRL_EXT_IAME		0x08000000 /* Int ACK Auto-mask */
 #define E1000_CTRL_EXT_PBA_CLR		0x80000000 /* PBA Clear */
+#define E1000_CTRL_EXT_PHYPDEN		0x00100000
 #define E1000_I2CCMD_REG_ADDR_SHIFT	16
 #define E1000_I2CCMD_PHY_ADDR_SHIFT	24
 #define E1000_I2CCMD_OPCODE_READ	0x08000000
@@ -423,6 +422,7 @@
 
 #define ETHERNET_FCS_SIZE		4
 #define MAX_JUMBO_FRAME_SIZE		0x3F00
+#define E1000_TX_PTR_GAP		0x1F
 
 /* Extended Configuration Control and Size */
 #define E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP	0x00000020
@@ -747,6 +747,7 @@
 #define E1000_M88E1112_MAC_CTRL_1_MODE_SHIFT	7
 #define E1000_M88E1112_PAGE_ADDR		0x16
 #define E1000_M88E1112_STATUS			0x01
+
 #define E1000_THSTAT_LOW_EVENT		0x20000000 /* Low thermal threshold */
 #define E1000_THSTAT_MID_EVENT		0x00200000 /* Mid thermal threshold */
 #define E1000_THSTAT_HIGH_EVENT		0x00002000 /* High thermal threshold */
@@ -775,6 +776,10 @@
 #define E1000_PCS_STATUS_ADDR_I354	1
 #define E1000_PCS_STATUS_RX_LPI_RCVD	0x0400
 #define E1000_PCS_STATUS_TX_LPI_RCVD	0x0800
+#define E1000_M88E1512_CFG_REG_1	0x0010
+#define E1000_M88E1512_CFG_REG_2	0x0011
+#define E1000_M88E1512_CFG_REG_3	0x0007
+#define E1000_M88E1512_MODE		0x0014
 #define E1000_EEE_SU_LPI_CLK_STP	0x00800000 /* EEE LPI Clock Stop */
 #define E1000_EEE_LP_ADV_DEV_I210	7          /* EEE LP Adv Device */
 #define E1000_EEE_LP_ADV_ADDR_I210	61         /* EEE LP Adv Register */
@@ -1115,10 +1120,20 @@
 #define IGP_LED3_MODE		0x07000000
 
 /* PCI/PCI-X/PCI-EX Config space */
+#define PCIX_COMMAND_REGISTER		0xE6
+#define PCIX_STATUS_REGISTER_LO		0xE8
+#define PCIX_STATUS_REGISTER_HI		0xEA
 #define PCI_HEADER_TYPE_REGISTER	0x0E
 #define PCIE_LINK_STATUS		0x12
 #define PCIE_DEVICE_CONTROL2		0x28
 
+#define PCIX_COMMAND_MMRBC_MASK		0x000C
+#define PCIX_COMMAND_MMRBC_SHIFT	0x2
+#define PCIX_STATUS_HI_MMRBC_MASK	0x0060
+#define PCIX_STATUS_HI_MMRBC_SHIFT	0x5
+#define PCIX_STATUS_HI_MMRBC_4K		0x3
+#define PCIX_STATUS_HI_MMRBC_2K		0x2
+#define PCIX_STATUS_LO_FUNC_MASK	0x7
 #define PCI_HEADER_TYPE_MULTIFUNC	0x80
 #define PCIE_LINK_WIDTH_MASK		0x3F0
 #define PCIE_LINK_WIDTH_SHIFT		4
@@ -1145,6 +1160,7 @@
 #define IGP01E1000_I_PHY_ID	0x02A80380
 #define M88E1111_I_PHY_ID	0x01410CC0
 #define M88E1543_E_PHY_ID	0x01410EA0
+#define M88E1512_E_PHY_ID	0x01410DD0
 #define M88E1112_E_PHY_ID	0x01410C90
 #define I347AT4_E_PHY_ID	0x01410DC0
 #define M88E1340M_E_PHY_ID	0x01410DF0
@@ -1350,6 +1366,9 @@
 #define E1000_RXPBS_CFG_TS_EN		0x80000000 /* Timestamp in Rx buffer */
 #define E1000_RXPBS_SIZE_I210_MASK	0x0000003F /* Rx packet buffer size */
 #define E1000_TXPB0S_SIZE_I210_MASK	0x0000003F /* Tx packet buffer 0 size */
+#define I210_RXPBSIZE_DEFAULT		0x000000A2 /* RXPBSIZE default */
+#define I210_TXPBSIZE_DEFAULT		0x04000014 /* TXPBSIZE default */
+
 
 /* Proxy Filter Control */
 #define E1000_PROXYFC_D0		0x00000001 /* Enable offload in D0 */
@@ -1373,7 +1392,6 @@
 /* Lan ID bit field offset in status register */
 #define E1000_STATUS_LAN_ID_OFFSET	2
 #define E1000_VFTA_ENTRIES		128
-
 #define E1000_TQAVCC_QUEUEMODE         0x80000000 /* queue mode, 0=strict, 1=SR mode */
 #define E1000_TQAVCTRL_TXMODE          0x00000001 /* Transmit mode, 0=legacy, 1=QAV */
 #define E1000_TQAVCTRL_1588_STAT_EN    0x00000004 /* report DMA time of tx packets */
@@ -1389,8 +1407,11 @@
 #define E1000_TXPBSIZE_TX1PB_SHIFT    6
 #define E1000_TXPBSIZE_TX2PB_SHIFT    12
 #define E1000_TXPBSIZE_TX3PB_SHIFT    18
-
 #ifndef E1000_UNUSEDARG
 #define E1000_UNUSEDARG
 #endif /* E1000_UNUSEDARG */
+#ifndef ERROR_REPORT
+#define ERROR_REPORT(fmt)	do { } while (0)
+#endif /* ERROR_REPORT */
+#define E1000_TSAUXC_SAMP_AUTO          0x00000008 /* sample current ts */
 #endif /* _E1000_DEFINES_H_ */

@@ -38,45 +38,33 @@
 #include <string.h>
 
 #if defined WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-typedef int socklen_t;
 static int rcv_timeout = 100;	/* 100 ms */
 #elif defined __linux__
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-typedef int SOCKET;
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR   -1
-#define closesocket(s) close(s);
 static struct timeval rcv_timeout = {
 	.tv_sec = 0,
 	.tv_usec = 100 * 1000	/* 100 ms */
 };
 #endif
 
+
+#include "mrpd.h"
 #include "mrpdclient.h"
 
-/* global variables */
-static SOCKET control_socket = SOCKET_ERROR;
-static int udp_port = 0;
-
-int mrpdclient_init(int port)
+int mrpdclient_init(void)
 {
+	SOCKET mrpd_sock = SOCKET_ERROR;
 	struct sockaddr_in addr;
 	int rc;
 
-	control_socket = socket(AF_INET, SOCK_DGRAM, 0);
-	if (control_socket == INVALID_SOCKET)
+	mrpd_sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (mrpd_sock == INVALID_SOCKET)
 		goto out;
 
-	rc = setsockopt(control_socket, SOL_SOCKET, SO_RCVTIMEO,
+	rc = setsockopt(mrpd_sock, SOL_SOCKET, SO_RCVTIMEO,
 			(const char *)&rcv_timeout, sizeof(rcv_timeout));
 	if (rc != 0)
 		goto out;
-	rc = setsockopt(control_socket, SOL_SOCKET, SO_SNDTIMEO,
+	rc = setsockopt(mrpd_sock, SOL_SOCKET, SO_SNDTIMEO,
 			(const char *)&rcv_timeout, sizeof(rcv_timeout));
 	if (rc != 0)
 		goto out;
@@ -85,39 +73,52 @@ int mrpdclient_init(int port)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(0);
 
-	rc = bind(control_socket, (struct sockaddr *)&addr,
+	rc = bind(mrpd_sock, (struct sockaddr *)&addr,
 		  sizeof(struct sockaddr));
 	if (rc <= SOCKET_ERROR)
 		goto out;
 
-	udp_port = port;
-	return (0);
+	return mrpd_sock;
 
  out:
-	if (control_socket != SOCKET_ERROR)
-		closesocket(control_socket);
-	control_socket = SOCKET_ERROR;
-	return (-1);
+	if (mrpd_sock != SOCKET_ERROR)
+		closesocket(mrpd_sock);
+
+	return SOCKET_ERROR;
 }
 
-int mprdclient_close(void)
+int mrpdclient_close(SOCKET *mrpd_sock)
 {
-	if (control_socket != SOCKET_ERROR)
-		closesocket(control_socket);
+	int rc;
+
+	if (NULL == mrpd_sock)
+		return -1;
+
+	rc = mrpdclient_sendto(*mrpd_sock, "BYE", strlen("BYE") + 1);
+	if (rc != strlen("BYE") + 1)
+		return -1;
+
+	if (SOCKET_ERROR != *mrpd_sock)
+		closesocket(*mrpd_sock);
+	*mrpd_sock = SOCKET_ERROR;
+
 	return 0;
 }
 
-int mrpdclient_recv(ptr_process_msg fn)
+int mrpdclient_recv(SOCKET mrpd_sock, ptr_process_mrpd_msg fn)
 {
 	char *msgbuf;
 	int bytes = 0;
 
-	msgbuf = (char *)malloc(MRPDCLIENT_MAX_FRAME_SIZE);
+	if (SOCKET_ERROR == mrpd_sock)
+		return -1;
+
+	msgbuf = (char *)malloc(MRPDCLIENT_MAX_MSG_SIZE);
 	if (NULL == msgbuf)
 		return -1;
 
-	memset(msgbuf, 0, MRPDCLIENT_MAX_FRAME_SIZE);
-	bytes = recv(control_socket, msgbuf, MRPDCLIENT_MAX_FRAME_SIZE, 0);
+	memset(msgbuf, 0, MRPDCLIENT_MAX_MSG_SIZE);
+	bytes = recv(mrpd_sock, msgbuf, MRPDCLIENT_MAX_MSG_SIZE, 0);
 	if (bytes <= SOCKET_ERROR) {
 		goto out;
 	}
@@ -128,21 +129,20 @@ int mrpdclient_recv(ptr_process_msg fn)
 	return (-1);
 }
 
-int mprdclient_sendto(char *notify_data, int notify_len)
+int mrpdclient_sendto(SOCKET mrpd_sock, char *notify_data, int notify_len)
 {
 	struct sockaddr_in addr;
 	socklen_t addr_len;
 
+	if (SOCKET_ERROR == mrpd_sock)
+		return -1;
+
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(udp_port);
+	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	addr_len = sizeof(addr);
 
-	if (control_socket != SOCKET_ERROR)
-		return (sendto
-			(control_socket, notify_data, notify_len, 0,
-			 (struct sockaddr *)&addr, addr_len));
-	else
-		return (0);
+	return sendto(mrpd_sock, notify_data, notify_len, 0,
+		(struct sockaddr *)&addr, addr_len);
 }

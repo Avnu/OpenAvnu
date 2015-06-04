@@ -11,8 +11,7 @@
 
 extern volatile int halt_tx;
 extern volatile int listeners;
-extern volatile int unleash_jack;
-
+extern volatile int glob_unleash_jack;
 
 static jack_port_t** inputports;
 static jack_default_audio_sample_t** in;
@@ -31,9 +30,10 @@ static int process(jack_nframes_t nframes, void* arg)
 {
 	int cnt;
 	static int total;
+	(void) arg; /* unused */
 
 	/* Do nothing until we're ready to begin. */
-	if (!unleash_jack) {
+	if (!glob_unleash_jack) {
 		printf ("nothing to do\n");
 		return 0;
 	}
@@ -70,6 +70,8 @@ static int process(jack_nframes_t nframes, void* arg)
 
 void jack_shutdown(void* arg)
 {
+	(void) arg; /* unused */
+
 	printf("JACK shutdown\n");
 	halt_tx = 1;
 }
@@ -86,7 +88,7 @@ jack_client_t* init_jack(void)
 
 	if (NULL == client) {
 		fprintf (stderr, "jack_client_open() failed\n ");
-		exit (1);
+		exit(EXIT_FAILURE);
 	}
 	if (status & JackServerStarted) {
 		fprintf (stderr, "JACK server started\n");
@@ -116,7 +118,7 @@ jack_client_t* init_jack(void)
 		if (asprintf(&portName, "input%d", i) < 0) 
 		{
 			fprintf(stderr, "Could not create portname for port %d", i);
-			exit(1);
+			exit(EXIT_FAILURE);
 		}	
 		
 		inputports[i] = jack_port_register (client, portName,
@@ -125,7 +127,7 @@ jack_client_t* init_jack(void)
 		{
 			fprintf (stderr, "cannot register input port \"%d\"!\n", i);
 			jack_client_close (client);
-			exit (1);
+			exit(EXIT_FAILURE);
 		}
 	}
 

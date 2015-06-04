@@ -37,12 +37,24 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <Windows.h>
 #include <debugout.hpp>
 
+/**@file*/
+
+/**
+ * Provides an interface to stop threads
+ */
 class Stoppable {
 protected:
-	bool exit_waiting;
-	HANDLE thread;
+	bool exit_waiting;	/*!< Waiting to exit */
+	HANDLE thread;		/*!< Thread handler */
 public:
+	/**
+	 * Initializes interface
+	 */
 	Stoppable() { thread = NULL; exit_waiting = false; }
+	/**
+	 * @brief  Stops thread
+	 * @return TRUE in case of success. FALSE otherwise.
+	 */
 	bool stop() {
 		if( thread == NULL ) return false;
 		exit_waiting = true;
@@ -54,6 +66,9 @@ public:
 		exit_waiting = false;
 		return true;
 	}
+	/**
+	 * destroys the interface
+	 */
 	virtual ~Stoppable() = 0 {};
 };
 

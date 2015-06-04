@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -12,14 +12,11 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -254,8 +251,10 @@ union e1000_rx_desc_extended {
 };
 
 #define MAX_PS_BUFFERS 4
+
 /* Number of packet split data buffers (not including the header buffer) */
 #define PS_PAGE_BUFFERS	(MAX_PS_BUFFERS - 1)
+
 /* Receive Descriptor - Packet Split */
 union e1000_rx_desc_packet_split {
 	struct {
@@ -519,7 +518,7 @@ struct e1000_mac_operations {
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
 	void (*config_collision_dist)(struct e1000_hw *);
-	void (*rar_set)(struct e1000_hw *, u8*, u32);
+	int  (*rar_set)(struct e1000_hw *, u8*, u32);
 	s32  (*read_mac_addr)(struct e1000_hw *);
 	s32  (*validate_mdi_setting)(struct e1000_hw *);
 	s32 (*get_thermal_sensor_data)(struct e1000_hw *);
@@ -787,5 +786,7 @@ struct e1000_hw {
 /* These functions must be implemented by drivers */
 s32  e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
 s32  e1000_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
+void e1000_read_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value);
+void e1000_write_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value);
 
 #endif

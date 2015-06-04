@@ -1,5 +1,5 @@
 OPT=-O2
-CFLAGS=$(OPT) -Wall -W -Wno-parentheses -ggdb
+CFLAGS=$(OPT) -Wall -Wextra -Wno-parentheses -ggdb
 
 ifeq ($(ARCH),arm)
 CC=arm-none-linux-gnueabi-gcc
@@ -18,21 +18,22 @@ mrpq: mrpq.o mrpdclient.o
 
 mrpValidate: mrpValidate.o mrpdclient.o
 
-mrpl.o: mrpl.c
+mrpl.o: mrpl.c mrpdclient.h ../../daemons/mrpd/mrpd.h
 	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpl.c
 
-mrpq.o: mrpq.c
+mrpq.o: mrpq.c mrpdclient.h ../../daemons/mrpd/mrpd.h
 	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpq.c
 
-mrpValidate.o: mrpValidate.c
+mrpValidate.o: mrpValidate.c mrpdclient.h ../../daemons/mrpd/mrpd.h
 	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpValidate.c
 
-mrpdclient.o: mrpdclient.c
+mrpdclient.o: mrpdclient.c mrpdclient.h mrpdhelper.h
 	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) mrpdclient.c
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 clean:
-	rm -f `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"` mrpl mrpq mrpValidate
+	$(RM) mrpl mrpq mrpValidate
+	$(RM) `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"`
 

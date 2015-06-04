@@ -33,9 +33,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #include <inttypes.h>
 #else
+
+typedef __int32 int32_t;
+typedef unsigned __int32 uint32_t;
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
+
 #define SCNu64       "I64u"
 #define SCNx64       "I64x"
 #endif
@@ -57,7 +63,7 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 	const char *guard;
 	unsigned int v_uint;
 	uint64_t v_uint64;
-	int result;
+	int result = 0;
 	int count = 0;
 
 	/* make sure string is null terminated */

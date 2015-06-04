@@ -39,10 +39,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <PeerList.hpp>
 #include <Stoppable.hpp>
 
+/**@file */
+
+/**
+ * Provides an interface for offset with lock
+ */
 class LockableOffset : public Lockable, public Offset {
 private:
 	bool ready;
 public:
+	/**
+	 * Default constructor. Initializes internal variables
+	 */
 	LockableOffset() {
 		ml_phoffset = 0;
 		ml_freqoffset = 0.0;
@@ -50,16 +58,30 @@ public:
 		ls_freqoffset = 0.0;
 		local_time = 0;
 	}
+	/**
+	 * @brief  Get Internal ready flag
+	 * @return TRUE if is ready. FALSE otherwise.
+	 */
 	bool isReady() { return ready; }
+	/**
+	 * @brief  Sets ready flag
+	 * @param  ready Value to be set.
+	 */
 	void setReady( bool ready ) { this->ready = ready; }
 };
 
+/**
+ * Provides an interface for the IPC shared data
+ */
 class IPCSharedData {
 public:
-	PeerList *list;
-	LockableOffset *offset;
+	PeerList *list;		/*!< List of peers */
+	LockableOffset *offset;	/*!< Ponter to LockableOffset class */
 };
 
+/**
+ * Provides an interface for the IPC Listener
+ */
 class IPCListener : public Stoppable {
 private:
 	static DWORD WINAPI IPCListenerLoopWrap( LPVOID arg ) {
@@ -73,6 +95,10 @@ private:
 	}
 	DWORD WINAPI IPCListenerLoop( IPCSharedData *arg );
 public:
+	/**
+	 * @brief  Starts the listener loop in a new thread
+	 * @return TRUE in case of success, FALSE in case of error
+	 */
 	bool start( IPCSharedData data ) {
 		LPVOID *arg = new LPVOID[2];
 		if( thread != NULL ) {
@@ -85,6 +111,9 @@ public:
 		if( thread != NULL ) return true;
 		else return false;
 	}
+	/**
+	 * Destroys the IPC listener interface
+	 */
 	~IPCListener() {}
 };
 

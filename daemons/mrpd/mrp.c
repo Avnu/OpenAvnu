@@ -44,7 +44,7 @@
 /* state machine controls */
 int p2pmac;
 
-#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP
+#if LOG_MVRP || LOG_MSRP || LOG_MMRP || LOG_MRP || MRP_CPPUTEST
 
 /* can use static string since module is single threaded */
 static char state_status_string[64];
@@ -245,6 +245,20 @@ static int client_lookup(client_t * list, struct sockaddr_in *newclient)
 		client_item = client_item->next;
 	}
 	return 0;
+}
+
+int mrp_client_count(client_t *list)
+{
+	client_t *client_item;
+	int count = 0;
+
+	client_item = list;
+
+	while (NULL != client_item) {
+		client_item = client_item->next;
+		count++;
+	}
+	return count;
 }
 
 int mrp_client_add(client_t ** list, struct sockaddr_in *newclient)

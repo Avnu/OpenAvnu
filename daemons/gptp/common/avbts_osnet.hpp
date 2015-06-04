@@ -40,15 +40,32 @@
 #include <ieee1588.hpp>
 #include <ptptypes.hpp>
 
-#define FACTORY_NAME_LENGTH 48
-#define DEFAULT_TIMEOUT 1	// milliseconds
+/**@file*/
 
+#define FACTORY_NAME_LENGTH 48		/*!< Factory name maximum length */
+#define DEFAULT_TIMEOUT 1			/*!< Default timeout in milliseconds*/
+
+/**
+ * LinkLayerAddress Class
+ * Provides methods for initializing and comparing ethernet addresses.
+ */
 class LinkLayerAddress:public InterfaceLabel {
  private:
+	//!< Ethernet address
 	uint8_t addr[ETHER_ADDR_OCTETS];
  public:
+	/**
+	 * Default constructor
+	 */
 	LinkLayerAddress() {
 	};
+
+	/**
+	 * Receives a 64bit scalar
+	 * address and initializes its internal octet array with
+	 * the first 48 bits.
+	 * @param address_scalar 64 bit address
+	 */
 	LinkLayerAddress(uint64_t address_scalar) {
 		uint8_t *ptr;
 		address_scalar <<= 16;
@@ -57,6 +74,13 @@ class LinkLayerAddress:public InterfaceLabel {
 			address_scalar <<= 8;
 		}
 	}
+
+	/**
+	 * Receives an address as an array of octets
+	 * and copies the first 6 over the internal ethernet address.
+	 * @param address_octet_array Array of octets containing the address
+	 * @todo Verify if address_octet_array is not null
+	 */
 	LinkLayerAddress(uint8_t * address_octet_array) {
 		uint8_t *ptr;
 		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS;
@@ -65,18 +89,51 @@ class LinkLayerAddress:public InterfaceLabel {
 			*ptr = *address_octet_array;
 		}
 	}
+
+	/**
+	 * @brief  Operator '==' overloading method.
+	 * It provides a comparison between cmp and the class ethernet address defined
+	 * at its constructor.
+	 * @param  cmp Value to be compared against.
+	 * @return TRUE if they are equal; FALSE otherwise.
+	 */
 	bool operator==(const LinkLayerAddress & cmp) const {
 		return memcmp
 			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) == 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Operator '<' overloading method.
+	 ** It provides a comparison between cmp and the class ethernet address defined
+	 * at its constructor.
+	 * @param  cmp Value to be compared against.
+	 * @return TRUE if cmp is lower than addr, FALSE otherwise.
+	 */
 	bool operator<(const LinkLayerAddress & cmp)const {
 		return memcmp
 			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) < 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Operator '>' overloading method.
+	 ** It provides a comparison between cmp and the class ethernet address defined
+	 * at its constructor.
+	 * @param  cmp Value to be compared against.
+	 * @return TRUE if cmp is bigger than addr, FALSE otherwise.
+	 */
 	bool operator>(const LinkLayerAddress & cmp)const {
 		return memcmp
 			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) < 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Gets first 6 bytes from ethernet address of
+	 * object LinkLayerAddress.
+	 * @param  address_octet_array [out] Pointer to store the
+	 * ethernet address information. 
+	 * @return void
+	 * @todo Verify if address_octet_array is not null
+	 */
 	void toOctetArray(uint8_t * address_octet_array) {
 		uint8_t *ptr;
 		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS;
@@ -87,24 +144,67 @@ class LinkLayerAddress:public InterfaceLabel {
 	}
 };
 
+/**
+ * Class InterfaceName
+ * Provides methods for dealing with the network interface name
+ * @todo: Destructor doesnt delete this->name.
+ */
 class InterfaceName: public InterfaceLabel {
  private:
+	//!< Interface name
 	char *name;
  public:
+	/**
+	 * Default constructor
+	 */
 	InterfaceName() { }
+	/**
+	 * Initializes Interface name with name and size lenght+1
+	 * @param name [in] String with the interface name
+	 * @param length Size of name
+	 */
 	InterfaceName(char *name, int length) {
 		this->name = new char[length + 1];
 		PLAT_strncpy(this->name, name, length);
 	}
+
+	/**
+	 * @brief  Operator '==' overloading method.
+	 * Compares parameter cmp to the interface name
+	 * @param  cmp String to be compared
+	 * @return TRUE if they are equal, FALSE otherwise
+	 */
 	bool operator==(const InterfaceName & cmp) const {
 		return strcmp(name, cmp.name) == 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Operator '<' overloading method.
+	 * Compares cmp to the interface name
+	 * @param  cmp String to be compared
+	 * @return TRUE if interface name is found to be less than cmd. FALSE otherwise
+	 */
 	bool operator<(const InterfaceName & cmp)const {
 		return strcmp(name, cmp.name) < 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Operator '>' overloading method.
+	 * Compares cmp to the interface name
+	 * @param  cmp String to be compared
+	 * @return TRUE if the interface name is found to be greater than cmd. FALSE otherwise
+	 */
 	bool operator>(const InterfaceName & cmp)const {
 		return strcmp(name, cmp.name) < 0 ? true : false;
 	} 
+
+	/**
+	 * @brief  Gets interface name from the class' internal variable
+	 * @param  string [out] String to store interface's name
+	 * @param  length Length of string
+	 * @return TRUE if length is greater than size of interface name plus one. FALSE otherwise.
+	 * @todo If string is null, strncpy will fail silently.
+	 */
 	bool toString(char *string, size_t length) {
 		if (length >= strlen(name) + 1) {
 			PLAT_strncpy(string, name, length);
@@ -114,47 +214,127 @@ class InterfaceName: public InterfaceLabel {
 	}
 };
 
+/**
+ * factory_name_t class
+ * Provides a generic class to be used as a key to create factory maps.
+ */
 class factory_name_t {
  private:
+	/*<! Factory name*/ 
 	char name[FACTORY_NAME_LENGTH];
 	factory_name_t();
  public:
+	/**
+	 * Assign a name to the factory_name
+	 * @param name_a [in] Name to be assigned to the object
+	 */
 	factory_name_t(const char *name_a) {
 		PLAT_strncpy(name, name_a, FACTORY_NAME_LENGTH - 1);
 	} 
+
+	/**
+	 * @brief  Operator '==' overloading method
+	 * Compares cmp to the factory name
+	 * @param  cmp String to be compared
+	 * @return TRUE if they are equal, FALSE otherwise
+	 */
 	bool operator==(const factory_name_t & cmp) {
 		return strcmp(cmp.name, this->name) == 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Operator '<' overloading method
+	 * Compares cmp to the factory name
+	 * @param  cmp String to be compared
+	 * @return TRUE if the factory_name is to be found less than cmp, FALSE otherwise
+	 */
 	bool operator<(const factory_name_t & cmp)const {
 		return strcmp(cmp.name, this->name) < 0 ? true : false;
 	}
+
+	/**
+	 * @brief  Operator '>' overloading method
+	 * Compares cmp to the factory name
+	 * @param  cmp String to be compared
+	 * @return TRUE if the factory_name is to be found greater than cmp, FALSE otherwise
+	 */
 	bool operator>(const factory_name_t & cmp)const {
 		return strcmp(cmp.name, this->name) > 0 ? true : false;
 	}
 };
 
+/**
+ * Enumeration net_result:
+ * 	- net_trfail
+ * 	- net_fatal
+ * 	- net_succeed
+ */
 typedef enum { net_trfail, net_fatal, net_succeed } net_result;
 
+/**
+ * Provides a generic network interface
+ */
 class OSNetworkInterface {
  public:
-	virtual net_result send
-	(LinkLayerAddress * addr, uint8_t * payload, size_t length,
-	 bool timestamp) = 0;
-	virtual net_result nrecv
-	(LinkLayerAddress * addr, uint8_t * payload, size_t & length) = 0;
-	virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
-	virtual unsigned getPayloadOffset() = 0;
-	virtual ~OSNetworkInterface() = 0;
+	 /**
+	  * @brief Sends a packet to a remote address
+	  * @param addr [in] Remote link layer address
+	  * @param payload [in] Data buffer
+	  * @param length Size of data buffer
+	  * @param timestamp TRUE if to use the event socket with the PTP multicast address. FALSE if to use
+	  * a general socket.
+	  */
+	 virtual net_result send
+		 (LinkLayerAddress * addr, uint8_t * payload, size_t length,
+		  bool timestamp) = 0;
+
+	 /**
+	  * @brief  Receives data
+	  * @param  addr [out] Destination Mac Address
+	  * @param  payload [out] Payload received
+	  * @param  length [out] Received length
+	  * @return net_result enumeration
+	  */
+	 virtual net_result nrecv
+		 (LinkLayerAddress * addr, uint8_t * payload, size_t & length) = 0;
+
+	 /**
+	  * @brief Get Link Layer address (mac address)
+	  * @param addr [out] Link Layer address
+	  * @return void
+	  */
+	 virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
+
+	 /**
+	  * @brief  Provides generic method for getting the payload offset
+	  */
+	 virtual unsigned getPayloadOffset() = 0;
+	 /**
+	  * Native support for polimorphic destruction
+	  */
+	 virtual ~OSNetworkInterface() = 0;
 };
 
 inline OSNetworkInterface::~OSNetworkInterface() {}
 
 class OSNetworkInterfaceFactory;
 
+/**
+ * Provides a map for the OSNetworkInterfaceFactory::registerFactory method
+ */
 typedef std::map < factory_name_t, OSNetworkInterfaceFactory * >FactoryMap_t;
 
+/**
+ * Builds and registers a network interface
+ */
 class OSNetworkInterfaceFactory {
  public:
+	 /**
+	  * @brief  Registers network factory
+	  * @param id
+	  * @param factory Factory name
+	  * @return TRUE success, FALSE when could not register it.
+	  */
 	static bool registerFactory
 	(factory_name_t id, OSNetworkInterfaceFactory * factory) {
 		FactoryMap_t::iterator iter = factoryMap.find(id);
@@ -163,6 +343,15 @@ class OSNetworkInterfaceFactory {
 		factoryMap[id] = factory;
 		return true;
 	}
+
+	/**
+	 * @brief Builds the network interface
+	 * @param iface [out] Pointer to interface name
+	 * @param id Factory name index
+	 * @param iflabel Interface label
+	 * @param timestamper HWTimestamper class pointer
+	 * @return TRUE ok, FALSE error.
+	 */
 	static bool buildInterface
 	(OSNetworkInterface ** iface, factory_name_t id, InterfaceLabel * iflabel,
 	 HWTimestamper * timestamper) {
