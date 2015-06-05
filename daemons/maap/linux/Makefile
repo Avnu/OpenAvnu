@@ -7,8 +7,9 @@ FLAGS=-lpthread -lpcap
 
 all: maap_daemon
 
-maap_daemon: maap_linux.c
+maap_daemon: clean
+	mkdir $(BUILD_DIR)
 	gcc -o $(BUILD_DIR)/maap_daemon $(INCFLAGS) maap_linux.c $(CFLAGS) $(FLAGS) $(EXTRA_FLAGS)
 
 clean:
-	rm -rf $(BUILD_DIR)/maap_daemon
+	rm -rf $(BUILD_DIR)/
