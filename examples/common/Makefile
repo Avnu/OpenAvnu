@@ -1,4 +1,4 @@
-CC = gcc
+CC ?= gcc
 OPT = -O2 -g
 CFLAGS = $(OPT) -Wall -Wextra -Wno-parentheses
 
