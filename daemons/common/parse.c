@@ -54,7 +54,7 @@ typedef unsigned __int64 uint64_t;
 #define parse_log(a,b)
 #endif
 
-int parse(char *s, int len, struct parse_param *specs, int *err_index)
+int parse(const char *s, int len, struct parse_param *specs, int *err_index)
 {
 	int err = 0;
 	char *param;
@@ -66,8 +66,6 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 	int result = 0;
 	int count = 0;
 
-	/* make sure string is null terminated */
-	s[len - 1] = 0;
 	guard = s + strlen(s);
 
 	parse_log("PARSE: %s\n", s);
@@ -93,7 +91,7 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 		case parse_null:
 			break;
 		case parse_u8:
-			result = sscanf(data, "%d", &v_uint);
+			result = sscanf(data, "%ud", &v_uint);
 			if (result == 1) {
 				*(uint8_t *) specs->v = (uint8_t) v_uint;
 			} else {
@@ -110,7 +108,7 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 			}
 			break;
 		case parse_u16:
-			result = sscanf(data, "%d", &v_uint);
+			result = sscanf(data, "%ud", &v_uint);
 			if (result == 1) {
 				*(uint16_t *) specs->v = (uint16_t) v_uint;
 			} else {
@@ -119,7 +117,7 @@ int parse(char *s, int len, struct parse_param *specs, int *err_index)
 			}
 			break;
 		case parse_u32:
-			result = sscanf(data, "%d", &v_uint);
+			result = sscanf(data, "%ud", &v_uint);
 			if (result == 1) {
 				*(uint32_t *) specs->v = v_uint;
 			} else {
