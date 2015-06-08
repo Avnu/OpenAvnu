@@ -2,9 +2,9 @@ OPT=-O2
 CFLAGS=$(OPT) -Wall -Wextra -Wno-parentheses -ggdb
 
 ifeq ($(ARCH),arm)
-CC=arm-none-linux-gnueabi-gcc
+CC?=arm-none-linux-gnueabi-gcc
 else
-CC=gcc
+CC?=gcc
 endif
 #INCFLAGS=-I../../lib/igb
 #LDLIBS=-ligb -lpci -lz -pthread
