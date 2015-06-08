@@ -128,7 +128,7 @@ struct acmp_listener_context {
 	       ACMP_LISTENER_STATE_FAST_CONNECTION_IN_PROGRESS,
 	       ACMP_LISTENER_STATE_CONNECTION_IN_PROGRESS,
 	       ACMP_LISTENER_STATE_CONNECTED,
-	       ACMP_LISTENER_STATE_DISCONNECTION_IN_PROGRESS,
+	       ACMP_LISTENER_STATE_DISCONNECTION_IN_PROGRESS
 	} state;
 
 	uint64_t destination_mac_address;
@@ -151,15 +151,14 @@ struct acmp_listener {
 
 int acmp_listener_init(struct acmp_listener *self);
 
-/// Destroy any resources that the acmp_listener uses
+/** Destroy any resources that the acmp_listener uses */
 void acmp_listener_terminate(struct acmp_listener *self);
 
-/// Receive an ACMPDU and process it
+/** Receive an ACMPDU and process it */
 int acmp_listener_rx_frame(void *self, struct jdksavdecc_frame *rx_frame,
 			   int pos);
 
-/// Notify the state machine that time has passed. Call asap if early_tick is
-/// 1.
+/** Notify the state machine that time has passed. Call asap if early_tick is 1. */
 void acmp_listener_tick(void *self,
 			jdksavdecc_timestamp_in_microseconds timestamp);
 

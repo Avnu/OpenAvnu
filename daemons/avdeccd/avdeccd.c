@@ -349,7 +349,7 @@ void frame_send(struct adp_adv *self, void *context, uint8_t const *buf,
 		uv_rawpkt_send_t req;
 		uv_buf_t bufs[1];
 		bufs[0].base = (char *)buf;
-		bufs[1].len = len;
+		bufs[0].len = len;
 		uv_rawpkt_send(&req, &port->rawpkt, bufs, 1, 0);
 		port = port->next;
 	}

@@ -82,9 +82,9 @@ struct srp_info_talker {
 
 	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.5 */
 	struct {
-		uint8_t data_frame_priority : 3;
-		uint8_t rank : 1;
-		uint8_t reserved : 4;
+		unsigned data_frame_priority : 3;
+		unsigned rank : 1;
+		unsigned reserved : 4;
 	} priority_and_rank;
 
 	/** See IEEE Std 802.1Q-2011 Clause 35.2.2.8.6 */
