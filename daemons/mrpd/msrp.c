@@ -3282,7 +3282,7 @@ int msrp_dumptable(struct sockaddr_in *client)
 
 }
 
-static int msrp_cmd_parse_stream_id(char *buf, int buflen,
+static int msrp_cmd_parse_stream_id(const char *buf, int buflen,
                                     uint8_t *stream_id,
 				    int *err_index )
 {
@@ -3299,7 +3299,7 @@ static int msrp_cmd_parse_stream_id(char *buf, int buflen,
 
 /* S+? - (re)JOIN a stream */
 /* S++ - NEW a stream      */
-static int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
+static int msrp_cmd_parse_join_or_new_stream(const char *buf, int buflen,
 					     struct msrpdu_talker_fail
 					     *talker_ad, int *err_index)
 {
@@ -3322,7 +3322,7 @@ static int msrp_cmd_parse_join_or_new_stream(char *buf, int buflen,
 	return parse(buf + 4, buflen - 4, specs, err_index);
 }
 
-static int msrp_cmd_parse_join_or_new_stream_failure(char *buf, int buflen,
+static int msrp_cmd_parse_join_or_new_stream_failure(const char *buf, int buflen,
 					     struct msrpdu_talker_fail
 					     *talker_ad, int *err_index)
 {
@@ -3379,7 +3379,7 @@ static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad,
 }
 
 /* S-- - LV a stream */
-static int msrp_cmd_parse_leave_stream(char *buf, int buflen,
+static int msrp_cmd_parse_leave_stream(const char *buf, int buflen,
 				       struct msrpdu_talker_fail *talker_ad,
 				       int *err_index)
 {
@@ -3409,7 +3409,7 @@ static int msrp_cmd_leave_stream(struct msrpdu_talker_fail *talker_ad)
 }
 
 /* S+L   Report a listener status */
-static int msrp_cmd_parse_report_listener_status(char *buf, int buflen,
+static int msrp_cmd_parse_report_listener_status(const char *buf, int buflen,
 						 struct msrpdu_talker_fail
 						 *talker_ad,
 						 uint32_t * substate,
@@ -3445,7 +3445,7 @@ static int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
 }
 
 /* S-L   Withdraw a listener status */
-static int msrp_cmd_parse_withdraw_listener_status(char *buf, int buflen, struct msrpdu_talker_fail
+static int msrp_cmd_parse_withdraw_listener_status(const char *buf, int buflen, struct msrpdu_talker_fail
 						   *talker_ad, int *err_index)
 {
 	struct parse_param specs[] = {
@@ -3483,7 +3483,7 @@ static int msrp_cmd_withdraw_listener_status(struct msrpdu_talker_fail
 
 /* S+D   Report a domain status */
 /* S-D   Withdraw a domain status */
-static int msrp_cmd_parse_domain_status(char *buf, int buflen,
+static int msrp_cmd_parse_domain_status(const char *buf, int buflen,
 					struct msrpdu_domain *domain,
 					int *err_index)
 {
@@ -3522,7 +3522,7 @@ static int msrp_cmd_report_domain_status(struct msrpdu_domain *domain,
 	return 0;
 }
 
-int msrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
+int msrp_recv_cmd(const char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
 	char respbuf[64];

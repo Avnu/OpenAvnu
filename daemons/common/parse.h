@@ -54,6 +54,6 @@ struct parse_param {
 	void *v;
 };
 
-int parse(char *s, int len, struct parse_param *specs, int *err_index);
+int parse(const char *s, int len, struct parse_param *specs, int *err_index);
 
 #endif				/* PARSE_H_ */
