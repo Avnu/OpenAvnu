@@ -1,0 +1,12 @@
+<map id="platform.hpp" name="platform.hpp">
+<area shape="rect" id="node2" href="$dc/d29/ieee1588_8hpp.html" title="ieee1588.hpp" alt="" coords="168,80,267,107"/>
+<area shape="rect" id="node3" href="$d6/d8f/avbts__clock_8hpp.html" title="avbts_clock.hpp" alt="" coords="69,453,185,480"/>
+<area shape="rect" id="node4" href="$d0/df2/avbts__message_8hpp.html" title="avbts_message.hpp" alt="" coords="93,229,232,256"/>
+<area shape="rect" id="node5" href="$dc/d64/avbts__port_8hpp.html" title="avbts_port.hpp" alt="" coords="109,304,216,331"/>
+<area shape="rect" id="node7" href="$dd/d95/linux__hal__common_8hpp.html" title="linux_hal_common.hpp" alt="" coords="221,453,375,480"/>
+<area shape="rect" id="node10" href="$d6/d8e/windows__hal_8hpp.html" title="windows_hal.hpp" alt="" coords="400,453,523,480"/>
+<area shape="rect" id="node11" href="$dc/d4e/avbts__osnet_8hpp.html" title="avbts_osnet.hpp" alt="" coords="210,155,328,181"/>
+<area shape="rect" id="node6" href="$d4/d4f/avbts__osipc_8hpp.html" title="avbts_osipc.hpp" alt="" coords="165,379,281,405"/>
+<area shape="rect" id="node8" href="$d3/dfb/linux__hal__generic_8hpp.html" title="linux_hal_generic.hpp" alt="" coords="141,528,288,555"/>
+<area shape="rect" id="node9" href="$d9/d0b/linux__hal__intelce_8hpp.html" title="linux_hal_intelce.hpp" alt="" coords="313,528,455,555"/>
+</map>

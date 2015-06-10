@@ -1,0 +1,6 @@
+<map id="HWTimestamper" name="HWTimestamper">
+<area shape="rect" id="node2" href="$d9/dad/classLinuxTimestamper.html" title="{LinuxTimestamper\n||+ ~LinuxTimestamper()\l+ post_init()\l}" alt="" coords="165,351,323,443"/>
+<area shape="rect" id="node5" href="$d3/d9c/classWindowsTimestamper.html" title="{WindowsTimestamper\n||+ HWTimestamper_init()\l+ HWTimestamper_gettime()\l+ HWTimestamper_txtimestamp()\l+ HWTimestamper_rxtimestamp()\l}" alt="" coords="347,337,567,458"/>
+<area shape="rect" id="node3" href="$d6/d2f/classLinuxTimestamperGeneric.html" title="{LinuxTimestamperGeneric\n||+ LinuxTimestamperGeneric()\l+ resetFrequencyAdjustment()\l+ Adjust()\l+ HWTimestamper_init()\l+ pushRXTimestamp()\l+ post_init()\l+ HWTimestamper_gettime()\l+ HWTimestamper_txtimestamp()\l+ HWTimestamper_rxtimestamp()\l+ HWTimestamper_adjclockphase()\l+ HWTimestamper_adjclockrate()\l+ ~LinuxTimestamperGeneric()\l}" alt="" coords="5,507,235,746"/>
+<area shape="rect" id="node4" href="$d4/d2f/classLinuxTimestamperIntelCE.html" title="{LinuxTimestamperIntelCE\n||+ HWTimestamper_init()\l+ HWTimestamper_txtimestamp()\l+ HWTimestamper_rxtimestamp()\l+ post_init()\l+ ~LinuxTimestamperIntelCE()\l+ LinuxTimestamperIntelCE()\l+ HWTimestamper_gettime()\l}" alt="" coords="259,544,479,709"/>
+</map>

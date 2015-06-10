@@ -1,0 +1,3 @@
+<map id="PTPMessagePathDelayResp" name="PTPMessagePathDelayResp">
+<area shape="rect" id="node2" href="$d6/d5b/classPTPMessageCommon.html" title="{PTPMessageCommon\n|# versionPTP\l# versionNetwork\l# messageType\l# sourcePortIdentity\l# sequenceId\l# control\l# flags\l# messageLength\l# logMeanMessageInterval\l# correctionField\l# domainNumber\l# _timestamp\l# _timestamp_counter\l_value\l# _gc\l|+ PTPMessageCommon()\l+ ~PTPMessageCommon()\l+ getFlags()\l+ getSequenceId()\l+ setSequenceId()\l+ getMessageType()\l+ getCorrectionField()\l+ setCorrectionField()\l+ getPortIdentity()\l+ setPortIdentity()\land 7 more...\l# PTPMessageCommon()\l}" alt="" coords="25,6,207,450"/>
+</map>

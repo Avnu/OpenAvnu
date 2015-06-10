@@ -1,0 +1,4 @@
+<map id="OS_IPC" name="OS_IPC">
+<area shape="rect" id="node2" href="$da/d45/classLinuxSharedMemoryIPC.html" title="{LinuxSharedMemoryIPC\n||+ LinuxSharedMemoryIPC()\l+ ~LinuxSharedMemoryIPC()\l+ init()\l+ update()\l+ stop()\l}" alt="" coords="5,160,197,296"/>
+<area shape="rect" id="node3" href="$d6/de1/classWindowsNamedPipeIPC.html" title="{WindowsNamedPipeIPC\n||+ WindowsNamedPipeIPC()\l+ ~WindowsNamedPipeIPC()\l+ init()\l+ update()\l}" alt="" coords="221,167,416,289"/>
+</map>

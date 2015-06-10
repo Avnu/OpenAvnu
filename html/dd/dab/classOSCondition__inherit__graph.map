@@ -1,0 +1,4 @@
+<map id="OSCondition" name="OSCondition">
+<area shape="rect" id="node2" href="$d7/df5/classLinuxCondition.html" title="{LinuxCondition\n||+ wait_prelock()\l+ wait()\l+ signal()\l+ ~LinuxCondition()\l+ LinuxCondition()\l# initialize()\l}" alt="" coords="4,235,139,386"/>
+<area shape="rect" id="node3" href="$d5/d0d/classWindowsCondition.html" title="{WindowsCondition\n||+ wait_prelock()\l+ wait()\l+ signal()\l# initialize()\l}" alt="" coords="164,250,293,371"/>
+</map>

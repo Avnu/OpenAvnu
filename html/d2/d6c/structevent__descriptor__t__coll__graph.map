@@ -1,0 +1,3 @@
+<map id="event_descriptor_t" name="event_descriptor_t">
+<area shape="rect" id="node2" href="$df/d0f/classIEEE1588Port.html" title="{IEEE1588Port\n|+ forceSlave\l|+ serializeState()\l+ restoreSerializedState()\l+ becomeMaster()\l+ becomeSlave()\l+ startPDelay()\l+ startAnnounce()\l+ syncDone()\l+ getTimerFactory()\l+ setAsCapable()\l+ getAsCapable()\land 62 more...\l}" alt="" coords="5,5,176,229"/>
+</map>

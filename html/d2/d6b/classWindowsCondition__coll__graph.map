@@ -1,0 +1,3 @@
+<map id="WindowsCondition" name="WindowsCondition">
+<area shape="rect" id="node2" href="$d1/de6/classOSCondition.html" title="{OSCondition\n||+ wait()\l+ wait_prelock()\l+ signal()\l+ ~OSCondition()\l# OSCondition()\l# up()\l# down()\l# waiting()\l}" alt="" coords="7,6,131,186"/>
+</map>

@@ -1,0 +1,4 @@
+<map id="OSNetworkInterface" name="OSNetworkInterface">
+<area shape="rect" id="node2" href="$d4/d0d/classLinuxNetworkInterface.html" title="{LinuxNetworkInterface\n||+ send()\l+ nrecv()\l+ disable_clear_rx_queue()\l+ reenable_rx_queue()\l+ getLinkLayerAddress()\l+ getPayloadOffset()\l+ ~LinuxNetworkInterface()\l# LinuxNetworkInterface()\l}" alt="" coords="5,190,187,370"/>
+<area shape="rect" id="node3" href="$d9/d5a/classWindowsPCAPNetworkInterface.html" title="{WindowsPCAPNetworkInterface\n||+ send()\l+ nrecv()\l+ getLinkLayerAddress()\l+ getPayloadOffset()\l+ ~WindowsPCAPNetworkInterface()\l# WindowsPCAPNetworkInterface()\l}" alt="" coords="211,205,452,355"/>
+</map>

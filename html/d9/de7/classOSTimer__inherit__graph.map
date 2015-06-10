@@ -1,0 +1,4 @@
+<map id="OSTimer" name="OSTimer">
+<area shape="rect" id="node2" href="$d2/d4a/classLinuxTimer.html" title="{LinuxTimer\n||+ sleep()\l# LinuxTimer()\l}" alt="" coords="5,147,109,239"/>
+<area shape="rect" id="node3" href="$d8/d4d/classWindowsTimer.html" title="{WindowsTimer\n||+ sleep()\l# WindowsTimer()\l}" alt="" coords="135,147,263,239"/>
+</map>

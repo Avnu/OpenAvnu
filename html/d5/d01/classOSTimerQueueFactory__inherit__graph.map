@@ -1,0 +1,4 @@
+<map id="OSTimerQueueFactory" name="OSTimerQueueFactory">
+<area shape="rect" id="node2" href="$d6/d7e/classLinuxTimerQueueFactory.html" title="{LinuxTimerQueueFactory\n||+ createOSTimerQueue()\l}" alt="" coords="5,147,173,224"/>
+<area shape="rect" id="node3" href="$d9/d98/classWindowsTimerQueueFactory.html" title="{WindowsTimerQueueFactory\n||+ createOSTimerQueue()\l}" alt="" coords="198,147,388,224"/>
+</map>

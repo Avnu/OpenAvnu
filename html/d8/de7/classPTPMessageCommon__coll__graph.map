@@ -1,0 +1,4 @@
+<map id="PTPMessageCommon" name="PTPMessageCommon">
+<area shape="rect" id="node2" href="$d2/d8f/classTimestamp.html" title="{Timestamp\n|+ nanoseconds\l+ seconds_ls\l+ seconds_ms\l+ _version\l|+ Timestamp()\l+ Timestamp()\l+ toString()\l+ operator+()\l+ operator&#45;()\l+ set64()\l}" alt="" coords="5,28,115,223"/>
+<area shape="rect" id="node3" href="$d5/daa/classPortIdentity.html" title="{PortIdentity\n||+ PortIdentity()\l+ PortIdentity()\l+ operator!=()\l+ operator==()\l+ operator\&lt;()\l+ operator\&gt;()\l+ getClockIdentityString()\l+ setClockIdentity()\l+ getClockIdentity()\l+ getPortNumberNO()\l+ getPortNumber()\l+ setPortNumber()\l}" alt="" coords="140,6,311,245"/>
+</map>

@@ -1,0 +1,6 @@
+<map id="IPCSharedData" name="IPCSharedData">
+<area shape="rect" id="node2" href="$d0/da5/classPeerList.html" title="{PeerList\n||+ PeerList()\l+ find()\l+ add()\l+ remove()\l+ begin()\l+ end()\l+ setInit()\l+ setRm()\l+ IsReady()\l+ setReady()\l}" alt="" coords="5,193,104,402"/>
+<area shape="rect" id="node3" href="$d4/dfb/classLockable.html" title="{Lockable\n||+ Lockable()\l+ get()\l+ put()\l}" alt="" coords="17,20,111,127"/>
+<area shape="rect" id="node4" href="$d4/d54/classLockableOffset.html" title="{LockableOffset\n||+ LockableOffset()\l+ isReady()\l+ setReady()\l}" alt="" coords="128,244,257,351"/>
+<area shape="rect" id="node5" href="$d2/d3c/classOffset.html" title="{Offset\n|+ ml_phoffset\l+ ml_freqoffset\l+ ls_phoffset\l+ ls_freqoffset\l+ local_time\l|}" alt="" coords="138,5,248,141"/>
+</map>

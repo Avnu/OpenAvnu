@@ -1,0 +1,5 @@
+<map id="WindowsNPipeMessage" name="WindowsNPipeMessage">
+<area shape="rect" id="node2" href="$d6/d57/classWinNPipeCtrlMessage.html" title="{WinNPipeCtrlMessage\n||+ init()\l+ init()\l+ getPeerAddr()\l+ setPeerAddr()\l+ getCtrlWhich()\l+ setCtrlWhich()\l+ getFlags()\l}" alt="" coords="4,263,157,428"/>
+<area shape="rect" id="node3" href="$d8/ded/classWinNPipeOffsetUpdateMessage.html" title="{WinNPipeOffsetUpdateMessage\n||+ _init()\l+ init()\l+ init()\l+ init()\l+ getMasterLocalOffset()\l+ getMasterLocalFreqOffset()\l+ getLocalSystemOffset()\l+ getLocalSystemFreqOffset()\l+ getLocalTime()\l}" alt="" coords="182,248,393,443"/>
+<area shape="rect" id="node4" href="$da/db9/classWinNPipeQueryMessage.html" title="{WinNPipeQueryMessage\n||+ init()\l}" alt="" coords="418,307,587,384"/>
+</map>
