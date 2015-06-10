@@ -91,7 +91,7 @@ int parse(const char *s, int len, struct parse_param *specs, int *err_index)
 		case parse_null:
 			break;
 		case parse_u8:
-			result = sscanf(data, "%ud", &v_uint);
+			result = sscanf(data, "%u", &v_uint);
 			if (result == 1) {
 				*(uint8_t *) specs->v = (uint8_t) v_uint;
 			} else {
@@ -108,7 +108,7 @@ int parse(const char *s, int len, struct parse_param *specs, int *err_index)
 			}
 			break;
 		case parse_u16:
-			result = sscanf(data, "%ud", &v_uint);
+			result = sscanf(data, "%u", &v_uint);
 			if (result == 1) {
 				*(uint16_t *) specs->v = (uint16_t) v_uint;
 			} else {
@@ -117,7 +117,7 @@ int parse(const char *s, int len, struct parse_param *specs, int *err_index)
 			}
 			break;
 		case parse_u32:
-			result = sscanf(data, "%ud", &v_uint);
+			result = sscanf(data, "%u", &v_uint);
 			if (result == 1) {
 				*(uint32_t *) specs->v = v_uint;
 			} else {
