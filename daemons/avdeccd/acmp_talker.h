@@ -230,15 +230,14 @@ struct acmp_talker {
 int acmp_talker_init(struct acmp_talker *self,
 		     struct acmp_talker_signals const *outgoing_signals);
 
-/// Destroy any resources that the acmp_talker uses
+/** Destroy any resources that the acmp_talker uses */
 void acmp_talker_terminate(struct acmp_talker *self);
 
-/// Receive an ACMPDU and process it
+/** Receive an ACMPDU and process it */
 int acmp_talker_rx_frame(struct acmp_talker *self,
 			 struct jdksavdecc_frame *rx_frame, int pos);
 
-/// Notify the state machine that time has passed. Call asap if early_tick is
-/// 1.
+/** Notify the state machine that time has passed. Call asap if early_tick is 1. */
 void acmp_talker_tick(struct acmp_talker *self,
 		      jdksavdecc_timestamp_in_microseconds timestamp);
 

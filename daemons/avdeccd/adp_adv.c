@@ -30,13 +30,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "adp_adv.h"
 
-/// Form the entity available message and send it
+/** Form the entity available message and send it */
 static void adp_adv_send_entity_available(struct adp_adv *self);
 
-/// Form the entity departing message and send it
+/** Form the entity departing message and send it */
 static void adp_adv_send_entity_departing(struct adp_adv *self);
 
-/// Form the entity discover message and send it
+/** Form the entity discover message and send it */
 static void adp_adv_send_entity_discover(struct adp_adv *self);
 
 int adp_adv_init(struct adp_adv *self, void *context,
@@ -84,11 +84,13 @@ int adp_adv_receive(struct adp_adv *self,
 		r = 1;
 		switch (incoming.header.message_type) {
 		case JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DISCOVER:
-			// only respond to discover messages if we are not
-			// stopped
+			/* only respond to discover messages if we are not
+			 * stopped
+			 */
 			if (!self->stopped) {
-				// handle the case where the discover message
-				// references our entity id or 0
+				/* handle the case where the discover message
+				 * references our entity id or 0
+				 */
 				if (jdksavdecc_eui64_compare(
 					&incoming.header.entity_id,
 					&self->adpdu.header.entity_id) ||
@@ -100,8 +102,9 @@ int adp_adv_receive(struct adp_adv *self,
 			}
 			break;
 		case JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE:
-			// only handle incoming available messages if we have a
-			// place to give them to
+			/* only handle incoming available messages if we have a
+			 * place to give them to
+			 */
 			if (self->received_entity_available_or_departing) {
 				self->received_entity_available_or_departing(
 				    self, self->context, source_address,
@@ -109,8 +112,9 @@ int adp_adv_receive(struct adp_adv *self,
 			}
 			break;
 		case JDKSAVDECC_ADP_MESSAGE_TYPE_ENTITY_DEPARTING:
-			// only handle incoming departing messages if we have a
-			// place to give them to
+			/* only handle incoming departing messages if we have a
+			 * place to give them to
+			 */
 			if (self->received_entity_available_or_departing) {
 				self->received_entity_available_or_departing(
 				    self, self->context, source_address,
@@ -128,84 +132,81 @@ void adp_adv_tick(struct adp_adv *self,
 		  jdksavdecc_timestamp_in_microseconds cur_time_in_micros)
 {
 
-	// calculate the time since the last send
+	/* calculate the time since the last send */
 	jdksavdecc_timestamp_in_microseconds difftime =
 	    cur_time_in_micros - self->last_time_in_microseconds;
 
 	jdksavdecc_timestamp_in_microseconds valid_time_in_ms =
 	    self->adpdu.header.valid_time;
 
-	// calculate the time in microseconds between sends.
-	// header.valid_time is in 2 second increments. We are to send
-	// 4 available messages per valid_time.
+	/*
+	 * calculate the time in microseconds between sends.
+	 * header.valid_time is in 2 second increments. We are to send
+	 * 4 available messages per valid_time.
+	 */
 	valid_time_in_ms = (valid_time_in_ms * 1000) / 2;
 
-	// limit it to be at most one send per second
+	/* limit it to be at most one send per second */
 	if (valid_time_in_ms < 1000) {
 		valid_time_in_ms = 1000;
 	}
 
-	// clear any early tick flag
+	/* clear any early tick flag */
 	self->early_tick = 0;
 
-	// only send messages available/departing messages if we are not stopped
+	/* only send messages available/departing messages if we are not stopped */
 
-	// are we departing?
+	/* are we departing? */
 	if (self->do_send_entity_departing) {
 
-		// yes, we are sending an entity departing message.
-		// clear any do_send flags
+		/* yes, we are sending an entity departing message.
+		 * clear any do_send flags
+		 */
 
 		self->do_send_entity_departing = 0;
 		self->do_send_entity_available = 0;
 
-		// change into pause state
+		/* change into pause state */
 
 		self->stopped = 1;
 
-		// record the time we send it
+		/* record the time we send it */
 
 		self->last_time_in_microseconds = cur_time_in_micros;
 
-		// send the departing
+		/* send the departing */
 
 		adp_adv_send_entity_departing(self);
 
-		// reset the available_index to 0
+		/* reset the available_index to 0 */
 
 		self->adpdu.available_index = 0;
 	}
 
 	if (!self->stopped) {
-		// if we are running and it is time to send an available, set
-		// the flag
+		/* if we are running and it is time to send an available, set the flag */
 		if (difftime > valid_time_in_ms) {
 			self->do_send_entity_available = 1;
 		}
 
-		// if the flag is set for whatever reason and we are running
-		// then send the available and clear the flag
+		/* if the flag is set for whatever reason and we are running then send the available and clear the flag */
 		if (self->do_send_entity_available) {
-			// we are to send entity available message
-			// clear the request flag
-
+			/* we are to send entity available message. clear the request flag */
 			self->do_send_entity_available = 0;
 
-			// record the time we send it
-
+			/* record the time we send it */
 			self->last_time_in_microseconds = cur_time_in_micros;
 
-			// send the available
-
+			/* send the available */
 			adp_adv_send_entity_available(self);
 		}
 	}
 
-	// are we asked to send an entity discover message?
+	/* are we asked to send an entity discover message? */
 
 	if (self->do_send_entity_discover) {
 
-		// yes, clear the flag and send it
+		/* yes, clear the flag and send it */
 
 		self->do_send_entity_discover = 0;
 		adp_adv_send_entity_discover(self);

@@ -83,8 +83,10 @@ struct adp_adv_slots {
 /** \addtogroup adpdu_msg ADP Message Types - Clause 6.2.1.5 */
 /*@{*/
 
-/// adp object manages scheduling and sending adp entity available messages
-/// and responding to adp entity discover messages.
+/**
+ * adp object manages scheduling and sending adp entity available messages
+ * and responding to adp entity discover messages.
+ */
 struct adp_adv {
 	struct adp_adv_slots adv_slots;
 
@@ -95,35 +97,35 @@ struct adp_adv {
 	void *context;
 	struct jdksavdecc_frame_sender *frame_send;
 
-	/// The current ADPDU that is sent
+	/** The current ADPDU that is sent */
 	struct jdksavdecc_adpdu adpdu;
 
-	/// The system time in microseconds that the last ADPDU was sent
+	/** The system time in microseconds that the last ADPDU was sent */
 	jdksavdecc_timestamp_in_microseconds last_time_in_microseconds;
 
-	/// A flag used to notify the state machine to trigger the sending of a
-	/// discover message immediately
+	/** A flag used to notify the state machine to trigger the sending of a
+	 * discover message immediately 
+     */
 	int do_send_entity_discover;
 
-	/// A flag used to notify the state machine to trigger the sending of an
-	/// entity available message immediately
+	/** A flag used to notify the state machine to trigger the sending of an
+	 * entity available message immediately
+     */
 	int do_send_entity_available;
 
-	/// A flag used to notify the state machine to send departing message
-	/// instead of available
+	/** A flag used to notify the state machine to send departing message instead of available */
 	int do_send_entity_departing;
 
-	/// The function that the adp calls if it received an entity available
-	/// or entity available
-	/// for some other entity on the network.  May be set to 0 if the user
-	/// does not care.
+	/** The function that the adp calls if it received an entity available 
+     *  or entity available for some other entity on the network.  
+     * May be set to 0 if the user does not care. 
+     */
 	void (*received_entity_available_or_departing)(
 	    struct adp_adv *self, void *context, void const *source_address,
 	    int source_address_len, struct jdksavdecc_adpdu *adpdu);
 };
 
-/// Initialize an adp with the specified context and frame_send function and
-/// received_entity_available_or_departing function
+/** Initialize an adp with the specified context and frame_send function and received_entity_available_or_departing function */
 int adp_adv_init(struct adp_adv *self, void *context,
 		 void (*frame_send)(struct adp_adv *self, void *context,
 				    uint8_t const *buf, uint16_t len),
@@ -132,32 +134,26 @@ int adp_adv_init(struct adp_adv *self, void *context,
 		     void const *source_address, int source_address_len,
 		     struct jdksavdecc_adpdu *adpdu));
 
-/// Destroy any resources that the adp uses
+/** Destroy any resources that the adp uses */
 void adp_adv_terminate(struct adp_adv *self);
 
-/// Receive an ADPU and process it
+/** Receive an ADPU and process it */
 int adp_adv_receive(struct adp_adv *self,
 		    jdksavdecc_timestamp_in_microseconds time_in_microseconds,
 		    void const *source_address, int source_address_len,
 		    uint8_t const *buf, uint16_t len);
 
-/// Notify the state machine that time has passed. Call asap if early_tick is
-/// 1.
+/** Notify the state machine that time has passed. Call asap if early_tick is 1. */
 void adp_adv_tick(struct adp_adv *self,
 		  jdksavdecc_timestamp_in_microseconds cur_time_in_micros);
 
-/// Request the state machine to send an entity discover message on the next
-/// tick.
+/** Request the state machine to send an entity discover message on the next tick. */
 void adp_adv_trigger_send_discover(struct adp_adv *self);
-
-/// Request the state machine to send an entity available message on the next
-/// tick.
-/// Starts the state machine if is was stopped.
+   
+/** Request the state machine to send an entity available message on the next tick. the state machine if is was stopped. */
 void adp_adv_trigger_send_available(struct adp_adv *self);
 
-/// Request the state machine to send an entity departing message on the next
-/// tick and
-/// then transition to stopped mode and reset available_index to 0
+/** Request the state machine to send an entity departing message on the next tick and then transition to stopped mode and reset available_index to 0 */
 void adp_adv_trigger_send_departing(struct adp_adv *self);
 
 /*@}*/

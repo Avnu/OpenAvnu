@@ -1,4 +1,4 @@
-CC = gcc
+CC ?= gcc
 OPT = -O2 -g
 CFLAGS = $(OPT) -Wall -Wextra -Wno-parentheses -std=gnu99
 INCFLAGS = -I../../lib/igb -I../../daemons/mrpd -I../common -I../../daemons/common
@@ -13,7 +13,7 @@ jack.o: jack.c jack.h defines.h
 	$(CC) $(CFLAGS) -c jack.c
 
 jackd_talker.o: jackd_talker.c defines.h jack.h
-	gcc -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) jackd_talker.c
+	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) jackd_talker.c
 
 ../common/talker_mrp_client.o:
 	make -C ../common/ talker_mrp_client.o
