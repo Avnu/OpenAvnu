@@ -65,6 +65,20 @@ int parse(const char *s, int len, struct parse_param *specs, int *err_index)
 	uint64_t v_uint64;
 	int result = 0;
 	int count = 0;
+	int i;
+	
+	/*
+	 * Check null termination.
+	 * len is the length of the buffer containing the string,
+	 * not strlen(s). Typically len will be strlen(s)+1.
+	 */
+	for(i = 0; i < len; i++)
+		if (s[i] == 0)
+			break;
+	
+	/* NULL termination check failed, return error */
+	if (i == len)
+		return -1;
 
 	guard = s + strlen(s);
 
