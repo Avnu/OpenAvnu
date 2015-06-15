@@ -43,8 +43,8 @@ typedef __int32 int32_t;
 typedef unsigned __int32 uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-#define PRIu64       "I64u"
-#define PRIx64       "I64x"
+#define SCNu64       "I64u"
+#define SCNx64       "I64x"
 #endif
 
 #include "CppUTest/TestHarness.h"
@@ -218,12 +218,55 @@ TEST(ParseTestGroup, TestParse_u32)
 	}
 }
 
+/*
+* Test parse_u64, h64 and c64 operation.
+*/
+TEST(ParseTestGroup, TestParse_u64)
+{
+	uint64_t value;
+	uint8_t stream_id[32];
+	int err_index;
+	int status;
+	struct parse_param specsu[] = {
+		{ "C" PARSE_ASSIGN, parse_u64, &value },
+		{ 0, parse_null, 0 } };
+	struct parse_param specsx[] = {
+		{ "C" PARSE_ASSIGN, parse_h64, &value },
+		{ 0, parse_null, 0 } };
+	struct parse_param specsc[] = {
+		{ "C" PARSE_ASSIGN, parse_c64, &stream_id },
+		{ 0, parse_null, 0 } };
+	char strz[64];
+	int i, j;
 
+	sprintf(strz, "C=0");
 
-#if 0
-/* ToDo */
-parse_u64,		/* uint64_t v */
-parse_h64,		/* uint64_t v */
-parse_c64,		/* uint8_t a[8] */
-parse_mac		/* uint8_t m[6] */
-#endif
+	// error case where strlen() is used instead of sizoeof()
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz), specsu, &err_index);
+	CHECK(0 != status);
+
+	// iterate over many u64, h64 and c64 options
+	for (i = 0; i < sizeof(value) * 8; i++)
+	{
+		uint64_t ref = (uint64_t)1 << i;
+		sprintf(strz, "C=%" SCNu64, ref);
+		memset(&value, 0, sizeof(value));
+		status = parse(strz, strlen(strz) + 1, specsu, &err_index);
+		CHECK(0 == status);
+		CHECK(value == ref);
+		sprintf(strz, "C=%" SCNx64, ref);
+		memset(&value, 0, sizeof(value));
+		status = parse(strz, strlen(strz) + 1, specsx, &err_index);
+		CHECK(0 == status);
+		CHECK(value == ref);
+		sprintf(strz, "C=%" SCNx64, ref);
+		memset(&value, 0, sizeof(value));
+		status = parse(strz, strlen(strz) + 1, specsc, &err_index);
+		CHECK(0 == status);
+		for (j = 0; j < 8; j++)
+		{
+			CHECK(stream_id[j] == (uint8_t)(ref >> (8 * (7 - j))));
+		}
+	}
+}
