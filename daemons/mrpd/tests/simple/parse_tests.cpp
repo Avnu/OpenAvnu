@@ -92,6 +92,7 @@ TEST(ParseTestGroup, TestParse_null)
 TEST(ParseTestGroup, TestParse_u8)
 {
 	uint8_t value;
+	uint8_t ref;
 	int err_index;
 	int status;
 	struct parse_param specs[] = {
@@ -107,16 +108,33 @@ TEST(ParseTestGroup, TestParse_u8)
 	status = parse(strz, strlen(strz), specs, &err_index);
 	CHECK(0 != status);
 
+	// zero case
+	ref = 0;
+	sprintf(strz, "C=%u", ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specs, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
+
 	// iterate over many u8 options
 	for (i = 0; i < sizeof(value) * 8; i++)
 	{
-		uint8_t ref = (uint8_t)(1 << i);
+		ref = (uint8_t)(1 << i);
 		sprintf(strz, "C=%u", ref);
 		memset(&value, 0, sizeof(value));
 		status = parse(strz, strlen(strz) + 1, specs, &err_index);
 		CHECK(0 == status);
 		CHECK(value == ref);
 	}
+
+	// fullscale case
+	ref = 0xff;
+	sprintf(strz, "C=%u", ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specs, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
+
 }
 
 /*
@@ -125,6 +143,7 @@ TEST(ParseTestGroup, TestParse_u8)
 TEST(ParseTestGroup, TestParse_u16)
 {
 	uint16_t value;
+	uint16_t ref;
 	int err_index;
 	int status;
 	struct parse_param specs[] = {
@@ -140,16 +159,32 @@ TEST(ParseTestGroup, TestParse_u16)
 	status = parse(strz, strlen(strz), specs, &err_index);
 	CHECK(0 != status);
 
+	// zero case
+	ref = 0;
+	sprintf(strz, "C=%u", ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specs, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
+
 	// iterate over many u16 options
 	for (i = 0; i < sizeof(value) * 8; i++)
 	{
-		uint16_t ref = (uint16_t)(1 << i);
+		ref = (uint16_t)(1 << i);
 		sprintf(strz, "C=%u", ref);
 		memset(&value, 0, sizeof(value));
 		status = parse(strz, strlen(strz) + 1, specs, &err_index);
 		CHECK(0 == status);
 		CHECK(value == ref);
 	}
+
+	// fullscale case
+	ref = 0xffff;
+	sprintf(strz, "C=%u", ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specs, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
 }
 
 /*
@@ -158,6 +193,7 @@ TEST(ParseTestGroup, TestParse_u16)
 TEST(ParseTestGroup, TestParse_u16_04x)
 {
 	uint16_t value;
+	uint16_t ref;
 	int err_index;
 	int status;
 	struct parse_param specs[] = {
@@ -173,16 +209,32 @@ TEST(ParseTestGroup, TestParse_u16_04x)
 	status = parse(strz, strlen(strz), specs, &err_index);
 	CHECK(0 != status);
 
+	// zero
+	ref = 0;
+	sprintf(strz, "C=%04x", ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specs, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
+
 	// iterate over many u16_04x options
 	for (i = 0; i < sizeof(value) * 8; i++)
 	{
-		uint16_t ref = (uint16_t)(1 << i);
+		ref = (uint16_t)(1 << i);
 		sprintf(strz, "C=%04x", ref);
 		memset(&value, 0, sizeof(value));
 		status = parse(strz, strlen(strz) + 1, specs, &err_index);
 		CHECK(0 == status);
 		CHECK(value == ref);
 	}
+
+	// fullscale case
+	ref = 0xffff;
+	sprintf(strz, "C=%04x", ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specs, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
 }
 
 /*
@@ -191,6 +243,7 @@ TEST(ParseTestGroup, TestParse_u16_04x)
 TEST(ParseTestGroup, TestParse_u32)
 {
 	uint32_t value;
+	uint32_t ref;
 	int err_index;
 	int status;
 	struct parse_param specs[] = {
@@ -206,16 +259,32 @@ TEST(ParseTestGroup, TestParse_u32)
 	status = parse(strz, strlen(strz), specs, &err_index);
 	CHECK(0 != status);
 
+	// 0 case
+	ref = 0;
+	sprintf(strz, "C=%u", ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specs, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
+
 	// iterate over many u32 options
 	for (i = 0; i < sizeof(value) * 8; i++)
 	{
-		uint32_t ref = (uint32_t)1 << i;
+		ref = (uint32_t)1 << i;
 		sprintf(strz, "C=%u", ref);
 		memset(&value, 0, sizeof(value));
 		status = parse(strz, strlen(strz) + 1, specs, &err_index);
 		CHECK(0 == status);
 		CHECK(value == ref);
 	}
+
+	// fullscale case
+	ref = 0xffffffff;
+	sprintf(strz, "C=%u", ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specs, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
 }
 
 /*
@@ -224,6 +293,7 @@ TEST(ParseTestGroup, TestParse_u32)
 TEST(ParseTestGroup, TestParse_u64)
 {
 	uint64_t value;
+	uint64_t ref;
 	uint8_t stream_id[32];
 	int err_index;
 	int status;
@@ -246,10 +316,31 @@ TEST(ParseTestGroup, TestParse_u64)
 	status = parse(strz, strlen(strz), specsu, &err_index);
 	CHECK(0 != status);
 
+	// 0 case
+	ref = 0;
+	sprintf(strz, "C=%" SCNu64, ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specsu, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
+	sprintf(strz, "C=%" SCNx64, ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specsx, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
+	sprintf(strz, "C=%" SCNx64, ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specsc, &err_index);
+	CHECK(0 == status);
+	for (j = 0; j < 8; j++)
+	{
+		CHECK(stream_id[j] == (uint8_t)(ref >> (8 * (7 - j))));
+	}
+
 	// iterate over many u64, h64 and c64 options
 	for (i = 0; i < sizeof(value) * 8; i++)
 	{
-		uint64_t ref = (uint64_t)1 << i;
+		ref = (uint64_t)1 << i;
 		sprintf(strz, "C=%" SCNu64, ref);
 		memset(&value, 0, sizeof(value));
 		status = parse(strz, strlen(strz) + 1, specsu, &err_index);
@@ -268,5 +359,26 @@ TEST(ParseTestGroup, TestParse_u64)
 		{
 			CHECK(stream_id[j] == (uint8_t)(ref >> (8 * (7 - j))));
 		}
+	}
+
+	// fullscale case
+	ref = (uint64_t)-1;
+	sprintf(strz, "C=%" SCNu64, ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specsu, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
+	sprintf(strz, "C=%" SCNx64, ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specsx, &err_index);
+	CHECK(0 == status);
+	CHECK(value == ref);
+	sprintf(strz, "C=%" SCNx64, ref);
+	memset(&value, 0, sizeof(value));
+	status = parse(strz, strlen(strz) + 1, specsc, &err_index);
+	CHECK(0 == status);
+	for (j = 0; j < 8; j++)
+	{
+		CHECK(stream_id[j] == (uint8_t)(ref >> (8 * (7 - j))));
 	}
 }
