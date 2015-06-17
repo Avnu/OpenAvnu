@@ -74,7 +74,7 @@ TEST(ParseTestGroup, TestParse_null)
 		{ 0, parse_null, 0 }};
 	const char strz[] = "C=1234";
 
-	// error case where strlen() is used instead of sizoeof()
+	// error case where strlen() is used instead of sizeof()
 	memset(&value, 0, sizeof(value));
 	status = parse(strz, strlen(strz), specs, &err_index);
 	CHECK(0 != status);
@@ -102,7 +102,7 @@ TEST(ParseTestGroup, TestParse_u8)
 
 	sprintf(strz, "C=0");
 
-	// error case where strlen() is used instead of sizoeof()
+	// error case where strlen() is used instead of sizeof()
 	memset(&value, 0, sizeof(value));
 	status = parse(strz, strlen(strz), specs, &err_index);
 	CHECK(0 != status);
@@ -135,7 +135,7 @@ TEST(ParseTestGroup, TestParse_u16)
 
 	sprintf(strz, "C=0");
 
-	// error case where strlen() is used instead of sizoeof()
+	// error case where strlen() is used instead of sizeof()
 	memset(&value, 0, sizeof(value));
 	status = parse(strz, strlen(strz), specs, &err_index);
 	CHECK(0 != status);
@@ -168,7 +168,7 @@ TEST(ParseTestGroup, TestParse_u16_04x)
 
 	sprintf(strz, "C=0");
 
-	// error case where strlen() is used instead of sizoeof()
+	// error case where strlen() is used instead of sizeof()
 	memset(&value, 0, sizeof(value));
 	status = parse(strz, strlen(strz), specs, &err_index);
 	CHECK(0 != status);
@@ -201,7 +201,7 @@ TEST(ParseTestGroup, TestParse_u32)
 
 	sprintf(strz, "C=0");
 
-	// error case where strlen() is used instead of sizoeof()
+	// error case where strlen() is used instead of sizeof()
 	memset(&value, 0, sizeof(value));
 	status = parse(strz, strlen(strz), specs, &err_index);
 	CHECK(0 != status);
@@ -241,7 +241,7 @@ TEST(ParseTestGroup, TestParse_u64)
 
 	sprintf(strz, "C=0");
 
-	// error case where strlen() is used instead of sizoeof()
+	// error case where strlen() is used instead of sizeof()
 	memset(&value, 0, sizeof(value));
 	status = parse(strz, strlen(strz), specsu, &err_index);
 	CHECK(0 != status);
