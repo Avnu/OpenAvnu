@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
+  Copyright(c) 2007-2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -101,20 +101,18 @@ s32 e1000_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length);
 s32 e1000_get_thermal_sensor_data(struct e1000_hw *hw);
 s32 e1000_init_thermal_sensor_thresh(struct e1000_hw *hw);
 
-
-
 /*
  * TBI_ACCEPT macro definition:
  *
  * This macro requires:
- *      adapter = a pointer to struct e1000_hw
+ *      a = a pointer to struct e1000_hw
  *      status = the 8 bit status field of the Rx descriptor with EOP set
- *      error = the 8 bit error field of the Rx descriptor with EOP set
+ *      errors = the 8 bit error field of the Rx descriptor with EOP set
  *      length = the sum of all the length fields of the Rx descriptors that
  *               make up the current frame
  *      last_byte = the last byte of the frame DMAed by the hardware
- *      max_frame_length = the maximum frame length we want to accept.
- *      min_frame_length = the minimum frame length we want to accept.
+ *      min_frame_size = the minimum frame length we want to accept.
+ *      max_frame_size = the maximum frame length we want to accept.
  *
  * This macro is a conditional that should be used in the interrupt
  * handler's Rx processing routine when RxErrors have been detected.
@@ -140,10 +138,10 @@ s32 e1000_init_thermal_sensor_thresh(struct e1000_hw *hw);
 	 (((errors) & E1000_RXD_ERR_FRAME_ERR_MASK) == E1000_RXD_ERR_CE) && \
 	 ((last_byte) == CARRIER_EXTENSION) && \
 	 (((status) & E1000_RXD_STAT_VP) ? \
-	  (((length) > (min_frame_size - VLAN_TAG_SIZE)) && \
-	  ((length) <= (max_frame_size + 1))) : \
-	  (((length) > min_frame_size) && \
-	  ((length) <= (max_frame_size + VLAN_TAG_SIZE + 1)))))
+	  (((length) > ((min_frame_size) - VLAN_TAG_SIZE)) && \
+	  ((length) <= ((max_frame_size) + 1))) : \
+	  (((length) > (min_frame_size)) && \
+	  ((length) <= ((max_frame_size) + VLAN_TAG_SIZE + 1)))))
 
 #ifndef E1000_MAX
 #define E1000_MAX(a, b) ((a) > (b) ? (a) : (b))
