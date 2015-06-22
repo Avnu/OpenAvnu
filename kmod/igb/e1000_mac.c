@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
+  Copyright(c) 2007-2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -310,7 +310,6 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	ret_val = hw->nvm.ops.read(hw, NVM_COMPAT, 1, &nvm_data);
 	if (ret_val)
 		return ret_val;
-
 
 	/* Alternate MAC address is handled by the option ROM for 82580
 	 * and newer. SW support not required.
@@ -869,7 +868,6 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 					   NVM_INIT_CONTROL2_REG,
 					   1, &nvm_data);
 	}
-
 
 	if (ret_val) {
 		DEBUGOUT("NVM Read Error\n");

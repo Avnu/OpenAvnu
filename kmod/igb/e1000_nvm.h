@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
+  Copyright(c) 2007-2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -25,7 +25,6 @@
 #ifndef _E1000_NVM_H_
 #define _E1000_NVM_H_
 
-
 struct e1000_fw_version {
 	u32 etrack_id;
 	u16 eep_major;
@@ -41,7 +40,6 @@ struct e1000_fw_version {
 	u16 or_build;
 	u16 or_patch;
 };
-
 
 void e1000_init_nvm_ops_generic(struct e1000_hw *hw);
 s32  e1000_null_read_nvm(struct e1000_hw *hw, u16 a, u16 b, u16 *c);

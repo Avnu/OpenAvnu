@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
+  Copyright(c) 2007-2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -55,11 +55,13 @@
 #define E1000_WUS_BC		E1000_WUFC_BC
 
 /* Extended Device Control */
+#define E1000_CTRL_EXT_LPCD		0x00000004 /* LCD Power Cycle Done */
 #define E1000_CTRL_EXT_SDP4_DATA	0x00000010 /* SW Definable Pin 4 data */
 #define E1000_CTRL_EXT_SDP6_DATA	0x00000040 /* SW Definable Pin 6 data */
 #define E1000_CTRL_EXT_SDP3_DATA	0x00000080 /* SW Definable Pin 3 data */
 #define E1000_CTRL_EXT_SDP6_DIR	0x00000400 /* Direction of SDP6 0=in 1=out */
 #define E1000_CTRL_EXT_SDP3_DIR	0x00000800 /* Direction of SDP3 0=in 1=out */
+#define E1000_CTRL_EXT_FORCE_SMBUS	0x00000800 /* Force SMBus mode */
 #define E1000_CTRL_EXT_EE_RST	0x00002000 /* Reinitialize from EEPROM */
 /* Physical Func Reset Done Indication */
 #define E1000_CTRL_EXT_PFRSTD	0x00004000
@@ -180,6 +182,7 @@
 #define E1000_RCTL_LBM_TCVR	0x000000C0 /* tcvr loopback mode */
 #define E1000_RCTL_DTYP_PS	0x00000400 /* Packet Split descriptor */
 #define E1000_RCTL_RDMTS_HALF	0x00000000 /* Rx desc min thresh size */
+#define E1000_RCTL_RDMTS_HEX	0x00010000
 #define E1000_RCTL_MO_SHIFT	12 /* multicast offset shift */
 #define E1000_RCTL_MO_3		0x00003000 /* multicast offset 15:4 */
 #define E1000_RCTL_BAM		0x00008000 /* broadcast enable */
@@ -262,7 +265,6 @@
 #define E1000_CTRL_PHY_RST	0x80000000 /* PHY Reset */
 #define E1000_CTRL_I2C_ENA	0x02000000 /* I2C enable */
 
-
 #define E1000_CONNSW_ENRGSRC		0x4
 #define E1000_CONNSW_PHYSD		0x400
 #define E1000_CONNSW_PHY_PDN		0x800
@@ -313,7 +315,6 @@
 #define SPEED_2500	2500
 #define HALF_DUPLEX	1
 #define FULL_DUPLEX	2
-
 
 #define ADVERTISE_10_HALF		0x0001
 #define ADVERTISE_10_FULL		0x0002
@@ -466,6 +467,12 @@
 
 #define E1000_PBS_16K		E1000_PBA_16K
 
+/* Uncorrectable/correctable ECC Error counts and enable bits */
+#define E1000_PBECCSTS_CORR_ERR_CNT_MASK	0x000000FF
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_MASK	0x0000FF00
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT	8
+#define E1000_PBECCSTS_ECC_ENABLE		0x00010000
+
 #define IFS_MAX			80
 #define IFS_MIN			40
 #define IFS_RATIO		4
@@ -495,6 +502,7 @@
 #define E1000_ICR_GPI_EN3	0x00004000 /* GP Int 3 */
 #define E1000_ICR_TXD_LOW	0x00008000
 #define E1000_ICR_MNG		0x00040000 /* Manageability event */
+#define E1000_ICR_ECCER		0x00400000 /* Uncorrectable ECC Error */
 #define E1000_ICR_TS		0x00080000 /* Time Sync Interrupt */
 #define E1000_ICR_DRSTA		0x40000000 /* Device Reset Asserted */
 /* If this bit asserted, the driver should claim the interrupt */
@@ -504,7 +512,6 @@
 
 #define E1000_ICR_THS		0x00800000 /* ICR.THS: Thermal Sensor Event*/
 #define E1000_ICR_MDDET		0x10000000 /* Malicious Driver Detect */
-
 
 /* Extended Interrupt Cause Read */
 #define E1000_EICR_RX_QUEUE0	0x00000001 /* Rx Queue 0 Interrupt */
@@ -548,6 +555,7 @@
 #define E1000_IMS_RXO		E1000_ICR_RXO     /* Rx overrun */
 #define E1000_IMS_RXT0		E1000_ICR_RXT0    /* Rx timer intr */
 #define E1000_IMS_TXD_LOW	E1000_ICR_TXD_LOW
+#define E1000_IMS_ECCER		E1000_ICR_ECCER   /* Uncorrectable ECC Error */
 #define E1000_IMS_TS		E1000_ICR_TS      /* Time Sync Interrupt */
 #define E1000_IMS_DRSTA		E1000_ICR_DRSTA   /* Device Reset Asserted */
 #define E1000_IMS_DOUTSYNC	E1000_ICR_DOUTSYNC /* NIC DMA out of sync */
@@ -1062,7 +1070,6 @@
 /* Offset of Link Mode bits for 82580 up */
 #define NVM_WORD24_82580_LNK_MODE_OFFSET	4
 
-
 /* Mask bits for fields in Word 0x0f of the NVM */
 #define NVM_WORD0F_PAUSE_MASK		0x3000
 #define NVM_WORD0F_PAUSE		0x1000
@@ -1368,7 +1375,6 @@
 #define E1000_TXPB0S_SIZE_I210_MASK	0x0000003F /* Tx packet buffer 0 size */
 #define I210_RXPBSIZE_DEFAULT		0x000000A2 /* RXPBSIZE default */
 #define I210_TXPBSIZE_DEFAULT		0x04000014 /* TXPBSIZE default */
-
 
 /* Proxy Filter Control */
 #define E1000_PROXYFC_D0		0x00000001 /* Enable offload in D0 */
