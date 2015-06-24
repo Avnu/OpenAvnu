@@ -213,6 +213,9 @@ void *LinuxTimerQueueHandler( void *arg ) {
 		    struct LinuxTimerQueueActionArg *arg = iter->second;
 			timerq->timerQueueMap.erase(iter);
 			timerq->LinuxTimerQueueAction( arg );
+			if( arg->rm ) {
+				delete arg->inner_arg;
+			}
 			timer_delete(arg->timer_handle);
 			delete arg;
 		}
@@ -267,7 +270,6 @@ bool LinuxTimerQueue::addEvent
 	outer_arg->rm = rm;
 	outer_arg->func = func;
 	outer_arg->type = type;
-	outer_arg->rm = rm;
 
 	// Find key that we can use
 	while( timerQueueMap.find( key ) != timerQueueMap.end() ) {
