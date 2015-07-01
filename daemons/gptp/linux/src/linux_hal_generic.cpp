@@ -48,12 +48,8 @@
 #include <syscall.h>
 #include <limits.h>
 
-#if 0
 #define TX_PHY_TIME 184
 #define RX_PHY_TIME 382
-#endif
-#define TX_PHY_TIME 8000
-#define RX_PHY_TIME 8000
 
 net_result LinuxNetworkInterface::nrecv
 ( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) {
