@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2012, Intel Corporation 
+  Copyright (c) 2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -145,7 +145,7 @@ typedef struct __attribute__ ((packed)) {
 	uint16_t sequence;
 	uint32_t timestamp;
 	uint32_t ssrc;
-	
+
 	uint8_t tag[2];
 	uint16_t total_length;
 	uint8_t tag_length;
@@ -181,13 +181,13 @@ uint16_t inet_checksum(uint8_t *ip, int len){
 			sum = (sum & 0xFFFF) + (sum >> 16);
 		len -= 2;
 	}
-	
+
 	if(len)       /* take care of left over byte */
 		sum += (uint16_t) *(uint8_t *)ip;
-	
+
 	while(sum>>16)
 		sum = (sum & 0xFFFF) + (sum >> 16);
-	
+
 	return ~sum;
 }
 
@@ -239,7 +239,7 @@ uint16_t inet_checksum_sg( struct iovec *buf_iov, size_t buf_iovlen ){
 
 	while(sum>>16)
 		sum = (sum & 0xFFFF) + (sum >> 16);
-	
+
 	return ~sum;
 }
 
@@ -478,6 +478,8 @@ int main(int argc, char *argv[])
 	unsigned delta_8021as, delta_local;
 	uint8_t dest_addr[6];
 	size_t packet_size;
+	int class_a_id, a_priority, class_b_id, b_priority;
+	u_int16_t a_vid, b_vid;
 
 
 	for (;;) {
@@ -566,7 +568,7 @@ int main(int argc, char *argv[])
 			( &l4_local_address,
 			  &(( struct sockaddr_in *)&if_request.ifr_addr)->sin_addr,
 			  sizeof( l4_local_address ));
-		
+
 	}
 
 	rc = mrp_monitor();
@@ -575,30 +577,21 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	/* 
-	 * should use mrp_get_domain() but this is a simplification
-	 */
-	/*domain_a_valid = 1;
-	domain_class_a_id = MSRP_SR_CLASS_A;
-	domain_class_a_priority = MSRP_SR_CLASS_A_PRIO;
-	domain_class_a_vid = 2;*/
-	
-	//Using mrp_get_domain() - Srinath
-	rc = mrp_get_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid,&domain_class_b_id, &domain_class_b_priority, &domain_class_b_vid);
+	rc = mrp_get_domain(&class_a_id, &a_priority, &a_vid, &class_b_id, &b_priority, &b_vid);
 	if (rc) {
 		printf("failed calling msp_get_domain()\n");
 		return EXIT_FAILURE;
 	}
-	printf("detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
-	       domain_class_a_vid);
+	printf("detected domain Class A PRIO=%d VID=%04x...\n",a_priority,
+	       a_vid);
 
-	rc = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	rc = mrp_register_domain(&class_a_id, &a_priority, &a_vid);
 	if (rc) {
 		printf("mrp_register_domain failed\n");
 		return EXIT_FAILURE;
 	}
 
-	rc = mrp_join_vlan();
+	rc = mrp_join_vlan(a_vid);
 	if (rc) {
 		printf("mrp_join_vlan failed\n");
 		return EXIT_FAILURE;
@@ -708,7 +701,7 @@ int main(int argc, char *argv[])
 			pseudo_hdr.zero = 0;
 			pseudo_hdr.protocol = 0x11;
 			pseudo_hdr.length = htons(packet_size-18-20);
-	
+
 			l4_headers =
 				(IP_RTP_Header *) (((char *)tmp_packet->vaddr) + 18);
 			l4_headers->version_length = 0x45;
@@ -739,7 +732,7 @@ int main(int argc, char *argv[])
 			l4_headers->sequence = 0;
 			l4_headers->timestamp = 0;
 			l4_headers->ssrc = 0;
-			
+
 			l4_headers->tag[0] = 0xBE;
 			l4_headers->tag[1] = 0xDE;
 			l4_headers->total_length = htons(2);
@@ -753,7 +746,7 @@ int main(int argc, char *argv[])
 		free_packets = tmp_packet;
 	}
 
-	/* 
+	/*
 	 * subtract 16 bytes for the MAC header/Q-tag - pktsz is limited to the
 	 * data payload of the ethernet frame.
 	 *
@@ -820,9 +813,9 @@ int main(int argc, char *argv[])
 		tmp_packet = free_packets;
 		if (NULL == tmp_packet)
 			goto cleanup;
-		
+
 		free_packets = tmp_packet->next;
-		
+
 		if( transport == 2 ) {
 			uint32_t timestamp_l;
 			get_samples( L2_SAMPLES_PER_FRAME, sample_buffer );
@@ -916,13 +909,13 @@ int main(int argc, char *argv[])
 		}
 
 		if (ENOSPC == err) {
-			
+
 			/* put back for now */
 			tmp_packet->next = free_packets;
 			free_packets = tmp_packet;
 		}
-		
-	cleanup:	
+
+	cleanup:
 		igb_clean(&igb_dev, &cleaned_packets);
 		i = 0;
 		while (cleaned_packets) {
@@ -934,11 +927,9 @@ int main(int argc, char *argv[])
 		}
 	}
 	rc = nice(0);
-	
 	if (halt_tx == 0)
 		printf("listener left ...\n");
 	halt_tx = 1;
-	
 	if( transport == 2 ) {
 		rc = mrp_unadvertise_stream
 			(glob_stream_id, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
@@ -951,18 +942,18 @@ int main(int argc, char *argv[])
 	}
 	if (rc)
 		printf("mrp_unadvertise_stream failed\n");
-	
+
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */
-	
+
 	rc = mrp_disconnect();
 	if (rc)
 		printf("mrp_disconnect failed\n");
-	
+
 	igb_dma_free_page(&igb_dev, &a_page);
 	rc = gptpdeinit(&igb_shm_fd, &igb_mmap);
 	err = igb_detach(&igb_dev);
-	
+
 	pthread_exit(NULL);
-	
+
 	return EXIT_SUCCESS;
 }

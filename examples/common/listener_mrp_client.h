@@ -67,8 +67,6 @@ extern u_int16_t domain_class_b_vid;
 int create_socket();
 int mrp_monitor(void);
 int report_domain_status(int *class_id, int *priority, u_int16_t *vid);
-//int report_domain_status();
-//int join_vlan();
 int join_vlan(u_int16_t vid);
 int await_talker();
 int send_ready();

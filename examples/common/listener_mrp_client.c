@@ -75,8 +75,6 @@ int msg_process(char *buf, int buflen)
 	unsigned int priority;
 
 	fprintf(stderr, "Msg: %s\n", buf);
-	
-	//printf("Inside msg_process\n");
 
 	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
 	{
@@ -101,15 +99,15 @@ int msg_process(char *buf, int buflen)
 		sscanf(&(buf[l]), "%d", &priority);
 		l=l+4;
 		sscanf(&(buf[l]), "%x", &vid);
-		
-		if (id == 6) 
+
+		if (id == 6)
 		{
 			domain_class_a_id = id;
 			domain_class_a_priority = priority;
 			domain_class_a_vid = vid;
 			domain_a_valid = 1;
-		} 
-		else 
+		}
+		else
 		{
 			domain_class_b_id = id;
 			domain_class_b_priority = priority;
@@ -117,33 +115,10 @@ int msg_process(char *buf, int buflen)
 			domain_b_valid = 1;
 		}
 		l+=4;
-		
+
 	}
 	return 0;
 }
-
-/*int recv_msg()
-{
-	char *databuf;
-	int bytes = 0;
-	int ret;
-
-	databuf = (char *)malloc(1500);
-	if (NULL == databuf)
-		return -1;
-
-	memset(databuf, 0, 1500);
-	bytes = recv(control_socket, databuf, 1500, 0);
-	if (bytes <= -1)
-	{
-		free(databuf);
-		return -1;
-	}
-	ret = msg_process(databuf, bytes);
-	free(databuf);
-
-	return ret;
-}*/
 
 /*
  * public
@@ -153,7 +128,7 @@ int create_socket() // TODO FIX! =:-|
 {
 	struct sockaddr_in addr;
 	control_socket = socket(AF_INET, SOCK_DGRAM, 0);
-		
+
 	/** in POSIX fd 0,1,2 are reserved */
 	if (2 > control_socket)
 	{
@@ -161,12 +136,12 @@ int create_socket() // TODO FIX! =:-|
 			close(control_socket);
 	return -1;
 	}
-	
+
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(0);
-	
-	if(0 > (bind(control_socket, (struct sockaddr*)&addr, sizeof(addr)))) 
+
+	if(0 > (bind(control_socket, (struct sockaddr*)&addr, sizeof(addr))))
 	{
 		fprintf(stderr, "Could not bind socket.\n");
 		close(control_socket);
@@ -232,7 +207,6 @@ int mrp_monitor(void)
 }
 
 int report_domain_status(int *class_id, int *priority, u_int16_t *vid)
-//int report_domain_status()
 {
 	char* msgbuf;
 	int rc;
@@ -241,7 +215,6 @@ int report_domain_status(int *class_id, int *priority, u_int16_t *vid)
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	//sprintf(msgbuf,"S+D:C=6,P=3,V=0002");
 	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", *class_id, *priority, *vid);
 	rc = send_msg(msgbuf, 1500);
 	free(msgbuf);
@@ -257,7 +230,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 {
 	char *msgbuf;
 	int ret;
-	
+
 	/* we may not get a notification if we are joining late,
 	 * so query for what is already there ...
 	 */
@@ -267,7 +240,6 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S??");
 	ret = send_msg(msgbuf, 1500);
-	//printf("After send msg\n");
 	free(msgbuf);
 	if (ret != 1500)
 		return -1;
@@ -293,7 +265,6 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 }
 
 int join_vlan(u_int16_t vid)
-//int join_vlan()
 {
 	char *msgbuf;
 	int rc;
@@ -302,7 +273,6 @@ int join_vlan(u_int16_t vid)
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	//sprintf(msgbuf, "V++:I=0002");
 	sprintf(msgbuf, "V++:I=%04x\n",vid);
 	printf("Joing VLAN %s\n",msgbuf);
 	rc = send_msg(msgbuf, 1500);
@@ -316,8 +286,8 @@ int join_vlan(u_int16_t vid)
 
 int await_talker()
 {
-	while (0 == talker)	
-		;//recv_msg();
+	while (0 == talker)
+		;
 	return 0;
 }
 

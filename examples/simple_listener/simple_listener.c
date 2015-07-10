@@ -73,7 +73,7 @@ static void help()
 		"Options:\n"
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
-		"    -f  set the name of the output wav-file\n" 
+		"    -f  set the name of the output wav-file\n"
 		"\n" "%s" "\n", version_str);
 	exit(EXIT_FAILURE);
 }
@@ -99,7 +99,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 #endif /* DEBUG*/
 
 	if (0 == memcmp(glob_ether_type,eth_header->type,sizeof(eth_header->type)))
-	{		
+	{
 		test_stream_id = (unsigned char*)(packet + ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE);
 
 #if DEBUG
@@ -118,7 +118,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 #endif /* DEBUG*/
 			buf = (uint32_t*) (packet + HEADER_SIZE);
 			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
-			{	
+			{
 				memcpy(&frame[0], &buf[i], sizeof(frame));
 
 				frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
@@ -130,7 +130,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 
 				sf_writef_int(glob_snd_file, (const int *)frame, 1);
 			}
-		}	
+		}
 	}
 }
 
@@ -161,7 +161,7 @@ void sigint_handler(int signum)
 		pcap_close(glob_pcap_handle);
 	}
 #endif /* PCAP */
-	
+
 #if LIBSND
 	sf_write_sync(glob_snd_file);
 	sf_close(glob_snd_file);
@@ -181,11 +181,11 @@ int main(int argc, char *argv[])
 	signal(SIGINT, sigint_handler);
 
 	int c;
-	while((c = getopt(argc, argv, "hi:f:")) > 0) 
+	while((c = getopt(argc, argv, "hi:f:")) > 0)
 	{
-		switch (c) 
+		switch (c)
 		{
-		case 'h': 
+		case 'h':
 			help();
 			break;
 		case 'i':
@@ -211,10 +211,9 @@ int main(int argc, char *argv[])
 	rc = mrp_monitor();
 	if (rc)
 	{
-		printf("failed creating MRG monitor thread\n");
+		printf("failed creating MRP monitor thread\n");
 		return EXIT_FAILURE;
 	}
-	//printf("Before get_domain\n");
 	rc=mrp_get_domain(&class_a_id, &a_priority, &a_vid, &class_b_id, &b_priority, &b_vid);
 	if (rc)
 	{
@@ -225,21 +224,19 @@ int main(int argc, char *argv[])
 	printf("detected domain Class A PRIO=%d VID=%04x...\n",a_priority,a_vid);
 
 	rc = report_domain_status(&class_a_id,&a_priority,&a_vid);
-	//rc = report_domain_status();
 	if (rc) {
 		printf("report_domain_status failed\n");
 		return EXIT_FAILURE;
 	}
 
 	rc = join_vlan(a_vid);
-	//rc = join_vlan();
 	if (rc) {
 		printf("join_vlan failed\n");
 		return EXIT_FAILURE;
 	}
 
 	fprintf(stdout,"Waiting for talker...\n");
-	await_talker();	
+	await_talker();
 
 #if DEBUG
 	fprintf(stdout,"Send ready-msg...\n");
@@ -249,12 +246,12 @@ int main(int argc, char *argv[])
 		printf("send_ready failed\n");
 		return EXIT_FAILURE;
 	}
-		
+
 #if LIBSND
 	SF_INFO* sf_info = (SF_INFO*)malloc(sizeof(SF_INFO));
 
 	memset(sf_info, 0, sizeof(SF_INFO));
-	
+
 	sf_info->samplerate = SAMPLES_PER_SECOND;
 	sf_info->channels = CHANNELS;
 	sf_info->format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
@@ -264,13 +261,13 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Wrong format.");
 		return EXIT_FAILURE;
 	}
-			
+
 	if (NULL == (glob_snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
 	{
 		fprintf(stderr, "Could not create file.");
 		return EXIT_FAILURE;
 	}
-	fprintf(stdout,"Created file called %s\n", file_name);	
+	fprintf(stdout,"Created file called %s\n", file_name);
 #endif /* LIBSND */
 
 #if PCAP
