@@ -29,6 +29,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 int control_socket;
 volatile int talker = 0;
 unsigned char stream_id[8];
+volatile int halt_tx = 0;
+
+volatile int domain_a_valid = 0;
+int domain_class_a_id = 0;
+int domain_class_a_priority = 0;
+u_int16_t domain_class_a_vid = 0;
+
+volatile int domain_b_valid = 0;
+int domain_class_b_id = 0;
+int domain_class_b_priority = 0;
+u_int16_t domain_class_b_vid = 0;
+pthread_t monitor_thread;
+pthread_attr_t monitor_attr;
 
 /*
  * private
@@ -36,6 +49,7 @@ unsigned char stream_id[8];
 
 int send_msg(char *data, int data_len)
 {
+	//printf("Inside send msg\n");
 	struct sockaddr_in addr;
 
 	if (control_socket == -1)
@@ -55,9 +69,15 @@ int send_msg(char *data, int data_len)
 int msg_process(char *buf, int buflen)
 {
 	uint32_t id;
-	int j, l;
+	int j, l=0;
+	unsigned int vid;
+	//unsigned int id;
+	unsigned int priority;
 
 	fprintf(stderr, "Msg: %s\n", buf);
+	
+	//printf("Inside msg_process\n");
+
 	if (strncmp(buf, "SNE T:", 6) == 0 || strncmp(buf, "SJO T:", 6) == 0)
 	{
 		l = 6; /* skip "Sxx T:" */
@@ -72,10 +92,37 @@ int msg_process(char *buf, int buflen)
 		}
 		talker = 1;
 	}
+
+	if (strncmp(buf, "SJO D:", 6) == 0)
+	{
+		l=8;
+		sscanf(&(buf[l]), "%d", &id);
+		l=l+4;
+		sscanf(&(buf[l]), "%d", &priority);
+		l=l+4;
+		sscanf(&(buf[l]), "%x", &vid);
+		
+		if (id == 6) 
+		{
+			domain_class_a_id = id;
+			domain_class_a_priority = priority;
+			domain_class_a_vid = vid;
+			domain_a_valid = 1;
+		} 
+		else 
+		{
+			domain_class_b_id = id;
+			domain_class_b_priority = priority;
+			domain_class_b_vid = vid;
+			domain_b_valid = 1;
+		}
+		l+=4;
+		
+	}
 	return 0;
 }
 
-int recv_msg()
+/*int recv_msg()
 {
 	char *databuf;
 	int bytes = 0;
@@ -96,7 +143,7 @@ int recv_msg()
 	free(databuf);
 
 	return ret;
-}
+}*/
 
 /*
  * public
@@ -128,7 +175,64 @@ int create_socket() // TODO FIX! =:-|
 	return 0;
 }
 
-int report_domain_status()
+void *mrp_monitor_thread(void *arg)
+{
+	char *msgbuf;
+	struct sockaddr_in client_addr;
+	struct msghdr msg;
+	struct iovec iov;
+	int bytes = 0;
+	struct pollfd fds;
+	int rc;
+	(void) arg; /* unused */
+
+	msgbuf = (char *)malloc(MAX_MRPD_CMDSZ);
+	if (NULL == msgbuf)
+		return NULL;
+	while (!halt_tx) {
+		fds.fd = control_socket;
+		fds.events = POLLIN;
+		fds.revents = 0;
+		rc = poll(&fds, 1, 100);
+		if (rc < 0) {
+			free(msgbuf);
+			pthread_exit(NULL);
+		}
+		if (rc == 0)
+			continue;
+		if ((fds.revents & POLLIN) == 0) {
+			free(msgbuf);
+			pthread_exit(NULL);
+		}
+		memset(&msg, 0, sizeof(msg));
+		memset(&client_addr, 0, sizeof(client_addr));
+		memset(msgbuf, 0, MAX_MRPD_CMDSZ);
+		iov.iov_len = MAX_MRPD_CMDSZ;
+		iov.iov_base = msgbuf;
+		msg.msg_name = &client_addr;
+		msg.msg_namelen = sizeof(client_addr);
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+		bytes = recvmsg(control_socket, &msg, 0);
+		if (bytes < 0)
+			continue;
+		msg_process(msgbuf, bytes);
+	}
+	free(msgbuf);
+	pthread_exit(NULL);
+}
+
+
+int mrp_monitor(void)
+{
+	int rc;
+	rc = pthread_attr_init(&monitor_attr);
+	rc |= pthread_create(&monitor_thread, NULL, mrp_monitor_thread, NULL);
+	return rc;
+}
+
+int report_domain_status(int *class_id, int *priority, u_int16_t *vid)
+//int report_domain_status()
 {
 	char* msgbuf;
 	int rc;
@@ -137,7 +241,8 @@ int report_domain_status()
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "S+D:C=6,P=3,V=0002");
+	//sprintf(msgbuf,"S+D:C=6,P=3,V=0002");
+	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", *class_id, *priority, *vid);
 	rc = send_msg(msgbuf, 1500);
 	free(msgbuf);
 
@@ -147,7 +252,48 @@ int report_domain_status()
 		return 0;
 }
 
-int join_vlan()
+int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
+		   int *class_b_id, int *b_priority, u_int16_t * b_vid)
+{
+	char *msgbuf;
+	int ret;
+	
+	/* we may not get a notification if we are joining late,
+	 * so query for what is already there ...
+	 */
+	msgbuf = malloc(1500);
+	if (NULL == msgbuf)
+		return -1;
+	memset(msgbuf, 0, 1500);
+	sprintf(msgbuf, "S??");
+	ret = send_msg(msgbuf, 1500);
+	//printf("After send msg\n");
+	free(msgbuf);
+	if (ret != 1500)
+		return -1;
+	while (!halt_tx && (domain_a_valid == 0) && (domain_b_valid == 0))
+		usleep(20000);
+	*class_a_id = 0;
+	*a_priority = 0;
+	*a_vid = 0;
+	*class_b_id = 0;
+	*b_priority = 0;
+	*b_vid = 0;
+	if (domain_a_valid) {
+		*class_a_id = domain_class_a_id;
+		*a_priority = domain_class_a_priority;
+		*a_vid = domain_class_a_vid;
+	}
+	if (domain_b_valid) {
+		*class_b_id = domain_class_b_id;
+		*b_priority = domain_class_b_priority;
+		*b_vid = domain_class_b_vid;
+	}
+	return 0;
+}
+
+int join_vlan(u_int16_t vid)
+//int join_vlan()
 {
 	char *msgbuf;
 	int rc;
@@ -156,7 +302,9 @@ int join_vlan()
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "V++:I=0002");
+	//sprintf(msgbuf, "V++:I=0002");
+	sprintf(msgbuf, "V++:I=%04x\n",vid);
+	printf("Joing VLAN %s\n",msgbuf);
 	rc = send_msg(msgbuf, 1500);
 	free(msgbuf);
 
@@ -169,7 +317,7 @@ int join_vlan()
 int await_talker()
 {
 	while (0 == talker)	
-		recv_msg();
+		;//recv_msg();
 	return 0;
 }
 

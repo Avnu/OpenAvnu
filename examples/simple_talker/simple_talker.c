@@ -479,6 +479,7 @@ int main(int argc, char *argv[])
 	uint8_t dest_addr[6];
 	size_t packet_size;
 
+
 	for (;;) {
 		c = getopt(argc, argv, "hi:t:");
 		if (c < 0)
@@ -489,8 +490,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'i':
 			if (interface) {
-				printf
-				    ("only one interface per daemon is supported\n");
+			printf("only one interface per daemon is supported\n");
 				usage();
 			}
 			interface = strdup(optarg);
@@ -578,10 +578,17 @@ int main(int argc, char *argv[])
 	/* 
 	 * should use mrp_get_domain() but this is a simplification
 	 */
-	domain_a_valid = 1;
+	/*domain_a_valid = 1;
 	domain_class_a_id = MSRP_SR_CLASS_A;
 	domain_class_a_priority = MSRP_SR_CLASS_A_PRIO;
-	domain_class_a_vid = 2;
+	domain_class_a_vid = 2;*/
+	
+	//Using mrp_get_domain() - Srinath
+	rc = mrp_get_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid,&domain_class_b_id, &domain_class_b_priority, &domain_class_b_vid);
+	if (rc) {
+		printf("failed calling msp_get_domain()\n");
+		return EXIT_FAILURE;
+	}
 	printf("detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
 	       domain_class_a_vid);
 

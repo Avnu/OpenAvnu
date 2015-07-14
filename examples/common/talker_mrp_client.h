@@ -78,5 +78,6 @@ int mrp_join_vlan(void);
 int mrp_advertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
 int mrp_unadvertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
 int mrp_await_listener(unsigned char *streamid);
+int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid, int *class_b_id, int *b_priority, u_int16_t * b_vid);
 
 #endif /* _TALKER_MRP_CLIENT_H_ */

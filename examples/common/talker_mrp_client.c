@@ -512,6 +512,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 {
 	char *msgbuf;
 	int ret;
+	printf("Inside mrp_get_domain()\n");
 
 	/* we may not get a notification if we are joining late,
 	 * so query for what is already there ...
@@ -533,7 +534,9 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 	*class_b_id = 0;
 	*b_priority = 0;
 	*b_vid = 0;
+	printf("domain_a_valid - %d",domain_a_valid);
 	if (domain_a_valid) {
+	    printf("Inside if - domain_a_valid\n");
 		*class_a_id = domain_class_a_id;
 		*a_priority = domain_class_a_priority;
 		*a_vid = domain_class_a_vid;

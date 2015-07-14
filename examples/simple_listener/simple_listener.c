@@ -175,7 +175,8 @@ int main(int argc, char *argv[])
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/* The compiled filter expression */
 	char filter_exp[] = "ether dst 91:E0:F0:00:0e:80";	/* The filter expression */
-	int rc;
+	int rc, class_a_id, a_priority, class_b_id, b_priority;
+	u_int16_t a_vid,b_vid;
 
 	signal(SIGINT, sigint_handler);
 
@@ -207,13 +208,31 @@ int main(int argc, char *argv[])
 		return errno;
 	}
 
-	rc = report_domain_status();
+	rc = mrp_monitor();
+	if (rc)
+	{
+		printf("failed creating MRG monitor thread\n");
+		return EXIT_FAILURE;
+	}
+	//printf("Before get_domain\n");
+	rc=mrp_get_domain(&class_a_id, &a_priority, &a_vid, &class_b_id, &b_priority, &b_vid);
+	if (rc)
+	{
+		printf("failed calling mrp_get_domain()\n");
+		return EXIT_FAILURE;
+	}
+
+	printf("detected domain Class A PRIO=%d VID=%04x...\n",a_priority,a_vid);
+
+	rc = report_domain_status(&class_a_id,&a_priority,&a_vid);
+	//rc = report_domain_status();
 	if (rc) {
 		printf("report_domain_status failed\n");
 		return EXIT_FAILURE;
 	}
 
-	rc = join_vlan();
+	rc = join_vlan(a_vid);
+	//rc = join_vlan();
 	if (rc) {
 		printf("join_vlan failed\n");
 		return EXIT_FAILURE;
