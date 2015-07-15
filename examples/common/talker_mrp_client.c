@@ -36,13 +36,19 @@
 
 /* global variables */
 
-int control_socket = -1;
 
-volatile int halt_tx = 0;
-volatile int listeners = 0;
+
+
+
+extern struct talker_context global_struct_talker;
+
 volatile int mrp_okay;
 volatile int mrp_error = 0;;
 
+
+/*int control_socket = -1;
+volatile int halt_tx = 0;
+volatile int listeners = 0;
 volatile int domain_a_valid = 0;
 int domain_class_a_id = 0;
 int domain_class_a_priority = 0;
@@ -52,21 +58,45 @@ volatile int domain_b_valid = 0;
 int domain_class_b_id = 0;
 int domain_class_b_priority = 0;
 u_int16_t domain_class_b_vid = 0;
+unsigned char monitor_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };*/
+
 
 pthread_t monitor_thread;
 pthread_attr_t monitor_attr;
-unsigned char monitor_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
 
 /*
  * private
  */
+ 
+int mrp_talker_client_init(void)
+{
+	int i;
+	global_struct_talker.control_socket = -1;
+	global_struct_talker.halt_tx = 0;
+	global_struct_talker.listeners = 0;
+	global_struct_talker.domain_a_valid = 0;
+	global_struct_talker.domain_class_a_id = 0;
+	global_struct_talker.domain_class_a_priority = 0;
+	global_struct_talker.domain_class_a_vid = 0;
+
+	global_struct_talker.domain_b_valid = 0;
+	global_struct_talker.domain_class_b_id = 0;
+	global_struct_talker.domain_class_b_priority = 0;
+	global_struct_talker.domain_class_b_vid = 0;
+	for (i=0;i<8;i++)
+	{
+		global_struct_talker.monitor_stream_id[i] = 0;
+	}
+	return 0;
+}
 
 int send_mrp_msg(char *notify_data, int notify_len)
 {
 	struct sockaddr_in addr;
 	socklen_t addr_len;
 
-	if (control_socket == -1)
+	if (global_struct_talker.control_socket == -1)
 		return -1;
 	if (notify_data == NULL)
 		return -1;
@@ -76,7 +106,7 @@ int send_mrp_msg(char *notify_data, int notify_len)
 	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	addr_len = sizeof(addr);
-	return sendto(control_socket, notify_data, notify_len, 0,
+	return sendto(global_struct_talker.control_socket, notify_data, notify_len, 0,
 			 (struct sockaddr *)&addr, addr_len);
 }
 
@@ -151,9 +181,9 @@ int process_mrp_msg(char *buf, int buflen)
 		}
 		if (substate > MSRP_LISTENER_ASKFAILED) {
 			if (memcmp
-			    (recovered_streamid, monitor_stream_id,
+			    (recovered_streamid, global_struct_talker.monitor_stream_id,
 			     sizeof(recovered_streamid)) == 0) {
-				listeners = 1;
+				global_struct_talker.listeners = 1;
 				printf("added listener\n");
 			}
 		}
@@ -184,15 +214,15 @@ int process_mrp_msg(char *buf, int buflen)
 		i += 2;		/* skip the ':' */
 		sscanf(&(buf[i]), "%x", &vid);
 		if (id == 6) {
-			domain_class_a_id = id;
-			domain_class_a_priority = priority;
-			domain_class_a_vid = vid;
-			domain_a_valid = 1;
+			global_struct_talker.domain_class_a_id = id;
+			global_struct_talker.domain_class_a_priority = priority;
+			global_struct_talker.domain_class_a_vid = vid;
+			global_struct_talker.domain_a_valid = 1;
 		} else {
-			domain_class_b_id = id;
-			domain_class_b_priority = priority;
-			domain_class_b_vid = vid;
-			domain_b_valid = 1;
+			global_struct_talker.domain_class_b_id = id;
+			global_struct_talker.domain_class_b_priority = priority;
+			global_struct_talker.domain_class_b_vid = vid;
+			global_struct_talker.domain_b_valid = 1;
 		}
 		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
 			i++;
@@ -259,9 +289,9 @@ int process_mrp_msg(char *buf, int buflen)
 			case 'L':
 				printf("got a leave indication\n");
 				if (memcmp
-				    (recovered_streamid, monitor_stream_id,
+				    (recovered_streamid, global_struct_talker.monitor_stream_id,
 				     sizeof(recovered_streamid)) == 0) {
-					listeners = 0;
+					global_struct_talker.listeners = 0;
 					printf("listener left\n");
 				}
 				break;
@@ -271,9 +301,9 @@ int process_mrp_msg(char *buf, int buflen)
 				if (substate > MSRP_LISTENER_ASKFAILED) {
 					if (memcmp
 					    (recovered_streamid,
-					     monitor_stream_id,
+					     global_struct_talker.monitor_stream_id,
 					     sizeof(recovered_streamid)) == 0)
-						listeners = 1;
+						global_struct_talker.listeners = 1;
 				}
 				break;
 			}
@@ -304,8 +334,8 @@ void *mrp_monitor_thread(void *arg)
 	msgbuf = (char *)malloc(MAX_MRPD_CMDSZ);
 	if (NULL == msgbuf)
 		return NULL;
-	while (!halt_tx) {
-		fds.fd = control_socket;
+	while (!global_struct_talker.halt_tx) {
+		fds.fd = global_struct_talker.control_socket;
 		fds.events = POLLIN;
 		fds.revents = 0;
 		rc = poll(&fds, 1, 100);
@@ -328,7 +358,7 @@ void *mrp_monitor_thread(void *arg)
 		msg.msg_namelen = sizeof(client_addr);
 		msg.msg_iov = &iov;
 		msg.msg_iovlen = 1;
-		bytes = recvmsg(control_socket, &msg, 0);
+		bytes = recvmsg(global_struct_talker.control_socket, &msg, 0);
 		if (bytes < 0)
 			continue;
 		process_mrp_msg(msgbuf, bytes);
@@ -353,7 +383,7 @@ int mrp_connect(void)
 	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	memset(&addr, 0, sizeof(addr));
-	control_socket = sock_fd;
+	global_struct_talker.control_socket = sock_fd;
 	return 0;
  out:	if (sock_fd != -1)
 		close(sock_fd);
@@ -485,7 +515,7 @@ int mrp_await_listener(unsigned char *streamid)
 	char *msgbuf;
 	int rc;
 
-	memcpy(monitor_stream_id, streamid, sizeof(monitor_stream_id));
+	memcpy(global_struct_talker.monitor_stream_id, streamid, sizeof(global_struct_talker.monitor_stream_id));
 	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
@@ -497,7 +527,7 @@ int mrp_await_listener(unsigned char *streamid)
 		return -1;
 
 	/* either already there ... or need to wait ... */
-	while (!halt_tx && (listeners == 0))
+	while (!global_struct_talker.halt_tx && (global_struct_talker.listeners == 0))
 		usleep(20000);
 
 	return 0;
@@ -525,7 +555,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 	free(msgbuf);
 	if (ret != 1500)
 		return -1;
-	while (!halt_tx && (domain_a_valid == 0) && (domain_b_valid == 0))
+	while (!global_struct_talker.halt_tx && (global_struct_talker.domain_a_valid == 0) && (global_struct_talker.domain_b_valid == 0))
 		usleep(20000);
 	*class_a_id = 0;
 	*a_priority = 0;
@@ -533,15 +563,15 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 	*class_b_id = 0;
 	*b_priority = 0;
 	*b_vid = 0;
-	if (domain_a_valid) {
-		*class_a_id = domain_class_a_id;
-		*a_priority = domain_class_a_priority;
-		*a_vid = domain_class_a_vid;
+	if (global_struct_talker.domain_a_valid) {
+		*class_a_id = global_struct_talker.domain_class_a_id;
+		*a_priority = global_struct_talker.domain_class_a_priority;
+		*a_vid = global_struct_talker.domain_class_a_vid;
 	}
-	if (domain_b_valid) {
-		*class_b_id = domain_class_b_id;
-		*b_priority = domain_class_b_priority;
-		*b_vid = domain_class_b_vid;
+	if (global_struct_talker.domain_b_valid) {
+		*class_b_id = global_struct_talker.domain_class_b_id;
+		*b_priority = global_struct_talker.domain_class_b_priority;
+		*b_vid = global_struct_talker.domain_class_b_vid;
 	}
 	return 0;
 }

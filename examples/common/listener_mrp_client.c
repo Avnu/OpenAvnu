@@ -29,6 +29,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 int control_socket;
 volatile int talker = 0;
 unsigned char stream_id[8];
+unsigned char dst_mac[6];
 volatile int halt_tx = 0;
 
 volatile int domain_a_valid = 0;
@@ -87,6 +88,12 @@ int msg_process(char *buf, int buflen)
 		{
 			sscanf(&buf[l],"%02x",&id);
 			stream_id[j] = (unsigned char)id;
+		}
+		l+=3;
+		for(j = 0; j < 6 ; l+=2, j++)
+		{
+			sscanf(&buf[l],"%02x",&id);
+			dst_mac[j] = (unsigned char)id;
 		}
 		talker = 1;
 	}

@@ -350,7 +350,7 @@ int get_samples(unsigned count, int32_t * buffer)
 void sigint_handler(int signum)
 {
 	printf("got SIGINT\n");
-	halt_tx = signum;
+	global_struct_talker.halt_tx = signum;
 }
 
 int pci_connect(device_t *igb_dev)
@@ -510,6 +510,9 @@ int main(int argc, char *argv[])
 		fprintf( stderr, "Must specify valid transport\n" );
 		usage();
 	}
+	
+	mrp_talker_client_init();
+	
 	rc = mrp_connect();
 	if (rc) {
 		printf("socket creation failed\n");
@@ -647,9 +650,9 @@ int main(int argc, char *argv[])
 		((char *)tmp_packet->vaddr)[12] = 0x81;
 		((char *)tmp_packet->vaddr)[13] = 0x00;
 		((char *)tmp_packet->vaddr)[14] =
-		    ((domain_class_a_priority << 13 | domain_class_a_vid)) >> 8;
+		    ((global_struct_talker.domain_class_a_priority << 13 | global_struct_talker.domain_class_a_vid)) >> 8;
 		((char *)tmp_packet->vaddr)[15] =
-		    ((domain_class_a_priority << 13 | domain_class_a_vid)) & 0xFF;
+		    ((global_struct_talker.	domain_class_a_priority << 13 | global_struct_talker.domain_class_a_vid)) & 0xFF;
 		if( transport == 2 ) {
 			((char *)tmp_packet->vaddr)[16] = 0x22;	/* 1722 eth type */
 			((char *)tmp_packet->vaddr)[17] = 0xF0;
@@ -755,9 +758,9 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "advertising stream ...\n");
 	if( transport == 2 ) {
 		rc = mrp_advertise_stream(glob_stream_id, dest_addr,
-					domain_class_a_vid, PKT_SZ - 16,
+					global_struct_talker.domain_class_a_vid, PKT_SZ - 16,
 					L2_PACKET_IPG / 125000,
-					domain_class_a_priority, 3900);
+					global_struct_talker.domain_class_a_priority, 3900);
 	} else {
 		/*
 		 * 1 is the wrong number for frame rate, but fractional values
@@ -765,10 +768,10 @@ int main(int argc, char *argv[])
 		 * using it consistently
 		 */
 		rc = mrp_advertise_stream(glob_stream_id, dest_addr,
-					domain_class_a_vid,
+					global_struct_talker.domain_class_a_vid,
 					sizeof(*l4_headers) + L4_SAMPLES_PER_FRAME * CHANNELS * 2 + 6,
 					1,
-					domain_class_a_priority, 3900);
+					global_struct_talker.domain_class_a_priority, 3900);
 	}
 	if (rc) {
 		printf("mrp_advertise_stream failed\n");
@@ -781,9 +784,9 @@ int main(int argc, char *argv[])
 		printf("mrp_await_listener failed\n");
 		return EXIT_FAILURE;
 	}
-	listeners = 1;
+	global_struct_talker.listeners = 1;
 	printf("got a listener ...\n");
-	halt_tx = 0;
+	global_struct_talker.halt_tx = 0;
 
 	if(-1 == gptpinit(&igb_shm_fd, &igb_mmap)) {
 		fprintf(stderr, "GPTP init failed.\n");
@@ -809,7 +812,7 @@ int main(int argc, char *argv[])
 
 	rc = nice(-20);
 
-	while (listeners && !halt_tx) {
+	while (global_struct_talker.listeners && !global_struct_talker.halt_tx) {
 		tmp_packet = free_packets;
 		if (NULL == tmp_packet)
 			goto cleanup;
@@ -927,18 +930,18 @@ int main(int argc, char *argv[])
 		}
 	}
 	rc = nice(0);
-	if (halt_tx == 0)
+	if (global_struct_talker.halt_tx == 0)
 		printf("listener left ...\n");
-	halt_tx = 1;
+	global_struct_talker.halt_tx = 1;
 	if( transport == 2 ) {
 		rc = mrp_unadvertise_stream
-			(glob_stream_id, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
-			 domain_class_a_priority, 3900);
+			(glob_stream_id, dest_addr, global_struct_talker.domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
+			 global_struct_talker.domain_class_a_priority, 3900);
 	} else {
 		rc = mrp_unadvertise_stream
-			(glob_stream_id, dest_addr, domain_class_a_vid,
+			(glob_stream_id, dest_addr, global_struct_talker.domain_class_a_vid,
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1,
-			 domain_class_a_priority, 3900);
+			 global_struct_talker.domain_class_a_priority, 3900);
 	}
 	if (rc)
 		printf("mrp_unadvertise_stream failed\n");

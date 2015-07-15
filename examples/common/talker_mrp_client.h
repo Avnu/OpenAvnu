@@ -54,9 +54,27 @@
 
 // TODO move these in a talker_context struct + init func
 
-extern volatile int halt_tx;
-extern volatile int listeners;
+struct talker_context
+{
+	int control_socket;
+	volatile int halt_tx;
+	volatile int domain_a_valid;
+	int domain_class_a_id;
+	int domain_class_a_priority;
+	u_int16_t domain_class_a_vid;
+	volatile int domain_b_valid;
+	int domain_class_b_id;
+	int domain_class_b_priority;
+	u_int16_t domain_class_b_vid;
+	unsigned char monitor_stream_id[8];
+	volatile int listeners;
+}global_struct_talker;
+
+extern struct talker_context global_struct_talker;
 extern volatile int mrp_error;
+/*extern volatile int halt_tx;
+extern volatile int listeners;
+
 
 extern volatile int domain_a_valid;
 extern int domain_class_a_id;
@@ -66,7 +84,7 @@ extern u_int16_t domain_class_a_vid;
 extern volatile int domain_b_valid;
 extern int domain_class_b_id;
 extern int domain_class_b_priority;
-extern u_int16_t domain_class_b_vid;
+extern u_int16_t domain_class_b_vid;*/
 
 /* functions */
 
@@ -79,5 +97,5 @@ int mrp_advertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan,
 int mrp_unadvertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
 int mrp_await_listener(unsigned char *streamid);
 int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid, int *class_b_id, int *b_priority, u_int16_t * b_vid);
-
+int mrp_talker_client_init(void);
 #endif /* _TALKER_MRP_CLIENT_H_ */

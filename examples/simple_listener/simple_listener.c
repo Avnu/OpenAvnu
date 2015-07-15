@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
 	char* dev = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/* The compiled filter expression */
-	char filter_exp[] = "ether dst 91:E0:F0:00:0e:80";	/* The filter expression */
+	char filter_exp[100];				/* The filter expression */
 	int rc, class_a_id, a_priority, class_b_id, b_priority;
 	u_int16_t a_vid,b_vid;
 
@@ -284,6 +284,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Got session pcap handler.\n");
 #endif /* DEBUG */
 	/* compile and apply filter */
+	sprintf(filter_exp,"ether dst %02x:%02x:%02x:%02x:%02x:%02x",dst_mac[0],dst_mac[1],dst_mac[2],dst_mac[3],dst_mac[4],dst_mac[5]);
 	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
 		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));

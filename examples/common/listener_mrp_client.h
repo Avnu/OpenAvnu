@@ -49,6 +49,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern int control_socket;
 extern volatile int talker;
 extern unsigned char stream_id[8];
+extern unsigned char dst_mac[6];
 extern volatile int halt_tx;
 
 extern volatile int domain_a_valid;
