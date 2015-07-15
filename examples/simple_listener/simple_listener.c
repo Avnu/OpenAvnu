@@ -110,7 +110,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 			     test_stream_id[6], test_stream_id[7]);
 #endif /* DEBUG*/
 
-		if (0 == memcmp(test_stream_id, stream_id, sizeof(STREAM_ID_SIZE)))
+		if (0 == memcmp(test_stream_id, global_struct_listener.stream_id, sizeof(STREAM_ID_SIZE)))
 		{
 
 #if DEBUG
@@ -140,15 +140,15 @@ void sigint_handler(int signum)
 
 	fprintf(stdout,"Received signal %d:leaving...\n", signum);
 
-	if (0 != talker) {
+	if (0 != global_struct_listener.talker) {
 		ret = send_leave();
 		if (ret)
 			printf("send_leave failed\n");
 	}
 
-	if (2 > control_socket)
+	if (2 > global_struct_listener.control_socket)
 	{
-		close(control_socket);
+		close(global_struct_listener.control_socket);
 		ret = mrp_disconnect();
 		if (ret)
 			printf("mrp_disconnect failed\n");
@@ -201,6 +201,13 @@ int main(int argc, char *argv[])
 
 	if ((NULL == dev) || (NULL == file_name))
 		help();
+
+	rc = mrp_listener_client_init();
+	if (rc)
+	{
+		printf("failed to initialize global variables\n");
+		return EXIT_FAILURE;
+	}
 
 	if (create_socket())
 	{
@@ -284,7 +291,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Got session pcap handler.\n");
 #endif /* DEBUG */
 	/* compile and apply filter */
-	sprintf(filter_exp,"ether dst %02x:%02x:%02x:%02x:%02x:%02x",dst_mac[0],dst_mac[1],dst_mac[2],dst_mac[3],dst_mac[4],dst_mac[5]);
+	sprintf(filter_exp,"ether dst %02x:%02x:%02x:%02x:%02x:%02x",global_struct_listener.dst_mac[0],global_struct_listener.dst_mac[1],global_struct_listener.dst_mac[2],global_struct_listener.dst_mac[3],global_struct_listener.dst_mac[4],global_struct_listener.dst_mac[5]);
 	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
 		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));

@@ -46,21 +46,25 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // TODO move these in a talker_context struct + init func
 
-extern int control_socket;
-extern volatile int talker;
-extern unsigned char stream_id[8];
-extern unsigned char dst_mac[6];
-extern volatile int halt_tx;
+struct listener_context
+{
+	int control_socket;
+	volatile int talker;
+	unsigned char stream_id[8];
+	unsigned char dst_mac[6];
+	volatile int halt_tx;
+	volatile int domain_a_valid;
+	int domain_class_a_id;
+	int domain_class_a_priority;
+	u_int16_t domain_class_a_vid;
+	volatile int domain_b_valid;
+	int domain_class_b_id;
+	int domain_class_b_priority;
+	u_int16_t domain_class_b_vid;
+}global_struct_listener;
 
-extern volatile int domain_a_valid;
-extern int domain_class_a_id;
-extern int domain_class_a_priority;
-extern u_int16_t domain_class_a_vid;
+extern struct listener_context global_struct_listener;
 
-extern volatile int domain_b_valid;
-extern int domain_class_b_id;
-extern int domain_class_b_priority;
-extern u_int16_t domain_class_b_vid;
 
 
 /* functions */
@@ -74,5 +78,6 @@ int send_ready();
 int send_leave();
 int mrp_disconnect();
 int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid, int *class_b_id, int *b_priority, u_int16_t * b_vid);
+int mrp_listener_client_init(void);
 
 #endif /* _LISTENER_MRP_CLIENT_H_ */

@@ -52,8 +52,6 @@
 
 /* global variables */
 
-// TODO move these in a talker_context struct + init func
-
 struct talker_context
 {
 	int control_socket;
@@ -72,19 +70,6 @@ struct talker_context
 
 extern struct talker_context global_struct_talker;
 extern volatile int mrp_error;
-/*extern volatile int halt_tx;
-extern volatile int listeners;
-
-
-extern volatile int domain_a_valid;
-extern int domain_class_a_id;
-extern int domain_class_a_priority;
-extern u_int16_t domain_class_a_vid;
-
-extern volatile int domain_b_valid;
-extern int domain_class_b_id;
-extern int domain_class_b_priority;
-extern u_int16_t domain_class_b_vid;*/
 
 /* functions */
 

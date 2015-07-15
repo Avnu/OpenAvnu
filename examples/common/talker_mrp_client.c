@@ -40,27 +40,10 @@
 
 
 
-extern struct talker_context global_struct_talker;
+struct talker_context global_struct_talker;
 
 volatile int mrp_okay;
 volatile int mrp_error = 0;;
-
-
-/*int control_socket = -1;
-volatile int halt_tx = 0;
-volatile int listeners = 0;
-volatile int domain_a_valid = 0;
-int domain_class_a_id = 0;
-int domain_class_a_priority = 0;
-u_int16_t domain_class_a_vid = 0;
-
-volatile int domain_b_valid = 0;
-int domain_class_b_id = 0;
-int domain_class_b_priority = 0;
-u_int16_t domain_class_b_vid = 0;
-unsigned char monitor_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };*/
-
-
 pthread_t monitor_thread;
 pthread_attr_t monitor_attr;
 
@@ -68,7 +51,7 @@ pthread_attr_t monitor_attr;
 /*
  * private
  */
- 
+
 int mrp_talker_client_init(void)
 {
 	int i;

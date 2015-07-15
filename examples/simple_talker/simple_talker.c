@@ -510,9 +510,13 @@ int main(int argc, char *argv[])
 		fprintf( stderr, "Must specify valid transport\n" );
 		usage();
 	}
-	
-	mrp_talker_client_init();
-	
+
+	rc = mrp_talker_client_init();
+	if (rc) {
+		printf("MRP talker client initialization failed\n");
+		return errno;
+	}
+
 	rc = mrp_connect();
 	if (rc) {
 		printf("socket creation failed\n");
