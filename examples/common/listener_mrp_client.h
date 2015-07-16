@@ -44,9 +44,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* global variables */
 
-// TODO move these in a talker_context struct + init func
-
-struct listener_context
+struct mrp_listener_ctx
 {
 	int control_socket;
 	volatile int talker;
@@ -61,23 +59,28 @@ struct listener_context
 	int domain_class_b_id;
 	int domain_class_b_priority;
 	u_int16_t domain_class_b_vid;
-}global_struct_listener;
+};
 
-extern struct listener_context global_struct_listener;
+struct mrp_domain_attr
+{
+	int id;
+	int priority;
+	u_int16_t vid;
+};
 
 
 
 /* functions */
 
-int create_socket();
-int mrp_monitor(void);
-int report_domain_status(int *class_id, int *priority, u_int16_t *vid);
-int join_vlan(u_int16_t vid);
-int await_talker();
-int send_ready();
-int send_leave();
-int mrp_disconnect();
-int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid, int *class_b_id, int *b_priority, u_int16_t * b_vid);
-int mrp_listener_client_init(void);
+int create_socket(struct mrp_listener_ctx *ctx);
+int mrp_monitor(struct mrp_listener_ctx *ctx);
+int report_domain_status(struct mrp_domain_attr *class_a, struct mrp_listener_ctx *ctx);
+int join_vlan(struct mrp_domain_attr *class_a, struct mrp_listener_ctx *ctx);
+int await_talker(struct mrp_listener_ctx *ctx);
+int send_ready(struct mrp_listener_ctx *ctx);
+int send_leave(struct mrp_listener_ctx *ctx);
+int mrp_disconnect(struct mrp_listener_ctx *ctx);
+int mrp_get_domain(struct mrp_listener_ctx *ctx, struct mrp_domain_attr *class_a, struct mrp_domain_attr *class_b);
+int mrp_listener_client_init(struct mrp_listener_ctx *ctx);
 
 #endif /* _LISTENER_MRP_CLIENT_H_ */

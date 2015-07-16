@@ -26,7 +26,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* global variables */
 
-struct listener_context global_struct_listener;
+//struct listener_context global_struct_listener;
 pthread_t monitor_thread;
 pthread_attr_t monitor_attr;
 
@@ -34,37 +34,36 @@ pthread_attr_t monitor_attr;
  * private
  */
 
-int mrp_listener_client_init(void)
+int mrp_listener_client_init(struct mrp_listener_ctx *ctx)
 {
 	int i;
-	global_struct_listener.control_socket=-1;
-	global_struct_listener.talker = 0;
-	global_struct_listener.halt_tx = 0;
-	global_struct_listener.domain_a_valid = 0;
-	global_struct_listener.domain_class_a_id = 0;
-	global_struct_listener.domain_class_a_priority = 0;
-	global_struct_listener.domain_class_a_vid = 0;
-	global_struct_listener.domain_b_valid = 0;
-	global_struct_listener.domain_class_b_id = 0;
-	global_struct_listener.domain_class_b_priority = 0;
-	global_struct_listener.domain_class_b_vid = 0;
+	ctx->control_socket=-1;
+	ctx->talker = 0;
+	ctx->halt_tx = 0;
+	ctx->domain_a_valid = 0;
+	ctx->domain_class_a_id = 0;
+	ctx->domain_class_a_priority = 0;
+	ctx->domain_class_a_vid = 0;
+	ctx->domain_b_valid = 0;
+	ctx->domain_class_b_id = 0;
+	ctx->domain_class_b_priority = 0;
+	ctx->domain_class_b_vid = 0;
 	for (i=0;i<8;i++)
 	{
-		global_struct_listener.stream_id[i]=0;
+		ctx->stream_id[i]=0;
 	}
 	for (i=0;i<6;i++)
 	{
-		global_struct_listener.dst_mac[i]=0;
+		ctx->dst_mac[i]=0;
 	}
 	return 0;
 }
 
-int send_msg(char *data, int data_len)
+int send_msg(char *data, int data_len, struct mrp_listener_ctx *ctx)
 {
-	//printf("Inside send msg\n");
 	struct sockaddr_in addr;
 
-	if (global_struct_listener.control_socket == -1)
+	if (ctx->control_socket == -1)
 		return -1;
 	if (data == NULL)
 		return -1;
@@ -74,11 +73,11 @@ int send_msg(char *data, int data_len)
 	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	inet_aton("127.0.0.1", &addr.sin_addr);
-	return sendto(global_struct_listener.control_socket, data, data_len, 0,
+	return sendto(ctx->control_socket, data, data_len, 0,
 		(struct sockaddr*)&addr, (socklen_t)sizeof(addr));
 }
 
-int msg_process(char *buf, int buflen)
+int msg_process(char *buf, int buflen, struct mrp_listener_ctx *ctx)
 {
 	uint32_t id;
 	int j, l=0;
@@ -97,15 +96,15 @@ int msg_process(char *buf, int buflen)
 		for(j = 0; j < 8 ; l+=2, j++)
 		{
 			sscanf(&buf[l],"%02x",&id);
-			global_struct_listener.stream_id[j] = (unsigned char)id;
+			ctx->stream_id[j] = (unsigned char)id;
 		}
 		l+=3;
 		for(j = 0; j < 6 ; l+=2, j++)
 		{
 			sscanf(&buf[l],"%02x",&id);
-			global_struct_listener.dst_mac[j] = (unsigned char)id;
+			ctx->dst_mac[j] = (unsigned char)id;
 		}
-		global_struct_listener.talker = 1;
+		ctx->talker = 1;
 	}
 
 	if (strncmp(buf, "SJO D:", 6) == 0)
@@ -119,17 +118,17 @@ int msg_process(char *buf, int buflen)
 
 		if (id == 6)
 		{
-			global_struct_listener.domain_class_a_id = id;
-			global_struct_listener.domain_class_a_priority = priority;
-			global_struct_listener.domain_class_a_vid = vid;
-			global_struct_listener.domain_a_valid = 1;
+			ctx->domain_class_a_id = id;
+			ctx->domain_class_a_priority = priority;
+			ctx->domain_class_a_vid = vid;
+			ctx->domain_a_valid = 1;
 		}
 		else
 		{
-			global_struct_listener.domain_class_b_id = id;
-			global_struct_listener.domain_class_b_priority = priority;
-			global_struct_listener.domain_class_b_vid = vid;
-			global_struct_listener.domain_b_valid = 1;
+			ctx->domain_class_b_id = id;
+			ctx->domain_class_b_priority = priority;
+			ctx->domain_class_b_vid = vid;
+			ctx->domain_b_valid = 1;
 		}
 		l+=4;
 
@@ -141,16 +140,16 @@ int msg_process(char *buf, int buflen)
  * public
  */
 
-int create_socket() // TODO FIX! =:-|
+int create_socket(struct mrp_listener_ctx *ctx) // TODO FIX! =:-|
 {
 	struct sockaddr_in addr;
-	global_struct_listener.control_socket = socket(AF_INET, SOCK_DGRAM, 0);
+	ctx->control_socket = socket(AF_INET, SOCK_DGRAM, 0);
 
 	/** in POSIX fd 0,1,2 are reserved */
-	if (2 > global_struct_listener.control_socket)
+	if (2 > ctx->control_socket)
 	{
-		if (-1 > global_struct_listener.control_socket)
-			close(global_struct_listener.control_socket);
+		if (-1 > ctx->control_socket)
+			close(ctx->control_socket);
 	return -1;
 	}
 
@@ -158,10 +157,10 @@ int create_socket() // TODO FIX! =:-|
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(0);
 
-	if(0 > (bind(global_struct_listener.control_socket, (struct sockaddr*)&addr, sizeof(addr))))
+	if(0 > (bind(ctx->control_socket, (struct sockaddr*)&addr, sizeof(addr))))
 	{
 		fprintf(stderr, "Could not bind socket.\n");
-		close(global_struct_listener.control_socket);
+		close(ctx->control_socket);
 		return -1;
 	}
 	return 0;
@@ -176,13 +175,13 @@ void *mrp_monitor_thread(void *arg)
 	int bytes = 0;
 	struct pollfd fds;
 	int rc;
-	(void) arg; /* unused */
+	struct mrp_listener_ctx *ctx = (struct mrp_listener_ctx*) arg;
 
 	msgbuf = (char *)malloc(MAX_MRPD_CMDSZ);
 	if (NULL == msgbuf)
 		return NULL;
-	while (!global_struct_listener.halt_tx) {
-		fds.fd = global_struct_listener.control_socket;
+	while (!ctx->halt_tx) {
+		fds.fd = ctx->control_socket;
 		fds.events = POLLIN;
 		fds.revents = 0;
 		rc = poll(&fds, 1, 100);
@@ -205,25 +204,25 @@ void *mrp_monitor_thread(void *arg)
 		msg.msg_namelen = sizeof(client_addr);
 		msg.msg_iov = &iov;
 		msg.msg_iovlen = 1;
-		bytes = recvmsg(global_struct_listener.control_socket, &msg, 0);
+		bytes = recvmsg(ctx->control_socket, &msg, 0);
 		if (bytes < 0)
 			continue;
-		msg_process(msgbuf, bytes);
+		msg_process(msgbuf, bytes, ctx);
 	}
 	free(msgbuf);
 	pthread_exit(NULL);
 }
 
 
-int mrp_monitor(void)
+int mrp_monitor(struct mrp_listener_ctx *ctx)
 {
 	int rc;
 	rc = pthread_attr_init(&monitor_attr);
-	rc |= pthread_create(&monitor_thread, NULL, mrp_monitor_thread, NULL);
+	rc |= pthread_create(&monitor_thread, NULL, mrp_monitor_thread, ctx);
 	return rc;
 }
 
-int report_domain_status(int *class_id, int *priority, u_int16_t *vid)
+int report_domain_status(struct mrp_domain_attr *class_a, struct mrp_listener_ctx *ctx)
 {
 	char* msgbuf;
 	int rc;
@@ -232,8 +231,8 @@ int report_domain_status(int *class_id, int *priority, u_int16_t *vid)
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", *class_id, *priority, *vid);
-	rc = send_msg(msgbuf, 1500);
+	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", class_a->id, class_a->priority, class_a->vid);
+	rc = send_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 
 	if (rc != 1500)
@@ -242,8 +241,7 @@ int report_domain_status(int *class_id, int *priority, u_int16_t *vid)
 		return 0;
 }
 
-int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
-		   int *class_b_id, int *b_priority, u_int16_t * b_vid)
+int mrp_get_domain(struct mrp_listener_ctx *ctx, struct mrp_domain_attr *class_a, struct mrp_domain_attr *class_b)
 {
 	char *msgbuf;
 	int ret;
@@ -256,32 +254,32 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S??");
-	ret = send_msg(msgbuf, 1500);
+	ret = send_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 	if (ret != 1500)
 		return -1;
-	while (!global_struct_listener.halt_tx && (global_struct_listener.domain_a_valid == 0) && (global_struct_listener.domain_b_valid == 0))
+	while (!ctx->halt_tx && (ctx->domain_a_valid == 0) && (ctx->domain_b_valid == 0))
 		usleep(20000);
-	*class_a_id = 0;
-	*a_priority = 0;
-	*a_vid = 0;
-	*class_b_id = 0;
-	*b_priority = 0;
-	*b_vid = 0;
-	if (global_struct_listener.domain_a_valid) {
-		*class_a_id = global_struct_listener.domain_class_a_id;
-		*a_priority = global_struct_listener.domain_class_a_priority;
-		*a_vid = global_struct_listener.domain_class_a_vid;
+	class_a->id = 0;
+	class_a->priority = 0;
+	class_a->vid = 0;
+	class_b->id = 0;
+	class_b->priority = 0;
+	class_b->vid = 0;
+	if (ctx->domain_a_valid) {
+		class_a->id = ctx->domain_class_a_id;
+		class_a->priority = ctx->domain_class_a_priority;
+		class_a->vid = ctx->domain_class_a_vid;
 	}
-	if (global_struct_listener.domain_b_valid) {
-		*class_b_id = global_struct_listener.domain_class_b_id;
-		*b_priority = global_struct_listener.domain_class_b_priority;
-		*b_vid = global_struct_listener.domain_class_b_vid;
+	if (ctx->domain_b_valid) {
+		class_b->id = ctx->domain_class_b_id;
+		class_b->priority = ctx->domain_class_b_priority;
+		class_b->vid = ctx->domain_class_b_vid;
 	}
 	return 0;
 }
 
-int join_vlan(u_int16_t vid)
+int join_vlan(struct mrp_domain_attr *class_a, struct mrp_listener_ctx *ctx)
 {
 	char *msgbuf;
 	int rc;
@@ -290,9 +288,9 @@ int join_vlan(u_int16_t vid)
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "V++:I=%04x\n",vid);
+	sprintf(msgbuf, "V++:I=%04x\n",class_a->vid);
 	printf("Joing VLAN %s\n",msgbuf);
-	rc = send_msg(msgbuf, 1500);
+	rc = send_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 
 	if (rc != 1500)
@@ -301,14 +299,14 @@ int join_vlan(u_int16_t vid)
 		return 0;
 }
 
-int await_talker()
+int await_talker(struct mrp_listener_ctx *ctx)
 {
-	while (0 == global_struct_listener.talker)
+	while (0 == ctx->talker)
 		;
 	return 0;
 }
 
-int send_ready()
+int send_ready(struct mrp_listener_ctx *ctx)
 {
 	char *databuf;
 	int rc;
@@ -318,11 +316,11 @@ int send_ready()
 		return -1;
 	memset(databuf, 0, 1500);
 	sprintf(databuf, "S+L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=2",
-		     global_struct_listener.stream_id[0], global_struct_listener.stream_id[1],
-		     global_struct_listener.stream_id[2], global_struct_listener.stream_id[3],
-		     global_struct_listener.stream_id[4], global_struct_listener.stream_id[5],
-		     global_struct_listener.stream_id[6], global_struct_listener.stream_id[7]);
-	rc = send_msg(databuf, 1500);
+		     ctx->stream_id[0], ctx->stream_id[1],
+		     ctx->stream_id[2], ctx->stream_id[3],
+		     ctx->stream_id[4], ctx->stream_id[5],
+		     ctx->stream_id[6], ctx->stream_id[7]);
+	rc = send_msg(databuf, 1500, ctx);
 	free(databuf);
 
 	if (rc != 1500)
@@ -331,7 +329,7 @@ int send_ready()
 		return 0;
 }
 
-int send_leave()
+int send_leave(struct mrp_listener_ctx *ctx)
 {
 	char *databuf;
 	int rc;
@@ -341,11 +339,11 @@ int send_leave()
 		return -1;
 	memset(databuf, 0, 1500);
 	sprintf(databuf, "S-L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=3",
-		     global_struct_listener.stream_id[0], global_struct_listener.stream_id[1],
-		     global_struct_listener.stream_id[2], global_struct_listener.stream_id[3],
-		     global_struct_listener.stream_id[4], global_struct_listener.stream_id[5],
-		     global_struct_listener.stream_id[6], global_struct_listener.stream_id[7]);
-	rc = send_msg(databuf, 1500);
+		     ctx->stream_id[0], ctx->stream_id[1],
+		     ctx->stream_id[2], ctx->stream_id[3],
+		     ctx->stream_id[4], ctx->stream_id[5],
+		     ctx->stream_id[6], ctx->stream_id[7]);
+	rc = send_msg(databuf, 1500, ctx);
 	free(databuf);
 
 	if (rc != 1500)
@@ -354,7 +352,7 @@ int send_leave()
 		return 0;
 }
 
-int mrp_disconnect()
+int mrp_disconnect(struct mrp_listener_ctx *ctx)
 {
 	int rc;
 	char *msgbuf = malloc(1500);
@@ -364,7 +362,7 @@ int mrp_disconnect()
 	memset(msgbuf, 0, 1500);
 
 	sprintf(msgbuf, "BYE");
-	rc = send_msg(msgbuf, 1500);
+	rc = send_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 
 	if (rc != 1500)

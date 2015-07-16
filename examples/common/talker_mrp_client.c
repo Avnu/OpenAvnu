@@ -36,12 +36,6 @@
 
 /* global variables */
 
-
-
-
-
-struct talker_context global_struct_talker;
-
 volatile int mrp_okay;
 volatile int mrp_error = 0;;
 pthread_t monitor_thread;
@@ -52,34 +46,33 @@ pthread_attr_t monitor_attr;
  * private
  */
 
-int mrp_talker_client_init(void)
+int mrp_talker_client_init(struct mrp_talker_ctx *ctx)
 {
 	int i;
-	global_struct_talker.control_socket = -1;
-	global_struct_talker.halt_tx = 0;
-	global_struct_talker.listeners = 0;
-	global_struct_talker.domain_a_valid = 0;
-	global_struct_talker.domain_class_a_id = 0;
-	global_struct_talker.domain_class_a_priority = 0;
-	global_struct_talker.domain_class_a_vid = 0;
-
-	global_struct_talker.domain_b_valid = 0;
-	global_struct_talker.domain_class_b_id = 0;
-	global_struct_talker.domain_class_b_priority = 0;
-	global_struct_talker.domain_class_b_vid = 0;
+	ctx->control_socket = -1;
+	ctx->halt_tx = 0;
+	ctx->listeners = 0;
+	ctx->domain_a_valid = 0;
+	ctx->domain_class_a_id = 0;
+	ctx->domain_class_a_priority = 0;
+	ctx->domain_class_a_vid = 0;
+	ctx->domain_b_valid = 0;
+	ctx->domain_class_b_id = 0;
+	ctx->domain_class_b_priority = 0;
+	ctx->domain_class_b_vid = 0;
 	for (i=0;i<8;i++)
 	{
-		global_struct_talker.monitor_stream_id[i] = 0;
+		ctx->monitor_stream_id[i] = 0;
 	}
 	return 0;
 }
 
-int send_mrp_msg(char *notify_data, int notify_len)
+int send_mrp_msg(char *notify_data, int notify_len, struct mrp_talker_ctx *ctx)
 {
 	struct sockaddr_in addr;
 	socklen_t addr_len;
 
-	if (global_struct_talker.control_socket == -1)
+	if (ctx->control_socket == -1)
 		return -1;
 	if (notify_data == NULL)
 		return -1;
@@ -89,11 +82,11 @@ int send_mrp_msg(char *notify_data, int notify_len)
 	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	addr_len = sizeof(addr);
-	return sendto(global_struct_talker.control_socket, notify_data, notify_len, 0,
+	return sendto(ctx->control_socket, notify_data, notify_len, 0,
 			 (struct sockaddr *)&addr, addr_len);
 }
 
-int process_mrp_msg(char *buf, int buflen)
+int process_mrp_msg(char *buf, int buflen, struct mrp_talker_ctx *ctx)
 {
 
 	/*
@@ -164,9 +157,9 @@ int process_mrp_msg(char *buf, int buflen)
 		}
 		if (substate > MSRP_LISTENER_ASKFAILED) {
 			if (memcmp
-			    (recovered_streamid, global_struct_talker.monitor_stream_id,
+			    (recovered_streamid, ctx->monitor_stream_id,
 			     sizeof(recovered_streamid)) == 0) {
-				global_struct_talker.listeners = 1;
+				ctx->listeners = 1;
 				printf("added listener\n");
 			}
 		}
@@ -197,15 +190,15 @@ int process_mrp_msg(char *buf, int buflen)
 		i += 2;		/* skip the ':' */
 		sscanf(&(buf[i]), "%x", &vid);
 		if (id == 6) {
-			global_struct_talker.domain_class_a_id = id;
-			global_struct_talker.domain_class_a_priority = priority;
-			global_struct_talker.domain_class_a_vid = vid;
-			global_struct_talker.domain_a_valid = 1;
+			ctx->domain_class_a_id = id;
+			ctx->domain_class_a_priority = priority;
+			ctx->domain_class_a_vid = vid;
+			ctx->domain_a_valid = 1;
 		} else {
-			global_struct_talker.domain_class_b_id = id;
-			global_struct_talker.domain_class_b_priority = priority;
-			global_struct_talker.domain_class_b_vid = vid;
-			global_struct_talker.domain_b_valid = 1;
+			ctx->domain_class_b_id = id;
+			ctx->domain_class_b_priority = priority;
+			ctx->domain_class_b_vid = vid;
+			ctx->domain_b_valid = 1;
 		}
 		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
 			i++;
@@ -272,9 +265,9 @@ int process_mrp_msg(char *buf, int buflen)
 			case 'L':
 				printf("got a leave indication\n");
 				if (memcmp
-				    (recovered_streamid, global_struct_talker.monitor_stream_id,
+				    (recovered_streamid, ctx->monitor_stream_id,
 				     sizeof(recovered_streamid)) == 0) {
-					global_struct_talker.listeners = 0;
+					ctx->listeners = 0;
 					printf("listener left\n");
 				}
 				break;
@@ -284,9 +277,9 @@ int process_mrp_msg(char *buf, int buflen)
 				if (substate > MSRP_LISTENER_ASKFAILED) {
 					if (memcmp
 					    (recovered_streamid,
-					     global_struct_talker.monitor_stream_id,
+					     ctx->monitor_stream_id,
 					     sizeof(recovered_streamid)) == 0)
-						global_struct_talker.listeners = 1;
+						ctx->listeners = 1;
 				}
 				break;
 			}
@@ -312,13 +305,13 @@ void *mrp_monitor_thread(void *arg)
 	int bytes = 0;
 	struct pollfd fds;
 	int rc;
-	(void) arg; /* unused */
+	struct mrp_talker_ctx *ctx = (struct mrp_talker_ctx*) arg;
 
 	msgbuf = (char *)malloc(MAX_MRPD_CMDSZ);
 	if (NULL == msgbuf)
 		return NULL;
-	while (!global_struct_talker.halt_tx) {
-		fds.fd = global_struct_talker.control_socket;
+	while (!ctx->halt_tx) {
+		fds.fd = ctx->control_socket;
 		fds.events = POLLIN;
 		fds.revents = 0;
 		rc = poll(&fds, 1, 100);
@@ -341,10 +334,10 @@ void *mrp_monitor_thread(void *arg)
 		msg.msg_namelen = sizeof(client_addr);
 		msg.msg_iov = &iov;
 		msg.msg_iovlen = 1;
-		bytes = recvmsg(global_struct_talker.control_socket, &msg, 0);
+		bytes = recvmsg(ctx->control_socket, &msg, 0);
 		if (bytes < 0)
 			continue;
-		process_mrp_msg(msgbuf, bytes);
+		process_mrp_msg(msgbuf, bytes, ctx);
 	}
 	free(msgbuf);
 	pthread_exit(NULL);
@@ -354,10 +347,11 @@ void *mrp_monitor_thread(void *arg)
  * public
  */
 
-int mrp_connect(void)
+int mrp_connect(struct mrp_talker_ctx *ctx)
 {
 	struct sockaddr_in addr;
 	int sock_fd = -1;
+	int rc;
 	sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sock_fd < 0)
 		goto out;
@@ -366,7 +360,10 @@ int mrp_connect(void)
 	addr.sin_port = htons(MRPD_PORT_DEFAULT);
 	inet_aton("127.0.0.1", &addr.sin_addr);
 	memset(&addr, 0, sizeof(addr));
-	global_struct_talker.control_socket = sock_fd;
+	ctx->control_socket = sock_fd;
+	rc = pthread_attr_init(&monitor_attr);
+	rc |= pthread_create(&monitor_thread, NULL, mrp_monitor_thread, ctx);
+	return rc;
 	return 0;
  out:	if (sock_fd != -1)
 		close(sock_fd);
@@ -374,7 +371,7 @@ int mrp_connect(void)
 	return -1;
 }
 
-int mrp_disconnect(void)
+int mrp_disconnect(struct mrp_talker_ctx *ctx)
 {
 	char *msgbuf;
 	int rc;
@@ -385,7 +382,7 @@ int mrp_disconnect(void)
 	memset(msgbuf, 0, 64);
 	sprintf(msgbuf, "BYE");
 	mrp_okay = 0;
-	rc = send_mrp_msg(msgbuf, 1500);
+	rc = send_mrp_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 
 	if (rc != 1500)
@@ -402,7 +399,7 @@ int mrp_monitor(void)
 	return rc;
 }
 
-int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid)
+int mrp_register_domain(struct mrp_domain_attr *reg_class, struct mrp_talker_ctx *ctx)
 {
 	char *msgbuf;
 	int rc;
@@ -412,9 +409,9 @@ int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid)
 		return -1;
 	memset(msgbuf, 0, 1500);
 
-	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", *class_id, *priority, *vid);
+	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", reg_class->id, reg_class->priority, reg_class->vid);
 	mrp_okay = 0;
-	rc = send_mrp_msg(msgbuf, 1500);
+	rc = send_mrp_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 
 	if (rc != 1500)
@@ -427,8 +424,7 @@ int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid)
 int
 mrp_advertise_stream(uint8_t * streamid,
 		     uint8_t * destaddr,
-		     u_int16_t vlan,
-		     int pktsz, int interval, int priority, int latency)
+		     int pktsz, int interval, int latency, struct mrp_talker_ctx *ctx)
 {
 	char *msgbuf;
 	int rc;
@@ -447,10 +443,10 @@ mrp_advertise_stream(uint8_t * streamid,
 		",L=%d", streamid[0], streamid[1], streamid[2],
 		streamid[3], streamid[4], streamid[5], streamid[6],
 		streamid[7], destaddr[0], destaddr[1], destaddr[2],
-		destaddr[3], destaddr[4], destaddr[5], vlan, pktsz,
-		interval, priority << 5, latency);
+		destaddr[3], destaddr[4], destaddr[5], ctx->domain_class_a_vid, pktsz,
+		interval, ctx->domain_class_a_priority << 5, latency);
 	mrp_okay = 0;
-	rc = send_mrp_msg(msgbuf, 1500);
+	rc = send_mrp_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 
 	if (rc != 1500)
@@ -462,8 +458,7 @@ mrp_advertise_stream(uint8_t * streamid,
 int
 mrp_unadvertise_stream(uint8_t * streamid,
 		       uint8_t * destaddr,
-		       u_int16_t vlan,
-		       int pktsz, int interval, int priority, int latency)
+		       int pktsz, int interval, int latency, struct mrp_talker_ctx *ctx)
 {
 	char *msgbuf;
 	int rc;
@@ -480,10 +475,10 @@ mrp_unadvertise_stream(uint8_t * streamid,
 		",L=%d", streamid[0], streamid[1], streamid[2],
 		streamid[3], streamid[4], streamid[5], streamid[6],
 		streamid[7], destaddr[0], destaddr[1], destaddr[2],
-		destaddr[3], destaddr[4], destaddr[5], vlan, pktsz,
-		interval, priority << 5, latency);
+		destaddr[3], destaddr[4], destaddr[5], ctx->domain_class_a_vid, pktsz,
+		interval, ctx->domain_class_a_priority << 5, latency);
 	mrp_okay = 0;
-	rc = send_mrp_msg(msgbuf, 1500);
+	rc = send_mrp_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 
 	if (rc != 1500)
@@ -493,24 +488,24 @@ mrp_unadvertise_stream(uint8_t * streamid,
 }
 
 
-int mrp_await_listener(unsigned char *streamid)
+int mrp_await_listener(unsigned char *streamid, struct mrp_talker_ctx *ctx)
 {
 	char *msgbuf;
 	int rc;
 
-	memcpy(global_struct_talker.monitor_stream_id, streamid, sizeof(global_struct_talker.monitor_stream_id));
+	memcpy(ctx->monitor_stream_id, streamid, sizeof(ctx->monitor_stream_id));
 	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S??");
-	rc = send_mrp_msg(msgbuf, 1500);
+	rc = send_mrp_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 	if (rc != 1500)
 		return -1;
 
 	/* either already there ... or need to wait ... */
-	while (!global_struct_talker.halt_tx && (global_struct_talker.listeners == 0))
+	while (!ctx->halt_tx && (ctx->listeners == 0))
 		usleep(20000);
 
 	return 0;
@@ -520,8 +515,7 @@ int mrp_await_listener(unsigned char *streamid)
  * actually not used
  */
 
-int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
-		   int *class_b_id, int *b_priority, u_int16_t * b_vid)
+int mrp_get_domain(struct mrp_talker_ctx *ctx,struct mrp_domain_attr *class_a,struct mrp_domain_attr *class_b)
 {
 	char *msgbuf;
 	int ret;
@@ -534,32 +528,32 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S??");
-	ret = send_mrp_msg(msgbuf, 1500);
+	ret = send_mrp_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 	if (ret != 1500)
 		return -1;
-	while (!global_struct_talker.halt_tx && (global_struct_talker.domain_a_valid == 0) && (global_struct_talker.domain_b_valid == 0))
+	while (!ctx->halt_tx && (ctx->domain_a_valid == 0) && (ctx->domain_b_valid == 0))
 		usleep(20000);
-	*class_a_id = 0;
-	*a_priority = 0;
-	*a_vid = 0;
-	*class_b_id = 0;
-	*b_priority = 0;
-	*b_vid = 0;
-	if (global_struct_talker.domain_a_valid) {
-		*class_a_id = global_struct_talker.domain_class_a_id;
-		*a_priority = global_struct_talker.domain_class_a_priority;
-		*a_vid = global_struct_talker.domain_class_a_vid;
+	class_a->id = 0;
+	class_a->priority = 0;
+	class_a->vid = 0;
+	class_b->id = 0;
+	class_b->priority = 0;
+	class_b->vid = 0;
+	if (ctx->domain_a_valid) {
+		class_a->id = ctx->domain_class_a_id;
+		class_a->priority = ctx->domain_class_a_priority;
+		class_a->vid = ctx->domain_class_a_vid;
 	}
-	if (global_struct_talker.domain_b_valid) {
-		*class_b_id = global_struct_talker.domain_class_b_id;
-		*b_priority = global_struct_talker.domain_class_b_priority;
-		*b_vid = global_struct_talker.domain_class_b_vid;
+	if (ctx->domain_b_valid) {
+		class_b->id = ctx->domain_class_b_id;
+		class_b->priority = ctx->domain_class_b_priority;
+		class_b->vid = ctx->domain_class_b_vid;
 	}
 	return 0;
 }
 
-int mrp_join_vlan(u_int16_t vid)
+int mrp_join_vlan(struct mrp_domain_attr *reg_class, struct mrp_talker_ctx *ctx)
 {
 	char *msgbuf;
 	int rc;
@@ -568,8 +562,8 @@ int mrp_join_vlan(u_int16_t vid)
 	if (NULL == msgbuf)
 		return -1;
 	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "V++:I=%04x\n",vid);
-	rc = send_mrp_msg(msgbuf, 1500);
+	sprintf(msgbuf, "V++:I=%04x\n",reg_class->vid);
+	rc = send_mrp_msg(msgbuf, 1500, ctx);
 	free(msgbuf);
 
 	if (rc != 1500)
@@ -578,27 +572,6 @@ int mrp_join_vlan(u_int16_t vid)
 		return 0;
 }
 
-int mrp_join_listener(uint8_t * streamid)
-{
-	char *msgbuf;
-	int rc;
-
-	msgbuf = malloc(1500);
-	if (NULL == msgbuf)
-		return -1;
-	memset(msgbuf, 0, 1500);
-	sprintf(msgbuf, "S+L:S=%02X%02X%02X%02X%02X%02X%02X%02X"
-		",D=2", streamid[0], streamid[1], streamid[2], streamid[3],
-		streamid[4], streamid[5], streamid[6], streamid[7]);
-	mrp_okay = 0;
-	rc = send_mrp_msg(msgbuf, 1500);
-	free(msgbuf);
-
-	if (rc != 1500)
-		return -1;
-	else
-		return 0;
-}
 
 // TODO remove
 int recv_mrp_okay()

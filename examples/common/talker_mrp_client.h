@@ -52,7 +52,7 @@
 
 /* global variables */
 
-struct talker_context
+struct mrp_talker_ctx
 {
 	int control_socket;
 	volatile int halt_tx;
@@ -66,21 +66,27 @@ struct talker_context
 	u_int16_t domain_class_b_vid;
 	unsigned char monitor_stream_id[8];
 	volatile int listeners;
-}global_struct_talker;
+};
 
-extern struct talker_context global_struct_talker;
+struct mrp_domain_attr
+{
+	int id;
+	int priority;
+	u_int16_t vid;
+};
+
+
 extern volatile int mrp_error;
 
 /* functions */
 
-int mrp_connect(void);
-int mrp_disconnect(void);
-int mrp_monitor(void);
-int mrp_register_domain(int *class_id, int *priority, u_int16_t *vid);
-int mrp_join_vlan(u_int16_t vid);
-int mrp_advertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
-int mrp_unadvertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
-int mrp_await_listener(unsigned char *streamid);
-int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid, int *class_b_id, int *b_priority, u_int16_t * b_vid);
-int mrp_talker_client_init(void);
+int mrp_connect(struct mrp_talker_ctx *ctx);
+int mrp_disconnect(struct mrp_talker_ctx *ctx);
+int mrp_register_domain(struct mrp_domain_attr *reg_class, struct mrp_talker_ctx *ctx);
+int mrp_join_vlan(struct mrp_domain_attr *reg_class, struct mrp_talker_ctx *ctx);
+int mrp_advertise_stream(uint8_t * streamid, uint8_t * destaddr, int pktsz, int interval, int latency, struct mrp_talker_ctx *ctx);
+int mrp_unadvertise_stream(uint8_t * streamid, uint8_t * destaddr, int pktsz, int interval, int latency, struct mrp_talker_ctx *ctx);
+int mrp_await_listener(unsigned char *streamid, struct mrp_talker_ctx *ctx);
+int mrp_get_domain(struct mrp_talker_ctx *ctx, struct mrp_domain_attr *class_a, struct mrp_domain_attr *class_b);
+int mrp_talker_client_init(struct mrp_talker_ctx *ctx);
 #endif /* _TALKER_MRP_CLIENT_H_ */
