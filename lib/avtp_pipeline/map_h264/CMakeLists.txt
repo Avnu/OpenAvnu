@@ -1,0 +1,5 @@
+SET (SRC_FILES ${SRC_FILES}
+	${AVB_SRC_DIR}/map_h264/openavb_map_h264.c
+	PARENT_SCOPE
+)
+
