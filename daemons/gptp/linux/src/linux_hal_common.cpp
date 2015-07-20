@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -89,7 +89,7 @@ net_result LinuxNetworkInterface::send
 	addr->toOctetArray( remote->sll_addr );
 
 	if( timestamp ) {
-#ifndef ARCH_INTELCE	   
+#ifndef ARCH_INTELCE
 		net_lock.lock();
 #endif
 		err = sendto
@@ -113,7 +113,7 @@ void LinuxNetworkInterface::disable_clear_rx_queue() {
 	struct packet_mreq mr_8021as;
 	int err;
 	char buf[256];
-	
+
 	if( !net_lock.lock() ) {
 		fprintf( stderr, "D rx lock failed\n" );
 		_exit(0);
@@ -133,9 +133,9 @@ void LinuxNetworkInterface::disable_clear_rx_queue() {
 			  ifindex );
 		return;
 	}
-  
+
 	while( recvfrom( sd_event, buf, 256, MSG_DONTWAIT, NULL, 0 ) != -1 );
-	
+
 	return;
 }
 
@@ -193,9 +193,9 @@ void *LinuxTimerQueueHandler( void *arg ) {
 	sigset_t waitfor;
 	struct timespec timeout;
 	timeout.tv_sec = 0; timeout.tv_nsec = 100000000; /* 100 ms */
-	
+
 	sigemptyset( &waitfor );
-	
+
 	while( !timerq->stop ) {
 		siginfo_t info;
 		LinuxTimerQueueMap_t::iterator iter;
@@ -255,7 +255,7 @@ OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
 	return ret;
 }
 
-	
+
 
 bool LinuxTimerQueue::addEvent
 ( unsigned long micros, int type, ostimerq_handler func,
@@ -275,7 +275,7 @@ bool LinuxTimerQueue::addEvent
 	while( timerQueueMap.find( key ) != timerQueueMap.end() ) {
 		++key;
 	}
-		
+
 	{
 		struct itimerspec its;
 		memset(&(outer_arg->sevp), 0, sizeof(outer_arg->sevp));
@@ -296,7 +296,7 @@ bool LinuxTimerQueue::addEvent
 		err = timer_settime( outer_arg->timer_handle, 0, &its, NULL );
 		if( err < 0 ) {
 			fprintf
-				( stderr, "Failed to arm timer: %s\n", 
+				( stderr, "Failed to arm timer: %s\n",
 				  strerror( errno ));
 			return false;
 		}
@@ -357,7 +357,7 @@ unsigned long LinuxTimer::sleep(unsigned long micros) {
 
 struct TicketingLockPrivate {
 	pthread_cond_t condition;
-	pthread_mutex_t cond_lock;      
+	pthread_mutex_t cond_lock;
 };
 
 bool TicketingLock::lock( bool *got ) {
@@ -365,7 +365,7 @@ bool TicketingLock::lock( bool *got ) {
 	bool yield = false;
 	bool ret = true;
 	if( !init_flag ) return false;
-	
+
 	if( pthread_mutex_lock( &_private->cond_lock ) != 0 ) {
 		ret = false;
 		goto done;
@@ -386,15 +386,15 @@ bool TicketingLock::lock( bool *got ) {
 	}
 
 	if( got != NULL ) *got = true;
-	
+
  unlock:
 	if( pthread_mutex_unlock( &_private->cond_lock ) != 0 ) {
 		ret = false;
 		goto done;
 	}
-		
+
 	if( yield ) pthread_yield();
-	
+
  done:
 	return ret;
 }
@@ -402,7 +402,7 @@ bool TicketingLock::lock( bool *got ) {
 bool TicketingLock::unlock() {
 	bool ret = true;
 	if( !init_flag ) return false;
-		
+
 	if( pthread_mutex_lock( &_private->cond_lock ) != 0 ) {
 		ret = false;
 		goto done;
@@ -437,7 +437,7 @@ bool TicketingLock::init() {
 	cond_ticket_issue = 0;
 	cond_ticket_serving = 0;
 	init_flag = true;
-    
+
 	return true;
 }
 
@@ -485,7 +485,7 @@ OSLockResult LinuxLock::lock() {
 	int lock_c;
 	lock_c = pthread_mutex_lock(&_private->mutex);
 	if(lock_c != 0) {
-		fprintf( stderr, "LinuxLock: lock failed %d\n", lock_c );  
+		fprintf( stderr, "LinuxLock: lock failed %d\n", lock_c );
 		return oslock_fail;
 	}
 	return oslock_ok;
@@ -502,7 +502,7 @@ OSLockResult LinuxLock::unlock() {
 	int lock_c;
 	lock_c = pthread_mutex_unlock(&_private->mutex);
 	if(lock_c != 0) {
-		fprintf( stderr, "LinuxLock: unlock failed %d\n", lock_c );  
+		fprintf( stderr, "LinuxLock: unlock failed %d\n", lock_c );
 		return oslock_fail;
 	}
 	return oslock_ok;
@@ -635,7 +635,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	if( grp == NULL ) {
 		XPTPD_ERROR( "Group %s not found, will try root (0) instead", group_name );
 	}
-		
+
 	shm_fd = shm_open( SHM_NAME, O_RDWR | O_CREAT, 0660 );
 	if( shm_fd == -1 ) {
 		XPTPD_ERROR( "shm_open(): %s", strerror(errno) );
@@ -675,7 +675,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	}
 	return true;
  exit_unlink:
-	shm_unlink( SHM_NAME ); 
+	shm_unlink( SHM_NAME );
  exit_error:
 	return false;
 }
@@ -724,20 +724,20 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	struct packet_mreq mr_8021as;
 	LinkLayerAddress addr;
 	int ifindex;
-		
+
 	LinuxNetworkInterface *net_iface_l = new LinuxNetworkInterface();
-		
+
 	if( !net_iface_l->net_lock.init()) {
 		XPTPD_ERROR( "Failed to initialize network lock");
 		return false;
 	}
-		
+
 	InterfaceName *ifname = dynamic_cast<InterfaceName *>(label);
 	if( ifname == NULL ){
 		XPTPD_ERROR( "ifname == NULL");
 		return false;
 	}
-		
+
 	net_iface_l->sd_general = socket( PF_PACKET, SOCK_DGRAM, 0 );
 	if( net_iface_l->sd_general == -1 ) {
 		XPTPD_ERROR( "failed to open general socket: %s", strerror(errno));
@@ -749,7 +749,7 @@ bool LinuxNetworkInterfaceFactory::createInterface
 			( "failed to open event socket: %s \n", strerror(errno));
 		return false;
 	}
-		
+
 	memset( &device, 0, sizeof(device));
 	ifname->toString( device.ifr_name, IFNAMSIZ );
 	err = ioctl( net_iface_l->sd_event, SIOCGIFHWADDR, &device );
@@ -758,7 +758,7 @@ bool LinuxNetworkInterfaceFactory::createInterface
 			( "Failed to get interface address: %s", strerror( errno ));
 		return false;
 	}
-		
+
 	addr = LinkLayerAddress( (uint8_t *)&device.ifr_hwaddr.sa_data );
 	net_iface_l->local_addr = addr;
 	err = ioctl( net_iface_l->sd_event, SIOCGIFINDEX, &device );
@@ -783,19 +783,19 @@ bool LinuxNetworkInterfaceFactory::createInterface
 			  ifindex );
 		return false;
 	}
-		
+
 	memset( &ifsock_addr, 0, sizeof( ifsock_addr ));
 	ifsock_addr.sll_family = AF_PACKET;
 	ifsock_addr.sll_ifindex = ifindex;
 	ifsock_addr.sll_protocol = PLAT_htons( PTP_ETHERTYPE );
 	err = bind
 		( net_iface_l->sd_event, (sockaddr *) &ifsock_addr,
-		  sizeof( ifsock_addr ));	
-	if( err == -1 ) { 
+		  sizeof( ifsock_addr ));
+	if( err == -1 ) {
 		XPTPD_ERROR( "Call to bind() failed: %s", strerror(errno) );
 		return false;
 	}
-		
+
 	net_iface_l->timestamper =
 		dynamic_cast <LinuxTimestamper *>(timestamper);
 	if(net_iface_l->timestamper == NULL) {
@@ -808,7 +808,6 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		return false;
 	}
 	*net_iface = net_iface_l;
-		
+
 	return true;
 }
-
