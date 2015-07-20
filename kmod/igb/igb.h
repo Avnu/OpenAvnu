@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
+  Copyright(c) 2007-2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -27,8 +27,6 @@
 #ifndef _IGB_H_
 #define _IGB_H_
 
-#include <linux/types.h>
-#include <asm/page.h>
 #include <linux/kobject.h>
 
 #ifndef IGB_NO_LRO
@@ -80,7 +78,11 @@ struct igb_user_page {
 		__func__ , ## args))
 
 #ifdef HAVE_PTP_1588_CLOCK
+#ifdef HAVE_INCLUDE_LINUX_TIMECOUNTER_H
+#include <linux/timecounter.h>
+#else
 #include <linux/clocksource.h>
+#endif /* HAVE_INCLUDE_TIMECOUNTER_H */
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #endif /* HAVE_PTP_1588_CLOCK */
@@ -131,7 +133,6 @@ struct igb_user_page {
 #define MAX_EMULATION_MAC_ADDRS           16
 #define OUI_LEN                            3
 #define IGB_MAX_VMDQ_QUEUES                8
-
 
 struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
@@ -649,6 +650,7 @@ struct igb_adapter {
 	struct delayed_work ptp_overflow_work;
 	struct work_struct ptp_tx_work;
 	struct sk_buff *ptp_tx_skb;
+	struct hwtstamp_config tstamp_config;
 	unsigned long ptp_tx_start;
 	unsigned long last_rx_ptp_check;
 	unsigned long last_rx_timestamp;
@@ -665,7 +667,6 @@ struct igb_adapter {
 	struct i2c_client *i2c_client;
 #endif /* HAVE_I2C_SUPPORT */
 	unsigned long link_check_timeout;
-
 
 	int devrc;
 
@@ -787,6 +788,7 @@ extern int igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
 extern void igb_reset(struct igb_adapter *);
+extern int igb_reinit_queues(struct igb_adapter *);
 #ifdef ETHTOOL_SRXFHINDIR
 extern void igb_write_rss_indir_tbl(struct igb_adapter *);
 #endif
@@ -841,6 +843,8 @@ extern void igb_vlan_mode(struct net_device *, u32);
 
 #define E1000_PCS_CFG_IGN_SD	1
 
+int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
+int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
 #ifdef IGB_HWMON
 void igb_sysfs_exit(struct igb_adapter *adapter);
 int igb_sysfs_init(struct igb_adapter *adapter);
