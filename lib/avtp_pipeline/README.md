@@ -9,13 +9,13 @@
     - igb direct for packet TX. Current linux raw sockets are used for both TX and RX.
     - igb credit based shaper
     - Build system
-- Very limited tested as been down. Primarily just the Echo talker which is a simple test stream.
+- Very limited testing as been performed. Primarily just the Echo talker which is a simple test stream.
 - Documentation and doc generation has not been fully updated.
 
 ## Building Current OpenAVB
 ### Tool chain and libraries
 - Ubuntu 14.04
-- Build OpenAVB Next branch (OpenAVB Master doesn't igb doesn't build properly)
+- Build "open-avb-next" branch
 - Install ($ sudo apt-get install ...)
     - $ sudo apt-get install build-essential
     - $ sudo apt-get install libpcap-dev
