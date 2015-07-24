@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
+  Copyright(c) 2007-2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -29,6 +29,7 @@
 
 #include "igb.h"
 
+#ifdef HAVE_PTP_1588_CLOCK
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/pci.h>
@@ -325,11 +326,12 @@ static int igb_ptp_adjtime_i210(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
-				 struct timespec *ts)
+static int igb_ptp_gettime64_82576(struct ptp_clock_info *ptp,
+				 struct timespec *ts64)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
+	struct timespec ts;
 	unsigned long flags;
 	u64 ns;
 	u32 remainder;
@@ -340,8 +342,85 @@ static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
-	ts->tv_nsec = remainder;
+	ts.tv_sec = div_u64_rem(ns, 1000000000, &remainder);
+	ts.tv_nsec = remainder;
+	*ts64 = timespec_to_timespec64(ts);
+
+	return 0;
+}
+
+static int igb_ptp_gettime64_i210(struct ptp_clock_info *ptp,
+				struct timespec *ts64)
+{
+	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
+					       ptp_caps);
+	struct timespec ts;
+	unsigned long flags;
+
+	spin_lock_irqsave(&igb->tmreg_lock, flags);
+
+	igb_ptp_read_i210(igb, &ts);
+	*ts64 = timespec_to_timespec64(ts);
+
+	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
+
+	return 0;
+}
+
+#ifdef HAVE_PTP_CLOCK_INFO_GETTIME64
+static int igb_ptp_settime64_82576(struct ptp_clock_info *ptp,
+				 const struct timespec *ts64)
+{
+	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
+					       ptp_caps);
+	struct timespec ts;
+	unsigned long flags;
+	u64 ns;
+
+	ts = timespec64_to_timespec(*ts64);
+	ns = ts.tv_sec * 1000000000ULL;
+	ns += ts.tv_nsec;
+
+	spin_lock_irqsave(&igb->tmreg_lock, flags);
+
+	timecounter_init(&igb->tc, &igb->cc, ns);
+
+	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
+
+	return 0;
+}
+
+#endif
+static int igb_ptp_settime64_i210(struct ptp_clock_info *ptp,
+				const struct timespec *ts64)
+{
+	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
+					       ptp_caps);
+	struct timespec ts;
+	unsigned long flags;
+
+	ts = timespec64_to_timespec(*ts64);
+	spin_lock_irqsave(&igb->tmreg_lock, flags);
+
+	igb_ptp_write_i210(igb, &ts);
+
+	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
+
+	return 0;
+}
+
+#ifndef HAVE_PTP_CLOCK_INFO_GETTIME64
+static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
+				 struct timespec *ts)
+{
+	struct timespec64 ts64;
+	int err;
+
+	err = igb_ptp_gettime64_82576(ptp, &ts64);
+	if (err)
+		return err;
+
+	*ts = timespec64_to_timespec(ts64);
 
 	return 0;
 }
@@ -349,15 +428,14 @@ static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
 static int igb_ptp_gettime_i210(struct ptp_clock_info *ptp,
 				struct timespec *ts)
 {
-	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
-					       ptp_caps);
-	unsigned long flags;
+	struct timespec64 ts64;
+	int err;
 
-	spin_lock_irqsave(&igb->tmreg_lock, flags);
+	err = igb_ptp_gettime64_i210(ptp, &ts64);
+	if (err)
+		return err;
 
-	igb_ptp_read_i210(igb, ts);
-
-	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
+	*ts = timespec64_to_timespec(ts64);
 
 	return 0;
 }
@@ -398,6 +476,7 @@ static int igb_ptp_settime_i210(struct ptp_clock_info *ptp,
 	return 0;
 }
 
+#endif
 static int igb_ptp_enable(struct ptp_clock_info *ptp,
 			  struct ptp_clock_request *rq, int on)
 {
@@ -439,13 +518,13 @@ void igb_ptp_tx_work(struct work_struct *work)
 		schedule_work(&adapter->ptp_tx_work);
 }
 
-static void igb_ptp_overflow_check(struct work_struct *work)
+static void igb_ptp_overflow_check_82576(struct work_struct *work)
 {
 	struct igb_adapter *igb =
 		container_of(work, struct igb_adapter, ptp_overflow_work.work);
 	struct timespec ts;
 
-	igb->ptp_caps.gettime(&igb->ptp_caps, &ts);
+	igb_ptp_gettime64_82576(&igb->ptp_caps, &ts);
 
 	pr_debug("igb overflow check at %ld.%09lu\n", ts.tv_sec, ts.tv_nsec);
 
@@ -583,10 +662,27 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 }
 
 /**
- * igb_ptp_hwtstamp_ioctl - control hardware time stamping
+ * igb_ptp_get_ts_config - get hardware time stamping config
  * @netdev:
  * @ifreq:
- * @cmd:
+ *
+ * Get the hwtstamp_config settings to return to the user. Rather than attempt
+ * to deconstruct the settings from the registers, just return a shadow copy
+ * of the last known settings.
+ **/
+int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct hwtstamp_config *config = &adapter->tstamp_config;
+
+	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
+		-EFAULT : 0;
+}
+
+/**
+ * igb_ptp_set_timestamp_mode - setup hardware for timestamping
+ * @adapter: networking device structure
+ * @config: hwtstamp configuration
  *
  * Outgoing time stamping can be enabled and disabled. Play nice and
  * disable it when requested, although it shouldn't case any overhead
@@ -600,13 +696,11 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
  * not supported, with the exception of "all V2 events regardless of
  * level 2 or 4".
  *
- **/
-int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
-			   struct ifreq *ifr, int cmd)
+ */
+static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
+				      struct hwtstamp_config *config)
 {
-	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct hwtstamp_config config;
 	u32 tsync_tx_ctl = E1000_TSYNCTXCTL_ENABLED;
 	u32 tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
 	u32 tsync_rx_cfg = 0;
@@ -614,14 +708,11 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	bool is_l2 = false;
 	u32 regval;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
 	/* reserved for future extensions */
-	if (config.flags)
+	if (config->flags)
 		return -EINVAL;
 
-	switch (config.tx_type) {
+	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		tsync_tx_ctl = 0;
 	case HWTSTAMP_TX_ON:
@@ -630,7 +721,7 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 		return -ERANGE;
 	}
 
-	switch (config.rx_filter) {
+	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		tsync_rx_ctl = 0;
 		break;
@@ -654,7 +745,7 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_EVENT_V2;
-		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		is_l2 = true;
 		is_l4 = true;
 		break;
@@ -666,12 +757,12 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 		 */
 		if (hw->mac.type != e1000_82576) {
 			tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
-			config.rx_filter = HWTSTAMP_FILTER_ALL;
+			config->rx_filter = HWTSTAMP_FILTER_ALL;
 			break;
 		}
 		/* fall through */
 	default:
-		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		config->rx_filter = HWTSTAMP_FILTER_NONE;
 		return -ERANGE;
 	}
 
@@ -689,7 +780,7 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	if ((hw->mac.type >= e1000_82580) && tsync_rx_ctl) {
 		tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		is_l2 = true;
 		is_l4 = true;
 
@@ -753,6 +844,32 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	regval = E1000_READ_REG(hw, E1000_RXSTMPL);
 	regval = E1000_READ_REG(hw, E1000_RXSTMPH);
 
+	return 0;
+}
+
+/**
+ * igb_ptp_set_ts_config - set hardware time stamping config
+ * @netdev:
+ * @ifreq:
+ *
+ **/
+int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct hwtstamp_config config;
+	int err;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	err = igb_ptp_set_timestamp_mode(adapter, &config);
+	if (err)
+		return err;
+
+	/* save these settings for future reference */
+	memcpy(&adapter->tstamp_config, &config,
+	       sizeof(adapter->tstamp_config));
+
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 		-EFAULT : 0;
 }
@@ -771,8 +888,13 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82576;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
+#ifdef HAVE_PTP_CLOCK_INFO_GETTIME64
+		adapter->ptp_caps.gettime64 = igb_ptp_gettime64_82576;
+		adapter->ptp_caps.settime64 = igb_ptp_settime64_82576;
+#else
 		adapter->ptp_caps.gettime = igb_ptp_gettime_82576;
 		adapter->ptp_caps.settime = igb_ptp_settime_82576;
+#endif
 		adapter->ptp_caps.enable = igb_ptp_enable;
 		adapter->cc.read = igb_ptp_read_82576;
 		adapter->cc.mask = CLOCKSOURCE_MASK(64);
@@ -792,8 +914,13 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82580;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
+#ifdef HAVE_PTP_CLOCK_INFO_GETTIME64
+		adapter->ptp_caps.gettime64 = igb_ptp_gettime64_82576;
+		adapter->ptp_caps.settime64 = igb_ptp_settime64_82576;
+#else
 		adapter->ptp_caps.gettime = igb_ptp_gettime_82576;
 		adapter->ptp_caps.settime = igb_ptp_settime_82576;
+#endif
 		adapter->ptp_caps.enable = igb_ptp_enable;
 		adapter->cc.read = igb_ptp_read_82580;
 		adapter->cc.mask = CLOCKSOURCE_MASK(IGB_NBITS_82580);
@@ -811,8 +938,13 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82580;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_i210;
+#ifdef HAVE_PTP_CLOCK_INFO_GETTIME64
+		adapter->ptp_caps.gettime64 = igb_ptp_gettime64_i210;
+		adapter->ptp_caps.settime64 = igb_ptp_settime64_i210;
+#else
 		adapter->ptp_caps.gettime = igb_ptp_gettime_i210;
 		adapter->ptp_caps.settime = igb_ptp_settime_i210;
+#endif
 		adapter->ptp_caps.enable = igb_ptp_enable;
 		/* Enable the timer functions by clearing bit 31. */
 		E1000_WRITE_REG(hw, E1000_TSAUXC, 0x0);
@@ -831,13 +963,13 @@ void igb_ptp_init(struct igb_adapter *adapter)
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211)) {
 		struct timespec ts = ktime_to_timespec(ktime_get_real());
 
-		igb_ptp_settime_i210(&adapter->ptp_caps, &ts);
+		igb_ptp_settime64_i210(&adapter->ptp_caps, &ts);
 	} else {
 		timecounter_init(&adapter->tc, &adapter->cc,
 				 ktime_to_ns(ktime_get_real()));
 
 		INIT_DELAYED_WORK(&adapter->ptp_overflow_work,
-				  igb_ptp_overflow_check);
+				  igb_ptp_overflow_check_82576);
 
 		schedule_delayed_work(&adapter->ptp_overflow_work,
 				      IGB_SYSTIM_OVERFLOW_PERIOD);
@@ -848,6 +980,9 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_TSIM, E1000_TSIM_TXTS);
 		E1000_WRITE_REG(hw, E1000_IMS, E1000_IMS_TS);
 	}
+
+	adapter->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+	adapter->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
 
 	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps,
 						&adapter->pdev->dev);
@@ -912,6 +1047,9 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 	if (!(adapter->flags & IGB_FLAG_PTP))
 		return;
 
+	/* reset the tstamp_config */
+	igb_ptp_set_timestamp_mode(adapter, &adapter->tstamp_config);
+
 	switch (adapter->hw.mac.type) {
 	case e1000_82576:
 		/* Dial the nominal frequency. */
@@ -937,9 +1075,10 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211)) {
 		struct timespec ts = ktime_to_timespec(ktime_get_real());
 
-		igb_ptp_settime_i210(&adapter->ptp_caps, &ts);
+		igb_ptp_settime64_i210(&adapter->ptp_caps, &ts);
 	} else {
 		timecounter_init(&adapter->tc, &adapter->cc,
 				 ktime_to_ns(ktime_get_real()));
 	}
 }
+#endif /* HAVE_PTP_1588_CLOCK */

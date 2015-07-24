@@ -3,9 +3,9 @@ OPT=-O2
 CFLAGS=$(OPT) -Wall -Wextra -Wno-parentheses -ggdb -D_GNU_SOURCE
 
 ifeq ($(ARCH),arm)
-CC=arm-none-linux-gnueabi-gcc
+CC?=arm-none-linux-gnueabi-gcc
 else
-CC=gcc
+CC?=gcc
 endif
 INCFLAGS=-I../common -I../../examples/mrp_client
 

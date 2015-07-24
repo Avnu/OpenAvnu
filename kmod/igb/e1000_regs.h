@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
+  Copyright(c) 2007-2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -148,7 +148,6 @@
 
 /* QAV Tx mode control register */
 #define E1000_I210_TQAVCTRL	0x3570
-
 #define E1000_DTXMXPKTSZ	0x0355C
 
 /* High credit registers where _n can be 0 or 1. */
@@ -157,7 +156,7 @@
 /* Queues fetch arbitration priority control register */
 #define E1000_I210_TQAVARBCTRL			0x3574
 /* Queues priority masks where _n and _p can be 0-3. */
-#define E1000_TQAVARBCTRL_QUEUE_PRI(_n, _p)	((_p) << (2 * _n))
+#define E1000_TQAVARBCTRL_QUEUE_PRI(_n, _p)	((_p) << (2 * (_n)))
 /* QAV Tx mode control registers where _n can be 0 or 1. */
 #define E1000_I210_TQAVCC(_n)			(0x3004 + 0x40 * (_n))
 
@@ -170,7 +169,7 @@
 #define E1000_PQGPTC(_n)		(0x010014 + (0x100 * (_n)))
 
 /* Queues packet buffer size masks where _n can be 0-3 and _s 0-63 [kB] */
-#define E1000_I210_TXPBS_SIZE(_n, _s)	((_s) << (6 * _n))
+#define E1000_I210_TXPBS_SIZE(_n, _s)	((_s) << (6 * (_n)))
 
 #define E1000_MMDAC			13 /* MMD Access Control */
 #define E1000_MMDAAD			14 /* MMD Access Address/Data */
@@ -445,7 +444,6 @@
 /* Ext Flexible Host Filter Table */
 #define E1000_FHFT_EXT(_n)	(0x09A00 + ((_n) * 0x100))
 
-
 #define E1000_KMRNCTRLSTA	0x00034 /* MAC-PHY interface - RW */
 #define E1000_MANC2H		0x05860 /* Management Control To Host - RW */
 /* Management Decision Filters */
@@ -622,7 +620,5 @@
 #define E1000_B2OGPRC	0x04158 /* BMC2OS packets received by host */
 #define E1000_O2BGPTC	0x08FE4 /* OS2BMC packets received by BMC */
 #define E1000_O2BSPC	0x0415C /* OS2BMC packets transmitted by host */
-
-
 
 #endif

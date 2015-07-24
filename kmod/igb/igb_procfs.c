@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
+  Copyright(c) 2007-2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -37,7 +37,6 @@
 
 static struct proc_dir_entry *igb_top_dir;
 
-
 bool igb_thermal_present(struct igb_adapter *adapter)
 {
 	s32 status;
@@ -63,7 +62,6 @@ bool igb_thermal_present(struct igb_adapter *adapter)
 
 	return true;
 }
-
 
 static int igb_macburn(char *page, char **start, off_t off, int count,
 			int *eof, void *data)

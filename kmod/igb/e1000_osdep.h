@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
+  Copyright(c) 2007-2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -64,7 +64,6 @@
 #ifdef __BIG_ENDIAN
 #define E1000_BIG_ENDIAN __BIG_ENDIAN
 #endif
-
 
 #ifdef DEBUG
 #define DEBUGOUT(S) pr_debug(S)
