@@ -126,6 +126,14 @@ static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
 static void igb_dma_err_task(struct work_struct *);
 static void igb_dma_err_timer(unsigned long data);
+
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) )
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb);
+#else
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb,
+		void *accel_priv, select_queue_fallback_t fallback);
+#endif
+
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
 static struct net_device_stats *igb_get_stats(struct net_device *);
 static int igb_change_mtu(struct net_device *, int);
@@ -1926,7 +1934,7 @@ void igb_reset(struct igb_adapter *adapter)
 	/* Repartition Pba for greater than 9k mtu
 	 * To take effect CTRL.RST is required.
 	 */
-	pba = E1000_PBA_34K;
+	pba = E1000_PBA_32K;
 
 	if ((adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) &&
 	    (mac->type < e1000_82576)) {
@@ -2301,6 +2309,7 @@ static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
 	.ndo_start_xmit		= igb_xmit_frame,
+	.ndo_select_queue	= igb_select_queue,
 	.ndo_get_stats		= igb_get_stats,
 	.ndo_set_rx_mode	= igb_set_rx_mode,
 	.ndo_set_mac_address	= igb_set_mac,
@@ -4513,7 +4522,7 @@ static void igb_set_rx_mode(struct net_device *netdev)
 			vmolr |= E1000_VMOLR_ROPE;
 		}
 #endif /* HAVE_SET_RX_MODE */
-		rctl |= E1000_RCTL_VFE;
+		/* rctl |= E1000_RCTL_VFE; Disable VLAN filtering*/
 	}
 	E1000_WRITE_REG(hw, E1000_RCTL, rctl);
 
@@ -5613,6 +5622,17 @@ static inline struct igb_ring *igb_tx_queue_mapping(struct igb_adapter *adapter,
 #else
 #error This driver must have multi-queue transmit support enabled (CONFIG_NETDEVICES_MULTIQUEUE)!
 #endif
+
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) )
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb)
+#else
+static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb,
+		            void *accel_priv, select_queue_fallback_t fallback)
+#endif
+{
+	/* remap normal LAN to best effort queue[3] */
+	return (3);
+}
 
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb,
 				  struct net_device *netdev)
