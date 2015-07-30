@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
