@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -106,11 +106,12 @@ static snd_pcm_format_t x_AVBAudioFormatToAlsaFormat(avb_audio_type_t type,
 	bool tight = FALSE;
 	if (bitDepth == AVB_AUDIO_BIT_DEPTH_24BIT) {
 		if (pMediaQDataFormat != NULL
-			&& strcmp(pMediaQDataFormat, MapAVTPAudioMediaQDataFormat) == 0) {
+			&& (strcmp(pMediaQDataFormat, MapAVTPAudioMediaQDataFormat) == 0
+			|| strcmp(pMediaQDataFormat, MapUncmpAudioMediaQDataFormat) == 0)) {
 			tight = TRUE;
 		}
 	}
-	
+
 	if (type == AVB_AUDIO_TYPE_FLOAT) {
 		switch (bitDepth) {
 			case AVB_AUDIO_BIT_DEPTH_32BIT:

@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -673,6 +673,7 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 					else if (!pPvtData->mediaQItemSyncTS) {
 						//we need packet with valid TS for first data written to item
 						AVB_LOG_DEBUG("Timestamp not valid for MediaQItem - initial packets dropped");
+						IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Timestamp not valid for MediaQItem - initial packets dropped");
 						dataValid = FALSE;
 					}
 				}
@@ -698,7 +699,7 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 				return TRUE;    // Normal exit
 			}
 			else {
-				IF_LOG_INTERVAL(1000) AVB_LOG_INFO("Media queue full");
+				IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Media queue full");
 				AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 				return FALSE;   // Media queue full
 			}

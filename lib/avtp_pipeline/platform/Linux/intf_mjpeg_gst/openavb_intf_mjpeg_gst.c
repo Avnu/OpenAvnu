@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_mediaq_pub.h"
 #include "openavb_intf_pub.h"
 #include "openavb_map_mjpeg_pub.h"
+#include "gst_al.h"
 
 #define	AVB_LOG_COMPONENT	"MJPEG Interface"
-#include "openavb_log_pub.h" 
+#include "openavb_log_pub.h"
 
 #define APPSINK_NAME "avbsink"
 #define APPSRC_NAME "avbsrc"
@@ -54,7 +55,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #define NBUFS 256
 
-typedef struct {
+typedef struct pvt_data_t
+{
 	char *pPipelineStr;
 
 	bool ignoreTimestamp;
@@ -66,16 +68,19 @@ typedef struct {
 	U32 bufwr;
 	U32 bufrd;
 	U32 seq;
-	GstBuffer *rxBufs[NBUFS];
+	GstAlBuf *rxBufs[NBUFS];
 	bool asyncRx;
 	bool blockingRx;
 
+	bool get_avtp_timestamp;        /*<! this flag indicates whether
+                                        an avtp timestamp should be taken */
+	U32 frame_timestamp;            /*<! this is a timestamp of a video frame */
 } pvt_data_t;
 
 // Each configuration name value pair for this mapping will result in this callback being called.
-void openavbIntfMjpegGstCfgCB(media_q_t *pMediaQ, const char *name, const char *value) 
+void openavbIntfMjpegGstCfgCB(media_q_t *pMediaQ, const char *name, const char *value)
 {
-	if (!pMediaQ) 
+	if (!pMediaQ)
 	{
 		AVB_LOG_DEBUG("mjpeg-gst cfgCB: no mediaQ!");
 		return;
@@ -85,14 +90,15 @@ void openavbIntfMjpegGstCfgCB(media_q_t *pMediaQ, const char *name, const char *
 	long tmp;
 
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
-	if (!pPvtData) {
+	if (!pPvtData)
+	{
 		AVB_LOG_ERROR("Private interface module data not allocated.");
 		return;
 	}
 
 	pPvtData->asyncRx = FALSE;
 
-	if (strcmp(name, "intf_nv_gst_pipeline") == 0) 
+	if (strcmp(name, "intf_nv_gst_pipeline") == 0)
 	{
 		if (pPvtData->pPipelineStr)
 		{
@@ -100,30 +106,36 @@ void openavbIntfMjpegGstCfgCB(media_q_t *pMediaQ, const char *name, const char *
 		}
 		pPvtData->pPipelineStr = strdup(value);
 	}
-	else if (strcmp(name, "intf_nv_async_rx") == 0) {
+	else if (strcmp(name, "intf_nv_async_rx") == 0)
+	{
 		tmp = strtol(value, &pEnd, 10);
-		if (*pEnd == '\0' && tmp == 1) {
+		if (*pEnd == '\0' && tmp == 1)
+		{
 			pPvtData->asyncRx = (tmp == 1);
 		}
 	}
-	else if (strcmp(name, "intf_nv_blocking_rx") == 0) {
+	else if (strcmp(name, "intf_nv_blocking_rx") == 0)
+	{
 		tmp = strtol(value, &pEnd, 10);
-		if (*pEnd == '\0' && tmp == 1) {
+		if (*pEnd == '\0' && tmp == 1)
+		{
 			pPvtData->blockingRx = (tmp == 1);
 		}
 	}
-	else if (strcmp(name, "intf_nv_ignore_timestamp") == 0) {
+	else if (strcmp(name, "intf_nv_ignore_timestamp") == 0)
+	{
 		tmp = strtol(value, &pEnd, 10);
-		if (*pEnd == '\0' && tmp == 1) {
+		if (*pEnd == '\0' && tmp == 1)
+		{
 			pPvtData->ignoreTimestamp = (tmp == 1);
 		}
 	}
 }
 
-void openavbIntfMjpegGstGenInitCB(media_q_t *pMediaQ) 
+void openavbIntfMjpegGstGenInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
-	if (!pMediaQ) 
+	if (!pMediaQ)
 	{
 		AVB_LOG_DEBUG("mjpeg-gst initCB: no mediaQ!");
 		AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -134,11 +146,11 @@ void openavbIntfMjpegGstGenInitCB(media_q_t *pMediaQ)
 
 // A call to this callback indicates that this interface module will be
 // a talker. Any talker initialization can be done in this function.
-void openavbIntfMjpegGstTxInitCB(media_q_t *pMediaQ) 
+void openavbIntfMjpegGstTxInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
-	if (!pMediaQ) 
+	if (!pMediaQ)
 	{
 		AVB_LOG_DEBUG("mjpeg-gst txinit: no mediaQ!");
 		AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -146,26 +158,27 @@ void openavbIntfMjpegGstTxInitCB(media_q_t *pMediaQ)
 	}
 
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
-	if (!pPvtData) {
+	if (!pPvtData)
+	{
 		AVB_LOG_ERROR("Private interface module data not allocated.");
 		return;
 	}
 
 	GError *error = NULL;
 	pPvtData->pipe = gst_parse_launch(pPvtData->pPipelineStr, &error);
-	if (error) {
+	if (error)
+	{
 		AVB_LOGF_ERROR("Unable to create pipeline: %s", error->message);
 	}
 
 	AVB_LOGF_INFO("Pipeline: %s", pPvtData->pPipelineStr);
 	pPvtData->appsink = gst_bin_get_by_name(GST_BIN(pPvtData->pipe), APPSINK_NAME);
-	if (!pPvtData->appsink) {
+	if (!pPvtData->appsink)
+	{
 		AVB_LOG_ERROR("Failed to find appsink element");
 	}
-	GstCaps *sinkCaps = gst_caps_from_string("application/x-rtp");
 	//No limits for internal sink buffers. This may cause large memory consumption.
-	g_object_set(pPvtData->appsink, "max-buffers", 0, "drop", 0, "caps", sinkCaps, NULL);
-	gst_caps_unref(sinkCaps);
+	g_object_set(pPvtData->appsink, "max-buffers", 0, "drop", 0, NULL);
 	//FIXME: Check if state change was successful
 	gst_element_set_state(pPvtData->pipe, GST_STATE_PLAYING);
 
@@ -188,47 +201,65 @@ bool openavbIntfMjpegGstTxCB(media_q_t *pMediaQ)
 	}
 
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
-	if (!pPvtData) {
+	if (!pPvtData)
+	{
 		AVB_LOG_ERROR("Private interface module data not allocated.");
 		return FALSE;
 	}
 
 	U32 paySize = 0;
-	GstBuffer *txBuf = gst_app_sink_pull_buffer(GST_APP_SINK(pPvtData->appsink));
 
-	if (!txBuf) {
+	GstAlBuf *txBuf = NULL;
+
+	txBuf = gst_al_pull_rtp_buffer(GST_APP_SINK(pPvtData->appsink));
+
+	if (!txBuf)
+	{
 		AVB_LOG_ERROR("Gstreamer buffer pull problem");
 		AVB_TRACE_EXIT(AVB_TRACE_INTF);
 		return FALSE;
 	}
-	paySize = gst_rtp_buffer_get_payload_len(txBuf);
+
+	paySize = GST_AL_BUF_SIZE(txBuf);
 
 	//Transmit data --BEGIN--
 	media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
-	if (pMediaQItem) {
+	if (pMediaQItem)
+	{
 		pMediaQItem->dataLen = paySize;
-		memcpy(pMediaQItem->pPubData, gst_rtp_buffer_get_payload(txBuf), paySize);
-		if (gst_rtp_buffer_get_marker(txBuf))
+		memcpy(pMediaQItem->pPubData, GST_AL_BUF_DATA(txBuf), paySize);
+		if (gst_al_rtp_buffer_get_marker(txBuf))
 		{
 			((media_q_item_map_mjpeg_pub_data_t *)pMediaQItem->pPubMapData)->lastFragment = TRUE;
+			// next time get avtp timestamp
+			pPvtData->get_avtp_timestamp = TRUE;
 		}
 		else
 		{
+			// it means this is a new bunch of fragments
+			// only first timestamp need to be taken
+			if(pPvtData->get_avtp_timestamp)
+			{
+				openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+				pPvtData->get_avtp_timestamp = FALSE;
+			}
 			((media_q_item_map_mjpeg_pub_data_t *)pMediaQItem->pPubMapData)->lastFragment = FALSE;
 		}
-		openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
 		openavbMediaQHeadPush(pMediaQ);
-		gst_buffer_unref(txBuf);
+
+		gst_al_rtp_buffer_unref(txBuf);
+
 		AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 		return TRUE;
 	}
-	else {
+	else
+	{
+		gst_al_rtp_buffer_unref(txBuf);
 		AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 		AVB_LOG_INFO("GStreamer returned NULL buffer, pipeline stopped");
 		return FALSE;	// Media queue full
 	}
 	// never here....
-	gst_buffer_unref(txBuf);
 	openavbMediaQHeadUnlock(pMediaQ);
 	pMediaQItem->dataLen = 0;
 	AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
@@ -257,7 +288,8 @@ static void *openavbIntfMjpegGstRxThreadfn(void *pv)
 		return 0;
 	}
 	pPvtData = pAsyncRxMediaQ->pPvtIntfInfo;
-	if (!pPvtData) {
+	if (!pPvtData)
+	{
 		AVB_LOG_ERROR("No async RX private data.");
 		return 0;
 	}
@@ -265,42 +297,43 @@ static void *openavbIntfMjpegGstRxThreadfn(void *pv)
 	bAsyncRXStreaming = TRUE;
 	while (bAsyncRXStreaming)
 	{
-		LOCK();
-		if (pPvtData->bufwr <= pPvtData->bufrd)
+		U32 bufwr = pPvtData->bufwr;
+		U32 bufrd = pPvtData->bufrd;
+		if (bufwr == bufrd)
 		{
-			UNLOCK();
 			pthread_mutex_lock(&asyncReadMutex);
-		 	pthread_cond_wait(&asyncReadCond, &asyncReadMutex);
+			pthread_cond_wait(&asyncReadCond, &asyncReadMutex);
 			pthread_mutex_unlock(&asyncReadMutex);
 		}
-		else
+		else if(bufwr > bufrd)
 		{
-			UNLOCK();
-		}
-		LOCK();
-		GstBuffer *rxBuf = pPvtData->rxBufs[pPvtData->bufrd%NBUFS];
-		pPvtData->bufrd++;
-		UNLOCK();
-		if (rxBuf && (pPvtData->bufwr - pPvtData->bufrd) < NBUFS)
-		{
-			GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(pPvtData->appsrc), rxBuf);
-
-			if (ret != GST_FLOW_OK) 
+			GstAlBuf *rxBuf = pPvtData->rxBufs[pPvtData->bufrd%NBUFS];
+			if (rxBuf)
 			{
-				AVB_LOGF_ERROR("Pushing buffer to appsrc failed with code %d", ret);
+				pPvtData->rxBufs[pPvtData->bufrd%NBUFS] = NULL;
+				__sync_fetch_and_add(&pPvtData->bufrd, 1);
+				GstFlowReturn ret = gst_al_push_rtp_buffer(GST_APP_SRC(pPvtData->appsrc), rxBuf);
+
+				if (ret != GST_FLOW_OK)
+				{
+					AVB_LOGF_ERROR("Pushing buffer to appsrc failed with code %d", ret);
+				}
+			}
+			else
+			{
+				AVB_LOGF_INFO("The Buf %x  %d skipped, OO!!", rxBuf, bufrd);
 			}
 		}
 		else
 		{
-			AVB_LOGF_INFO("Th Buf %x  %d skipped, OO!!", rxBuf, pPvtData->bufrd);
-//			gst_buffer_unref(rxBuf);
+			AVB_LOGF_INFO("There is a BUG as bufwr=%d < bufrd=%d", bufwr, bufrd);
 		}
 	}
 	return 0;
 }
 // A call to this callback indicates that this interface module will be
 // a listener. Any listener initialization can be done in this function.
-void openavbIntfMjpegGstRxInitCB(media_q_t *pMediaQ) 
+void openavbIntfMjpegGstRxInitCB(media_q_t *pMediaQ)
 {
 	AVB_LOG_DEBUG("Rx Init callback.");
 	if (!pMediaQ)
@@ -310,33 +343,27 @@ void openavbIntfMjpegGstRxInitCB(media_q_t *pMediaQ)
 	}
 
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
-	if (!pPvtData) {
+	if (!pPvtData)
+	{
 		AVB_LOG_ERROR("Private interface module data not allocated.");
 		return;
 	}
 
 	GError *error = NULL;
 	pPvtData->pipe = gst_parse_launch(pPvtData->pPipelineStr, &error);
-//	pPvtData->pipe = gst_parse_launch("appsrc name=avbsrc ! application/x-rtp,media=video,clock-rate=90000,encoding-name=JPEG,payload=96,ssrc=5,clock-base=1,seqnum-base=1 ! rtpjpegdepay ! jpegdec ! ffmpegcolorspace ! omx_scaler ! omx_ctrl display-mode=OMX_DC_MODE_1080P_60 ! omx_videosink sync=false", &error);
-//	pPvtData->pipe = gst_parse_launch("appsrc name=avbsrc ! application/x-rtp,media=video,clock-rate=90000,encoding-name=JPEG,payload=96,ssrc=5,clock-base=1,seqnum-base=1 ! rtpjpegdepay ! jpegdec ! autovideosink", &error);
-	if (error) {
+	if (error)
+	{
 		AVB_LOGF_ERROR("Unable to create pipeline: %s", error->message);
 	}
 
 	AVB_LOGF_INFO("Pipeline: %s", pPvtData->pPipelineStr);
 	pPvtData->appsrc = gst_bin_get_by_name(GST_BIN(pPvtData->pipe), APPSRC_NAME);
-	if (!pPvtData->appsrc) {
+	if (!pPvtData->appsrc)
+	{
 		AVB_LOG_ERROR("Failed to find appsrc element");
 	}
-	GstCaps *srcCaps = gst_caps_from_string("application/x-rtp");
-	if (!srcCaps)
-	{
-		AVB_LOGF_DEBUG("Caps=%x",srcCaps);
-	}
-	gst_app_src_set_caps ((GstAppSrc *)pPvtData->appsrc, srcCaps);
-	gst_caps_unref(srcCaps);
-	gst_app_src_set_max_bytes((GstAppSrc *)pPvtData->appsrc, 3000);
 
+	// caps can be set from pipeline
 	if (pPvtData->blockingRx)
 	{
 		AVB_LOG_DEBUG("Switching gstreamer into blocking mode");
@@ -365,7 +392,7 @@ void openavbIntfMjpegGstRxInitCB(media_q_t *pMediaQ)
 }
 
 // This callback is called when acting as a listener.
-bool openavbIntfMjpegGstRxCB(media_q_t *pMediaQ) 
+bool openavbIntfMjpegGstRxCB(media_q_t *pMediaQ)
 {
 	if (!pMediaQ)
 	{
@@ -373,20 +400,21 @@ bool openavbIntfMjpegGstRxCB(media_q_t *pMediaQ)
 		return TRUE;
 	}
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
-	if (!pPvtData) {
+	if (!pPvtData)
+	{
 		AVB_LOG_ERROR("Private interface module data not allocated.");
 		return FALSE;
 	}
 
 	bool moreSourcePackets = TRUE;
 
-		while (moreSourcePackets) 
-		{
-			media_q_item_t *pMediaQItem = openavbMediaQTailLock(pMediaQ, pPvtData->ignoreTimestamp);
+	while (moreSourcePackets)
+	{
+		media_q_item_t *pMediaQItem = openavbMediaQTailLock(pMediaQ, pPvtData->ignoreTimestamp);
+        // there are no packets available or they are from the future
 		if (!pMediaQItem)
-			{
-				moreSourcePackets = FALSE;
-			openavbMediaQTailPull(pMediaQ);
+		{
+			moreSourcePackets = FALSE;
 			continue;
 		}
 		if (!pMediaQItem->dataLen)
@@ -396,75 +424,88 @@ bool openavbIntfMjpegGstRxCB(media_q_t *pMediaQ)
 			continue;
 		}
 		if (pPvtData->asyncRx)
-				{
-					LOCK();
-					unsigned long mdif = pPvtData->bufwr - pPvtData->bufrd;
-					if (pPvtData->bufwr > pPvtData->bufrd && mdif >= NBUFS)
-					{
-						openavbMediaQTailPull(pMediaQ);
-						AVB_LOGF_INFO("Rx async queue full, dropping (%lu - %lu = %lu)",pPvtData->bufwr,pPvtData->bufrd,mdif);
-						UNLOCK();
-						continue;
-					}
-						UNLOCK();
-					}
-		GstBuffer *rxBuf = gst_rtp_buffer_new_allocate (pMediaQItem->dataLen, 0,0);
+		{
+			U32 bufwr = pPvtData->bufwr;
+			U32 bufrd = pPvtData->bufrd;
+			U32 mdif = bufwr - bufrd;
+			if (mdif >= NBUFS)
+			{
+				openavbMediaQTailPull(pMediaQ);
+				AVB_LOGF_INFO("Rx async queue full, dropping (%lu - %lu = %lu)", bufwr, bufrd, mdif);
+				moreSourcePackets = FALSE;
+				continue;
+			}
+		}
+		GstAlBuf *rxBuf = gst_al_alloc_rtp_buffer(pMediaQItem->dataLen, 0,0);
+
 		if (!rxBuf)
 		{
 			AVB_LOG_ERROR("gst_rtp_buffer_allocate failed!");
 			openavbMediaQTailUnlock(pMediaQ);
 			return FALSE;
 		}
-		memcpy(gst_rtp_buffer_get_payload(rxBuf), pMediaQItem->pPubData, pMediaQItem->dataLen);
+		memcpy(GST_AL_BUF_DATA(rxBuf), pMediaQItem->pPubData, pMediaQItem->dataLen);
 
-					GST_BUFFER_TIMESTAMP(rxBuf) = GST_CLOCK_TIME_NONE;
-					GST_BUFFER_DURATION(rxBuf) = -1;
+		GST_AL_BUFFER_TIMESTAMP(rxBuf) = GST_CLOCK_TIME_NONE;
+		GST_AL_BUFFER_DURATION(rxBuf) = GST_CLOCK_TIME_NONE;
 
 		if ( ((media_q_item_map_mjpeg_pub_data_t *)pMediaQItem->pPubMapData)->lastFragment )
 		{
-			gst_rtp_buffer_set_marker(rxBuf,TRUE);
+			pPvtData->get_avtp_timestamp = TRUE;
+			gst_al_rtp_buffer_set_marker(rxBuf,TRUE);
+		}
+		else
+		{
+			if(pPvtData->get_avtp_timestamp)
+			{
+				pPvtData->frame_timestamp = openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime);
+				pPvtData->get_avtp_timestamp = FALSE;
+			}
+			else
+			{
+				U32 fragment_timestamp = openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime);
+				// all fragments should have the same timestamp
+				if(pPvtData->frame_timestamp != fragment_timestamp)
+				{
+					AVB_LOGF_ERROR("Mapping is wrong. Fragment timestamp should be %lu instead of %lu",
+					               pPvtData->frame_timestamp, fragment_timestamp);
+				}
+			}
 		}
 
-		gst_rtp_buffer_set_ssrc(rxBuf,5);
-		gst_rtp_buffer_set_payload_type(rxBuf,96);
-		gst_rtp_buffer_set_version(rxBuf,2);
-		gst_rtp_buffer_set_seq(rxBuf,pPvtData->seq++);
-		
+		gst_al_rtp_buffer_set_params(rxBuf, 5, 96, 2, pPvtData->seq++);
+
 		if (pPvtData->asyncRx)
 		{
-					LOCK();
-					pPvtData->rxBufs[pPvtData->bufwr%NBUFS] = rxBuf;
-					pPvtData->bufwr++;
-					UNLOCK();
-					if (pPvtData->bufwr > pPvtData->bufrd)
-					{
-						pthread_mutex_lock(&asyncReadMutex);
-						pthread_cond_signal(&asyncReadCond);
-						pthread_mutex_unlock(&asyncReadMutex);
-			}
-				}
-				else
-				{
-			GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(pPvtData->appsrc), rxBuf);
-			if (ret != GST_FLOW_OK) 
+			pPvtData->rxBufs[pPvtData->bufwr%NBUFS] = rxBuf;
+			__sync_fetch_and_add(&pPvtData->bufwr, 1);
+			pthread_mutex_lock(&asyncReadMutex);
+			pthread_cond_signal(&asyncReadCond);
+			pthread_mutex_unlock(&asyncReadMutex);
+		}
+		else
+		{
+			// appsrc manages this buffer at this point
+			GstFlowReturn ret = gst_al_push_rtp_buffer(GST_APP_SRC(pPvtData->appsrc), rxBuf);
+			if (ret != GST_FLOW_OK)
 			{
 				AVB_LOGF_ERROR("Pushing buffer to appsrc failed with code %d", ret);
 			}
-				}
-				openavbMediaQTailPull(pMediaQ);
-			}
-
+		}
+		openavbMediaQTailPull(pMediaQ);
+	}
 	return TRUE;
 }
 
-// This callback will be called when the interface needs to be closed. All shutdown should 
+// This callback will be called when the interface needs to be closed. All shutdown should
 // occur in this function.
-void openavbIntfMjpegGstEndCB(media_q_t *pMediaQ) 
+void openavbIntfMjpegGstEndCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 	bAsyncRXStreaming = FALSE;
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
-	if (!pPvtData) {
+	if (!pPvtData)
+	{
 		AVB_LOG_ERROR("Private interface module data not allocated.");
 		return;
 	}
@@ -494,7 +535,7 @@ void openavbIntfMjpegGstEndCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
-void openavbIntfMjpegGstGenEndCB(media_q_t *pMediaQ) 
+void openavbIntfMjpegGstGenEndCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -515,6 +556,8 @@ extern DLL_EXPORT bool openavbIntfMjpegGstInitialize(media_q_t *pMediaQ, openavb
 	pMediaQ->pPvtIntfInfo = calloc(1, sizeof(pvt_data_t));		// Memory freed by the media queue when the media queue is destroyed.
 
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
+
+	pPvtData->get_avtp_timestamp = TRUE;
 
 	pIntfCB->intf_cfg_cb = openavbIntfMjpegGstCfgCB;
 	pIntfCB->intf_gen_init_cb = openavbIntfMjpegGstGenInitCB;

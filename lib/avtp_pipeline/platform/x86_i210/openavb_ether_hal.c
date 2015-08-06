@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,19 @@ static pthread_mutex_t gHALTimeInitMutex = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK()  	pthread_mutex_lock(&gHALTimeInitMutex)
 #define UNLOCK()	pthread_mutex_unlock(&gHALTimeInitMutex)
 
+// TODO_OPENAVB : This should settable via function call or dynamic if per stream buffers are used.
+#define MAX_PACKET_SIZE	100
+
 static bool bInitialized = FALSE;
 static device_t gIgbDev;
+
+// Related to packet buffers. Naming borrowed form OpenAVB examples.
+static size_t gMmaxPacketSize = 0;
+static struct igb_dma_alloc a_page;
+static struct igb_packet a_packet;
+static struct igb_packet *tmp_packet;
+static struct igb_packet *cleaned_packets;
+static struct igb_packet *free_packets;
 
 static bool x_HalEtherInit(void)
 {
@@ -67,6 +78,52 @@ static bool x_HalEtherInit(void)
 		AVB_LOGF_ERROR("init failed (%s) - is the driver really loaded?\n", strerror(errno));
 		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
 		return FALSE;
+	}
+
+	// TODO_OPENAVB : This allocation of a single page of results in 4KB of memory. For a single stream and/small packet sizes
+	//  this may be enough. However, this needs to be changed to a more flexible system either allocating a larger number of 
+	//  pages that all streams can use or a separate page for each stream. In either case the control of packet memory allocation
+	//  should handled via parameter either in this init function or a separate alloc function.
+	rslt = igb_dma_malloc_page(&gIgbDev, &a_page);
+	if (rslt) {
+		AVB_LOGF_ERROR("malloc failed (%s) - out of memory?", strerror(errno));
+		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+		return FALSE;
+	}
+
+	{
+		// Create list of igb_packets
+		gMmaxPacketSize = MAX_PACKET_SIZE;
+
+		a_packet.dmatime = 0;
+		a_packet.attime = 0;
+		a_packet.flags = 0;
+		a_packet.map.paddr = a_page.dma_paddr;
+		a_packet.map.mmap_size = a_page.mmap_size;
+		a_packet.offset = 0;
+		a_packet.vaddr = a_page.dma_vaddr + a_packet.offset;
+		a_packet.len = gMmaxPacketSize;
+		a_packet.next = NULL;
+		free_packets = NULL;
+
+		// Divide the DMA page into separate packets
+		int i1;
+		for (i1 = 1; i1 < ((a_page.mmap_size) / gMmaxPacketSize); i1++) {
+			tmp_packet = malloc(sizeof(struct igb_packet));
+			if (!tmp_packet) {
+				AVB_LOG_ERROR("failed to allocate igb_packet memory!");
+				AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+				return FALSE;
+			}
+
+			*tmp_packet = a_packet;
+			tmp_packet->offset = (i1 * gMmaxPacketSize);
+			tmp_packet->vaddr += tmp_packet->offset;
+			tmp_packet->next = free_packets;
+
+			memset(tmp_packet->vaddr, 0, gMmaxPacketSize);
+			free_packets = tmp_packet;
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
@@ -126,12 +183,122 @@ U8 *halGetRxBufGEN(U32 *frameSize)
 	return NULL;
 }
 
-// Send Tx Packet to driver
-bool halSendTxBuffer(U8 *pDataBuf, U32 frameSize, int class)
+
+bool halGetTxBuf(eth_frame_t *pEtherFrame)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
+	bool rslt = FALSE;
+
+	LOCK();
+
+	tmp_packet = free_packets;
+	if (!tmp_packet) {
+		igb_clean(&gIgbDev, &cleaned_packets);
+		while (cleaned_packets) {
+			tmp_packet = cleaned_packets;
+			cleaned_packets = cleaned_packets->next;
+			tmp_packet->next = free_packets;
+			free_packets = tmp_packet;
+		}
+		tmp_packet = free_packets;
+	}
+	if (!tmp_packet) {
+		pEtherFrame->pPvtData = NULL;
+		pEtherFrame->length = 0;
+		pEtherFrame->pBuffer = NULL;
+
+		rslt = FALSE;
+	}
+	else {
+		free_packets = tmp_packet->next;
+
+		pEtherFrame->pPvtData = tmp_packet;
+		pEtherFrame->length = tmp_packet->len;
+		pEtherFrame->pBuffer = tmp_packet->vaddr + tmp_packet->offset;
+
+		rslt = TRUE;
+	}
+
+	UNLOCK();
+
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return FALSE;
+	return rslt;
+}
+
+bool halRelTxBuf(eth_frame_t *pEtherFrame)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
+
+	if (!pEtherFrame->pPvtData) {
+		AVB_LOG_ERROR("Invalid packet to release");
+		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+		return FALSE;
+	}
+
+	LOCK();
+
+	tmp_packet = pEtherFrame->pPvtData;
+	tmp_packet->next = free_packets;
+	free_packets = tmp_packet;
+
+	UNLOCK();
+
+	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+	return TRUE;
+}
+
+
+bool halSendTxBuf(eth_frame_t *pEtherFrame)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
+	bool rslt = FALSE;
+
+	if (!pEtherFrame->pPvtData) {
+		AVB_LOG_ERROR("Invalid packet to send");
+		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+		return FALSE;
+	}
+
+	if (pEtherFrame->length > gMmaxPacketSize) {
+		AVB_LOG_ERROR("Packet size too large");
+		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+		return FALSE;
+	}
+
+	LOCK();
+
+	// TODO_OPENAVB : Select the queue (param 2) based on SR Class from pEtherFrame->fwmark
+	tmp_packet = pEtherFrame->pPvtData;
+	tmp_packet->len = pEtherFrame->length;
+
+	// Setting packet launch time to now so that it will send ASAP. The talker is pacing the packets.
+	// TODO_OPENAVB : An improvement may be to allow talker pacing to be driven by packet availability 
+	//  and allow the I210 to pace via launch time.
+	u_int64_t now;
+	if (igb_get_wallclock(&gIgbDev, &now, NULL) > 0) {
+		AVB_LOG_ERROR("Failed to get local time");
+		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+		return FALSE;
+	}
+	tmp_packet->attime = now;
+
+	int err = igb_xmit(&gIgbDev, 0, pEtherFrame->pPvtData);
+	if (!err) {
+		rslt = TRUE;
+	}
+	else {
+		if (err == ENOSPC) {
+			// Place back on list.
+			tmp_packet->next = free_packets;
+			free_packets = tmp_packet;
+		}
+		rslt = FALSE;
+	}
+
+	UNLOCK();
+
+	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+	return rslt;
 }
 
 // Is the link up. Returns TRUE if it is.

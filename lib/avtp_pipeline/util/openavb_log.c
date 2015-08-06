@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ static char full_msg[LOG_FULL_MSG_LEN] = "";
 
 static char rt_msg[LOG_RT_MSG_LEN] = "";
 
-static bool loggingThreadRunning = true;
+static bool loggingThreadRunning = false;
 extern void *loggingThreadFn(void *pv);
 THREAD_TYPE(loggingThread);
 THREAD_DEFINITON(loggingThread);
@@ -143,8 +143,7 @@ void avbLogRTRender(log_queue_item_t *pLogItem)
 	}
 }
 
-
-U32 avbLogGetMsg(U8 *pBuf, U32 bufSize)
+extern U32 DLL_EXPORT avbLogGetMsg(U8 *pBuf, U32 bufSize)
 {
 	U32 dataLen = 0;
 	if (logQueue) {
@@ -210,6 +209,7 @@ extern void DLL_EXPORT avbLogInit(void)
 	// Start the logging task
 	if (OPENAVB_LOG_FROM_THREAD) {
 		bool errResult;
+		loggingThreadRunning = true;
 		THREAD_CREATE(loggingThread, loggingThread, NULL, loggingThreadFn, NULL);
 		THREAD_CHECK_ERROR(loggingThread, "Thread / task creation failed", errResult);
 		if (errResult);		// Already reported
@@ -218,8 +218,10 @@ extern void DLL_EXPORT avbLogInit(void)
 
 extern void DLL_EXPORT avbLogExit()
 {
-	loggingThreadRunning = false;
-	THREAD_JOIN(loggingThread, NULL);
+	if (OPENAVB_LOG_FROM_THREAD) {
+		loggingThreadRunning = false;
+		THREAD_JOIN(loggingThread, NULL);
+	}
 }
 
 extern void DLL_EXPORT avbLogFn(

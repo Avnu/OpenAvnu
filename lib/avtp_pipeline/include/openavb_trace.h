@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -45,34 +45,34 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace_pub.h"
 
 // Features to trace. 1 is enabled, 0 is disabled.
-#define AVB_TRACE_ACMP					1
-#define AVB_TRACE_ADP					1
-#define AVB_TRACE_AECP					1
-#define AVB_TRACE_AEM					1
-#define AVB_TRACE_AVDECC				1
+#define AVB_TRACE_ACMP					0
+#define AVB_TRACE_ADP					0
+#define AVB_TRACE_AECP					0
+#define AVB_TRACE_AEM					0
+#define AVB_TRACE_AVDECC				0
 #define AVB_TRACE_AVTP					1
 #define AVB_TRACE_AVTP_DETAIL			1
-#define AVB_TRACE_AVTP_TIME				1
-#define AVB_TRACE_AVTP_TIME_DETAIL		1
-#define AVB_TRACE_ENDPOINT				1
-#define AVB_TRACE_MEDIAQ				1
-#define AVB_TRACE_MEDIAQ_DETAIL			1
-#define AVB_TRACE_QUEUE_MANAGER			1
-#define AVB_TRACE_MAAP					1
+#define AVB_TRACE_AVTP_TIME				0
+#define AVB_TRACE_AVTP_TIME_DETAIL		0
+#define AVB_TRACE_ENDPOINT				0
+#define AVB_TRACE_MEDIAQ				0
+#define AVB_TRACE_MEDIAQ_DETAIL			0
+#define AVB_TRACE_QUEUE_MANAGER			0
+#define AVB_TRACE_MAAP					0
 #define AVB_TRACE_RAWSOCK				1
 #define AVB_TRACE_RAWSOCK_DETAIL		1
-#define AVB_TRACE_SRP_PUBLIC			1
-#define AVB_TRACE_SRP_PRIVATE			1
-#define AVB_TRACE_TL					1
-#define AVB_TRACE_TL_DETAIL				1
-#define AVB_TRACE_PTP					1
-#define AVB_TRACE_FQTSS					1
-#define AVB_TRACE_FQTSS_DETAIL			1
-#define AVB_TRACE_HR_TMR				1
-#define AVB_TRACE_NANOSLEEP				1
-#define AVB_TRACE_TIME					1
-#define AVB_TRACE_HAL_ETHER				1
-#define AVB_TRACE_HAL_ETHER_DETAIL		1
-#define AVB_TRACE_HAL_TASK_TIMER		1
-#define AVB_TRACE_DEBUG					1
+#define AVB_TRACE_SRP_PUBLIC			0
+#define AVB_TRACE_SRP_PRIVATE			0
+#define AVB_TRACE_TL					0
+#define AVB_TRACE_TL_DETAIL				0
+#define AVB_TRACE_PTP					0
+#define AVB_TRACE_FQTSS					0
+#define AVB_TRACE_FQTSS_DETAIL			0
+#define AVB_TRACE_HR_TMR				0
+#define AVB_TRACE_NANOSLEEP				0
+#define AVB_TRACE_TIME					0
+#define AVB_TRACE_HAL_ETHER				0
+#define AVB_TRACE_HAL_ETHER_DETAIL		0
+#define AVB_TRACE_HAL_TASK_TIMER		0
+#define AVB_TRACE_DEBUG					0
 #endif // AVB_TRACE_H

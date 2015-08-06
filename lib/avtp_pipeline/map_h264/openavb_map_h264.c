@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define MAP_HEADER_SIZE				12
 
 #define TOTAL_HEADER_SIZE			(AVTP_V0_HEADER_SIZE + MAP_HEADER_SIZE)
+
+#define MAX_PAYLOAD_SIZE 1412
 
 //////
 // AVTP Version 0 Header
@@ -157,9 +159,14 @@ void openavbMapH264CfgCB(media_q_t *pMediaQ, const char *name, const char *value
 			pPvtData->txInterval = strtol(value, &pEnd, 10);
 		}
 		else if (strcmp(name, "map_nv_max_payload_size") == 0) {
-			pPvtData->maxPayloadSize = strtol(value, &pEnd, 10);
+			U32 size = strtol(value, &pEnd, 10);
+			if (size > MAX_PAYLOAD_SIZE) {
+				AVB_LOGF_WARNING("map_nv_max_payload_size too large. Parameter set to default: %d", MAX_PAYLOAD_SIZE);
+				size = MAX_PAYLOAD_SIZE;
+			}
+			pPvtData->maxPayloadSize = size;
 			pPvtData->maxDataSize = (pPvtData->maxPayloadSize + TOTAL_HEADER_SIZE);
-			pPvtData->itemSize =	pPvtData->maxDataSize;
+			pPvtData->itemSize =	pPvtData->maxPayloadSize;
 		}
 	}
 
@@ -348,6 +355,13 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 		//pHdr[HIDX_M31_M21_M11_M01_EVT2_RESV2]
 		//pHdr[HIDX_RESV8]
 
+		// validate header
+		if (payloadLen  > dataLen - TOTAL_HEADER_SIZE) {
+			IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("header data len > actual data len");
+			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+			return FALSE;
+		}
+
 		// Get item pointer in media queue
 		media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
 		if (pMediaQItem) {
@@ -366,7 +380,7 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 
 			if (pMediaQItem->itemSize >= dataLen - TOTAL_HEADER_SIZE) {
 				memcpy(pMediaQItem->pPubData, pPayload, payloadLen);
-				pMediaQItem->dataLen = dataLen - TOTAL_HEADER_SIZE;
+				pMediaQItem->dataLen = payloadLen;
 			}
 			else {
 				AVB_LOG_ERROR("Data to large for media queue.");
@@ -379,7 +393,7 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			return TRUE;
 		}
 		else {
-			AVB_LOG_ERROR("Media queue full.");
+			IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Media queue full");
 			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 			return FALSE;   // Media queue full
 		}
@@ -435,9 +449,9 @@ extern DLL_EXPORT bool openavbMapH264Initialize(media_q_t *pMediaQ, openavb_map_
 		pPvtData->txInterval = 0;
 		pPvtData->maxTransitUsec = inMaxTransitUsec;
 
-		pPvtData->maxPayloadSize = 1412;
+		pPvtData->maxPayloadSize = MAX_PAYLOAD_SIZE;
 		pPvtData->maxDataSize = (pPvtData->maxPayloadSize + TOTAL_HEADER_SIZE);
-		pPvtData->itemSize = pPvtData->maxDataSize;
+		pPvtData->itemSize = pPvtData->maxPayloadSize;
 
 		openavbMediaQSetMaxLatency(pMediaQ, inMaxTransitUsec);
 	}

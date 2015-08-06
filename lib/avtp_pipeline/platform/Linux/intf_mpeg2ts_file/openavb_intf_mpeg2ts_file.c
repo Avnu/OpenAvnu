@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -417,7 +417,7 @@ bool openavbIntfMpeg2tsFileTxCB(media_q_t *pMediaQ)
 
 		pMediaQItem = openavbMediaQHeadLock(pMediaQ);
 		if (!pMediaQItem) {
-			//AVB_LOG_ERROR("Media queue full");
+			IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Media queue full");
 			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 			return FALSE;	// Media queue full
 		}

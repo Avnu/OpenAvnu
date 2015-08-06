@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 // AVTP payload: we allow for 5 source packets (192 * 5) plus the CIP header (8) = 968
 // TODO: make the number of packet configurable
-#define AVTP_DFLT_SRC_PKTS				5
+#define AVTP_DFLT_SRC_PKTS				7
 
 // AVTP Header sizes
 #define AVTP_V0_HEADER_SIZE			12
@@ -618,7 +618,7 @@ bool openavbMapMpeg2tsRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			}
 			else {
 				// Media queue full, data dropped
-				AVB_LOG_ERROR("Media queue full");
+				IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Media queue full");
 				AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 				return FALSE;
 			}
