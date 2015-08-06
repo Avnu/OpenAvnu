@@ -54,6 +54,13 @@ struct parse_param {
 	void *v;
 };
 
-int parse(char *s, int len, struct parse_param *specs, int *err_index);
+/** Parse a string of parameters into specified types.
+ * @param s a null terminated string to be parsed
+ * @param len the length of buffer containing the string to be parsed. This is not strlen(s)!.
+ * @param specs a pointer to an array of parsing specificaions
+ * @param the parameter index at which a parsing error occured
+ * @return 0 on success
+ */
+int parse(const char *s, int len, struct parse_param *specs, int *err_index);
 
 #endif				/* PARSE_H_ */
