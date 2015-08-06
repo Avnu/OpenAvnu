@@ -28,6 +28,7 @@ target_link_libraries( openavb_host
 	intf_mjpeg_gst
 	intf_mpeg2ts_file
 	intf_wav_file
+	intf_h264_gst
 	avbTl
 	${PLATFORM_LINK_LIBRARIES}
 	${ALSA_LIBRARIES}
@@ -62,6 +63,7 @@ target_link_libraries( openavb_harness
 	intf_mjpeg_gst
 	intf_mpeg2ts_file
 	intf_wav_file
+	intf_h264_gst
 	avbTl
 	${PLATFORM_LINK_LIBRARIES}
 	${ALSA_LIBRARIES}

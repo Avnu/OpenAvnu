@@ -77,6 +77,8 @@ extern bool openavbIntfMjpegGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t 
 extern bool openavbIntfMpeg2tsFileInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfMpeg2tsGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfWavFileInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
+extern bool openavbIntfH264RtpGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
+
 
 
 /***********************************************
@@ -192,6 +194,7 @@ int main(int argc, char *argv[])
 	registerStaticIntfModule(openavbIntfMpeg2tsFileInitialize);
 	registerStaticIntfModule(openavbIntfMpeg2tsGstInitialize);
 	registerStaticIntfModule(openavbIntfWavFileInitialize);
+	registerStaticIntfModule(openavbIntfH264RtpGstInitialize);
 
 	osalAVBInitialize();
 

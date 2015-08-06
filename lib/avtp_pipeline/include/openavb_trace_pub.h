@@ -78,13 +78,13 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 
 // Features to trace. 1 is enabled, 0 is disabled.
-#define AVB_TRACE_MAP					1
-#define AVB_TRACE_MAP_DETAIL			1
-#define AVB_TRACE_MAP_LINE				1
-#define AVB_TRACE_INTF					1
-#define AVB_TRACE_INTF_DETAIL			1
-#define AVB_TRACE_INTF_LINE				1
-#define AVB_TRACE_HOST					1
+#define AVB_TRACE_MAP					0
+#define AVB_TRACE_MAP_DETAIL			0
+#define AVB_TRACE_MAP_LINE				0
+#define AVB_TRACE_INTF					0
+#define AVB_TRACE_INTF_DETAIL			0
+#define AVB_TRACE_INTF_LINE				0
+#define AVB_TRACE_HOST					0
 
 #define TRACE_VAR1(x, y) x ## y
 #define TRACE_VAR2(x, y) TRACE_VAR1(x, y)

@@ -1,16 +1,16 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2013, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,16 +21,12 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
-
-/*
-* MODULE SUMMARY : MJPEG File interface module.
-*/
 
 #include <stdlib.h>
 #include <string.h>
@@ -43,10 +39,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace_pub.h"
 #include "openavb_mediaq_pub.h"
 #include "openavb_intf_pub.h"
-#include "openavb_map_mjpeg_pub.h"
+#include "openavb_map_h264_pub.h"
 #include "gst_al.h"
 
-#define	AVB_LOG_COMPONENT	"MJPEG Interface"
+#define	AVB_LOG_COMPONENT	"H264 Interface"
 #include "openavb_log_pub.h"
 
 #define APPSINK_NAME "avbsink"
@@ -62,8 +58,8 @@ typedef struct pvt_data_t
 	bool ignoreTimestamp;
 
 	GstElement       *pipe;
-	GstElement       *appsink;
-	GstElement       *appsrc;
+	GstAppSink       *appsink;
+	GstAppSrc       *appsrc;
 
 	U32 bufwr;
 	U32 bufrd;
@@ -72,17 +68,15 @@ typedef struct pvt_data_t
 	bool asyncRx;
 	bool blockingRx;
 
-	bool get_avtp_timestamp;        /*<! this flag indicates whether
-                                        an avtp timestamp should be taken */
-	U32 frame_timestamp;            /*<! this is a timestamp of a video frame */
+	gint			nWaiting;
 } pvt_data_t;
 
 // Each configuration name value pair for this mapping will result in this callback being called.
-void openavbIntfMjpegGstCfgCB(media_q_t *pMediaQ, const char *name, const char *value)
+void openavbIntfH264RtpGstCfgCB(media_q_t *pMediaQ, const char *name, const char *value)
 {
 	if (!pMediaQ)
 	{
-		AVB_LOG_DEBUG("mjpeg-gst cfgCB: no mediaQ!");
+		AVB_LOG_DEBUG("H264Rtp-gst cfgCB: no mediaQ!");
 		return;
 	}
 
@@ -132,27 +126,37 @@ void openavbIntfMjpegGstCfgCB(media_q_t *pMediaQ, const char *name, const char *
 	}
 }
 
-void openavbIntfMjpegGstGenInitCB(media_q_t *pMediaQ)
+void openavbIntfH264RtpGstGenInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 	if (!pMediaQ)
 	{
-		AVB_LOG_DEBUG("mjpeg-gst initCB: no mediaQ!");
+		AVB_LOG_DEBUG("H264Rtp-gst initCB: no mediaQ!");
 		AVB_TRACE_EXIT(AVB_TRACE_INTF);
 		return;
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
+static GstFlowReturn sinkNewBufferSample(GstAppSink *sink, gpointer pv)
+{
+	media_q_t *pMediaQ = (media_q_t *)pv;
+	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
+
+	g_atomic_int_add(&pPvtData->nWaiting, 1);
+
+	return GST_FLOW_OK;
+}
+
 // A call to this callback indicates that this interface module will be
 // a talker. Any talker initialization can be done in this function.
-void openavbIntfMjpegGstTxInitCB(media_q_t *pMediaQ)
+void openavbIntfH264RtpGstTxInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
 	if (!pMediaQ)
 	{
-		AVB_LOG_DEBUG("mjpeg-gst txinit: no mediaQ!");
+		AVB_LOG_DEBUG("H264Rtp-gst txinit: no mediaQ!");
 		AVB_TRACE_EXIT(AVB_TRACE_INTF);
 		return;
 	}
@@ -172,11 +176,20 @@ void openavbIntfMjpegGstTxInitCB(media_q_t *pMediaQ)
 	}
 
 	AVB_LOGF_INFO("Pipeline: %s", pPvtData->pPipelineStr);
-	pPvtData->appsink = gst_bin_get_by_name(GST_BIN(pPvtData->pipe), APPSINK_NAME);
+	pPvtData->appsink = GST_APP_SINK(gst_bin_get_by_name(GST_BIN(pPvtData->pipe), APPSINK_NAME));
 	if (!pPvtData->appsink)
 	{
 		AVB_LOG_ERROR("Failed to find appsink element");
 	}
+
+	// Setup callback function to handle new buffers delivered to sink
+	GstAppSinkCallbacks cbfns;
+	memset(&cbfns, 0, sizeof(GstAppSinkCallbacks));
+
+	gst_al_set_callback(&cbfns, sinkNewBufferSample);
+
+	gst_app_sink_set_callbacks(pPvtData->appsink, &cbfns, (gpointer)(pMediaQ), NULL);
+
 	//No limits for internal sink buffers. This may cause large memory consumption.
 	g_object_set(pPvtData->appsink, "max-buffers", 0, "drop", 0, NULL);
 	//FIXME: Check if state change was successful
@@ -189,13 +202,13 @@ void openavbIntfMjpegGstTxInitCB(media_q_t *pMediaQ)
 
 // This callback will be called for each AVB transmit interval. Commonly this will be
 // 4000 or 8000 times  per second.
-bool openavbIntfMjpegGstTxCB(media_q_t *pMediaQ)
+bool openavbIntfH264RtpGstTxCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF_DETAIL);
 
 	if (!pMediaQ)
 	{
-		AVB_LOG_DEBUG("No MediaQ in MjpegGstTxCB");
+		AVB_LOG_DEBUG("No MediaQ in H264RtpGstTxCB");
 		AVB_TRACE_EXIT(AVB_TRACE_INTF);
 		return FALSE;
 	}
@@ -207,61 +220,72 @@ bool openavbIntfMjpegGstTxCB(media_q_t *pMediaQ)
 		return FALSE;
 	}
 
-	U32 paySize = 0;
-
-	GstAlBuf *txBuf = NULL;
-
-	txBuf = gst_al_pull_rtp_buffer(GST_APP_SINK(pPvtData->appsink));
-
-	if (!txBuf)
+	while (g_atomic_int_get(&pPvtData->nWaiting) > 0)
 	{
-		AVB_LOG_ERROR("Gstreamer buffer pull problem");
-		AVB_TRACE_EXIT(AVB_TRACE_INTF);
-		return FALSE;
-	}
-
-	paySize = GST_AL_BUF_SIZE(txBuf);
-
-	//Transmit data --BEGIN--
-	media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
-	if (pMediaQItem)
-	{
-		pMediaQItem->dataLen = paySize;
-		memcpy(pMediaQItem->pPubData, GST_AL_BUF_DATA(txBuf), paySize);
-		if (gst_al_rtp_buffer_get_marker(txBuf))
+		//Transmit data --BEGIN--
+		media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
+		if (pMediaQItem)
 		{
-			((media_q_item_map_mjpeg_pub_data_t *)pMediaQItem->pPubMapData)->lastFragment = TRUE;
-			// next time get avtp timestamp
-			pPvtData->get_avtp_timestamp = TRUE;
+			U32 paySize = 0;
+
+			GstAlBuf *txBuf = NULL;
+
+			txBuf = gst_al_pull_rtp_buffer(GST_APP_SINK(pPvtData->appsink));
+
+			if (!txBuf)
+			{
+				pMediaQItem->dataLen = 0;
+				openavbMediaQHeadUnlock(pMediaQ);
+				AVB_LOG_ERROR("Gstreamer buffer pull problem");
+				AVB_TRACE_EXIT(AVB_TRACE_INTF);
+				return FALSE;
+			}
+
+			g_atomic_int_add(&pPvtData->nWaiting, -1);
+			paySize = GST_AL_BUF_SIZE(txBuf);
+
+			if(paySize > pMediaQItem->itemSize){
+
+				AVB_LOG_ERROR("PaySize exceeds pMediaQItem itemSize.");
+
+				pMediaQItem->dataLen = 0;
+				openavbMediaQHeadUnlock(pMediaQ);
+				gst_al_rtp_buffer_unref(txBuf);
+
+				return FALSE;
+			}
+
+			pMediaQItem->dataLen = paySize;
+			memcpy(pMediaQItem->pPubData, GST_AL_BUF_DATA(txBuf), paySize);
+			if (gst_al_rtp_buffer_get_marker(txBuf))
+			{
+				((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->lastPacket = TRUE;
+			}
+			else
+			{
+				((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->lastPacket = FALSE;
+			}
+			openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+			openavbMediaQHeadPush(pMediaQ);
+
+			gst_al_rtp_buffer_unref(txBuf);
+
+			if (gst_app_sink_is_eos(GST_APP_SINK(pPvtData->appsink))) {
+				if (!gst_element_seek_simple(pPvtData->pipe, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, 0)) {
+					AVB_LOG_ERROR("Seek failed.");
+				} else {
+					AVB_LOG_INFO("Stream rewinded to 0.");
+				}
+			}
 		}
 		else
 		{
-			// it means this is a new bunch of fragments
-			// only first timestamp need to be taken
-			if(pPvtData->get_avtp_timestamp)
-			{
-				openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
-				pPvtData->get_avtp_timestamp = FALSE;
-			}
-			((media_q_item_map_mjpeg_pub_data_t *)pMediaQItem->pPubMapData)->lastFragment = FALSE;
+			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
+			//AVB_LOG_INFO("MediaQ full");
+			return FALSE;	// Media queue full
 		}
-		openavbMediaQHeadPush(pMediaQ);
-
-		gst_al_rtp_buffer_unref(txBuf);
-
-		AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-		return TRUE;
 	}
-	else
-	{
-		gst_al_rtp_buffer_unref(txBuf);
-		AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-		AVB_LOG_INFO("GStreamer returned NULL buffer, pipeline stopped");
-		return FALSE;	// Media queue full
-	}
-	// never here....
-	openavbMediaQHeadUnlock(pMediaQ);
-	pMediaQItem->dataLen = 0;
+
 	AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 	return TRUE;
 }
@@ -278,7 +302,7 @@ static media_q_t *pAsyncRxMediaQ;
 //static media_q_item_t *pAsyncRxMediaQItem;
 //static bool bAsyncRXDoneWithItem;
 
-static void *openavbIntfMjpegGstRxThreadfn(void *pv)
+static void *openavbIntfH264RtpGstRxThreadfn(void *pv)
 {
 	pvt_data_t *pPvtData;
 
@@ -333,12 +357,12 @@ static void *openavbIntfMjpegGstRxThreadfn(void *pv)
 }
 // A call to this callback indicates that this interface module will be
 // a listener. Any listener initialization can be done in this function.
-void openavbIntfMjpegGstRxInitCB(media_q_t *pMediaQ)
+void openavbIntfH264RtpGstRxInitCB(media_q_t *pMediaQ)
 {
 	AVB_LOG_DEBUG("Rx Init callback.");
 	if (!pMediaQ)
 	{
-		AVB_LOG_DEBUG("No MediaQ in MjpegGstRxInitCB");
+		AVB_LOG_DEBUG("No MediaQ in H264RtpGstRxInitCB");
 		return;
 	}
 
@@ -357,7 +381,7 @@ void openavbIntfMjpegGstRxInitCB(media_q_t *pMediaQ)
 	}
 
 	AVB_LOGF_INFO("Pipeline: %s", pPvtData->pPipelineStr);
-	pPvtData->appsrc = gst_bin_get_by_name(GST_BIN(pPvtData->pipe), APPSRC_NAME);
+	pPvtData->appsrc = GST_APP_SRC(gst_bin_get_by_name(GST_BIN(pPvtData->pipe), APPSRC_NAME));
 	if (!pPvtData->appsrc)
 	{
 		AVB_LOG_ERROR("Failed to find appsrc element");
@@ -387,12 +411,12 @@ void openavbIntfMjpegGstRxInitCB(media_q_t *pMediaQ)
 		pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
 		param.sched_priority = 0;
 		pthread_attr_setschedparam(&attr, &param);
-		pthread_create(&asyncRxThread, &attr, openavbIntfMjpegGstRxThreadfn, NULL);
+		pthread_create(&asyncRxThread, &attr, openavbIntfH264RtpGstRxThreadfn, NULL);
 	}
 }
 
 // This callback is called when acting as a listener.
-bool openavbIntfMjpegGstRxCB(media_q_t *pMediaQ)
+bool openavbIntfH264RtpGstRxCB(media_q_t *pMediaQ)
 {
 	if (!pMediaQ)
 	{
@@ -448,29 +472,9 @@ bool openavbIntfMjpegGstRxCB(media_q_t *pMediaQ)
 
 		GST_AL_BUFFER_TIMESTAMP(rxBuf) = GST_CLOCK_TIME_NONE;
 		GST_AL_BUFFER_DURATION(rxBuf) = GST_CLOCK_TIME_NONE;
-
-		if ( ((media_q_item_map_mjpeg_pub_data_t *)pMediaQItem->pPubMapData)->lastFragment )
+		if ( ((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->lastPacket )
 		{
-			pPvtData->get_avtp_timestamp = TRUE;
 			gst_al_rtp_buffer_set_marker(rxBuf,TRUE);
-		}
-		else
-		{
-			if(pPvtData->get_avtp_timestamp)
-			{
-				pPvtData->frame_timestamp = openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime);
-				pPvtData->get_avtp_timestamp = FALSE;
-			}
-			else
-			{
-				U32 fragment_timestamp = openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime);
-				// all fragments should have the same timestamp
-				if(pPvtData->frame_timestamp != fragment_timestamp)
-				{
-					AVB_LOGF_ERROR("Mapping is wrong. Fragment timestamp should be %lu instead of %lu",
-					               pPvtData->frame_timestamp, fragment_timestamp);
-				}
-			}
 		}
 
 		gst_al_rtp_buffer_set_params(rxBuf, 5, 96, 2, pPvtData->seq++);
@@ -499,7 +503,7 @@ bool openavbIntfMjpegGstRxCB(media_q_t *pMediaQ)
 
 // This callback will be called when the interface needs to be closed. All shutdown should
 // occur in this function.
-void openavbIntfMjpegGstEndCB(media_q_t *pMediaQ)
+void openavbIntfH264RtpGstEndCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 	bAsyncRXStreaming = FALSE;
@@ -535,20 +539,20 @@ void openavbIntfMjpegGstEndCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
-void openavbIntfMjpegGstGenEndCB(media_q_t *pMediaQ)
+void openavbIntfH264RtpGstGenEndCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
 // Main initialization entry point into the interface module
-extern DLL_EXPORT bool openavbIntfMjpegGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
+extern DLL_EXPORT bool openavbIntfH264RtpGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
 	if (!pMediaQ)
 	{
-		AVB_LOG_DEBUG("mjpeg-gst GstInitialize: no mediaQ!");
+		AVB_LOG_DEBUG("H264Rtp-gst GstInitialize: no mediaQ!");
 		AVB_TRACE_EXIT(AVB_TRACE_INTF);
 		return TRUE;
 	}
@@ -557,16 +561,14 @@ extern DLL_EXPORT bool openavbIntfMjpegGstInitialize(media_q_t *pMediaQ, openavb
 
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
 
-	pPvtData->get_avtp_timestamp = TRUE;
-
-	pIntfCB->intf_cfg_cb = openavbIntfMjpegGstCfgCB;
-	pIntfCB->intf_gen_init_cb = openavbIntfMjpegGstGenInitCB;
-	pIntfCB->intf_tx_init_cb = openavbIntfMjpegGstTxInitCB;
-	pIntfCB->intf_tx_cb = openavbIntfMjpegGstTxCB;
-	pIntfCB->intf_rx_init_cb = openavbIntfMjpegGstRxInitCB;
-	pIntfCB->intf_rx_cb = openavbIntfMjpegGstRxCB;
-	pIntfCB->intf_end_cb = openavbIntfMjpegGstEndCB;
-	pIntfCB->intf_gen_end_cb = openavbIntfMjpegGstGenEndCB;
+	pIntfCB->intf_cfg_cb = openavbIntfH264RtpGstCfgCB;
+	pIntfCB->intf_gen_init_cb = openavbIntfH264RtpGstGenInitCB;
+	pIntfCB->intf_tx_init_cb = openavbIntfH264RtpGstTxInitCB;
+	pIntfCB->intf_tx_cb = openavbIntfH264RtpGstTxCB;
+	pIntfCB->intf_rx_init_cb = openavbIntfH264RtpGstRxInitCB;
+	pIntfCB->intf_rx_cb = openavbIntfH264RtpGstRxCB;
+	pIntfCB->intf_end_cb = openavbIntfH264RtpGstEndCB;
+	pIntfCB->intf_gen_end_cb = openavbIntfH264RtpGstGenEndCB;
 
 	pPvtData->ignoreTimestamp = FALSE;
 

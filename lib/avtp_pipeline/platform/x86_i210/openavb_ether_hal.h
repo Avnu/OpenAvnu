@@ -34,6 +34,14 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_platform.h"
 #include "openavb_types_base.h"
 
+typedef struct {
+	void *pPvtData;
+	int fwmark;
+	U16 length;
+	U8 *pBuffer;
+} eth_frame_t;
+
+
 // Initialize HAL layer Ethernet driver
 bool halEthernetInitialize(U8 *macAddr, bool gmacAutoNegotiate);
 
@@ -52,8 +60,14 @@ U8 *halGetRxBufAVB(U32 *frameSize, bool *bPtpCBUsed);
 // Get next GEN Rx packet
 U8 *halGetRxBufGEN(U32 *frameSize);
 
-// Send Tx Packet to driver
-bool halSendTxBuffer(U8 *pDataBuf, U32 frameSize, int class);
+// Get the next Tx buffer. Sets Length and pBuffer of eth_frame_t on return
+bool halGetTxBuf(eth_frame_t *pEtherFrame);
+
+// Release the Tx buffer without sending it. Returns TRUE on success.
+bool halRelTxBuf(eth_frame_t *pEtherFrame);
+
+// Sents the TX frame. Returns TRUE on success. Caller shall set Length and fwmark of eth_frame_t
+bool halSendTxBuf(eth_frame_t *pEtherFrame);
 
 // Is the link up. Returns TRUE if it is.
 bool halIsLinkUp(void);
@@ -64,6 +78,7 @@ U8 *halGetMacAddr(void);
 // Return the MTU
 U32 halGetMTU(void); 
 
+// Get the local time from the 1588 timestamp unit
 bool halGetLocaltime(U64 *localTime64);
 
 // Add stream to the credit based shaper

@@ -949,10 +949,6 @@ U8 *openavbRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset,
 		rawsock->bLosing = FALSE;
 	}
 
-	// Return pointer to the buffer and length
-	*offset = pHdr->tp_mac - rawsock->bufHdrSize;
-	*len = pHdr->tp_len;
-
 	// increment indexes for next time
 	if (++(rawsock->bufferIndex) >= (rawsock->frameCount/rawsock->blockCount)) {
 		rawsock->bufferIndex = 0;
@@ -963,7 +959,18 @@ U8 *openavbRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset,
 
 	// Remember that the client has another buffer
 	rawsock->buffersOut += 1;
-	
+
+	if (pHdr->tp_snaplen < pHdr->tp_len) {
+		IF_LOG_INTERVAL(1000) AVB_LOGF_WARNING("Getting RX frame; partial frame ignored (len %d, snaplen %d)", pHdr->tp_len, pHdr->tp_snaplen);
+		openavbRawsockRelRxFrame(rawsock, (U8*)pBuffer);
+		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
+		return NULL;
+	}
+
+	// Return pointer to the buffer and length
+	*offset = pHdr->tp_mac - rawsock->bufHdrSize;
+	*len = pHdr->tp_snaplen;
+
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 	return (U8*)pBuffer;
 }

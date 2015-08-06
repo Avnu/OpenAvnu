@@ -252,7 +252,7 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 			pPubMapInfo->itemSampleSizeBytes = 2;
 		}
 		else if (pPubMapInfo->audioBitDepth == AVB_AUDIO_BIT_DEPTH_24BIT) {
-			pPubMapInfo->itemSampleSizeBytes = 4;
+			pPubMapInfo->itemSampleSizeBytes = 3;
 		}
 		else {
 			AVB_LOGF_ERROR("Invalid audio format configured: %u", pPubMapInfo->audioBitDepth);
@@ -451,7 +451,7 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 		return TX_CB_RET_PACKET_NOT_READY;
 	}
 
-	if (openavbMediaQIsAvailableBytes(pMediaQ, pPubMapInfo->packetAudioDataSizeBytes, TRUE)) {
+	if (openavbMediaQIsAvailableBytes(pMediaQ, pPubMapInfo->itemFrameSizeBytes * pPubMapInfo->framesPerPacket, TRUE)) {
 		U8 *pHdr = pData;
 		U8 *pPayload = pData + TOTAL_HEADER_SIZE;
 
@@ -524,7 +524,7 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 							sample = htonl(sample);
 							*(U32 *)(pAVTPDataUnit) = sample;
 							pAVTPDataUnit += 4;
-							pItemData += 4;
+							pItemData += 3;
 						}
 					}
 					framesProcessed++;
@@ -663,8 +663,8 @@ bool openavbMapUncmpAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 							sample = sample * 1;
 							*(S32 *)(pItemData) = sample & 0x00ffffff;
 							pAVTPDataUnit += 4;
-							pItemData += 4;
-							itemSizeWritten += 4;
+							pItemData += 3;
+							itemSizeWritten += 3;
 						}
 					}
 				}

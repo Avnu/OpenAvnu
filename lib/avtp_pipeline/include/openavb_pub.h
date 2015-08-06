@@ -42,7 +42,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // 
 // These must NOT be edited for project related work
 /////////////////////////////////////////////////////////
-#define AVB_CORE_NAME	"OpenAVB AVTP Pipeline"
+#define AVB_CORE_NAME	"AVTP Pipeline"
 
 #define AVB_CORE_VER_MAJOR		(0)
 #define AVB_CORE_VER_MINOR		(1)

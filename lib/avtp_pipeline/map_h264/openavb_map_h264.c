@@ -159,7 +159,7 @@ void openavbMapH264CfgCB(media_q_t *pMediaQ, const char *name, const char *value
 		else if (strcmp(name, "map_nv_max_payload_size") == 0) {
 			pPvtData->maxPayloadSize = strtol(value, &pEnd, 10);
 			pPvtData->maxDataSize = (pPvtData->maxPayloadSize + TOTAL_HEADER_SIZE);
-			pPvtData->itemSize =	pPvtData->maxDataSize;
+			pPvtData->itemSize =	pPvtData->maxPayloadSize;
 		}
 	}
 
@@ -348,6 +348,13 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 		//pHdr[HIDX_M31_M21_M11_M01_EVT2_RESV2]
 		//pHdr[HIDX_RESV8]
 
+		// validate header
+		if (payloadLen  > dataLen - TOTAL_HEADER_SIZE) {
+			IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("header data len > actual data len");
+			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+			return FALSE;
+		}
+
 		// Get item pointer in media queue
 		media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
 		if (pMediaQItem) {
@@ -379,7 +386,7 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			return TRUE;
 		}
 		else {
-			AVB_LOG_ERROR("Media queue full.");
+			IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Media queue full");
 			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 			return FALSE;   // Media queue full
 		}
@@ -437,7 +444,7 @@ extern DLL_EXPORT bool openavbMapH264Initialize(media_q_t *pMediaQ, openavb_map_
 
 		pPvtData->maxPayloadSize = 1412;
 		pPvtData->maxDataSize = (pPvtData->maxPayloadSize + TOTAL_HEADER_SIZE);
-		pPvtData->itemSize = pPvtData->maxDataSize;
+		pPvtData->itemSize = pPvtData->maxPayloadSize;
 
 		openavbMediaQSetMaxLatency(pMediaQ, inMaxTransitUsec);
 	}

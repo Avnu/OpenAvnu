@@ -13,3 +13,5 @@ set ( OPENAVB_PLATFORM "${OPENAVB_HAL}-${OPENAVB_OSAL}" )
 include_directories ( platform/generic/include )
 
 set ( PLATFORM_DEFINE "AVB_DELAY_TWEAK_USEC=45" )
+
+set ( GSTREAMER_1_0 1 )

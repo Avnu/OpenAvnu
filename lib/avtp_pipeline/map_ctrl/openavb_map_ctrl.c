@@ -415,7 +415,7 @@ bool openavbMapCtrlRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			return TRUE;
 		}
 		else {
-			AVB_LOG_ERROR("Media queue full.");
+			IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Media queue full.");
 			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 			return FALSE;   // Media queue full
 		}

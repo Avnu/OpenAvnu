@@ -417,7 +417,7 @@ bool openavbIntfMpeg2tsFileTxCB(media_q_t *pMediaQ)
 
 		pMediaQItem = openavbMediaQHeadLock(pMediaQ);
 		if (!pMediaQItem) {
-			//AVB_LOG_ERROR("Media queue full");
+			IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Media queue full");
 			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 			return FALSE;	// Media queue full
 		}
