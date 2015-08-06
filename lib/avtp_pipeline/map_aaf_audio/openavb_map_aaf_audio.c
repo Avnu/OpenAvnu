@@ -673,6 +673,7 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 					else if (!pPvtData->mediaQItemSyncTS) {
 						//we need packet with valid TS for first data written to item
 						AVB_LOG_DEBUG("Timestamp not valid for MediaQItem - initial packets dropped");
+						IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Timestamp not valid for MediaQItem - initial packets dropped");
 						dataValid = FALSE;
 					}
 				}

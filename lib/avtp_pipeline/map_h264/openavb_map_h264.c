@@ -62,6 +62,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #define TOTAL_HEADER_SIZE			(AVTP_V0_HEADER_SIZE + MAP_HEADER_SIZE)
 
+#define MAX_PAYLOAD_SIZE 1412
+
 //////
 // AVTP Version 0 Header
 //////
@@ -157,7 +159,12 @@ void openavbMapH264CfgCB(media_q_t *pMediaQ, const char *name, const char *value
 			pPvtData->txInterval = strtol(value, &pEnd, 10);
 		}
 		else if (strcmp(name, "map_nv_max_payload_size") == 0) {
-			pPvtData->maxPayloadSize = strtol(value, &pEnd, 10);
+			U32 size = strtol(value, &pEnd, 10);
+			if (size > MAX_PAYLOAD_SIZE) {
+				AVB_LOGF_WARNING("map_nv_max_payload_size too large. Parameter set to default: %d", MAX_PAYLOAD_SIZE);
+				size = MAX_PAYLOAD_SIZE;
+			}
+			pPvtData->maxPayloadSize = size;
 			pPvtData->maxDataSize = (pPvtData->maxPayloadSize + TOTAL_HEADER_SIZE);
 			pPvtData->itemSize =	pPvtData->maxPayloadSize;
 		}
@@ -373,7 +380,7 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 
 			if (pMediaQItem->itemSize >= dataLen - TOTAL_HEADER_SIZE) {
 				memcpy(pMediaQItem->pPubData, pPayload, payloadLen);
-				pMediaQItem->dataLen = dataLen - TOTAL_HEADER_SIZE;
+				pMediaQItem->dataLen = payloadLen;
 			}
 			else {
 				AVB_LOG_ERROR("Data to large for media queue.");
@@ -442,7 +449,7 @@ extern DLL_EXPORT bool openavbMapH264Initialize(media_q_t *pMediaQ, openavb_map_
 		pPvtData->txInterval = 0;
 		pPvtData->maxTransitUsec = inMaxTransitUsec;
 
-		pPvtData->maxPayloadSize = 1412;
+		pPvtData->maxPayloadSize = MAX_PAYLOAD_SIZE;
 		pPvtData->maxDataSize = (pPvtData->maxPayloadSize + TOTAL_HEADER_SIZE);
 		pPvtData->itemSize = pPvtData->maxPayloadSize;
 

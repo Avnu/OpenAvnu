@@ -47,6 +47,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #define APPSINK_NAME "avbsink"
 #define APPSRC_NAME "avbsrc"
+#define RTP_PAYLOADER_NAME "avbrtppay"
 #define PACKETS_PER_RX_CALL 20
 
 #define NBUFS 256
@@ -148,6 +149,23 @@ static GstFlowReturn sinkNewBufferSample(GstAppSink *sink, gpointer pv)
 	return GST_FLOW_OK;
 }
 
+static int openavbMediaQGetItemSize(media_q_t *pMediaQ)
+{
+	int itemSize = 1412;
+	media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
+	if (pMediaQItem)
+	{
+		itemSize = pMediaQItem->itemSize;
+		openavbMediaQHeadUnlock(pMediaQ);
+	}
+	else
+	{
+		AVB_LOG_ERROR("pMediaQ item NULL in getMediaQItemSize");
+	}
+
+	return itemSize;
+}
+
 // A call to this callback indicates that this interface module will be
 // a talker. Any talker initialization can be done in this function.
 void openavbIntfH264RtpGstTxInitCB(media_q_t *pMediaQ)
@@ -192,6 +210,17 @@ void openavbIntfH264RtpGstTxInitCB(media_q_t *pMediaQ)
 
 	//No limits for internal sink buffers. This may cause large memory consumption.
 	g_object_set(pPvtData->appsink, "max-buffers", 0, "drop", 0, NULL);
+
+	GstElement *rtpPayloader = gst_bin_get_by_name(GST_BIN(pPvtData->pipe), RTP_PAYLOADER_NAME);
+	if (rtpPayloader)
+	{
+		g_object_set(rtpPayloader, "mtu", openavbMediaQGetItemSize(pMediaQ), NULL);
+	}
+	else
+	{
+		AVB_LOG_ERROR("rtpPayloader NULL in TX init");
+	}
+
 	//FIXME: Check if state change was successful
 	gst_element_set_state(pPvtData->pipe, GST_STATE_PLAYING);
 
@@ -220,6 +249,14 @@ bool openavbIntfH264RtpGstTxCB(media_q_t *pMediaQ)
 		return FALSE;
 	}
 
+	if (gst_app_sink_is_eos(GST_APP_SINK(pPvtData->appsink))) {
+		if (!gst_element_seek_simple(pPvtData->pipe, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, 0)) {
+			AVB_LOG_ERROR("Seek failed.");
+		} else {
+			AVB_LOG_INFO("Stream rewinded to 0.");
+		}
+	}
+
 	while (g_atomic_int_get(&pPvtData->nWaiting) > 0)
 	{
 		//Transmit data --BEGIN--
@@ -246,7 +283,7 @@ bool openavbIntfH264RtpGstTxCB(media_q_t *pMediaQ)
 
 			if(paySize > pMediaQItem->itemSize){
 
-				AVB_LOG_ERROR("PaySize exceeds pMediaQItem itemSize.");
+				AVB_LOGF_ERROR("PaySize (%d) exceeds pMediaQItem itemSize (%d).", paySize, pMediaQItem->itemSize);
 
 				pMediaQItem->dataLen = 0;
 				openavbMediaQHeadUnlock(pMediaQ);
@@ -269,14 +306,6 @@ bool openavbIntfH264RtpGstTxCB(media_q_t *pMediaQ)
 			openavbMediaQHeadPush(pMediaQ);
 
 			gst_al_rtp_buffer_unref(txBuf);
-
-			if (gst_app_sink_is_eos(GST_APP_SINK(pPvtData->appsink))) {
-				if (!gst_element_seek_simple(pPvtData->pipe, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, 0)) {
-					AVB_LOG_ERROR("Seek failed.");
-				} else {
-					AVB_LOG_INFO("Stream rewinded to 0.");
-				}
-			}
 		}
 		else
 		{
