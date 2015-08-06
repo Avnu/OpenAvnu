@@ -166,26 +166,9 @@ static int openavbMediaQGetItemSize(media_q_t *pMediaQ)
 	return itemSize;
 }
 
-// A call to this callback indicates that this interface module will be
-// a talker. Any talker initialization can be done in this function.
-void openavbIntfH264RtpGstTxInitCB(media_q_t *pMediaQ)
+static void createTxPipeline(media_q_t *pMediaQ)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
-
-	if (!pMediaQ)
-	{
-		AVB_LOG_DEBUG("H264Rtp-gst txinit: no mediaQ!");
-		AVB_TRACE_EXIT(AVB_TRACE_INTF);
-		return;
-	}
-
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
-	if (!pPvtData)
-	{
-		AVB_LOG_ERROR("Private interface module data not allocated.");
-		return;
-	}
-
 	GError *error = NULL;
 	pPvtData->pipe = gst_parse_launch(pPvtData->pPipelineStr, &error);
 	if (error)
@@ -215,14 +198,61 @@ void openavbIntfH264RtpGstTxInitCB(media_q_t *pMediaQ)
 	if (rtpPayloader)
 	{
 		g_object_set(rtpPayloader, "mtu", openavbMediaQGetItemSize(pMediaQ), NULL);
+		gst_object_unref(rtpPayloader);
 	}
 	else
 	{
-		AVB_LOG_ERROR("rtpPayloader NULL in TX init");
+		AVB_LOG_ERROR("rtpPayloader NULL in createTxPipeline");
 	}
 
-	//FIXME: Check if state change was successful
-	gst_element_set_state(pPvtData->pipe, GST_STATE_PLAYING);
+	if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(pPvtData->pipe, GST_STATE_PLAYING)) {
+		AVB_LOG_ERROR("Failed to change pipeline state to PLAYING.");
+	}
+}
+
+static void destroyPipeline(media_q_t *pMediaQ)
+{
+	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
+
+	if (pPvtData->pipe)
+	{
+		gst_element_set_state(pPvtData->pipe, GST_STATE_NULL);
+		if (pPvtData->appsink)
+		{
+			gst_object_unref(pPvtData->appsink);
+			pPvtData->appsink = NULL;
+		}
+		if (pPvtData->appsrc)
+		{
+			gst_object_unref(pPvtData->appsrc);
+			pPvtData->appsrc = NULL;
+		}
+		gst_object_unref(pPvtData->pipe);
+		pPvtData->pipe = NULL;
+	}
+}
+
+// A call to this callback indicates that this interface module will be
+// a talker. Any talker initialization can be done in this function.
+void openavbIntfH264RtpGstTxInitCB(media_q_t *pMediaQ)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
+
+	if (!pMediaQ)
+	{
+		AVB_LOG_DEBUG("H264Rtp-gst txinit: no mediaQ!");
+		AVB_TRACE_EXIT(AVB_TRACE_INTF);
+		return;
+	}
+
+	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
+	if (!pPvtData)
+	{
+		AVB_LOG_ERROR("Private interface module data not allocated.");
+		return;
+	}
+
+	createTxPipeline(pMediaQ);
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 
@@ -250,11 +280,9 @@ bool openavbIntfH264RtpGstTxCB(media_q_t *pMediaQ)
 	}
 
 	if (gst_app_sink_is_eos(GST_APP_SINK(pPvtData->appsink))) {
-		if (!gst_element_seek_simple(pPvtData->pipe, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, 0)) {
-			AVB_LOG_ERROR("Seek failed.");
-		} else {
-			AVB_LOG_INFO("Stream rewinded to 0.");
-		}
+		AVB_LOG_INFO("Rewinding stream...");
+		destroyPipeline(pMediaQ);
+		createTxPipeline(pMediaQ);
 	}
 
 	while (g_atomic_int_get(&pPvtData->nWaiting) > 0)
@@ -542,22 +570,7 @@ void openavbIntfH264RtpGstEndCB(media_q_t *pMediaQ)
 		AVB_LOG_ERROR("Private interface module data not allocated.");
 		return;
 	}
-	if (pPvtData->pipe)
-	{
-		gst_element_set_state(pPvtData->pipe, GST_STATE_NULL);
-		if (pPvtData->appsink)
-		{
-			gst_object_unref(pPvtData->appsink);
-			pPvtData->appsink = NULL;
-		}
-		if (pPvtData->appsrc)
-		{
-			gst_object_unref(pPvtData->appsrc);
-			pPvtData->appsrc = NULL;
-		}
-		gst_object_unref(pPvtData->pipe);
-		pPvtData->pipe = NULL;
-	}
+	destroyPipeline(pMediaQ);
 	if (pPvtData->asyncRx)
 	{
 		pthread_mutex_lock(&asyncReadMutex);
