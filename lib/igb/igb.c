@@ -243,7 +243,7 @@ igb_attach_tx( device_t *pdev )
 	adapter->num_queues = 2;  /* XXX parameterize this */
 	if (error = igb_allocate_queues(adapter)) {
 		adapter->num_queues = 0;
-		goto err_unlock;
+		goto release;
 	}
 
 	/*
@@ -253,14 +253,11 @@ igb_attach_tx( device_t *pdev )
 	*/
 	igb_reset(adapter);
 
- err_unlock:
+ release:
 	if( sem_post( adapter->memlock ) != 0 ) {
 		return errno;
 	}
 
-	return (0);
-
- err:
 	return (error);
 }
 
