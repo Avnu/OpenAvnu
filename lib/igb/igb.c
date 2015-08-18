@@ -1337,10 +1337,7 @@ igb_set_class_bandwidth(device_t *dev,
 	tqavcc0 = E1000_TQAVCC_QUEUEMODE;
 	tqavcc1 = E1000_TQAVCC_QUEUEMODE;
 	
-	if (link.speed == 100) 
-	    linkrate = E1000_TQAVCC_LINKRATE / 10;
-	else
-	    linkrate = E1000_TQAVCC_LINKRATE;
+	linkrate = E1000_TQAVCC_LINKRATE;
 
 	/* 
 	 * class_a and class_b are the packets-per-(respective)observation
