@@ -1019,6 +1019,10 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 
 	*cleaned_packets = NULL; /* nothing reclaimed yet */
 
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return;
+	}
+
 	for (i = 0; i < adapter->num_queues; i++) {
 		txr = &adapter->tx_rings[i];
 
@@ -1090,6 +1094,12 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 		if (txr->tx_avail >= IGB_QUEUE_THRESHOLD)	  
 			txr->queue_status &= ~IGB_QUEUE_DEPLETED;
 	}	
+
+unlock:
+	if( sem_post( adapter->memlock ) != 0 ) {
+		return;
+	}
+
 	return;
 }
 
