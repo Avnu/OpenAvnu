@@ -218,6 +218,8 @@ add_subdirectory ( qmgr )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal.c )
 # TODO_OPENAVB : Pure rawsock currently selected. openavb_rawsock_igb.c uses i210 HAL for TX.
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/openavb_rawsock.c )
+SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/simple_rawsock.c )
+SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/ring_rawsock.c )
 # SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/openavb_rawsock_igb.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_time_osal.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/openavb_ether_hal.c )
@@ -229,10 +231,21 @@ SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/avb.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/listener_mrp_client.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/talker_mrp_client.c )
 
+if ( AVB_FEATURE_PCAP )
+  find_package ( PCAP REQUIRED )
+  set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_PCAP" )
+  include_directories ( ${PCAP_INCLUDE_DIR} )
+  list ( APPEND SRC_FILES ${AVB_OSAL_DIR}/rawsock/pcap_rawsock.c )
+endif ()
+
 add_library ( avbTl ${SRC_FILES} )
 target_link_libraries ( avbTl dl )
 
 install ( TARGETS avbTl ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
+
+if ( AVB_FEATURE_PCAP )
+   target_link_libraries ( avbTl ${PCAP_LIBRARY} )
+endif ()
 
 # avb_host (openavb_host and openavb_harness)
 add_subdirectory ( ${AVB_OSAL_DIR}/avb_host )
