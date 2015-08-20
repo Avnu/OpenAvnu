@@ -1411,3 +1411,129 @@ igb_set_class_bandwidth(device_t *dev,
 	return error;
 }
 
+int
+igb_set_class_bandwidth2(device_t *dev,
+	u_int32_t class_a_bytes_per_second,
+	u_int32_t class_b_bytes_per_second)
+{
+	u_int32_t	tqavctrl;
+	u_int32_t	tqavcc0, tqavcc1;
+	u_int32_t	tqavhc0, tqavhc1;
+	u_int32_t	class_a_idle, class_b_idle;
+	u_int32_t	linkrate;
+	u_int32_t	tpktsz_a;
+	int	temp;
+	struct adapter	*adapter;
+	struct e1000_hw *hw;
+	struct igb_link_cmd	link;
+	int	err;
+	float		class_a_percent, class_b_percent;
+	int error = 0;
+
+	if (NULL == dev) return EINVAL;
+	adapter = (struct adapter *)dev->private_data;
+	if (NULL == adapter) return ENXIO;
+
+	hw = &adapter->hw;
+
+	/* get current link speed */
+
+	err = ioctl(adapter->ldev, IGB_LINKSPEED, &link);
+
+	if (err) return ENXIO;
+
+	if (0 == link.up) return EINVAL;
+
+	if (link.speed < 100) return EINVAL;
+
+	if (link.duplex != FULL_DUPLEX ) return EINVAL;
+
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
+
+	tqavctrl = E1000_READ_REG(hw, E1000_TQAVCTRL);
+
+	if ((class_a_bytes_per_second + class_b_bytes_per_second) == 0 ) {
+		/* disable the Qav shaper */
+		tqavctrl &= ~E1000_TQAVCTRL_TX_ARB;
+		E1000_WRITE_REG(hw, E1000_TQAVCTRL, tqavctrl);
+		goto unlock;
+	}
+
+	tqavcc0 = E1000_TQAVCC_QUEUEMODE;
+	tqavcc1 = E1000_TQAVCC_QUEUEMODE;
+
+	linkrate = E1000_TQAVCC_LINKRATE;
+
+	// it is needed for Class B high credit calculations
+	// so we need to guess it
+	// TODO: check if it is right
+	temp = class_a_bytes_per_second / 8000 - (12 + 8 + 18 + 4);
+	if (temp > 0) {
+		tpktsz_a = temp;
+	} else {
+		tpktsz_a = 0;
+		// TODO: in igb_set_class_bandwidth if given tpktsz_a < 64
+		// (for example 0) then the 64 value will be used even if
+		// there is no class_A streams (class_a is 0)
+		// I suspect that this is error, so we use 0 here.
+	}
+
+	class_a_percent = class_a_bytes_per_second;
+	class_b_percent = class_b_bytes_per_second;
+
+	if (link.speed == 100) {
+		class_a_percent /= (100000000.0 / 8); /* bytes-per-sec @ 100Mbps */
+		class_b_percent /= (100000000.0 / 8);
+		class_a_idle = (u_int32_t)(class_a_percent * 0.2 * (float)linkrate + 0.5);
+		class_b_idle = (u_int32_t)(class_b_percent * 0.2 * (float)linkrate + 0.5);
+	} else {
+		class_a_percent /= (1000000000.0 / 8); /* bytes-per-sec @ 1Gbps */
+		class_b_percent /= (1000000000.0 / 8);
+		class_a_idle = (u_int32_t)(class_a_percent * 2.0 * (float)linkrate + 0.5);
+		class_b_idle = (u_int32_t)(class_b_percent * 2.0 * (float)linkrate + 0.5);
+	}
+
+	if ((class_a_percent + class_b_percent) > 0.75) {
+		error = EINVAL;
+		goto unlock;
+	}
+	tqavcc0 |= class_a_idle;
+	tqavcc1 |= class_b_idle;
+
+	/*
+	 * hiCredit is the number of idleslope credits accumulated due to delay T
+	 *
+	 * we assume the maxInterferenceSize is 18 + 4 + 1500 (1522).
+	 * Note: if EEE is enabled, we should use for maxInterferenceSize
+	 * the overhead of link recovery (a media-specific quantity).
+	 */
+	tqavhc0 = 0x80000000 + (class_a_idle * 1522 / linkrate ); /* L.10 */
+
+	/*
+	 * Class B high credit is is the same, except the delay
+	 * is the MaxBurstSize of Class A + maxInterferenceSize of non-SR traffic
+	 *
+	 * L.41
+	 * max Class B delay = (1522 + tpktsz_a) / (linkrate - class_a_idle)
+	 */
+
+	tqavhc1 = 0x80000000 + (class_b_idle * ((1522 + tpktsz_a)/ (linkrate - class_a_idle)));
+
+	/* implicitly enable the Qav shaper */
+	tqavctrl |= E1000_TQAVCTRL_TX_ARB;
+	E1000_WRITE_REG(hw, E1000_TQAVHC(0), tqavhc0);
+	E1000_WRITE_REG(hw, E1000_TQAVCC(0), tqavcc0);
+	E1000_WRITE_REG(hw, E1000_TQAVHC(1), tqavhc1);
+	E1000_WRITE_REG(hw, E1000_TQAVCC(1), tqavcc1);
+	E1000_WRITE_REG(hw, E1000_TQAVCTRL, tqavctrl);
+
+ unlock:
+	if( sem_post( adapter->memlock ) != 0 ) {
+		error = errno;
+	}
+
+	return error;
+}
+
