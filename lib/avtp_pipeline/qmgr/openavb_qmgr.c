@@ -92,48 +92,23 @@ static qmgrStream_t qmgr_streams[MAX_AVB_STREAMS];
 static bool setupHWQueue(int nClass, unsigned classBytesPerSec)
 {
 	int err = 0;
-	int avgFrameSizeA, avgFrameSizeB;
-	int classA = 0, classB = 0;
+	U32 class_a_bytes_per_sec, class_b_bytes_per_sec;
+
+	AVB_TRACE_ENTRY(AVB_TRACE_QUEUE_MANAGER);
 
 	if (nClass == SR_CLASS_A) {
-		avgFrameSizeA = classBytesPerSec/8000;
-		avgFrameSizeB = qmgr_classes[SR_CLASS_B].classBytesPerSec/4000;
+		class_a_bytes_per_sec = classBytesPerSec;
+		class_b_bytes_per_sec =  qmgr_classes[SR_CLASS_B].classBytesPerSec;
 	} else {
-		avgFrameSizeA = qmgr_classes[SR_CLASS_A].classBytesPerSec/8000;
-		avgFrameSizeB = classBytesPerSec/4000;
+		class_a_bytes_per_sec =  qmgr_classes[SR_CLASS_A].classBytesPerSec;
+		class_b_bytes_per_sec = classBytesPerSec;
 	}
 
-	if (avgFrameSizeA) {
-		avgFrameSizeA -= OPENAVB_AVTP_ETHER_FRAME_OVERHEAD;
-		if (avgFrameSizeA <= 0)
-			avgFrameSizeA = 10;
-		classA = 1;
-	}
-	if (avgFrameSizeB) {
-		avgFrameSizeB -= OPENAVB_AVTP_ETHER_FRAME_OVERHEAD;
-		if (avgFrameSizeB <= 0)
-			avgFrameSizeB = 10;
-		classB = 1;
-	}
-
-	if (avgFrameSizeA > 1500) {
-		avgFrameSizeA /= 2;
-		classA *= 2;
-	}
-
-	if (avgFrameSizeB > 1500) {
-		avgFrameSizeB /= 2;
-		classB *= 2;
-	}
-
-	AVB_LOGF_DEBUG("1 classA %d, classB %d, avgFrameSizeA %d, avgFrameSizeB %d", classA, classB, avgFrameSizeA, avgFrameSizeB);
-	AVB_LOGF_DEBUG("2 classBytesPerSec %d, classA * avgFrameSizeA %d, avgFrameSizeB * classB %d", classBytesPerSec, classA * (avgFrameSizeA + OPENAVB_AVTP_ETHER_FRAME_OVERHEAD) * 800, classB* (avgFrameSizeB+OPENAVB_AVTP_ETHER_FRAME_OVERHEAD) * 400);
-
-	err = igb_set_class_bandwidth(qdisc_data.igb_dev, classA, classB, avgFrameSizeA, avgFrameSizeB);
-
+	err = igb_set_class_bandwidth2(qdisc_data.igb_dev, class_a_bytes_per_sec, class_b_bytes_per_sec);
 	if (err)
 		AVB_LOGF_ERROR("Adding stream; igb_set_class_bandwidth failed: %s", strerror(err));
 
+	AVB_TRACE_EXIT(AVB_TRACE_QUEUE_MANAGER);
 	return !err;
 }
 
