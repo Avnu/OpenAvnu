@@ -365,7 +365,7 @@ static int igb_ptp_gettime64_i210(struct ptp_clock_info *ptp,
 
 #ifdef HAVE_PTP_CLOCK_INFO_GETTIME64
 static int igb_ptp_settime64_82576(struct ptp_clock_info *ptp,
-				   const struct timespec *ts64)
+				   const struct timespec64 *ts64)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
