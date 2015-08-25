@@ -33,8 +33,11 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "simple_rawsock.h"
 #include "ring_rawsock.h"
 
+#define IGB
+
 #if AVB_FEATURE_PCAP
 #include "pcap_rawsock.h"
+#include "igb_rawsock.h"
 #endif
 
 #include "openavb_trace.h"
@@ -169,6 +172,36 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 
 		// call constructor
 		pvRawsock = pcapRawsockOpen(rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
+#ifdef IGB
+	} else if (strcmp(proto, "igb") == 0) {
+
+		AVB_LOG_INFO("Using *igb* implementation");
+
+		// allocate memory for rawsock object
+		igb_rawsock_t *rawsock = calloc(1, sizeof(igb_rawsock_t));
+		if (!rawsock) {
+			AVB_LOG_ERROR("Creating rawsock; malloc failed");
+			return NULL;
+		}
+
+		// fill virtual functions table
+		rawsock_cb_t *cb = &rawsock->base.cb;
+		cb->close = igbRawsockClose;
+		cb->getTxFrame = igbRawsockGetTxFrame;
+		cb->relTxFrame = igbRawsockRelTxFrame;
+		cb->txSetHdr = baseRawsockTxSetHdr;
+		cb->txSetMark = igbRawsockTxSetMark;
+		cb->txFillHdr = baseRawsockTxFillHdr;
+		cb->txFrameReady = igbRawsockTxFrameReady;
+		cb->send = igbRawsockSend;
+		cb->getRxFrame = pcapRawsockGetRxFrame;
+		cb->rxParseHdr = simpleRawsockRxParseHdr;
+		cb->rxMulticast = pcapRawsockRxMulticast;
+		cb->getAddr = baseRawsockGetAddr;
+
+		// call constructor
+		pvRawsock = igbRawsockOpen((igb_rawsock_t*)rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
+#endif
 #endif
 	} else {
 		AVB_LOGF_ERROR("Unknown proto %s specified.", proto);

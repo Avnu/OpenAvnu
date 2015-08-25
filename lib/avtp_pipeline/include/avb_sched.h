@@ -55,7 +55,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define AVB_CLASS_LABEL(C) ('A'+C)
 #endif
 
-//#define AVB_ENABLE_HWQ_PER_CLASS 1
+#define AVB_ENABLE_HWQ_PER_CLASS 1
 
 // Modes for qdisc shaping
 //
