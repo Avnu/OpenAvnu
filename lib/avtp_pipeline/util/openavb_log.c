@@ -96,7 +96,7 @@ void avbLogRTRender(log_queue_item_t *pLogItem)
 						strcat((char *)pLogItem->msg, pLogRTItem->pFormat);
 						break;
 					case LOG_RT_DATATYPE_NOW_TS:
-						sprintf(rt_msg, "[%lu:%10lu] ", pLogRTItem->data.nowTS.tv_sec, pLogRTItem->data.nowTS.tv_nsec);
+						sprintf(rt_msg, "[%lu:%09lu] ", pLogRTItem->data.nowTS.tv_sec, pLogRTItem->data.nowTS.tv_nsec);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_U16:
@@ -269,7 +269,7 @@ extern void DLL_EXPORT avbLogFn(
 			struct timespec nowTS;
 			CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &nowTS);
 
-			sprintf(timestamp_msg, "%lu:%10lu ", nowTS.tv_sec, nowTS.tv_nsec);
+			sprintf(timestamp_msg, "%lu:%09lu", nowTS.tv_sec, nowTS.tv_nsec);
 		}
 
 		// using sprintf and puts allows using static buffers rather than heap.
@@ -376,7 +376,13 @@ extern void DLL_EXPORT avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, c
 					if (elem) {
 						log_queue_item_t *pLogItem = (log_queue_item_t *)openavbQueueData(elem);
 						pLogItem->bRT = TRUE;
-						openavbQueueHeadPush(logQueue);
+						if (OPENAVB_LOG_FROM_THREAD) {
+							openavbQueueHeadPush(logQueue);
+						} else {
+							avbLogRTRender(pLogItem);
+							fputs((const char *)pLogItem->msg, AVB_LOG_OUTPUT_FD);
+							openavbQueueHeadUnlock(logQueue);
+						}
 					}
 				}
 			  

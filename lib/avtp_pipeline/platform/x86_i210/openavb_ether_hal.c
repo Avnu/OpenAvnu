@@ -123,7 +123,7 @@ unlock:
 
 	if (igb_dev) {
 		igb_dev_users += 1;
-		fprintf(stderr, "igb_dev_users %d\n", igb_dev_users);
+		AVB_LOGF_DEBUG("igb_dev_users %d", igb_dev_users);
 	}
 	UNLOCK();
 
@@ -136,7 +136,9 @@ void igbReleaseDevice(device_t* dev)
 	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
 
 	LOCK();
+
 	igb_dev_users -= 1;
+	AVB_LOGF_DEBUG("igb_dev_users %d", igb_dev_users);
 
 	if (igb_dev && igb_dev_users <= 0) {
 		int queue;
