@@ -91,6 +91,7 @@ void	igb_clean(device_t *dev, struct igb_packet **cleaned_packets);
 int	igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc);
 int igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime, struct timespec *system_time );
 int	igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_int32_t tpktsz_a, u_int32_t tpktsz_b);
+int	igb_set_class_bandwidth2(device_t *dev, u_int32_t class_a_bytes_per_second, u_int32_t class_b_bytes_per_second);
 
 void	igb_trigger(device_t *dev, u_int32_t data);
 void	igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data);
