@@ -158,6 +158,9 @@ set ( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PLATFORM_SPECIFIC_LINK
 include_directories ( ${PLATFORM_INCLUDE_DIRECTORIES} )
 link_directories ( ${PLATFORM_LINK_DIRECTORIES} )
 
+find_library(TEMP NAMES ${PLATFORM_LINK_LIBRARIES} PATHS ${PLATFORM_LINK_DIRECTORIES} )
+set ( PLATFORM_LINK_LIBRARIES ${TEMP} )
+
 # Add our include directories
 #
 # TODO: CMakeLists.txt Cleanup
@@ -216,11 +219,10 @@ add_subdirectory ( inih )
 add_subdirectory ( rawsock ) 
 add_subdirectory ( qmgr ) 
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal.c )
-# TODO_OPENAVB : Pure rawsock currently selected. openavb_rawsock_igb.c uses i210 HAL for TX.
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/openavb_rawsock.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/simple_rawsock.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/ring_rawsock.c )
-# SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/openavb_rawsock_igb.c )
+SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/igb_rawsock.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_time_osal.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/openavb_ether_hal.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/openavb_time_hal.c )

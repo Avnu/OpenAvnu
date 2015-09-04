@@ -29,17 +29,21 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 #include "openavb_platform.h"
-#include "openavb_ether_hal.h"
 #include "openavb_time_hal.h"
+#include "openavb_ether_hal.h"
+
 #include "openavb_trace.h"
 
 #define	AVB_LOG_COMPONENT	"halTime"
 #include "openavb_pub.h"
 #include "openavb_log.h"
 
+static device_t *igb_dev = NULL;
+
 bool halTimeInitialize(void)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
+	igb_dev = igbAcquireDevice();
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
 	return TRUE;
 }
@@ -47,6 +51,7 @@ bool halTimeInitialize(void)
 bool halTimeFinalize(void)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
+	igbReleaseDevice(igb_dev);
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
 	return TRUE;
 }
@@ -54,8 +59,38 @@ bool halTimeFinalize(void)
 bool halTimeGetLocaltime(U64 *localTime64)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
-	bool bRslt = halGetLocaltime(localTime64);
+	static bool benchmark = true;
+
+//	static int counter = 0;
+//	++counter;
+//	IF_LOG_INTERVAL(10000) AVB_LOGF_INFO("%s: %d", __func__, counter);
+
+	if (benchmark) {
+		U64 t0, t1;
+		CLOCK_GETTIME64(OPENAVB_CLOCK_REALTIME, &t0);
+		int i=0;
+		for (i=0;i<100;i++) {
+			if (igb_get_wallclock(igb_dev, localTime64, NULL ) > 0) {
+				AVB_LOG_ERROR("Failed to get wallclock time");
+				AVB_TRACE_EXIT(AVB_TRACE_TIME);
+				return FALSE;
+			}
+		}
+		CLOCK_GETTIME64(OPENAVB_CLOCK_REALTIME, &t1);
+		AVB_LOGF_INFO("igb_get_wallclock duration: %d us", (int)((t1 - t0)/100/1000));
+
+		benchmark = false;
+		AVB_TRACE_EXIT(AVB_TRACE_TIME);
+		return TRUE;
+	}
+
+	if (igb_get_wallclock(igb_dev, localTime64, NULL ) > 0) {
+		AVB_LOG_ERROR("Failed to get wallclock time");
+		AVB_TRACE_EXIT(AVB_TRACE_TIME);
+		return FALSE;
+	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
-	return bRslt;
+	return TRUE;
 }
 

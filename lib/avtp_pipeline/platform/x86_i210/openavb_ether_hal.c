@@ -28,346 +28,172 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
-#include <pci/pci.h>
-#include "igb.h"
-#include "avb.h"
-
-
 #include "openavb_ether_hal.h"
 #include "openavb_osal.h"
+#include "avb.h"
+#include "igb.h"
 
 #define	AVB_LOG_COMPONENT	"HAL Ethernet"
 #include "openavb_pub.h"
 #include "openavb_log.h"
 #include "openavb_trace.h"
 
-#define MAX_MTU 1536
 
-static pthread_mutex_t gHALTimeInitMutex = PTHREAD_MUTEX_INITIALIZER;
-#define LOCK()  	pthread_mutex_lock(&gHALTimeInitMutex)
-#define UNLOCK()	pthread_mutex_unlock(&gHALTimeInitMutex)
+static pthread_mutex_t gIgbDeviceMutex = PTHREAD_MUTEX_INITIALIZER;
+#define LOCK()  	pthread_mutex_lock(&gIgbDeviceMutex)
+#define UNLOCK()	pthread_mutex_unlock(&gIgbDeviceMutex)
 
-// TODO_OPENAVB : This should settable via function call or dynamic if per stream buffers are used.
-#define MAX_PACKET_SIZE	100
+static pthread_mutex_t queueMutex[IGB_QUEUES] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
 
-static bool bInitialized = FALSE;
-static device_t gIgbDev;
+static struct {
+	struct igb_dma_alloc a_page;
+	struct igb_packet *free_packets;
+} queuePages[2];
 
-// Related to packet buffers. Naming borrowed form OpenAVB examples.
-static size_t gMmaxPacketSize = 0;
-static struct igb_dma_alloc a_page;
-static struct igb_packet a_packet;
-static struct igb_packet *tmp_packet;
-static struct igb_packet *cleaned_packets;
-static struct igb_packet *free_packets;
+static device_t *igb_dev = NULL;
+static int igb_dev_users = 0; // time uses it
 
-static bool x_HalEtherInit(void)
+device_t *igbAcquireDevice()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	int rslt;
 
-	rslt = pci_connect(&gIgbDev);
-	if (rslt) {
-		AVB_LOGF_ERROR("connect failed (%s) - are you running as root?", strerror(errno));
-		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-		return FALSE;
-	}
+	LOCK();
+	if (!igb_dev) {
+		device_t *tmp_dev = malloc(sizeof(device_t));
+		if (!tmp_dev) {
+			AVB_LOGF_ERROR("Cannot allocate memory for device: %s", strerror(errno));
+			goto unlock;
+		}
 
-	rslt = igb_init(&gIgbDev);
-	if (rslt) {
-		AVB_LOGF_ERROR("init failed (%s) - is the driver really loaded?\n", strerror(errno));
-		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-		return FALSE;
-	}
+		int err = pci_connect(tmp_dev);
+		if (err) {
+			AVB_LOGF_ERROR("connect failed (%s) - are you running as root?", strerror(err));
+			goto unlock;
+		}
 
-	// TODO_OPENAVB : This allocation of a single page of results in 4KB of memory. For a single stream and/small packet sizes
-	//  this may be enough. However, this needs to be changed to a more flexible system either allocating a larger number of 
-	//  pages that all streams can use or a separate page for each stream. In either case the control of packet memory allocation
-	//  should handled via parameter either in this init function or a separate alloc function.
-	rslt = igb_dma_malloc_page(&gIgbDev, &a_page);
-	if (rslt) {
-		AVB_LOGF_ERROR("malloc failed (%s) - out of memory?", strerror(errno));
-		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-		return FALSE;
-	}
+		err = igb_init(tmp_dev);
+		if (err) {
+			AVB_LOGF_ERROR("init failed (%s) - is the driver really loaded?", strerror(err));
+			igb_detach(tmp_dev);
+			goto unlock;
+		}
 
-	{
-		// Create list of igb_packets
-		gMmaxPacketSize = MAX_PACKET_SIZE;
-
-		a_packet.dmatime = 0;
-		a_packet.attime = 0;
-		a_packet.flags = 0;
-		a_packet.map.paddr = a_page.dma_paddr;
-		a_packet.map.mmap_size = a_page.mmap_size;
-		a_packet.offset = 0;
-		a_packet.vaddr = a_page.dma_vaddr + a_packet.offset;
-		a_packet.len = gMmaxPacketSize;
-		a_packet.next = NULL;
-		free_packets = NULL;
-
-		// Divide the DMA page into separate packets
-		int i1;
-		for (i1 = 1; i1 < ((a_page.mmap_size) / gMmaxPacketSize); i1++) {
-			tmp_packet = malloc(sizeof(struct igb_packet));
-			if (!tmp_packet) {
-				AVB_LOG_ERROR("failed to allocate igb_packet memory!");
-				AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-				return FALSE;
+		int queue;
+		for (queue = 0; queue < IGB_QUEUES; queue++) {
+			err = igb_dma_malloc_page(tmp_dev, &queuePages[queue].a_page);
+			if (err) {
+				AVB_LOGF_ERROR("igb_dma_malloc_page failed: %s", strerror(err));
+				goto unlock;
 			}
 
-			*tmp_packet = a_packet;
-			tmp_packet->offset = (i1 * gMmaxPacketSize);
-			tmp_packet->vaddr += tmp_packet->offset;
-			tmp_packet->next = free_packets;
+			struct igb_packet a_packet;
 
-			memset(tmp_packet->vaddr, 0, gMmaxPacketSize);
-			free_packets = tmp_packet;
+			a_packet.dmatime = a_packet.attime = a_packet.flags = 0;
+			a_packet.map.paddr = queuePages[queue].a_page.dma_paddr;
+			a_packet.map.mmap_size = queuePages[queue].a_page.mmap_size;
+			a_packet.offset = 0;
+			a_packet.vaddr = queuePages[queue].a_page.dma_vaddr + a_packet.offset;
+			a_packet.len = IGB_MTU;
+			a_packet.next = NULL;
+
+			queuePages[queue].free_packets = NULL;
+
+			/* divide the dma page into buffers for packets */
+			int i;
+			for (i = 1; i < ((queuePages[queue].a_page.mmap_size) / IGB_MTU); i++) {
+				struct igb_packet *tmp_packet = malloc(sizeof(struct igb_packet));
+				if (!tmp_packet) {
+					AVB_LOG_ERROR("failed to allocate igb_packet memory!");
+					goto unlock;
+				}
+				*tmp_packet = a_packet;
+				tmp_packet->offset = (i * IGB_MTU);
+				tmp_packet->vaddr += tmp_packet->offset;
+				tmp_packet->next = queuePages[queue].free_packets;
+				memset(tmp_packet->vaddr, 0, IGB_MTU);
+				queuePages[queue].free_packets = tmp_packet;
+			}
 		}
+
+		igb_dev = tmp_dev;
+unlock:
+		if (!igb_dev)
+			free(tmp_dev);
 	}
 
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return TRUE;
-}
-
-
-// Initialize HAL layer Ethernet driver
-bool halEthernetInitialize(U8 *macAddr, bool gmacAutoNegotiate)
-{
-	LOCK();
-	if (!bInitialized) {
-		if (x_HalEtherInit())
-			bInitialized = TRUE;
+	if (igb_dev) {
+		igb_dev_users += 1;
+		fprintf(stderr, "igb_dev_users %d\n", igb_dev_users);
 	}
 	UNLOCK();
 
-	return bInitialized;
-}
-
-bool halEthernetFinalize(void)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-
-	// TODO_OPENAVB : shutdown igb
-
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return TRUE;
+	return igb_dev;
 }
 
-bool halEtherAddMulticast(U8 *multicastAddr, bool add)
+void igbReleaseDevice(device_t* dev)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return TRUE;	
-}
-
-U8 *halGetRxBufAVTP(U32 *frameSize)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return NULL;
-}
-
-// Get next Rx packet. NOTE: Expected to be called from a single task (socket task)
-U8 *halGetRxBufAVB(U32 *frameSize, bool *bPtpCBUsed)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return NULL;
-}
-
-U8 *halGetRxBufGEN(U32 *frameSize)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return NULL;
-}
-
-
-bool halGetTxBuf(eth_frame_t *pEtherFrame)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	bool rslt = FALSE;
 
 	LOCK();
+	igb_dev_users -= 1;
 
-	tmp_packet = free_packets;
-	if (!tmp_packet) {
-		igb_clean(&gIgbDev, &cleaned_packets);
+	if (igb_dev && igb_dev_users <= 0) {
+		int queue;
+		for (queue = 0; queue < IGB_QUEUES; queue++) {
+			igb_dma_free_page(igb_dev, &queuePages[queue].a_page);
+		}
+
+		igb_detach(igb_dev);
+		free(igb_dev);
+		igb_dev = NULL;
+	}
+
+	UNLOCK();
+
+	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+}
+
+struct igb_packet *igbGetTxPacket(device_t* dev, int queue)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
+
+	pthread_mutex_lock(&queueMutex[queue]);
+
+	struct igb_packet* tx_packet = queuePages[queue].free_packets;
+
+	if (!tx_packet) {
+		struct igb_packet *cleaned_packets;
+		igb_clean(dev, &cleaned_packets);
 		while (cleaned_packets) {
-			tmp_packet = cleaned_packets;
+			struct igb_packet *tmp_packet = cleaned_packets;
 			cleaned_packets = cleaned_packets->next;
-			tmp_packet->next = free_packets;
-			free_packets = tmp_packet;
+			tmp_packet->next = queuePages[queue].free_packets;
+			queuePages[queue].free_packets = tmp_packet;
 		}
-		tmp_packet = free_packets;
-	}
-	if (!tmp_packet) {
-		pEtherFrame->pPvtData = NULL;
-		pEtherFrame->length = 0;
-		pEtherFrame->pBuffer = NULL;
-
-		rslt = FALSE;
-	}
-	else {
-		free_packets = tmp_packet->next;
-
-		pEtherFrame->pPvtData = tmp_packet;
-		pEtherFrame->length = tmp_packet->len;
-		pEtherFrame->pBuffer = tmp_packet->vaddr + tmp_packet->offset;
-
-		rslt = TRUE;
+		tx_packet = queuePages[queue].free_packets;
 	}
 
-	UNLOCK();
+	if (tx_packet) {
+		queuePages[queue].free_packets = tx_packet->next;
+	}
+
+	pthread_mutex_unlock(&queueMutex[queue]);
 
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return rslt;
+	return tx_packet;
 }
 
-bool halRelTxBuf(eth_frame_t *pEtherFrame)
+void igbRelTxPacket(device_t* dev, int queue, struct igb_packet *tx_packet)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
 
-	if (!pEtherFrame->pPvtData) {
-		AVB_LOG_ERROR("Invalid packet to release");
-		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-		return FALSE;
-	}
+	pthread_mutex_lock(&queueMutex[queue]);
 
-	LOCK();
+	tx_packet->next = queuePages[queue].free_packets;
+	queuePages[queue].free_packets = tx_packet;
 
-	tmp_packet = pEtherFrame->pPvtData;
-	tmp_packet->next = free_packets;
-	free_packets = tmp_packet;
-
-	UNLOCK();
+	pthread_mutex_unlock(&queueMutex[queue]);
 
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return TRUE;
 }
-
-
-bool halSendTxBuf(eth_frame_t *pEtherFrame)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	bool rslt = FALSE;
-
-	if (!pEtherFrame->pPvtData) {
-		AVB_LOG_ERROR("Invalid packet to send");
-		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-		return FALSE;
-	}
-
-	if (pEtherFrame->length > gMmaxPacketSize) {
-		AVB_LOG_ERROR("Packet size too large");
-		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-		return FALSE;
-	}
-
-	LOCK();
-
-	// TODO_OPENAVB : Select the queue (param 2) based on SR Class from pEtherFrame->fwmark
-	tmp_packet = pEtherFrame->pPvtData;
-	tmp_packet->len = pEtherFrame->length;
-
-	// Setting packet launch time to now so that it will send ASAP. The talker is pacing the packets.
-	// TODO_OPENAVB : An improvement may be to allow talker pacing to be driven by packet availability 
-	//  and allow the I210 to pace via launch time.
-	u_int64_t now;
-	if (igb_get_wallclock(&gIgbDev, &now, NULL) > 0) {
-		AVB_LOG_ERROR("Failed to get local time");
-		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-		return FALSE;
-	}
-	tmp_packet->attime = now;
-
-	int err = igb_xmit(&gIgbDev, 0, pEtherFrame->pPvtData);
-	if (!err) {
-		rslt = TRUE;
-	}
-	else {
-		if (err == ENOSPC) {
-			// Place back on list.
-			tmp_packet->next = free_packets;
-			free_packets = tmp_packet;
-		}
-		rslt = FALSE;
-	}
-
-	UNLOCK();
-
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return rslt;
-}
-
-// Is the link up. Returns TRUE if it is.
-bool halIsLinkUp(void)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-    return FALSE;
-}
-
-// Returns the MTU
-U32 halGetMTU(void)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return MAX_MTU;
-}
-
-U8 *halGetMacAddr(void)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-    return NULL;
-}
-
-bool halGetLocaltime(U64 *localTime64)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
-	if (igb_get_wallclock(&gIgbDev, localTime64, NULL ) > 0) {
-		AVB_LOG_ERROR("Failed to get wallclock time");
-		AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-		return FALSE;
-	}
-	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
-	return TRUE;
-}
-
-void halTrafficShaperAddStream(int class, uint32_t streamsBytesPerSec)
-{
-
-// TODO_OPENAVB : it appears the igb_set_class_bandwidth() helper function is designed about the concept of a single Class A and single Class B 
-// stream. Perhaps it could be used in the short term, however, a final solution may be to talk to the igb driver directly supply the E1000 reg
-// values directly.
-// 
-//	igb_set_class_bandwidth(dev)
-
-// TODO_OPENAVB
-//	if (class == AVB_CLASS_B) {
-// 	}
-//	else if (class == AVB_CLASS_A) {
-//	}
-}
-
-void halTrafficShaperRemoveStream(int class, uint32_t streamsBytesPerSec)
-{
-
-// TODO_OPENAVB : it appears the igb_set_class_bandwidth() helper function is designed about the concept of a single Class A and single Class B 
-// stream. Perhaps it could be used in the short term, however, a final solution may be to talk to the igb driver directly supply the E1000 reg
-// values directly.
-// 
-//	igb_set_class_bandwidth(dev)
-
-// TODO_OPENAVB
-//	if (class == AVB_CLASS_B) {
-//  	}
-//	else if (class == AVB_CLASS_A) {
-//	}
-}
-
-
-
-

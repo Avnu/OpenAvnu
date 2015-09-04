@@ -40,7 +40,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 extern DLL_EXPORT bool osalAVBInitialize(void)
 {
 	avbLogInit();
-	halEthernetInitialize(NULL, TRUE);
 	osalAVBTimeInit();
 	openavbQmgrInitialize(FQTSS_MODE_HW_CLASS, 0, NULL, 0, 0, 0);
 	return TRUE;
@@ -50,7 +49,6 @@ extern DLL_EXPORT bool osalAVBFinalize(void)
 {
 	openavbQmgrFinalize();
 	osalAVBTimeClose();
-	halEthernetFinalize();
 	avbLogExit();
 	return TRUE;
 }
