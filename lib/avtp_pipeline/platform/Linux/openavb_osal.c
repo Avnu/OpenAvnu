@@ -37,11 +37,11 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_pub.h"
 #include "openavb_log.h"
 
-extern DLL_EXPORT bool osalAVBInitialize(void)
+extern DLL_EXPORT bool osalAVBInitialize(const char* ifname)
 {
 	avbLogInit();
 	osalAVBTimeInit();
-	openavbQmgrInitialize(FQTSS_MODE_HW_CLASS, 0, NULL, 0, 0, 0);
+	openavbQmgrInitialize(FQTSS_MODE_HW_CLASS, 0, ifname, 0, 0, 0);
 	return TRUE;
 }
 
