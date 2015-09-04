@@ -10189,27 +10189,27 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 			adapter->userpages = userpage;
 		}
 
-		page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+		page = alloc_pages(GFP_ATOMIC | __GFP_COLD, IGB_DMA_PAGE_ORDER);
 		if (unlikely(!page)) {
 			err = -ENOMEM;
 			goto failed;
 		}
-		
+
 		page_dma = dma_map_page( pci_dev_to_dev(adapter->pdev), page,
-						0, PAGE_SIZE,
+						0, IGB_TX_BUFFER_SIZE,
 						DMA_FROM_DEVICE);
-		
+
 		if (dma_mapping_error(pci_dev_to_dev(adapter->pdev), page_dma)) {
 	   		put_page(page);
 			err = -ENOMEM;
 			goto failed;;
 		}
-	   		 
+
 		adapter->userpages->page = page;
 		adapter->userpages->page_dma = page_dma;
 
 		req.physaddr = page_dma;
-		req.mmap_size = PAGE_SIZE;
+		req.mmap_size = IGB_TX_BUFFER_SIZE;
 	}
 
 	if (copy_to_user(arg, &req, sizeof(req))) {
@@ -10263,9 +10263,9 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		if (userpage == NULL)
 			return -EINVAL;
 
-		dma_unmap_page(pci_dev_to_dev(adapter->pdev), 
+		dma_unmap_page(pci_dev_to_dev(adapter->pdev),
 				userpage->page_dma,
-				PAGE_SIZE,
+				IGB_TX_BUFFER_SIZE,
 				DMA_FROM_DEVICE);
 
 		put_page(userpage->page);
@@ -10343,9 +10343,9 @@ static int igb_close_file(struct inode *inode, struct file *file)
 	userpage = adapter->userpages;
 
 	while (userpage != NULL) {
-		dma_unmap_page(pci_dev_to_dev(adapter->pdev), 
+		dma_unmap_page(pci_dev_to_dev(adapter->pdev),
 						userpage->page_dma,
-						PAGE_SIZE,
+						IGB_TX_BUFFER_SIZE,
 						DMA_FROM_DEVICE);
 
 		put_page(userpage->page);

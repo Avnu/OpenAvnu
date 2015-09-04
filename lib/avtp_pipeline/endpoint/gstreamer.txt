@@ -1,0 +1,98 @@
+Notes on creating GSgtreamer audio/video pipelines, and the
+talker/listener.ini entries for those streams.
+
+First, need figure out the GStreamer pipelines using gst-inspect and
+gst-launch.  gst-inspect shows info about the plugins
+(src/sink/filter).  Gst-launch creates a pipeline in the same way that
+our talker/listener (openavb-gst-talk and openavb-gst-listen) do - but all the
+parts obviously run on the same node.
+
+To use a pipeline with AVTP, we need a capability filter (a format
+specification) in the middle of the pipeline. This is where we'll
+break the pipe between talker and listener. The caps filter specifies
+the format of the gstreamer data samples that are sent across the
+network using AVTP. 
+
+Start with a simple "gst-launch src ! sink" pipeline, and use
+the verbose option (-v) to make gst-launch show the caps negotiated
+between the source and sink.
+
+Next, use filters to transform the stream to/from the format that you
+want to transport over AVTP.
+
+Audio example:
+
+For audio, "aplay -l" and "arecord -l" list the ALSA sinks and
+sources.  On my boards, device 1 was the USB microphone, and device
+0 was the HDMI audio output.
+
+Next I ran this to verify that the pipeline works:
+
+  gst-launch -v alsasrc device=hw:1 ! audio/x-raw-int,rate=48000 ! audioconvert ! alsasink device=hw:0
+
+The audioconvert filter was needed because the microphone is mono,
+and HDMI is stereo. Without that, gst-launch complains that the
+"capabilities couldn't be negotiated".
+
+The "audio/x-raw-int,rate-48000" was needed to get alsasrc to use the
+USB audio.  Without that, gstreamer complained of an internal error.  (Ugh!)
+
+When I ran the simple pipeline, it reported:
+
+  $ gst-launch -v alsasrc device=hw:1 ! audio/x-raw-int,rate=48000 ! audioconvert ! alsasink device=hw:0
+  Setting pipeline to PAUSED ...
+  /GstPipeline:pipeline0/GstAlsaSrc:alsasrc0: actual-buffer-time = 200000
+  /GstPipeline:pipeline0/GstAlsaSrc:alsasrc0: actual-latency-time = 10000
+  /GstPipeline:pipeline0/GstAlsaSrc:alsasrc0.GstPad:src: caps = audio/x-raw-int, width=(int)16, depth=(int)16, rate=(int)44100, channels=(int)1, endianness=(int)1234, signed=(boolean)true
+  Pipeline is live and does not need PREROLL ...
+  Setting pipeline to PLAYING ...
+  New clock: GstAudioSrcClock
+  /GstPipeline:pipeline0/GstAudioConvert:audioconvert0.GstPad:src: caps = audio/x-raw-int, endianness=(int)1234, signed=(boolean)true, width=(int)16, depth=(int)16, rate=(int)48000, channels=(int)2
+  /GstPipeline:pipeline0/GstAudioConvert:audioconvert0.GstPad:sink: caps = audio/x-raw-int, width=(int)16, depth=(int)16, rate=(int)48000, channels=(int)1, endianness=(int)1234, signed=(boolean)true
+  /GstPipeline:pipeline0/GstAlsaSink:alsasink0.GstPad:sink: caps = audio/x-raw-int, endianness=(int)1234, signed=(boolean)true, width=(int)16, depth=(int)16, rate=(int)48000, channels=(int)2
+
+The caps lines show the format of the data at each plugin in the
+pipeline.  I wanted a lower sample rate to send across the network,
+and since the microphone is mono, it makes sense to only send 1 sound
+channel.
+
+That gives me the desired caps for the middle of the pipeline (where
+we'll split it.)  I moved the audioconvert (which does the mono ->
+stereo conversion) after the split point.
+
+gst-launch -v alsasrc device=hw:1
+ ! audio/x-raw-int,rate=48000
+ ! audioresample
+ ! audio/x-raw-int,width=16,depth=16,rate=44100,channels=1,endianness=1234,signed=true 
+ ! audioconvert 
+ ! alsasink device=hw:0
+
+I then retested, and verified that the longer pipeline still works.
+
+Next, we split the pipeline, and add our AVTP appsrc and appsink:
+
+For the talker, this gives us:
+
+alsasrc device=hw:1
+ ! audio/x-raw-int,rate=48000
+ ! audioresample
+ ! audio/x-raw-int,width=16,depth=16,rate=44100,channels=1,endianness=1234,signed=true 
+ ! appsink name=avbsink
+
+And for the listener:
+
+appsrc name=avbsrc
+ ! audio/x-raw-int,width=16,depth=16,rate=44100,channels=1,endianness=1234,signed=true 
+ ! audioconvert 
+ ! alsasink device=hw:0
+
+Those lines become the values for "pipeline" in talker.ini and
+listner.ini.
+
+The final step is to find the tx_size and tx_samples for talker.ini.
+GStreamer decides how and when to deliver data to our appsink, so we
+need to run an experiment. Add the pipelines to the
+talker/listener.ini files, and run the talker and listener.  Watch for
+the "INFO: TX Sample=N" log lines.  That line shows tx_size, which
+goes directly into talker.ini, and tx_samples, which is used to
+calculate tx_rate.  (tx_rate = pipeline rate / tx_samples).

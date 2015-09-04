@@ -197,6 +197,10 @@ struct vf_data_storage {
 #define IGB_RX_BUFSZ	   IGB_RXBUFFER_2048
 #endif
 
+#define IGB_DMA_PAGE_ORDER 4
+#define IGB_DMA_PAGE_COUNT (1 << IGB_DMA_PAGE_ORDER)
+#define IGB_TX_BUFFER_SIZE ((PAGE_SIZE) * (IGB_DMA_PAGE_COUNT))
+
 
 /* Packet Buffer allocations */
 #define IGB_PBA_BYTES_SHIFT 0xA
