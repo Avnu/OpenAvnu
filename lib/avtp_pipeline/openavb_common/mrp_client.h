@@ -68,6 +68,10 @@ extern int domain_class_b_id;
 extern int domain_class_b_priority;
 extern u_int16_t domain_class_b_vid;
 
+extern void mrp_attach_cb(unsigned char streamid[8], int subtype);
+extern void mrp_register_cb(unsigned char streamid[8], int declType, unsigned char destaddr[6], unsigned int max_frame_size, unsigned int max_interval_frames, uint16_t vid, unsigned int latency);
+
+
 /* functions */
 
 int mrp_connect(void);
@@ -78,5 +82,11 @@ int mrp_join_vlan(void);
 int mrp_advertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
 int mrp_unadvertise_stream(uint8_t * streamid, uint8_t * destaddr, u_int16_t vlan, int pktsz, int interval, int priority, int latency);
 int mrp_await_listener(unsigned char *streamid);
+
+int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
+		   int *class_b_id, int *b_priority, u_int16_t * b_vid);
+
+int mrp_send_ready(uint8_t *stream_id);
+int mrp_send_leave(uint8_t *stream_id);
 
 #endif /* _TALKER_MRP_CLIENT_H_ */

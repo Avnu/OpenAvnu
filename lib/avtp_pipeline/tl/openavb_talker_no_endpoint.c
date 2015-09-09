@@ -130,15 +130,8 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 
 void openavbTLRunTalkerFinish(tl_state_t *pTLState)
 {
-	{
-		// TODO_OPENAVB : Consider this a placeholder. But it maybe the correct thing to do.
-		talker_data_t *pTalkerData = pTLState->pPvtTalkerData;
-
-		openavbQmgrRemoveStream(pTalkerData->fwmark,
-								pTalkerData->wakeRate,
-								pTalkerData->tSpec.maxIntervalFrames,
-								pTalkerData->tSpec.maxFrameSize);
-	}
+	talker_data_t *pTalkerData = pTLState->pPvtTalkerData;
+	openavbQmgrRemoveStream(pTalkerData->fwmark);
 }
 
 void openavbEptClntNotifyTlkrOfSrpCb(

@@ -199,3 +199,12 @@ void igbRelTxPacket(device_t* dev, int queue, struct igb_packet *tx_packet)
 
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
 }
+
+bool igbGetMacAddr(U8 mac_addr[ETH_ALEN])
+{
+	int err = igb_get_mac_addr(igb_dev, mac_addr);
+	if (err) {
+		AVB_LOGF_ERROR("igb_get_mac_addr() failed: %s", strerror(err));
+	}
+	return !err;
+}

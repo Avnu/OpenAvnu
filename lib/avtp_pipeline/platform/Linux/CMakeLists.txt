@@ -185,6 +185,7 @@ include_directories(
 		${AVB_SRC_DIR}/avtp 
 		${AVB_SRC_DIR}/endpoint
 		${AVB_SRC_DIR}/srp
+		${AVB_SRC_DIR}/maap
 		${AVB_SRC_DIR}/inih
 		${AVB_SRC_DIR}/map_mjpeg
 		${AVB_SRC_DIR}/map_mpeg2ts
@@ -218,7 +219,12 @@ add_subdirectory ( mediaq )
 add_subdirectory ( inih )
 add_subdirectory ( rawsock ) 
 add_subdirectory ( qmgr ) 
-SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal.c )
+if (AVB_FEATURE_ENDPOINT)
+	add_subdirectory ( endpoint )
+	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal_endpoint.c )
+else()
+	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal.c )
+endif()
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/openavb_rawsock.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/simple_rawsock.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/ring_rawsock.c )
@@ -230,8 +236,7 @@ SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/mcr/openavb_mcr_hal.c )
 
 # OpenAVB Common (support) files
 SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/avb.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/listener_mrp_client.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/talker_mrp_client.c )
+SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/mrp_client.c )
 
 if ( AVB_FEATURE_PCAP )
   find_package ( PCAP REQUIRED )

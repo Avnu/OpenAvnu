@@ -158,7 +158,7 @@ void openavbEptSrvrService(void)
 	int pRet;
 
 	AVB_LOG_VERBOSE("Waiting for event...");
-	pRet = poll(fds, nfds, -1);
+	pRet = poll(fds, nfds, 1000);
 
 	if (pRet == 0) {
 		AVB_LOG_VERBOSE("poll timeout");

@@ -81,7 +81,7 @@ int openavbEptClntOpenSrvrConnection(tl_state_t *pTLState)
 
 	int h = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (h < 0) {
-		AVB_LOGF_ERROR("Failed to open socket: %s", strerror(errno));
+		AVB_LOGF_DEBUG("Failed to open socket: %s", strerror(errno));
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return AVB_ENDPOINT_HANDLE_INVALID;
 	}
@@ -89,7 +89,7 @@ int openavbEptClntOpenSrvrConnection(tl_state_t *pTLState)
 	AVB_LOGF_DEBUG("Connecting to %s", server.sun_path);
 	int rslt = connect(h, (struct sockaddr*)&server, sizeof(struct sockaddr_un));
 	if (rslt < 0) {
-		AVB_LOGF_ERROR("Failed to connect socket: %s", strerror(errno));
+		AVB_LOGF_DEBUG("Failed to connect socket: %s", strerror(errno));
 		socketClose(h);
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return AVB_ENDPOINT_HANDLE_INVALID;
