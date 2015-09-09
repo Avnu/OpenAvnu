@@ -100,6 +100,8 @@ void	igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data);
 int igb_lock( device_t *dev );
 int igb_unlock( device_t *dev );
 
+int igb_get_mac_addr(device_t *dev, u_int8_t mac_addr[6]);
+
 #endif /* _IGB_H_DEFINED_ */
 
 
