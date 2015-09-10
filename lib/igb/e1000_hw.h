@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -71,11 +71,14 @@ struct e1000_hw;
 #define E1000_DEV_ID_I210_FIBER			0x1536
 #define E1000_DEV_ID_I210_SERDES		0x1537
 #define E1000_DEV_ID_I210_SGMII			0x1538
+#define E1000_DEV_ID_I210_COPPER_FLASHLESS	0x157B
+#define E1000_DEV_ID_I210_SERDES_FLASHLESS	0x157C
 #define E1000_DEV_ID_I211_COPPER		0x1539
 #define E1000_DEV_ID_DH89XXCC_SGMII		0x0438
 #define E1000_DEV_ID_DH89XXCC_SERDES		0x043A
 #define E1000_DEV_ID_DH89XXCC_BACKPLANE		0x043C
 #define E1000_DEV_ID_DH89XXCC_SFP		0x0440
+
 #define E1000_REVISION_0	0
 #define E1000_REVISION_1	1
 #define E1000_REVISION_2	2
@@ -254,7 +257,9 @@ struct e1000_mac_info {
 
 struct e1000_hw {
 	void *back;
+
 	u8 *hw_addr;
+
 	struct e1000_mac_info  mac;
 	u16 device_id;
 	u16 subsystem_vendor_id;
