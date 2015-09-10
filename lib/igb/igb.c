@@ -1552,3 +1552,33 @@ int igb_get_mac_addr(device_t *dev, u_int8_t mac_addr[ETH_ADDR_LEN])
 	return 0;
 }
 
+int igb_control_launch_time(device_t *dev, int enable)
+{
+	struct adapter	*adapter;
+	struct e1000_hw *hw;
+
+	if (NULL == dev) return EINVAL;
+	adapter = (struct adapter *)dev->private_data;
+	if (NULL == adapter) return ENXIO;
+
+	hw = &adapter->hw;
+
+	if( sem_wait( adapter->memlock ) != 0 ) {
+		return errno;
+	}
+
+	unsigned int regVal = E1000_READ_REG(hw, E1000_TQAVCTRL);
+
+	if (enable)
+		regVal |= E1000_TQAVCTRL_LAUNCH_VALID;
+	else
+		regVal &= ~E1000_TQAVCTRL_LAUNCH_VALID;
+
+	E1000_WRITE_REG(hw, E1000_TQAVCTRL, regVal);
+
+	if( sem_post( adapter->memlock ) != 0 ) {
+		return errno;
+	}
+
+	return 0;
+}
