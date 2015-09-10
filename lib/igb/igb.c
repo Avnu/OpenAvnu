@@ -2,30 +2,30 @@
 
   Copyright (c) 2001-2015, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -160,7 +160,7 @@ igb_attach(char *dev_path, device_t *pdev)
 		goto err_prebind;
 	}
 
-	/* 
+	/*
 	 * dev_path should look something "0000:01:00.0"
 	 */
 
@@ -403,7 +403,7 @@ igb_init(device_t *dev)
 	return(0);
 }
 
-static void 
+static void
 igb_reset(struct adapter *adapter)
 {
 	struct tx_ring	*txr = adapter->tx_rings;
@@ -472,7 +472,7 @@ igb_allocate_pci_resources(struct adapter *adapter)
 		adapter->csr.mmap_size, \
 		PROT_READ | PROT_WRITE, \
 		MAP_SHARED, \
-		dev, 
+		dev,
 		0);
 
 	if (MAP_FAILED == adapter->hw.hw_addr)
@@ -542,7 +542,7 @@ igb_dma_free_page(device_t *dev, struct igb_dma_alloc *dma)
 	adapter = (struct adapter *)dev->private_data;
 	if (NULL == adapter) return;
 
-	munmap( dma->dma_vaddr, 
+	munmap( dma->dma_vaddr,
 		dma->mmap_size);
 
 	ubuf.physaddr = dma->dma_paddr;
@@ -796,13 +796,13 @@ igb_tx_ctx_setup(struct tx_ring *txr, struct igb_packet *packet)
 /*********************************************************************
  *
  *  This routine maps a single buffer to an Advanced TX descriptor.
- *  returns ENOSPC if we run low on tx descriptors and the app needs to 
+ *  returns ENOSPC if we run low on tx descriptors and the app needs to
  *  cleanup descriptors.
  *
  *  this is a simplified routine which doesn't do LSO, checksum offloads,
  *  multiple fragments, etc. The provided buffers are assumed to have
  *  been previously mapped with the provided dma_malloc_page routines.
- *  
+ *
  **********************************************************************/
 
 int
@@ -863,13 +863,13 @@ igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
 		goto unlock;
 	}
 
-	/* 
+	/*
 	 * Set up the context descriptor to specify
 	 * launchtimes for the packet.
 	 */
 	igb_tx_ctx_setup(txr, packet);
 
-	/* 
+	/*
 	 * for performance monitoring, report the DMA time of the tx desc wb
 	 */
 	olinfo_status |= E1000_TXD_DMA_TXDWB;
@@ -931,7 +931,7 @@ unlock:
 }
 
 void
-igb_trigger(device_t *dev, u_int32_t data) 
+igb_trigger(device_t *dev, u_int32_t data)
 {
 	struct adapter	*adapter;
 
@@ -952,7 +952,7 @@ igb_trigger(device_t *dev, u_int32_t data)
 }
 
 void
-igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data) 
+igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data)
 {
 	struct adapter	*adapter;
 
@@ -964,7 +964,7 @@ igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data)
 }
 
 void
-igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data) 
+igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data)
 {
 	struct adapter	*adapter;
 
@@ -1001,7 +1001,7 @@ int igb_unlock( device_t *dev ) {
 /**********************************************************************
  *
  *  Examine each tx_buffer in the used queue. If the hardware is done
- *  processing the packet then return the linked list of associated resources. 
+ *  processing the packet then return the linked list of associated resources.
  *
  **********************************************************************/
 void
@@ -1034,24 +1034,24 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 			txr->queue_status = IGB_QUEUE_IDLE;
 			continue;
 		}
-	
+
 		processed = 0;
 		first = txr->next_to_clean;
 		tx_desc = &txr->tx_base[first];
 		tx_buffer = &txr->tx_buffers[first];
 		last = tx_buffer->next_eop;
 		eop_desc = &txr->tx_base[last];
-	
+
 		/*
 		 * What this does is get the index of the
-		 * first descriptor AFTER the EOP of the 
+		 * first descriptor AFTER the EOP of the
 		 * first packet, that way we can do the
 		 * simple comparison on the inner while loop.
 		 */
 		if (++last == adapter->num_tx_desc)
 	 		last = 0;
 		done = last;
-	
+
 		while (eop_desc->upper.fields.status & E1000_TXD_STAT_DD) {
 			/* We clean the range of the packet */
 			while (first != done) {
@@ -1060,12 +1060,12 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 					/* tx_buffer->packet->dmatime += (tx_desc->buffer_addr >> 32) * 1000000000; */
 					txr->bytes +=
 					    tx_buffer->packet->len;
-					if (*cleaned_packets == NULL) 
+					if (*cleaned_packets == NULL)
 						*cleaned_packets = tx_buffer->packet;
-					else 
+					else
 						last_reclaimed->next = tx_buffer->packet;
 					last_reclaimed = tx_buffer->packet;
-					
+
 					tx_buffer->packet = NULL;
 				}
 				tx_buffer->next_eop = -1;
@@ -1074,11 +1074,11 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 				tx_desc->buffer_addr = 0;
 				++txr->tx_avail;
 				++processed;
-	
-	
+
+
 				if (++first == adapter->num_tx_desc)
 					first = 0;
-	
+
 				tx_buffer = &txr->tx_buffers[first];
 				tx_desc = &txr->tx_base[first];
 			}
@@ -1092,12 +1092,12 @@ igb_clean(device_t *dev, struct igb_packet **cleaned_packets)
 			} else
 				break;
 		}
-	
+
 		txr->next_to_clean = first;
-	
-		if (txr->tx_avail >= IGB_QUEUE_THRESHOLD)	  
+
+		if (txr->tx_avail >= IGB_QUEUE_THRESHOLD)
 			txr->queue_status &= ~IGB_QUEUE_DEPLETED;
-	}	
+	}
 
 unlock:
 	if( sem_post( adapter->memlock ) != 0 ) {
@@ -1184,7 +1184,7 @@ igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 
  err:
 	return error;
-} 
+}
 
 struct timespec timespec_subtract( struct timespec *a, struct timespec *b )
 {
@@ -1276,12 +1276,12 @@ igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime,
 	return error;
 }
 
-int	
-igb_set_class_bandwidth(device_t *dev, 
+int
+igb_set_class_bandwidth(device_t *dev,
 	u_int32_t class_a,
 	u_int32_t class_b,
 	u_int32_t tpktsz_a,
-	u_int32_t tpktsz_b) 
+	u_int32_t tpktsz_b)
 {
 	u_int32_t	tqavctrl;
 	u_int32_t	tqavcc0, tqavcc1;
@@ -1313,13 +1313,13 @@ igb_set_class_bandwidth(device_t *dev,
 
 	if (link.duplex != FULL_DUPLEX ) return EINVAL;
 
-	if (tpktsz_a < 64) 
+	if (tpktsz_a < 64)
 		tpktsz_a = 64; /* minimum ethernet frame size */
 
 	if (tpktsz_a > 1500)
 		return EINVAL;
 
-	if (tpktsz_b < 64) 
+	if (tpktsz_b < 64)
 		tpktsz_b = 64; /* minimum ethernet frame size */
 
 	if (tpktsz_b > 1500)
@@ -1340,10 +1340,10 @@ igb_set_class_bandwidth(device_t *dev,
 
 	tqavcc0 = E1000_TQAVCC_QUEUEMODE;
 	tqavcc1 = E1000_TQAVCC_QUEUEMODE;
-	
+
 	linkrate = E1000_TQAVCC_LINKRATE;
 
-	/* 
+	/*
 	 * class_a and class_b are the packets-per-(respective)observation
 	 * interval (125 usec for class A, 250 usec for class B)
 	 * these parameters are also used when establishing the MSRP
@@ -1363,12 +1363,12 @@ igb_set_class_bandwidth(device_t *dev,
 
 	if (link.speed == 100) {
 		class_a_percent /= (100000000.0 / 8); /* bytes-per-sec @ 100Mbps */
-		class_b_percent /= (100000000.0 / 8); 
+		class_b_percent /= (100000000.0 / 8);
 		class_a_idle = (u_int32_t)(class_a_percent * 0.2 * (float)linkrate + 0.5);
 		class_b_idle = (u_int32_t)(class_b_percent * 0.2 * (float)linkrate + 0.5);
 	} else {
 		class_a_percent /= (1000000000.0 / 8); /* bytes-per-sec @ 1Gbps */
-		class_b_percent /= (1000000000.0 / 8); 
+		class_b_percent /= (1000000000.0 / 8);
 		class_a_idle = (u_int32_t)(class_a_percent * 2.0 * (float)linkrate + 0.5);
 		class_b_idle = (u_int32_t)(class_b_percent * 2.0 * (float)linkrate + 0.5);
 	}
@@ -1380,7 +1380,7 @@ igb_set_class_bandwidth(device_t *dev,
 	tqavcc0 |= class_a_idle;
 	tqavcc1 |= class_b_idle;
 
-	/* 
+	/*
 	 * hiCredit is the number of idleslope credits accumulated due to delay T
 	 *
 	 * we assume the maxInterferenceSize is 18 + 4 + 1500 (1522).
@@ -1389,7 +1389,7 @@ igb_set_class_bandwidth(device_t *dev,
 	 */
 	tqavhc0 = 0x80000000 + (class_a_idle * 1522 / linkrate ); /* L.10 */
 
-	/* 
+	/*
 	 * Class B high credit is is the same, except the delay
 	 * is the MaxBurstSize of Class A + maxInterferenceSize of non-SR traffic
 	 *
