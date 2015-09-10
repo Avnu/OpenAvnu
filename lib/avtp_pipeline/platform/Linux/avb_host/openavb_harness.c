@@ -112,18 +112,24 @@ void openavbTlHarnessUsage(char *programName)
 		"  -h         Prints this message.\n"
 		"  -i         Enables interactive mode.\n"
 		"  -s val     Stream count. Starts 'val' number of streams for each configuration file. stream_uid will be overriden.\n"
+		"  -d val     Last byte of destination address from static pool. Full address will be 91:e0:f0:00:fe:val.\n"
+		"  -I val     Use given (val) interface globally, can be overriden by giving the ifname= option to the config line.\n"
 		"\n"
 		"Examples:\n"
 		"  %s talker.ini\n"
 		"    Start 1 stream with data from the ini file.\n\n"
 		"  %s talker1.ini talker2.ini\n"
 		"    Start 2 streams with data from the ini files.\n\n"
+		"  %s -I eth0 talker1.ini talker2.ini\n"
+		"    Start 2 streams with data from the ini files, both talkers use eth0 interface.\n\n"
+		"  %s -I eth0 talker1.ini talker2.ini listener1.ini,ifname=pcap:eth0\n"
+		"    Start 3 streams with data from the ini files, talkers 1&2 use eth0 interface, listener1 use pcap:eth0.\n\n"
 		"  %s listener.ini,stream_addr=84:7E:40:2C:8F:DE\n"
 		"    Start 1 stream and override the sream_addr in the ini file.\n\n"
 		"  %s -i -s 8 -a 84:7E:40:2C:8F:DE listener.ini\n"
 		"    Work interactively with 8 streams overriding the stream_uid and stream_addr of each.\n\n"
 		,
-		programName, programName, programName, programName, programName);
+		programName, programName, programName, programName, programName, programName, programName);
 }
 
 void openavbTlHarnessMenu()
@@ -155,6 +161,9 @@ int main(int argc, char *argv[])
 	bool optInteractive = FALSE;
 	int optStreamCount = 1;
 	bool optStreamCountSet = FALSE;
+	bool optDestAddrSet = FALSE;
+	U8 destAddr[ETH_ALEN] = {0x91, 0xe0, 0xf0, 0x00, 0xfe, 0x00};
+	char *optIfnameGlobal = NULL;
 
 	// Talker listener vars
 	int iniIdx = 0;
@@ -196,21 +205,18 @@ int main(int argc, char *argv[])
 	registerStaticIntfModule(openavbIntfWavFileInitialize);
 	registerStaticIntfModule(openavbIntfH264RtpGstInitialize);
 
-	osalAVBInitialize();
-
 	// Process command line
 	programName = strrchr(argv[0], '/');
 	programName = programName ? programName + 1 : argv[0];
 
 	if (argc < 2) {
-		osalAVBFinalize();
 		openavbTlHarnessUsage(programName);
 		exit(-1);
 	}
 
 	bool optDone = FALSE;
 	while (!optDone) {
-		int opt = getopt(argc, argv, "a:his:");
+		int opt = getopt(argc, argv, "a:his:d:I:");
 		if (opt != EOF) {
 			switch (opt) {
 				case 'a':
@@ -223,6 +229,13 @@ int main(int argc, char *argv[])
 					optStreamCount = atoi(optarg);
 					optStreamCountSet = TRUE;
 					break;
+				case 'd':
+					optDestAddrSet = TRUE;
+					destAddr[5] = strtol(optarg, NULL, 0);
+					break;
+				case 'I':
+					optIfnameGlobal = strdup(optarg);
+					break;
 				case '?':
 				default:
 					openavbTlHarnessUsage(programName);
@@ -234,6 +247,8 @@ int main(int argc, char *argv[])
 			optDone = TRUE;
 		}
 	}
+
+	osalAVBInitialize(optIfnameGlobal);
 
 	// Setup the talker listener counts and lists
 	iniIdx = optind;
@@ -263,22 +278,36 @@ int main(int argc, char *argv[])
 	// Populate the ini file list
 	int tlIndex = 0;
 	for (i1 = 0; i1 < iniCount; i1++) {
-		char iniFile1[1024];
-		char iniFile2[1024];
+		char iniFile[1024];
+		char sStreamAddr[31] = "";
+		char sDestAddr[29] = "";
+
 		if (optStreamAddr) {
-			sprintf(iniFile1, "%s,stream_addr=%s", argv[i1 + iniIdx],  optStreamAddr);
+			snprintf(sStreamAddr, sizeof(sStreamAddr), ",stream_addr=%s", optStreamAddr);
 		}
-		else {
-			sprintf(iniFile1, "%s", argv[i1 + iniIdx]);
+
+		if (optDestAddrSet) {
+			snprintf(sDestAddr, sizeof(sDestAddr), ",dest_addr="ETH_FORMAT, ETH_OCTETS(destAddr));
 		}
 
 		if (!optStreamCountSet) {
-			tlIniList[tlIndex++] = strdup(iniFile1);
+			snprintf(iniFile, sizeof(iniFile), "%s%s%s", argv[i1 + iniIdx], sDestAddr, sStreamAddr);
+			if (optIfnameGlobal && !strcasestr(iniFile, ",ifname=")) {
+				snprintf(iniFile + strlen(iniFile), sizeof(iniFile), ",ifname=%s", optIfnameGlobal);
+			}
+			tlIniList[tlIndex++] = strdup(iniFile);
 		}
 		else {
 			for (i2 = 0; i2 < optStreamCount; i2++) {
-				sprintf(iniFile2, "%s,stream_uid=%d", iniFile1,  tlIndex);
-				tlIniList[tlIndex++] = strdup(iniFile2);
+				snprintf(iniFile, sizeof(iniFile), "%s%s%s,stream_uid=%d", argv[i1 + iniIdx], sDestAddr, sStreamAddr, tlIndex);
+				if (optIfnameGlobal && !strcasestr(iniFile, ",ifname=")) {
+					snprintf(iniFile + strlen(iniFile), sizeof(iniFile), ",ifname=%s", optIfnameGlobal);
+				}
+				tlIniList[tlIndex++] = strdup(iniFile);
+				if (optDestAddrSet) {
+					destAddr[5]++;
+					snprintf(sDestAddr, sizeof(sDestAddr), ",dest_addr="ETH_FORMAT, ETH_OCTETS(destAddr));
+				}
 			}
 		}
 	}

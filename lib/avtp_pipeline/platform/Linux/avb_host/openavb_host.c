@@ -96,6 +96,25 @@ static void openavbTLSigHandler(int signal)
 	AVB_TRACE_EXIT(AVB_TRACE_HOST);
 }
 
+void openavbTlHostUsage(char *programName)
+{
+	printf(
+		"\n"
+		"Usage: %s [options] file...\n"
+		"  -I val     Use given (val) interface globally, can be overriden by giving the ifname= option to the config line.\n"
+		"\n"
+		"Examples:\n"
+		"  %s talker.ini\n"
+		"    Start 1 stream with data from the ini file.\n\n"
+		"  %s talker1.ini talker2.ini\n"
+		"    Start 2 streams with data from the ini files.\n\n"
+		"  %s -I eth0 talker1.ini talker2.ini\n"
+		"    Start 2 streams with data from the ini files, both talkers use eth0 interface.\n\n"
+		"  %s -I eth0 talker1.ini talker2.ini listener1.ini,ifname=pcap:eth0\n"
+		"    Start 3 streams with data from the ini files, talkers 1&2 use eth0 interface, listener1 use pcap:eth0.\n\n"
+		,
+		programName, programName, programName, programName, programName);
+}
 
 /**********************************************
  * main
@@ -104,15 +123,45 @@ int main(int argc, char *argv[])
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HOST);
 
-	if (argc < 2) {fprintf(stderr, "error: usage is:\n\t%s inifile1 [infile2...]\n", argv[0]);
+	int iniIdx = 0;
+	char *programName;
+	char *optIfnameGlobal = NULL;
+
+	programName = strrchr(argv[0], '/');
+	programName = programName ? programName + 1 : argv[0];
+
+	if (argc < 2) {
+		openavbTlHostUsage(programName);
 		exit(-1);
 	}
 
-	U32 tlCount = argc - 1;
 	tl_handle_t *tlHandleList = NULL;
 	int i1;
 
-	osalAVBInitialize();
+	// Process command line
+	bool optDone = FALSE;
+	while (!optDone) {
+		int opt = getopt(argc, argv, "hI:");
+		if (opt != EOF) {
+			switch (opt) {
+				case 'I':
+					optIfnameGlobal = strdup(optarg);
+					break;
+				case 'h':
+				default:
+					openavbTlHostUsage(programName);
+					exit(-1);
+			}
+		}
+		else {
+			optDone = TRUE;
+		}
+	}
+
+	osalAVBInitialize(optIfnameGlobal);
+
+	iniIdx = optind;
+	U32 tlCount = argc - iniIdx;
 
 	if (!openavbTLInitialize(tlCount)) {
 		AVB_LOG_ERROR("Unable to initialize talker listener library");
@@ -175,11 +224,18 @@ int main(int argc, char *argv[])
 	for (i1 = 0; i1 < tlCount; i1++) {
 		openavb_tl_cfg_t cfg;
 		openavb_tl_cfg_name_value_t NVCfg;
+		char iniFile[1024];
+
+		snprintf(iniFile, sizeof(iniFile), "%s", argv[i1 + iniIdx]);
+
+		if (optIfnameGlobal && !strcasestr(iniFile, ",ifname=")) {
+			snprintf(iniFile + strlen(iniFile), sizeof(iniFile), ",ifname=%s", optIfnameGlobal);
+		}
 
 		openavbTLInitCfg(&cfg);
 		memset(&NVCfg, 0, sizeof(NVCfg));
 
-		if (!openavbTLReadIniFileOsal(tlHandleList[i1], argv[i1 + 1], &cfg, &NVCfg)) {
+		if (!openavbTLReadIniFileOsal(tlHandleList[i1], iniFile, &cfg, &NVCfg)) {
 			AVB_LOGF_ERROR("Error reading ini file: %s\n", argv[i1 + 1]);
 			osalAVBFinalize();
 			exit(-1);

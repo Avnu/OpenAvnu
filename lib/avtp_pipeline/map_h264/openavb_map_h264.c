@@ -378,12 +378,12 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			else
 				((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->lastPacket = FALSE;
 
-			if (pMediaQItem->itemSize >= dataLen - TOTAL_HEADER_SIZE) {
+			if (pMediaQItem->itemSize >= payloadLen) {
 				memcpy(pMediaQItem->pPubData, pPayload, payloadLen);
 				pMediaQItem->dataLen = payloadLen;
 			}
 			else {
-				AVB_LOG_ERROR("Data to large for media queue.");
+				AVB_LOGF_ERROR("Data to large for media queue (itemSize %d, data size %d).", pMediaQItem->itemSize, payloadLen);
 				pMediaQItem->dataLen = 0;
 			}
 

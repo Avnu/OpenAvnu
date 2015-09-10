@@ -1537,3 +1537,18 @@ igb_set_class_bandwidth2(device_t *dev,
 	return error;
 }
 
+int igb_get_mac_addr(device_t *dev, u_int8_t mac_addr[ETH_ADDR_LEN])
+{
+	struct adapter	*adapter;
+	struct e1000_hw *hw;
+
+	if (NULL == dev) return EINVAL;
+	adapter = (struct adapter *)dev->private_data;
+	if (NULL == adapter) return ENXIO;
+
+	hw = &adapter->hw;
+
+	memcpy(mac_addr, hw->mac.addr, ETH_ADDR_LEN);
+	return 0;
+}
+
