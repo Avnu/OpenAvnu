@@ -29,5 +29,5 @@ set ( PLATFORM_LINK_LIBRARIES
 # Set platform specific define
 #set ( PLATFORM_DEFINE "AVB_DELAY_TWEAK_USEC=15" )
 
-set ( GSTREAMER_1_0 1 )
+set ( GSTREAMER_1_0 0 )
 set ( AVB_FEATURE_PCAP 1 )
