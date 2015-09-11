@@ -4,6 +4,7 @@ make igb
 make lib
 make daemons_all
 make examples_all
+make avtp_pipeline
 mkdir build
 cd build
 cmake .. -G "Unix Makefiles"
