@@ -129,9 +129,9 @@ int gptpscaling(gPtpTimeData * td, char *memory_offset_buffer)
 	memcpy(td, memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
 	pthread_mutex_unlock((pthread_mutex_t *) memory_offset_buffer);
 
-	fprintf(stderr, "ml_phoffset = %lld, ls_phoffset = %lld\n",
+	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",
 		td->ml_phoffset, td->ls_phoffset);
-	fprintf(stderr, "ml_freqffset = %d, ls_freqoffset = %d\n",
+	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
 		td->ml_freqoffset, td->ls_freqoffset);
 
 	return true;

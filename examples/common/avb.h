@@ -98,11 +98,13 @@ typedef struct __attribute__ ((packed)) {
 	uint8_t h_protocol[2];
 } eth_header;
 
+typedef long double FrequencyRatio;
+
 typedef struct { 
 	int64_t ml_phoffset;
 	int64_t ls_phoffset;
-	int32_t ml_freqoffset;
-	int32_t ls_freqoffset;
+	FrequencyRatio ml_freqoffset;
+	FrequencyRatio ls_freqoffset;
 	int64_t local_time;
 } gPtpTimeData;
 
