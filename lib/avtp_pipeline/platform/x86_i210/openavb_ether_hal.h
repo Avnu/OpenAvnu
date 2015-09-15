@@ -47,4 +47,6 @@ struct igb_packet *igbGetTxPacket(device_t* dev, int queue);
 
 void igbRelTxPacket(device_t* dev, int queue, struct igb_packet *tx_packet);
 
+bool igbGetMacAddr(U8 mac_addr[ETH_ALEN]);
+
 #endif	// HAL_ETHER_H

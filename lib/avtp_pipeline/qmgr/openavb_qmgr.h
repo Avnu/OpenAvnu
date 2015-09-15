@@ -53,7 +53,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 bool openavbQmgrInitialize(int mode,
 					   int ifindex,
-					   char* ifname,
+					   const char* ifname,
 					   unsigned mtu,
 					   unsigned link_kbit,
 					   unsigned nsr_kbit);
@@ -65,20 +65,14 @@ U16 openavbQmgrAddStream(SRClassIdx_t nClass,
 					 unsigned maxIntervalFrames,
 					 unsigned maxFrameSize);
 
-void openavbQmgrRemoveStream(U16 fwmark, 
-					 unsigned classRate,
-					 unsigned maxIntervalFrames,
-					 unsigned maxFrameSize);
-
-
-//void openavbQmgrRemoveStream(U16 fwmark);
+void openavbQmgrRemoveStream(U16 fwmark);
 
 #else
 /* Dummy versions to use if FQTSS is compiled out
  */
 inline bool openavbQmgrInitialize(int mode,
 							  int ifindex,
-							  char* ifname,
+							  const char* ifname,
 							  unsigned mtu,
 							  unsigned link_kbit,
 							  unsigned nsr_kbit)
@@ -93,10 +87,7 @@ inline U16 openavbQmgrAddStream(SRClassIdx_t nClass,
 							unsigned maxFrameSize) 
 { return DEFAULT_FWMARK; }
 
-inline void openavbQmgrRemoveStream(U16 fwmark, 
-					 unsigned classRate,
-					 unsigned maxIntervalFrames,
-					 unsigned maxFrameSize);
+inline void openavbQmgrRemoveStream(U16 fwmark)
 
 {}
 #endif // AVB_FEATURE_FQTSS

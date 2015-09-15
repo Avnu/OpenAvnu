@@ -144,21 +144,6 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	// The TSpec frame size is the L2 payload - i.e. no Ethernet headers, VLAN, FCS, etc...
 	pTalkerData->tSpec.maxFrameSize = pCfg->map_cb.map_max_data_size_cb(pTLState->pMediaQ);
 
-	{
-		// TODO_OPENAVB : Consider this a placeholder. But it maybe the correct thing to do.
-		if_info_t ifinfo;
-		openavbCheckInterface(pTalkerData->ifname, &ifinfo);
-
-		pTalkerData->fwmark = openavbQmgrAddStream((SRClassIdx_t)pCfg->sr_class,
-							   pTalkerData->wakeRate,
-							   pTalkerData->tSpec.maxIntervalFrames,
-							   pTalkerData->tSpec.maxFrameSize);
-
-		if (pTalkerData->fwmark == INVALID_FWMARK)
-			return FALSE;
-	}
-
-
 	AVB_LOGF_INFO("Register "STREAMID_FORMAT": class: %c frame size: %d  frame interval: %d", STREAMID_ARGS(&streamID), AVB_CLASS_LABEL(pCfg->sr_class), pTalkerData->tSpec.maxFrameSize, pTalkerData->tSpec.maxIntervalFrames);
 
 	// Tell endpoint to register our stream.
@@ -175,13 +160,4 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 
 void openavbTLRunTalkerFinish(tl_state_t *pTLState)
 {
-	{
-		// TODO_OPENAVB : Consider this a placeholder. But it maybe the correct thing to do.
-		talker_data_t *pTalkerData = pTLState->pPvtTalkerData;
-
-		openavbQmgrRemoveStream(pTalkerData->fwmark,
-								pTalkerData->wakeRate,
-								pTalkerData->tSpec.maxIntervalFrames,
-								pTalkerData->tSpec.maxFrameSize);
-	}
 }

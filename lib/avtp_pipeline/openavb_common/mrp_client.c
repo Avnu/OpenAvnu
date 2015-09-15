@@ -32,7 +32,10 @@
 
 ******************************************************************************/
 
-#include "talker_mrp_client.h"
+#include "mrp_client.h"
+
+#define AVB_LOG_COMPONENT "MRP"
+#include "openavb_log.h"
 
 /* global variables */
 
@@ -90,16 +93,20 @@ int process_mrp_msg(char *buf, int buflen)
 	unsigned int id;
 	unsigned int priority;
 	unsigned int vid;
+	unsigned int max_frame_size;
+	unsigned int max_interval_frames;
+	unsigned int priority_and_rank;
+	unsigned int latency;
 	int i, j, k;
 	unsigned int substate;
 	unsigned char recovered_streamid[8];
+	unsigned char dest_addr[6];
 	k = 0;
  next_line:if (k >= buflen)
 		return 0;
 	switch (buf[k]) {
 	case 'E':
-		printf("%s from mrpd\n", buf);
-		fflush(stdout);
+		AVB_LOGF_DEBUG("%s from mrpd", buf);
 		mrp_error = 1;
 		break;
 	case 'O':
@@ -107,9 +114,7 @@ int process_mrp_msg(char *buf, int buflen)
 		break;
 	case 'M':
 	case 'V':
-		printf("%s unhandled from mrpd\n", buf);
-		fflush(stdout);
-
+		AVB_LOGF_DEBUG("%s unhandled from mrpd", buf);
 		/* unhandled for now */
 		break;
 	case 'L':
@@ -126,7 +131,8 @@ int process_mrp_msg(char *buf, int buflen)
 		for (j = 0; j < 8; j++) {
 			sscanf(&(buf[i + 2 * j]), "%02x", &id);
 			recovered_streamid[j] = (unsigned char)id;
-		} printf
+		}
+		AVB_LOGF_DEBUG
 		    ("FOUND STREAM ID=%02x%02x%02x%02x%02x%02x%02x%02x ",
 		     recovered_streamid[0], recovered_streamid[1],
 		     recovered_streamid[2], recovered_streamid[3],
@@ -134,30 +140,30 @@ int process_mrp_msg(char *buf, int buflen)
 		     recovered_streamid[6], recovered_streamid[7]);
 		switch (substate) {
 		case 0:
-			printf("with state ignore\n");
+			AVB_LOG_DEBUG("with state ignore");
 			break;
 		case 1:
-			printf("with state askfailed\n");
+			AVB_LOG_DEBUG("with state askfailed");
 			break;
 		case 2:
-			printf("with state ready\n");
+			AVB_LOG_DEBUG("with state ready");
 			break;
 		case 3:
-			printf("with state readyfail\n");
+			AVB_LOG_DEBUG("with state readyfail");
 			break;
 		default:
-			printf("with state UNKNOWN (%d)\n", substate);
+			AVB_LOGF_DEBUG("with state UNKNOWN (%d)", substate);
 			break;
 		}
+		mrp_attach_cb(recovered_streamid, substate);
 		if (substate > MSRP_LISTENER_ASKFAILED) {
 			if (memcmp
 			    (recovered_streamid, monitor_stream_id,
 			     sizeof(recovered_streamid)) == 0) {
 				listeners = 1;
-				printf("added listener\n");
+				AVB_LOG_DEBUG("added listener");
 			}
 		}
-		fflush(stdout);
 
 		/* try to find a newline ... */
 		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
@@ -203,11 +209,37 @@ int process_mrp_msg(char *buf, int buflen)
 		goto next_line;
 		break;
 	case 'T':
-
-		/* as simple_talker we don't care about other talkers */
 		i = k;
+		while (buf[i] != 'S')
+			i++;
+		// skip S=
+		i += 2;
+		for (j = 0; j < 8; j++) {
+			sscanf(&(buf[i + 2 * j]), "%02x", &id);
+			recovered_streamid[j] = (unsigned char)id;
+		}
+		while (buf[i] != 'A')
+			i++;
+		// skip A=
+		i += 2;
+		for (j = 0; j < 6; j++) {
+			sscanf(&(buf[i + 2 * j]), "%02x", &id);
+			dest_addr[j] = (unsigned char)id;
+		}
+		i+= j*2 + 1;
+
+		sscanf(&(buf[i]), "V=%d,Z=%d,I=%d,P=%d,L=%d",
+		       &vid,
+		       &max_frame_size,
+		       &max_interval_frames,
+		       &priority_and_rank,
+		       &latency);
+
+		mrp_register_cb(recovered_streamid, 0, dest_addr, max_frame_size, max_interval_frames, vid, latency);
+
 		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
 			i++;
+
 		if (i == buflen)
 			return 0;
 		if (buf[i] == '\0')
@@ -232,7 +264,8 @@ int process_mrp_msg(char *buf, int buflen)
 			for (j = 0; j < 8; j++) {
 				sscanf(&(buf[i + 2 * j]), "%02x", &id);
 				recovered_streamid[j] = (unsigned char)id;
-			} printf
+			}
+			AVB_LOGF_DEBUG
 			    ("EVENT on STREAM ID=%02x%02x%02x%02x%02x%02x%02x%02x ",
 			     recovered_streamid[0], recovered_streamid[1],
 			     recovered_streamid[2], recovered_streamid[3],
@@ -240,34 +273,36 @@ int process_mrp_msg(char *buf, int buflen)
 			     recovered_streamid[6], recovered_streamid[7]);
 			switch (substate) {
 			case 0:
-				printf("with state ignore\n");
+				AVB_LOG_DEBUG("with state ignore");
 				break;
 			case 1:
-				printf("with state askfailed\n");
+				AVB_LOG_DEBUG("with state askfailed");
 				break;
 			case 2:
-				printf("with state ready\n");
+				AVB_LOG_DEBUG("with state ready");
 				break;
 			case 3:
-				printf("with state readyfail\n");
+				AVB_LOG_DEBUG("with state readyfail");
 				break;
 			default:
-				printf("with state UNKNOWN (%d)\n", substate);
+				AVB_LOGF_DEBUG("with state UNKNOWN (%d)", substate);
 				break;
 			}
 			switch (buf[k + 1]) {
 			case 'L':
-				printf("got a leave indication\n");
+				mrp_attach_cb(recovered_streamid, substate);
+				AVB_LOGF_DEBUG("got a leave indication substate %d", substate);
 				if (memcmp
 				    (recovered_streamid, monitor_stream_id,
 				     sizeof(recovered_streamid)) == 0) {
 					listeners = 0;
-					printf("listener left\n");
+					AVB_LOG_DEBUG("listener left");
 				}
 				break;
 			case 'J':
 			case 'N':
-				printf("got a new/join indication\n");
+				AVB_LOGF_DEBUG("got a new/join indication substate %d", substate);
+				mrp_attach_cb(recovered_streamid, substate);
 				if (substate > MSRP_LISTENER_ASKFAILED) {
 					if (memcmp
 					    (recovered_streamid,
@@ -277,8 +312,37 @@ int process_mrp_msg(char *buf, int buflen)
 				}
 				break;
 			}
+			break;
 
-			/* only care about listeners ... */
+		case 'T':
+			i = k + 5;
+			while (buf[i] != 'S')
+				i++;
+			// skip S=
+			i += 2;
+			for (j = 0; j < 8; j++) {
+				sscanf(&(buf[i + 2 * j]), "%02x", &id);
+				recovered_streamid[j] = (unsigned char)id;
+			}
+			while (buf[i] != 'A')
+				i++;
+			// skip A=
+			i += 2;
+			for (j = 0; j < 6; j++) {
+				sscanf(&(buf[i + 2 * j]), "%02x", &id);
+				dest_addr[j] = (unsigned char)id;
+			}
+			i+= j*2 + 1;
+
+			sscanf(&(buf[i]), "V=%d,Z=%d,I=%d,P=%d,L=%d",
+			       &vid,
+			       &max_frame_size,
+			       &max_interval_frames,
+			       &priority_and_rank,
+			       &latency);
+
+			mrp_register_cb(recovered_streamid, buf[k+1] == 'J', dest_addr, max_frame_size, max_interval_frames, vid, latency);
+			break;
 		default:
 			return 0;
 			break;
@@ -331,6 +395,7 @@ void *mrp_monitor_thread(void *arg)
 		bytes = recvmsg(control_socket, &msg, 0);
 		if (bytes < 0)
 			continue;
+		AVB_LOGF_VERBOSE("Msg: %s", msgbuf);
 		process_mrp_msg(msgbuf, bytes);
 	}
 	free(msgbuf);
@@ -512,6 +577,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 {
 	char *msgbuf;
 	int ret;
+	int tries = 5;
 
 	/* we may not get a notification if we are joining late,
 	 * so query for what is already there ...
@@ -525,8 +591,9 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 	free(msgbuf);
 	if (ret != 1500)
 		return -1;
-	while (!halt_tx && (domain_a_valid == 0) && (domain_b_valid == 0))
+	while (!halt_tx && (domain_a_valid == 0) && (domain_b_valid == 0) && tries--) {
 		usleep(20000);
+	}
 	*class_a_id = 0;
 	*a_priority = 0;
 	*a_vid = 0;
@@ -543,7 +610,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		*b_priority = domain_class_b_priority;
 		*b_vid = domain_class_b_vid;
 	}
-	return 0;
+	return domain_a_valid && domain_b_valid ? 0 : -1;
 }
 
 int mrp_join_vlan()
@@ -595,3 +662,49 @@ int recv_mrp_okay()
 	return 0;
 }
 
+int mrp_send_ready(uint8_t *stream_id)
+{
+	char *databuf;
+	int rc;
+
+	databuf = malloc(1500);
+	if (NULL == databuf)
+		return -1;
+	memset(databuf, 0, 1500);
+	sprintf(databuf, "S+L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=2",
+		     stream_id[0], stream_id[1],
+		     stream_id[2], stream_id[3],
+		     stream_id[4], stream_id[5],
+		     stream_id[6], stream_id[7]);
+	rc = send_mrp_msg(databuf, 1500);
+	free(databuf);
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
+}
+
+int mrp_send_leave(uint8_t *stream_id)
+{
+	char *databuf;
+	int rc;
+
+	databuf = malloc(1500);
+	if (NULL == databuf)
+		return -1;
+	memset(databuf, 0, 1500);
+	sprintf(databuf, "S-L:L=%02x%02x%02x%02x%02x%02x%02x%02x, D=3",
+		     stream_id[0], stream_id[1],
+		     stream_id[2], stream_id[3],
+		     stream_id[4], stream_id[5],
+		     stream_id[6], stream_id[7]);
+
+	rc = send_mrp_msg(databuf, 1500);
+	free(databuf);
+
+	if (rc != 1500)
+		return -1;
+	else
+		return 0;
+}

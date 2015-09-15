@@ -239,7 +239,6 @@ int main(int argc, char *argv[])
 				case '?':
 				default:
 					openavbTlHarnessUsage(programName);
-					osalAVBFinalize();
 					exit(-1);
 			}
 		}

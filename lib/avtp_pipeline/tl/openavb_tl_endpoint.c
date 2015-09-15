@@ -36,7 +36,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <stdio.h>
 #include <string.h>
 #include "openavb_tl.h"
-#include "openavb_acmp.h"
 #include "openavb_trace.h"
 #include "openavb_mediaq.h"
 #include "openavb_talker.h"
@@ -155,6 +154,7 @@ tl_handle_t TLHandleListGet(int endpointHandle)
 	return NULL;
 }
 
+#ifdef AVTP_PIPELINE_AVDECC
 bool openavbTLAVDECCRunListener(tl_handle_t handle, U16 configIdx, U16 descriptorType, U16 descriptorIdx, void *pVoidListenerStreamInfo)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
@@ -275,3 +275,4 @@ bool openavbTLAVDECCGetTalkerStreamInfo(tl_handle_t handle, U16 configIdx, void 
 	return TRUE;
 }
 
+#endif //AVTP_PIPELINE_AVDECC

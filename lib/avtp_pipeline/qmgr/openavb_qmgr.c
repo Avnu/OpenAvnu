@@ -176,7 +176,7 @@ U16 openavbQmgrAddStream(SRClassIdx_t nClass, unsigned classRate, unsigned maxIn
 }
 
 
-void openavbQmgrRemoveStream(U16 fwmark, unsigned classRate, unsigned maxIntervalFrames, unsigned maxFrameSize)
+void openavbQmgrRemoveStream(U16 fwmark)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_QUEUE_MANAGER);
 
@@ -217,7 +217,7 @@ void openavbQmgrRemoveStream(U16 fwmark, unsigned classRate, unsigned maxInterva
 	AVB_TRACE_EXIT(AVB_TRACE_QUEUE_MANAGER);
 }
 
-bool openavbQmgrInitialize(int mode, int ifindex, char* ifname, unsigned mtu, unsigned link_kbit, unsigned nsr_kbit)
+bool openavbQmgrInitialize(int mode, int ifindex, const char* ifname, unsigned mtu, unsigned link_kbit, unsigned nsr_kbit)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_QUEUE_MANAGER);
 	bool ret = FALSE;
@@ -290,7 +290,7 @@ void openavbQmgrFinalize(void)
 			for (nStream = 0, idx = nClass * MAX_AVB_STREAMS_PER_CLASS; nStream < MAX_AVB_STREAMS_PER_CLASS; nStream++, idx++) {
 				if (qmgr_streams[idx].streamBytesPerSec) {
 					U16 fwmark = TC_AVB_MARK(nClass, nStream);
-					openavbQmgrRemoveStream(fwmark, 0, 0, 0);
+					openavbQmgrRemoveStream(fwmark);
 				}
 			}
 		}
