@@ -112,6 +112,8 @@ int pci_connect(device_t * igb_dev);
 
 int gptpscaling(gPtpTimeData * td, char *memory_offset_buffer);
 
+bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local);
+
 void gptpdeinit(int shm_fd, char *memory_offset_buffer);
 
 int gptpinit(int *shm_fd, char **memory_offset_buffer);
