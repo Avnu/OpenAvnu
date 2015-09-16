@@ -47,7 +47,7 @@ typedef struct {
 	int64_t ls_phoffset;			//!< Local to system phase offset
 	FrequencyRatio ml_freqoffset;	//!< Master to local frequency offset
 	FrequencyRatio ls_freqoffset;	//!< Local to system frequency offset
-	int64_t local_time;				//!< Local time of last update
+	uint64_t local_time;				//!< Local time of last update
 	uint32_t sync_count;			//!< Sync messages count
 	uint32_t pdelay_count;			//!< pdelay messages count
 	PortState port_state;			//!< gPTP port state. It can assume values defined at ::PortState
