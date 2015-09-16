@@ -88,7 +88,6 @@ static bool x_timeInit(void) {
 static bool x_getPTPTime(U64 *timeNsec) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	// TODO_OPENAVB : There may be a reasonable way to avoid calling this each time. Really only need to update it after gPTP SYNC.
 	if (!gptpscaling(&gPtpTD, gIgbMmap)) {
 		AVB_LOG_ERROR("GPTP scaling failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
@@ -97,13 +96,13 @@ static bool x_getPTPTime(U64 *timeNsec) {
 
 	uint64_t now_local;
 	uint64_t update_8021as;
-	unsigned delta_8021as;
-	unsigned delta_local;
+	int64_t delta_8021as;
+	int64_t delta_local;
 
-	if (halTimeGetLocaltime(&now_local)) {
+	if (gptplocaltime(&gPtpTD, &now_local)) {
 		update_8021as = gPtpTD.local_time - gPtpTD.ml_phoffset;
-		delta_local = (unsigned)(now_local - gPtpTD.local_time);
-		delta_8021as = (unsigned)(gPtpTD.ml_freqoffset * delta_local);
+		delta_local = now_local - gPtpTD.local_time;
+		delta_8021as = gPtpTD.ml_freqoffset * delta_local;
 		*timeNsec = update_8021as + delta_8021as;
 
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
