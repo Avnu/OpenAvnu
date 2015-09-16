@@ -129,10 +129,34 @@ int gptpscaling(gPtpTimeData * td, char *memory_offset_buffer)
 	memcpy(td, memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
 	pthread_mutex_unlock((pthread_mutex_t *) memory_offset_buffer);
 
-	fprintf(stderr, "ml_phoffset = %lld, ls_phoffset = %lld\n",
+	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",
 		td->ml_phoffset, td->ls_phoffset);
-	fprintf(stderr, "ml_freqffset = %d, ls_freqoffset = %d\n",
+	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
 		td->ml_freqoffset, td->ls_freqoffset);
+
+	return true;
+}
+
+bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local)
+{
+	struct timespec sys_time;
+	uint64_t now_system;
+	uint64_t system_time;
+	int64_t delta_local;
+	int64_t delta_system;
+
+	if (!td || !now_local)
+		return false;
+
+	if (clock_gettime(CLOCK_REALTIME, &sys_time) != 0)
+		return false;
+
+	now_system = (uint64_t)sys_time.tv_sec * 1000000000ULL + (uint64_t)sys_time.tv_nsec;
+
+	system_time = td->local_time + td->ls_phoffset;
+	delta_system = now_system - system_time;
+	delta_local = td->ls_freqoffset * delta_system;
+	*now_local = td->local_time + delta_local;
 
 	return true;
 }

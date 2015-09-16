@@ -53,7 +53,7 @@ typedef struct {
 	int64_t ls_phoffset;
 	FrequencyRatio ml_freqoffset;
 	FrequencyRatio ls_freqoffset;
-	int64_t local_time;
+	uint64_t local_time;
 	uint32_t sync_count;
 	uint32_t pdelay_count;
 	PortState port_state;
