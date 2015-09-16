@@ -151,7 +151,7 @@ bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local)
 	if (clock_gettime(CLOCK_REALTIME, &sys_time) != 0)
 		return false;
 
-	now_system = sys_time.tv_sec * 1000000000 + sys_time.tv_nsec;
+	now_system = (uint64_t)sys_time.tv_sec * 1000000000ULL + (uint64_t)sys_time.tv_nsec;
 
 	system_time = td->local_time + td->ls_phoffset;
 	delta_system = now_system - system_time;
