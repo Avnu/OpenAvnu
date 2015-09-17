@@ -54,7 +54,7 @@ static pthread_mutex_t gOSALTimeInitMutex = PTHREAD_MUTEX_INITIALIZER;
 static bool bInitialized = FALSE;
 static int gIgbShmFd = -1;
 static char *gIgbMmap = NULL;
-static gPtpTimeData gPtpTD;
+gPtpTimeData gPtpTD;
 
 static bool x_timeInit(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);

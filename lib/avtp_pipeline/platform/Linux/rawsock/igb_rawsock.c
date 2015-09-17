@@ -40,9 +40,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define	AVB_LOG_COMPONENT	"Raw Socket"
 #include "openavb_log.h"
 
-// how frequently get igb_wallclock() for transmitted frame
-// 10 means every 10th frame
-#define WALLCLOCK_REFRESH 100
+// needed for gptplocaltime()
+extern gPtpTimeData gPtpTD;
 
 void *igbRawsockOpen(igb_rawsock_t* rawsock, const char *ifname, bool rx_mode, bool tx_mode, U16 ethertype, U32 frame_size, U32 num_frames)
 {
@@ -91,7 +90,6 @@ void *igbRawsockOpen(igb_rawsock_t* rawsock, const char *ifname, bool rx_mode, b
 
 		// select class B queue by default
 		rawsock->queue = 1;
-		igb_get_wallclock(rawsock->igb_dev, &rawsock->attime, NULL);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
@@ -194,9 +192,7 @@ bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
 
 	rawsock->tx_packet->len = len;
 
-	static int counter = 0;
-	if (counter++ % WALLCLOCK_REFRESH == 0) igb_get_wallclock(rawsock->igb_dev, &rawsock->attime, NULL);
-	rawsock->tx_packet->attime = rawsock->attime;
+	gptplocaltime(&gPtpTD, &rawsock->tx_packet->attime);
 
 	err = igb_xmit(rawsock->igb_dev, rawsock->queue, rawsock->tx_packet);
 	if (err) {
