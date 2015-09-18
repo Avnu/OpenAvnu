@@ -44,6 +44,7 @@ enum mrpdhelper_talkerfailed_codes {
 	mrpdhelper_talkerfailed_bridge_resources,
 	mrpdhelper_talkerfailed_bridge_class_bandwidth,
 	mrpdhelper_talkerfailed_id_in_use,
+	mrpdhelper_talkerfailed_DA_in_use,
 	mrpdhelper_talkerfailed_preempted,
 	mrpdhelper_talkerfailed_latency_change,
 	mrpdhelper_talkerfailed_egress_port_not_ascapable,
