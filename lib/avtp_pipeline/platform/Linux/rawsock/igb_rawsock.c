@@ -40,8 +40,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define	AVB_LOG_COMPONENT	"Raw Socket"
 #include "openavb_log.h"
 
+#if IGB_LAUNCHTIME_ENABLED
 // needed for gptplocaltime()
 extern gPtpTimeData gPtpTD;
+#endif
 
 void *igbRawsockOpen(igb_rawsock_t* rawsock, const char *ifname, bool rx_mode, bool tx_mode, U16 ethertype, U32 frame_size, U32 num_frames)
 {
@@ -192,7 +194,9 @@ bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
 
 	rawsock->tx_packet->len = len;
 
+#if IGB_LAUNCHTIME_ENABLED
 	gptplocaltime(&gPtpTD, &rawsock->tx_packet->attime);
+#endif
 
 	err = igb_xmit(rawsock->igb_dev, rawsock->queue, rawsock->tx_packet);
 	if (err) {

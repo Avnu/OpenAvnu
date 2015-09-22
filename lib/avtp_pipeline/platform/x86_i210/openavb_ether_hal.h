@@ -38,6 +38,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #define IGB_MTU 256
 #define IGB_QUEUES 2
+#define IGB_LAUNCHTIME_ENABLED 0
 
 device_t *igbAcquireDevice();
 
@@ -48,5 +49,7 @@ struct igb_packet *igbGetTxPacket(device_t* dev, int queue);
 void igbRelTxPacket(device_t* dev, int queue, struct igb_packet *tx_packet);
 
 bool igbGetMacAddr(U8 mac_addr[ETH_ALEN]);
+
+bool igbControlLaunchTime(device_t *dev, int enable);
 
 #endif	// HAL_ETHER_H

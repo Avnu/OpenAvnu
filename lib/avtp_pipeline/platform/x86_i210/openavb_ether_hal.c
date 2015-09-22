@@ -115,6 +115,10 @@ device_t *igbAcquireDevice()
 			}
 		}
 
+		igbControlLaunchTime(tmp_dev, IGB_LAUNCHTIME_ENABLED);
+
+		AVB_LOGF_INFO("IGB launch time feature is %s", IGB_LAUNCHTIME_ENABLED ? "ENABLED" : "DISABLED");
+
 		igb_dev = tmp_dev;
 unlock:
 		if (!igb_dev)
@@ -206,5 +210,35 @@ bool igbGetMacAddr(U8 mac_addr[ETH_ALEN])
 	if (err) {
 		AVB_LOGF_ERROR("igb_get_mac_addr() failed: %s", strerror(err));
 	}
+	return !err;
+}
+
+bool igbControlLaunchTime(device_t *dev, int enable)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
+
+	const uint32_t E1000_TQAVCTRL = 0x03570;
+	const uint32_t E1000_TQAVCTRL_LAUNCH_VALID = 0x00000200;
+
+	int err;
+	uint32_t regVal;
+
+	err = igb_lock(dev);
+	if (err)
+		goto error;
+
+	igb_readreg(dev, E1000_TQAVCTRL, &regVal);
+
+	if (enable)
+		regVal |= E1000_TQAVCTRL_LAUNCH_VALID;
+	else
+		regVal &= ~E1000_TQAVCTRL_LAUNCH_VALID;
+
+	igb_writereg(dev, E1000_TQAVCTRL, regVal);
+
+	err = igb_unlock(dev);
+
+error:
+	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
 	return !err;
 }
