@@ -194,6 +194,7 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 		cb->txFillHdr = baseRawsockTxFillHdr;
 		cb->txFrameReady = igbRawsockTxFrameReady;
 		cb->send = igbRawsockSend;
+		cb->txBufLevel = igbRawsockTxBufLevel;
 		cb->getRxFrame = pcapRawsockGetRxFrame;
 		cb->rxParseHdr = simpleRawsockRxParseHdr;
 		cb->rxMulticast = pcapRawsockRxMulticast;

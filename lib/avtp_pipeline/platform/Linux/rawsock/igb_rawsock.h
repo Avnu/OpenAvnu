@@ -56,4 +56,6 @@ bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len);
 
 int igbRawsockSend(void *pvRawsock);
 
+int igbRawsockTxBufLevel(void *pvRawsock);
+
 #endif

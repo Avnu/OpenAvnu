@@ -151,7 +151,7 @@ U8 *igbRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len)
 
 	U8 *ret = NULL;
 
-	rawsock->tx_packet = igbGetTxPacket(rawsock->igb_dev, rawsock->queue);
+	rawsock->tx_packet = igbGetTxPacket(rawsock->igb_dev);
 
 	if (rawsock->tx_packet) {
 		*len = rawsock->base.frameSize;
@@ -217,4 +217,15 @@ int igbRawsockSend(void *pvRawsock)
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 	return 1;
+}
+
+int igbRawsockTxBufLevel(void *pvRawsock)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
+	igb_rawsock_t *rawsock = (igb_rawsock_t*)pvRawsock;
+
+	int nInUse = igbTxBufLevel(rawsock->igb_dev);
+
+	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
+	return nInUse;
 }
