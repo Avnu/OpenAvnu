@@ -104,7 +104,7 @@ bool talkerStartStream(tl_state_t *pTLState)
 	U32 SRKbps = ((unsigned long)pTalkerData->classRate * (unsigned long)pCfg->max_interval_frames * (unsigned long)pStream->frameLen * 8L) / 1000;
 	U32 DataKbps = ((unsigned long)pTalkerData->wakeRate * (unsigned long)pCfg->max_interval_frames * (unsigned long)pStream->frameLen * 8L) / 1000;
 
-	AVB_LOGF_INFO(STREAMID_FORMAT", sr-rate=%lu, data-rate=%lu, frames=%lu, size=%lu, batch=%ld, sleep=%lldus, sr-Kbps=%d, data-Kbps=%d",
+	AVB_LOGF_INFO(STREAMID_FORMAT", sr-rate=%lu, data-rate=%lu, frames=%u, size=%u, batch=%u, sleep=%" PRId64 ", sr-Kbps=%d, data-Kbps=%d",
 		STREAMID_ARGS(&pTalkerData->streamID), (unsigned long)(pTalkerData->classRate), (unsigned long)(pTalkerData->wakeRate),
 		pTalkerData->tSpec.maxIntervalFrames, pTalkerData->tSpec.maxFrameSize,
 		pCfg->batch_factor, pTalkerData->intervalNS / 1000, SRKbps, DataKbps);

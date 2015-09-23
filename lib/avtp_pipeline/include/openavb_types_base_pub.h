@@ -37,7 +37,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include "openavb_types_base_tcal_pub.h"
 #include <stdbool.h>
-#include <stdint.h>
+#include <inttypes.h>
 
 /** \file
  * Common Base AVB Types that are exposed outside of the AVB 
