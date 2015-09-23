@@ -202,7 +202,7 @@ static void createTxPipeline(media_q_t *pMediaQ)
 	}
 	else
 	{
-		AVB_LOG_ERROR("rtpPayloader NULL in createTxPipeline");
+		AVB_LOG_ERROR("Cannot set mtu on rtppayloader. Make sure that its name is avbrtppay in the pipeline.");
 	}
 
 	if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(pPvtData->pipe, GST_STATE_PLAYING)) {

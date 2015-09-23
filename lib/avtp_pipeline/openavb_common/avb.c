@@ -135,6 +135,30 @@ int gptpscaling(gPtpTimeData * td, char *memory_offset_buffer)
 	return true;
 }
 
+bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local)
+{
+	struct timespec sys_time;
+	uint64_t now_system;
+	uint64_t system_time;
+	int64_t delta_local;
+	int64_t delta_system;
+
+	if (!td || !now_local)
+		return false;
+
+	if (clock_gettime(CLOCK_REALTIME, &sys_time) != 0)
+		return false;
+
+	now_system = (uint64_t)sys_time.tv_sec * 1000000000ULL + (uint64_t)sys_time.tv_nsec;
+
+	system_time = td->local_time + td->ls_phoffset;
+	delta_system = now_system - system_time;
+	delta_local = td->ls_freqoffset * delta_system;
+	*now_local = td->local_time + delta_local;
+
+	return true;
+}
+
 /* setters & getters for seventeen22_header */
 void avb_set_1722_cd_indicator(seventeen22_header *h1722, uint64_t cd_indicator)
 {

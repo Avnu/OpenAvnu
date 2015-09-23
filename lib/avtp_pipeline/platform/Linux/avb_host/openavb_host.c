@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
 	//registerStaticIntfModule(openavbIntfToneGenInitialize);
 	registerStaticIntfModule(openavbIntfViewerInitialize);
 	registerStaticIntfModule(openavbIntfAlsaInitialize);
-	//registerStaticIntfModule(openavbIntfMjpegGstInitialize);	// TODO_OPENAVB : Not sure why MJPEG is having an issue linking GST RTP
+	registerStaticIntfModule(openavbIntfMjpegGstInitialize);
 	registerStaticIntfModule(openavbIntfMpeg2tsFileInitialize);
 	registerStaticIntfModule(openavbIntfMpeg2tsGstInitialize);
 	registerStaticIntfModule(openavbIntfWavFileInitialize);
