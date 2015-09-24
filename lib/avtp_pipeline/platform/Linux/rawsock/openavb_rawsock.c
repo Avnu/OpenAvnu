@@ -199,6 +199,8 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 		cb->rxParseHdr = simpleRawsockRxParseHdr;
 		cb->rxMulticast = pcapRawsockRxMulticast;
 		cb->getAddr = baseRawsockGetAddr;
+		cb->getTXOutOfBuffers = igbRawsockGetTXOutOfBuffers;
+		cb->getTXOutOfBuffersCyclic = igbRawsockGetTXOutOfBuffersCyclic;
 
 		// call constructor
 		pvRawsock = igbRawsockOpen((igb_rawsock_t*)rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
