@@ -5,6 +5,11 @@ AVB_FEATURE_ENDPOINT ?= 1
 all: build/Makefile
 	$(MAKE) -s -C build install
 
+doc: build/Makefile
+	$(MAKE) -s -C build doc
+	@echo "\n\nTo display documentation use:\n\n" \
+	      "\txdg-open $(abspath build/documents/api_docs/index.html)\n"
+
 clean:
 	$(RM) -r build
 

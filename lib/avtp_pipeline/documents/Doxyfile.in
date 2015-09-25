@@ -4,10 +4,10 @@
 # Project related configuration options
 #---------------------------------------------------------------------------
 DOXYFILE_ENCODING      = UTF-8
-PROJECT_NAME           = "OPENAVB EAVB SDK"
+PROJECT_NAME           = "Open-AVB AVTP Pipeline SDK"
 PROJECT_NUMBER         = 1.4
 PROJECT_BRIEF          =
-PROJECT_LOGO           = @CMAKE_CURRENT_SOURCE_DIR@/images/openavb_logo_small.png
+PROJECT_LOGO           = @CMAKE_CURRENT_SOURCE_DIR@/images/stc_logo_small.png
 OUTPUT_DIRECTORY       =
 CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English
@@ -98,6 +98,7 @@ WARN_LOGFILE           =
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/index.md \
+                         @CMAKE_CURRENT_SOURCE_DIR@/../README.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/sdk_overview.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/sdk_eavb_integration.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/sdk_avtp_stream_cfg.md \
@@ -118,29 +119,14 @@ INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/index.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/../intf_null \
                          @CMAKE_CURRENT_SOURCE_DIR@/../intf_tonegen \
                          @CMAKE_CURRENT_SOURCE_DIR@/../intf_viewer \
-                         @CMAKE_CURRENT_SOURCE_DIR@/../platform/Linux/intf_mjpeg_camera \
                          @CMAKE_CURRENT_SOURCE_DIR@/../platform/Linux/intf_mjpeg_gst \
                          @CMAKE_CURRENT_SOURCE_DIR@/../platform/Linux/intf_mpeg2ts_file \
                          @CMAKE_CURRENT_SOURCE_DIR@/../platform/Linux/intf_mpeg2ts_gst \
-                         @CMAKE_CURRENT_SOURCE_DIR@/../platform/Linux/intf_pipe_gst \
                          @CMAKE_CURRENT_SOURCE_DIR@/../platform/Linux/intf_wav_file \
                          @CMAKE_CURRENT_SOURCE_DIR@/../include \
                          @CMAKE_CURRENT_SOURCE_DIR@/../avtp \
                          @CMAKE_CURRENT_SOURCE_DIR@/../mediaq \
                          @CMAKE_CURRENT_SOURCE_DIR@/../tl \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../adp \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../aecp \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../aem \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../avdecc \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../intf_ctrl \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../map_ctrl \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../map_h264 \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../map_mjpeg \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../map_mpeg2ts \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../map_null \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../map_pipe \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../map_saf_audio \
-#                         @CMAKE_CURRENT_SOURCE_DIR@/../map_uncmp_audio \
 
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *_pub.h *.md

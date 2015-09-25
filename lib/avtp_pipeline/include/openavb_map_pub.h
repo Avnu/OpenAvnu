@@ -42,11 +42,13 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
   * Common mapper module public interface.
   */
 
-// Vendor (OPENAVB) Specific formats used AVTP headers.
+/// Vendor Specific format used in AVTP headers.
 #define MAP_NULL_OPENAVB_FORMAT			0x00
+
+/// Vendor Specific format used in AVTP headers.
 #define MAP_PIPE_OPENAVB_FORMAT			0x01
 
-// Vendor (OPENAVB) Specific CTRL formats used AVTP .
+/// Vendor Specific CTRL format used in AVTP headers.
 #define MAP_CTRL_OPENAVB_FORMAT			0x00
 
 /** Return value of talker callback.

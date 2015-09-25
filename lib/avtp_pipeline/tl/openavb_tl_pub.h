@@ -71,7 +71,9 @@ typedef enum {
 /// Maximum number of configuration parameters inside INI file a host can have
 #define MAX_LIB_CFG_ITEMS 64
 
-#define IFNAMSIZE 16			
+
+/// Maximum size of interface name
+#define IFNAMSIZE 16
 
 /// Structure containing configuration of the host
 typedef struct {
@@ -129,6 +131,7 @@ typedef struct {
 	openavb_intf_initialize_fn_t pIntfInitFn;
 } openavb_tl_cfg_t;
 
+/// Structure holding configuration of mapping and interface modules
 typedef struct openavb_tl_cfg_name_value_t {
 	/// Configuration parameters Names for interface and mapping modules
 	char *libCfgNames[MAX_LIB_CFG_ITEMS];
@@ -321,7 +324,7 @@ U64 openavbTLStat(tl_handle_t handle, tl_stat_t stat);
  * Parses an input configuration file tp populate configuration structures, and
  * name value pairs.  Only used in Operating Systems that have a file system
  *
- * \param handle Pointer to handle of talker/listener
+ * \param TLhandle Pointer to handle of talker/listener
  * \param fileName Pointer to configuration file name
  * \param pCfg Pointer to configuration structure 
  * \param pNVCfg Pointer to name value pair configuration 
