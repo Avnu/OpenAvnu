@@ -2291,14 +2291,16 @@ static int igb_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 		mode = BRIDGE_MODE_VEB;
 	else
 		mode = BRIDGE_MODE_VEPA;
-
-#ifdef HAVE_NDO_BRIDGE_GETLINK_NLFLAGS
+#ifdef HAVE_NDO_DFLT_BRIDGE_GETLINK_VLAN_SUPPORT
+	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode, 0, 0, nlflags,
+				       filter_mask, NULL);
+#elif defined(HAVE_NDO_BRIDGE_GETLINK_NLFLAGS)
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode, 0, 0, nlflags);
-#elif defined(HAVE_NDO_FDB_ADD_VID)
+#elif defined(NDO_BRIDGE_GETLINK_HAS_FILTER_MASK_PARAM)
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode, 0, 0);
 #else
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode);
-#endif /* HAVE_NDO_FDB_ADD_VID */
+#endif /* NDO_BRIDGE_GETLINK_HAS_FILTER_MASK_PARAM */
 }
 #endif /* HAVE_BRIDGE_ATTRIBS */
 #endif /* HAVE_FDB_OPS */
@@ -7079,7 +7081,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 	if (test_bit(__IGB_DOWN, &adapter->state))
 		return true;
 
-	/* dont service user (AVB) queues */
+	/* don't service user (AVB) queues */
 	if (tx_ring->queue_index < 2) 
 		return true;
 
