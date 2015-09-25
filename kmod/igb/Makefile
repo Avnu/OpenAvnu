@@ -117,11 +117,13 @@ ifeq (,$(wildcard $(CONFIG_FILE)))
   $(error Linux kernel source not configured - missing autoconf.h)
 endif
 
+ifeq (, $(CC))
 # pick a compiler
 ifneq (,$(findstring egcs-2.91.66, $(shell cat /proc/version)))
   CC := kgcc gcc cc
 else
   CC := gcc cc
+endif
 endif
 test_cc = $(shell $(cc) --version > /dev/null 2>&1 && echo $(cc))
 CC := $(foreach cc, $(CC), $(test_cc))
@@ -132,7 +134,9 @@ endif
 
 # we need to know what platform the driver is being built on
 # some additional features are only built on Intel platforms
-ARCH := $(shell uname -m | sed 's/i.86/i386/')
+ifeq (,$(ARCH))
+ ARCH := $(shell uname -m | sed 's/i.86/i386/')
+endif
 ifeq ($(ARCH),alpha)
   EXTRA_CFLAGS += -ffixed-8 -mno-fp-regs
 endif
@@ -321,8 +325,8 @@ $(MANFILE).gz: $(MANFILE)
 
 install: default $(MANFILE).gz
 	# remove all old versions of the driver
-	find $(INSTALL_MOD_PATH)/lib/modules/$(KVER) -name $(TARGET) -exec rm -f {} \; || true
-	find $(INSTALL_MOD_PATH)/lib/modules/$(KVER) -name $(TARGET).gz -exec rm -f {} \; || true
+	find $(INSTALL_MOD_PATH)/lib/modules/$(KVER) -name $(TARGET) -exec $(RM) {} \; || true
+	find $(INSTALL_MOD_PATH)/lib/modules/$(KVER) -name $(TARGET).gz -exec $(RM) {} \; || true
 	install -D -m 644 $(TARGET) $(INSTALL_MOD_PATH)$(INSTDIR)/$(TARGET)
 ifeq (,$(INSTALL_MOD_PATH))
 	/sbin/depmod -a || true
@@ -338,15 +342,15 @@ endif
 
 uninstall:
 	if [ -e $(INSTDIR)/$(TARGET) ] ; then \
-	    rm -f $(INSTDIR)/$(TARGET) ; \
+	    $(RM) $(INSTDIR)/$(TARGET) ; \
 	fi
 	/sbin/depmod -a
 	if [ -e $(MANDIR)/man$(MANSECTION)/$(MANFILE).gz ] ; then \
-		rm -f $(MANDIR)/man$(MANSECTION)/$(MANFILE).gz ; \
+		$(RM) $(MANDIR)/man$(MANSECTION)/$(MANFILE).gz ; \
 	fi
 
 .PHONY: clean install
 
 clean:
-	rm -rf $(TARGET) $(TARGET:.ko=.o) $(TARGET:.ko=.mod.c) $(TARGET:.ko=.mod.o) $(CFILES:.c=.o) \
+	$(RM) -r $(TARGET) $(TARGET:.ko=.o) $(TARGET:.ko=.mod.c) $(TARGET:.ko=.mod.o) $(CFILES:.c=.o) \
 	$(MANFILE).gz .*cmd .tmp_versions Module.markers Module.symvers modules.order

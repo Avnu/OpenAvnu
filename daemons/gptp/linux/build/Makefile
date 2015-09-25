@@ -125,5 +125,5 @@ $(OBJ_DIR)/avbts_osnet.o: $(COMMON_DIR)/avbts_osnet.cpp $(HEADER_FILES)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/avbts_osnet.cpp -o $(OBJ_DIR)/avbts_osnet.o
 
 clean:
-	/bin/rm -f *~ $(OBJ_DIR)/*.o  $(OBJ_DIR)/daemon_cl 
+	$(RM) *~ $(OBJ_DIR)/*.o  $(OBJ_DIR)/daemon_cl 
 
