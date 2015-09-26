@@ -788,7 +788,6 @@ extern int igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
 extern void igb_reset(struct igb_adapter *);
-extern int igb_reinit_queues(struct igb_adapter *);
 #ifdef ETHTOOL_SRXFHINDIR
 extern void igb_write_rss_indir_tbl(struct igb_adapter *);
 #endif
