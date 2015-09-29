@@ -102,6 +102,8 @@ int igb_unlock( device_t *dev );
 
 int igb_get_mac_addr(device_t *dev, u_int8_t mac_addr[6]);
 
+int igb_control_launch_time(device_t *dev, int enable);
+
 #endif /* _IGB_H_DEFINED_ */
 
 
