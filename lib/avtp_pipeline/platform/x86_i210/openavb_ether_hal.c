@@ -43,15 +43,63 @@ static pthread_mutex_t gIgbDeviceMutex = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK()  	pthread_mutex_lock(&gIgbDeviceMutex)
 #define UNLOCK()	pthread_mutex_unlock(&gIgbDeviceMutex)
 
-static pthread_mutex_t queueMutex[IGB_QUEUES] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
-
-static struct {
-	struct igb_dma_alloc a_page;
-	struct igb_packet *free_packets;
-} queuePages[2];
+static struct igb_dma_alloc g_pages[IGB_PAGES];
+static struct igb_packet *g_free_packets;
 
 static device_t *igb_dev = NULL;
 static int igb_dev_users = 0; // time uses it
+
+static int g_totalBuffers = 0;
+static int g_usedBuffers = -1;
+
+static int count_packets(struct igb_packet *packet)
+{
+	int count=0;
+	while (packet) {
+		count++;
+		packet = packet->next;
+	}
+	return count;
+}
+
+static struct igb_packet* alloc_page(device_t* dev, struct igb_dma_alloc *a_page)
+{
+	int err = igb_dma_malloc_page(dev, a_page);
+	if (err) {
+		AVB_LOGF_ERROR("igb_dma_malloc_page failed: %s", strerror(err));
+		return NULL;
+	}
+
+	struct igb_packet *free_packets;
+	struct igb_packet a_packet;
+
+	a_packet.dmatime = a_packet.attime = a_packet.flags = 0;
+	a_packet.map.paddr = a_page->dma_paddr;
+	a_packet.map.mmap_size = a_page->mmap_size;
+	a_packet.offset = 0;
+	a_packet.vaddr = a_page->dma_vaddr + a_packet.offset;
+	a_packet.len = IGB_MTU;
+	a_packet.next = NULL;
+
+	free_packets = NULL;
+
+	/* divide the dma page into buffers for packets */
+	int i;
+	for (i = 0; i < a_page->mmap_size / IGB_MTU; i++) {
+		struct igb_packet *tmp_packet = malloc(sizeof(struct igb_packet));
+		if (!tmp_packet) {
+			AVB_LOG_ERROR("failed to allocate igb_packet memory!");
+			return false;
+		}
+		*tmp_packet = a_packet;
+		tmp_packet->offset = (i * IGB_MTU);
+		tmp_packet->vaddr += tmp_packet->offset;
+		tmp_packet->next = free_packets;
+		memset(tmp_packet->vaddr, 0, IGB_MTU);
+		free_packets = tmp_packet;
+	}
+	return free_packets;
+}
 
 device_t *igbAcquireDevice()
 {
@@ -78,42 +126,24 @@ device_t *igbAcquireDevice()
 			goto unlock;
 		}
 
-		int queue;
-		for (queue = 0; queue < IGB_QUEUES; queue++) {
-			err = igb_dma_malloc_page(tmp_dev, &queuePages[queue].a_page);
-			if (err) {
-				AVB_LOGF_ERROR("igb_dma_malloc_page failed: %s", strerror(err));
-				goto unlock;
-			}
 
-			struct igb_packet a_packet;
-
-			a_packet.dmatime = a_packet.attime = a_packet.flags = 0;
-			a_packet.map.paddr = queuePages[queue].a_page.dma_paddr;
-			a_packet.map.mmap_size = queuePages[queue].a_page.mmap_size;
-			a_packet.offset = 0;
-			a_packet.vaddr = queuePages[queue].a_page.dma_vaddr + a_packet.offset;
-			a_packet.len = IGB_MTU;
-			a_packet.next = NULL;
-
-			queuePages[queue].free_packets = NULL;
-
-			/* divide the dma page into buffers for packets */
-			int i;
-			for (i = 1; i < ((queuePages[queue].a_page.mmap_size) / IGB_MTU); i++) {
-				struct igb_packet *tmp_packet = malloc(sizeof(struct igb_packet));
-				if (!tmp_packet) {
-					AVB_LOG_ERROR("failed to allocate igb_packet memory!");
-					goto unlock;
+		int i;
+		for (i = 0; i < IGB_PAGES; i++) {
+			struct igb_packet* free_packets = alloc_page(tmp_dev, &g_pages[i]);
+			if (!g_free_packets) {
+				g_free_packets = free_packets;
+			} else {
+				struct igb_packet* last_packet = g_free_packets;
+				while (last_packet->next) {
+					last_packet = last_packet->next;
 				}
-				*tmp_packet = a_packet;
-				tmp_packet->offset = (i * IGB_MTU);
-				tmp_packet->vaddr += tmp_packet->offset;
-				tmp_packet->next = queuePages[queue].free_packets;
-				memset(tmp_packet->vaddr, 0, IGB_MTU);
-				queuePages[queue].free_packets = tmp_packet;
+				last_packet->next = free_packets;
 			}
 		}
+
+		g_totalBuffers = count_packets(g_free_packets);
+
+		AVB_LOGF_INFO("TX buffers: %d", g_totalBuffers);
 
 		igbControlLaunchTime(tmp_dev, IGB_LAUNCHTIME_ENABLED);
 
@@ -145,10 +175,9 @@ void igbReleaseDevice(device_t* dev)
 	AVB_LOGF_DEBUG("igb_dev_users %d", igb_dev_users);
 
 	if (igb_dev && igb_dev_users <= 0) {
-		int queue;
-		for (queue = 0; queue < IGB_QUEUES; queue++) {
-			igb_dma_free_page(igb_dev, &queuePages[queue].a_page);
-		}
+		int i;
+		for (i = 0; i < IGB_PAGES; i++)
+			igb_dma_free_page(igb_dev, &g_pages[i]);
 
 		igb_detach(igb_dev);
 		free(igb_dev);
@@ -160,13 +189,13 @@ void igbReleaseDevice(device_t* dev)
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
 }
 
-struct igb_packet *igbGetTxPacket(device_t* dev, int queue)
+struct igb_packet *igbGetTxPacket(device_t* dev)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
 
-	pthread_mutex_lock(&queueMutex[queue]);
+	LOCK();
 
-	struct igb_packet* tx_packet = queuePages[queue].free_packets;
+	struct igb_packet* tx_packet = g_free_packets;
 
 	if (!tx_packet) {
 		struct igb_packet *cleaned_packets;
@@ -174,17 +203,19 @@ struct igb_packet *igbGetTxPacket(device_t* dev, int queue)
 		while (cleaned_packets) {
 			struct igb_packet *tmp_packet = cleaned_packets;
 			cleaned_packets = cleaned_packets->next;
-			tmp_packet->next = queuePages[queue].free_packets;
-			queuePages[queue].free_packets = tmp_packet;
+			tmp_packet->next = g_free_packets;
+			g_free_packets = tmp_packet;
 		}
-		tx_packet = queuePages[queue].free_packets;
+		tx_packet = g_free_packets;
+
+		g_usedBuffers = g_totalBuffers - count_packets(g_free_packets);
 	}
 
 	if (tx_packet) {
-		queuePages[queue].free_packets = tx_packet->next;
+		g_free_packets = tx_packet->next;
 	}
 
-	pthread_mutex_unlock(&queueMutex[queue]);
+	UNLOCK();
 
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
 	return tx_packet;
@@ -194,14 +225,21 @@ void igbRelTxPacket(device_t* dev, int queue, struct igb_packet *tx_packet)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
 
-	pthread_mutex_lock(&queueMutex[queue]);
+	LOCK();
 
-	tx_packet->next = queuePages[queue].free_packets;
-	queuePages[queue].free_packets = tx_packet;
+	tx_packet->next = g_free_packets;
+	g_free_packets = tx_packet;
 
-	pthread_mutex_unlock(&queueMutex[queue]);
+	UNLOCK();
 
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+}
+
+int igbTxBufLevel(device_t *dev)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_HAL_ETHER);
+	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
+	return g_usedBuffers;
 }
 
 bool igbGetMacAddr(U8 mac_addr[ETH_ALEN])
@@ -242,3 +280,4 @@ error:
 	AVB_TRACE_EXIT(AVB_TRACE_HAL_ETHER);
 	return !err;
 }
+

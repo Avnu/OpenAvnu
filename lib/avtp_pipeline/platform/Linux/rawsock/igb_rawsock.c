@@ -150,8 +150,24 @@ U8 *igbRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len)
 	}
 
 	U8 *ret = NULL;
+	int bBufferBusyReported = 0;
 
-	rawsock->tx_packet = igbGetTxPacket(rawsock->igb_dev, rawsock->queue);
+	do {
+		rawsock->tx_packet = igbGetTxPacket(rawsock->igb_dev);
+		if (!rawsock->tx_packet && blocking) {
+			if (0 == bBufferBusyReported) {
+				if (!rawsock->txOutOfBuffer) {
+					AVB_LOGF_DEBUG("Getting TX frame (%p): TX buffer busy", rawsock);
+				}
+				++rawsock->txOutOfBuffer;
+				++rawsock->txOutOfBufferCyclic;
+			} else if (1 == bBufferBusyReported) {
+				AVB_LOGF_DEBUG("Getting TX frame (%p): TX buffer busy after usleep(10) verify if there are any late frames", rawsock);
+			}
+			++bBufferBusyReported;
+			usleep(10);
+		}
+	} while (!rawsock->tx_packet && blocking);
 
 	if (rawsock->tx_packet) {
 		*len = rawsock->base.frameSize;
@@ -200,8 +216,7 @@ bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
 
 	err = igb_xmit(rawsock->igb_dev, rawsock->queue, rawsock->tx_packet);
 	if (err) {
-		IF_LOG_INTERVAL(1000) AVB_LOGF_ERROR("igb_xmit failed: %s", strerror(err));
-		// TODO: what to do in this case? retry?
+		AVB_LOGF_ERROR("igb_xmit failed: %s", strerror(err));
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
@@ -218,3 +233,44 @@ int igbRawsockSend(void *pvRawsock)
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 	return 1;
 }
+
+int igbRawsockTxBufLevel(void *pvRawsock)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
+	igb_rawsock_t *rawsock = (igb_rawsock_t*)pvRawsock;
+
+	int nInUse = igbTxBufLevel(rawsock->igb_dev);
+
+	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
+	return nInUse;
+}
+
+unsigned long igbRawsockGetTXOutOfBuffers(void *pvRawsock)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK);
+	unsigned long counter = 0;
+	igb_rawsock_t *rawsock = (igb_rawsock_t*)pvRawsock;
+
+	if(VALID_TX_RAWSOCK(rawsock)) {
+		counter = rawsock->txOutOfBuffer;
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
+	return counter;
+}
+
+unsigned long igbRawsockGetTXOutOfBuffersCyclic(void *pvRawsock)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK);
+	unsigned long counter = 0;
+	igb_rawsock_t *rawsock = (igb_rawsock_t*)pvRawsock;
+
+	if(VALID_TX_RAWSOCK(rawsock)) {
+		counter = rawsock->txOutOfBufferCyclic;
+		rawsock->txOutOfBufferCyclic = 0;
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
+	return counter;
+}
+

@@ -40,6 +40,8 @@ typedef struct {
 	device_t *igb_dev;
 	struct igb_packet *tx_packet;
 	int queue;
+	unsigned long txOutOfBuffer;
+	unsigned long txOutOfBufferCyclic;
 } igb_rawsock_t;
 
 void *igbRawsockOpen(igb_rawsock_t* rawsock, const char *ifname, bool rx_mode, bool tx_mode, U16 ethertype, U32 frame_size, U32 num_frames);
@@ -55,5 +57,11 @@ bool igbRawsockRelTxFrame(void *pvRawsock, U8 *pBuffer);
 bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len);
 
 int igbRawsockSend(void *pvRawsock);
+
+int igbRawsockTxBufLevel(void *pvRawsock);
+
+unsigned long igbRawsockGetTXOutOfBuffers(void *pvRawsock);
+
+unsigned long igbRawsockGetTXOutOfBuffersCyclic(void *pvRawsock);
 
 #endif
