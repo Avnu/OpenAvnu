@@ -4108,19 +4108,6 @@ extern u16 __kc_netdev_pick_tx(struct net_device *dev, struct sk_buff *skb);
 #else
 #define HAVE_BRIDGE_FILTER
 #define HAVE_FDB_DEL_NLATTR
-
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(4,0,0) )
-#if !SLE_VERSION_CODE
-#if (!UBUNTU_VERSION_CODE || \
-	UBUNTU_VERSION_CODE >= UBUNTU_VERSION(3,19,0,15))
-#if (!RHEL_RELEASE_CODE || \
-	(RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(7,1)))
-#define NDO_BRIDGE_GETLINK_HAS_FILTER_MASK_PARAM
-#endif /* RHEL_RELEASE_CODE */
-#endif /* UBUNTU_VERSION_CODE */
-#endif /* SLE_RELEASE_CODE */
-#endif
-
 #endif /* < 3.9.0 */
 
 /*****************************************************************************/
@@ -4548,11 +4535,13 @@ static inline struct sk_buff *__kc_napi_alloc_skb(struct napi_struct *napi, unsi
 #endif /* napi_alloc_skb */
 #define HAVE_CONFIG_PM_RUNTIME
 #if RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(7,1))
+#define NDO_DFLT_BRIDGE_GETLINK_HAS_BRFLAGS
 #define HAVE_RXFH_HASHFUNC
 #endif /* RHEL_RELEASE_CODE */
 #else /* 3.19.0 */
 #define HAVE_NDO_FDB_ADD_VID
 #define HAVE_RXFH_HASHFUNC
+#define NDO_DFLT_BRIDGE_GETLINK_HAS_BRFLAGS
 #endif /* 3.19.0 */
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,20,0) )
