@@ -1,0 +1,83 @@
+= Interprocess Communication Recommendations for AVB/TSN
+Andrew Elder
+v0.1
+
+== Introduction
+
+The AVB/TSN software stack is comprised of a number of modules that implement protocol stacks specified by IEEE standards. Each of these protocols implement an Ethernet network facing interface and an application facing interface. The required application facing interface is described in some detail in http://avnu.org/wp-content/uploads/2014/05/AVnu_SWAPIs_v1.0.pdf[AVB Software Interfaces and Endpoint Architecture Guidelines]. Since a module running a particular protocol may be a standalone execution unit (for example a Linux daemon), an interprocess communication method is required to interface to the execution unit.
+
+For portability reasons it is recommended to separate the implementation of the interprocess communication method as much as possible from the logic of the protocol implementation. This applies to both an application that is interfacing to an AVB/TSN module and the implementation of the AVB/TSN module itself.
+
+For the purposes of this document the following straw-man application interfaces are described:
+
+.Straw-man Interfaces
+[source,c/c++]
+----
+
+void AVBTSN_SetParam(uint32_t param);
+
+----
+
+where the AVBTSN portion of the function name would be replaced by the name of the IEEE AVB/TSN protocol module that is being targeted.
+
+
+== Communication Stack Abstraction
+
+This section outlines abstraction requirements for multiple layers. The layers that will be described here are represented in the following table.
+
+[width="85%",options="header"]
+|=======
+|Layer |Description
+|Application |Call APIs for AVB/TSN module
+|Packing |Takes parameters from API calls and packs them for "transport"
+|Communication |Send packed parameters
+|Channel |Transfer information from source to destination
+|Communication |Receive packed parameters
+|Unpacking |Unpacks information from channel
+|Module |This is the layer with equivalent calls to the top Application layer
+|=======
+
+=== Application Layer
+
+The application layer requires a simple interface that has parameters that closely match those supported by the underlying module implementation. However, since the context for an underlying communication layer is required, an additional IPC context parameter must be added to the application's calling interface. The example straw-man interface now becomes:
+
+.Straw-man Interfaces for External Application
+[source,c/c++]
+----
+
+void AVBTSN_SetParam(void *ipc_context, uint32_t param);
+
+----
+
+=== Packing Layer
+
+The marshalling layer is responsible for encoding parameters into a defined structure for passing through the communication layer.
+
+=== Abstract Communication Layer
+
+The communication layer has interfaces to open, close, send and receive data. The exact mechanisms for any of these functions depends on the concrete implementation which could cover Linux domain sockets, UDP, shared memory pipe, shared memory structures or any other implementation.
+
+[source,c/c++]
+----
+struct oavb_ipc {
+	void *private;
+	int (*close)(struct oavb_ipc *ipc, void *flags);
+	int (*open) (struct oavb_ipc *ipc, void *flags);
+	int (*bind) (struct oavb_ipc *ipc, void *flags);
+	int (*recv) (struct oavb_ipc *ipc, void *buf, int buflen);
+	int (*send) (struct oavb_ipc *ipc, void *buf, int buflen);
+	void (*free) (struct oavb_ipc *ipc);
+#if defined __linux__
+	int (*get_fd) (struct oavb_ipc *ipc);
+#endif
+};
+----
+
+=== Unpacking Layer
+
+=== Module Interface Layer
+
+
+
+
+
