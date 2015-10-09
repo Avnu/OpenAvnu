@@ -298,23 +298,23 @@ bool openavbMediaQTailPull(media_q_t *pMediaQ);
 
 /** Take ownership from the MediaQ of an item.
  *
- * Take ownership from the MediaQ of an item previously locked 
- * with openavbMediaQTailLock. Will advance the tail. Used in place 
- * of openavbMediaQTailPull() 
+ * Take ownership from the MediaQ of an item previously locked
+ * with openavbMediaQTailLock. Will advance the tail. Used in place
+ * of openavbMediaQTailPull()
  *
  * \param pMediaQ A pointer to the media_q_t structure.
- * \param MediaQ item to take ownership of.
+ * \param pItem MediaQ item to take ownership of.
  * \return Returns TRUE on success or FALSE on failure.
  */
 bool openavbMediaQTailItemTake(media_q_t *pMediaQ, media_q_item_t* pItem);
 
 /** Give itme ownership back to the MediaQ.
  *
- * Give ownership back to the MediaQ of an item previously taken 
+ * Give ownership back to the MediaQ of an item previously taken
  * with openavbMediaQTailItemTake()
  *
  * \param pMediaQ A pointer to the media_q_t structure.
- * \param MediaQ item to give back tot he MediaA.
+ * \param pItem MediaQ item to give back tot he MediaA.
  * \return Returns TRUE on success or FALSE on failure.
  */
 bool openavbMediaQTailItemGive(media_q_t *pMediaQ, media_q_item_t* pItem);
@@ -356,7 +356,8 @@ U32 openavbMediaQCountItems(media_q_t *pMediaQ, bool ignoreTimestamp);
  * Check if there are any ready MediaQ items.
  *
  * \param pMediaQ A pointer to the media_q_t structure.
- * \return TRUE if there is at least 1 MediaQ item available 
+ * \param ignoreTimestamp Ignore timestamp for checking
+ * \return TRUE if there is at least 1 MediaQ item available
  * otherwise FALSE.
  */
 bool openavbMediaQAnyReadyItems(media_q_t *pMediaQ, bool ignoreTimestamp);

@@ -335,7 +335,6 @@ each module.
 	- [Viewer (viewer)](@ref viewer_intf)
 - Reference: AVTP Interface Module Linux Specific
 	- [ALSA (alsa)](@ref alsa_intf)
-	- [MJPEG Camera (mjpeg_camera)](@ref mjpeg_camera_intf)
 	- [MJPEG GST (mjpeg_gstreamer)](@ref mjpeg_gst_intf)
 	- [MPEG2 TS File (mpeg2ts_file)](@ref mpeg2ts_file_intf)
 	- [MPEG2 TS GST (mpeg2ts_gstreamer)](@ref mpeg2ts_gst_intf)

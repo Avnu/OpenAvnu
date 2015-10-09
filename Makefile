@@ -15,6 +15,7 @@ help:
 	@echo '  maap              - maap daemon'
 	@echo ''
 	@echo '  avtp_pipeline     - AVTP pipeline'
+	@echo '  avtp_pipeline_doc - AVTP pipeline doc'
 	@echo ''
 	@echo '  examples_all      - build all examples (simple_talker simple_listener mrp_client live_stream jackd-talker jackd-listener)'
 	@echo '  simple_talker     - simple_talker application'
@@ -111,6 +112,9 @@ avtp_pipeline: lib
 
 avtp_pipeline_clean:
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_pipeline.mk clean
+
+avtp_pipeline_doc: lib
+	$(MAKE) -s -C lib/avtp_pipeline -f avtp_pipeline.mk doc
 
 examples_all: simple_talker simple_listener mrp_client live_stream jackd-talker \
 	jackd-listener

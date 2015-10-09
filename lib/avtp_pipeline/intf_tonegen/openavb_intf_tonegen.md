@@ -1,4 +1,4 @@
-Tone Generator Interface {#tongen_intf}
+Tone Generator Interface {#tonegen_intf}
 ========================
 
 # Description

@@ -18,7 +18,7 @@ Name                      | Description
 intf_nv_view_type         | Mode of operation. Acceptable values are<ul>       \
                             <li>0 - Full details</li>                          \
                             <li>1 - mapping aware (not implemented)</li>       \
-                            <li>2 - Timestamp mode</li>                        \ 
+                            <li>2 - Timestamp mode</li>                        \
                             <li>3 - Latency measurement</li>                   \
                             <li>4 - Selective timestamp mode</li>              \
                             <li>5 - Late packet measurement</li>               \
