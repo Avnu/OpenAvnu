@@ -4,7 +4,7 @@ v0.1
 
 == Introduction
 
-The AVB/TSN software stack is comprised of a number of modules that implement protocol stacks specified by IEEE standards. Each of these protocols implement an Ethernet network facing interface and an application facing interface. The required application facing interface is described in some detail in http://avnu.org/wp-content/uploads/2014/05/AVnu_SWAPIs_v1.0.pdf[AVB Software Interfaces and Endpoint Architecture Guidelines]. Since a module running a particular protocol may be a standalone execution unit (for example a Linux daemon), an interprocess communication method is required to interface to the execution unit.
+The AVB/TSN software stack is comprised of a number of modules that implement protocol stacks specified by IEEE standards. Each of these protocols implement an  network facing interface and an application facing interface. The required application facing interface is described in some detail in http://avnu.org/wp-content/uploads/2014/05/AVnu_SWAPIs_v1.0.pdf[AVB Software Interfaces and Endpoint Architecture Guidelines]. Since a module running a particular protocol may be a standalone execution unit (for example a Linux daemon), an interprocess communication method is required to interface to the execution unit.
 
 For portability reasons it is recommended to separate the implementation of the interprocess communication method as much as possible from the logic of the protocol implementation. This applies to both an application that is interfacing to an AVB/TSN module and the implementation of the AVB/TSN module itself.
 
