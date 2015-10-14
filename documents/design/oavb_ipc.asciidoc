@@ -8,20 +8,69 @@ The AVB/TSN software stack is comprised of a number of modules that implement pr
 
 For portability reasons it is recommended to separate the implementation of the interprocess communication method as much as possible from the logic of the protocol implementation. This applies to both an application that is interfacing to an AVB/TSN module and the implementation of the AVB/TSN module itself.
 
+Throughout this document the following terminology will be used.
+
+Blocking call::
+  Blocking means that the thread of execution is interrupted at some point to wait for an event of some type before completing.
+
+Non-blocking call::
+  Non-blocking means that the thread of execution completes the call without interruption.
+
+Synchronous call::
+  The call completes and return status information is available immediately because it was returned when the call returned. Also the calling application knows that all requested operations have been completed when the call returns.
+
+Asynchronous call::
+  The call completes but return status information is returned on by way of a different mechanism. The calling application does not know that requested operations have been completed and must rely on an alternative notification communication mechanism to confirm successful completion of requested operations.
+
+
+== Sychronous Communication Interfaces
+
 For the purposes of this document the following straw-man application interfaces are described:
 
 .Straw-man Interfaces
 [source,c/c++]
 ----
 
-void AVBTSN_SetParam(uint32_t param);
+/*
+ * An example showing setting of parameter XYZ.
+ * /param setting The new value of XYZ.
+ * /return 0 on success, otherwise a defined error code.
+ */
+int AVBTSN_SetXYZ(uint32_t setting);
+
+
+/*
+ * An example showing a command that requires multiple parameters.
+ * /param stream_id The stream_id used by commanXYZ.
+ * /param vlan The vlan used by commanXYZ.
+ * /return 0 on success, otherwise a defined error code.
+ */
+int AVBTSN_CommandXYZ(uint64_t stream_id, uint32_t vlan);
+
 
 ----
 
 where the AVBTSN portion of the function name would be replaced by the name of the IEEE AVB/TSN protocol module that is being targeted.
 
+The synchonous communication interface is exposed by the module itself.
 
-== Communication Stack Abstraction
+.... more text about this being usable for single .exe implementation
+
+.... text to talk about #defining error codes
+
+.... text about this being the public interface to the module and that async communication is implemented as a layer on top of this interface.
+
+
+== Asychronous Communication Interfaces
+
+
+.... this fits above sync interface
+
+.... additional application requirements
+
+.... goal is to support async and sync with blocking interfaces
+
+=== Communication Stack Abstraction
 
 This section outlines abstraction requirements for multiple layers. The layers that will be described here are represented in the following table.
 
@@ -37,7 +86,7 @@ This section outlines abstraction requirements for multiple layers. The layers t
 |Module |This is the layer with equivalent calls to the top Application layer
 |=======
 
-=== Application Layer
+==== Application Layer
 
 The application layer requires a simple interface that has parameters that closely match those supported by the underlying module implementation. However, since the context for an underlying communication layer is required, an additional IPC context parameter must be added to the application's calling interface. The example straw-man interface now becomes:
 
@@ -49,11 +98,11 @@ void AVBTSN_SetParam(void *ipc_context, uint32_t param);
 
 ----
 
-=== Packing Layer
+==== Packing Layer
 
 The marshalling layer is responsible for encoding parameters into a defined structure for passing through the communication layer.
 
-=== Abstract Communication Layer
+==== Abstract Communication Layer
 
 The communication layer has interfaces to open, close, send and receive data. The exact mechanisms for any of these functions depends on the concrete implementation which could cover Linux domain sockets, UDP, shared memory pipe, shared memory structures or any other implementation.
 
@@ -73,9 +122,9 @@ struct oavb_ipc {
 };
 ----
 
-=== Unpacking Layer
+==== Unpacking Layer
 
-=== Module Interface Layer
+==== Module Interface Layer
 
 
 
