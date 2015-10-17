@@ -1,0 +1,26 @@
+#https://www.websequencediagrams.com/ (style = patent)
+
+
+
+title Sync Reception (PTP_SLAVE mode)
+
+participant IEEE1588Port 
+participant IEEE1588Clock
+participant PTPMessageSync 
+participant PTPMessageFollowUp
+participant Network
+
+Network->IEEE1588Port : PTPMessageSync 
+IEEE1588Port->PTPMessageSync : new
+PTPMessageSync->PTPMessageSync:  processMessage
+IEEE1588Port->IEEE1588Clock: deleteEventTimer(SYNC_RECEIPT_TIMEOUT_EXPIRES)
+IEEE1588Port->IEEE1588Port : setLastSync
+
+IEEE1588Port->IEEE1588Clock: addEventTimer(SYNC_RECEIPT_TIMEOUT_EXPIRES)
+Network->IEEE1588Port : PTPMessageFollowUp 
+IEEE1588Port->PTPMessageFollowUp: new
+PTPMessageFollowUp->PTPMessageFollowUp:  processMessage
+PTPMessageFollowUp->PTPMessageSync: getTimestamp
+note right of PTPMessageFollowUp:  The preciseOriginTimestamp (remote)\n is used with the sync timestamp (local)\n to compute the offset between the \nlocal device clock and the GM clock
+PTPMessageFollowUp->IEEE1588Clock   : setMasterOffset
+PTPMessageFollowUp->IEEE1588Clock: addEventTimer(SYNC_RECEIPT_TIMEOUT)

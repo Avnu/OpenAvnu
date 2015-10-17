@@ -1,0 +1,42 @@
+#https://www.websequencediagrams.com/ (style = patent)
+
+
+
+title Pdelay Transmission  
+
+participant IEEE1588Port 
+participant IEEE1588Clock\nOSTimerQue
+participant PTPMessagePathDelayReq
+participant PTPMessagePathDelayResp
+participant PTPMessagePathDelayRespFollowUp
+participant IEEE1588Clock\nHWTimestamper
+participant Network
+
+#rem note left of Port: PDELAY_INTERVAL_TIMEOUT_EXPIRES
+IEEE1588Port->IEEE1588Port : processEvent(POWERUP)
+IEEE1588Port->IEEE1588Port : openPort
+IEEE1588Port->IEEE1588Clock\nOSTimerQue : IEEE1588Clock::addEventTimer
+note right of IEEE1588Port : PDELAY_INTERVAL_TIMEOUT_EXPIRES
+
+IEEE1588Clock\nOSTimerQue->IEEE1588Port : timerEvent
+note left of IEEE1588Clock\nOSTimerQue : PDELAY_INTERVAL_TIMEOUT_EXPIRES
+IEEE1588Port->IEEE1588Port : processEvent
+
+IEEE1588Port->PTPMessagePathDelayReq : new
+IEEE1588Port->IEEE1588Port : setLastPDelayReq
+PTPMessagePathDelayReq->Network : SendPort
+IEEE1588Port ->IEEE1588Clock\nHWTimestamper : getTxTimestamp(T1)
+IEEE1588Port->IEEE1588Clock\nOSTimerQue : IEEE1588Clock::addEventTimer
+note right of IEEE1588Port : PDELAY_INTERVAL_TIMEOUT_EXPIRES
+
+Network->IEEE1588Port : PDelayResp
+IEEE1588Port->PTPMessagePathDelayResp: buildPTPMessage
+IEEE1588Port->PTPMessagePathDelayResp: processMessage
+IEEE1588Port->PTPMessagePathDelayResp: setLastPDelayResp
+
+
+Network->IEEE1588Port : PDelayRespFollowUp
+IEEE1588Port->PTPMessagePathDelayRespFollowUp: buildPTPMessage
+IEEE1588Port->PTPMessagePathDelayRespFollowUp:  processMessage
+IEEE1588Port->PTPMessagePathDelayRespFollowUp: setLastPDelayResp
+

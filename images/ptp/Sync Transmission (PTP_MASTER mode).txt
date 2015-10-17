@@ -1,0 +1,39 @@
+#https://www.websequencediagrams.com/ (style = patent)
+
+
+
+title Sync Transmission (PTP_MASTER mode)
+
+participant IEEE1588Port 
+participant IEEE1588Clock\nOSTimerQue
+participant PTPMessageSync
+participant PTPMessageFollowUp
+participant IEEE1588Clock\nHWTimestamper
+participant Network
+
+IEEE1588Port->IEEE1588Port : processEvent(POWERUP)
+IEEE1588Port->IEEE1588Port : openPort
+IEEE1588Port->IEEE1588Clock\nOSTimerQue: addEventTimer(STATE_CHANGE_EVENT)
+IEEE1588Port->IEEE1588Port : processEvent(STATE_CHANGE_EVENT)
+IEEE1588Port->IEEE1588Port : recommendState(PTP_MASTER)
+IEEE1588Port->IEEE1588Port : becomeMaster
+IEEE1588Port->IEEE1588Clock\nOSTimerQue: addEventTimer(SYNC_INTERVAL_TIMEOUT_EXPIRES)
+
+note right of IEEE1588Port : SYNC_INTERVAL_TIMEOUT_EXPIRES
+
+IEEE1588Clock\nOSTimerQue->IEEE1588Port : timerEvent
+
+
+IEEE1588Port->PTPMessageSync : new PTPMessageSync 
+PTPMessageSync->Network : SendPort
+
+
+IEEE1588Port ->IEEE1588Clock\nHWTimestamper : getTxTimestamp()
+IEEE1588Port->PTPMessageFollowUp : new PTPMessageFollowUp 
+IEEE1588Port->IEEE1588Port:setPreciseOriginTimestamp
+PTPMessageFollowUp ->Network : SendPort
+IEEE1588Port->IEEE1588Port : getDeviceTime
+IEEE1588Port->IEEE1588Port : setMasterOffset
+IEEE1588Port->IEEE1588Clock\nOSTimerQue: addEventTimer(SYNC_INTERVAL_TIMEOUT_EXPIRES)
+
+
