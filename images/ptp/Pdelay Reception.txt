@@ -1,0 +1,29 @@
+#https://www.websequencediagrams.com/ (style = patent)
+
+
+
+title Pdelay Reception
+
+participant IEEE1588Port 
+participant PTPMessagePathDelayResp
+participant PTPMessagePathDelayRespFollowUp
+participant IEEE1588Clock\nHWTimestamper
+participant Network
+
+Network->IEEE1588Port : PTPMessagePathDelayReq 
+IEEE1588Port->PTPMessagePathDelayResp: new
+
+
+PTPMessagePathDelayResp->PTPMessagePathDelayResp:  processMessage
+PTPMessagePathDelayResp->IEEE1588Clock\nHWTimestamper : getTxTimestamp
+PTPMessagePathDelayResp->PTPMessagePathDelayResp: setLastPDelayResp
+PTPMessagePathDelayResp->Network : SendPort
+
+
+IEEE1588Port->Network : PDelayRespFollowUp
+
+
+PTPMessagePathDelayRespFollowUp->PTPMessagePathDelayRespFollowUp:  processMessage
+PTPMessagePathDelayRespFollowUp->IEEE1588Clock\nHWTimestamper : getTxTimestamp
+PTPMessagePathDelayRespFollowUp->PTPMessagePathDelayRespFollowUp: setLastPDelayResp
+PTPMessagePathDelayRespFollowUp->Network : SendPort
