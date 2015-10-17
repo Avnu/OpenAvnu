@@ -1,7 +1,7 @@
 = AVnu gPTP Code
 :toc:
 :toc-placement!:
-:repo: https://github.com/andrew-elder/Open-AVB/blob
+:repo: https://github.com/AVnu/Open-AVB/blob
 :img: {repo}/gh-pages/images/ptp
 
 toc::[]
