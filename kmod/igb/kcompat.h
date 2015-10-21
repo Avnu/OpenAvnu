@@ -4535,12 +4535,13 @@ static inline struct sk_buff *__kc_napi_alloc_skb(struct napi_struct *napi, unsi
 #endif /* napi_alloc_skb */
 #define HAVE_CONFIG_PM_RUNTIME
 #if RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(7,1))
-#define NDO_BRIDGE_GETLINK_HAS_FILTER_MASK_PARAM
+#define NDO_DFLT_BRIDGE_GETLINK_HAS_BRFLAGS
 #define HAVE_RXFH_HASHFUNC
 #endif /* RHEL_RELEASE_CODE */
 #else /* 3.19.0 */
 #define HAVE_NDO_FDB_ADD_VID
 #define HAVE_RXFH_HASHFUNC
+#define NDO_DFLT_BRIDGE_GETLINK_HAS_BRFLAGS
 #endif /* 3.19.0 */
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,20,0) )
@@ -4577,7 +4578,7 @@ static inline void __kc_timecounter_adjtime(struct timecounter *tc, s64 delta)
 #define HAVE_NDO_BRIDGE_GETLINK_NLFLAGS
 #endif /* 4,1,0 */
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,1,9))
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(4,2,0) )
 #if (!(SLE_VERSION_CODE && SLE_VERSION_CODE >= SLE_VERSION(12,1,0)))
 static inline bool page_is_pfmemalloc(struct page __maybe_unused *page)
 {
@@ -4588,13 +4589,10 @@ static inline bool page_is_pfmemalloc(struct page __maybe_unused *page)
 #endif
 }
 #endif /* !SLES12sp1 */
-#else
-#undef HAVE_STRUCT_PAGE_PFMEMALLOC
-#endif /* 4.1.9 */
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,2,0))
 #else
 #define HAVE_NDO_DFLT_BRIDGE_GETLINK_VLAN_SUPPORT
+#undef HAVE_STRUCT_PAGE_PFMEMALLOC
 #endif /* 4.2.0 */
 
 #endif /* _KCOMPAT_H_ */
