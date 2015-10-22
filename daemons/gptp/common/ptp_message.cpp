@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -72,12 +72,12 @@ PTPMessageCommon *buildPTPMessage
 	MessageType messageType;
 	unsigned char tspec_msg_t = 0;
 	unsigned char transportSpecific = 0;
-	
+
 	uint16_t sequenceId;
 	PortIdentity *sourcePortIdentity;
 	Timestamp timestamp(0, 0, 0);
 	unsigned counter_value = 0;
-	
+
 #if PTP_DEBUG
 	{
 		int i;
@@ -120,10 +120,10 @@ PTPMessageCommon *buildPTPMessage
 		int ts_good =
 		    port->getRxTimestamp
 			(sourcePortIdentity, sequenceId, timestamp, counter_value, false);
-		while (ts_good != 0 && iter-- != 0) {
+		while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
 			// Waits at least 1 time slice regardless of size of 'req'
 			timer->sleep(req);
-			if (ts_good != -72)
+			if (ts_good != GPTP_EC_EAGAIN)
 				fprintf
 					( stderr, "Error (RX) timestamping RX event packet (Retrying), error=%d\n",
 					  ts_good );
@@ -133,7 +133,7 @@ PTPMessageCommon *buildPTPMessage
 						 iter == 0);
 			req *= 2;
 		}
-		if (ts_good != 0) {
+		if (ts_good != GPTP_EC_SUCCESS) {
 			char msg[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 			port->getExtendedError(msg);
 			XPTPD_ERROR
@@ -517,8 +517,10 @@ void PTPMessageCommon::processMessage(IEEE1588Port * port)
 void PTPMessageCommon::buildCommonHeader(uint8_t * buf)
 {
 	unsigned char tspec_msg_t;
+    /*TODO: Message type assumes value sbetween 0x0 and 0xD (its an enumeration).
+     * So I am not sure why we are adding 0x10 to it
+     */
 	tspec_msg_t = messageType | 0x10;
-	//tspec_msg_t = messageType;
 	long long correctionField_BE = byte_swap64(correctionField);	// Assume LE machine
 	uint16_t messageLength_NO = PLAT_htons(messageLength);
 
@@ -943,7 +945,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	correctionField = (uint64_t)
 		((correctionField >> 16)/master_local_freq_offset);
 	correction = (int) (delay + correctionField);
-	
+
 	if( correction > 0 )
 	  TIMESTAMP_ADD_NS( preciseOriginTimestamp, correction );
 	else TIMESTAMP_SUB_NS( preciseOriginTimestamp, -correction );
@@ -984,7 +986,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	if( port->getPortState() != PTP_MASTER ) {
 		port->incSyncCount();
 		/* Do not call calcLocalSystemClockRateDifference it updates state
-		   global to the clock object and if we are master then the network 
+		   global to the clock object and if we are master then the network
 		   is transitioning to us not being master but the master process
 		   is still running locally */
 		local_system_freq_offset =
@@ -1016,7 +1018,7 @@ done:
 	_gc = true;
 	port->setLastSync(NULL);
 	delete sync;
-	
+
 	return;
 }
 
@@ -1085,9 +1087,9 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 
 	XPTPD_INFO("Done TS Read");
 
-	while (ts_good != 0 && iter-- != 0) {
+	while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
 		timer->sleep(req);
-		if (ts_good == -72 && iter < 1)
+		if (ts_good == GPTP_EC_EAGAIN && iter < 1)
 			XPTPD_ERROR( "Error (TX) timestamping PDelay Response "
 						 "(Retrying-%d), error=%d", iter, ts_good);
 		ts_good = port->getTxTimestamp
@@ -1096,7 +1098,7 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	}
 	port->putTxLock();
 
-	if (ts_good != 0) {
+	if (ts_good != GPTP_EC_SUCCESS) {
 		char msg[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 		port->getExtendedError(msg);
 		XPTPD_ERROR
@@ -1128,7 +1130,7 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	XPTPD_INFO("Response Depart(sec): %u", resp_timestamp.seconds_ls);
 	XPTPD_INFO("Request Arrival(sec): %u", _timestamp.seconds_ls);
 	XPTPD_INFO("#1 Correction Field: %Ld", turnaround);
-	
+
 	turnaround += resp_timestamp.nanoseconds;
 
 	XPTPD_INFO("#2 Correction Field: %Ld", turnaround);
@@ -1171,6 +1173,7 @@ void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
  PTPMessagePathDelayResp::PTPMessagePathDelayResp(IEEE1588Port * port) :
 	 PTPMessageCommon(port)
 {
+    /*TODO: Why 0x7F?*/
 	logMeanMessageInterval = 0x7F;
 	control = MESSAGE_OTHER;
 	messageType = PATH_DELAY_RESP_MESSAGE;
@@ -1198,7 +1201,7 @@ void PTPMessagePathDelayResp::processMessage(IEEE1588Port * port)
 		port->recoverPort();
 		return;
 	}
-	
+
 	if (port->tryPDelayRxLock() != true) {
 		fprintf(stderr, "Failed to get PDelay RX Lock\n");
 		return;
@@ -1370,7 +1373,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	int64_t link_delay;
 	unsigned long long turn_around;
 
-	/* Assume that we are a two step clock, otherwise originTimestamp 
+	/* Assume that we are a two step clock, otherwise originTimestamp
 	   may be used */
 	request_tx_timestamp = req->getTimestamp();
 	if( request_tx_timestamp.nanoseconds == INVALID_TIMESTAMP.nanoseconds ) {
@@ -1425,7 +1428,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		 remote_req_rx_timestamp.nanoseconds);
 
 	// Adjust turn-around time for peer to local clock rate difference
-	if 
+	if
 		( port->getPeerRateOffset() > .998 &&
 		  port->getPeerRateOffset() < 1.002 ) {
 		turn_around = (int64_t) (turn_around * port->getPeerRateOffset());

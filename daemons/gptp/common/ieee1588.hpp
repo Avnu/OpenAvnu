@@ -53,6 +53,15 @@
 
 #define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS Clause 8.5.2.4*/
 
+
+/**
+ * Return codes for gPTP
+*/
+#define GPTP_EC_SUCCESS     0       /*!< No errors.*/
+#define GPTP_EC_FAILURE     -1      /*!< Generic error */
+#define GPTP_EC_EAGAIN      -72     /*!< Error: Try again */
+
+
 class LinkLayerAddress;
 struct ClockQuality;
 class PortIdentity;
@@ -478,7 +487,7 @@ public:
 	{ return false; }
 
 	/**
-	 * @brief  Get the cross timestamping information. 
+	 * @brief  Get the cross timestamping information.
 	 * The gPTP subsystem uses these samples to calculate
 	 * ratios which can be used to translate or extrapolate
 	 * one clock into another clock reference. The gPTP service
@@ -501,8 +510,8 @@ public:
 	 * @param  sequenceId Sequence ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
-	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
-	 * @return 0 no error, -1 error, -72 try again.
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
 			uint16_t sequenceId,
@@ -516,8 +525,9 @@ public:
 	 * @param  sequenceId Sequence ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
-	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
-	 * @return 0 no error, -1 error, -72 try again.
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
+
 	 */
 	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
 			uint16_t sequenceId,
@@ -532,7 +542,7 @@ public:
 	 * @param  ppt_freq_offset [inout] Frequency offset in ppts
 	 * @return false
 	 * @todo  This code should be removed.  It was a hack to get a specific board
-	 * working. 
+	 * working.
 	 */
 	virtual bool HWTimestamper_get_extclk_offset(Timestamp * local_time,
 			int64_t * clk_offset,

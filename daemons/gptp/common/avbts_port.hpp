@@ -230,6 +230,7 @@ class IEEE1588Port {
 	char log_min_mean_pdelay_req_interval;
 	bool burst_enabled;
 	int _accelerated_sync_count;
+	static const int64_t ONE_WAY_DELAY_DEFAULT = 3600000000000;
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
 	int64_t one_way_delay;
@@ -818,7 +819,7 @@ class IEEE1588Port {
 	 * @param  timestamp [out] RX timestamp
 	 * @param  counter_value [out] timestamp count value
 	 * @param  last If true, removes the rx lock.
-	 * @return -1 error, -72 to try again. 0 Success.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getRxTimestamp
 	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
@@ -831,7 +832,7 @@ class IEEE1588Port {
 	 * @param  timestamp [out] TX timestamp
 	 * @param  counter_value [out] timestamp count value
 	 * @param  last If true, removes the TX lock
-	 * @return -1 error, -72 to try again. 0 Success.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getTxTimestamp
 	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
@@ -843,7 +844,7 @@ class IEEE1588Port {
 	 * @param  timestamp [out] TX timestamp
 	 * @param  counter_value [out] timestamp count value
 	 * @param  last If true, removes the TX lock
-	 * @return -1 error, -72 to try again. 0 Success.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getTxTimestamp
 	(PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,
@@ -855,7 +856,7 @@ class IEEE1588Port {
 	 * @param  timestamp [out] RX timestamp
 	 * @param  counter_value [out] timestamp count value
 	 * @param  last If true, removes the RX lock
-	 * @return -1 error, -72 to try again. 0 Success.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getRxTimestamp
 	(PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,

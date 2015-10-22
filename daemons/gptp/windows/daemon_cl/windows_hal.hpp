@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -73,7 +73,7 @@ public:
 	 * @param  payload [in] Data buffer
 	 * @param  length Size of buffer
 	 * @param  timestamp TRUE: Use timestamp, FALSE otherwise
-	 * @return net_result structure 
+	 * @return net_result structure
 	 */
 	virtual net_result send( LinkLayerAddress *addr, uint8_t *payload, size_t length, bool timestamp ) {
 		packet_addr_t dest;
@@ -633,13 +633,13 @@ private:
 public:
 	/**
 	 * @brief  Initializes the network adaptor and the hw timestamper interface
-	 * @param  iface_label InterfaceLabel 
+	 * @param  iface_label InterfaceLabel
 	 * @param  net_iface Network interface
 	 * @return TRUE if success; FALSE if error
 	 */
 	virtual bool HWTimestamper_init( InterfaceLabel *iface_label, OSNetworkInterface *net_iface );
 	/**
-	 * @brief  Get the cross timestamping information. 
+	 * @brief  Get the cross timestamping information.
 	 * The gPTP subsystem uses these samples to calculate
 	 * ratios which can be used to translate or extrapolate
 	 * one clock into another clock reference. The gPTP service
@@ -681,7 +681,7 @@ public:
 	 * @param  timestamp [out] TX hardware timestamp
 	 * @param  clock_value Not used
 	 * @param  last Not used
-	 * @return -1 if error, 0 if success;
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, unsigned &clock_value, bool last )
 	{
@@ -694,26 +694,26 @@ public:
 		}
 		if( result != ERROR_GEN_FAILURE ) {
 			fprintf( stderr, "Error is: %d\n", result );
-			return -1;
+			return GPTP_EC_FAILURE;
 		}
-		if( returned != sizeof(buf_tmp) ) return -72;
+		if( returned != sizeof(buf_tmp) ) return GPTP_EC_EAGAIN;
 		tx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		tx_s = scaleNativeClockToNanoseconds( tx_r );
 		tx_s += ONE_WAY_PHY_DELAY;
 		timestamp = nanoseconds64ToTimestamp( tx_s );
 		timestamp._version = version;
 
-		return 0;
+		return GPTP_EC_SUCCESS;
 	}
 
 	/**
 	 * @brief  Gets the RX timestamp
-	 * @param  identity PortIdentity interface 
+	 * @param  identity PortIdentity interface
 	 * @param  sequenceId  Sequence ID
 	 * @param  timestamp [out] RX hardware timestamp
 	 * @param  clock_value [out] Not used
 	 * @param  last Not used
-	 * @return 0 ok, -1 error, -72 try again.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, unsigned &clock_value, bool last )
 	{
@@ -725,17 +725,17 @@ public:
 		while(( result = readOID( OID_INTEL_GET_RXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
-		if( result != ERROR_GEN_FAILURE ) return -1;
-		if( returned != sizeof(buf_tmp) ) return -72;
+		if( result != ERROR_GEN_FAILURE ) return GPTP_EC_FAILURE;
+		if( returned != sizeof(buf_tmp) ) return GPTP_EC_EAGAIN;
 		packet_sequence_id = *((uint32_t *) buf+3) >> 16;
-		if( PLAT_ntohs( packet_sequence_id ) != sequenceId ) return -72;
+		if( PLAT_ntohs( packet_sequence_id ) != sequenceId ) return GPTP_EC_EAGAIN;
 		rx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		rx_s = scaleNativeClockToNanoseconds( rx_r );
 		rx_s -= ONE_WAY_PHY_DELAY;
 		timestamp = nanoseconds64ToTimestamp( rx_s );
 		timestamp._version = version;
 
-		return 0;
+		return GPTP_EC_SUCCESS;
 	}
 };
 
