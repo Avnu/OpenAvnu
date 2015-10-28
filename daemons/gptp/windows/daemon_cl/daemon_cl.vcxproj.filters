@@ -30,7 +30,7 @@
     <ClInclude Include="packet.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ipcdef.hpp">
+    <ClInclude Include="..\..\common\ipcdef.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="platform.hpp">

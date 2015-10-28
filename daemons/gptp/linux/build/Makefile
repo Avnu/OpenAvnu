@@ -1,30 +1,30 @@
 #
-#  Copyright (c) 2012 Intel Corporation 
+#  Copyright (c) 2012 Intel Corporation
 #  All rights reserved.
-#  
-#  Redistribution and use in source and binary forms, with or without 
+#
+#  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that the following conditions are met:
-#  
-#   1. Redistributions of source code must retain the above copyright notice, 
+#
+#   1. Redistributions of source code must retain the above copyright notice,
 #      this list of conditions and the following disclaimer.
-#  
-#   2. Redistributions in binary form must reproduce the above copyright 
-#      notice, this list of conditions and the following disclaimer in the 
+#
+#   2. Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
 #      documentation and/or other materials provided with the distribution.
-#  
-#   3. Neither the name of the Intel Corporation nor the names of its 
-#      contributors may be used to endorse or promote products derived from 
+#
+#   3. Neither the name of the Intel Corporation nor the names of its
+#      contributors may be used to endorse or promote products derived from
 #      this software without specific prior written permission.
-#  
+#
 #  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-#  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-#  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-#  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-#  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-#  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-#  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-#  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+#  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+#  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+#  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+#  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+#  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+#  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 #  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
@@ -57,6 +57,7 @@ HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(COMMON_DIR)/avbts_message.hpp\
 		$(COMMON_DIR)/avbts_clock.hpp\
 		$(COMMON_DIR)/ieee1588.hpp\
+		$(COMMON_DIR)/ipcdef.hpp\
 		$(SRC_DIR)/linux_hal_common.hpp\
 		$(SRC_DIR)/platform.hpp
 
@@ -67,7 +68,7 @@ ifeq ($(ARCH),I210)
 	LDFLAGS_G += -lz -ligb -lpci -L$(IGB_LIB_PATH)
 	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
 		$(OBJ_DIR)/linux_hal_generic_adj.o
-	OBJ_FILES += $(OBJ_DIR)/linux_hal_i210.o 
+	OBJ_FILES += $(OBJ_DIR)/linux_hal_i210.o
 	HEADER_FILES += $(SRC_DIR)/linux_hal_generic.hpp
 else ifeq ($(ARCH),IntelCE)
 	INTELCE_INCPATH=/home/hitesh/work/smd/Dinerout/i686-linux-elf/include/
@@ -125,5 +126,5 @@ $(OBJ_DIR)/avbts_osnet.o: $(COMMON_DIR)/avbts_osnet.cpp $(HEADER_FILES)
 	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/avbts_osnet.cpp -o $(OBJ_DIR)/avbts_osnet.o
 
 clean:
-	$(RM) *~ $(OBJ_DIR)/*.o  $(OBJ_DIR)/daemon_cl 
+	$(RM) *~ $(OBJ_DIR)/*.o  $(OBJ_DIR)/daemon_cl
 

@@ -169,7 +169,7 @@
     <ClInclude Include="..\..\common\debugout.hpp" />
     <ClInclude Include="..\..\common\ieee1588.hpp" />
     <ClInclude Include="..\..\common\ptptypes.hpp" />
-    <ClInclude Include="ipcdef.hpp" />
+    <ClInclude Include="..\..\common\ipcdef.hpp" />
     <ClInclude Include="IPCListener.hpp" />
     <ClInclude Include="Lockable.hpp" />
     <ClInclude Include="packet.hpp" />
