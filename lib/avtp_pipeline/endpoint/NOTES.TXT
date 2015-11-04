@@ -1,0 +1,11 @@
+The endpoint process hosts the per-node functionality that's used by
+all the talkers/listeners on the node. This includesthe SRP and FQTSS
+logic, which is provided by the SRP and FQTSS libraries.
+
+The actual AVTP talkers/listeners are implemented as seperate
+processes. Those processes communicate with the endpoint through IPC
+(currently we're using a local socket on Linux.)  The IPC
+communication is handled by openavb_resv_server.c (server-side IPC,
+linked into the endpoint process) and openavb_resv_client.c
+(client-side of the IPC, linked into the talker and listener
+processes.)

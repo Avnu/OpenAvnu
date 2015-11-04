@@ -72,12 +72,14 @@
 #define L4_PORT ((uint16_t)5004)
 #define PKT_SZ (100)
 
+typedef long double FrequencyRatio;
+
 typedef struct {
-  int64_t ml_phoffset;
-  int64_t ls_phoffset;
-  long double ml_freqoffset;
-  long double ls_freqoffset;
-  uint64_t local_time;
+	int64_t ml_phoffset;
+	int64_t ls_phoffset;
+	FrequencyRatio ml_freqoffset;
+	FrequencyRatio ls_freqoffset;
+	uint64_t local_time;
 } gPtpTimeData;
 
 typedef struct __attribute__ ((packed)) {
