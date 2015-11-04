@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -52,7 +52,7 @@
 #define RX_PHY_TIME 382
 
 net_result LinuxNetworkInterface::nrecv
-( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) {
+( LinkLayerAddress *addr, uint8_t *payload, size_t &length,struct phy_delay *delay ) {
 	fd_set readfds;
 	int err;
 	struct msghdr msg;
@@ -61,13 +61,13 @@ net_result LinuxNetworkInterface::nrecv
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-	struct sockaddr_ll remote;        
+	struct sockaddr_ll remote;
 	struct iovec sgentry;
 	net_result ret = net_succeed;
 	bool got_net_lock;
 
 	LinuxTimestamperGeneric *gtimestamper;
-  
+
 	struct timeval timeout = { 0, 16000 }; // 16 ms
 
 	if( !net_lock.lock( &got_net_lock )) {
@@ -80,8 +80,8 @@ net_result LinuxNetworkInterface::nrecv
 
 	FD_ZERO( &readfds );
 	FD_SET( sd_event, &readfds );
-  
-	err = select( sd_event+1, &readfds, NULL, NULL, &timeout );		
+
+	err = select( sd_event+1, &readfds, NULL, NULL, &timeout );
 	if( err == 0 ) {
 		ret = net_trfail;
 		goto done;
@@ -100,21 +100,21 @@ net_result LinuxNetworkInterface::nrecv
 		ret = net_trfail;
 		goto done;
 	}
-  
+
 	memset( &msg, 0, sizeof( msg ));
-  
+
 	msg.msg_iov = &sgentry;
 	msg.msg_iovlen = 1;
-  
+
 	sgentry.iov_base = payload;
 	sgentry.iov_len = length;
-  
+
 	memset( &remote, 0, sizeof(remote));
 	msg.msg_name = (caddr_t) &remote;
 	msg.msg_namelen = sizeof( remote );
 	msg.msg_control = &control;
 	msg.msg_controllen = sizeof(control);
-  
+
 	err = recvmsg( sd_event, &msg, 0 );
 	if( err < 0 ) {
 		if( errno == ENOMSG ) {
@@ -127,7 +127,7 @@ net_result LinuxNetworkInterface::nrecv
 		goto done;
 	}
 	*addr = LinkLayerAddress( remote.sll_addr );
-  
+
 	gtimestamper = dynamic_cast<LinuxTimestamperGeneric *>(timestamper);
 	if( err > 0 && !(payload[0] & 0x8) && gtimestamper != NULL ) {
 		/* Retrieve the timestamp */
@@ -136,20 +136,20 @@ net_result LinuxNetworkInterface::nrecv
 			if
 				( cmsg->cmsg_level == SOL_SOCKET &&
 				  cmsg->cmsg_type == SO_TIMESTAMPING ) {
-				Timestamp latency( RX_PHY_TIME, 0, 0 );
+				Timestamp latency( delay->gb_rx_phy_delay, 0, 0 );
 				struct timespec *ts_device, *ts_system;
-				Timestamp device, system; 
+				Timestamp device, system;
 				ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
 				system = tsToTimestamp( ts_system );
 				ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
 				device = device - latency;
 				gtimestamper->pushRXTimestamp( &device );
-				break;    
+				break;
 			}
 			cmsg = CMSG_NXTHDR(&msg,cmsg);
 		}
 	}
-  
+
 	length = err;
 
  done:
@@ -158,7 +158,7 @@ net_result LinuxNetworkInterface::nrecv
 		return net_fatal;
 	}
 
-	return ret;		
+	return ret;
 }
 
 int findPhcIndex( InterfaceLabel *iface_label ) {
@@ -166,7 +166,7 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	InterfaceName *ifname;
 	struct ethtool_ts_info info;
 	struct ifreq ifr;
-		
+
 	if(( ifname = dynamic_cast<InterfaceName *>(iface_label)) == NULL ) {
 		fprintf( stderr, "findPTPIndex requires InterfaceName\n" );
 		return -1;
@@ -183,7 +183,7 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	info.cmd = ETHTOOL_GET_TS_INFO;
 	ifname->toString( ifr.ifr_name, IFNAMSIZ-1 );
 	ifr.ifr_data = (char *) &info;
-		
+
 	if( ioctl( sd, SIOCETHTOOL, &ifr ) < 0 ) {
 		fprintf( stderr, "findPTPIndex: ioctl(SIOETHTOOL) failed\n" );
 		return -1;
@@ -233,7 +233,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 		fprintf( stderr, "Failed to find PTP device index\n" );
 		return false;
 	}
-		
+
 	snprintf
 		( ptp_device+PTP_DEVICE_IDX_OFFS,
 		  sizeof(ptp_device)-PTP_DEVICE_IDX_OFFS, "%d", phc_index );
@@ -243,7 +243,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 		fprintf( stderr, "Failed to open PTP clock device\n" );
 		return false;
 	}
-    
+
 	if( !resetFrequencyAdjustment() ) {
 		XPTPD_ERROR( "Failed to reset (zero) frequency adjustment" );
 		return false;
@@ -253,8 +253,8 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 		iface_list.push_front
 			( (dynamic_cast<LinuxNetworkInterface *>(iface)) );
 	}
-		
-	return true; 
+
+	return true;
 }
 
 int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
@@ -264,23 +264,25 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	int ret = -72;
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
-	struct sockaddr_ll remote;        
+	struct sockaddr_ll remote;
 	struct iovec sgentry;
 	struct {
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-	Timestamp latency( TX_PHY_TIME, 0, 0 );
-     
-	if( sd == -1 ) return -1;
+	struct phy_delay delay_val;
+	get_phy_delay (&delay_val);//gets the phy delay
+
+	Timestamp latency( delay_val.gb_tx_phy_delay, 0, 0 );
+    if( sd == -1 ) return -1;
 	memset( &msg, 0, sizeof( msg ));
-    
+
 	msg.msg_iov = &sgentry;
 	msg.msg_iovlen = 1;
-		
+
 	sgentry.iov_base = NULL;
 	sgentry.iov_len = 0;
-		
+
 	memset( &remote, 0, sizeof(remote));
 	msg.msg_name = (caddr_t) &remote;
 	msg.msg_namelen = sizeof( remote );
@@ -298,14 +300,14 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 			goto done;
 		}
 	}
-    
+
 	// Retrieve the timestamp
 	cmsg = CMSG_FIRSTHDR(&msg);
 	while( cmsg != NULL ) {
 		if( cmsg->cmsg_level == SOL_SOCKET &&
 			cmsg->cmsg_type == SO_TIMESTAMPING ) {
 			struct timespec *ts_device, *ts_system;
-			Timestamp device, system; 
+			Timestamp device, system;
 			ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
 			system = tsToTimestamp( ts_system );
 			ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
@@ -314,7 +316,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 			device._version = version;
 			timestamp = device;
 			ret = 0;
-			break;    
+			break;
 		}
 		cmsg = CMSG_NXTHDR(&msg,cmsg);
 	}
@@ -322,12 +324,12 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	if( ret != 0 ) {
 		fprintf( stderr, "Received a error message, but didn't find a valid timestamp\n" );
 	}
-		
+
  done:
 	if( ret == 0 || last ) {
 		net_lock->unlock();
 	}
-		
+
 	return ret;
 }
 
@@ -373,9 +375,9 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 			  strerror( errno ));
 		return false;
 	}
-		
+
 	return true;
-}    
+}
 
 #define MAX_NSEC 1000000000
 
@@ -390,7 +392,7 @@ static inline ptp_clock_time pct_diff
 		result.nsec = (MAX_NSEC - b->nsec) + a->nsec;
 	}
 	result.sec = a->sec - b->sec;
-	
+
 	return result;
 }
 
@@ -416,7 +418,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 	struct ptp_sys_offset offset;
 	struct ptp_clock_time *pct;
 	struct ptp_clock_time *system_time_l, *device_time_l;
-	
+
 	int64_t interval = LLONG_MAX;
 
 	if( phc_fd != -1 ) {
@@ -443,4 +445,3 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 
 	return false;
 }
-
