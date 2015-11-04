@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2012, Intel Corporation 
+  Copyright (c) 2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -73,6 +73,7 @@
 #define PKT_SZ (100)
 
 typedef long double FrequencyRatio;
+volatile int *halt_tx_sig;//Global variable for signal handler
 
 typedef struct {
 	int64_t ml_phoffset;
@@ -147,7 +148,7 @@ typedef struct __attribute__ ((packed)) {
 	uint16_t sequence;
 	uint32_t timestamp;
 	uint32_t ssrc;
-	
+
 	uint8_t tag[2];
 	uint16_t total_length;
 	uint8_t tag_length;
@@ -183,13 +184,13 @@ uint16_t inet_checksum(uint8_t *ip, int len){
 			sum = (sum & 0xFFFF) + (sum >> 16);
 		len -= 2;
 	}
-	
+
 	if(len)       /* take care of left over byte */
 		sum += (uint16_t) *(uint8_t *)ip;
-	
+
 	while(sum>>16)
 		sum = (sum & 0xFFFF) + (sum >> 16);
-	
+
 	return ~sum;
 }
 
@@ -241,7 +242,7 @@ uint16_t inet_checksum_sg( struct iovec *buf_iov, size_t buf_iovlen ){
 
 	while(sum>>16)
 		sum = (sum & 0xFFFF) + (sum >> 16);
-	
+
 	return ~sum;
 }
 
@@ -352,7 +353,7 @@ int get_samples(unsigned count, int32_t * buffer)
 void sigint_handler(int signum)
 {
 	printf("got SIGINT\n");
-	halt_tx = signum;
+	*halt_tx_sig = signum;
 }
 
 int pci_connect(device_t *igb_dev)
@@ -452,6 +453,7 @@ int main(int argc, char *argv[])
 	struct igb_packet *tmp_packet;
 	struct igb_packet *cleaned_packets;
 	struct igb_packet *free_packets;
+	struct mrp_talker_ctx *ctx = malloc(sizeof(struct mrp_talker_ctx));
 	int c;
 	u_int64_t last_time;
 	int rc = 0;
@@ -480,6 +482,8 @@ int main(int argc, char *argv[])
 	unsigned delta_8021as, delta_local;
 	uint8_t dest_addr[6];
 	size_t packet_size;
+	struct mrp_domain_attr *class_a = malloc(sizeof(struct mrp_domain_attr));
+	struct mrp_domain_attr *class_b = malloc(sizeof(struct mrp_domain_attr));
 
 	for (;;) {
 		c = getopt(argc, argv, "hi:t:");
@@ -491,8 +495,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'i':
 			if (interface) {
-				printf
-				    ("only one interface per daemon is supported\n");
+			printf("only one interface per daemon is supported\n");
 				usage();
 			}
 			interface = strdup(optarg);
@@ -510,7 +513,16 @@ int main(int argc, char *argv[])
 		fprintf( stderr, "Must specify valid transport\n" );
 		usage();
 	}
-	rc = mrp_connect();
+
+	rc = mrp_talker_client_init(ctx);
+	if (rc) {
+		printf("MRP talker client initialization failed\n");
+		return errno;
+	}
+
+	halt_tx_sig = &ctx->halt_tx;
+
+	rc = mrp_connect(ctx);
 	if (rc) {
 		printf("socket creation failed\n");
 		return errno;
@@ -568,32 +580,24 @@ int main(int argc, char *argv[])
 			( &l4_local_address,
 			  &(( struct sockaddr_in *)&if_request.ifr_addr)->sin_addr,
 			  sizeof( l4_local_address ));
-		
+
 	}
 
-	rc = mrp_monitor();
+	rc = mrp_get_domain(ctx, class_a, class_b);
 	if (rc) {
-		printf("failed creating MRP monitor thread\n");
+		printf("failed calling msp_get_domain()\n");
 		return EXIT_FAILURE;
 	}
+	printf("detected domain Class A PRIO=%d VID=%04x...\n",class_a->priority,
+	       class_a->vid);
 
-	/* 
-	 * should use mrp_get_domain() but this is a simplification
-	 */
-	domain_a_valid = 1;
-	domain_class_a_id = MSRP_SR_CLASS_A;
-	domain_class_a_priority = MSRP_SR_CLASS_A_PRIO;
-	domain_class_a_vid = 2;
-	printf("detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
-	       domain_class_a_vid);
-
-	rc = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	rc = mrp_register_domain(class_a, ctx);
 	if (rc) {
 		printf("mrp_register_domain failed\n");
 		return EXIT_FAILURE;
 	}
 
-	rc = mrp_join_vlan();
+	rc = mrp_join_vlan(class_a, ctx);
 	if (rc) {
 		printf("mrp_join_vlan failed\n");
 		return EXIT_FAILURE;
@@ -649,9 +653,9 @@ int main(int argc, char *argv[])
 		((char *)tmp_packet->vaddr)[12] = 0x81;
 		((char *)tmp_packet->vaddr)[13] = 0x00;
 		((char *)tmp_packet->vaddr)[14] =
-		    ((domain_class_a_priority << 13 | domain_class_a_vid)) >> 8;
+		    ((ctx->domain_class_a_priority << 13 | ctx->domain_class_a_vid)) >> 8;
 		((char *)tmp_packet->vaddr)[15] =
-		    ((domain_class_a_priority << 13 | domain_class_a_vid)) & 0xFF;
+		    ((ctx->domain_class_a_priority << 13 | ctx->domain_class_a_vid)) & 0xFF;
 		if( transport == 2 ) {
 			((char *)tmp_packet->vaddr)[16] = 0x22;	/* 1722 eth type */
 			((char *)tmp_packet->vaddr)[17] = 0xF0;
@@ -703,7 +707,7 @@ int main(int argc, char *argv[])
 			pseudo_hdr.zero = 0;
 			pseudo_hdr.protocol = 0x11;
 			pseudo_hdr.length = htons(packet_size-18-20);
-	
+
 			l4_headers =
 				(IP_RTP_Header *) (((char *)tmp_packet->vaddr) + 18);
 			l4_headers->version_length = 0x45;
@@ -734,7 +738,7 @@ int main(int argc, char *argv[])
 			l4_headers->sequence = 0;
 			l4_headers->timestamp = 0;
 			l4_headers->ssrc = 0;
-			
+
 			l4_headers->tag[0] = 0xBE;
 			l4_headers->tag[1] = 0xDE;
 			l4_headers->total_length = htons(2);
@@ -748,7 +752,7 @@ int main(int argc, char *argv[])
 		free_packets = tmp_packet;
 	}
 
-	/* 
+	/*
 	 * subtract 16 bytes for the MAC header/Q-tag - pktsz is limited to the
 	 * data payload of the ethernet frame.
 	 *
@@ -757,9 +761,9 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "advertising stream ...\n");
 	if( transport == 2 ) {
 		rc = mrp_advertise_stream(glob_stream_id, dest_addr,
-					domain_class_a_vid, PKT_SZ - 16,
+					PKT_SZ - 16,
 					L2_PACKET_IPG / 125000,
-					domain_class_a_priority, 3900);
+					3900,ctx);
 	} else {
 		/*
 		 * 1 is the wrong number for frame rate, but fractional values
@@ -767,10 +771,9 @@ int main(int argc, char *argv[])
 		 * using it consistently
 		 */
 		rc = mrp_advertise_stream(glob_stream_id, dest_addr,
-					domain_class_a_vid,
 					sizeof(*l4_headers) + L4_SAMPLES_PER_FRAME * CHANNELS * 2 + 6,
 					1,
-					domain_class_a_priority, 3900);
+					3900, ctx);
 	}
 	if (rc) {
 		printf("mrp_advertise_stream failed\n");
@@ -778,14 +781,14 @@ int main(int argc, char *argv[])
 	}
 
 	fprintf(stderr, "awaiting a listener ...\n");
-	rc = mrp_await_listener(glob_stream_id);
+	rc = mrp_await_listener(glob_stream_id, ctx);
 	if (rc) {
 		printf("mrp_await_listener failed\n");
 		return EXIT_FAILURE;
 	}
-	listeners = 1;
+	ctx->listeners = 1;
 	printf("got a listener ...\n");
-	halt_tx = 0;
+	ctx->halt_tx = 0;
 
 	if(-1 == gptpinit(&igb_shm_fd, &igb_mmap)) {
 		fprintf(stderr, "GPTP init failed.\n");
@@ -811,13 +814,13 @@ int main(int argc, char *argv[])
 
 	rc = nice(-20);
 
-	while (listeners && !halt_tx) {
+	while (ctx->listeners && !ctx->halt_tx) {
 		tmp_packet = free_packets;
 		if (NULL == tmp_packet)
 			goto cleanup;
-		
+
 		free_packets = tmp_packet->next;
-		
+
 		if( transport == 2 ) {
 			uint32_t timestamp_l;
 			get_samples( L2_SAMPLES_PER_FRAME, sample_buffer );
@@ -911,13 +914,13 @@ int main(int argc, char *argv[])
 		}
 
 		if (ENOSPC == err) {
-			
+
 			/* put back for now */
 			tmp_packet->next = free_packets;
 			free_packets = tmp_packet;
 		}
-		
-	cleanup:	
+
+	cleanup:
 		igb_clean(&igb_dev, &cleaned_packets);
 		i = 0;
 		while (cleaned_packets) {
@@ -929,35 +932,35 @@ int main(int argc, char *argv[])
 		}
 	}
 	rc = nice(0);
-	
-	if (halt_tx == 0)
+	if (ctx->halt_tx == 0)
 		printf("listener left ...\n");
-	halt_tx = 1;
-	
+	ctx->halt_tx = 1;
 	if( transport == 2 ) {
 		rc = mrp_unadvertise_stream
-			(glob_stream_id, dest_addr, domain_class_a_vid, PKT_SZ - 16, L2_PACKET_IPG / 125000,
-			 domain_class_a_priority, 3900);
+			(glob_stream_id, dest_addr, PKT_SZ - 16, L2_PACKET_IPG / 125000,
+			 3900, ctx);
 	} else {
 		rc = mrp_unadvertise_stream
-			(glob_stream_id, dest_addr, domain_class_a_vid,
+			(glob_stream_id, dest_addr,
 			 sizeof(*l4_headers)+L4_SAMPLES_PER_FRAME*CHANNELS*2 + 6, 1,
-			 domain_class_a_priority, 3900);
+			 3900, ctx);
 	}
 	if (rc)
 		printf("mrp_unadvertise_stream failed\n");
-	
+
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);	/* disable Qav */
-	
-	rc = mrp_disconnect();
+
+	rc = mrp_disconnect(ctx);
 	if (rc)
 		printf("mrp_disconnect failed\n");
-	
+	free(ctx);
+	free(class_a);
+	free(class_b);
 	igb_dma_free_page(&igb_dev, &a_page);
 	rc = gptpdeinit(&igb_shm_fd, &igb_mmap);
 	err = igb_detach(&igb_dev);
-	
+
 	pthread_exit(NULL);
-	
+
 	return EXIT_SUCCESS;
 }

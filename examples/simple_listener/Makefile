@@ -2,7 +2,7 @@ CC ?= gcc
 OPT = -O2 -g
 CFLAGS = $(OPT) -Wall -Wextra -Wno-parentheses
 INCFLAGS = -I../../daemons/mrpd -I../common -I../../daemons/common
-LDLIBS = -lpcap -lsndfile
+LDLIBS = -lpcap -lsndfile -pthread
 
 all: simple_listener
 

@@ -95,6 +95,14 @@ typedef struct {
 	Event event;	//!< Event enumeration
 } event_descriptor_t;
 
+struct phy_delay
+{
+   int mb_tx_phy_delay;
+   int mb_rx_phy_delay;
+   int gb_tx_phy_delay;
+   int gb_rx_phy_delay;
+};
+
 /**
  * Provides a generic InterfaceLabel class
  */
@@ -441,8 +449,10 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
  * Provides a generic interface for hardware timestamping
  */
 class HWTimestamper {
+
 protected:
 	uint8_t version; //!< HWTimestamper version
+	struct phy_delay delay;
 public:
 	/**
 	 * @brief Initializes the hardware timestamp unit
@@ -478,7 +488,7 @@ public:
 	{ return false; }
 
 	/**
-	 * @brief  Get the cross timestamping information. 
+	 * @brief  Get the cross timestamping information.
 	 * The gPTP subsystem uses these samples to calculate
 	 * ratios which can be used to translate or extrapolate
 	 * one clock into another clock reference. The gPTP service
@@ -501,7 +511,7 @@ public:
 	 * @param  sequenceId Sequence ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
-	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
 	 * @return 0 no error, -1 error, -72 try again.
 	 */
 	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
@@ -516,7 +526,7 @@ public:
 	 * @param  sequenceId Sequence ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
-	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
 	 * @return 0 no error, -1 error, -72 try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
@@ -532,7 +542,7 @@ public:
 	 * @param  ppt_freq_offset [inout] Frequency offset in ppts
 	 * @return false
 	 * @todo  This code should be removed.  It was a hack to get a specific board
-	 * working. 
+	 * working.
 	 */
 	virtual bool HWTimestamper_get_extclk_offset(Timestamp * local_time,
 			int64_t * clk_offset,
@@ -570,6 +580,38 @@ public:
 	int getVersion() {
 		return version;
 	}
+	/**
+	 * @brief Initializes the PHY delay for TX and RX
+	 * @param [input] mb_tx_phy_delay, mb_rx_phy_delay, gb_tx_phy_delay, gb_rx_phy_delay
+	 * @return 0
+	 **/
+
+	 int init_phy_delay(int phy_delay[4])
+	 {
+		delay.gb_tx_phy_delay = phy_delay[0];
+		delay.gb_rx_phy_delay = phy_delay[1];
+		delay.mb_tx_phy_delay = phy_delay[2];
+		delay.mb_rx_phy_delay = phy_delay[3];
+
+
+		return 0;
+	 }
+
+	 /**
+	  * @brief Returns the the PHY delay for TX and RX
+	  * @param [input] struct phy_delay  pointer
+	  * @return 0
+	  **/
+
+	 int get_phy_delay (struct phy_delay *get_delay)
+	 {
+		get_delay->mb_tx_phy_delay = delay.mb_tx_phy_delay;
+		get_delay->mb_rx_phy_delay = delay.mb_rx_phy_delay;
+		get_delay->gb_tx_phy_delay = delay.gb_tx_phy_delay;
+		get_delay->gb_rx_phy_delay = delay.gb_rx_phy_delay;
+
+		return 0;
+	 }
 
 	/**
 	 * Default constructor. Sets version to zero.
