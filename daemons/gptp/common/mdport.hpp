@@ -98,7 +98,10 @@ public:
 	
 	// PDelay is optional
 	virtual bool processSync( uint16_t seq, bool grandmaster, long *elapsed_time ) = 0;
-	virtual bool processPDelay( uint16_t seq, long *elapsed_time ) { return true; }
+	virtual bool processPDelay( uint16_t seq, long *elapsed_time ) { 
+		port->getClock()->deleteEventTimer(port, PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES);
+		return true;
+	}
 	bool getDeviceTime
 	(Timestamp & system_time, Timestamp & device_time ) const
 	{

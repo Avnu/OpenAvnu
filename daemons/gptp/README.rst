@@ -1,25 +1,24 @@
 Introduction
 ------------
-This is an example Intel provided gptp daemon which can be used on Linux
-and Windows platforms. There are a number of other ptp daemons available
-for Linux which can be used to establish clock synchronization, although
-not all may export the required APIs needed for an AVB system.
+This is an AVnu provided gptp daemon which can be used on Linux and
+Windows platforms. On Windows, 802.11 wireless and wired Ethernet
+network media are supported.  There are a number of other ptp daemons
+available for Linux which can be used to establish clock
+synchronization, although not all may export the required APIs needed
+for an AVB system.
 
-The daemon communicates with other processes through a named pipe.
-The pipe name and message format is defined in ipcdef.hpp.  The pipe name 
-is "gptp-update". A Windows example is in the project named_pipe_test.
+The daemon communicates with other processes through a named pipe for
+Windows and shared memory in Linux.  The message format is defined in
+ipcdef.hpp.
 
 The message format is:
 
-	Integer64	<master-local phase offset>
-
-	Integer64	<local-system phase offset>
-
-	Float	<master-local frequency offset>
-
-	Float	<local-system frequency offset>
-
-	UInteger64	<local time of last update>
+Integer64	<Master-Local Phase Offset>		ml_phoffset;
+LongDouble	<Master-Local Frequency Offset>		ml_freqoffset;
+Integer64	<Local-System Phase Offset>		ls_phoffset;
+LongDouble	<Local-System Frequency Offset>		ls_freqoffset;
+UInteger64	<Local Network Time>			local_time;
+UInteger64	<System Tick Frequency>			tick_frequency;
 
 Meaning of IPC provided values
 ++++++++++++++++++++++++++++++
@@ -50,37 +49,51 @@ To execute, run
 such as
 	./daemon_cl eth0
 
-The daemon creates a shared memory segment with the 'ptp' group. Some distributions may not have this group installed.  The IPC interface will not available unless the 'ptp' group is available.
+The daemon creates a shared memory segment with the 'ptp' group. Some
+distributions may not have this group installed.  The IPC interface
+will not available unless the 'ptp' group is available.
+
 
 
 Windows Version
 +++++++++++++++
 
-Build Dependencies
+Build Dependencies:
 
-* WinPCAP Developer's Pack (WpdPack) is required for linking - downloadable from http://www.winpcap.org/devel.htm.
+* WinPCAP Developer's Pack (WpdPack) is required for linking.  It can be
+downloaded from http://www.winpcap.org/devel.htm.
 
-Extract WpdPack so the Include folder is in one of the below locations
+Extract WpdPack so the Include folder is in the following location:
 
-1- %ProgramData%
-	\WpdPack
-		\Include
-		\Lib
-		\Lib\x64
-
-2- %USERPROFILE%
+%USERPROFILE%
 	\src\pcap
 		\Include
 		\Lib
 		\Lib\x64
 
-* WinPCAP must also be installed on any machine where the daemon runs.
+* the WinPCAP binary must also be installed on any machine where the daemon
+runs.
 
-To run from the command line:
+The wireless daemon required downloading the "complete" wireless
+driver package from intel.com.  This will be labeled "Software *and*
+Drivers"
+
+Running:
+
+To run the Ethernet gPTP daemon from the command line:
 
 	daemon_cl.exe xx-xx-xx-xx-xx-xx
 
 where xx-xx-xx-xx-xx-xx is the mac address of the local interface
+
+To run the wireless daemon:
+
+	daemon_wl.exe xx-xx-xx-xx-xx-xx yy-yy-yy-yy-yy-yy zz-zz-zz-zz-zz-zz
+
+Where	xx* is the HW address of the local wireless adapter
+	yy* is the address of the local wireless network (for example, the
+		Wi-Fi direct address is different that that of the adapter)
+	zz* is the address of the remote device known to the local device
 
 Other Available PTP Daemons
 ---------------------------

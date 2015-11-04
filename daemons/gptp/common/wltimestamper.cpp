@@ -57,7 +57,7 @@ bool WirelessTimestamper::addPeer   ( LinkLayerAddress addr ) {
 	min_port->setPort(md_port);
 
 	if (!min_port->init_port()) {
-		printf("failed to initialize port \n");
+		XPTPD_WDEBUG("failed to initialize port");
 		ret = false;
 		goto done;
 	}
@@ -107,32 +107,46 @@ uint8_t *follow_up, int followup_length) {
 	next_dialog.dialog_token = dialog_token;
 	next_dialog.fwup_seq = seq;
 	next_dialog.action_devclk = 0;
+	net_result retval = net_succeed;
+
 	lock();
-	if (peer_map.count(dest) != 0) {
-		peer_map[dest]->wl_port->lock();
-		peer_map[dest]->wl_port->setPrevDialog(&next_dialog);
-		peer_map[dest]->wl_port->unlock();
+	PeerMapIter iter = peer_map.find(dest);
+	if (iter == peer_map.end()) {
+		XPTPD_ERROR("Got timing measurement request for unknown MAC address, %s", dest.toString());
+		retval = net_trfail;
+		goto bail;
 	}
+	iter->second->wl_port->lock();
+	iter->second->wl_port->setPrevDialog(&next_dialog);
+	iter->second->wl_port->unlock();
+bail:
 	unlock();
-	return _requestTimingMeasurement(dest, dialog_token, &prev_dialog, follow_up, followup_length);
+	if(retval == net_succeed)
+		retval = _requestTimingMeasurement(dest, dialog_token, &prev_dialog, follow_up, followup_length);
+	return retval;
 }
 
 void WirelessTimestamper::timingMeasurementConfirmCB(LinkLayerAddress addr, WirelessDialog *dialog) {
 	// Translate devclk scalar to Timestamp
+	WirelessDialog prev_dialog;
 	lock();
-	dialog->action = NS_TO_TIMESTAMP(_32to64(&rollover,&last_count,dialog->action_devclk*10));
-	dialog->ack = NS_TO_TIMESTAMP(_32to64(&rollover, &last_count, dialog->ack_devclk*10));
-	peer_map[addr]->wl_port->lock();
-	WirelessDialog prev_dialog = *peer_map[addr]->wl_port->getPrevDialog();
+	uint64_t action_rollover = _32to64((dialog->action_devclk&0xFFFFFFFF)*10);
+	dialog->action = Timestamp(action_rollover);
+	PeerMapIter iter = peer_map.find(addr);
+	if (iter == peer_map.end()) {
+		XPTPD_ERROR("Got confirm for unknown MAC address, %s", addr.toString());
+		goto bail;
+	}
+	iter->second->wl_port->lock();
+	prev_dialog = *peer_map[addr]->wl_port->getPrevDialog();
 	SYSTEMTIME systime;
 	GetSystemTime(&systime);
-	//printf("timingMeasurementConfirmCB:%hu:%hu:%hu.%03hu\n", systime.wHour, systime.wMinute, systime.wSecond, systime.wMilliseconds);
 	if (dialog->dialog_token == prev_dialog.dialog_token) {
 		dialog->fwup_seq = prev_dialog.fwup_seq;
-		//printf("Got confirmation for: %hhu(%u)\n", dialog->dialog_token, dialog->action_devclk);
-		peer_map[addr]->wl_port->setPrevDialog(dialog);	
+		iter->second->wl_port->setPrevDialog(dialog);
 	}
-	peer_map[addr]->wl_port->unlock();
+	iter->second->wl_port->unlock();
+bail:
 	unlock();
 }
 
@@ -145,27 +159,35 @@ void WirelessTimestamper::timeMeasurementIndicationCB(LinkLayerAddress addr, Wir
 	PTPMessageFollowUp *fwup;
 	// Translate devclk scalar to Timestamp
 	lock();
-	if (peer_map.count(addr) != 0) {
-		msg = buildPTPMessage((char *)buf, (int)buflen, &addr, peer_map[addr]->wl_port, &event_flag);
-		fwup = dynamic_cast<PTPMessageFollowUp *>(msg);
-		current->action = NS_TO_TIMESTAMP(_32to64(&rollover, &last_count, current->action_devclk*10));
-		current->ack = NS_TO_TIMESTAMP(_32to64(&rollover, &last_count, current->ack_devclk*10));
-		peer_map[addr]->wl_port->lock();
-		prev_local = peer_map[addr]->wl_port->getPrevDialog();
-		printf("Got Indication: T1=%u,T2=%u,T3=%u,T4=%u\n", prev_local->action_devclk, previous->action_devclk,
-			previous->ack_devclk, prev_local->ack_devclk);
-		if (previous->dialog_token == prev_local->dialog_token && fwup != NULL && !event_flag) {
-			previous->action = NS_TO_TIMESTAMP(_32to64(&rollover, &last_count, previous->action_devclk*10));
-			previous->ack = NS_TO_TIMESTAMP(_32to64(&rollover, &last_count, previous->ack_devclk*10));
-			link_delay  = TIMESTAMP_TO_NS(previous->ack - previous->action) - TIMESTAMP_TO_NS(prev_local->ack - prev_local->action);
-			link_delay /= 2;
-			peer_map[addr]->wl_port->setLinkDelay(link_delay);
-			printf("Link Delay = %llu\n", link_delay);
-			fwup->processMessage(peer_map[addr]->wl_port, prev_local->action, link_delay);
-		}
-		peer_map[addr]->wl_port->setPrevDialog(current);
-		peer_map[addr]->wl_port->unlock();
+	PeerMapIter iter = peer_map.find(addr);
+	if (iter == peer_map.end()) {
+		XPTPD_ERROR("Got indication for unknown MAC address, %s", addr.toString());
+		goto bail;
 	}
+
+	msg = buildPTPMessage((char *)buf, (int)buflen, &addr, iter->second->wl_port, &event_flag);
+	fwup = dynamic_cast<PTPMessageFollowUp *>(msg);
+	current->action_devclk *= 10;
+	current->ack_devclk *= 10;
+	uint64_t action_rollover = _32to64(current->action_devclk);
+	current->action = Timestamp(action_rollover);
+	iter->second->wl_port->lock();
+	prev_local = iter->second->wl_port->getPrevDialog();
+	if (previous->dialog_token == prev_local->dialog_token && fwup != NULL && !event_flag && previous->action_devclk != 0) {
+		previous->action_devclk *= 10;
+		previous->ack_devclk *= 10;
+		unsigned round_trip = (previous->ack_devclk >= previous->action_devclk) ? (unsigned)(previous->ack_devclk - previous->action_devclk) :
+			(unsigned)((previous->ack_devclk + MAX_NSEC) - previous->action_devclk);
+		unsigned turn_around = (prev_local->ack_devclk >= prev_local->action_devclk) ? (unsigned)(prev_local->ack_devclk - prev_local->action_devclk) :
+			(unsigned)((prev_local->ack_devclk + MAX_NSEC) - prev_local->action_devclk);
+		link_delay = (round_trip - turn_around) / 2;
+		iter->second->wl_port->setLinkDelay(link_delay);
+		XPTPD_WDEBUG("Link Delay = %llu(RT=%u,TA=%u,T4=%llu,T1=%llu,DT=%hhu)", link_delay, round_trip, turn_around, previous->ack_devclk, previous->action_devclk, previous->dialog_token);
+		fwup->processMessage(peer_map[addr]->wl_port, prev_local->action, link_delay);
+	}
+	iter->second->wl_port->setPrevDialog(current);
+	iter->second->wl_port->unlock();
+bail:	
 	unlock();
 }
 

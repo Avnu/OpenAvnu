@@ -37,7 +37,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "avbts_clock.hpp"
 #include "avbts_osnet.hpp"
 #include "avbts_oslock.hpp"
-#include "windows_hal.hpp"
+#include "windows_hal_common.hpp"
+#include "windows_hal_wireless.hpp"
 #include <min_port.hpp>
 #include <md_wireless.hpp>
 #include <tchar.h>
@@ -115,7 +116,7 @@ int _tmain(int argc, _TCHAR* argv[])
 						"command line, using default value\n" );
 				} else {
 					unsigned long tmp = strtoul( argv[i+1], NULL, 0 ); ++i;
-					if( tmp > 254 ) {
+					if( tmp > 255 ) {
 						printf( "Invalid priority 1 value, using "
 							"default value\n" );
 					} else {
@@ -130,13 +131,22 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 	}
 
-	if( i >= argc ) {
+	InterfaceLabel *local_addr[2];
+	
+	if(i >= argc) {
 		print_usage( argv[0] );
 		return -1;
 	}
 	uint8_t local_addr_ostr[ETHER_ADDR_OCTETS];
 	parseMacAddr(argv[i++], local_addr_ostr);
-	LinkLayerAddress local_addr(local_addr_ostr);
+	local_addr[0] = new LinkLayerAddress(local_addr_ostr);
+
+	if (i >= argc) {
+		print_usage(argv[0]);
+		return -1;
+	}
+	parseMacAddr(argv[i++], local_addr_ostr);
+	local_addr[1] = new LinkLayerAddress(local_addr_ostr);
 
 	if (i >= argc) {
 		print_usage(argv[0]);
@@ -147,14 +157,18 @@ int _tmain(int argc, _TCHAR* argv[])
 	LinkLayerAddress peer_addr1(peer_addr_ostr1);
 
 	// Create HWTimestamper object
-	WirelessTimestamper *timestamper = new WindowsWirelessTimestamper(condition_factory);
+	WindowsWirelessTimestamper *timestamper = new WindowsWirelessTimestamper(condition_factory);
 	// Create Clock object
 	IEEE1588Clock *clock =
 		new IEEE1588Clock
 		(false, false, priority1, timestamper, timerq_factory,
 		lock_factory, ipc);
 	timestamper->setClock(clock);
-	timestamper->HWTimestamper_init(&local_addr, NULL, lock_factory, thread_factory, timer_factory);
+	if (!timestamper->HWTimestamper_init(local_addr, NULL, lock_factory, thread_factory, timer_factory)) {
+		printf("Failed to initialize timestamper exiting...\n");
+		return -1;
+	}
+	ipc->setSystemClockFrequency(timestamper->getSystemFrequency());
 
 	timestamper->addPeer(peer_addr1);
 

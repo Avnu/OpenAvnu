@@ -4,9 +4,6 @@
     <ClCompile Include="daemon_wl.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\common\ethtimestamper.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\common\ieee1588clock.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -17,9 +14,6 @@
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\daemon_cl\packet.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\common\md_ethport.cpp">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\common\min_port.cpp">
@@ -37,13 +31,25 @@
     <ClCompile Include="..\..\common\timestamper.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\daemon_cl\windows_hal.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\common\md_wireless.cpp">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\common\wltimestamper.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="work_queue.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="intel_wireless.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="windows_hal_wireless.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\daemon_cl\windows_hal_common.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\common\md_ethport.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
@@ -129,9 +135,6 @@
     <ClInclude Include="..\daemon_cl\tsc.hpp">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\daemon_cl\windows_hal.hpp">
-      <Filter>Header</Filter>
-    </ClInclude>
     <ClInclude Include="..\daemon_cl\Stoppable.hpp">
       <Filter>Header</Filter>
     </ClInclude>
@@ -141,12 +144,18 @@
     <ClInclude Include="..\..\common\wltimestamper.hpp">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="dummy.hpp">
+    <ClInclude Include="work_queue.hpp">
       <Filter>Header</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="ReadMe.txt" />
+    <ClInclude Include="intel_wireless.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="windows_hal_wireless.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\daemon_cl\windows_hal_common.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

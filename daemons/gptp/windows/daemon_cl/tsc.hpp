@@ -44,25 +44,12 @@ inline unsigned __int64 PLAT_rdtsc()
 	return __rdtsc();
 }
 
-inline uint64_t getTSCFrequency( unsigned millis ) {
-	UINT16 multiplierx2;
-	uint64_t frequency = 0;
-	DWORD mhz;
-	DWORD mhz_sz = sizeof(mhz);
-
-	if( RegGetValue( HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", "~MHz", RRF_RT_REG_DWORD, NULL, &mhz, &mhz_sz ) != ERROR_SUCCESS ) {
-		goto done;
-	}
-	fprintf( stderr, "mhz: %u\n", mhz );
-	multiplierx2 = (UINT16)((2*mhz*1000000ULL)/BASE_FREQUENCY);
-	if( multiplierx2 % 2 == 1 ) ++multiplierx2;
-	fprintf( stderr, "Multiplier: %hhu\n", multiplierx2/2 );
-
-	frequency = (((uint64_t)multiplierx2)*BASE_FREQUENCY)/2;
-	fprintf( stderr, "Frequency: %llu\n", frequency );
-
-done:
-	return frequency;
+inline uint64_t _getTSCFrequency() {
+	LARGE_INTEGER qpc_freq;
+	QueryPerformanceFrequency(&qpc_freq);
+	fprintf(stderr, "TSC Frequency = %llu\n", qpc_freq.QuadPart);
+	return (uint64_t)(qpc_freq.QuadPart);
 }
+
 
 #endif/*TSC_HPP*/

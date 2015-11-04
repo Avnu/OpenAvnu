@@ -55,4 +55,7 @@
 #define XPTPD_INFOL(level,fmt,...)
 #endif
 
+/* This debug output is meant to be "wrapped" by a runtime debug flag */
+#define XPTPD_WDEBUG(fmt,...) fprintf( stderr, "DEBUG at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)
+
 #endif/*DEBUGOUT_HPP*/

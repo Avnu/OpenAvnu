@@ -65,7 +65,7 @@ class MediaDependentWirelessPort : public MediaDependentPort {
 	bool do_exit;
 	OSCondition *port_stop_condition;
 
-	LinkLayerAddress peer_addr;
+	LinkLayerAddress tm_peer_addr;
 
 	WirelessDialog *prev_dialog;
  public:
@@ -100,7 +100,7 @@ class MediaDependentWirelessPort : public MediaDependentPort {
 	bool processSync( uint16_t seq, bool grandmaster, long *elapsed_time );
 
 	void setPeerAddr(LinkLayerAddress *addr) {
-		this->peer_addr = *addr;
+		this->tm_peer_addr = *addr;
 	}
 	void setPrevDialog(WirelessDialog *dialog);
 	WirelessDialog *getPrevDialog();

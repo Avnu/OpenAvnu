@@ -302,7 +302,7 @@ bool MediaDependentEtherPort::processSync
 	clock_offset_t offset;
 
 	if( timestamper_lock() == oslock_fail ) return false;
-	
+
 	getDeviceTime( system_time, device_time );
 
 	offset.ls_freqoffset = getLocalSystemRateOffset();
@@ -335,12 +335,11 @@ bool MediaDependentEtherPort::processSync
 		goto bail_syncsnd;
 	}
 	XPTPD_INFO("Sent SYNC message");
-		
+
 	*wait_time = TX_TIMEOUT_BASE;
 	ts_good = getTxTimestampRetry
 		( sync, sync_timestamp,
 		  TX_TIMEOUT_ITER, wait_time );
-
 
 	if ( !ts_good ) {
 		XPTPD_ERROR
@@ -353,10 +352,9 @@ bool MediaDependentEtherPort::processSync
 	device_sync_time_offset = TIMESTAMP_TO_NS( device_time - sync_timestamp );
 
 	// Calculate sync timestamp in terms of system clock
-	TIMESTAMP_SUB_NS
-		( system_time, (uint64_t)
-		  (((FrequencyRatio) device_sync_time_offset)/
-		   offset.ls_freqoffset) );
+	system_time - (uint64_t)
+		(((FrequencyRatio)device_sync_time_offset) /
+			offset.ls_freqoffset);
 
 	follow_up = new PTPMessageFollowUp(this);
 	port->getPortIdentity(dest_id);
@@ -396,9 +394,7 @@ bool MediaDependentEtherPort::processSync
 		correction_field += ((uint64_t)residence_time) << 16;
 		follow_up->setCorrectionField( correction_field );
 	} else {
-		// TODO: Need to resolve PCH interface not returning system time first
-		// follow_up->setPreciseOriginTimestamp( system_time );
-		follow_up->setPreciseOriginTimestamp( sync_timestamp );
+		follow_up->setPreciseOriginTimestamp( system_time );
 	}
 	if( follow_up->sendPort( this ) != net_succeed ) {
 		ret = false;
@@ -437,7 +433,7 @@ bool MediaDependentEtherPort::processEvent(Event e)
 		
 		pdelay_rx_lock->lock();
 		if (last_pdelay_resp_fwup == NULL) {
-			fprintf(stderr, "PDelay Response Followup is NULL!\n");
+			XPTPD_ERROR("PDelay Response Followup is NULL!");
 			abort();
 		}
 		last_pdelay_resp_fwup->processMessage(this);

@@ -36,6 +36,7 @@
 #include "platform.hpp"
 
 #include <pcap.h>
+#include <debugout.hpp>
 #include "iphlpapi.h"
 
 #define MAX_FRAME_SIZE 96
@@ -57,7 +58,7 @@ struct packet_handle {
 packet_addr_t ETHER_ADDR_ANY = {};
 
 inline void packet_addr_copy(char *dest, packet_addr_t src, size_t len) {
-	int i, j;
+	size_t i, j;
 	for (i = 0, j = 0; i < (len >= 3 * ETHER_ADDR_OCTETS-1 ? 3 * ETHER_ADDR_OCTETS - 1 : len); ++j) {
 		char str[] = "00";
 		sprintf_s(str, sizeof(str), "%02hhx", src.addr[j]);
@@ -102,7 +103,6 @@ packet_error_t openInterfaceByAddr( struct packet_handle *handle, packet_addr_t 
     IP_ADAPTER_ADDRESSES AdapterAddress[32];       // Allocate information for up to 32 NICs
     DWORD dwBufLen = sizeof(AdapterAddress);  // Save memory size of buffer
 
-	addr->addr[0] |= 0x2;
 	DWORD dwStatus = GetAdaptersAddresses( AF_UNSPEC, 0, NULL, AdapterAddress, &dwBufLen);
 
     if( dwStatus != ERROR_SUCCESS ) {
@@ -120,7 +120,7 @@ packet_error_t openInterfaceByAddr( struct packet_handle *handle, packet_addr_t 
     if( pAdapterAddress != NULL ) {
         strcpy_s( name, WINPCAP_INTERFACENAMEPREFIX );
         strncpy_s( name+WINPCAP_INTERFACENAMEPREFIX_LENGTH, WINPCAP_INTERFACENAMESUFFIX_LENGTH+1, pAdapterAddress->AdapterName, WINPCAP_INTERFACENAMESUFFIX_LENGTH );
-        printf( "Opening: %s\n", name );
+		XPTPD_WDEBUG( "Opening: %s", name );
         handle->iface = pcap_open(  name, MAX_FRAME_SIZE, PCAP_OPENFLAG_MAX_RESPONSIVENESS | PCAP_OPENFLAG_PROMISCUOUS | PCAP_OPENFLAG_NOCAPTURE_LOCAL,
                                     timeout, NULL, handle->errbuf );
         if( handle->iface == NULL ) {

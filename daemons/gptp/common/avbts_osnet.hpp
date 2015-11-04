@@ -36,7 +36,6 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <map>
 #include <ieee1588.hpp>
 #include <ptptypes.hpp>
 
@@ -149,30 +148,27 @@ inline OSNetworkInterface::~OSNetworkInterface() {}
 
 class OSNetworkInterfaceFactory;
 
-typedef std::map < factory_name_t, OSNetworkInterfaceFactory * >FactoryMap_t;
+typedef struct OSNetFactoryMap_i *OSNetFactoryMap_t;
 
 class OSNetworkInterfaceFactory {
  public:
 	static bool registerFactory
-	(factory_name_t id, OSNetworkInterfaceFactory * factory) {
-		FactoryMap_t::iterator iter = factoryMap.find(id);
-		if (iter != factoryMap.end())
-			return false;
-		factoryMap[id] = factory;
-		return true;
-	}
+	(factory_name_t id, OSNetworkInterfaceFactory * factory);
 	static bool buildInterface
-	(OSNetworkInterface ** iface, factory_name_t id, InterfaceLabel * iflabel,
-	 Timestamper *timestamper, LinkLayerAddress *remote = NULL) {
-		return factoryMap[id]->createInterface
-			(iface, iflabel, timestamper,remote);
-	}
+	(OSNetworkInterface ** iface, factory_name_t id,
+	 InterfaceLabel *iflabel, Timestamper *timestamper,
+	 LinkLayerAddress *remote = NULL);
 	virtual ~OSNetworkInterfaceFactory() = 0;
 private:
 	virtual bool createInterface
 	(OSNetworkInterface ** iface, InterfaceLabel * iflabel,
 	 Timestamper * timestamper, LinkLayerAddress *remote) = 0;
-	static FactoryMap_t factoryMap;
+	static OSNetFactoryMap_t factoryMap;
+	class OSNetworkInterfaceFactoryInitializer {
+		OSNetworkInterfaceFactoryInitializer();
+		friend OSNetworkInterfaceFactory;
+	};
+	static OSNetworkInterfaceFactoryInitializer initializer;
 };
 
 inline OSNetworkInterfaceFactory::~OSNetworkInterfaceFactory() {}

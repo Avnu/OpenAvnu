@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -28,27 +28,27 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -80,7 +80,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ALLUSERSPROFILE)\WpdPack\Include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)daemon_cl;$(ALLUSERSPROFILE)\WpdPack\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -88,13 +88,13 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\daemon_cl;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ALLUSERSPROFILE)\WpdPack\Lib;$(USERPROFILE)\WpdPack\Lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(USERPROFILE)\WpdPack\Lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -103,13 +103,13 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\daemon_cl;$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\daemon_cl;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;MurocApi.lib;PanApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Program Files %28x86%29\Intel\WiFiSDK\Lib\x64\Debug;$(ALLUSERSPROFILE)\WpdPack\Lib\x64;$(USERPROFILE)\WpdPack\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(USERPROFILE)\WpdPack\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -120,14 +120,14 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\src\pcap\Include;$(SolutionDir)\..\common;$(SolutionDir)\daemon_cl;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\daemon_cl;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(ALLUSERSPROFILE)\WpdPack\Lib;$(USERPROFILE)\src\pcap\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(USERPROFILE)\WpdPack\Lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>true</GenerateMapFile>
     </Link>
@@ -140,21 +140,18 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WPCAP;HAVE_REMOTE</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\daemon_cl;$(ALLUSERSPROFILE)\WpdPack\Include;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\daemon_cl;$(USERPROFILE)\WpdPack\Include;$(SolutionDir)\..\common;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Intel\WiFiSDK\Lib\x64\Release;$(ALLUSERSPROFILE)\WpdPack\Lib\x64;$(USERPROFILE)\WpdPack\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;MurocApi.lib;PanApi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(USERPROFILE)\WpdPack\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wpcap.lib;Iphlpapi.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>true</GenerateMapFile>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <None Include="ReadMe.txt" />
-  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\common\avbts_clock.hpp" />
     <ClInclude Include="..\..\common\avbts_message.hpp" />
@@ -182,18 +179,19 @@
     <ClInclude Include="..\daemon_cl\packet.hpp" />
     <ClInclude Include="..\daemon_cl\PeerList.hpp" />
     <ClInclude Include="..\daemon_cl\platform.hpp" />
-    <ClInclude Include="dummy.hpp" />
+    <ClInclude Include="..\daemon_cl\windows_hal_common.hpp" />
+    <ClInclude Include="intel_wireless.hpp" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="..\daemon_cl\Stoppable.hpp" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="..\daemon_cl\tsc.hpp" />
-    <ClInclude Include="..\daemon_cl\windows_hal.hpp" />
+    <ClInclude Include="windows_hal_wireless.hpp" />
+    <ClInclude Include="work_queue.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\common\avbts_osnet.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\..\common\ethtimestamper.cpp" />
     <ClCompile Include="..\..\common\ieee1588clock.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -205,6 +203,7 @@
     </ClCompile>
     <ClCompile Include="..\..\common\timestamper.cpp" />
     <ClCompile Include="..\..\common\wltimestamper.cpp" />
+    <ClCompile Include="..\daemon_cl\windows_hal_common.cpp" />
     <ClCompile Include="daemon_wl.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -215,13 +214,15 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\daemon_cl\platform.cpp" />
+    <ClCompile Include="intel_wireless.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\daemon_cl\windows_hal.cpp" />
+    <ClCompile Include="windows_hal_wireless.cpp" />
+    <ClCompile Include="work_queue.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

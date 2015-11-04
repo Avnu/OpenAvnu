@@ -106,7 +106,7 @@ done:
 		} else {
 			if( rm != NULL ) {
 				if( !rm( it->state, handler_arg ) ) {
-					fprintf( stderr, "Call to cleanup peer state failed\n" );
+					XPTPD_WDEBUG("Call to cleanup peer state failed" );
 				}
 			}
 			internal_vector.erase( it );

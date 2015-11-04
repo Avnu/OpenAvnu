@@ -33,28 +33,75 @@
 
 #ifndef AVBTS_OSLOCK_HPP
 #define AVBTS_OSLOCK_HPP
+
+#include <debugout.hpp>
+#include <string.h>
+#include <platform.hpp>
+
 typedef enum { oslock_recursive, oslock_nonrecursive } OSLockType;
 typedef enum { oslock_ok, oslock_self, oslock_held, oslock_fail } OSLockResult;
 
 class OSLock {
  public:
-	virtual OSLockResult lock() = 0;
-	virtual OSLockResult unlock() = 0;
-	virtual OSLockResult trylock() = 0;
+	virtual OSLockResult lock(const char *caller = NULL) = 0;
+	virtual OSLockResult unlock(const char *caller = NULL) = 0;
+	virtual OSLockResult trylock(const char *caller = NULL) = 0;
 	virtual ~OSLock() = 0;
  protected:
-	OSLock() { }
-	bool initialize( OSLockType type ) {
-		return false;
+	OSLock() {
+		this->debug_lock = false;
+		this->lock_name = NULL;
+	}
+	OSLock(const char *lock_name, bool debug_lock) {
+		this->debug_lock = debug_lock;
+		if (lock_name != NULL) {
+			this->lock_name = new char[strlen(lock_name) + 1];
+			PLAT_strncpy(this->lock_name, lock_name, strlen(lock_name));
+		}
+		else {
+			this->lock_name = NULL;
+		}
+	}
+private:
+	bool debug_lock;
+	char *lock_name;
+	void debugOutput(const char *verb, const char *caller) {
+		const char *lock_name = this->lock_name != NULL ?
+			this->lock_name : "Unnamed Lock";
+		caller = caller != NULL ? caller : "Unknown Caller";
+		if (debug_lock)
+			XPTPD_WDEBUG
+				("Lock Name: %s %s Lock (%s)", 
+				 lock_name, verb, caller);
 	}
 };
 
-inline OSLock::~OSLock() { }
+inline OSLock::~OSLock() {
+	delete lock_name;
+}
+
+// This code needs work
+// For now, these base functions should be called by OS specific
+// implementations
+inline OSLockResult OSLock::lock(const char *caller) {
+	debugOutput("Acquire", caller);
+	return oslock_fail;
+}
+inline OSLockResult OSLock::unlock(const char *caller) {
+	debugOutput("Release", caller);
+	return oslock_fail;
+}
+inline OSLockResult OSLock::trylock(const char *caller) {
+	debugOutput("Acquire (Try)", caller);
+	return oslock_fail;
+}
 
 class OSLockFactory {
 public:
 	// Return value of NULL indicates error condition
-	virtual OSLock* createLock(OSLockType type) = 0;
+	virtual OSLock* createLock
+	(OSLockType type, const char *lock_name = NULL,
+	 bool debug_lock = false ) = 0;
 	virtual ~OSLockFactory() = 0;
 };
 

@@ -617,8 +617,6 @@ bool PTPMessageAnnounce::processMessage( MediaDependentPort *port )
 	MediaIndependentPort *iport = port->getPort();
 	IEEE1588Clock *clock = port->getPort()->getClock();
 
-	XPTPD_INFOL(ANNOUNCE_DEBUG, "Processing announce message");
-
 	// Delete announce receipt timeout
 	clock->deleteEventTimer
 		( iport, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES);
@@ -764,6 +762,7 @@ bool PTPMessageFollowUp::processMessage(MediaDependentPort *port, Timestamp rece
 	clock_offset_t offset;
 	int correction;
 
+	memset(&offset, 0, sizeof(offset));
 	port->getDeviceTime(system_time, device_time);
 
 	offset.ls_freqoffset = port->getLocalSystemRateOffset();
@@ -779,17 +778,18 @@ bool PTPMessageFollowUp::processMessage(MediaDependentPort *port, Timestamp rece
 	corrected_sync_time = receipt;
 
 	if (correction > 0)
-		TIMESTAMP_SUB_NS(corrected_sync_time, correction);
-	else TIMESTAMP_ADD_NS(corrected_sync_time, -correction);
+		corrected_sync_time -  correction;
+	else
+		corrected_sync_time + -correction;
 
 	/* Adjust local_clock to correspond to sync_arrival */
 	device_sync_time_offset =
 		TIMESTAMP_TO_NS(device_time - corrected_sync_time);
 
-	TIMESTAMP_SUB_NS
-		(system_time, (uint64_t)
+	system_time - (uint64_t)
 		(((FrequencyRatio)device_sync_time_offset) /
-		offset.ls_freqoffset));
+			offset.ls_freqoffset);
+
 
 	offset.ml_phoffset =
 		corrected_sync_time > preciseOriginTimestamp ?
@@ -1053,7 +1053,7 @@ bool PTPMessagePathDelayResp::processMessage( MediaDependentEtherPort * port )
 	}
 	
 	if (port->tryPDelayRxLock() != true) {
-		fprintf(stderr, "Failed to get PDelay RX Lock\n");
+		XPTPD_ERROR("Failed to get PDelay RX Lock");
 		return false;
 	}
 
@@ -1319,7 +1319,7 @@ bool PTPMessagePathDelayRespFollowUp::processMessage
 	port->setLinkDelay( link_delay );
 	iport->setPeerOffset( request_tx_timestamp, remote_req_rx_timestamp );
 
-	XPTPD_INFOL( PDELAY_DEBUG, "Link Delay: %lld", (long long) link_delay );
+	XPTPD_INFOL(PDELAY_DEBUG, "Link Delay: %lld", (long long)link_delay);
 
  abort:
 	delete req;

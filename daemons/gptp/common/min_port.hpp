@@ -44,7 +44,6 @@
 
 #include <stdint.h>
 
-#include <map>
 #include <list>
 
 #define GPTP_MULTICAST 0x0180C200000EULL
@@ -128,8 +127,6 @@ public:
 	}
 };
 
-typedef std::map < PortIdentity, LinkLayerAddress > IdentityMap_t;
-
 class MediaIndependentPort {
 	static LinkLayerAddress other_multicast;
 	static LinkLayerAddress pdelay_multicast;
@@ -183,8 +180,6 @@ class MediaIndependentPort {
 	PTPMessagePathDelayReq *last_pdelay_req;
 	PTPMessagePathDelayResp *last_pdelay_resp;
 	PTPMessagePathDelayRespFollowUp *last_pdelay_resp_fwup;
-
-	IdentityMap_t identity_map;
 
 	PTPMessageSync *last_sync;
 
@@ -241,7 +236,7 @@ public:
 	void setAsCapable();
 	void unsetAsCapable() {
 		if (asCapable == true) {
-			fprintf( stderr, "AsCapable: Disabled\n" );
+			XPTPD_INFO("AsCapable: Disabled" );
 		}
 		asCapable = false;
 		_peer_offset_init = false;

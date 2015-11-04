@@ -47,11 +47,11 @@ OSThreadExitCode TimestamperThreadFunction( void *arg_in ) {
 	OSTimer *timer = timestamper->getTimerFactory()->createTimer();
 	int i;
 
-	Timestamp prev_tsc, prev_net;
+	Timestamp prev_sys, prev_net;
 	
 	// Wait approximately 1 second (1000 ms); execute at least once
 	for( i = 0; i < (1000/MIN_POLL_INTERVAL)+1; ++i ) {
-		if( timestamper->HWTimestamper_gettime( &prev_tsc, &prev_net )) {
+		if( timestamper->HWTimestamper_gettime( &prev_sys, &prev_net )) {
 			break;
 		}
 		timer->sleep( MIN_POLL_INTERVAL*1000 );
@@ -61,25 +61,26 @@ OSThreadExitCode TimestamperThreadFunction( void *arg_in ) {
 	}
 	timer->sleep( EST_POLL_INTERVAL*1000 );
 	while( true ) {
-		Timestamp tsc, net;
+		Timestamp sys, net;
 		FrequencyRatio local_system_ratio;
 
-		if( !timestamper->HWTimestamper_gettime( &tsc, &net )) {
+		if( !timestamper->HWTimestamper_gettime( &sys, &net )) {
 			return osthread_error;
 		}
 		local_system_ratio  = (long double) TIMESTAMP_TO_NS(net - prev_net);
-		local_system_ratio /= TIMESTAMP_TO_NS(tsc - prev_tsc);
-
+		local_system_ratio /= TIMESTAMP_TO_NS(sys - prev_sys);
 		timestamper->lock();
 		timestamper->setLocalSystemRatio( local_system_ratio );
 		timestamper->unlock();
+		XPTPD_WDEBUG("local_system_ratio=%Lf(Net(N)=%llu,Net(N-1)=%llu,System(N)=%llu,System(N-1)=%llu)",
+			local_system_ratio, TIMESTAMP_TO_NS(net), TIMESTAMP_TO_NS(prev_net), TIMESTAMP_TO_NS(sys), TIMESTAMP_TO_NS(prev_sys));
 
 		XPTPD_INFOL
 			( TIMESTAMP_DEBUG, "local system ratio: %Lf(%llu,%s,%s)\n",
 			  local_system_ratio, TIMESTAMP_TO_NS(net - prev_net),
-			  tsc.toString(),prev_tsc.toString());
+			  sys.toString(),prev_sys.toString());
 
-		prev_tsc = tsc;
+		prev_sys = sys;
 		prev_net = net;
 		timer->sleep( POLL_INTERVAL*1000 );
 	}
@@ -100,7 +101,7 @@ bool Timestamper::HWTimestamper_init
 		this->timer_factory = timer_factory;
 		this->thread_factory = thread_factory;
 
-		if (!(glock = lock_factory->createLock(oslock_nonrecursive))) {
+		if (!(glock = lock_factory->createLock(oslock_nonrecursive, "timestamper", true))) {
 			return false;
 		}
 

@@ -42,6 +42,7 @@
 #include <avbts_osnet.hpp>
 #include <timestamper.hpp>
 #include <md_wireless.hpp>
+#include <limits.h>
 
 
 class MediaDependentPort;
@@ -57,12 +58,72 @@ class MediaDependentWirelessPort;
 /* id identifies the timestamper 0 is reserved meaning no timestamper is 
    availabled */
 
+typedef struct _PTP_CTX
+{
+	uint8_t		ElementId;
+	uint8_t		Length;
+	uint8_t		Data[1];
+} PTP_CTX;
+
+typedef struct _TIMINGMSMT_REQUEST
+{
+	uint8_t		PeerMACAddress[ETHER_ADDR_OCTETS];
+	uint8_t		Category;
+	uint8_t		Action;
+	uint8_t		DialogToken;
+	uint8_t		FollowUpDialogToken;
+	uint32_t	T1;
+	uint32_t	T4;
+	uint8_t		MaxT1Error;
+	uint8_t		MaxT4Error;
+	PTP_CTX		VendorSpecifics;
+} TIMINGMSMT_REQUEST;
+
+typedef struct _TIMINGMSMT_EVENT_DATA
+{
+	uint8_t		PeerMACAddress[ETHER_ADDR_OCTETS];
+	uint32_t	DialogToken;
+	uint32_t	FollowUpDialogToken;
+	uint64_t	T1;
+	uint32_t	MaxT1Error;
+	uint64_t	T4;
+	uint32_t	MaxT4Error;
+	uint64_t	T2;
+	uint32_t	MaxT2Error;
+	uint64_t	T3;
+	uint32_t	MaxT3Error;
+	PTP_CTX		VendorSpecifics;
+} TIMINGMSMT_EVENT_DATA;
+
+typedef struct _TIMINGMSMT_CONFIRM_EVENT_DATA
+{
+	uint8_t		PeerMACAddress[ETHER_ADDR_OCTETS];
+	uint32_t	DialogToken;
+	uint64_t	T1;
+	uint32_t	MaxT1Error;
+	uint64_t	T4;
+	uint32_t	MaxT4Error;
+} TIMINGMSMT_CONFIRM_EVENT_DATA;
+
+typedef struct _WIRELESS_CORRELATEDTIME
+{
+	uint64_t	TSC;
+	uint64_t	LocalClk;
+} WIRELESS_CORRELATEDTIME;
+
+typedef enum _WIRELESS_EVENT_TYPE
+{
+	TIMINGMSMT_EVENT = 0,
+	TIMINGMSMT_CONFIRM_EVENT,
+	TIMINGMSMT_CORRELATEDTIME_EVENT,
+} WIRELESS_EVENT_TYPE;
+
 class WirelessDialog {
 public:
 	Timestamp action;
-	uint32_t action_devclk;
+	uint64_t action_devclk;
 	Timestamp ack;
-	uint32_t ack_devclk;
+	uint64_t ack_devclk;
 	uint8_t dialog_token;
 	uint16_t fwup_seq;
 	WirelessDialog(uint32_t action, uint32_t ack, uint8_t dialog_token) {
@@ -83,18 +144,8 @@ public:
 
 };
 
-inline uint64_t _32to64(uint32_t *rollover, uint32_t *prev, uint32_t curr) {
-	uint64_t ret;
-	if (curr < *prev && (*prev - curr) >(UINT32_MAX >> 1)) {
-		*rollover = *rollover + 1;
-	}
-	ret = *rollover;
-	ret <<= 32;
-	ret += curr;
-	*prev = curr;
-	return ret;
-}
-
+#define MAX_NSEC (ULONG_MAX*10ULL)
+#define OUI_LENGTH (3)
 
 class WirelessTimestamper : public Timestamper {
 private:
@@ -115,8 +166,9 @@ private:
 	PeerMap peer_map;
 	typedef PeerMap::iterator PeerMapIter;
 
-	uint32_t last_count;
+	uint64_t last_count;
 	uint32_t rollover;
+	OSLock *rollover_lock;
 protected:
 	OSLock *glock;
 public:
@@ -127,6 +179,9 @@ public:
 
 		if (!initialized) {
 			this->iface_label = iface_label;
+			if (!(rollover_lock = lock_factory->createLock(oslock_nonrecursive))) {
+				return false;
+			}
 		}
 
 		Timestamper::HWTimestamper_init
@@ -157,7 +212,21 @@ public:
 
 	void timingMeasurementConfirmCB(LinkLayerAddress addr, WirelessDialog *dialog);
 	void timeMeasurementIndicationCB(LinkLayerAddress addr, WirelessDialog *current, WirelessDialog *previous, uint8_t *buf, size_t buflen);
-};
 
+	uint64_t _32to64(uint64_t curr) {
+		uint64_t ret;
+		rollover_lock->lock();
+		if (curr < last_count && (last_count - curr) >(MAX_NSEC >> 1)) {
+			rollover = rollover + 1;
+		}
+		ret = rollover;
+		ret *= MAX_NSEC;
+		ret += curr;
+		last_count = curr;
+		rollover_lock->unlock();
+		return ret;
+	}
+
+};
 
 #endif/*WLTIMESTAMPER_HPP*/
