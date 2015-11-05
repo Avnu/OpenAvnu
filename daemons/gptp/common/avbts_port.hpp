@@ -427,7 +427,7 @@ class IEEE1588Port {
 	 * hardware timestamper and create OS locks conditions
 	 * @return FALSE if error during building the interface. TRUE if success
 	 */
-	bool init_port();
+	bool init_port(int delay[4]);
 
 	/**
 	 * @brief  Currently doesnt do anything. Just returns.
@@ -439,7 +439,7 @@ class IEEE1588Port {
 	 * @brief Receives messages from the network interface
 	 * @return Its an infinite loop. Returns NULL in case of error.
 	 */
-	void *openPort(void);
+	void *openPort(IEEE1588Port *port);
 
 	/**
 	 * @brief Get the payload offset inside a packet
@@ -960,4 +960,3 @@ class IEEE1588Port {
 };
 
 #endif
-

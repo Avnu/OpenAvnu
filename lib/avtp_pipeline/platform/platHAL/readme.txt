@@ -1,0 +1,1 @@
+Consider migration of HAL implements into this folder.

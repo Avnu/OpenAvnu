@@ -307,7 +307,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecv
-		 (LinkLayerAddress * addr, uint8_t * payload, size_t & length) = 0;
+		 (LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
 
 	 /**
 	  * @brief Get Link Layer address (mac address)

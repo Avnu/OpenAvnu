@@ -52,7 +52,7 @@
 #define RX_PHY_TIME 382
 
 net_result LinuxNetworkInterface::nrecv
-( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) {
+( LinkLayerAddress *addr, uint8_t *payload, size_t &length,struct phy_delay *delay ) {
 	fd_set readfds;
 	int err;
 	struct msghdr msg;
@@ -136,7 +136,7 @@ net_result LinuxNetworkInterface::nrecv
 			if
 				( cmsg->cmsg_level == SOL_SOCKET &&
 				  cmsg->cmsg_type == SO_TIMESTAMPING ) {
-				Timestamp latency( RX_PHY_TIME, 0, 0 );
+				Timestamp latency( delay->gb_rx_phy_delay, 0, 0 );
 				struct timespec *ts_device, *ts_system;
 				Timestamp device, system;
 				ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
@@ -270,9 +270,11 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-	Timestamp latency( TX_PHY_TIME, 0, 0 );
+    struct phy_delay delay_val;
+	get_phy_delay (&delay_val);//gets the phy delay
 
-	if( sd == -1 ) return GPTP_EC_FAILURE;
+	Timestamp latency( delay_val.gb_tx_phy_delay, 0, 0 );
+    if( sd == -1 ) return -1;
 	memset( &msg, 0, sizeof( msg ));
 
 	msg.msg_iov = &sgentry;
@@ -443,4 +445,3 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 
 	return false;
 }
-

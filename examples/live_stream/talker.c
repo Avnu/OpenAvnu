@@ -39,6 +39,7 @@ unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
 unsigned char glob_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0E, 0x80 };
+volatile int *halt_tx_sig;//Global variable for signal handler
 
 uint64_t reverse_64(uint64_t val)
 {
@@ -59,7 +60,7 @@ uint64_t reverse_64(uint64_t val)
 void sigint_handler(int signum)
 {
 	fprintf(stderr, "got SIGINT\n");
-	halt_tx = signum;
+	*halt_tx_sig = signum;
 }
 
 int get_mac_addr(int8_t *iface)
@@ -94,6 +95,7 @@ int main(int argc, char *argv[])
 	struct igb_packet *tmp_packet;
 	struct igb_packet *cleaned_packets;
 	struct igb_packet *free_packets;
+	struct mrp_talker_ctx *ctx = malloc(sizeof(struct mrp_talker_ctx));
 	six1883_header *h61883;
 	seventeen22_header *h1722;
 	unsigned i;
@@ -106,6 +108,8 @@ int main(int argc, char *argv[])
 	void *stream_packet;
 	long long int frame_sequence = 0;
 	struct sched_param sched;
+	struct mrp_domain_attr *class_a = malloc(sizeof(struct mrp_domain_attr));
+	struct mrp_domain_attr *class_b = malloc(sizeof(struct mrp_domain_attr));
 
 	if (argc < 2) {
 		fprintf(stderr,"%s <if_name> <payload>\n", argv[0]);
@@ -116,9 +120,14 @@ int main(int argc, char *argv[])
 	packet_size = atoi(argv[2]);;
 	glob_payload_length = atoi(argv[2]);;
 	packet_size += sizeof(six1883_header) + sizeof(seventeen22_header) + sizeof(eth_header);
-
+	err = mrp_talker_client_init(ctx);
+	if (err) {
+		printf("MRP talker client initialization failed\n");
+		return errno;
+	}
+	halt_tx_sig = &ctx->halt_tx;
 #ifdef USE_MRPD
-	err = mrp_connect();
+	err = mrp_connect(ctx);
 	if (err) {
 		fprintf(stderr, "socket creation failed\n");
 		return errno;
@@ -152,28 +161,24 @@ int main(int argc, char *argv[])
 	}
 
 #ifdef USE_MRPD
-	err = mrp_monitor();
+	err = mrp_get_domain(ctx, class_a, class_b);
 	if (err) {
-		printf("failed creating MRP monitor thread\n");
+		printf("failed calling msp_get_domain()\n");
 		return EXIT_FAILURE;
 	}
+	fprintf(stderr, "detected domain Class A PRIO=%d VID=%04x...\n", class_a->priority,
+	       class_a->vid);
 
-	domain_a_valid = 1;
-	domain_class_a_id = MSRP_SR_CLASS_A;
-	domain_class_a_priority = MSRP_SR_CLASS_A_PRIO;
-	domain_class_a_vid = 2;
-	fprintf(stderr, "detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority,
-	       domain_class_a_vid);
-
-	err = mrp_register_domain(&domain_class_a_id, &domain_class_a_priority, &domain_class_a_vid);
+	err = mrp_register_domain(class_a, ctx);
 	if (err) {
 		printf("mrp_register_domain failed\n");
 		return EXIT_FAILURE;
 	}
-
-	domain_a_valid = 1;
-	domain_class_a_vid = 2;
-	fprintf(stderr, "detected domain Class A PRIO=%d VID=%04x...\n", domain_class_a_priority, domain_class_a_vid);
+	err = mrp_join_vlan(class_a, ctx);
+	if (err) {
+		printf("mrp_join_vlan failed\n");
+		return EXIT_FAILURE;
+	}
 #endif
 
 	igb_set_class_bandwidth(&igb_dev, PACKET_IPG / 125000, 0, packet_size - 22, 0);
@@ -205,7 +210,7 @@ int main(int argc, char *argv[])
 	avb_set_1722_stream_id(h1722,reverse_64(STREAMID));
 	avb_set_1722_sid_valid(h1722, 0x1);
 
-	
+
 	/*initalize h61883 header */
 	avb_initialize_61883_to_defaults(h61883);
 	avb_set_61883_format_tag(h61883, 0x1);
@@ -242,26 +247,29 @@ int main(int argc, char *argv[])
 	}
 
 #ifdef USE_MRPD
-	/* 
-	 * subtract 16 bytes for the MAC header/Q-tag - pktsz is limited to the 
+	/*
+	 * subtract 16 bytes for the MAC header/Q-tag - pktsz is limited to the
 	 * data payload of the ethernet frame .
 	 *
 	 * IPG is scaled to the Class (A) observation interval of packets per 125 usec
 	 */
 	fprintf(stderr, "advertising stream ...\n");
-	err = mrp_advertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
-				PACKET_IPG / 125000, domain_class_a_priority, 3900);
+	err = mrp_advertise_stream(glob_stream_id, glob_dest_addr, packet_size - 16,
+				PACKET_IPG / 125000, 3900, ctx);
 	if (err) {
 		printf("mrp_advertise_stream failed\n");
 		return EXIT_FAILURE;
 	}
 
 	fprintf(stderr, "awaiting a listener ...\n");
-	err = mrp_await_listener(glob_stream_id);
+	err = mrp_await_listener(glob_stream_id,ctx);
 	if (err) {
 		printf("mrp_await_listener failed\n");
 		return EXIT_FAILURE;
 	}
+	ctx->listeners = 1;
+	printf("got a listener ...\n");
+	ctx->halt_tx = 0;
 
 #endif
 
@@ -269,7 +277,7 @@ int main(int argc, char *argv[])
 	sched.sched_priority = 1;
 	sched_setscheduler(0, SCHED_RR, &sched);
 
-	while (listeners && !halt_tx)
+	while (ctx->listeners && !ctx->halt_tx)
 	{
 		tmp_packet = free_packets;
 		if (NULL == tmp_packet)
@@ -289,9 +297,9 @@ int main(int argc, char *argv[])
 		else
 			avb_set_1722_timestamp_valid(h1722, 1);
 
-		data_ptr = (uint8_t *)((uint8_t*)stream_packet + sizeof(eth_header) + sizeof(seventeen22_header) 
+		data_ptr = (uint8_t *)((uint8_t*)stream_packet + sizeof(eth_header) + sizeof(seventeen22_header)
 					+ sizeof(six1883_header));
-		
+
 		read_bytes = read(0, (void *)data_ptr, glob_payload_length);
 		/* Error case while reading the input file */
 		if (read_bytes < 0) {
@@ -325,24 +333,27 @@ cleanup:
 		}
 	}
 
-	if (halt_tx == 0)
+	if (ctx->halt_tx == 0)
 		fprintf(stderr, "listener left ...\n");
 
-	halt_tx = 1;
+	ctx->halt_tx = 1;
 	sleep(1);
 #ifdef USE_MRPD
-	err = mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, domain_class_a_vid, packet_size - 16,
-				PACKET_IPG / 125000, domain_class_a_priority, 3900);
+	err = mrp_unadvertise_stream(glob_stream_id, glob_dest_addr, packet_size - 16,
+				PACKET_IPG / 125000, 3900, ctx);
 	if (err)
 		printf("mrp_unadvertise_stream failed\n");
 #endif
 	/* disable Qav */
 	igb_set_class_bandwidth(&igb_dev, 0, 0, 0, 0);
 #ifdef USE_MRPD
-	err = mrp_disconnect();
+	err = mrp_disconnect(ctx);
 	if (err)
 		printf("mrp_disconnect failed\n");
 #endif
+	free(ctx);
+	free(class_a);
+	free(class_b);
 	igb_dma_free_page(&igb_dev, &a_page);
 
 	err = igb_detach(&igb_dev);

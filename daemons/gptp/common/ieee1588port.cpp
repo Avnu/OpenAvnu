@@ -55,7 +55,7 @@ OSThreadExitCode openPortWrapper(void *arg)
 	IEEE1588Port *port;
 
 	port = (IEEE1588Port *) arg;
-	if (port->openPort() == NULL)
+	if (port->openPort(port) == NULL)
 		return osthread_ok;
 	else
 		return osthread_error;
@@ -129,7 +129,7 @@ IEEE1588Port::IEEE1588Port
 	sync_count = 0;
 }
 
-bool IEEE1588Port::init_port()
+bool IEEE1588Port::init_port(int delay[4])
 {
 	if (!OSNetworkInterfaceFactory::buildInterface
 	    (&net_iface, factory_name_t("default"), net_label, _hw_timestamper))
@@ -147,6 +147,7 @@ bool IEEE1588Port::init_port()
 			_hw_timestamper = NULL;
 		}
 	}
+	_hw_timestamper->init_phy_delay(delay);
 
 	pdelay_rx_lock = lock_factory->createLock(oslock_recursive);
 	port_tx_lock = lock_factory->createLock(oslock_recursive);
@@ -289,9 +290,11 @@ bool IEEE1588Port::restoreSerializedState( void *buf, off_t *count ) {
   return ret;
 }
 
-void *IEEE1588Port::openPort(void)
+void *IEEE1588Port::openPort(IEEE1588Port *port)
 {
 	port_ready_condition->signal();
+	struct phy_delay get_delay;
+	port->_hw_timestamper->get_phy_delay(&get_delay);
 
 	while (1) {
 		PTPMessageCommon *msg;
@@ -300,7 +303,7 @@ void *IEEE1588Port::openPort(void)
 		net_result rrecv;
 		size_t length = sizeof(buf);
 
-		if ((rrecv = net_iface->nrecv(&remote, buf, length)) == net_succeed) {
+		if ((rrecv = net_iface->nrecv(&remote, buf, length,&get_delay)) == net_succeed) {
 			XPTPD_INFO("Processing network buffer");
 			msg = buildPTPMessage((char *)buf, (int)length, &remote,
 					    this);
@@ -761,7 +764,11 @@ void IEEE1588Port::processEvent(Event e)
 					}
 					putTxLock();
 
+<<<<<<< HEAD
 					if (ts_good != GPTP_EC_SUCCESS) {
+=======
+					if (ts_good != 0) {
+>>>>>>> open-avb-next
 						char msg
 							[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 						getExtendedError(msg);

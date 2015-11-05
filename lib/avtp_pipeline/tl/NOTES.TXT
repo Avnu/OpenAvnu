@@ -1,0 +1,28 @@
+The TL (talker/listener) modules manages the talker and listener functionality
+and the stream associated with them.
+
+The functionality is exposed via a public API as declared in openavb_tl_pub.h. 
+These details of this API are described in the EAVB SDK Developer Guide.
+
+The general flow is as follows. The hosting application dynamically links in the
+TL functional. These TL API are implemented in openavb_tl.c. openavbTLInitialize() is
+called first to initialize the TL lists. openavbTLOpen() is called after that with
+the ini file name. There will be one call to openavbTLOpen for each talker or listener.
+openavbTLRun() is used to start the stream for the talker or listener. openavbTLClose() 
+will stop the stream for the talker or listener. Finally the openavbTLShutdown() is 
+used to cleanup the TL functionality.
+
+There are two hosting applications included with our AVB stack primarily as 
+samples. These are openavb_tl_host and openavb_tl_harness. It is expected that most 
+solutions will replace these with a customer specific application.
+
+At a lower level most things happen as a result of the stTLOpen() call. A thread
+is created for each talker and listener. So this means every stream has it's own 
+thread. The main thread entry point is openavbTLThreadFn(). From there the detailed 
+talker or listener functionality is called with openavbTLRunTalker() or 
+openavbTLRunListener() respectively. It is in these talker and listener run functions
+the talker registers to the endpoint and the listener attaches to the endpoint. 
+The endpoint will call back into the talker and listener with details of streams
+coming and going so that the talker and listener can determine when to send or not 
+send and when to listen or not listen.
+
