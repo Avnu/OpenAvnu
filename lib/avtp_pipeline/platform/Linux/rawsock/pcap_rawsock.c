@@ -45,15 +45,13 @@ void *pcapRawsockOpen(pcap_rawsock_t* rawsock, const char *ifname, bool rx_mode,
 
 	AVB_LOGF_DEBUG("Open, rx=%d, tx=%d, ethertype=%x size=%d, num=%d",	rx_mode, tx_mode, ethertype, frame_size, num_frames);
 
+	baseRawsockOpen(&rawsock->base, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
+
 	if (tx_mode) {
-		AVB_LOG_ERROR("pcap rawsock transmit mode will bypass FQTSS");
+		AVB_LOG_DEBUG("pcap rawsock transmit mode will bypass FQTSS");
 	}
 
 	rawsock->handle = 0;
-	rawsock->base.rxMode = rx_mode;
-	rawsock->base.txMode = tx_mode;
-	rawsock->base.frameSize = frame_size;
-	rawsock->base.ethertype = ethertype;
 
 	// Get info about the network device
 	if (!simpleAvbCheckInterface(ifname, &(rawsock->base.ifInfo))) {
@@ -66,9 +64,9 @@ void *pcapRawsockOpen(pcap_rawsock_t* rawsock, const char *ifname, bool rx_mode,
 	// Deal with frame size.
 	if (rawsock->base.frameSize == 0) {
 		// use interface MTU as max frames size, if none specified
-		rawsock->base.frameSize = rawsock->base.ifInfo.mtu;
+		rawsock->base.frameSize = rawsock->base.ifInfo.mtu + ETH_HLEN + VLAN_HLEN;
 	}
-	else if (rawsock->base.frameSize > rawsock->base.ifInfo.mtu) {
+	else if (rawsock->base.frameSize > rawsock->base.ifInfo.mtu + ETH_HLEN + VLAN_HLEN) {
 		AVB_LOG_ERROR("Creating raswsock; requested frame size exceeds MTU");
 		free(rawsock);
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
@@ -84,6 +82,14 @@ void *pcapRawsockOpen(pcap_rawsock_t* rawsock, const char *ifname, bool rx_mode,
 		return NULL;
 	}
 
+	// fill virtual functions table
+	rawsock_cb_t *cb = &rawsock->base.cb;
+	cb->close = pcapRawsockClose;
+	cb->getTxFrame = pcapRawsockGetTxFrame;
+	cb->txFrameReady = pcapRawsockTxFrameReady;
+	cb->getRxFrame = pcapRawsockGetRxFrame;
+	cb->rxMulticast = pcapRawsockRxMulticast;
+
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 	return rawsock;
 }
@@ -93,10 +99,10 @@ void pcapRawsockClose(void *pvRawsock)
 	pcap_rawsock_t *rawsock = (pcap_rawsock_t*)pvRawsock;
 
 	if (rawsock) {
-		if (rawsock->handle)
-			pcap_close(rawsock->handle);
-		free(rawsock);
+		pcap_close(rawsock->handle);
 	}
+
+	baseRawsockClose(rawsock);
 }
 
 U8 *pcapRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len)
