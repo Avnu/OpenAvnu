@@ -32,6 +32,9 @@
     </ClInclude>
     <ClInclude Include="..\..\common\ipcdef.hpp">
       <Filter>Header Files</Filter>
+      </ClInclude>
+    <ClInclude Include="windows_ipc.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="platform.hpp">
       <Filter>Header Files</Filter>

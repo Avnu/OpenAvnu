@@ -58,6 +58,7 @@ HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(COMMON_DIR)/avbts_clock.hpp\
 		$(COMMON_DIR)/ieee1588.hpp\
 		$(COMMON_DIR)/ipcdef.hpp\
+		$(SRC_DIR)/linux_ipc.hpp\
 		$(SRC_DIR)/linux_hal_common.hpp\
 		$(SRC_DIR)/platform.hpp
 

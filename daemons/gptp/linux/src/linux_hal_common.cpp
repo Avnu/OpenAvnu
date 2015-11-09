@@ -37,7 +37,7 @@
 #include <avbts_port.hpp>
 
 #include <pthread.h>
-#include <ipcdef.hpp>
+#include <linux_ipc.hpp>
 
 #include <sys/mman.h>
 #include <fcntl.h>

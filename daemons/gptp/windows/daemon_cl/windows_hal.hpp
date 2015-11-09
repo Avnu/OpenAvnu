@@ -47,7 +47,7 @@
 #include "packet.hpp"
 #include "ieee1588.hpp"
 #include "iphlpapi.h"
-#include "ipcdef.hpp"
+#include "windows_ipc.hpp"
 #include "tsc.hpp"
 
 #include "avbts_osipc.hpp"

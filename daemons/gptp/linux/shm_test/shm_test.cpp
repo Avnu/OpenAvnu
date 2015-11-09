@@ -44,7 +44,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#include "ipcdef.hpp"
+#include "linux_ipc.hpp"
 
 static inline uint64_t getCpuFrequency(void)
 {

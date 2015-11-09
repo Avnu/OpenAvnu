@@ -764,13 +764,9 @@ void IEEE1588Port::processEvent(Event e)
 					}
 					putTxLock();
 
-<<<<<<< HEAD
 					if (ts_good != GPTP_EC_SUCCESS) {
-=======
-					if (ts_good != 0) {
->>>>>>> open-avb-next
-						char msg
-							[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
+                        char msg
+                            [HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 						getExtendedError(msg);
 						fprintf
 							(stderr,

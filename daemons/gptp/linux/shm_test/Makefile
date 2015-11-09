@@ -28,14 +28,15 @@
 #  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
-COMMON_DIR = ../../common
+COMMON_DIR := ../../common
+LINUX_SRC_DIR := ../src
 TARGET_NAME := shm_test
 
-CFLAGS_G = -Wall -g -Wnon-virtual-dtor -I. -I$(COMMON_DIR)
+CFLAGS_G = -Wall -g -Wnon-virtual-dtor -I. -I$(COMMON_DIR) -I$(LINUX_SRC_DIR)
 LDFLAGS_G = -lpthread -lrt
 
 OBJ_FILES =
-HEADER_FILES = $(COMMON_DIR)/ipcdef.hpp
+HEADER_FILES := $(COMMON_DIR)/ipcdef.hpp $(LINUX_SRC_DIR)/linux_ipc.hpp
 
 CFLAGS = $(CFLAGS_G)
 LDFLAGS = $(LDFLAGS_G)
