@@ -100,6 +100,7 @@ int main(int argc, char *argv[])
     fprintf(stdout, "local time %lu\n", ptpData->local_time);
     fprintf(stdout, "sync count %u\n", ptpData->sync_count);
     fprintf(stdout, "pdelay count %u\n", ptpData->pdelay_count);
+    fprintf(stdout, "asCapable %s\n", ptpData->asCapable ? "True" : "False");
     fprintf(stdout, "Port State %d\n", (int)ptpData->port_state);
 
     return 0;

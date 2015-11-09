@@ -776,10 +776,11 @@ public:
 	 * @param  sync_count Counts of sync mesasges
 	 * @param  pdelay_count Counts of pdelays
 	 * @param  port_state PortState information
+     * @param  asCapable asCapable flag
 	 * @return TRUE if sucess; FALSE if error
 	 */
 	virtual bool update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-		uint32_t sync_count, uint32_t pdelay_count, PortState port_state);
+		uint32_t sync_count, uint32_t pdelay_count, PortState port_state, bool asCapable);
 };
 
 #endif

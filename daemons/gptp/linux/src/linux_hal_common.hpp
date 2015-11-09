@@ -634,12 +634,13 @@ public:
 	 * @param sync_count Count of syncs
 	 * @param pdelay_count Count of pdelays
 	 * @param port_state Port's state
+     * @param asCapable asCapable flag
 	 * @return TRUE
 	 */
 	virtual bool update
 	(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
 	 FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
-	 uint32_t pdelay_count, PortState port_state );
+	 uint32_t pdelay_count, PortState port_state, bool asCapable );
 
 	/**
 	 * @brief unmaps and unlink shared memory
