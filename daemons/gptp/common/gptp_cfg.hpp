@@ -50,6 +50,7 @@ class GptpIniParser {
             /*port data set*/
             unsigned int announceReceiptTimeout;
             unsigned int syncReceiptTimeout;
+            int64_t neighborPropDelayThresh;
             PortState port_state;
 
             /*ethernet adapter data set*/
@@ -106,6 +107,11 @@ class GptpIniParser {
         int getPhyDelayMbRx(void)
         {
             return _config.phyDelay.mb_rx_phy_delay;
+        }
+
+        int64_t getNeighborPropDelayThresh(void)
+        {
+            return _config.neighborPropDelayThresh;
         }
 
     private:

@@ -231,9 +231,11 @@ class IEEE1588Port {
 	bool burst_enabled;
 	int _accelerated_sync_count;
 	static const int64_t ONE_WAY_DELAY_DEFAULT = 3600000000000;
+    static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
 	int64_t one_way_delay;
+    int64_t neighbor_prop_delay_thresh;
 	/* Implementation Specific data/methods */
 	IEEE1588Clock *clock;
 
@@ -892,11 +894,24 @@ class IEEE1588Port {
 	 * Signed value allows this to be negative result because
 	 * of inaccurate timestamps.
 	 * @param  delay Link delay
-	 * @return void
+	 * @return True if one_way_delay is lower or equal than neighbor propagation delay threshold
+     * False otherwise
 	 */
-	void setLinkDelay(int64_t delay) {
+	bool setLinkDelay(int64_t delay) {
 		one_way_delay = delay;
+        int64_t abs_delay = (one_way_delay < 0 ? -one_way_delay : one_way_delay);
+
+        return (abs_delay <= neighbor_prop_delay_thresh);
 	}
+
+    /**
+     * @brief  Sets the neighbor propagation delay threshold
+     * @param  delay Delay in nanoseconds
+     * @return void
+     */
+    void setNeighPropDelayThresh(int64_t delay) {
+        neighbor_prop_delay_thresh = delay;
+    }
 
 	/**
 	 * @brief  Changes the port state

@@ -230,25 +230,6 @@ int main(int argc, char **argv)
         }
     }
 
-    if(use_config_file)
-    {
-        GptpIniParser iniParser(config_file_path);
-
-        if (iniParser.parserError() < 0) {
-            fprintf(stderr, "Cant parse ini file. Aborting file reading.\n");
-        }
-        else
-        {
-            fprintf(stdout, "priority1 = %d\n", iniParser.getPriority1());
-            fprintf(stdout, "announceReceiptTimeout: %d\n", iniParser.getAnnounceReceiptTimeout());
-            fprintf(stdout, "syncReceiptTimeout: %d\n", iniParser.getSyncReceiptTimeout());
-            fprintf(stdout, "phy_delay_gb_tx: %d\n", iniParser.getPhyDelayGbTx());
-            fprintf(stdout, "phy_delay_gb_rx: %d\n", iniParser.getPhyDelayGbRx());
-            fprintf(stdout, "phy_delay_mb_tx: %d\n", iniParser.getPhyDelayMbTx());
-            fprintf(stdout, "phy_delay_mb_rx: %d\n", iniParser.getPhyDelayMbRx());
-        }
-
-    }
     if (!input_delay)
     {
         phy_delay[0] = PHY_DELAY_GB_TX_I20;
@@ -323,6 +304,30 @@ int main(int argc, char **argv)
     if (!port->init_port(phy_delay)) {
         printf("failed to initialize port \n");
         return -1;
+    }
+    /* If using config file, set the neighborPropDelayThresh. Otherwise
+     * it will use its default value (800ns)
+     */
+    if(use_config_file)
+    {
+        GptpIniParser iniParser(config_file_path);
+
+        if (iniParser.parserError() < 0) {
+            fprintf(stderr, "Cant parse ini file. Aborting file reading.\n");
+        }
+        else
+        {
+            fprintf(stdout, "priority1 = %d\n", iniParser.getPriority1());
+            fprintf(stdout, "announceReceiptTimeout: %d\n", iniParser.getAnnounceReceiptTimeout());
+            fprintf(stdout, "syncReceiptTimeout: %d\n", iniParser.getSyncReceiptTimeout());
+            fprintf(stdout, "phy_delay_gb_tx: %d\n", iniParser.getPhyDelayGbTx());
+            fprintf(stdout, "phy_delay_gb_rx: %d\n", iniParser.getPhyDelayGbRx());
+            fprintf(stdout, "phy_delay_mb_tx: %d\n", iniParser.getPhyDelayMbTx());
+            fprintf(stdout, "phy_delay_mb_rx: %d\n", iniParser.getPhyDelayMbRx());
+            fprintf(stdout, "neighborPropDelayThresh: %ld\n", iniParser.getNeighborPropDelayThresh());
+            port->setNeighPropDelayThresh(iniParser.getNeighborPropDelayThresh());
+        }
+
     }
 
     if( restoredataptr != NULL ) {
