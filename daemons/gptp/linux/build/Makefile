@@ -30,8 +30,10 @@
 
 ALTERNATE_LINUX_INCPATH=$(HOME)/header/include/
 
-CFLAGS_G = -Wall -g -Wnon-virtual-dtor -I. -I../../common -I../src \
+CFLAGS_G = -Wall -g -I. -I../../common -I../src \
 	-I$(ALTERNATE_LINUX_INCPATH)
+
+CPPFLAGS_G := $(CFLAGS_G) -Wnon-virtual-dtor
 
 LDFLAGS_G = -lpthread -lrt
 
@@ -44,7 +46,9 @@ OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/ieee1588port.o\
 		 $(OBJ_DIR)/ieee1588clock.o \
 		 $(OBJ_DIR)/linux_hal_common.o \
-		 $(OBJ_DIR)/platform.o
+		 $(OBJ_DIR)/platform.o \
+		 $(OBJ_DIR)/ini.o \
+		 $(OBJ_DIR)/gptp_cfg.o
 
 HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(COMMON_DIR)/avbts_ostimerq.hpp\
@@ -58,6 +62,8 @@ HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(COMMON_DIR)/avbts_clock.hpp\
 		$(COMMON_DIR)/ieee1588.hpp\
 		$(COMMON_DIR)/ipcdef.hpp\
+		$(COMMON_DIR)/ini.h\
+		$(COMMON_DIR)/gptp_cfg.hpp\
 		$(SRC_DIR)/linux_ipc.hpp\
 		$(SRC_DIR)/linux_hal_common.hpp\
 		$(SRC_DIR)/platform.hpp
@@ -87,6 +93,7 @@ else
 endif
 
 CFLAGS = $(CFLAGS_G)
+CPPFLAGS = $(CPPFLAGS_G)
 LDFLAGS = $(LDFLAGS_G)
 
 all: $(OBJ_DIR)/daemon_cl
@@ -94,37 +101,43 @@ all: $(OBJ_DIR)/daemon_cl
 rebuild: clean all
 
 $(OBJ_DIR)/daemon_cl: $(SRC_DIR)/daemon_cl.cpp $(OBJ_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) $(OBJ_FILES) $(SRC_DIR)/daemon_cl.cpp -o $(OBJ_DIR)/daemon_cl $(LDFLAGS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(OBJ_FILES) $(SRC_DIR)/daemon_cl.cpp -o $(OBJ_DIR)/daemon_cl $(LDFLAGS)
 
 $(OBJ_DIR)/linux_hal_common.o: $(SRC_DIR)/linux_hal_common.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_common.cpp -o $(OBJ_DIR)/linux_hal_common.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_common.cpp -o $(OBJ_DIR)/linux_hal_common.o
 
 $(OBJ_DIR)/platform.o: $(SRC_DIR)/platform.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/platform.cpp -o $(OBJ_DIR)/platform.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/platform.cpp -o $(OBJ_DIR)/platform.o
 
 $(OBJ_DIR)/linux_hal_generic.o: $(SRC_DIR)/linux_hal_generic.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_generic.cpp -o $(OBJ_DIR)/linux_hal_generic.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_generic.cpp -o $(OBJ_DIR)/linux_hal_generic.o
 
 $(OBJ_DIR)/linux_hal_generic_adj.o: $(SRC_DIR)/linux_hal_generic_adj.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_generic_adj.cpp -o $(OBJ_DIR)/linux_hal_generic_adj.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_generic_adj.cpp -o $(OBJ_DIR)/linux_hal_generic_adj.o
 
 $(OBJ_DIR)/linux_hal_i210.o: $(SRC_DIR)/linux_hal_i210.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_i210.cpp -o $(OBJ_DIR)/linux_hal_i210.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_i210.cpp -o $(OBJ_DIR)/linux_hal_i210.o
 
 $(OBJ_DIR)/linux_hal_intelce.o: $(SRC_DIR)/linux_hal_intelce.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_intelce.cpp -o $(OBJ_DIR)/linux_hal_intelce.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_intelce.cpp -o $(OBJ_DIR)/linux_hal_intelce.o
 
 $(OBJ_DIR)/ieee1588port.o: $(COMMON_DIR)/ieee1588port.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ieee1588port.cpp -o $(OBJ_DIR)/ieee1588port.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ieee1588port.cpp -o $(OBJ_DIR)/ieee1588port.o
 
 $(OBJ_DIR)/ieee1588clock.o: $(COMMON_DIR)/ieee1588clock.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ieee1588clock.cpp -o $(OBJ_DIR)/ieee1588clock.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ieee1588clock.cpp -o $(OBJ_DIR)/ieee1588clock.o
 
 $(OBJ_DIR)/ptp_message.o: $(COMMON_DIR)/ptp_message.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ptp_message.cpp -o $(OBJ_DIR)/ptp_message.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ptp_message.cpp -o $(OBJ_DIR)/ptp_message.o
 
 $(OBJ_DIR)/avbts_osnet.o: $(COMMON_DIR)/avbts_osnet.cpp $(HEADER_FILES)
-	$(CXX) $(CFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/avbts_osnet.cpp -o $(OBJ_DIR)/avbts_osnet.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/avbts_osnet.cpp -o $(OBJ_DIR)/avbts_osnet.o
+
+$(OBJ_DIR)/gptp_cfg.o: $(COMMON_DIR)/gptp_cfg.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/gptp_cfg.cpp -o $(OBJ_DIR)/gptp_cfg.o
+
+$(OBJ_DIR)/ini.o: $(COMMON_DIR)/ini.c $(HEADER_FILES)
+	$(CC) $(CFLAGS) -c $(COMMON_DIR)/ini.c -o $(OBJ_DIR)/ini.o
 
 clean:
 	$(RM) *~ $(OBJ_DIR)/*.o  $(OBJ_DIR)/daemon_cl
