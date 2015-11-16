@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -55,7 +55,7 @@ OSThreadExitCode openPortWrapper(void *arg)
 	IEEE1588Port *port;
 
 	port = (IEEE1588Port *) arg;
-	if (port->openPort() == NULL)
+	if (port->openPort(port) == NULL)
 		return osthread_ok;
 	else
 		return osthread_error;
@@ -128,7 +128,7 @@ IEEE1588Port::IEEE1588Port
 	sync_count = 0;
 }
 
-bool IEEE1588Port::init_port()
+bool IEEE1588Port::init_port(int delay[4])
 {
 	if (!OSNetworkInterfaceFactory::buildInterface
 	    (&net_iface, factory_name_t("default"), net_label, _hw_timestamper))
@@ -146,6 +146,7 @@ bool IEEE1588Port::init_port()
 			_hw_timestamper = NULL;
 		}
 	}
+	_hw_timestamper->init_phy_delay(delay);
 
 	pdelay_rx_lock = lock_factory->createLock(oslock_recursive);
 	port_tx_lock = lock_factory->createLock(oslock_recursive);
@@ -169,7 +170,7 @@ void IEEE1588Port::startAnnounce() {
 
 bool IEEE1588Port::serializeState( void *buf, off_t *count ) {
 	bool ret = true;
-	
+
 	if( buf == NULL ) {
 		*count = sizeof(port_state)+sizeof(_peer_rate_offset)+
 			sizeof(asCapable)+sizeof(one_way_delay);
@@ -236,7 +237,7 @@ bool IEEE1588Port::serializeState( void *buf, off_t *count ) {
 
 bool IEEE1588Port::restoreSerializedState( void *buf, off_t *count ) {
   bool ret = true;
-  
+
   /* asCapable */
   if( ret && *count >= (off_t) sizeof( asCapable )) {
     memcpy( &asCapable, buf, sizeof( asCapable ));
@@ -288,9 +289,11 @@ bool IEEE1588Port::restoreSerializedState( void *buf, off_t *count ) {
   return ret;
 }
 
-void *IEEE1588Port::openPort(void)
+void *IEEE1588Port::openPort(IEEE1588Port *port)
 {
 	port_ready_condition->signal();
+	struct phy_delay get_delay;
+	port->_hw_timestamper->get_phy_delay(&get_delay);
 
 	while (1) {
 		PTPMessageCommon *msg;
@@ -299,7 +302,7 @@ void *IEEE1588Port::openPort(void)
 		net_result rrecv;
 		size_t length = sizeof(buf);
 
-		if ((rrecv = net_iface->nrecv(&remote, buf, length)) == net_succeed) {
+		if ((rrecv = net_iface->nrecv(&remote, buf, length,&get_delay)) == net_succeed) {
 			XPTPD_INFO("Processing network buffer");
 			msg = buildPTPMessage((char *)buf, (int)length, &remote,
 					    this);
@@ -374,7 +377,7 @@ void IEEE1588Port::processEvent(Event e)
 {
 	bool changed_external_master;
 	OSTimer *timer = timer_factory->createTimer();
-	
+
 	switch (e) {
 	case POWERUP:
 	case INITIALIZE:
@@ -386,11 +389,11 @@ void IEEE1588Port::processEvent(Event e)
 			unsigned long long interval4;
 			Event e3 = NULL_EVENT;
 			Event e4 = NULL_EVENT;
-			
+
 			if( port_state != PTP_MASTER ) {
 				_accelerated_sync_count = -1;
 			}
-			
+
 			if( port_state != PTP_SLAVE && port_state != PTP_MASTER ) {
 				fprintf( stderr, "Starting PDelay\n" );
 				startPDelay();
@@ -410,7 +413,7 @@ void IEEE1588Port::processEvent(Event e)
 					(ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
 					 pow((double)2,getAnnounceInterval())*1000000000.0);
 			}
-      
+
 			port_ready_condition->wait_prelock();
 			listening_thread = thread_factory->createThread();
 			if (!listening_thread->
@@ -420,13 +423,13 @@ void IEEE1588Port::processEvent(Event e)
 				return;
 			}
 			port_ready_condition->wait();
-			
+
 			if (e3 != NULL_EVENT)
 				clock->addEventTimer(this, e3, interval3);
 			if (e4 != NULL_EVENT)
 				clock->addEventTimer(this, e4, interval4);
 		}
-		
+
 		clock->putTimerQLock();
 
 		break;
@@ -439,7 +442,7 @@ void IEEE1588Port::processEvent(Event e)
 			IEEE1588Port **ports;
 			clock->getPortList(number_ports, ports);
 
-			
+
 
 			/* Find EBest for all ports */
 			j = 0;
@@ -461,7 +464,7 @@ void IEEE1588Port::processEvent(Event e)
 
 			/* Check if we've changed */
 			{
-			  
+
 			  uint8_t LastEBestClockIdentity[PTP_CLOCK_IDENTITY_LENGTH];
 			  clock->getLastEBestIdentity().
 				  getIdentityString( LastEBestClockIdentity );
@@ -478,14 +481,14 @@ void IEEE1588Port::processEvent(Event e)
 				  changed_external_master = false;
 			  }
 			}
-			
+
 			if( clock->isBetterThan( EBest )) {
 				// We're Grandmaster, set grandmaster info to me
 				ClockIdentity clock_identity;
 				unsigned char priority1;
 				unsigned char priority2;
 				ClockQuality clock_quality;
-			  
+
 				clock_identity = getClock()->getClockIdentity();
 				getClock()->setGrandmasterClockIdentity( clock_identity );
 				priority1 = getClock()->getPriority1();
@@ -516,10 +519,10 @@ void IEEE1588Port::processEvent(Event e)
 						unsigned char priority1;
 						unsigned char priority2;
 						ClockQuality *clock_quality;
-						
+
 						ports[j]->recommendState
 							( PTP_SLAVE, changed_external_master );
-						
+
 						clock_identity = EBest->getGrandmasterClockIdentity();
 						getClock()->setGrandmasterClockIdentity(clock_identity);
 						priority1 = EBest->getGrandmasterPriority1();
@@ -529,7 +532,7 @@ void IEEE1588Port::processEvent(Event e)
 						clock_quality = EBest->getGrandmasterClockQuality();
 						getClock()->setGrandmasterClockQuality(*clock_quality);
 					} else {
-						/* Otherwise we are the master because we have 
+						/* Otherwise we are the master because we have
 						   sync'd to a better clock */
 						ports[j]->recommendState
 							(PTP_MASTER, changed_external_master);
@@ -566,7 +569,7 @@ void IEEE1588Port::processEvent(Event e)
 			    || port_state == PTP_PRE_MASTER) {
 				fprintf
 					(stderr,
-					 "*** %s Timeout Expired - Becoming Master\n", 
+					 "*** %s Timeout Expired - Becoming Master\n",
 					 e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES ? "Announce" :
 					 "Sync" );
 				{
@@ -575,7 +578,7 @@ void IEEE1588Port::processEvent(Event e)
 				  unsigned char priority1;
 				  unsigned char priority2;
 				  ClockQuality clock_quality;
-				  
+
 				  clock_identity = getClock()->getClockIdentity();
 				  getClock()->setGrandmasterClockIdentity( clock_identity );
 				  priority1 = getClock()->getPriority1();
@@ -604,7 +607,7 @@ void IEEE1588Port::processEvent(Event e)
 				clock->addEventTimer
 					( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
 				startAnnounce();
-					// 
+					//
 			}
 		}
 
@@ -624,7 +627,7 @@ void IEEE1588Port::processEvent(Event e)
 				PortIdentity dest_id;
 				getPortIdentity(dest_id);
 				pdelay_req->setPortIdentity(&dest_id);
-				
+
 				{
 					Timestamp pending =
 					    PDELAY_PENDING_TIMESTAMP;
@@ -700,8 +703,8 @@ void IEEE1588Port::processEvent(Event e)
 						timeout : EVENT_TIMER_GRANULARITY;
 					clock->addEventTimer
 						(this, PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES, timeout );
-					
-					interval = 
+
+					interval =
 						((long long)
 						 (pow((double)2,getPDelayInterval())*1000000000.0)) -
 						wait_time*1000;
@@ -722,7 +725,7 @@ void IEEE1588Port::processEvent(Event e)
 				FrequencyRatio local_system_freq_offset;
 				int64_t local_system_offset;
 				long long wait_time = 0;
-				
+
 				uint32_t local_clock, nominal_clock_rate;
 
 				// Send a sync message and then a followup to broadcast
@@ -734,7 +737,7 @@ void IEEE1588Port::processEvent(Event e)
 					getTxLock();
 					sync->sendPort(this, NULL);
 					XPTPD_INFO("Sent SYNC message");
-					
+
 					int ts_good;
 					Timestamp sync_timestamp;
 					unsigned sync_timestamp_counter_value;
@@ -754,12 +757,12 @@ void IEEE1588Port::processEvent(Event e)
 								"error=%d", ts_good);
 						ts_good =
 							getTxTimestamp
-							(sync, sync_timestamp, 
+							(sync, sync_timestamp,
 							 sync_timestamp_counter_value, iter == 0);
 						req *= 2;
 					}
 					putTxLock();
-					
+
 					if (ts_good != 0) {
 						char msg
 							[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
@@ -781,7 +784,7 @@ void IEEE1588Port::processEvent(Event e)
 						XPTPD_INFO
 							("*** Unsuccessful Sync timestamp");
 					}
-					
+
 					PTPMessageFollowUp *follow_up;
 					if (ts_good == 0) {
 						follow_up =
@@ -801,12 +804,12 @@ void IEEE1588Port::processEvent(Event e)
 				   causing an update to local/system timestamp */
 				getDeviceTime
 					(system_time, device_time, local_clock, nominal_clock_rate);
-				
+
 				XPTPD_INFO
 					("port::processEvent(): System time: %u,%u Device Time: %u,%u",
 					 system_time.seconds_ls, system_time.nanoseconds,
 					 device_time.seconds_ls, device_time.nanoseconds);
-				
+
 				local_system_offset =
 			    TIMESTAMP_TO_NS(system_time) -
 			    TIMESTAMP_TO_NS(device_time);
@@ -839,7 +842,7 @@ void IEEE1588Port::processEvent(Event e)
 				  clock->addEventTimer
 					  ( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, wait_time );
 			  }
-			  
+
 			}
 			break;
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
@@ -952,7 +955,7 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 		(pow((double)2,getAnnounceInterval())*1000000000.0)));
   fprintf( stderr, "Switching to Slave\n" );
   if( restart_syntonization ) clock->newSyntonizationSetPoint();
-  
+
   return;
 }
 

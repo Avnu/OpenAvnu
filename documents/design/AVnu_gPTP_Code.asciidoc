@@ -1,6 +1,8 @@
 = AVnu gPTP Code
 :toc:
 :toc-placement!:
+:repo: https://github.com/AVnu/Open-AVB/blob
+:img: {repo}/gh-pages/images/ptp
 
 toc::[]
 
@@ -213,6 +215,9 @@ initialized and transmitted. The transmit timestamp is read from the
 timestamper object. A PTPMessageFollowUp object is initialized and the
 timestamp is added to the object and transmitted.
 
+image:{img}/Sync%20Transmission%20%28PTP_MASTER%20mode%29.PNG[]
+*Figure 1. Sync Transmission (PTP_MASTER mode) Sequence Diagram*
+
 [[sync-reception-ptp_slave-mode]]
 ==== Sync Reception (PTP_SLAVE mode)
 
@@ -227,6 +232,9 @@ between the local device clock and the GM clock and calls
 IEEE1588Clock::setMasterOffset. Reception of a valid sync and followup
 restarts the SYNC_RECEIPT_TIMEOUT timer on the corresponding port
 object.
+
+image:{img}/Sync%20Reception%20%28PTP_SLAVE%20mode%29.PNG[]
+*Figure 2. Sync Reception (PTP_SLAVE mode) Sequence Diagram*
 
 [[pdelay-transmission]]
 ==== Pdelay Transmission
@@ -246,6 +254,10 @@ is calculated:
 
 The link delay in the Sync Reception operation.
 
+image:{img}/Pdelay%20Transmission.PNG[]
+*Figure 3. PDelay Transmission Sequence Diagram*
+
+
 [[pdelay-reception]]
 ==== PDelay Reception
 
@@ -254,6 +266,9 @@ When a message of type PTPMessagePathDelayReq is received a response
 receive timestamp, and transmitted. A response followup
 (PTPMessagePathDelayRespFollowUp) is initialized, populated with the
 response transmit timestamp, and transmitted.
+
+image:{img}/Pdelay%20Reception.PNG[]
+*Figure 4. PDelay Reception Sequence Diagram*
 
 [[os-abstractions]]
 === OS Abstractions

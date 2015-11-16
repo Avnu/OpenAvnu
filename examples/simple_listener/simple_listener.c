@@ -49,6 +49,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SAMPLES_PER_FRAME (6)
 #define CHANNELS (2)
 
+struct mrp_listener_ctx *ctx_sig;//Context pointer for signal handler
+
 struct ethernet_header{
 	u_char dst[6];
 	u_char src[6];
@@ -73,7 +75,7 @@ static void help()
 		"Options:\n"
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
-		"    -f  set the name of the output wav-file\n" 
+		"    -f  set the name of the output wav-file\n"
 		"\n" "%s" "\n", version_str);
 	exit(EXIT_FAILURE);
 }
@@ -85,7 +87,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 	uint32_t *buf;
 	uint32_t frame[2] = { 0 , 0 };
 	int i;
-	(void) args; /* unused */
+	struct mrp_listener_ctx *ctx = (struct mrp_listener_ctx*) args;
 	(void) packet_header; /* unused */
 
 #if DEBUG
@@ -99,7 +101,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 #endif /* DEBUG*/
 
 	if (0 == memcmp(glob_ether_type,eth_header->type,sizeof(eth_header->type)))
-	{		
+	{
 		test_stream_id = (unsigned char*)(packet + ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE);
 
 #if DEBUG
@@ -110,7 +112,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 			     test_stream_id[6], test_stream_id[7]);
 #endif /* DEBUG*/
 
-		if (0 == memcmp(test_stream_id, stream_id, sizeof(STREAM_ID_SIZE)))
+		if (0 == memcmp(test_stream_id, ctx->stream_id, sizeof(STREAM_ID_SIZE)))
 		{
 
 #if DEBUG
@@ -118,7 +120,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 #endif /* DEBUG*/
 			buf = (uint32_t*) (packet + HEADER_SIZE);
 			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
-			{	
+			{
 				memcpy(&frame[0], &buf[i], sizeof(frame));
 
 				frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
@@ -130,7 +132,7 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 
 				sf_writef_int(glob_snd_file, (const int *)frame, 1);
 			}
-		}	
+		}
 	}
 }
 
@@ -140,16 +142,16 @@ void sigint_handler(int signum)
 
 	fprintf(stdout,"Received signal %d:leaving...\n", signum);
 
-	if (0 != talker) {
-		ret = send_leave();
+	if (0 != ctx_sig->talker) {
+		ret = send_leave(ctx_sig);
 		if (ret)
 			printf("send_leave failed\n");
 	}
 
-	if (2 > control_socket)
+	if (2 > ctx_sig->control_socket)
 	{
-		close(control_socket);
-		ret = mrp_disconnect();
+		close(ctx_sig->control_socket);
+		ret = mrp_disconnect(ctx_sig);
 		if (ret)
 			printf("mrp_disconnect failed\n");
 	}
@@ -161,7 +163,7 @@ void sigint_handler(int signum)
 		pcap_close(glob_pcap_handle);
 	}
 #endif /* PCAP */
-	
+
 #if LIBSND
 	sf_write_sync(glob_snd_file);
 	sf_close(glob_snd_file);
@@ -174,17 +176,19 @@ int main(int argc, char *argv[])
 	char* dev = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/* The compiled filter expression */
-	char filter_exp[] = "ether dst 91:E0:F0:00:0e:80";	/* The filter expression */
-	int rc;
-
+	char filter_exp[100];				/* The filter expression */
+	struct mrp_listener_ctx *ctx = malloc(sizeof(struct mrp_listener_ctx));
+	struct mrp_domain_attr *class_a = malloc(sizeof(struct mrp_domain_attr));
+	struct mrp_domain_attr *class_b = malloc(sizeof(struct mrp_domain_attr));
+	ctx_sig = ctx;
 	signal(SIGINT, sigint_handler);
 
-	int c;
-	while((c = getopt(argc, argv, "hi:f:")) > 0) 
+	int c,rc;
+	while((c = getopt(argc, argv, "hi:f:")) > 0)
 	{
-		switch (c) 
+		switch (c)
 		{
-		case 'h': 
+		case 'h':
 			help();
 			break;
 		case 'i':
@@ -201,41 +205,63 @@ int main(int argc, char *argv[])
 	if ((NULL == dev) || (NULL == file_name))
 		help();
 
-	if (create_socket())
+	rc = mrp_listener_client_init(ctx);
+	if (rc)
+	{
+		printf("failed to initialize global variables\n");
+		return EXIT_FAILURE;
+	}
+
+	if (create_socket(ctx))
 	{
 		fprintf(stderr, "Socket creation failed.\n");
 		return errno;
 	}
 
-	rc = report_domain_status();
+	rc = mrp_monitor(ctx);
+	if (rc)
+	{
+		printf("failed creating MRP monitor thread\n");
+		return EXIT_FAILURE;
+	}
+	rc=mrp_get_domain(ctx, class_a, class_b);
+	if (rc)
+	{
+		printf("failed calling mrp_get_domain()\n");
+		return EXIT_FAILURE;
+	}
+
+	printf("detected domain Class A PRIO=%d VID=%04x...\n",class_a->priority,class_a->vid);
+
+	rc = report_domain_status(class_a,ctx);
 	if (rc) {
 		printf("report_domain_status failed\n");
 		return EXIT_FAILURE;
 	}
 
-	rc = join_vlan();
+	rc = join_vlan(class_a, ctx);
 	if (rc) {
 		printf("join_vlan failed\n");
 		return EXIT_FAILURE;
 	}
 
 	fprintf(stdout,"Waiting for talker...\n");
-	await_talker();	
+	await_talker(ctx);
 
 #if DEBUG
 	fprintf(stdout,"Send ready-msg...\n");
 #endif /* DEBUG */
-	rc = send_ready();
+	rc = send_ready(ctx);
 	if (rc) {
 		printf("send_ready failed\n");
 		return EXIT_FAILURE;
 	}
-		
+
 #if LIBSND
 	SF_INFO* sf_info = (SF_INFO*)malloc(sizeof(SF_INFO));
 
 	memset(sf_info, 0, sizeof(SF_INFO));
-	
+
 	sf_info->samplerate = SAMPLES_PER_SECOND;
 	sf_info->channels = CHANNELS;
 	sf_info->format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
@@ -245,13 +271,13 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Wrong format.");
 		return EXIT_FAILURE;
 	}
-			
+
 	if (NULL == (glob_snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
 	{
 		fprintf(stderr, "Could not create file.");
 		return EXIT_FAILURE;
 	}
-	fprintf(stdout,"Created file called %s\n", file_name);	
+	fprintf(stdout,"Created file called %s\n", file_name);
 #endif /* LIBSND */
 
 #if PCAP
@@ -268,6 +294,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Got session pcap handler.\n");
 #endif /* DEBUG */
 	/* compile and apply filter */
+	sprintf(filter_exp,"ether dst %02x:%02x:%02x:%02x:%02x:%02x",ctx->dst_mac[0],ctx->dst_mac[1],ctx->dst_mac[2],ctx->dst_mac[3],ctx->dst_mac[4],ctx->dst_mac[5]);
 	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
 		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
@@ -285,8 +312,11 @@ int main(int argc, char *argv[])
 #endif /* DEBUG */
 
 	/** loop forever and call callback-function for every received packet */
-	pcap_loop(glob_pcap_handle, -1, pcap_callback, NULL);
+	pcap_loop(glob_pcap_handle, -1, pcap_callback, (u_char*)ctx);
 #endif /* PCAP */
+	free(ctx);
+	free(class_a);
+	free(class_b);
 
 	return EXIT_SUCCESS;
 }
