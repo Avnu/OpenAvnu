@@ -53,6 +53,15 @@
 
 #define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS Clause 8.5.2.4*/
 
+
+/**
+ * Return codes for gPTP
+*/
+#define GPTP_EC_SUCCESS     0       /*!< No errors.*/
+#define GPTP_EC_FAILURE     -1      /*!< Generic error */
+#define GPTP_EC_EAGAIN      -72     /*!< Error: Try again */
+
+
 class LinkLayerAddress;
 struct ClockQuality;
 class PortIdentity;
@@ -512,7 +521,7 @@ public:
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
-	 * @return 0 no error, -1 error, -72 try again.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
 			uint16_t sequenceId,
@@ -527,7 +536,7 @@ public:
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
-	 * @return 0 no error, -1 error, -72 try again.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
 			uint16_t sequenceId,

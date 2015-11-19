@@ -261,7 +261,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 ( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
   unsigned &clock_value, bool last ) {
 	int err;
-	int ret = -72;
+	int ret = GPTP_EC_EAGAIN;
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
 	struct sockaddr_ll remote;
@@ -270,7 +270,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-	struct phy_delay delay_val;
+    struct phy_delay delay_val;
 	get_phy_delay (&delay_val);//gets the phy delay
 
 	Timestamp latency( delay_val.gb_tx_phy_delay, 0, 0 );
@@ -292,11 +292,11 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	err = recvmsg( sd, &msg, MSG_ERRQUEUE );
 	if( err == -1 ) {
 		if( errno == EAGAIN ) {
-			ret = -72;
+			ret = GPTP_EC_EAGAIN;
 			goto done;
 		}
 		else {
-			ret = -1;
+			ret = GPTP_EC_FAILURE;
 			goto done;
 		}
 	}

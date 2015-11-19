@@ -94,6 +94,7 @@ IEEE1588Port::IEEE1588Port
 
 	pdelay_started = false;
 
+    /*TODO: Add intervals below to a config interface*/
 	log_mean_sync_interval = -3;
 	_accelerated_sync_count = accelerated_sync_count;
 	log_mean_announce_interval = 0;
@@ -105,7 +106,8 @@ IEEE1588Port::IEEE1588Port
 
 	_hw_timestamper = timestamper;
 
-	one_way_delay = 3600000000000;
+	one_way_delay = ONE_WAY_DELAY_DEFAULT;
+    neighbor_prop_delay_thresh = NEIGHBOR_PROP_DELAY_THRESH;
 
 	_peer_rate_offset = 1.0;
 
@@ -404,6 +406,7 @@ void IEEE1588Port::processEvent(Event e)
 			} else if( port_state == PTP_MASTER ) {
 				becomeMaster( true );
 			} else {
+				/*TODO: Should I remove the commented code below ?*/
 				//e3 = SYNC_RECEIPT_TIMEOUT_EXPIRES;
 				e4 = ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES;
 				interval3 = (unsigned long long)
@@ -607,7 +610,6 @@ void IEEE1588Port::processEvent(Event e)
 				clock->addEventTimer
 					( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
 				startAnnounce();
-					//
 			}
 		}
 
@@ -647,10 +649,10 @@ void IEEE1588Port::processEvent(Event e)
 				    getTxTimestamp
 					(pdelay_req, req_timestamp, req_timestamp_counter_value,
 					 false);
-				while (ts_good != 0 && iter-- != 0) {
+				while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
 					timer->sleep(req);
 					wait_time += req;
-					if (ts_good != -72 && iter < 1)
+					if (ts_good != GPTP_EC_EAGAIN && iter < 1)
 						fprintf
 							(stderr,
 							 "Error (TX) timestamping PDelay request "
@@ -663,7 +665,7 @@ void IEEE1588Port::processEvent(Event e)
 				}
 				putTxLock();
 
-				if (ts_good == 0) {
+				if (ts_good == GPTP_EC_SUCCESS) {
 					pdelay_req->setTimestamp(req_timestamp);
 				} else {
 				  Timestamp failed = INVALID_TIMESTAMP;
@@ -671,7 +673,7 @@ void IEEE1588Port::processEvent(Event e)
 				  fprintf( stderr, "Invalid TX\n" );
 				}
 
-				if (ts_good != 0) {
+				if (ts_good != GPTP_EC_SUCCESS) {
 					char msg
 					    [HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 					getExtendedError(msg);
@@ -680,7 +682,7 @@ void IEEE1588Port::processEvent(Event e)
 						ts_good, msg);
 				}
 #ifdef DEBUG
-				if (ts_good == 0) {
+				if (ts_good == GPTP_EC_SUCCESS) {
 					XPTPD_INFO
 					    ("Successful PDelay Req timestamp, %u,%u",
 					     req_timestamp.seconds_ls,
@@ -747,11 +749,11 @@ void IEEE1588Port::processEvent(Event e)
 						getTxTimestamp(sync, sync_timestamp,
 									   sync_timestamp_counter_value,
 									   false);
-					while (ts_good != 0 && iter-- != 0) {
+					while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
 						timer->sleep(req);
 						wait_time += req;
 
-						if (ts_good != -72 && iter < 1)
+						if (ts_good != GPTP_EC_EAGAIN && iter < 1)
 							XPTPD_ERROR(
 								"Error (TX) timestamping Sync (Retrying), "
 								"error=%d", ts_good);
@@ -763,9 +765,9 @@ void IEEE1588Port::processEvent(Event e)
 					}
 					putTxLock();
 
-					if (ts_good != 0) {
-						char msg
-							[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
+					if (ts_good != GPTP_EC_SUCCESS) {
+                        char msg
+                            [HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 						getExtendedError(msg);
 						fprintf
 							(stderr,
@@ -774,7 +776,7 @@ void IEEE1588Port::processEvent(Event e)
 							 ts_good, msg );
  					}
 
-					if (ts_good == 0) {
+					if (ts_good == GPTP_EC_SUCCESS) {
 						XPTPD_INFO("Successful Sync timestamp");
 						XPTPD_INFO("Seconds: %u",
 								   sync_timestamp.seconds_ls);
@@ -786,7 +788,7 @@ void IEEE1588Port::processEvent(Event e)
 					}
 
 					PTPMessageFollowUp *follow_up;
-					if (ts_good == 0) {
+					if (ts_good == GPTP_EC_SUCCESS) {
 						follow_up =
 							new PTPMessageFollowUp(this);
 						PortIdentity dest_id;
@@ -819,7 +821,7 @@ void IEEE1588Port::processEvent(Event e)
 			  clock->setMasterOffset
 				  (0, device_time, 1.0, local_system_offset,
 				   system_time, local_system_freq_offset, sync_count,
-				   pdelay_count, port_state );
+				   pdelay_count, port_state, asCapable );
 
 			  /* If accelerated_sync is non-zero then start 16 ms sync
 				 timer, subtract 1, for last one start PDelay also */

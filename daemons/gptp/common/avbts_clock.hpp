@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -101,31 +101,31 @@ private:
 	unsigned char grandmaster_priority2;
 	bool grandmaster_is_boundary_clock;
 	uint8_t time_source;
-	
+
 	ClockIdentity LastEBestIdentity;
 	bool _syntonize;
 	bool _new_syntonization_set_point;
 	float _ppm;
 
 	IEEE1588Port *port_list[MAX_PORTS];
-	
+
 	static Timestamp start_time;
 	Timestamp last_sync_time;
-	
+
 	bool _master_local_freq_offset_init;
 	Timestamp _prev_master_time;
 	Timestamp _prev_sync_time;
-	
+
 	bool _local_system_freq_offset_init;
 	Timestamp _prev_local_time;
 	Timestamp _prev_system_time;
-	
+
 	HWTimestamper *_timestamper;
-	
+
 	OS_IPC *ipc;
 
 	OSTimerQueue *timerq;
-	
+
 	bool forceOrdinarySlave;
 	FrequencyRatio _master_local_freq_offset;
 	FrequencyRatio _local_system_freq_offset;
@@ -183,10 +183,10 @@ public:
   /**
    * @brief  Compares the 1588 Clock to the grandmaster clock
    * @param  msg [in] PTP announce message
-   * @return TRUE if the 1588 clock 
+   * @return TRUE if the 1588 clock
    */
   bool isBetterThan(PTPMessageAnnounce * msg);
-	
+
   /**
    * @brief  Gets the Last Best clock identity
    * @return clock identity
@@ -319,7 +319,7 @@ public:
   uint16_t getMasterStepsRemoved(void) {
 	  return steps_removed;
   }
-	
+
   /**
    * @brief  Gets the currentUtcOffset attribute (IEEE 802.1AS clause 10.3.8.9)
    * @return currentUtcOffset
@@ -345,7 +345,7 @@ public:
   }
 
   /**
-   * @brief  Gets IEEE1588Clock priority2 attribute (IEEE 802.1AS clause 8.6.2.5) 
+   * @brief  Gets IEEE1588Clock priority2 attribute (IEEE 802.1AS clause 8.6.2.5)
    * @return Priority2 value
    */
   unsigned char getPriority2(void) {
@@ -378,7 +378,7 @@ public:
    * @brief  Gets the current port list instance
    * @param  count [out] Number of ports
    * @param  ports [out] Pointer to the port list
-   * @return 
+   * @return
    */
   void getPortList(int &count, IEEE1588Port ** &ports) {
 	  ports = this->port_list;
@@ -423,7 +423,7 @@ public:
    * @brief  Deletes and event from the timer queue using a lock
    * @param  target Target port to remove the event from
    * @param  e Event to be deleted
-   * @return 
+   * @return
    */
   void deleteEventTimerLocked(IEEE1588Port * target, Event e);
 
@@ -456,6 +456,7 @@ public:
    * @param  sync_count Sync messages count
    * @param  pdelay_count PDelay messages count
    * @param  port_state PortState instance
+   * @param  asCapable asCapable flag
    */
   void setMasterOffset
 	  ( int64_t master_local_offset, Timestamp local_time,
@@ -463,7 +464,10 @@ public:
 		int64_t local_system_offset,
 		Timestamp system_time,
 		FrequencyRatio local_system_freq_offset,
-		unsigned sync_count, unsigned pdelay_count, PortState port_state );
+		unsigned sync_count,
+        unsigned pdelay_count,
+        PortState port_state,
+        bool asCapable );
 
   /**
    * @brief  Get the IEEE1588Clock identity value
@@ -521,10 +525,10 @@ public:
 	  return true;
   }
 
-  
+
   /**
    * @brief  Declares a friend instance of tick_handler method
-   * @param  sig Signal 
+   * @param  sig Signal
    * @return void
    */
   friend void tick_handler(int sig);
