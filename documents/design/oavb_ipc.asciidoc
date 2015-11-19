@@ -93,14 +93,12 @@ where the AVBTSN portion of the function name would be replaced by the name of t
 .... text about this being the public interface to the module and that async communication is implemented as a layer on top of this interface.
 
 
-== Asychronous Communication Interfaces
+== Asynchronous Communication Interfaces
 
+The asynchronous communication interface sits on top of the synchronous communication interface. It includes features to support error reporting, even though the errors may be handled by a different execution thread, or at a later time.
 
-.... this fits above sync interface
+If application blocking to wait for a command to complete is desired, this can also be supported.  
 
-.... additional application requirements
-
-.... goal is to support async and sync with blocking interfaces
 
 === Communication Stack Abstraction
 
@@ -125,14 +123,55 @@ The application layer requires a simple interface that has parameters that close
 .Straw-man Interfaces for External Application
 [source,c/c++]
 ----
-
-void AVBTSN_SetParam(void *ipc_context, uint32_t param);
+/*
+ * An example showing setting of parameter XYZ.
+ * /param ipc_context The interprocess communication context that was returned from an create_call. This contains information for the communication channel that is in use.
+ * /param this_call_context This variable is used by the application to track the call status return. Upon completion of the call it is returned to the application. A recommended use for the this_call_conext would be for the calling application to allocate a structure that contains details of the command being called. A non-blocking implementation will return this pointer when the call status is returned and the application can decide on the appropriate action to take at that time.
+ * /param setting The new value of XYZ.
+ * /return 0 on success, otherwise a defined error code.
+ */
+void AVBTSN_SetParam(void *ipc_context, void *this_call_context, uint32_t param);
 
 ----
 
 ==== Packing Layer
 
-The marshalling layer is responsible for encoding parameters into a defined structure for passing through the communication layer.
+The marshalling layer is responsible for encoding parameters into a defined structure for passing through the communication layer. The structure will include a field that defines what the structure contains and how large it is. This is so as to support routing the information to the correct synchronous call once the structure has passed over the communication channel. The packed layout should be in a standalone header file so that both the packing/send module and the unpacking/receiver module can reference that same layout specification.
+
+
+.Straw-man packed structure layout example
+[source,c/c++]
+----
+
+#define AVBTSN_COMMAND_SET_XYZ 1
+#define AVBTSN_COMMAND_START 2
+
+struct avbtsn_packing_header {
+	uint32_t size;
+	uint32_t command;
+	void *this_call_context;
+};
+
+struct avbtsn_packing_command_set_xyz {
+	struct avbtsn_packing_header header;
+	int param;
+};
+
+struct avbtsn_packing_command_start {
+	struct avbtsn_packing_header header;
+	uint64_t streamID;
+	uint32_t vlan;
+};
+
+----
+
+Upon calling from the application, the packing layer performs the following operations
+ 1. allocates the correctly sized packing structure
+ 1. fills in the header size, command and this_call_context fields
+ 1. fills in call specific parameters and submits the data to the communication layer
+
+After the application has sent a command it should call the communication layer again to recieve a response. This call could be via a explicit call, or in the case of single threaded application design a poll/WaitForMultipleObjects loop would handle an event for the receive socket/handle that indicates a packet of information containing the call response is ready to be processed.
+
 
 ==== Abstract Communication Layer
 
