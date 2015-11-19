@@ -1,10 +1,11 @@
 = Interprocess Communication Recommendations for AVB/TSN
 Andrew Elder
+David Cemin
 v0.1
 
 == Introduction
 
-The AVB/TSN software stack is comprised of a number of modules that implement protocol stacks specified by IEEE standards. Each of these protocols implement an  network facing interface and an application facing interface. The required application facing interface is described in some detail in http://avnu.org/wp-content/uploads/2014/05/AVnu_SWAPIs_v1.0.pdf[AVB Software Interfaces and Endpoint Architecture Guidelines]. Since a module running a particular protocol may be a standalone execution unit (for example a Linux daemon), an interprocess communication method is required to interface to the execution unit.
+The AVB/TSN software stack is comprised of a number of modules that implement protocol stacks specified by IEEE standards. Each of these protocols implement an network facing interface and an application facing interface. The required application facing interface is described in some detail in http://avnu.org/wp-content/uploads/2014/05/AVnu_SWAPIs_v1.0.pdf[AVB Software Interfaces and Endpoint Architecture Guidelines]. Since a module running a particular protocol may be a standalone execution unit (for example a Linux daemon), an interprocess communication method is required to interface to the execution unit.
 
 For portability reasons it is recommended to separate the implementation of the interprocess communication method as much as possible from the logic of the protocol implementation. This applies to both an application that is interfacing to an AVB/TSN module and the implementation of the AVB/TSN module itself.
 
@@ -31,21 +32,24 @@ For the purposes of this document the following straw-man application interfaces
 [source,c/c++]
 ----
 
-/*
- * An example showing setting of parameter XYZ.
- * /param setting The new value of XYZ.
- * /return 0 on success, otherwise a defined error code.
+
+/**
+ * \brief  An example showing setting of parameter XYZ.
+ * \param  setting  The new value of XYZ.
+ * \param  out Pointer to detailed status code.
+ * \return 0 on success, -1 on failure.
  */
-int AVBTSN_SetXYZ(uint32_t setting);
+int AVBTSN_SetXYZ(uint32_t setting, void *out);
 
 
-/*
- * An example showing a command that requires multiple parameters.
- * /param stream_id The stream_id used by commanXYZ.
- * /param vlan The vlan used by commanXYZ.
- * /return 0 on success, otherwise a defined error code.
+/**
+ * \brief  An example showing a command that requires multiple parameters.
+ * \param  stream_id The stream_id used by commanXYZ.
+ * \param  vlan The vlan used by commanXYZ.
+ * \param  out Pointer to detailed status code
+ * \return 0 on success, -1 on failure.
  */
-int AVBTSN_CommandXYZ(uint64_t stream_id, uint32_t vlan);
+int AVBTSN_CommandXYZ(uint64_t stream_id, uint32_t vlan, void *out);
 
 
 ----
@@ -54,9 +58,37 @@ where the AVBTSN portion of the function name would be replaced by the name of t
 
 The synchonous communication interface is exposed by the module itself.
 
-.... more text about this being usable for single .exe implementation
+The examples show two types of IPC commands, one with a single parameter and another one with multiple parameters. These functions return a code to indicate success / failure and have an out pointer, which should provide more detailed information about the reason of failure.
 
-.... text to talk about #defining error codes
+.... Another option for multiple paramters would be creating a structure type with all the parameters. TODO: Discuss it with Andrew.
+
+=== Defining Error Codes
+
+The IPC calls can and will fail eventually and it is necessary to let the caller know what was the error cause. Each IPC command should have an 'out' pointer that would provide more details about the error. The example below shows one way of creating these codes:
+
+[source c/c++]
+----
+typedef enum {
+	AVBTSN_IPC_SUCCESS = 0,
+	AVBTSN_IPC_GENERIC_ERROR1,
+	AVBTSN_IPC_GENERIC_ERROR2,
+} AVBTSN_ipc_t;
+
+struct {
+	AVBTSN_ipc_t error_code;
+	char *error_str;
+} AVBTSN_IpcErrorCode[] = {
+	{AVBTSN_IPC_SUCCESS, "IPC Success."},
+	{AVBTSN_IPC_GENERIC_ERROR1, "IPC Generic Error 1."},
+	{AVBTSN_IPC_GENERIC_ERROR2, "IPC Generic Error 2."},
+};
+----
+
+where the AVBTSN portion of the function name would be replaced by the name of the IEEE AVB/TSN protocol module that is being targeted. The generic error codes shall be replaced by the actual failure information to be implemented.
+
+.... The Module could also provide functions to transform the error codes (the enumeration type) in strings. 
+
+.... more text about this being usable for single .exe implementation
 
 .... text about this being the public interface to the module and that async communication is implemented as a layer on top of this interface.
 
