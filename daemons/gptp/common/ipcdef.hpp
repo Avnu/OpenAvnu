@@ -49,6 +49,9 @@
 
 #elif defined(_WIN32) || defined(_WIN64)
 
+/*Definition of DWORD*/
+#include <IntSafe.h>
+
 /*Type for process ID*/
 #define PID_TYPE    DWORD
 

@@ -42,7 +42,7 @@
 #include <avbts_osnet.hpp>
 #include <avbts_osthread.hpp>
 #include <avbts_oscondition.hpp>
-#include <linux_ipc.hpp>
+#include <ipcdef.hpp>
 
 #include <stdint.h>
 
@@ -380,7 +380,7 @@ class IEEE1588Port {
 	 */
 	void setAsCapable(bool ascap) {
 		if (ascap != asCapable) {
-			fprintf(stderr, "AsCapable: %s\n",
+			XPTPD_PRINTF("AsCapable: %s\n",
 					ascap == true ? "Enabled" : "Disabled");
 		}
 		if(!ascap){

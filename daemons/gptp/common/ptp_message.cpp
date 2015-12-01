@@ -83,12 +83,12 @@ PTPMessageCommon *buildPTPMessage
 		int i;
 		XPTPD_INFO("Packet Dump:\n");
 		for (i = 0; i < size; ++i) {
-			fprintf(stderr, "%hhx\t", buf[i]);
+			XPTPD_PRINTF("%hhx\t", buf[i]);
 			if (i % 8 == 7)
-				fprintf(stderr, "\n");
+				XPTPD_PRINTF("\n");
 		}
 		if (i % 8 != 0)
-			fprintf(stderr, "\n");
+			XPTPD_PRINTF("\n");
 	}
 #endif
 
@@ -124,8 +124,8 @@ PTPMessageCommon *buildPTPMessage
 			// Waits at least 1 time slice regardless of size of 'req'
 			timer->sleep(req);
 			if (ts_good != GPTP_EC_EAGAIN)
-				fprintf
-					( stderr, "Error (RX) timestamping RX event packet (Retrying), error=%d\n",
+				XPTPD_PRINTF(
+					"Error (RX) timestamping RX event packet (Retrying), error=%d\n",
 					  ts_good );
 			ts_good =
 			    port->getRxTimestamp(sourcePortIdentity, sequenceId,
@@ -157,8 +157,8 @@ PTPMessageCommon *buildPTPMessage
 	switch (messageType) {
 	case SYNC_MESSAGE:
 
-		//fprintf( stderr, "*** Received Sync message\n" );
-		//printf( "Sync RX timestamp = %hu,%u,%u\n", timestamp.seconds_ms, timestamp.seconds_ls, timestamp.nanoseconds );
+		//XPTPD_PRINTF("*** Received Sync message\n" );
+		//XPTPD_PRINTF("Sync RX timestamp = %hu,%u,%u\n", timestamp.seconds_ms, timestamp.seconds_ls, timestamp.nanoseconds );
 		XPTPD_INFO("*** Received Sync message");
 
 		// Be sure buffer is the correction size
@@ -299,7 +299,7 @@ PTPMessageCommon *buildPTPMessage
 
 #ifdef DEBUG
 			for (int n = 0; n < PTP_CLOCK_IDENTITY_LENGTH; ++n) {	// MMM
-				fprintf(stderr, "%c",
+				XPTPD_PRINTF("%c",
 					pdelay_resp_msg->
 					requestingPortIdentity.clockIdentity
 					[n]);
@@ -612,14 +612,14 @@ bool PTPMessageAnnounce::isBetterThan(PTPMessageAnnounce * msg)
 	msg->getGrandmasterIdentity((char *)that1 + 6);
 
 #if 0
-	fprintf(stderr, "Us: ");
+	XPTPD_PRINTF("Us: ");
 	for (int i = 0; i < 14; ++i)
-		fprintf(stderr, "%hhx", this1[i]);
-	fprintf(stderr, "\n");
-	fprintf(stderr, "Them: ");
+		XPTPD_PRINTF("%hhx", this1[i]);
+	XPTPD_PRINTF("\n");
+	XPTPD_PRINTF("Them: ");
 	for (int i = 0; i < 14; ++i)
-		fprintf(stderr, "%hhx", that1[i]);
-	fprintf(stderr, "\n");
+		XPTPD_PRINTF("%hhx", that1[i]);
+	XPTPD_PRINTF("\n");
 #endif
 
 	return (memcmp(this1, that1, 14) < 0) ? true : false;
@@ -873,9 +873,9 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	XPTPD_INFO("Follow-up Dump:\n");
 #ifdef DEBUG
 	for (int i = 0; i < messageLength; ++i) {
-		fprintf(stderr, "%d:%02x ", i, (unsigned char)buf[i]);
+		XPTPD_PRINTF("%d:%02x ", i, (unsigned char)buf[i]);
 	}
-	fprintf(stderr, "\n");
+	XPTPD_PRINTF("\n");
 #endif
 #endif
 
@@ -1068,9 +1068,9 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 
 #ifdef DEBUG
 	for (int n = 0; n < PTP_CLOCK_IDENTITY_LENGTH; ++n) {
-		fprintf(stderr, "%c", resp_id.clockIdentity[n]);
+		XPTPD_PRINTF("%c", resp_id.clockIdentity[n]);
 	}
-	fprintf(stderr, "\"\n");
+	XPTPD_PRINTF("\"\n");
 #endif
 
 	this->getPortIdentity(&requestingPortIdentity_p);
@@ -1203,7 +1203,7 @@ void PTPMessagePathDelayResp::processMessage(IEEE1588Port * port)
 	}
 
 	if (port->tryPDelayRxLock() != true) {
-		fprintf(stderr, "Failed to get PDelay RX Lock\n");
+		XPTPD_PRINTF("Failed to get PDelay RX Lock\n");
 		return;
 	}
 

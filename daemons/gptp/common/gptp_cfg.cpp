@@ -36,7 +36,13 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include <iostream>
 
+/* need Microsoft version for strcasecmp() from GCC strings.h */
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#else
 #include <strings.h>
+#endif
+
 #include <errno.h>
 #include <stdlib.h>
 
