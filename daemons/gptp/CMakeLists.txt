@@ -21,6 +21,8 @@ elseif(WIN32)
   file(GLOB GPTP_OS "./windows/daemon_cl/*.cpp")
   add_executable (gptp ${GPTP_COMMON} ${GPTP_OS})
   target_link_libraries(gptp wpcap Iphlpapi Ws2_32)
+
+  add_subdirectory("windows/named_pipe_test")
+
 endif()
 
-#add_subdirectory("tests/simple")
