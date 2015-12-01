@@ -42,7 +42,7 @@
 #include <avbts_osnet.hpp>
 #include <avbts_osthread.hpp>
 #include <avbts_oscondition.hpp>
-#include <linux_ipc.hpp>
+#include <ipcdef.hpp>
 
 #include <stdint.h>
 
