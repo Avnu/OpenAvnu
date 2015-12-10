@@ -43,14 +43,14 @@ void* ringRawsockOpen(ring_rawsock_t *rawsock, const char *ifname, bool rx_mode,
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK);
 
-	rawsock->pMem = (void*)(-1);
-
 	if (!simpleRawsockOpen((simple_rawsock_t*)rawsock, ifname, rx_mode,
 			       tx_mode, ethertype, frame_size, num_frames))
 	{
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 		return NULL;
 	}
+
+	rawsock->pMem = (void*)(-1);
 
 	// Use version 2 headers for the MMAP packet stuff - avoids 32/64
 	// bit problems, gives nanosecond timestamps, and allows rx of vlan id
@@ -151,6 +151,21 @@ void* ringRawsockOpen(ring_rawsock_t *rawsock, const char *ifname, bool rx_mode,
 	rawsock->buffersOut = 0;
 	rawsock->buffersReady = 0;
 
+	// fill virtual functions table
+	rawsock_cb_t *cb = &rawsock->base.cb;
+	cb->close = ringRawsockClose;
+	cb->getTxFrame = ringRawsockGetTxFrame;
+	cb->relTxFrame = ringRawsockRelTxFrame;
+	cb->txFrameReady = ringRawsockTxFrameReady;
+	cb->send = ringRawsockSend;
+	cb->txBufLevel = ringRawsockTxBufLevel;
+	cb->rxBufLevel = ringRawsockRxBufLevel;
+	cb->getRxFrame = ringRawsockGetRxFrame;
+	cb->rxParseHdr = ringRawsockRxParseHdr;
+	cb->relRxFrame = ringRawsockRelRxFrame;
+	cb->getTXOutOfBuffers = ringRawsockGetTXOutOfBuffers;
+	cb->getTXOutOfBuffersCyclic = ringRawsockGetTXOutOfBuffersCyclic;
+
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 	return rawsock;
 }
@@ -167,9 +182,10 @@ void ringRawsockClose(void *pvRawsock)
 			munmap(rawsock->pMem, rawsock->memSize);
 			rawsock->pMem = (void*)(-1);
 		}
-
-		simpleRawsockClose(pvRawsock);
 	}
+
+	simpleRawsockClose(pvRawsock);
+
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 }
 

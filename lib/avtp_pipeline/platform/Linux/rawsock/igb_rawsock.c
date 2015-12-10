@@ -49,27 +49,11 @@ void *igbRawsockOpen(igb_rawsock_t* rawsock, const char *ifname, bool rx_mode, b
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK);
 
-	if (rx_mode) {
-		if (!pcapRawsockOpen((pcap_rawsock_t*)rawsock, ifname, rx_mode,
-		                     false, ethertype, frame_size, num_frames))
-		{
-			AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
-			return NULL;
-		}
-		rawsock->base.txMode = tx_mode;
-	} else {
-		rawsock->handle = 0;
-		rawsock->base.rxMode = rx_mode;
-		rawsock->base.txMode = tx_mode;
-		rawsock->base.ethertype = ethertype;
-
-		// Get info about the network device
-		if (!simpleAvbCheckInterface(ifname, &(rawsock->base.ifInfo))) {
-			AVB_LOGF_ERROR("Creating rawsock; bad interface name: %s", ifname);
-			free(rawsock);
-			AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
-			return NULL;
-		}
+	if (!pcapRawsockOpen((pcap_rawsock_t*)rawsock, ifname, rx_mode,
+		             tx_mode, ethertype, frame_size, num_frames))
+	{
+		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
+		return NULL;
 	}
 
 	if (tx_mode) {
@@ -93,6 +77,18 @@ void *igbRawsockOpen(igb_rawsock_t* rawsock, const char *ifname, bool rx_mode, b
 		// select class B queue by default
 		rawsock->queue = 1;
 	}
+
+	// fill virtual functions table
+	rawsock_cb_t *cb = &rawsock->base.cb;
+	cb->close = igbRawsockClose;
+	cb->getTxFrame = igbRawsockGetTxFrame;
+	cb->relTxFrame = igbRawsockRelTxFrame;
+	cb->txSetMark = igbRawsockTxSetMark;
+	cb->txFrameReady = igbRawsockTxFrameReady;
+	cb->send = igbRawsockSend;
+	cb->txBufLevel = igbRawsockTxBufLevel;
+	cb->getTXOutOfBuffers = igbRawsockGetTXOutOfBuffers;
+	cb->getTXOutOfBuffersCyclic = igbRawsockGetTXOutOfBuffersCyclic;
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 	return rawsock;

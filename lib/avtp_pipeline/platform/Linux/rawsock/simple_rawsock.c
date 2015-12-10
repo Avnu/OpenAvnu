@@ -130,11 +130,9 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 
 	AVB_LOGF_DEBUG("Open, rx=%d, tx=%d, ethertype=%x size=%d, num=%d",	rx_mode, tx_mode, ethertype, frame_size, num_frames);
 
+	baseRawsockOpen(&rawsock->base, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
+
 	rawsock->sock = -1;
-	rawsock->base.rxMode = rx_mode;
-	rawsock->base.txMode = tx_mode;
-	rawsock->base.frameSize = frame_size;
-	rawsock->base.ethertype = ethertype;
 
 	// Get info about the network device
 	if (!simpleAvbCheckInterface(ifname, &(rawsock->base.ifInfo))) {
@@ -147,9 +145,9 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 	// Deal with frame size.
 	if (rawsock->base.frameSize == 0) {
 		// use interface MTU as max frames size, if none specified
-		rawsock->base.frameSize = rawsock->base.ifInfo.mtu;
+		rawsock->base.frameSize = rawsock->base.ifInfo.mtu + ETH_HLEN + VLAN_HLEN;
 	}
-	else if (rawsock->base.frameSize > rawsock->base.ifInfo.mtu) {
+	else if (rawsock->base.frameSize > rawsock->base.ifInfo.mtu + ETH_HLEN + VLAN_HLEN) {
 		AVB_LOG_ERROR("Creating raswsock; requested frame size exceeds MTU");
 		free(rawsock);
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
@@ -195,6 +193,18 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 		return NULL;
 	}
 
+
+	// fill virtual functions table
+	rawsock_cb_t *cb = &rawsock->base.cb;
+	cb->close = simpleRawsockClose;
+	cb->getTxFrame = simpleRawsockGetTxFrame;
+	cb->txSetMark = simpleRawsockTxSetMark;
+	cb->txSetHdr = simpleRawsockTxSetHdr;
+	cb->txFrameReady = simpleRawsockTxFrameReady;
+	cb->getRxFrame = simpleRawsockGetRxFrame;
+	cb->rxMulticast = simpleRawsockRxMulticast;
+	cb->getSocket = simpleRawsockGetSocket;
+
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 	return rawsock;
 }
@@ -211,9 +221,10 @@ void simpleRawsockClose(void *pvRawsock)
 			close(rawsock->sock);
 			rawsock->sock = -1;
 		}
-		// free the state struct
-		free(rawsock);
 	}
+
+	baseRawsockClose(rawsock);
+
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 }
 
@@ -342,27 +353,6 @@ U8* simpleRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, 
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 	return pBuffer;
-}
-
-// Parse the ethernet frame header.  Returns length of header, or -1 for failure
-int simpleRawsockRxParseHdr(void *pvRawsock, U8 *pBuffer, hdr_info_t *pInfo)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
-
-	eth_hdr_t *eth_hdr = (eth_hdr_t*)pBuffer;
-	pInfo->dhost = eth_hdr->dhost;
-	pInfo->shost = eth_hdr->shost;
-	pInfo->ethertype = ntohs(eth_hdr->ethertype);
-	int hdrLen = sizeof(eth_hdr_t);
-
-	if (pInfo->ethertype == ETHERTYPE_8021Q) {
-		pInfo->vlan = TRUE;
-		// TODO extract vlan_vid and vlan_pcp
-		hdrLen += 4;
-	}
-
-	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
-	return hdrLen;
 }
 
 // Setup the rawsock to receive multicast packets

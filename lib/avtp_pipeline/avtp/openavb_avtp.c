@@ -306,10 +306,7 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 	if (!pStream->pBuf) {
 
 		pStream->pBuf = (U8 *)openavbRawsockGetTxFrame(pStream->rawsock, TRUE, &frameLen);
-		if (!pStream->pBuf) {
-			txCBResult = TX_CB_RET_PACKET_NOT_READY;
-		}
-		else {
+		if (pStream->pBuf) {
 			assert(frameLen >= pStream->frameLen);
 			// Fill in the Ethernet header
 			openavbRawsockTxFillHdr(pStream->rawsock, pStream->pBuf, &pStream->ethHdrLen);
@@ -497,6 +494,10 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 			// pStream->pIntfCB->intf_rx_cb(pStream->pMediaQ);
 
 			pStream->info.rx.bComplete = TRUE;
+
+			// to prevent unused variable warnings
+			(void)subtype;
+			(void)flags2;
 		}
 		else {
 			AVB_RC_LOG(AVB_RC(OPENAVB_AVTP_FAILURE | OPENAVBAVTP_RC_INVALID_AVTP_VERSION));
