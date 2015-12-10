@@ -159,7 +159,7 @@ bool MediaDependentWirelessPort::init_port( MediaIndependentPort *port )
 	if( !MediaDependentPort::init_port( port )) return false;
 
 	if (!OSNetworkInterfaceFactory::buildInterface
-	    (&net_iface, factory_name_t("default"), net_label, _hw_timestamper, &peer_addr))
+	    (&net_iface, factory_name_t("default"), net_label, _hw_timestamper, &tm_peer_addr))
 		return false;
 
 	this->net_iface = net_iface;
@@ -196,30 +196,39 @@ bool MediaDependentWirelessPort::processSync(uint16_t seq, bool grandmaster, lon
 			Timestamp device_time;
 			clock_offset_t offset;
 			uint32_t device_sync_time_offset;
+			FrequencyRatio local_system_freqoffset;
 
 			memset(&offset, 0, sizeof(offset));
-			offset.ls_freqoffset = getLocalSystemRateOffset();
+			local_system_freqoffset = getLocalSystemRateOffset();
 			XPTPD_INFOL(SYNC_DEBUG, "local-system frequency offset: %Lf",
-				offset.ls_freqoffset);
+				local_system_freqoffset);
 			getDeviceTime(system_time, device_time);
-			device_sync_time_offset = TIMESTAMP_TO_NS(device_time - prev_dialog->action);
 
 			if (getPort()->getPortNumber() == 1) {
-				offset.master_time = TIMESTAMP_TO_NS(device_time);
 				offset.ml_freqoffset = 1.0;
-				offset.ls_phoffset = TIMESTAMP_TO_NS(system_time - device_time);
-				//printf("Device-System Phase Offset: %llu(%s,%s)\n", offset.ls_phoffset, system_time.toString(),device_time.toString());
+				offset.ml_phoffset = 0;
 				offset.sync_count = getPort()->getSyncCount();
 				offset.pdelay_count = getPort()->getPdelayCount();
+				if (grandmaster) {
+					offset.master_time = TIMESTAMP_TO_NS(system_time);
+					offset.ls_phoffset = 0;
+					offset.ls_freqoffset = 1.0;
+				}
+				else {
+					offset.master_time = TIMESTAMP_TO_NS(device_time);
+					offset.ls_phoffset = TIMESTAMP_TO_NS(system_time - device_time);
+					offset.ls_freqoffset = local_system_freqoffset;
+				}
+				
 				getPort()->getClock()->setMasterOffset(&offset);
+				//dumpOffset(stderr, &offset);
 			}
 
+			device_sync_time_offset = TIMESTAMP_TO_NS(device_time - prev_dialog->action);
 			// Calculate sync timestamp in terms of system clock
-			printf("device_sync_time_offset=%u\n", device_sync_time_offset);
-			TIMESTAMP_SUB_NS
-				(system_time, (uint64_t)
+			system_time = (uint64_t)
 				(((FrequencyRatio)device_sync_time_offset) /
-				offset.ls_freqoffset));
+					local_system_freqoffset);
 
 			PTPMessageFollowUp *follow_up;
 			follow_up = new PTPMessageFollowUp(this);
@@ -267,14 +276,13 @@ bool MediaDependentWirelessPort::processSync(uint16_t seq, bool grandmaster, lon
 			// Copy the followup into buffer
 			buffer = new uint8_t[128];
 			length = follow_up->buildMessage(buffer);
-			printf("PreciseOriginTimestamp = %s\n", system_time.toString());
 			delete follow_up;
 		}
 		// Request Timing Measurement
 		unlock();
 		// Make sure we're unlocked here.  If the underlying operation is blocking, the callback will likely occur before 'request'
 		// call returns
-		timestamper->requestTimingMeasurement(peer_addr, seq, *prev_dialog, buffer, (int)length);
+		timestamper->requestTimingMeasurement(tm_peer_addr, seq, *prev_dialog, buffer, (int)length);
 		lock();
 		if (buffer != NULL) delete[] buffer;
 		return true;

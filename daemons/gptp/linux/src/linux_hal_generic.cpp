@@ -45,6 +45,8 @@
 #include <fcntl.h>
 #include <linux/net_tstamp.h>
 #include <syscall.h>
+#include <linux/ptp_clock.h>
+#include <limits.h>
 
 #define TX_PHY_TIME 184
 #define RX_PHY_TIME 382
@@ -140,7 +142,6 @@ net_result LinuxNetworkInterface::nrecv
 				ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
 				system = tsToTimestamp( ts_system );
 				ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
-				gtimestamper->updateCrossStamp( &system, &device );
 				device = device - latency;
 				gtimestamper->pushRXTimestamp( &device );
 				break;    
@@ -248,6 +249,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 		fprintf( stderr, "Failed to open PTP clock device\n" );
 		return false;
 	}
+	phc_fd = fd;
     
 	if( !resetFrequencyAdjustment() ) {
 		XPTPD_ERROR( "Failed to reset (zero) frequency adjustment" );
@@ -317,7 +319,6 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 			system._version = version;
 			device._version = version;
 			device = device + latency;
-			updateCrossStamp( &system, &device );
 			timestamp = device;
 			ret = 0;
 			break;    
@@ -383,25 +384,71 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 	return true;
 }    
 
-void LinuxTimestamperGeneric::updateCrossStamp( Timestamp *system_time, Timestamp *device_time ) {
-	pthread_mutex_lock( &_private->cross_stamp_lock );
-	crstamp_system = *system_time;
-	crstamp_device  = *device_time;
-	cross_stamp_good = true;
-	pthread_mutex_unlock( &_private->cross_stamp_lock );
+#define MAX_NSEC 1000000000
+
+/* Return *a - *b */
+static inline ptp_clock_time pct_diff
+( struct ptp_clock_time *a, struct ptp_clock_time *b ) {
+        ptp_clock_time result;
+        if( a->nsec >= b->nsec ) {
+                result.nsec = a->nsec - b->nsec;
+        } else {
+                --a->sec;
+                result.nsec = (MAX_NSEC - b->nsec) + a->nsec;
+        }
+        result.sec = a->sec - b->sec;
+
+        return result;
+}
+
+static inline int64_t pctns(struct ptp_clock_time t)
+{
+        return t.sec * 1000000000LL + t.nsec;
+}
+
+static inline Timestamp pctTimestamp( struct ptp_clock_time *t ) {
+        Timestamp result;
+
+        result.seconds_ls = t->sec & 0xFFFFFFFF;
+        result.seconds_ms = t->sec >> sizeof(result.seconds_ls)*8;
+        result.nanoseconds = t->nsec;
+
+        return result;
 }
 
 bool LinuxTimestamperGeneric::HWTimestamper_gettime
 ( Timestamp *system_time, Timestamp *device_time ) {
-	bool ret = false;
-	pthread_mutex_lock( &_private->cross_stamp_lock );
-	if( cross_stamp_good ) {
-		*system_time = crstamp_system;
-		*device_time = crstamp_device;
-		ret = true;
-	}
-	pthread_mutex_unlock( &_private->cross_stamp_lock );
-		
-	return ret;
+        unsigned i;
+        struct ptp_sys_offset offset;
+        struct ptp_clock_time *pct;
+        struct ptp_clock_time *system_time_l, *device_time_l;
+
+        int64_t interval = LLONG_MAX;
+
+        if( phc_fd != -1 ) {
+                memset( &offset, 0, sizeof(offset));
+                offset.n_samples = 1;
+//              offset.n_samples = PTP_MAX_SAMPLES;
+                ioctl( phc_fd, PTP_SYS_OFFSET, &offset );
+
+                pct = &offset.ts[0];
+                for( i = 0; i < offset.n_samples; ++i ) {
+                        int64_t interval_t;
+                        interval_t = pctns(pct_diff( pct+2*i+2, pct+2*i ));
+                        if( interval_t < interval ) {
+                                system_time_l = pct+2*i;
+                                device_time_l = pct+2*i+1;
+                                interval = interval_t;
+                        }
+                }
+
+                *device_time = pctTimestamp( device_time_l );
+                *system_time = pctTimestamp( system_time_l );
+
+                return true;
+        }
+
+        return false;
 }
+
 

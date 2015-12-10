@@ -35,6 +35,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef IPCDEF_HPP
 #define IPCDEF_HPP
 
+#include <Windows.h>
 #include <stdint.h>
 #include <ptptypes.hpp>
 #include <minwinbase.h>
@@ -104,7 +105,7 @@ public:
 		}
 		return bytes_read;
 	}
-    long read( HANDLE pipe, long offs ) {
+    long read( HANDLE pipe, long offs = 0) {
 		return read_ol( pipe, offs, NULL );
 	}
 	NPIPE_MSG_TYPE getType() { return type; }
@@ -117,6 +118,7 @@ public:
 	int64_t ls_phoffset;
     FrequencyRatio ls_freqoffset;
     uint64_t local_time;
+	uint64_t tick_frequency;
 };
 
 class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
@@ -148,6 +150,7 @@ public:
 	int64_t getLocalSystemOffset() { return offset.ls_phoffset; }
     FrequencyRatio getLocalSystemFreqOffset() { return offset.ls_freqoffset; }
     uint64_t getLocalTime() { return offset.local_time; }
+	uint64_t getTickRate() { return offset.tick_frequency; }
 };
 
 typedef enum { ADD_PEER, REMOVE_PEER } CtrlWhich;

@@ -47,12 +47,11 @@ typedef struct LinuxTimestamperIGBPrivate * LinuxTimestamperIGBPrivate_t;
 class LinuxTimestamperGeneric : public LinuxTimestamper {
 private:
 	int sd;
-	Timestamp crstamp_system;
-	Timestamp crstamp_device;
 	LinuxTimestamperGenericPrivate_t _private;
 	bool cross_stamp_good;
 	std::list<Timestamp> rxTimestampList;
 	LinuxNetworkInterfaceList iface_list;
+	int phc_fd;
 
 	TicketingLock *net_lock;
 	

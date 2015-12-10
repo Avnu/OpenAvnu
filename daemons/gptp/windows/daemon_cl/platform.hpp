@@ -36,6 +36,7 @@
 #define PLATFORM_HPP
 
 #include <stdio.h>
+#include <stdint.h>
 
 errno_t PLAT_strncpy( char *dest, const char *src, rsize_t max );
 #define PLAT_snprintf(buffer,count,...) _snprintf_s(buffer,count,count,__VA_ARGS__);

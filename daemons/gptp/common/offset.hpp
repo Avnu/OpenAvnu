@@ -35,6 +35,8 @@
 #define OFFSET_HPP
 
 #include <math.h>
+#include <stdio.h>
+#include <inttypes.h>
 
 /*
   * Meaning of clock_offset_t values:
@@ -76,6 +78,21 @@ typedef struct {
 
 #pragma pack(pop)
 
+static inline void dumpOffset(FILE *out, clock_offset_t *offset) {
+	XPTPD_WDEBUG("ml_offset=%" PRId64, offset->ml_phoffset);
+	XPTPD_WDEBUG("ls_phoffset=%" PRId64, offset->ls_phoffset);
+	XPTPD_WDEBUG("la_phoffset=%" PRId64, offset->la_phoffset);
+
+	XPTPD_WDEBUG("ml_freqoffset=%Lf", offset->ml_freqoffset);
+	XPTPD_WDEBUG("ls_freqoffset=%Lf", offset->ls_freqoffset);
+	XPTPD_WDEBUG("la_freqoffset=%Lf", offset->la_freqoffset);
+
+	XPTPD_WDEBUG("master_time=%" PRIu64, offset->master_time);
+
+	XPTPD_WDEBUG("sync_count=%u", offset->sync_count);
+	XPTPD_WDEBUG("pdelay_count=%u", offset->pdelay_count);
+}
+
 static inline uint64_t
 MasterToLocalTime( uint64_t master_time_i, clock_offset_t *offset ) {
 	int64_t master_clock_delta;
@@ -109,6 +126,5 @@ LocalToMasterTime( uint64_t local_time_i, clock_offset_t *offset ) {
 		offset->master_time + (uint64_t) master_clock_delta :
 		offset->master_time - (uint64_t) (-1*master_clock_delta);
 }
-
 
 #endif/*OFFSET_HPP*/

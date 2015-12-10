@@ -32,7 +32,37 @@
 ******************************************************************************/
 
 #include <avbts_osnet.hpp>
+#include <map>
 
-std::map
-< factory_name_t, OSNetworkInterfaceFactory * >
-OSNetworkInterfaceFactory::factoryMap;
+typedef std::map <factory_name_t, OSNetworkInterfaceFactory *> OSNetFactoryMap;
+
+struct OSNetFactoryMap_i {
+	OSNetFactoryMap map;
+};
+
+OSNetworkInterfaceFactory::
+OSNetworkInterfaceFactoryInitializer::OSNetworkInterfaceFactoryInitializer()
+{
+	OSNetworkInterfaceFactory::factoryMap = new OSNetFactoryMap_i;
+}
+OSNetworkInterfaceFactory::OSNetworkInterfaceFactoryInitializer
+OSNetworkInterfaceFactory::initializer;
+
+bool OSNetworkInterfaceFactory::registerFactory
+(factory_name_t id, OSNetworkInterfaceFactory *factory) {
+	OSNetFactoryMap::iterator iter = factoryMap->map.find(id);
+	if (iter != factoryMap->map.end())
+		return false;
+	factoryMap->map[id] = factory;
+	return true;
+}
+
+bool OSNetworkInterfaceFactory::buildInterface
+(OSNetworkInterface ** iface, factory_name_t id, InterfaceLabel * iflabel,
+ Timestamper *timestamper, LinkLayerAddress *remote) {
+	return factoryMap->map[id]->createInterface
+		(iface, iflabel, timestamper,remote);
+}
+
+
+OSNetFactoryMap_i *OSNetworkInterfaceFactory::factoryMap;

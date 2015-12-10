@@ -49,10 +49,6 @@
 
 #include <utility>
 
-#ifdef WIN32
-#include <Windows.h>
-#endif
-
 LinkLayerAddress MediaIndependentPort::other_multicast(OTHER_MULTICAST);
 uint16_t MediaIndependentPort::port_index = 1;
 
@@ -160,7 +156,7 @@ bool MediaIndependentPort::startAnnounce() {
 
 void MediaIndependentPort::setAsCapable() {
 	if (asCapable == false) {
-		fprintf( stderr, "AsCapable: Enabled\n" );
+		XPTPD_INFO("AsCapable: Enabled" );
 	}
 	asCapable = true;
 	clock->addEventTimer
@@ -308,7 +304,7 @@ bool MediaIndependentPort::processEvent(Event e)
 			}
 			
 			if( port_state != PTP_SLAVE && port_state != PTP_MASTER ) {
-				fprintf( stderr, "Starting PDelay\n" );
+				XPTPD_WDEBUG("Starting PDelay" );
 				startPDelay();
 			}
 
@@ -508,9 +504,8 @@ bool MediaIndependentPort::processEvent(Event e)
 			    || port_state == PTP_SLAVE
 			    || port_state == PTP_PRE_MASTER)
 				{
-					fprintf
-						(stderr,
-						 "*** %s Timeout Expired - Becoming Master\n",
+					XPTPD_WDEBUG
+						("*** %s Timeout Expired - Becoming Master",
 						 e == SYNC_RECEIPT_TIMEOUT_EXPIRES ?
 						 "Sync" : "Announce" );
 					{
@@ -568,12 +563,11 @@ bool MediaIndependentPort::processEvent(Event e)
 		inferior->lock();
 
 		{
-			long elapsed_time;
+			long elapsed_time = 0;
 			unsigned long long interval;
 
 			inferior->processPDelay( getNextPDelaySequenceId(), &elapsed_time );
 
-			XPTPD_INFO("Re-add PDelay Event Timer");
 			interval = (uint64_t) (PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER*
 						(pow((double)2,getPDelayInterval())*1000000000.0));
 			interval -= elapsed_time*1000ULL;
@@ -582,7 +576,8 @@ bool MediaIndependentPort::processEvent(Event e)
 			interval = (uint64_t) (pow((double)2,getPDelayInterval())*1000000000.0);
 			interval -= elapsed_time*1000ULL;
 			interval = interval < EVENT_TIMER_GRANULARITY ? EVENT_TIMER_GRANULARITY : interval;
-			clock->addEventTimer( this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, interval );
+			XPTPD_INFO("Re-add PDelay Event Timer");
+			clock->addEventTimer(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, interval);
 		}
 		
 		inferior->unlock();
@@ -604,13 +599,7 @@ bool MediaIndependentPort::processEvent(Event e)
 				( SYNC_DEBUG,
 				  "SYNC_INTERVAL_TIMEOUT_EXPIRES occured(%d,%d,%d)", asCapable,
 				  grandmaster, getClock()->getLastSyncValid() );
-	
 			if( asCapable && (grandmaster || getClock()->getLastSyncValid())) {
-#ifdef WIN32
-				SYSTEMTIME systime;
-				GetSystemTime(&systime);
-				printf("processSync:%hu:%hu:%hu.%03hu\n", systime.wHour, systime.wMinute, systime.wSecond, systime.wMilliseconds);
-#endif
 				inferior->processSync(getNextSyncSequenceId(), grandmaster, &elapsed_time);
 			}
 
@@ -638,7 +627,6 @@ bool MediaIndependentPort::processEvent(Event e)
 		inferior->unlock();
 		unlock();
 		clock->unlock();
-
 		break;
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
 		XPTPD_INFOL
@@ -741,7 +729,7 @@ void MediaIndependentPort::becomeMaster( bool annc ) {
 		startAnnounce();
 	}
 	clock->addEventTimer( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
-	printf("Switching to Master\n" );
+	XPTPD_WDEBUG("Switching to Master" );
 
 	return;
 }
@@ -756,7 +744,7 @@ void MediaIndependentPort::becomeSlave( bool restart_syntonization ) {
 		 (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
 		  (unsigned long long)
 		  (pow((double)2,getAnnounceInterval())*1000000000.0)));
-	printf("Switching to Slave\n" );
+	XPTPD_WDEBUG("Switching to Slave" );
 	if( restart_syntonization ) newSyntonizationSetPoint();
   
 	return;
@@ -782,7 +770,7 @@ void MediaIndependentPort::recommendState
 			reset_sync = true;
 		} else {
 			if( changed_external_master ) {
-				fprintf( stderr, "Changed master!\n" );
+				XPTPD_WDEBUG("Changed master!\n" );
 				newSyntonizationSetPoint();
 				reset_sync = true;
 			}

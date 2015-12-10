@@ -136,6 +136,10 @@ class Timestamp {
 private:
 	char output_string[MAX_TIMESTAMP_STRLEN];
 public:
+	uint32_t nanoseconds;
+	uint32_t seconds_ls;
+	uint16_t seconds_ms;
+	uint8_t _version;
 	Timestamp(uint32_t ns, uint32_t s_l, uint16_t s_m) {
 		nanoseconds = ns;
 		seconds_ls = s_l;
@@ -144,10 +148,11 @@ public:
 	Timestamp() {
 		output_string[0] = '\0';
 	}
-	uint32_t nanoseconds;
-	uint32_t seconds_ls;
-	uint16_t seconds_ms;
-	uint8_t _version;
+	Timestamp(uint64_t ns) {
+		this->nanoseconds = ns % 1000000000;
+		this->seconds_ls = (ns / 1000000000) & 0xFFFFFFFF;
+		this->seconds_ms = (uint16_t)((ns / 1000000000) >> 32);
+	}
 	char *toString() {
 		PLAT_snprintf
 			( output_string, 28, "%hu %u %u", seconds_ms, seconds_ls,
@@ -178,6 +183,9 @@ public:
 		carry = seconds_ms < this->seconds_ms ? true : false;
 
 		return Timestamp( nanoseconds, seconds_ls, seconds_ms );
+	}
+	Timestamp operator+(uint64_t ns) {
+		return Timestamp(*this) + Timestamp(ns);
 	}
 	Timestamp operator-( const Timestamp& o ) {
 		uint32_t nanoseconds;
@@ -216,6 +224,9 @@ public:
 
 		return Timestamp( nanoseconds, seconds_ls, seconds_ms );
 	}
+	Timestamp operator-(uint64_t ns) {
+		return Timestamp(*this) - Timestamp(ns);
+	}
 	bool operator>( const Timestamp& o ) {
 		if( seconds_ms > o.seconds_ms ) return true;
 		if( seconds_ms < o.seconds_ms ) return false;
@@ -234,14 +245,6 @@ public:
 							   << sizeof((ts).seconds_ls)*8) +			\
 							  (ts).seconds_ls)*1000000000LL + (ts).nanoseconds)
 
-static inline Timestamp NS_TO_TIMESTAMP( uint64_t ns ) {
-	Timestamp ret;
-	ret.nanoseconds =  ns % 1000000000;
-	ret.seconds_ls  = (ns / 1000000000) &  0xFFFFFFFF;
-	ret.seconds_ms  = (uint16_t) ((ns / 1000000000) >> 32);
-	return ret;
-}
-
 static inline uint64_t byte_swap64(uint64_t in)
 {
 	uint8_t *s = (uint8_t *) & in;
@@ -255,50 +258,6 @@ static inline uint64_t byte_swap64(uint64_t in)
 		--e;
 	}
 	return in;
-}
-
-#define NS_PER_SECOND 1000000000
-#define LS_SEC_MAX 0xFFFFFFFF
-
-static inline void TIMESTAMP_SUB_NS( Timestamp &ts, uint64_t ns ) {
-	bool borrow;
-
-	if( (ns % NS_PER_SECOND) > ts.nanoseconds ) {
-		borrow = true;
-		ts.nanoseconds = (NS_PER_SECOND + ts.nanoseconds) -
-			(ns % NS_PER_SECOND);
-	} else {
-		borrow = false;
-		ts.nanoseconds = ts.nanoseconds - (ns % NS_PER_SECOND );
-	}
-	while( borrow || (ns/NS_PER_SECOND > 0) ) {
-		if( ts.seconds_ls != 0 ) {
-			--ts.seconds_ls;
-		} else {
-			--ts.seconds_ms;
-			ts.seconds_ls = LS_SEC_MAX;
-		}
-		if( borrow ) borrow = false;
-		else ns -= NS_PER_SECOND;
-	}
-	return;
-}
-
-static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
-	uint32_t tmp;
-	bool carry = false;
-
-	tmp = ts.nanoseconds;
-	ts.nanoseconds += ns % NS_PER_SECOND;
-	if( ts.nanoseconds < tmp ) carry = true;
-
-	while( carry || (ns/NS_PER_SECOND) >= 1 ) {
-		ts.seconds_ls = (ts.seconds_ls == LS_SEC_MAX) ? 0 : ts.seconds_ls + 1;
-		if( ts.seconds_ls == 0 ) ++ts.seconds_ms;
-		if( carry ) carry = false;
-		else ns -= NS_PER_SECOND;         
-	}
-	return;
 }
 
 #define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096

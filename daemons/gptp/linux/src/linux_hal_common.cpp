@@ -53,6 +53,8 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
+#include <map>
+
 Timestamp tsToTimestamp(struct timespec *ts)
 {
 	Timestamp ret;
@@ -176,9 +178,20 @@ struct LinuxTimerQueueActionArg {
 	bool rm;
 };
 
+typedef std::map < int, struct LinuxTimerQueueActionArg *> LinuxTimerQueueMap;
+struct LinuxTimerQueueMap_i {
+	LinuxTimerQueueMap map;
+};
+
+LinuxTimerQueue::LinuxTimerQueue() {
+	timerQueueMap = new LinuxTimerQueueMap_i;
+	_private = NULL;
+}
+
 LinuxTimerQueue::~LinuxTimerQueue() {
 	pthread_join(_private->signal_thread,NULL);
 	if( _private != NULL ) delete _private;
+	delete timerQueueMap;
 }
 
 bool LinuxTimerQueue::init() {
@@ -198,7 +211,7 @@ void *LinuxTimerQueueHandler( void *arg ) {
 	
 	while( !timerq->stop ) {
 		siginfo_t info;
-		LinuxTimerQueueMap_t::iterator iter;
+		LinuxTimerQueueMap::iterator iter;
 		sigaddset( &waitfor, SIGUSR1 );
 		if( sigtimedwait( &waitfor, &info, &timeout ) == -1 ) {
 			if( errno == EAGAIN ) continue;
@@ -208,10 +221,11 @@ void *LinuxTimerQueueHandler( void *arg ) {
 			break;
 		}
 
-		iter = timerq->timerQueueMap.find(info.si_value.sival_int);
-		if( iter != timerq->timerQueueMap.end() ) {
+		iter = timerq->timerQueueMap->map.find
+			(info.si_value.sival_int);
+		if( iter != timerq->timerQueueMap->map.end() ) {
 		    struct LinuxTimerQueueActionArg *arg = iter->second;
-			timerq->timerQueueMap.erase(iter);
+			timerq->timerQueueMap->map.erase(iter);
 			timerq->LinuxTimerQueueAction( arg );
 			timer_delete(arg->timer_handle);
 			delete arg;
@@ -259,7 +273,7 @@ bool LinuxTimerQueue::addEvent
   event_descriptor_t * arg, bool rm, unsigned *event) {
 	LinuxTimerQueueActionArg *outer_arg;
 	int err;
-	LinuxTimerQueueMap_t::iterator iter;
+	LinuxTimerQueueMap::iterator iter;
 
 
 	outer_arg = new LinuxTimerQueueActionArg;
@@ -270,7 +284,7 @@ bool LinuxTimerQueue::addEvent
 	outer_arg->rm = rm;
 
 	// Find key that we can use
-	while( timerQueueMap.find( key ) != timerQueueMap.end() ) {
+	while( timerQueueMap->map.find( key ) != timerQueueMap->map.end() ) {
 		++key;
 	}
 		
@@ -286,7 +300,7 @@ bool LinuxTimerQueue::addEvent
 			XPTPD_ERROR("timer_create failed - %s", strerror(errno));
 			return false;
 		}
-		timerQueueMap[key] = outer_arg;
+		timerQueueMap->map[key] = outer_arg;
 
 		memset(&its, 0, sizeof(its));
 		its.it_value.tv_sec = micros / 1000000;
@@ -305,8 +319,9 @@ bool LinuxTimerQueue::addEvent
 
 
 bool LinuxTimerQueue::cancelEvent( int type, MediaIndependentPort *port ) {
-	LinuxTimerQueueMap_t::iterator iter;
-	for( iter = timerQueueMap.begin(); iter != timerQueueMap.end();) {
+	LinuxTimerQueueMap::iterator iter;
+	for( iter = timerQueueMap->map.begin();
+	     iter != timerQueueMap->map.end();) {
 		if( (iter->second)->type == type ) {
 			// Delete element
 			if( (iter->second)->rm ) {
@@ -314,7 +329,7 @@ bool LinuxTimerQueue::cancelEvent( int type, MediaIndependentPort *port ) {
 			}
 			timer_delete(iter->second->timer_handle);
 			delete iter->second;
-			timerQueueMap.erase(iter++);
+			timerQueueMap->map.erase(iter++);
 		} else {
 			++iter;
 		}
@@ -479,7 +494,7 @@ LinuxLock::~LinuxLock() {
 	}
 }
 
-OSLockResult LinuxLock::lock() {
+OSLockResult LinuxLock::lock(const char *caller) {
 	int lock_c;
 	lock_c = pthread_mutex_lock(&_private->mutex);
 	if(lock_c != 0) {
@@ -489,14 +504,14 @@ OSLockResult LinuxLock::lock() {
 	return oslock_ok;
 }
 
-OSLockResult LinuxLock::trylock() {
+OSLockResult LinuxLock::trylock(const char *caller) {
 	int lock_c;
 	lock_c = pthread_mutex_trylock(&_private->mutex);
 	if(lock_c != 0) return oslock_fail;
 	return oslock_ok;
 }
 
-OSLockResult LinuxLock::unlock() {
+OSLockResult LinuxLock::unlock(const char *caller) {
 	int lock_c;
 	lock_c = pthread_mutex_unlock(&_private->mutex);
 	if(lock_c != 0) {

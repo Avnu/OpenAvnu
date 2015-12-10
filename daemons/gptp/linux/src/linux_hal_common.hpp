@@ -121,24 +121,25 @@ struct LinuxLockPrivate;
 typedef LinuxLockPrivate * LinuxLockPrivate_t;
 
 class LinuxLock : public OSLock {
-    friend class LinuxLockFactory;
+	friend class LinuxLockFactory;
 private:
-    OSLockType type;
+	OSLockType type;
 	LinuxLockPrivate_t _private;
 protected:
-    LinuxLock() {
+	LinuxLock() {
 		_private = NULL;
-    }
-    bool initialize( OSLockType type );
+	}
+	bool initialize( OSLockType type );
 	~LinuxLock();
-    OSLockResult lock();
-    OSLockResult trylock();
-    OSLockResult unlock();
+	OSLockResult lock(const char *caller = NULL);
+	OSLockResult unlock(const char *caller = NULL);
+	OSLockResult trylock(const char *caller = NULL);
 };
 
 class LinuxLockFactory:public OSLockFactory {
 public:
-	OSLock * createLock(OSLockType type) {
+	OSLock *createLock(OSLockType type, const char *lockname,
+			   bool debug_lock) {
 		LinuxLock *lock = new LinuxLock();
 		if (lock->initialize(type) != oslock_ok) {
 			delete lock;
@@ -177,7 +178,7 @@ public:
 
 struct LinuxTimerQueueActionArg;
 
-typedef std::map < int, struct LinuxTimerQueueActionArg *> LinuxTimerQueueMap_t;
+typedef struct LinuxTimerQueueMap_i *LinuxTimerQueueMap_t;
 
 void *LinuxTimerQueueHandler( void *arg );
 
@@ -194,9 +195,7 @@ private:
 	LinuxTimerQueuePrivate_t _private;
 	void LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg );
 protected:
-	LinuxTimerQueue() {
-		_private = NULL;
-	}
+	LinuxTimerQueue();
 	virtual bool init();
 public:
 	~LinuxTimerQueue();
