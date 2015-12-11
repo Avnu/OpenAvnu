@@ -65,6 +65,10 @@ Build Dependencies
 
 * WinPCAP Developer's Pack (WpdPack) is required for linking - downloadable from http://www.winpcap.org/devel.htm.
 
+* CMAKE 3.2.2 or later
+
+* Microsoft Visual Studio 2013 or later
+
 The following environment variables must be defined:
 * WPCAP_DIR the directory where WinPcap is installed
 
