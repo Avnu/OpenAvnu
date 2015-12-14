@@ -25,12 +25,12 @@
 /*
  * NOTE: This is an AVB-customed version of the standard Intel igb
  * driver. This driver requires (4) tx-rx queues are enabled, with MSI-X.
- * Standard best-effort LAN traffic is directed to tx queue(3), leaving tx-queue(0) 
- * through tx-queue(2) on the Intel i210 available to be mapped into a 
+ * Standard best-effort LAN traffic is directed to tx queue(3), leaving tx-queue(0)
+ * through tx-queue(2) on the Intel i210 available to be mapped into a
  * user-space application and managed by the application.
  *
  * The driver includes the minimal AVB specific initialization code
- * to setup the queues. 
+ * to setup the queues.
  *
  * The application must map the register space into a user-space application.
  * then setup tx descriptor rings and packet buffers which the other queues
@@ -280,12 +280,12 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba);
 static struct file_operations igb_fops = {
 		.owner   = THIS_MODULE,
 		.llseek  = no_llseek,
-		.read	= igb_read, 
-		.write   = igb_write, 
+		.read	= igb_read,
+		.write   = igb_write,
 		.poll	= igb_pollfd,
-		.open	= igb_open_file, 
-		.release = igb_close_file, 
-		.mmap	= igb_mmap, 
+		.open	= igb_open_file,
+		.release = igb_close_file,
+		.mmap	= igb_mmap,
 		.unlocked_ioctl = igb_ioctl_file,
 };
 
@@ -1474,6 +1474,7 @@ static void igb_update_mng_vlan(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u16 vid = adapter->hw.mng_cookie.vlan_id;
 	u16 old_vid = adapter->mng_vlan_id;
+	int old_vid_status;
 
 	if (hw->mng_cookie.status & E1000_MNG_DHCP_COOKIE_STATUS_VLAN) {
 		/* add VID to filter table */
@@ -1483,13 +1484,16 @@ static void igb_update_mng_vlan(struct igb_adapter *adapter)
 		adapter->mng_vlan_id = IGB_MNG_VLAN_NONE;
 	}
 
-	if ((old_vid != (u16)IGB_MNG_VLAN_NONE) &&
-	    (vid != old_vid) &&
 #ifdef HAVE_VLAN_RX_REGISTER
-	    !vlan_group_get_device(adapter->vlgrp, old_vid)) {
+	old_vid_status = ((old_vid != (u16)IGB_MNG_VLAN_NONE)
+	                  && (vid != old_vid)
+										&& !vlan_group_get_device(adapter->vlgrp, old_vid));
 #else
-	    !test_bit(old_vid, adapter->active_vlans)) {
+  old_vid_status = ((old_vid != (u16)IGB_MNG_VLAN_NONE)
+	                  && (vid != old_vid)
+										&& !test_bit(old_vid, adapter->active_vlans));
 #endif
+  if (old_vid_status) {
 		/* remove VID from filter table */
 		igb_vfta_set(adapter, old_vid, FALSE);
 	}
@@ -6607,6 +6611,7 @@ static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
 	int add = (msgbuf[0] & E1000_VT_MSGINFO_MASK) >> E1000_VT_MSGINFO_SHIFT;
 	int vid = (msgbuf[1] & E1000_VLVF_VLANID_MASK);
 	int err = 0;
+	int vid_status;
 
 	if (vid)
 		igb_set_vf_vlan_strip(adapter, vf, true);
@@ -6646,11 +6651,12 @@ static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
 		 * is cleared if the PF only added itself to the pool
 		 * because the PF is in promiscuous mode.
 		 */
-		if ((vlvf & VLAN_VID_MASK) == vid &&
 #ifndef HAVE_VLAN_RX_REGISTER
-		    !test_bit(vid, adapter->active_vlans) &&
+		vid_status = ((vlvf & VLAN_VID_MASK) == vid && !test_bit(vid, adapter->active_vlans) && !bits);
+#else
+    vid_status = ((vlvf & VLAN_VID_MASK) == vid && !bits);
 #endif
-		    !bits)
+		if (vid_status)
 			igb_vlvf_set(adapter, vid, add,
 				     adapter->vfs_allocated_count);
 	}
@@ -7082,7 +7088,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		return true;
 
 	/* don't service user (AVB) queues */
-	if (tx_ring->queue_index < 2) 
+	if (tx_ring->queue_index < 2)
 		return true;
 
 	tx_buffer = &tx_ring->tx_buffer_info[i];
@@ -7823,6 +7829,7 @@ static void igb_lro_receive(struct igb_q_vector *q_vector,
 #else
 	u16 vid = new_skb->vlan_tci;
 #endif
+  int check_data_len;
 
 	igb_lro_header_ok(new_skb);
 
@@ -7876,16 +7883,19 @@ static void igb_lro_receive(struct igb_q_vector *q_vector,
 		 *   ack sequence numbers changed
 		 *   window size has changed
 		 */
-		if (data_len == 0 ||
-		    data_len > IGB_CB(lro_skb)->mss ||
-		    data_len > IGB_CB(lro_skb)->free ||
+		 check_data_len = (data_len == 0
+			                 || data_len > IGB_CB(lro_skb)->mss
+											 || data_len > IGB_CB(lro_skb)->free);
 #ifndef CONFIG_IGB_DISABLE_PACKET_SPLIT
-		    data_len != new_skb->data_len ||
-		    skb_shinfo(new_skb)->nr_frags >=
-		    (MAX_SKB_FRAGS - skb_shinfo(lro_skb)->nr_frags) ||
+     check_data_len = (check_data_len
+			                 || data_len != new_skb->data_len
+											 || skb_shinfo(new_skb)->nr_frags
+											 >= (MAX_SKB_FRAGS - skb_shinfo(lro_skb)->nr_frags));
 #endif
-		    igb_lro_hdr(lro_skb)->th.ack_seq != lroh->th.ack_seq ||
-		    igb_lro_hdr(lro_skb)->th.window != lroh->th.window) {
+     check_data_len = (check_data_len
+			                 || igb_lro_hdr(lro_skb)->th.ack_seq != lroh->th.ack_seq
+											 || igb_lro_hdr(lro_skb)->th.window != lroh->th.window);
+		if (check_data_len){
 			igb_lro_flush(q_vector, lro_skb);
 			break;
 		}
@@ -9956,7 +9966,7 @@ static int igb_init_avb( struct e1000_hw *hw )
 
 	E1000_WRITE_REG(hw, E1000_ITPBS, txpbsize);
 
-	/* std sized frames in 64 byte units with VLAN tags applied */	
+	/* std sized frames in 64 byte units with VLAN tags applied */
 	E1000_WRITE_REG(hw, E1000_DTXMXPKTSZ, 1536 / 64);
 
 	/*
@@ -9981,7 +9991,7 @@ static int igb_init_avb( struct e1000_hw *hw )
 			E1000_TQAVCTRL_DATA_TRAN_TIM | \
 			E1000_TQAVCTRL_SP_WAIT_SR;
 
-	/* default to a 10 usec prefetch delta from launch time - time for 
+	/* default to a 10 usec prefetch delta from launch time - time for
 	 * a 1500 byte rx frame to be received over the PCIe Gen1 x1 link.
 	 */
 	tqavctrl |= (10 << 5) << E1000_TQAVCTRL_FETCH_TM_SHIFT ;
@@ -9994,7 +10004,7 @@ static int igb_init_avb( struct e1000_hw *hw )
 /* user-mode API routines */
 
 static unsigned int igb_pollfd(struct file *file, poll_table *wait)
-{ 
+{
 	return -EINVAL; /* don't support reads for any status or data */
 }
 
@@ -10035,7 +10045,7 @@ static struct igb_adapter *igb_lookup(char *id)
 	adapter_lookup.adapter = NULL;
 	adapter_lookup.pci_info = id;
 
-	/* 
+	/*
 	 * iterate over the loaded intefaces and match on their
 	 * pci device ID identifier - e.g. "0000:7:0.0"
 	 */
@@ -10092,7 +10102,7 @@ static int igb_unbind(struct file *file)
 	file->private_data = NULL;
 	return 0;
 }
-				
+
 static long igb_getspeed(struct file *file, void __user *arg)
 {
 	struct igb_adapter *adapter;
@@ -10123,7 +10133,7 @@ static long igb_getspeed(struct file *file, void __user *arg)
 	return(0);
 }
 
-static long igb_mapbuf(struct file *file, void __user *arg, int ring) 
+static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 {
 	struct igb_adapter *adapter;
 	struct igb_buf_cmd req;
@@ -10156,7 +10166,7 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 	} else {
 		struct page *page;
 		dma_addr_t page_dma;
-   		struct igb_user_page *userpage; 
+   		struct igb_user_page *userpage;
 
 		userpage = vzalloc(sizeof(struct igb_user_page));
 		if (unlikely(!userpage)) {
@@ -10180,17 +10190,17 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 			err = -ENOMEM;
 			goto failed;
 		}
-		
+
 		page_dma = dma_map_page( pci_dev_to_dev(adapter->pdev), page,
 						0, PAGE_SIZE,
 						DMA_FROM_DEVICE);
-		
+
 		if (dma_mapping_error(pci_dev_to_dev(adapter->pdev), page_dma)) {
 	   		put_page(page);
 			err = -ENOMEM;
 			goto failed;;
 		}
-	   		 
+
 		adapter->userpages->page = page;
 		adapter->userpages->page_dma = page_dma;
 
@@ -10210,7 +10220,7 @@ failed:
 	return err;
 }
 
-static long igb_unmapbuf(struct file *file, void __user *arg, int ring) 
+static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 {
 	int err = 0;
 	struct igb_adapter *adapter;
@@ -10237,7 +10247,7 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		adapter->uring_init &= ~(1 << req.queue);
 	} else {
 		/* have to find the corresponding page to free */
-		struct igb_user_page *userpage; 
+		struct igb_user_page *userpage;
 		userpage = adapter->userpages;
 
 		while (userpage != NULL) {
@@ -10249,7 +10259,7 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		if (userpage == NULL)
 			return -EINVAL;
 
-		dma_unmap_page(pci_dev_to_dev(adapter->pdev), 
+		dma_unmap_page(pci_dev_to_dev(adapter->pdev),
 				userpage->page_dma,
 				PAGE_SIZE,
 				DMA_FROM_DEVICE);
@@ -10313,7 +10323,7 @@ static int igb_close_file(struct inode *inode, struct file *file)
 	struct igb_adapter *adapter = file->private_data;
 	int err;
 	int i;
-	struct igb_user_page *userpage; 
+	struct igb_user_page *userpage;
 
 	if (NULL == adapter)
 		return 0;
@@ -10329,7 +10339,7 @@ static int igb_close_file(struct inode *inode, struct file *file)
 	userpage = adapter->userpages;
 
 	while (userpage != NULL) {
-		dma_unmap_page(pci_dev_to_dev(adapter->pdev), 
+		dma_unmap_page(pci_dev_to_dev(adapter->pdev),
 						userpage->page_dma,
 						PAGE_SIZE,
 						DMA_FROM_DEVICE);
