@@ -77,7 +77,7 @@ void* ringRawsockOpen(ring_rawsock_t *rawsock, const char *ifname, bool rx_mode,
 	}
 	rawsock->bufferSize = rawsock->base.frameSize + rawsock->bufHdrSize;
 	rawsock->frameCount = num_frames;
-	AVB_LOGF_DEBUG("frameSize=%d, bufHdrSize=%d(%d+%d) bufferSize=%d, frameCount=%d",
+	AVB_LOGF_DEBUG("frameSize=%d, bufHdrSize=%d(%d+%zu) bufferSize=%d, frameCount=%d",
 				   rawsock->base.frameSize, rawsock->bufHdrSize, val, sizeof(struct sockaddr_ll),
 				   rawsock->bufferSize, rawsock->frameCount);
 
@@ -128,7 +128,7 @@ void* ringRawsockOpen(ring_rawsock_t *rawsock, const char *ifname, bool rx_mode,
 
 	// Call MMAP to get access to the memory used for the ring
 	rawsock->memSize = rawsock->blockCount * rawsock->blockSize;
-	AVB_LOGF_DEBUG("memSize=%d (%d, %d), sock=%d",
+	AVB_LOGF_DEBUG("memSize=%zu (%d, %d), sock=%d",
 				   rawsock->memSize,
 				   rawsock->blockCount,
 				   rawsock->blockSize,
