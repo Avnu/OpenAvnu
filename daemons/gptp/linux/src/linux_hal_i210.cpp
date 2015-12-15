@@ -140,10 +140,6 @@ bool LinuxTimestamperGeneric::HWTimestamper_PPS_start( ) {
 	ctrl |= 0x400000; // set bit 22 SDP0 enabling output
 	igb_writereg(&igb_private->igb_dev, IGB_CTRL, ctrl );
 
-	igb_readreg( &igb_private->igb_dev, TSAUXC, &tsauxc );
-	tsauxc |= 0x14;
-	igb_writereg( &igb_private->igb_dev, TSAUXC, tsauxc );
-
 	igb_readreg(&igb_private->igb_dev, TSSDP, &tssdp);
 	tssdp &= ~0x40; // Set SDP0 output to freq clock 0
 	tssdp |= 0x80; 
@@ -152,20 +148,24 @@ bool LinuxTimestamperGeneric::HWTimestamper_PPS_start( ) {
 	igb_readreg(&igb_private->igb_dev, TSSDP, &tssdp);
 	tssdp |= 0x100; // set bit 8 -> SDP0 Time Sync Output
 	igb_writereg(&igb_private->igb_dev, TSSDP, tssdp);
-  
+
+	igb_readreg( &igb_private->igb_dev, TSAUXC, &tsauxc );
+	tsauxc |= 0x14;
+	igb_writereg( &igb_private->igb_dev, TSAUXC, tsauxc );
+
 	igb_unlock( &igb_private->igb_dev );
 
 	return true;
 }
 
 bool LinuxTimestamperGeneric::HWTimestamper_PPS_stop() {
-	unsigned tssdp;
-	
+	unsigned tsauxc;
+
 	if( !igb_private->igb_initd ) return false;
-	
-	igb_readreg(&igb_private->igb_dev, TSSDP, &tssdp);
-	tssdp &= ~0x100; // set bit 8 -> SDP0 Time Sync Output
-	igb_writereg(&igb_private->igb_dev, TSSDP, tssdp);
-	
+
+	igb_readreg( &igb_private->igb_dev, TSAUXC, &tsauxc );
+	tsauxc &= ~0x14; // set bit 4 and bit 2 -> AUXC ST0 and EN_CLK0
+	igb_writereg( &igb_private->igb_dev, TSAUXC, tsauxc );
+
 	return true;
 }
