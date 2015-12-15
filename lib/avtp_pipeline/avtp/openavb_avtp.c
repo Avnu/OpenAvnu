@@ -443,7 +443,7 @@ openavbRC openavbAvtpRxInit(
 static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP_DETAIL);
-	AVB_LOGF_DEBUG("pFrame=%8.8p, len=%u", pFrame, frameLen);
+	AVB_LOGF_DEBUG("pFrame=%p, len=%u", pFrame, frameLen);
 	U8 subtype, flags, flags2, rxSeq, nLost, avtpVersion;
 	U8 *pRead = pFrame;
 

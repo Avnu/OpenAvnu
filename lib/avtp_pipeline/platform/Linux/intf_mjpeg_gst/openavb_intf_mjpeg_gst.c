@@ -321,7 +321,7 @@ static void *openavbIntfMjpegGstRxThreadfn(void *pv)
 			}
 			else
 			{
-				AVB_LOGF_INFO("The Buf %x  %d skipped, OO!!", rxBuf, bufrd);
+				AVB_LOGF_INFO("The Buf %p  %d skipped, OO!!", rxBuf, bufrd);
 			}
 		}
 		else
@@ -431,7 +431,7 @@ bool openavbIntfMjpegGstRxCB(media_q_t *pMediaQ)
 			if (mdif >= NBUFS)
 			{
 				openavbMediaQTailPull(pMediaQ);
-				AVB_LOGF_INFO("Rx async queue full, dropping (%lu - %lu = %lu)", bufwr, bufrd, mdif);
+				AVB_LOGF_INFO("Rx async queue full, dropping (%" PRIu32 " - %" PRIu32 " = %" PRIu32 ")", bufwr, bufrd, mdif);
 				moreSourcePackets = FALSE;
 				continue;
 			}
@@ -467,7 +467,7 @@ bool openavbIntfMjpegGstRxCB(media_q_t *pMediaQ)
 				// all fragments should have the same timestamp
 				if(pPvtData->frame_timestamp != fragment_timestamp)
 				{
-					AVB_LOGF_ERROR("Mapping is wrong. Fragment timestamp should be %lu instead of %lu",
+					AVB_LOGF_ERROR("Mapping is wrong. Fragment timestamp should be %" PRIu32 " instead of %" PRIu32,
 					               pPvtData->frame_timestamp, fragment_timestamp);
 				}
 			}

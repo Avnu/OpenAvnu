@@ -331,7 +331,7 @@ bool openavbAvtpTimeIsPast(avtp_time_t *pAvtpTime)
 
 			if (nsNow + pAvtpTime->maxLatencyNsec < pAvtpTime->timeNsec) {
 				IF_LOG_INTERVAL(100) {
-					AVB_LOGF_INFO("Timestamp out of range: Now:%llu TSTime%llu MaxLatency:%lluns Delta:%lluns", nsNow, pAvtpTime->timeNsec, pAvtpTime->maxLatencyNsec, pAvtpTime->timeNsec - nsNow);
+					AVB_LOGF_INFO("Timestamp out of range: Now:%" PRIu64 " TSTime%" PRIu64 " MaxLatency:%" PRIu64 "ns Delta:%" PRIu64 "ns", nsNow, pAvtpTime->timeNsec, pAvtpTime->maxLatencyNsec, pAvtpTime->timeNsec - nsNow);
 				}
 				return TRUE;
 			}
@@ -362,7 +362,7 @@ bool openavbAvtpTimeIsPastTime(avtp_time_t *pAvtpTime, U64 nSecTime)
 
 		if (nSecTime + pAvtpTime->maxLatencyNsec < pAvtpTime->timeNsec) {
 			IF_LOG_INTERVAL(100) {
-				AVB_LOGF_INFO("Timestamp out of range: Now:%llu TSTime%llu MaxLatency:%lluns Delta:%lluns", nSecTime, pAvtpTime->timeNsec, pAvtpTime->maxLatencyNsec, pAvtpTime->timeNsec - nSecTime);
+				AVB_LOGF_INFO("Timestamp out of range: Now:%" PRIu64 "TSTime%" PRIu64 " MaxLatency:%" PRIu64 " ns Delta:%" PRIu64 "ns", nSecTime, pAvtpTime->timeNsec, pAvtpTime->maxLatencyNsec, pAvtpTime->timeNsec - nSecTime);
 			}
 			return TRUE;
 		}
