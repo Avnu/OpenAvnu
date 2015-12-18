@@ -124,7 +124,7 @@ thread##_type	thread##_ThreadData
 		error=FALSE;																			\
 		if (threadhandle##_ThreadData.err != 0) 												\
 		{   																					\
-			AVB_LOGF_ERROR("Thread error: %s code:", message, threadhandle##_ThreadData.err);   \
+			AVB_LOGF_ERROR("Thread error: %s code: %d", message, threadhandle##_ThreadData.err);   \
 			error=TRUE; 																		\
 			break;  																			\
 		}   																					\

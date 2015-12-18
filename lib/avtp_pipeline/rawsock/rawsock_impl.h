@@ -36,6 +36,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // CORE TODO: This needs to be centralized; we have multiple defines for 0x8100 and some others like ETHERTYPE_AVTP
 #define ETHERTYPE_8021Q 0x8100
 
+#define VLAN_HLEN	4	// The additional bytes required by VLAN
+				// (in addition to the Ethernet header)
+
 // Ethernet header
 typedef struct {
 	U8 dhost[ETH_ALEN];
@@ -115,8 +118,11 @@ typedef struct base_rawsock {
 #define VALID_TX_RAWSOCK(s) (VALID_RAWSOCK(s) && ((base_rawsock_t*)s)->txMode)
 #define VALID_RX_RAWSOCK(s) (VALID_RAWSOCK(s) && ((base_rawsock_t*)s)->rxMode)
 
+void* baseRawsockOpen(base_rawsock_t* rawsock, const char *ifname, bool rx_mode, bool tx_mode, U16 ethertype, U32 frame_size, U32 num_frames);
+void baseRawsockClose(void* rawsock);
 bool baseRawsockTxSetHdr(void *pvRawsock, hdr_info_t *pHdr);
 bool baseRawsockTxFillHdr(void *pvRawsock, U8 *pBuffer, unsigned int *hdrlen);
 bool baseRawsockGetAddr(void *pvRawsock, U8 addr[ETH_ALEN]);
+int baseRawsockRxParseHdr(void *pvRawsock, U8 *pBuffer, hdr_info_t *pInfo);
 
 #endif // RAWSOCK_IMPL_H

@@ -104,8 +104,8 @@ bool talkerStartStream(tl_state_t *pTLState)
 	U32 SRKbps = ((unsigned long)pTalkerData->classRate * (unsigned long)pCfg->max_interval_frames * (unsigned long)pStream->frameLen * 8L) / 1000;
 	U32 DataKbps = ((unsigned long)pTalkerData->wakeRate * (unsigned long)pCfg->max_interval_frames * (unsigned long)pStream->frameLen * 8L) / 1000;
 
-	AVB_LOGF_INFO(STREAMID_FORMAT", sr-rate=%lu, data-rate=%lu, frames=%u, size=%u, batch=%u, sleep=%" PRId64 ", sr-Kbps=%d, data-Kbps=%d",
-		STREAMID_ARGS(&pTalkerData->streamID), (unsigned long)(pTalkerData->classRate), (unsigned long)(pTalkerData->wakeRate),
+	AVB_LOGF_INFO(STREAMID_FORMAT", sr-rate=%" PRIu32 ", data-rate=%lu, frames=%" PRIu16 ", size=%" PRIu16 ", batch=%" PRIu32 ", sleep=%" PRIu64 "us, sr-Kbps=%d, data-Kbps=%d",
+		STREAMID_ARGS(&pTalkerData->streamID), pTalkerData->classRate, pTalkerData->wakeRate,
 		pTalkerData->tSpec.maxIntervalFrames, pTalkerData->tSpec.maxFrameSize,
 		pCfg->batch_factor, pTalkerData->intervalNS / 1000, SRKbps, DataKbps);
 
@@ -164,7 +164,7 @@ void talkerStopStream(tl_state_t *pTLState)
 //	openavbTalkerAddStat(pTLState, TL_STAT_TX_LATE, 0);		// Can't calulate at this time
 	openavbTalkerAddStat(pTLState, TL_STAT_TX_BYTES, openavbAvtpBytes(pTalkerData->avtpHandle));
 
-	AVB_LOGF_INFO("TX "STREAMID_FORMAT", Totals: calls=%lld, frames=%lld, late=%lld, bytes=%lld, TXOutOfBuffs=%ld",
+	AVB_LOGF_INFO("TX "STREAMID_FORMAT", Totals: calls=%" PRIu64 ", frames=%" PRIu64 ", late=%" PRIu64 ", bytes=%" PRIu64 ", TXOutOfBuffs=%ld",
 		STREAMID_ARGS(&pTalkerData->streamID),
 		openavbTalkerGetStat(pTLState, TL_STAT_TX_CALLS),
 		openavbTalkerGetStat(pTLState, TL_STAT_TX_FRAMES),
