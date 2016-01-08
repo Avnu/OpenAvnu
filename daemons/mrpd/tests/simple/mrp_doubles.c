@@ -178,6 +178,7 @@ TRACE
 	(void)sockfd; /* unused */
 	(void)flags;  /* unused */
 	memcpy(test_state.tx_PDU, buf, len);
+	test_state.tx_PDU_len = len;
         test_state.sent_count++;
         return len;
 }
