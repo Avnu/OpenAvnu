@@ -353,7 +353,18 @@ int msrp_merge(struct msrp_attribute *rattrib)
 				if (talker_missing)
 					break;
 			}
-			attrib->substate = rattrib->substate;
+			/*
+			 * Listener attributes declared locally have
+			 * attrib->direction set to MSRP_DIRECTION_LISTENER.
+			 *
+			 * Listener attributes declared externally have
+			 * attrib->direction set to MSRP_DIRECTION_TALKER.
+			 *
+			 * Support merging the substate only when the directions match.
+			 */
+			if (rattrib->direction == attrib->direction) {
+				attrib->substate = rattrib->substate;
+			}
 			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
 		}
 		break;
