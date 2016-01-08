@@ -160,7 +160,23 @@ struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
 	}
 	return NULL;
 }
+#ifdef MRP_CPPUTEST /* MSRP_PDU_TEST */
+struct msrp_attribute *msrp_lookup_stream_declaration(uint32_t decl_type, uint8_t streamID[8])
+{
+	struct msrp_attribute *attrib;
+	struct msrp_attribute *found_attrib;
 
+	attrib = msrp_alloc();
+	if (NULL == attrib) {
+		return NULL;
+	}
+	attrib->type = decl_type;
+	memcpy(attrib->attribute.talk_listen.StreamID, streamID, 8);
+	found_attrib = msrp_lookup(attrib);
+	free(attrib);
+	return found_attrib;
+}
+#endif
 int msrp_add(struct msrp_attribute *rattrib)
 {
 	struct msrp_attribute *attrib;

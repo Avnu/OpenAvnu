@@ -195,4 +195,5 @@ int msrp_interesting_id_count(void);
 
 #ifdef MRP_CPPUTEST
 struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib);
+struct msrp_attribute *msrp_lookup_stream_declaration(uint32_t decl_type, uint8_t streamID[8]);
 #endif
