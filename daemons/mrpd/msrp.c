@@ -99,6 +99,7 @@ void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 
 		}
 #endif
+#if 0
 		if (MSRP_TALKER_ADV_TYPE == attrib->type) {
 			state_mc_states = mrp_print_status(
 						&(attrib->applicant),
@@ -106,6 +107,17 @@ void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 			mrpd_log_printf("MSRP Talker event %s, %s\n",
 				     mrp_event_string(evt),
 				     state_mc_states);		
+
+		}
+#endif
+		if (MSRP_LISTENER_TYPE == attrib->type) {
+			state_mc_states = mrp_print_status(
+						&(attrib->applicant),
+						&(attrib->registrar));
+			mrpd_log_printf("MSRP Listener (state = %d) event %s, %s\n",
+					attrib->substate,
+					mrp_event_string(evt),
+					state_mc_states);		
 
 		}
 	}
