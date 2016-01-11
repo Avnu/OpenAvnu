@@ -266,7 +266,7 @@ void dump_msrp_attrib(struct msrp_attribute *attr)
 		       attr->attribute.domain.SRclassVID);
 	}
 	printf("substate: %u\n", attr->substate);
-	printf("direction: %u\n", attr->direction);
+	printf("operation: %u\n", attr->operation);
 	printf("applicant:\n");
 	printf("  mrp_state: %d\n", attr->applicant.mrp_state);
 	printf("  tx: %d\n", attr->applicant.tx);

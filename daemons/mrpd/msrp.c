@@ -367,14 +367,14 @@ int msrp_merge(struct msrp_attribute *rattrib)
 			}
 			/*
 			 * Listener attributes declared locally have
-			 * attrib->direction set to MSRP_DIRECTION_LISTENER.
+			 * attrib->operation set to MSRP_OPERATION_DECLARE.
 			 *
 			 * Listener attributes declared externally have
-			 * attrib->direction set to MSRP_DIRECTION_TALKER.
+			 * attrib->operation set to MSRP_OPERATION_REGISTER.
 			 *
 			 * Support merging the substate only when the directions match.
 			 */
-			if (rattrib->direction == attrib->direction) {
+			if (rattrib->operation == attrib->operation) {
 				attrib->substate = rattrib->substate;
 			}
 			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
@@ -1482,8 +1482,8 @@ int msrp_recv_msg()
 						    MSRP_TALKER_ADV_TYPE;
 
 						/* note this ISNT from us ... */
-						attrib->direction =
-						    MSRP_DIRECTION_LISTENER;
+						attrib->operation =
+						    MSRP_OPERATION_REGISTER;
 
 						memcpy(attrib->attribute.
 						       talk_listen.StreamID,
@@ -1744,8 +1744,8 @@ int msrp_recv_msg()
 						    MSRP_TALKER_FAILED_TYPE;
 
 						/* NOTE this isn't from us */
-						attrib->direction =
-						    MSRP_DIRECTION_LISTENER;
+						attrib->operation =
+						    MSRP_OPERATION_REGISTER;
 
 						memcpy(attrib->attribute.
 						       talk_listen.StreamID,
@@ -2274,7 +2274,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 #ifdef CHECK
-		if (MSRP_DIRECTION_LISTENER == attrib->direction) {
+		if (MSRP_OPERATION_REGISTER == attrib->direction) {
 			attrib = attrib->next;
 			continue;
 		}
@@ -3412,6 +3412,7 @@ static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad,
 		return -1;
 	}
 	attrib->type = attrib_type;
+	attrib->operation = MSRP_OPERATION_DECLARE;
 	attrib->attribute.talk_listen = *talker_ad;
 	msrp_event(mrp_event, attrib);
 	return 0;
@@ -3475,7 +3476,7 @@ static int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
 		return -1;
 	}
 	attrib->type = MSRP_LISTENER_TYPE;
-	attrib->direction = MSRP_DIRECTION_LISTENER;
+	attrib->operation = MSRP_OPERATION_DECLARE;
 	attrib->substate = substate;
 	attrib->attribute.talk_listen = *talker_ad;
 	msrp_event(MRP_EVENT_NEW, attrib);

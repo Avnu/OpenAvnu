@@ -141,8 +141,12 @@ typedef struct msrpdu_domain {
 #define MSRP_SR_CLASS_A_PRIO	3
 #define MSRP_SR_CLASS_B_PRIO	2
 
-#define MSRP_DIRECTION_TALKER	0
-#define MSRP_DIRECTION_LISTENER	1
+/*
+ * Differentiate between attribute declare and register
+ * (see section 10.2 IEEE802.1Q-2011)
+ */
+#define MSRP_OPERATION_REGISTER 0   /* from network */
+#define MSRP_OPERATION_DECLARE  1   /* from local client application */
 
 struct msrp_attribute {
 	struct msrp_attribute *prev;
@@ -153,7 +157,7 @@ struct msrp_attribute {
 		msrpdu_domain_t domain;
 	} attribute;
 	uint32_t substate;	/*for listener events */
-	uint32_t direction;	/*for listener events */
+	uint32_t operation;	/* DECLARE or REGISTER */
 	mrp_applicant_attribute_t applicant;
 	mrp_registrar_attribute_t registrar;
 };
