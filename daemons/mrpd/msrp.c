@@ -329,20 +329,23 @@ int msrp_merge(struct msrp_attribute *rattrib)
 		 * TalkerFailed <- TalkerAdvertise and
 		 * TalkerAdvertise <- TalkerFailed
 		 */
-		attrib->attribute.talk_listen.FailureInformation.FailureCode =
-		    rattrib->attribute.talk_listen.FailureInformation.
-		    FailureCode;
-		memcpy(attrib->attribute.talk_listen.FailureInformation.
-		       BridgeID,
-		       rattrib->attribute.talk_listen.FailureInformation.
-		       BridgeID, 8);
+		if (rattrib->operation == attrib->operation) {
+
+			attrib->attribute.talk_listen.FailureInformation.FailureCode =
+				rattrib->attribute.talk_listen.FailureInformation.
+				FailureCode;
+			memcpy(attrib->attribute.talk_listen.FailureInformation.
+				BridgeID,
+				rattrib->attribute.talk_listen.FailureInformation.
+				BridgeID, 8);
 #ifdef ENABLE_MERGED_LATENCY
-		attrib->attribute.talk_listen.AccumulatedLatency =
-		    rattrib->attribute.talk_listen.AccumulatedLatency;
+			attrib->attribute.talk_listen.AccumulatedLatency =
+				rattrib->attribute.talk_listen.AccumulatedLatency;
 #endif 
-		if (attrib->type != rattrib->type) {
-			attrib->type = rattrib->type;
-			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
+			if (attrib->type != rattrib->type) {
+				attrib->type = rattrib->type;
+				attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
+			}
 		}
 		break;
 	case MSRP_LISTENER_TYPE:
