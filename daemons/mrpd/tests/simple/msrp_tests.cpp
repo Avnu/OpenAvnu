@@ -592,3 +592,68 @@ TEST(MsrpTestGroup, Listener_State_Transition_With_Rx_rIn)
 	CHECK(MSRP_LISTENER_READY == attrib->substate);
 
 }
+
+/*
+* Talker Advertise to Talker Failed transition in the presence of
+* a rIn! from switch while waiting for a transmit opportunity.
+*/
+TEST(MsrpTestGroup, TalkerAdvertise_To_Failed_Transition_With_Rx_rIn)
+{
+	char cmd_string1[] = "S++:S=" STREAM_ID \
+		",A=" STREAM_DA \
+		",V=" VLAN_ID \
+		",Z=" TSPEC_MAX_FRAME_SIZE \
+		",I=" TSPEC_MAX_FRAME_INTERVAL \
+		",P=" PRIORITY_AND_RANK \
+		",L=" ACCUMULATED_LATENCY;
+
+	char cmd_string2[] = "S++:S=" STREAM_ID \
+		",A=" STREAM_DA \
+		",V=" VLAN_ID \
+		",Z=" TSPEC_MAX_FRAME_SIZE \
+		",I=" TSPEC_MAX_FRAME_INTERVAL \
+		",P=" PRIORITY_AND_RANK \
+		",L=" ACCUMULATED_LATENCY \
+		",B=" BRIDGE_ID \
+		",C=" FAILURE_CODE;
+
+	uint8_t thisStreamID[8] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xDF, 0xCA, 0x11 };
+	struct msrp_attribute *attrib;
+	int rv;
+
+	/* declare Talker Advertise */
+	msrp_recv_cmd(cmd_string1, sizeof(cmd_string1), &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+
+	attrib = msrp_lookup_stream_declaration(MSRP_TALKER_ADV_TYPE, thisStreamID);
+	CHECK(NULL != attrib);
+	CHECK(MSRP_TALKER_ADV_TYPE == attrib->type);
+
+	/* cause Talker Advertise to be sent */
+	msrp_event(MRP_EVENT_TX, NULL);
+	CHECK(1 == test_state.sent_count);
+
+	/* declare Talker Failed */
+	msrp_recv_cmd(cmd_string2, sizeof(cmd_string2), &client);
+	CHECK(msrp_tests_cmd_ok(test_state.ctl_msg_data));
+
+	attrib = msrp_lookup_stream_declaration(MSRP_TALKER_FAILED_TYPE, thisStreamID);
+	CHECK(NULL != attrib);
+	CHECK(MSRP_TALKER_FAILED_TYPE == attrib->type);
+
+	/* Rx pdu with Talker Adverise in it.
+	* Loop the Tx PDU back into the the Rx PDU path. This won't actually send a rIn!
+	* event, but the effect should be the same.
+	*/
+	memcpy(test_state.rx_PDU, test_state.tx_PDU, test_state.tx_PDU_len);
+	test_state.rx_PDU_len = test_state.tx_PDU_len;
+	rv = msrp_recv_msg();
+	LONGS_EQUAL(0, rv);
+
+	/* Check Listener declaration type */
+	attrib = msrp_lookup_stream_declaration(MSRP_TALKER_FAILED_TYPE, thisStreamID);
+	CHECK(NULL != attrib);
+	CHECK(MSRP_TALKER_FAILED_TYPE == attrib->type);
+
+}
+
