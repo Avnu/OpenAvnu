@@ -2602,7 +2602,7 @@ static int igb_probe(struct pci_dev *pdev,
 			pci_using_dac = 1;
 	} else {
 		err = dma_set_mask(pci_dev_to_dev(pdev), DMA_BIT_MASK(32));
-		if (err) {
+		if (!err) {
 			err = dma_set_coherent_mask(pci_dev_to_dev(pdev),
 				DMA_BIT_MASK(32));
 			if (err) {
