@@ -287,6 +287,9 @@ static struct file_operations igb_fops = {
 		.release = igb_close_file, 
 		.mmap	= igb_mmap, 
 		.unlocked_ioctl = igb_ioctl_file,
+#if defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL)
+		.compat_ioctl = igb_ioctl_file,
+#endif
 };
 
 static struct miscdevice igb_miscdev = {
@@ -2594,6 +2597,7 @@ static int igb_probe(struct pci_dev *pdev,
 		return err;
 
 	pci_using_dac = 0;
+#if !defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL)
 	err = dma_set_mask(pci_dev_to_dev(pdev), DMA_BIT_MASK(64));
 	if (!err) {
 		err = dma_set_coherent_mask(pci_dev_to_dev(pdev),
@@ -2601,6 +2605,7 @@ static int igb_probe(struct pci_dev *pdev,
 		if (!err)
 			pci_using_dac = 1;
 	} else {
+#endif
 		err = dma_set_mask(pci_dev_to_dev(pdev), DMA_BIT_MASK(32));
 		if (!err) {
 			err = dma_set_coherent_mask(pci_dev_to_dev(pdev),
@@ -2611,7 +2616,9 @@ static int igb_probe(struct pci_dev *pdev,
 				goto err_dma;
 			}
 		}
+#if !defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL)
 	}
+#endif
 
 #ifndef HAVE_ASPM_QUIRKS
 	/* 82575 requires that the pci-e link partner disable the L0s state */
@@ -10175,7 +10182,15 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 			adapter->userpages = userpage;
 		}
 
+#if defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL)
+#if defined(CONFIG_ZONE_DMA32)
+		page = alloc_page(GFP_ATOMIC | __GFP_COLD | GFP_DMA32);
+#else /* defined(CONFIG_ZONE_DMA32) */
+		page = alloc_page(GFP_ATOMIC | __GFP_COLD | GFP_DMA);
+#endif /* defined(CONFIG_ZONE_DMA32) */
+#else /* defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL) */
 		page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+#endif /* defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL) */
 		if (unlikely(!page)) {
 			err = -ENOMEM;
 			goto failed;

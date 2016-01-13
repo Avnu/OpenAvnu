@@ -76,6 +76,12 @@
 #else
 #endif /* NAPI */
 
+#ifdef SUPPORT_32BIT_IOCTL
+#ifndef CONFIG_IGB_SUPPORT_32BIT_IOCTL
+#define CONFIG_IGB_SUPPORT_32BIT_IOCTL
+#endif
+#endif /* SUPPORT_32BIT_IOCTL */
+
 /* Dynamic LTR and deeper C-State support disable/enable */
 
 /* packet split disable/enable */
