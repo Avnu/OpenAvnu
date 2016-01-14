@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation
+  Copyright (c) 2001-2016, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -39,13 +39,7 @@
 #undef FALSE
 #define TRUE true
 #define FALSE false
-#ifdef GCC_VERSION
-#if ( GCC_VERSION < 3000 )
 #define _Bool char
-#endif
-#else
-#define _Bool char
-#endif
 #ifndef bool
 #define bool _Bool
 #define true 1
@@ -77,10 +71,13 @@ typedef int8_t		s8;
 /* Register READ/WRITE macros */
 
 #define E1000_READ_REG(hw, reg) \
-    (*(volatile u32 *)(((hw)->hw_addr + reg)))
+	(*(u32 *)(((hw)->hw_addr + reg)))
 
 #define E1000_WRITE_REG(hw, reg, value) \
-    (*(volatile u32 *)(((hw)->hw_addr + reg)) = value)
+	(*(u32 *)(((hw)->hw_addr + reg)) = value)
+
+#define E1000_WRITE_REG_ARRAY(hw, reg, index, value) \
+	E1000_WRITE_REG((hw), (reg) + ((index) << 2), (value))
 
 #endif  /* _OSDEP_H_ */
 
