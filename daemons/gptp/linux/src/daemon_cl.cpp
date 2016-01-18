@@ -301,13 +301,7 @@ int main(int argc, char **argv)
         new IEEE1588Port
         ( clock, 1, false, accelerated_sync_count, timestamper, 0, ifname,
           condition_factory, thread_factory, timer_factory, lock_factory );
-    if (!port->init_port(phy_delay)) {
-        printf("failed to initialize port \n");
-        return -1;
-    }
-    /* If using config file, set the neighborPropDelayThresh. Otherwise
-     * it will use its default value (800ns)
-     */
+
     if(use_config_file)
     {
         GptpIniParser iniParser(config_file_path);
@@ -325,9 +319,25 @@ int main(int argc, char **argv)
             fprintf(stdout, "phy_delay_mb_tx: %d\n", iniParser.getPhyDelayMbTx());
             fprintf(stdout, "phy_delay_mb_rx: %d\n", iniParser.getPhyDelayMbRx());
             fprintf(stdout, "neighborPropDelayThresh: %ld\n", iniParser.getNeighborPropDelayThresh());
+
+            /* If using config file, set the neighborPropDelayThresh.
+             * Otherwise it will use its default value (800ns) */
             port->setNeighPropDelayThresh(iniParser.getNeighborPropDelayThresh());
+
+            /*Only overrites phy_delay default values if not input_delay switch enabled*/
+            if(!input_delay)
+            {
+                phy_delay[0] = iniParser.getPhyDelayGbTx();
+                phy_delay[1] = iniParser.getPhyDelayGbRx();
+                phy_delay[2] = iniParser.getPhyDelayMbTx();
+                phy_delay[3] = iniParser.getPhyDelayMbRx();
+            }
         }
 
+    }
+    if (!port->init_port(phy_delay)) {
+        printf("failed to initialize port \n");
+        return -1;
     }
 
     if( restoredataptr != NULL ) {

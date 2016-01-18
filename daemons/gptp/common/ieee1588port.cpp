@@ -866,7 +866,8 @@ void IEEE1588Port::processEvent(Event e)
 			 (pow ((double)2, getAnnounceInterval()) * 1000000000.0));
 		break;
 	case FAULT_DETECTED:
-		XPTPD_INFO("Received FAULT_DETECTED event");
+        XPTPD_INFO("Received FAULT_DETECTED event");
+        setAsCapable(false);
 		break;
 	case PDELAY_DEFERRED_PROCESSING:
 		pdelay_rx_lock->lock();
