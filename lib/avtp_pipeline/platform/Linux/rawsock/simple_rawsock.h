@@ -73,9 +73,6 @@ bool simpleRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len);
 // Get a RX frame
 U8* simpleRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, unsigned int *len);
 
-// Parse the ethernet frame header.  Returns length of header, or -1 for failure
-int simpleRawsockRxParseHdr(void *pvRawsock, U8 *pBuffer, hdr_info_t *pInfo);
-
 // Setup the rawsock to receive multicast packets
 bool simpleRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 addr[ETH_ALEN]);
 

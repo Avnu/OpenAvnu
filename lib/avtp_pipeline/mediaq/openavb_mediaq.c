@@ -1054,6 +1054,7 @@ bool openavbMediaQAnyReadyItems(media_q_t *pMediaQ, bool ignoreTimestamp)
 						U64 nSecTime;
 						CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nSecTime);
 						media_q_item_t *pTail = &pMediaQInfo->pItems[tailIdx];
+						assert(pTail);
 					
 						if (!pTail->taken) {
 							if (openavbAvtpTimeIsPastTime(pTail->pAvtpTime, nSecTime)) {

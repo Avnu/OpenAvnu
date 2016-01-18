@@ -75,6 +75,9 @@ typedef enum {
 /// Maximum size of interface name
 #define IFNAMSIZE 16
 
+/// Indicatates that VLAN ID is not set in configuration
+#define VLAN_NULL UINT16_MAX
+
 /// Structure containing configuration of the host
 typedef struct {
 	/// Role of the host
@@ -122,6 +125,8 @@ typedef struct {
 	bool tx_blocking_in_intf;
 	/// Network interface name. Not used on all platforms.
 	char ifname[IFNAMSIZE];
+	/// VLAN ID
+	U16 vlan_id;
 	/// When set incoming packets will trigger a signal to the stream task to wakeup.
 	bool rx_signal_mode;
 
