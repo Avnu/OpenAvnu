@@ -498,7 +498,7 @@ double openavbIntfMpeg2tsFileComputeDuration(pvt_data_t* pPvtData, unsigned char
 			pPvtData->fPIDStatusTable[idx].firstRealTime = timeNow;
 			pPvtData->fPIDStatusTable[idx].lastRealTime = timeNow;
 			pPvtData->fPIDStatusTable[idx].lastPacketNum = 0;
-			AVB_LOGF_VERBOSE("PID 0x%x, FIRST PCR 0x%08x+%d:%03x == %f @ %f, pkt #%lu\n", pid, pcrBaseHigh, pkt[10]>>7, pcrExt, fClock, timeNow, pPvtData->fTSPacketCount);
+			AVB_LOGF_VERBOSE("PID 0x%x, FIRST PCR 0x%08x+%d:%03x == %f @ %f, pkt #%lf\n", pid, pcrBaseHigh, pkt[10]>>7, pcrExt, fClock, timeNow, pPvtData->fTSPacketCount);
 		} else {
 			// We've seen this PID's PCR before; update our per-packet duration estimate:
 			double packetsSinceLast = (pPvtData->fTSPacketCount -pPvtData->fPIDStatusTable[idx].lastPacketNum);
@@ -535,7 +535,7 @@ double openavbIntfMpeg2tsFileComputeDuration(pvt_data_t* pPvtData, unsigned char
 				pPvtData->fPIDStatusTable[idx].firstClock = fClock;
 				pPvtData->fPIDStatusTable[idx].firstRealTime = timeNow;
 			}
-			AVB_LOGF_VERBOSE("PID 0x%x, PCKT_CNT %lu PCR 0x%08x+%d:%03x == %f @ %f (diffs %f @ %f), pkt #%lu, discon %d => this duration %f, new estimate %f, mean PCR period=%f\n",
+			AVB_LOGF_VERBOSE("PID 0x%x, PCKT_CNT %lf PCR 0x%08x+%d:%03x == %f @ %f (diffs %f @ %f), pkt #%lf, discon %d => this duration %f, new estimate %f, mean PCR period=%f\n",
 					pid, pPvtData->fTSPacketCount, pcrBaseHigh, pkt[10]>>7, pcrExt, fClock, timeNow, fClock - pPvtData->fPIDStatusTable[idx].firstClock, timeNow - pPvtData->fPIDStatusTable[idx].firstRealTime, pPvtData->fTSPacketCount, discontinuity_indicator != 0, durationPerPacket, pPvtData->fTSPacketDurationEstimate, meanPCRPeriod );
 		}
 		pPvtData->fPIDStatusTable[idx].lastClock = fClock;

@@ -77,8 +77,8 @@ static bool x_timeInit(void) {
 		return FALSE;
 	}
 
-	AVB_LOGF_INFO("local_time = %llu", gPtpTD.local_time);
-	AVB_LOGF_INFO("ml_phoffset = %lld, ls_phoffset = %lld", gPtpTD.ml_phoffset, gPtpTD.ls_phoffset);
+	AVB_LOGF_INFO("local_time = %" PRIu64, gPtpTD.local_time);
+	AVB_LOGF_INFO("ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64, gPtpTD.ml_phoffset, gPtpTD.ls_phoffset);
 	AVB_LOGF_INFO("ml_freqffset = %Lf, ls_freqoffset = %Lf", gPtpTD.ml_freqoffset, gPtpTD.ls_freqoffset);
 
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);

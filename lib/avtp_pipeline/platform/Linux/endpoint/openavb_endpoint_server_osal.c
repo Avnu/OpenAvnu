@@ -78,7 +78,7 @@ static bool openavbEptSrvrSendToClient(int h, openavbEndpointMessage_t *msg)
 	}
 
 	ssize_t nWrite = write(csock, msg, OPENAVB_ENDPOINT_MSG_LEN);
-	AVB_LOGF_VERBOSE("Sent message, len=%d, nWrite=%d", OPENAVB_ENDPOINT_MSG_LEN, nWrite);
+	AVB_LOGF_VERBOSE("Sent message, len=%zu, nWrite=%zu", OPENAVB_ENDPOINT_MSG_LEN, nWrite);
 	if (nWrite < OPENAVB_ENDPOINT_MSG_LEN) {
 		if (nWrite < 0) {
 			AVB_LOGF_ERROR("Failed to write socket: %s", strerror(errno));
@@ -203,7 +203,7 @@ void openavbEptSrvrService(void)
 					openavbEndpointMessage_t  msgBuf;
 					memset(&msgBuf, 0, OPENAVB_ENDPOINT_MSG_LEN);
 					ssize_t nRead = read(csock, &msgBuf, OPENAVB_ENDPOINT_MSG_LEN);
-					AVB_LOGF_VERBOSE("Socket read h=%d,fd=%d: read=%d, expect=%d", i, csock, nRead, OPENAVB_ENDPOINT_MSG_LEN);
+					AVB_LOGF_VERBOSE("Socket read h=%d,fd=%d: read=%zu, expect=%zu", i, csock, nRead, OPENAVB_ENDPOINT_MSG_LEN);
 					
 					if (nRead < OPENAVB_ENDPOINT_MSG_LEN) {
 						// sock closed
