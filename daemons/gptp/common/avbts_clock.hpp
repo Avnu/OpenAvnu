@@ -375,31 +375,58 @@ public:
 	  return (number_ports++ % (MAX_PORTS + 1)) + 1;
   }
 
+  /**
+   * @brief  Sets the follow up info internal object. The fup_info object contains
+   * the last updated information when the frequency or phase have changed
+   * @param  fup Pointer to the FolloUpTLV object.
+   * @return void
+   */
   void setFUPInfo(FollowUpTLV *fup)
   {
       fup_info = fup;
   }
 
+  /**
+   * @brief  Gets the fup_info pointer
+   * @return fup_info pointer
+   */
   FollowUpTLV *getFUPInfo(void)
   {
       return fup_info;
   }
 
-  void updateFUPInfo(void)
-  {
-      fup_info->incrementGMTimeBaseIndicator();
-      fup_info->setScaledLastGmFreqChange(fup_status->getScaledLastGmFreqChange());
-      fup_info->setScaledLastGmPhaseChange(fup_status->getScaledLastGmPhaseChange());
-  }
-
+  /**
+   * @brief  Sets the follow up status internal object. The fup_status object contains
+   * information about the current frequency/phase aqcuired through the received
+   * follow up messages
+   * @param  fup Pointer to the FollowUpTLV object
+   * @return void
+   */
   void setFUPStatus(FollowUpTLV *fup)
   {
       fup_status = fup;
   }
 
+  /**
+   * @brief  Gets the fup_status pointer
+   * @return fup_status pointer
+   */
   FollowUpTLV *getFUPStatus(void)
   {
       return fup_status;
+  }
+
+  /**
+   * @brief Updates the follow up info internal object with the current clock source time
+   * status values. This method should be called whenever the clockSource entity time
+   * base changes (IEEE 802.1AS clause 9.2)
+   * @return void
+   */
+  void updateFUPInfo(void)
+  {
+      fup_info->incrementGMTimeBaseIndicator();
+      fup_info->setScaledLastGmFreqChange(fup_status->getScaledLastGmFreqChange());
+      fup_info->setScaledLastGmPhaseChange(fup_status->getScaledLastGmPhaseChange());
   }
 
   /**

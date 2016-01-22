@@ -901,6 +901,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	FrequencyRatio master_local_freq_offset;
 	int correction;
     int32_t scaledLastGmFreqChange = 0;
+    scaledNs scaledLastGmPhaseChange;
 
 	XPTPD_INFO("Processing a follow-up message");
 
@@ -986,9 +987,11 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	  calcMasterLocalClockRateDifference
 	  ( preciseOriginTimestamp, sync_arrival );
 
-    /*Update LastGmFreqChange on local status structure.*/
+    /*Update information on local status structure.*/
     scaledLastGmFreqChange = (int32_t)((1.0/local_clock_adjustment -1.0) * (1ULL << 41));
-    port->getClock()->getFUPStatus()->setScaledLastGmFreqChange(local_clock_adjustment);
+    scaledLastGmPhaseChange.setLSB( tlv.getRateOffset() );
+    port->getClock()->getFUPStatus()->setScaledLastGmFreqChange( scaledLastGmFreqChange );
+    port->getClock()->getFUPStatus()->setScaledLastGmPhaseChange( scaledLastGmPhaseChange );
 
 	if( port->getPortState() != PTP_MASTER ) {
 		port->incSyncCount();

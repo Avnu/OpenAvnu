@@ -607,6 +607,39 @@ class scaledNs {
 	void toByteString(uint8_t * byte_str) {
 		memcpy(byte_str, this, sizeof(*this));
 	}
+
+    /**
+     * @brief  Overloads the operator = for this class
+     * @param  other Value to be attributed to this object's instance.
+     * @return Reference to scaledNs object
+     */
+    scaledNs& operator=(const scaledNs& other)
+    {
+        this->ms = other.ms;
+        this->ls = other.ls;
+
+        return *this;
+    }
+
+    /**
+     * @brief  Set the lowest 64bits from the scaledNs object
+     * @param  lsb Value to be set
+     * @return void
+     */
+    void setLSB(uint64_t lsb)
+    {
+        this->ls = lsb;
+    }
+
+    /**
+     * @brief  Set the highest 32bits of the scaledNs object
+     * @param  msb 32-bit signed integer to be set
+     * @return void
+     */
+    void setMSB(int32_t msb)
+    {
+        this->ms = msb;
+    }
 };
 
 /**
@@ -667,7 +700,7 @@ class FollowUpTLV {
 
     void setGMTimeBaseIndicator(uint16_t tbi)
     {
-        gmTimeBaseIndicator = tbi;
+        gmTimeBaseIndicator = PLAT_htonl(tbi);
     }
     void incrementGMTimeBaseIndicator(void)
     {
@@ -680,8 +713,9 @@ class FollowUpTLV {
 
     void setScaledLastGmPhaseChange(scaledNs pc)
     {
-        /*TODO*/
+        scaledLastGmPhaseChange = PLAT_htonl(pc);
     }
+
     scaledNs getScaledLastGmPhaseChange(void)
     {
         return scaledLastGmPhaseChange;
