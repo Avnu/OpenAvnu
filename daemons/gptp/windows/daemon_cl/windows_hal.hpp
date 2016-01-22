@@ -86,9 +86,10 @@ public:
 	 * @param  addr [out] Remote link layer address
 	 * @param  payload [out] Data buffer
 	 * @param  length [out] Length of received data
+	 * @param  delay [in] Specifications for PHY input and output delays in nanoseconds
 	 * @return net_result structure
 	 */
-	virtual net_result nrecv( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) {
+	virtual net_result nrecv(LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay) {
 		packet_addr_t dest;
 		packet_error_t pferror = recvFrame( handle, &dest, payload, length );
 		if( pferror != PACKET_NO_ERROR && pferror != PACKET_RECVTIMEOUT_ERROR ) return net_fatal;

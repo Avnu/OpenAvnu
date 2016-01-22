@@ -420,14 +420,14 @@ bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
 	msg->getGrandmasterIdentity((char *)that1 + 6);
 
 #if 0
-	fprintf(stderr, "(Clk)Us: ");
+	XPTPD_PRINTF("(Clk)Us: ");
 	for (int i = 0; i < 14; ++i)
-		fprintf(stderr, "%hhx ", this1[i]);
-	fprintf(stderr, "\n");
-	fprintf(stderr, "(Clk)Them: ");
+		XPTPD_PRINTF("%hhx ", this1[i]);
+	XPTPD_PRINTF("\n");
+	XPTPD_PRINTF("(Clk)Them: ");
 	for (int i = 0; i < 14; ++i)
-		fprintf(stderr, "%hhx ", that1[i]);
-	fprintf(stderr, "\n");
+		XPTPD_PRINTF("%hhx ", that1[i]);
+	XPTPD_PRINTF("\n");
 #endif
 
 	return (memcmp(this1, that1, 14) < 0) ? true : false;
