@@ -179,7 +179,7 @@ PTPMessageCommon *buildPTPMessage
 			       buf + PTP_SYNC_NSEC(PTP_SYNC_OFFSET),
 			       sizeof(sync_msg->originTimestamp.nanoseconds));
 			msg = sync_msg;
-		}
+        }
 		break;
 	case FOLLOWUP_MESSAGE:
 
@@ -226,7 +226,8 @@ PTPMessageCommon *buildPTPMessage
 			memcpy( &(followup_msg->tlv), buf+PTP_FOLLOWUP_LENGTH, sizeof(followup_msg->tlv) );
 
 			msg = followup_msg;
-		}
+        }
+
 		break;
 	case PATH_DELAY_REQ_MESSAGE:
 
@@ -800,6 +801,7 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 
 	if( flags[PTP_ASSIST_BYTE] & (0x1<<PTP_ASSIST_BIT)) {
 		PTPMessageSync *old_sync = port->getLastSync();
+
 		if (old_sync != NULL) {
 			delete old_sync;
 		}
@@ -873,7 +875,7 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	XPTPD_INFO("Follow-up Dump:\n");
 #ifdef DEBUG
 	for (int i = 0; i < messageLength; ++i) {
-		fprintf(stderr, "%d:%02x ", i, (unsigned char)buf[i]);
+		fprintf(stderr, "%d:%02x ", i, (unsigned char)buf_t[i]);
 	}
 	fprintf(stderr, "\n");
 #endif
@@ -898,6 +900,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	FrequencyRatio local_system_freq_offset;
 	FrequencyRatio master_local_freq_offset;
 	int correction;
+    int32_t scaledLastGmFreqChange = 0;
 
 	XPTPD_INFO("Processing a follow-up message");
 
@@ -933,7 +936,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	sync_arrival = sync->getTimestamp();
 
 	delay = port->getLinkDelay();
-	if ((delay = port->getLinkDelay()) == 3600000000000) {
+	if ((delay = port->getLinkDelay()) == 3600000000000) { /*TODO: ONE_WAY_DELAY_DEFAULT*/
 		goto done;
 	}
 
@@ -982,6 +985,10 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	  port->getClock()->
 	  calcMasterLocalClockRateDifference
 	  ( preciseOriginTimestamp, sync_arrival );
+
+    /*Update LastGmFreqChange on local status structure.*/
+    scaledLastGmFreqChange = (int32_t)((1.0/local_clock_adjustment -1.0) * (1ULL << 41));
+    port->getClock()->getFUPStatus()->setScaledLastGmFreqChange(local_clock_adjustment);
 
 	if( port->getPortState() != PTP_MASTER ) {
 		port->incSyncCount();

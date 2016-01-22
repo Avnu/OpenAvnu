@@ -445,8 +445,6 @@ void IEEE1588Port::processEvent(Event e)
 			IEEE1588Port **ports;
 			clock->getPortList(number_ports, ports);
 
-
-
 			/* Find EBest for all ports */
 			j = 0;
 			for (int i = 0; i < number_ports; ++i) {
@@ -789,10 +787,13 @@ void IEEE1588Port::processEvent(Event e)
 
 					PTPMessageFollowUp *follow_up;
 					if (ts_good == GPTP_EC_SUCCESS) {
+
 						follow_up =
 							new PTPMessageFollowUp(this);
 						PortIdentity dest_id;
 						getPortIdentity(dest_id);
+
+                        follow_up->setClockSourceTime(getClock()->getFUPInfo());
 						follow_up->setPortIdentity(&dest_id);
 						follow_up->setSequenceId(sync->getSequenceId());
 						follow_up->setPreciseOriginTimestamp(sync_timestamp);
@@ -938,6 +939,8 @@ void IEEE1588Port::becomeMaster( bool annc ) {
   clock->addEventTimer( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
   fprintf( stderr, "Switching to Master\n" );
 
+  clock->updateFUPInfo();
+
   return;
 }
 
@@ -945,7 +948,7 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
   clock->deleteEventTimer( this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES );
   clock->deleteEventTimer( this, SYNC_INTERVAL_TIMEOUT_EXPIRES );
 
-  port_state = PTP_SLAVE;
+    port_state = PTP_SLAVE;
 
   /*clock->addEventTimer
 	  ( this, SYNC_RECEIPT_TIMEOUT_EXPIRES,
@@ -958,6 +961,8 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 		(pow((double)2,getAnnounceInterval())*1000000000.0)));
   fprintf( stderr, "Switching to Slave\n" );
   if( restart_syntonization ) clock->newSyntonizationSetPoint();
+
+  getClock()->updateFUPInfo();
 
   return;
 }
@@ -984,6 +989,7 @@ void IEEE1588Port::recommendState
 		  if( changed_external_master ) {
 		    fprintf( stderr, "Changed master!\n" );
 		    clock->newSyntonizationSetPoint();
+            getClock()->updateFUPInfo();
 			reset_sync = true;
 		  }
 		}

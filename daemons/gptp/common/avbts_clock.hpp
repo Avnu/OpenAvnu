@@ -130,7 +130,21 @@ private:
 	FrequencyRatio _master_local_freq_offset;
 	FrequencyRatio _local_system_freq_offset;
 
-  OSLock *timerq_lock;
+    /**
+     * fup info stores information of the last time
+     * the base time has changed. When that happens
+     * the information from fup_status is copied over
+     * fup_info. The follow-up sendPort method is
+     * supposed to get the information from fup_info
+     * prior to sending a message out.
+     */
+    FollowUpTLV *fup_info;
+
+    /**
+     * fup status has the instantaneous info*/
+    FollowUpTLV *fup_status;
+
+    OSLock *timerq_lock;
 public:
   /**
    * @brief Instantiates a IEEE 1588 Clock
@@ -361,6 +375,33 @@ public:
 	  return (number_ports++ % (MAX_PORTS + 1)) + 1;
   }
 
+  void setFUPInfo(FollowUpTLV *fup)
+  {
+      fup_info = fup;
+  }
+
+  FollowUpTLV *getFUPInfo(void)
+  {
+      return fup_info;
+  }
+
+  void updateFUPInfo(void)
+  {
+      fup_info->incrementGMTimeBaseIndicator();
+      fup_info->setScaledLastGmFreqChange(fup_status->getScaledLastGmFreqChange());
+      fup_info->setScaledLastGmPhaseChange(fup_status->getScaledLastGmPhaseChange());
+  }
+
+  void setFUPStatus(FollowUpTLV *fup)
+  {
+      fup_status = fup;
+  }
+
+  FollowUpTLV *getFUPStatus(void)
+  {
+      return fup_status;
+  }
+
   /**
    * @brief  Registers a new IEEE1588 port
    * @param  port  [in] IEEE1588port instance
@@ -483,6 +524,11 @@ public:
    */
   void newSyntonizationSetPoint() {
 	  _new_syntonization_set_point = true;
+  }
+
+  FrequencyRatio getMLFreqOffset(void)
+  {
+      return _master_local_freq_offset;
   }
 
   /**

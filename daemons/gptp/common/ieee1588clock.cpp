@@ -113,6 +113,9 @@ IEEE1588Clock::IEEE1588Clock
 	// This should be done LAST!! to pass fully initialized clock object
 	timerq = timerq_factory->createOSTimerQueue( this );
 
+    fup_info = new FollowUpTLV();
+    fup_status = new FollowUpTLV();
+
 	return;
 }
 
