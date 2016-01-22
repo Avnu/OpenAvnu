@@ -689,33 +689,67 @@ class FollowUpTLV {
 		return cumulativeScaledRateOffset;
 	}
 
+    /**
+     * @brief  Updates the scaledLastGmFreqChanged private member
+     * @param  val Value to be set
+     * @return void
+     */
     void setScaledLastGmFreqChange(int32_t val)
     {
         scaledLastGmFreqChange = PLAT_htonl(val);
     }
+
+    /**
+     * @brief  Gets the current scaledLastGmFreqChanged value
+     * @return scaledLastGmFreqChange
+     */
     int32_t getScaledLastGmFreqChange(void)
     {
         return scaledLastGmFreqChange;
     }
 
+    /**
+     * @brief  Sets the gmTimeBaseIndicator private member
+     * @param  tbi Value to be set
+     * @return void
+     */
     void setGMTimeBaseIndicator(uint16_t tbi)
     {
         gmTimeBaseIndicator = PLAT_htonl(tbi);
     }
+
+    /**
+     * @brief  Incremets the Time Base Indicator member
+     * @return void
+     */
     void incrementGMTimeBaseIndicator(void)
     {
         ++gmTimeBaseIndicator;
     }
+
+    /**
+     * @brief  Gets the current gmTimeBaseIndicator value
+     * @return gmTimeBaseIndicator
+     */
     uint16_t getGMTimeBaseIndicator(void)
     {
         return gmTimeBaseIndicator;
     }
 
+    /**
+     * @brief  Sets the scaledLastGmPhaseChange private member
+     * @param  pc Value to be set
+     * @return void
+     */
     void setScaledLastGmPhaseChange(scaledNs pc)
     {
         scaledLastGmPhaseChange = PLAT_htonl(pc);
     }
 
+    /**
+     * @brief  Gets the scaledLastGmPhaseChange private member value
+     * @return scaledLastGmPhaseChange value
+     */
     scaledNs getScaledLastGmPhaseChange(void)
     {
         return scaledLastGmPhaseChange;
