@@ -526,11 +526,6 @@ public:
 	  _new_syntonization_set_point = true;
   }
 
-  FrequencyRatio getMLFreqOffset(void)
-  {
-      return _master_local_freq_offset;
-  }
-
   /**
    * @brief  Gets all TX locks
    * @return void

@@ -672,7 +672,6 @@ class FollowUpTLV {
     void incrementGMTimeBaseIndicator(void)
     {
         ++gmTimeBaseIndicator;
-        printf("New TimebaseIndicator: %x\n", gmTimeBaseIndicator);
     }
     uint16_t getGMTimeBaseIndicator(void)
     {
