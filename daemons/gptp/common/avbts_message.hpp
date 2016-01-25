@@ -743,7 +743,7 @@ class FollowUpTLV {
      */
     void setScaledLastGmPhaseChange(scaledNs pc)
     {
-        scaledLastGmPhaseChange = PLAT_htonl(pc);
+        scaledLastGmPhaseChange = pc;
     }
 
     /**
