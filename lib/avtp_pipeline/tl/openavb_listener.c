@@ -121,7 +121,7 @@ void listenerStopStream(tl_state_t *pTLState)
 	openavbListenerAddStat(pTLState, TL_STAT_RX_LOST, openavbAvtpLost(pListenerData->avtpHandle));
 	openavbListenerAddStat(pTLState, TL_STAT_RX_BYTES, openavbAvtpBytes(pListenerData->avtpHandle));
 
-	AVB_LOGF_INFO("RX "STREAMID_FORMAT", Totals: calls=%lld, frames=%lld, lost=%lld, bytes=%lld",
+	AVB_LOGF_INFO("RX "STREAMID_FORMAT", Totals: calls=%" PRIu64 "frames=%" PRIu64 "lost=%" PRIu64 "bytes=%" PRIu64,
 		STREAMID_ARGS(&pListenerData->streamID),
 		openavbListenerGetStat(pTLState, TL_STAT_RX_CALLS),
 		openavbListenerGetStat(pTLState, TL_STAT_RX_FRAMES),

@@ -51,7 +51,7 @@ static bool openavbEptClntSendToServer(int h, openavbEndpointMessage_t *msg)
 	}
 
 	ssize_t nWrite = write(h, msg, OPENAVB_ENDPOINT_MSG_LEN);
-	AVB_LOGF_VERBOSE("Sent message, len=%d, nWrite=%d", OPENAVB_ENDPOINT_MSG_LEN, nWrite);
+	AVB_LOGF_VERBOSE("Sent message, len=%zu, nWrite=%zu", OPENAVB_ENDPOINT_MSG_LEN, nWrite);
 
 	if (nWrite < OPENAVB_ENDPOINT_MSG_LEN) {
 		if (nWrite < 0) {

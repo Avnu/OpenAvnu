@@ -60,6 +60,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // - 1 Byte - TU bit (timestamp uncertain)
 #define HIDX_AVTP_HIDE7_TU1			3
 
+// - 2 bytes	Stream data length
+#define HIDX_STREAM_DATA_LEN16		20
+
 // - 1 Byte - SP bit (sparse mode)
 #define HIDX_AVTP_HIDE7_SP			22
 #define SP_M0_BIT					(1 << 4)
@@ -601,6 +604,14 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 
 		bool listenerSparseMode = (pPvtData->sparseMode == TS_SPARSE_MODE_ENABLED) ? TRUE : FALSE;
 		bool streamSparseMode = (pHdrV0[HIDX_AVTP_HIDE7_SP] & SP_M0_BIT) ? TRUE : FALSE;
+		U16 payloadLen = ntohs(*(U16 *)(&pHdrV0[HIDX_STREAM_DATA_LEN16]));
+
+		if (payloadLen  > dataLen - TOTAL_HEADER_SIZE) {
+			if (pPvtData->dataValid)
+				AVB_LOGF_ERROR("header data len %d > actual data len %d",
+					       payloadLen, dataLen - TOTAL_HEADER_SIZE);
+			dataValid = FALSE;
+		}
 
 		if ((tmp = ((format_info >> 24) & 0xFF)) != pPvtData->aaf_format) {
 			if (pPvtData->dataValid)

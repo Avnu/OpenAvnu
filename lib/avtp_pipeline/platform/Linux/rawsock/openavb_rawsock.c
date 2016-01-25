@@ -95,27 +95,6 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 			return NULL;
 		}
 
-		// fill virtual functions table
-		rawsock_cb_t *cb = &rawsock->base.cb;
-		cb->close = ringRawsockClose;
-		cb->getTxFrame = ringRawsockGetTxFrame;
-		cb->txSetMark = simpleRawsockTxSetMark;
-		cb->txSetHdr = simpleRawsockTxSetHdr;
-		cb->txFillHdr = baseRawsockTxFillHdr;
-		cb->relTxFrame = ringRawsockRelTxFrame;
-		cb->txFrameReady = ringRawsockTxFrameReady;
-		cb->send = ringRawsockSend;
-		cb->txBufLevel = ringRawsockTxBufLevel;
-		cb->rxBufLevel = ringRawsockRxBufLevel;
-		cb->getRxFrame = ringRawsockGetRxFrame;
-		cb->rxParseHdr = ringRawsockRxParseHdr;
-		cb->relRxFrame = ringRawsockRelRxFrame;
-		cb->rxMulticast = simpleRawsockRxMulticast;
-		cb->getSocket = simpleRawsockGetSocket;
-		cb->getAddr = baseRawsockGetAddr;
-		cb->getTXOutOfBuffers = ringRawsockGetTXOutOfBuffers;
-		cb->getTXOutOfBuffersCyclic = ringRawsockGetTXOutOfBuffersCyclic;
-
 		// call constructor
 		pvRawsock = ringRawsockOpen(rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
 
@@ -129,20 +108,6 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 			AVB_LOG_ERROR("Creating rawsock; malloc failed");
 			return NULL;
 		}
-
-		// fill virtual functions table
-		rawsock_cb_t *cb = &rawsock->base.cb;
-		cb->close = simpleRawsockClose;
-		cb->getTxFrame = simpleRawsockGetTxFrame;
-		cb->txSetMark = simpleRawsockTxSetMark;
-		cb->txSetHdr = simpleRawsockTxSetHdr;
-		cb->txFillHdr = baseRawsockTxFillHdr;
-		cb->txFrameReady = simpleRawsockTxFrameReady;
-		cb->getRxFrame = simpleRawsockGetRxFrame;
-		cb->rxParseHdr = simpleRawsockRxParseHdr;
-		cb->rxMulticast = simpleRawsockRxMulticast;
-		cb->getSocket = simpleRawsockGetSocket;
-		cb->getAddr = baseRawsockGetAddr;
 
 		// call constructor
 		pvRawsock = simpleRawsockOpen(rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
@@ -158,18 +123,6 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 			return NULL;
 		}
 
-		// fill virtual functions table
-		rawsock_cb_t *cb = &rawsock->base.cb;
-		cb->close = pcapRawsockClose;
-		cb->getTxFrame = pcapRawsockGetTxFrame;
-		cb->txSetHdr = baseRawsockTxSetHdr;
-		cb->txFillHdr = baseRawsockTxFillHdr;
-		cb->txFrameReady = pcapRawsockTxFrameReady;
-		cb->getRxFrame = pcapRawsockGetRxFrame;
-		cb->rxParseHdr = simpleRawsockRxParseHdr;
-		cb->rxMulticast = pcapRawsockRxMulticast;
-		cb->getAddr = baseRawsockGetAddr;
-
 		// call constructor
 		pvRawsock = pcapRawsockOpen(rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
 #ifdef IGB
@@ -183,24 +136,6 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 			AVB_LOG_ERROR("Creating rawsock; malloc failed");
 			return NULL;
 		}
-
-		// fill virtual functions table
-		rawsock_cb_t *cb = &rawsock->base.cb;
-		cb->close = igbRawsockClose;
-		cb->getTxFrame = igbRawsockGetTxFrame;
-		cb->relTxFrame = igbRawsockRelTxFrame;
-		cb->txSetHdr = baseRawsockTxSetHdr;
-		cb->txSetMark = igbRawsockTxSetMark;
-		cb->txFillHdr = baseRawsockTxFillHdr;
-		cb->txFrameReady = igbRawsockTxFrameReady;
-		cb->send = igbRawsockSend;
-		cb->txBufLevel = igbRawsockTxBufLevel;
-		cb->getRxFrame = pcapRawsockGetRxFrame;
-		cb->rxParseHdr = simpleRawsockRxParseHdr;
-		cb->rxMulticast = pcapRawsockRxMulticast;
-		cb->getAddr = baseRawsockGetAddr;
-		cb->getTXOutOfBuffers = igbRawsockGetTXOutOfBuffers;
-		cb->getTXOutOfBuffersCyclic = igbRawsockGetTXOutOfBuffersCyclic;
 
 		// call constructor
 		pvRawsock = igbRawsockOpen((igb_rawsock_t*)rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);

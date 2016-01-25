@@ -303,6 +303,18 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 			valOK = TRUE;
 		}
 	}
+	else if (MATCH(name, "vlan_id")) {
+		errno = 0;
+		long tmp;
+		tmp = strtol(value, &pEnd, 0);
+		// vlanID is 12 bit field
+		if (*pEnd == '\0' && errno == 0
+			&& tmp >= 0x0
+			&& tmp <= 0xFFF) {
+			pCfg->vlan_id = tmp;
+			valOK = TRUE;
+		}
+	}
 
 	else if (MATCH(name, "map_lib")) {
 		if (pTLState->mapLib.libName)
