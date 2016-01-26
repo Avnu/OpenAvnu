@@ -990,7 +990,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	  calcMasterLocalClockRateDifference
 	  ( preciseOriginTimestamp, sync_arrival );
 
-    /*Update information on local status structure.*/
+	/*Update information on local status structure.*/
 	scaledLastGmFreqChange = (int32_t)((1.0/local_clock_adjustment -1.0) * (1ULL << 41));
 	scaledLastGmPhaseChange.setLSB( tlv.getRateOffset() );
 	port->getClock()->getFUPStatus()->setScaledLastGmFreqChange( scaledLastGmFreqChange );
