@@ -141,7 +141,8 @@ private:
     FollowUpTLV *fup_info;
 
     /**
-     * fup status has the instantaneous info*/
+     * fup status has the instantaneous info
+     */
     FollowUpTLV *fup_status;
 
     OSLock *timerq_lock;

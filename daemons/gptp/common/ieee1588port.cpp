@@ -864,8 +864,8 @@ void IEEE1588Port::processEvent(Event e)
 			 (pow ((double)2, getAnnounceInterval()) * 1000000000.0));
 		break;
 	case FAULT_DETECTED:
-        XPTPD_INFO("Received FAULT_DETECTED event");
-        setAsCapable(false);
+		XPTPD_INFO("Received FAULT_DETECTED event");
+		setAsCapable(false);
 		break;
 	case PDELAY_DEFERRED_PROCESSING:
 		pdelay_rx_lock->lock();
@@ -945,7 +945,7 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
   clock->deleteEventTimer( this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES );
   clock->deleteEventTimer( this, SYNC_INTERVAL_TIMEOUT_EXPIRES );
 
-    port_state = PTP_SLAVE;
+  port_state = PTP_SLAVE;
 
   /*clock->addEventTimer
 	  ( this, SYNC_RECEIPT_TIMEOUT_EXPIRES,
@@ -986,7 +986,7 @@ void IEEE1588Port::recommendState
 		  if( changed_external_master ) {
 		    XPTPD_PRINTF("Changed master!\n" );
 		    clock->newSyntonizationSetPoint();
-            getClock()->updateFUPInfo();
+			getClock()->updateFUPInfo();
 			reset_sync = true;
 		  }
 		}

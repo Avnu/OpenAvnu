@@ -324,7 +324,7 @@ int main(int argc, char **argv)
              * Otherwise it will use its default value (800ns) */
             port->setNeighPropDelayThresh(iniParser.getNeighborPropDelayThresh());
 
-            /*Only overrites phy_delay default values if not input_delay switch enabled*/
+            /*Only overwrites phy_delay default values if not input_delay switch enabled*/
             if(!input_delay)
             {
                 phy_delay[0] = iniParser.getPhyDelayGbTx();

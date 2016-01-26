@@ -655,7 +655,7 @@ class FollowUpTLV {
 	int32_t cumulativeScaledRateOffset;
 	uint16_t gmTimeBaseIndicator;
 	scaledNs scaledLastGmPhaseChange;
-    int32_t scaledLastGmFreqChange;
+	int32_t scaledLastGmFreqChange;
  public:
 	/**
 	 * Builds the FollowUpTLV interface
@@ -669,7 +669,7 @@ class FollowUpTLV {
 		organizationSubType_ms = 0;
 		organizationSubType_ls = PLAT_htons(1);
 		cumulativeScaledRateOffset = PLAT_htonl(0);
-		gmTimeBaseIndicator = PLAT_htons(0);
+		gmTimeBaseIndicator = 0;
 		scaledLastGmFreqChange = PLAT_htonl(0);
 	}
 
@@ -715,7 +715,7 @@ class FollowUpTLV {
      */
     void setGMTimeBaseIndicator(uint16_t tbi)
     {
-        gmTimeBaseIndicator = PLAT_htonl(tbi);
+        gmTimeBaseIndicator = tbi;
     }
 
     /**
