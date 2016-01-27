@@ -179,7 +179,7 @@ PTPMessageCommon *buildPTPMessage
 			       buf + PTP_SYNC_NSEC(PTP_SYNC_OFFSET),
 			       sizeof(sync_msg->originTimestamp.nanoseconds));
 			msg = sync_msg;
-		}
+        }
 		break;
 	case FOLLOWUP_MESSAGE:
 
@@ -226,7 +226,8 @@ PTPMessageCommon *buildPTPMessage
 			memcpy( &(followup_msg->tlv), buf+PTP_FOLLOWUP_LENGTH, sizeof(followup_msg->tlv) );
 
 			msg = followup_msg;
-		}
+        }
+
 		break;
 	case PATH_DELAY_REQ_MESSAGE:
 
@@ -800,6 +801,7 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 
 	if( flags[PTP_ASSIST_BYTE] & (0x1<<PTP_ASSIST_BIT)) {
 		PTPMessageSync *old_sync = port->getLastSync();
+
 		if (old_sync != NULL) {
 			delete old_sync;
 		}
@@ -857,6 +859,10 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	memcpy(buf_ptr + PTP_FOLLOWUP_NSEC(PTP_FOLLOWUP_OFFSET),
 	       &(preciseOriginTimestamp_BE.nanoseconds),
 	       sizeof(preciseOriginTimestamp.nanoseconds));
+
+	/*Change time base indicator to Network Order before sending it*/
+	uint16_t tbi_NO = PLAT_htonl(tlv.getGMTimeBaseIndicator());
+	tlv.setGMTimeBaseIndicator(tbi_NO);
 	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH);
 
 	XPTPD_INFO
@@ -873,7 +879,7 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	XPTPD_INFO("Follow-up Dump:\n");
 #ifdef DEBUG
 	for (int i = 0; i < messageLength; ++i) {
-		XPTPD_PRINTF("%d:%02x ", i, (unsigned char)buf[i]);
+		XPTPD_PRINTF("%d:%02x ", i, (unsigned char)buf_t[i]);
 	}
 	XPTPD_PRINTF("\n");
 #endif
@@ -898,6 +904,8 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	FrequencyRatio local_system_freq_offset;
 	FrequencyRatio master_local_freq_offset;
 	int correction;
+	int32_t scaledLastGmFreqChange = 0;
+	scaledNs scaledLastGmPhaseChange;
 
 	XPTPD_INFO("Processing a follow-up message");
 
@@ -932,8 +940,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 
 	sync_arrival = sync->getTimestamp();
 
-	delay = port->getLinkDelay();
-	if ((delay = port->getLinkDelay()) == 3600000000000) {
+	if( !port->getLinkDelay(&delay) ) {
 		goto done;
 	}
 
@@ -982,6 +989,12 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	  port->getClock()->
 	  calcMasterLocalClockRateDifference
 	  ( preciseOriginTimestamp, sync_arrival );
+
+	/*Update information on local status structure.*/
+	scaledLastGmFreqChange = (int32_t)((1.0/local_clock_adjustment -1.0) * (1ULL << 41));
+	scaledLastGmPhaseChange.setLSB( tlv.getRateOffset() );
+	port->getClock()->getFUPStatus()->setScaledLastGmFreqChange( scaledLastGmFreqChange );
+	port->getClock()->getFUPStatus()->setScaledLastGmPhaseChange( scaledLastGmPhaseChange );
 
 	if( port->getPortState() != PTP_MASTER ) {
 		port->incSyncCount();

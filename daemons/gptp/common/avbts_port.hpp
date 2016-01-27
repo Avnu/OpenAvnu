@@ -231,7 +231,8 @@ class IEEE1588Port {
 	bool burst_enabled;
 	int _accelerated_sync_count;
 	static const int64_t ONE_WAY_DELAY_DEFAULT = 3600000000000;
-    static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
+	static const int64_t INVALID_LINKDELAY = 3600000000000;
+	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
 	int64_t one_way_delay;
@@ -887,6 +888,19 @@ class IEEE1588Port {
 	 */
 	uint64_t getLinkDelay(void) {
 		return one_way_delay > 0LL ? one_way_delay : 0LL;
+	}
+
+    /**
+	 * @brief  Gets the link delay information.
+	 * @param  [in] delay Pointer to the delay information
+	 * @return True if valid, false if invalid
+	 */
+	bool getLinkDelay(uint64_t *delay) {
+		if(delay == NULL) {
+			return false;
+		}
+		*delay = getLinkDelay();
+		return *delay <= INVALID_LINKDELAY;
 	}
 
 	/**

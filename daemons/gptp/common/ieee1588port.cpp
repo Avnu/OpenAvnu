@@ -445,8 +445,6 @@ void IEEE1588Port::processEvent(Event e)
 			IEEE1588Port **ports;
 			clock->getPortList(number_ports, ports);
 
-
-
 			/* Find EBest for all ports */
 			j = 0;
 			for (int i = 0; i < number_ports; ++i) {
@@ -786,10 +784,13 @@ void IEEE1588Port::processEvent(Event e)
 
 					PTPMessageFollowUp *follow_up;
 					if (ts_good == GPTP_EC_SUCCESS) {
+
 						follow_up =
 							new PTPMessageFollowUp(this);
 						PortIdentity dest_id;
 						getPortIdentity(dest_id);
+
+                        follow_up->setClockSourceTime(getClock()->getFUPInfo());
 						follow_up->setPortIdentity(&dest_id);
 						follow_up->setSequenceId(sync->getSequenceId());
 						follow_up->setPreciseOriginTimestamp(sync_timestamp);
@@ -864,6 +865,7 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 	case FAULT_DETECTED:
 		XPTPD_INFO("Received FAULT_DETECTED event");
+		setAsCapable(false);
 		break;
 	case PDELAY_DEFERRED_PROCESSING:
 		pdelay_rx_lock->lock();
@@ -934,6 +936,8 @@ void IEEE1588Port::becomeMaster( bool annc ) {
   clock->addEventTimer( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
   XPTPD_PRINTF("Switching to Master\n" );
 
+  clock->updateFUPInfo();
+
   return;
 }
 
@@ -954,6 +958,8 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 		(pow((double)2,getAnnounceInterval())*1000000000.0)));
   XPTPD_PRINTF("Switching to Slave\n" );
   if( restart_syntonization ) clock->newSyntonizationSetPoint();
+
+  getClock()->updateFUPInfo();
 
   return;
 }
@@ -980,6 +986,7 @@ void IEEE1588Port::recommendState
 		  if( changed_external_master ) {
 		    XPTPD_PRINTF("Changed master!\n" );
 		    clock->newSyntonizationSetPoint();
+			getClock()->updateFUPInfo();
 			reset_sync = true;
 		  }
 		}
