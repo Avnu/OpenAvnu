@@ -806,6 +806,11 @@ public:
 		preciseOriginTimestamp = timestamp;
 	}
 
+	/**
+	 * @brief  Sets the clock source time interface (802.1AS 9.2)
+	 * @param  fup Follow up message
+	 * @return void
+	 */
     void setClockSourceTime(FollowUpTLV *fup)
     {
         tlv.setGMTimeBaseIndicator(fup->getGMTimeBaseIndicator());

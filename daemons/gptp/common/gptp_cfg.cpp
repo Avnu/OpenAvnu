@@ -116,7 +116,16 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
                 parser->_config.neighborPropDelayThresh = nt;
             }
         }
-
+        else if( parseMatch(name, "syncReceiptThresh") )
+        {
+            errno = 0;
+            char *pEnd;
+            unsigned int st = strtoul(value, &pEnd, 10);
+            if( *pEnd == '\0' && errno == 0) {
+                valOK = true;
+                parser->_config.syncReceiptThresh = st;
+            }
+        }
     }
     else if( parseMatch(section, "eth") )
     {
