@@ -1360,18 +1360,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	req->getPortIdentity(&req_id);
 	resp->getRequestingPortIdentity(&resp_id);
 
-	if (req->getSequenceId() != sequenceId) {
-
-		XPTPD_ERROR
-		    ("Received PDelay Response Follow Up but cannot find "
-			 "corresponding request");
-		XPTPD_ERROR("My SeqId: %u ", req->getSequenceId());
-		XPTPD_ERROR("Their SeqId: %u ", sequenceId);
-
-		goto abort;
-	}
-
-	// Check if we have received a response
+    // Check if we have received a response
     /* Count wrong seqIDs and after a threshold (from .ini), mark
      * gPTP as not asCapable
      */
@@ -1395,7 +1384,10 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 
 		goto abort;
 	}
-	port->setSeqIdAsCapableThreshCounter(0);
+    else
+    {
+        port->setSeqIdAsCapableThreshCounter(0);
+    }
 
 	XPTPD_INFO("Request Sequence Id: %u", req->getSequenceId());
 	XPTPD_INFO("Response Sequence Id: %u", resp->getSequenceId());
