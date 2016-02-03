@@ -39,17 +39,26 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "ini.h"
 #include "ieee1588.hpp"
 
-class GptpIniParser {
+/**
+ * Provides the gptp interface for
+ * the iniParser external module
+ */
+class GptpIniParser
+{
     public:
 
-        /*Public types*/
-        typedef struct {
+        /**
+         * Container with the information to get from the .ini file
+         */
+        typedef struct
+        {
             /*ptp data set*/
             unsigned char priority1;
 
             /*port data set*/
             unsigned int announceReceiptTimeout;
             unsigned int syncReceiptTimeout;
+            unsigned int syncReceiptThresh;		//!< Number of wrong sync messages that will trigger a switch to master
             int64_t neighborPropDelayThresh;
             PortState port_state;
 
@@ -63,77 +72,107 @@ class GptpIniParser {
         ~GptpIniParser();
 
         /**
-         * @brief
+         * @brief  Reads the parser Error value
          * @param  void
-         * @return
+         * @return Parser Error
          */
         int parserError(void);
 
         /**
-         * @brief
+         * @brief  Reads priority1 config value
          * @param  void
-         * @return
+         * @return priority1
          */
         unsigned char getPriority1(void)
         {
             return _config.priority1;
         }
 
+        /**
+         * @brief  Reads the announceReceiptTimeout configuration value
+         * @param  void
+         * @return announceRecepitTimeout value from .ini file
+         */
         unsigned int getAnnounceReceiptTimeout(void)
         {
             return _config.announceReceiptTimeout;
         }
 
+        /**
+         * @brief  Reads the syncRecepitTimeout configuration value
+         * @param  void
+         * @return syncRecepitTimeout value from the .ini file
+         */
         unsigned int getSyncReceiptTimeout(void)
         {
             return _config.syncReceiptTimeout;
         }
 
+        /**
+         * @brief  Reads the TX PHY DELAY GB value from the configuration file
+         * @param  void
+         * @return gb_tx_phy_delay value from the .ini file
+         */
         int getPhyDelayGbTx(void)
         {
             return _config.phyDelay.gb_tx_phy_delay;
         }
 
+        /**
+         * @brief  Reads the RX PHY DELAY GB value from the configuration file
+         * @param  void
+         * @return gb_rx_phy_delay value from the .ini file
+         */
         int getPhyDelayGbRx(void)
         {
             return _config.phyDelay.gb_rx_phy_delay;
         }
 
+        /**
+         * @brief  Reads the TX PHY DELAY MB value from the configuration file
+         * @param  void
+         * @return mb_tx_phy_delay value from the .ini file
+         */
         int getPhyDelayMbTx(void)
         {
             return _config.phyDelay.mb_tx_phy_delay;
         }
 
+        /**
+         * @brief  Reads the RX PHY DELAY MB valye from the configuration file
+         * @param  void
+         * @return mb_rx_phy_delay value from the .ini file
+         */
         int getPhyDelayMbRx(void)
         {
             return _config.phyDelay.mb_rx_phy_delay;
         }
 
+        /**
+         * @brief  Reads the neighbohr propagation delay threshold from the configuration file
+         * @param  void
+         * @return neighborPropDelayThresh value from the .ini file
+         */
         int64_t getNeighborPropDelayThresh(void)
         {
             return _config.neighborPropDelayThresh;
+        }
+
+        /**
+         * @brief  Reads the sync receipt threshold from the configuration file
+         * @param  getSyncReceiptThresh
+         * @return syncRecepitThresh value from the .ini file
+         */
+        unsigned int getSyncReceiptThresh(void)
+        {
+            return _config.syncReceiptThresh;
         }
 
     private:
         int _error;
         gptp_cfg_t _config;
 
-        /**
-         * @brief
-         * @param  user
-         * @param  section
-         * @param  name
-         * @param  value
-         * @return
-         */
         static int iniCallBack(void *user, const char *section, const char *name, const char *value);
-
-        /**
-         * @brief
-         * @param  s1
-         * @param  s2
-         * @return
-         */
         static bool parseMatch(const char *s1, const char *s2);
 };
 

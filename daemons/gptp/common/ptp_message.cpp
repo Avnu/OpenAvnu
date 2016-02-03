@@ -933,8 +933,15 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 
 	if (sync->getSequenceId() != sequenceId || sync_id != *sourcePortIdentity)
 	{
+		unsigned int cnt = 0;
+
+		if( !port->incWrongSeqIDCounter(&cnt) )
+		{
+			port->becomeMaster( true );
+			port->setWrongSeqIDCounter(0);
+		}
 		XPTPD_ERROR
-		    ("Received Follow Up but cannot find corresponding Sync");
+		    ("Received Follow Up %d times but cannot find corresponding Sync", cnt);
 		goto done;
 	}
 

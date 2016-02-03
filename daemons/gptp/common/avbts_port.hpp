@@ -233,10 +233,16 @@ class IEEE1588Port {
 	static const int64_t ONE_WAY_DELAY_DEFAULT = 3600000000000;
 	static const int64_t INVALID_LINKDELAY = 3600000000000;
 	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
+	static const unsigned int SYNC_RECEIPT_THRESH = 5;
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
 	int64_t one_way_delay;
     int64_t neighbor_prop_delay_thresh;
+
+	/*Sync threshold*/
+	unsigned int sync_receipt_thresh;
+	unsigned int wrongSeqIDCounter;
+
 	/* Implementation Specific data/methods */
 	IEEE1588Clock *clock;
 
@@ -916,6 +922,72 @@ class IEEE1588Port {
         int64_t abs_delay = (one_way_delay < 0 ? -one_way_delay : one_way_delay);
 
         return (abs_delay <= neighbor_prop_delay_thresh);
+	}
+
+	/**
+	 * @brief  Sets the internal variabl sync_receipt_thresh, which is the
+	 * flag that monitors the amount of wrong syncs enabled before switching
+	 * the ptp to master.
+	 * @param  th Threshold to be set
+	 * @return void
+	 */
+	void setSyncReceiptThresh(unsigned int th)
+	{
+		sync_receipt_thresh = th;
+	}
+
+	/**
+	 * @brief  Gets the internal variabl sync_receipt_thresh, which is the
+	 * flag that monitors the amount of wrong syncs enabled before switching
+	 * the ptp to master.
+	 * @return sync_receipt_thresh value
+	 */
+	unsigned int getSyncReceiptThresh(void)
+	{
+		return sync_receipt_thresh;
+	}
+
+	/**
+	 * @brief  Sets the wrongSeqIDCounter variable
+	 * @param  cnt Value to be set
+	 * @return void
+	 */
+	void setWrongSeqIDCounter(unsigned int cnt)
+	{
+		wrongSeqIDCounter = cnt;
+	}
+
+	/**
+	 * @brief  Gets the wrongSeqIDCounter value
+	 * @param  [out] cnt Pointer to the counter value. It must be valid
+	 * @return TRUE if ok and lower than the syncReceiptThreshold value. FALSE otherwise
+	 */
+	bool getWrongSeqIDCounter(unsigned int *cnt)
+	{
+		if( cnt == NULL )
+		{
+			return false;
+		}
+		*cnt = wrongSeqIDCounter;
+
+		return( *cnt < getSyncReceiptThresh() );
+	}
+
+	/**
+	 * @brief  Increments the wrongSeqIDCounter value
+	 * @param  [out] cnt Pointer to the counter value. Must be valid
+	 * @return TRUE if incremented value is lower than the syncReceiptThreshold. FALSE otherwise.
+	 */
+
+	bool incWrongSeqIDCounter(unsigned int *cnt)
+	{
+		if( cnt == NULL )
+		{
+			return false;
+		}
+		*cnt = ++wrongSeqIDCounter;
+
+		return ( *cnt < getSyncReceiptThresh() );
 	}
 
     /**
