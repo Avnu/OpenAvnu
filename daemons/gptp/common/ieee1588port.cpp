@@ -109,7 +109,9 @@ IEEE1588Port::IEEE1588Port
 	one_way_delay = ONE_WAY_DELAY_DEFAULT;
 	neighbor_prop_delay_thresh = NEIGHBOR_PROP_DELAY_THRESH;
 	sync_receipt_thresh = SYNC_RECEIPT_THRESH;
+	seqIdAsCapableThresh = SEQID_ASCAPABLE_THRESHOLD;
 	wrongSeqIDCounter = 0;
+	seqIdAsCapableThreshCounter = 0;
 
 	_peer_rate_offset = 1.0;
 

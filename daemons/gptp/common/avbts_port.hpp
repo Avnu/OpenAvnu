@@ -234,6 +234,8 @@ class IEEE1588Port {
 	static const int64_t INVALID_LINKDELAY = 3600000000000;
 	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
 	static const unsigned int SYNC_RECEIPT_THRESH = 5;
+	static const unsigned int SEQID_ASCAPABLE_THRESHOLD = 5;
+
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
 	int64_t one_way_delay;
@@ -242,6 +244,10 @@ class IEEE1588Port {
 	/*Sync threshold*/
 	unsigned int sync_receipt_thresh;
 	unsigned int wrongSeqIDCounter;
+
+    /*SeqID threshold*/
+	unsigned int seqIdAsCapableThresh;
+	unsigned int seqIdAsCapableThreshCounter;
 
 	/* Implementation Specific data/methods */
 	IEEE1588Clock *clock;
@@ -936,6 +942,16 @@ class IEEE1588Port {
 		sync_receipt_thresh = th;
 	}
 
+	void setSeqIdAsCapableThresh(unsigned int th)
+	{
+		seqIdAsCapableThresh = th;
+	}
+
+	unsigned int getSeqIdAsCapableThresh(void)
+	{
+		return seqIdAsCapableThresh;
+	}
+
 	/**
 	 * @brief  Gets the internal variabl sync_receipt_thresh, which is the
 	 * flag that monitors the amount of wrong syncs enabled before switching
@@ -964,11 +980,11 @@ class IEEE1588Port {
 	 */
 	bool getWrongSeqIDCounter(unsigned int *cnt)
 	{
-		if( cnt == NULL )
-		{
-			return false;
-		}
-		*cnt = wrongSeqIDCounter;
+        if( cnt == NULL )
+        {
+            return false;
+        }
+        *cnt = wrongSeqIDCounter;
 
 		return( *cnt < getSyncReceiptThresh() );
 	}
@@ -981,13 +997,43 @@ class IEEE1588Port {
 
 	bool incWrongSeqIDCounter(unsigned int *cnt)
 	{
-		if( cnt == NULL )
-		{
-			return false;
-		}
+        if( cnt == NULL )
+        {
+            return false;
+        }
 		*cnt = ++wrongSeqIDCounter;
 
 		return ( *cnt < getSyncReceiptThresh() );
+	}
+
+    /**
+     * @brief  Set the seqIdAsCapableThreshCounter value
+     * @param  c Value to be set to.
+     * @return void
+     */
+	void setSeqIdAsCapableThreshCounter(unsigned int c)
+	{
+		seqIdAsCapableThreshCounter = c;
+	}
+
+    /**
+     * @brief  Gets the content of seqIdAsCapableThreshCounter
+     * @return seqIdAsCapableThreshCounter value
+     */
+	unsigned int getSeqIdAsCapableThreshCounter(void)
+	{
+		return seqIdAsCapableThreshCounter;
+	}
+
+    /**
+     * @brief  Increments the seqIdAsCapableThreshCounter value
+     * @param  incSeqIdAsCapableThreshCounter
+     * @return TRUE if incremented value is lower than the seqIdAsCapableThresh.
+     * FALSE otherwise.
+     */
+	bool incSeqIdAsCapableThreshCounter(void)
+	{
+		return( ++seqIdAsCapableThreshCounter < getSeqIdAsCapableThresh() );
 	}
 
     /**

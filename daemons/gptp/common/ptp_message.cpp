@@ -244,6 +244,7 @@ PTPMessageCommon *buildPTPMessage
 			pdelay_req_msg->messageType = messageType;
 
 #if 0
+            /*TODO: Do we need the code below? Can we remove it?*/
 			// The origin timestamp for PDelay Request packets has been eliminated since it is unused
 			// Copy in v2 PDelay Request specific fields
 			memcpy(&(pdelay_req_msg->originTimestamp.seconds_ms),
@@ -1371,20 +1372,30 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	}
 
 	// Check if we have received a response
+    /* Count wrong seqIDs and after a threshold (from .ini), mark
+     * gPTP as not asCapable
+     */
 	if (resp->getSequenceId() != sequenceId
 	    || resp_id != *requestingPortIdentity) {
 		uint16_t resp_port_number;
 		uint16_t req_port_number;
 		resp_id.getPortNumber(&resp_port_number);
 		requestingPortIdentity->getPortNumber(&req_port_number);
+		if( !port->incSeqIdAsCapableThreshCounter() )
+		{
+			port->setAsCapable( false );
+		}
 		XPTPD_ERROR
-		    ("Received PDelay Response Follow Up but cannot find "
+			("Received PDelay Response Follow Up but cannot find "
 			 "corresponding response");
 		XPTPD_ERROR("%hu, %hu, %hu, %hu", resp->getSequenceId(),
-			    sequenceId, resp_port_number, req_port_number);
+				sequenceId, resp_port_number, req_port_number);
+		XPTPD_ERROR("Counter: %d Threshold: %d", port->getSeqIdAsCapableThreshCounter(),
+				port->getSeqIdAsCapableThresh());
 
 		goto abort;
 	}
+	port->setSeqIdAsCapableThreshCounter(0);
 
 	XPTPD_INFO("Request Sequence Id: %u", req->getSequenceId());
 	XPTPD_INFO("Response Sequence Id: %u", resp->getSequenceId());

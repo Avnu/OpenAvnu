@@ -320,6 +320,7 @@ int main(int argc, char **argv)
             fprintf(stdout, "phy_delay_mb_rx: %d\n", iniParser.getPhyDelayMbRx());
             fprintf(stdout, "neighborPropDelayThresh: %ld\n", iniParser.getNeighborPropDelayThresh());
             fprintf(stdout, "syncReceiptThreshold: %d\n", iniParser.getSyncReceiptThresh());
+            fprintf(stdout, "seqIdAsCapableThresh: %d\n", iniParser.getSeqIdAsCapableThresh());
 
             /* If using config file, set the neighborPropDelayThresh.
              * Otherwise it will use its default value (800ns) */
@@ -329,6 +330,11 @@ int main(int argc, char **argv)
              * it will use the default value (SYNC_RECEIPT_THRESH)
              */
             port->setSyncReceiptThresh(iniParser.getSyncReceiptThresh());
+
+            /* If using config file, set the seqIdAsCapableThresh, otherwise
+             * it will use the default value (SEQID_ASCAPABLE_THRESHOLD)
+             */
+            port->setSeqIdAsCapableThresh(iniParser.getSeqIdAsCapableThresh());
 
             /*Only overwrites phy_delay default values if not input_delay switch enabled*/
             if(!input_delay)

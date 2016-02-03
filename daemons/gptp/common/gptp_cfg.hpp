@@ -60,6 +60,7 @@ class GptpIniParser
             unsigned int syncReceiptTimeout;
             unsigned int syncReceiptThresh;		//!< Number of wrong sync messages that will trigger a switch to master
             int64_t neighborPropDelayThresh;
+            unsigned int seqIdAsCapableThresh;
             PortState port_state;
 
             /*ethernet adapter data set*/
@@ -166,6 +167,15 @@ class GptpIniParser
         unsigned int getSyncReceiptThresh(void)
         {
             return _config.syncReceiptThresh;
+        }
+
+        /**
+         * @brief  Gets the value from seqIdAsCapableThresh from the configuration file
+         * @return seqIdAsCapableThresh content
+         */
+        unsigned int getSeqIdAsCapableThresh(void)
+        {
+            return _config.seqIdAsCapableThresh;
         }
 
     private:
