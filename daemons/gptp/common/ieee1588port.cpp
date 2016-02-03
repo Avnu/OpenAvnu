@@ -112,6 +112,7 @@ IEEE1588Port::IEEE1588Port
 	seqIdAsCapableThresh = SEQID_ASCAPABLE_THRESHOLD;
 	wrongSeqIDCounter = 0;
 	seqIdAsCapableThreshCounter = 0;
+	lostPdelayRespThresh = LOSTPDELAY_RESP_THRESH;
 
 	_peer_rate_offset = 1.0;
 
@@ -132,6 +133,8 @@ IEEE1588Port::IEEE1588Port
 
 	pdelay_count = 0;
 	sync_count = 0;
+
+	lastSeqId = 0;
 }
 
 bool IEEE1588Port::init_port(int delay[4])

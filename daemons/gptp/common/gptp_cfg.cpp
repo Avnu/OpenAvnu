@@ -136,6 +136,16 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
                 parser->_config.seqIdAsCapableThresh = sidt;
             }
         }
+        else if( parseMatch( name, "lostPdelayRespThresh") )
+        {
+            errno = 0;
+            char *pEnd;
+            uint16_t lostpdelayth = strtoul(value, &pEnd, 10);
+            if( *pEnd == '\0' && errno == 0 ) {
+                valOK = true;
+                parser->_config.lostPdelayRespThresh = lostpdelayth;
+            }
+        }
     }
     else if( parseMatch(section, "eth") )
     {

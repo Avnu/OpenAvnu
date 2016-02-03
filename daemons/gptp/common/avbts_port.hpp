@@ -235,6 +235,7 @@ class IEEE1588Port {
 	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
 	static const unsigned int SYNC_RECEIPT_THRESH = 5;
 	static const unsigned int SEQID_ASCAPABLE_THRESHOLD = 5;
+	static const uint16_t LOSTPDELAY_RESP_THRESH = 3;
 
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
@@ -248,6 +249,10 @@ class IEEE1588Port {
     /*SeqID threshold*/
 	unsigned int seqIdAsCapableThresh;
 	unsigned int seqIdAsCapableThreshCounter;
+
+	/*Lost PDelayFUPs*/
+	uint16_t lastSeqId;
+	uint16_t lostPdelayRespThresh;
 
 	/* Implementation Specific data/methods */
 	IEEE1588Clock *clock;
@@ -942,14 +947,40 @@ class IEEE1588Port {
 		sync_receipt_thresh = th;
 	}
 
+    /**
+     * @brief  Sets the seqIdAsCapableThresh value
+     * @param  th value to be set
+     */
 	void setSeqIdAsCapableThresh(unsigned int th)
 	{
 		seqIdAsCapableThresh = th;
 	}
 
+    /**
+     * @brief  Gets the seqIdAsCapableThresh value
+     * @return seqIdAsCapableThresh content
+     */
 	unsigned int getSeqIdAsCapableThresh(void)
 	{
 		return seqIdAsCapableThresh;
+	}
+
+    /**
+     * @brief  Sets the lostPdelayRespThresh value
+     * @param  th value to be set
+     */
+	void setLostPdelayRespThresh(unsigned int th)
+	{
+		lostPdelayRespThresh = th;
+	}
+
+    /**
+     * @brief  Gets the lostPdelayRespThresh value
+     * @return lostPdelayRespThresh content
+     */
+	uint16_t getLostPdelayRespThresh(void)
+	{
+		return lostPdelayRespThresh;
 	}
 
 	/**
@@ -1035,6 +1066,24 @@ class IEEE1588Port {
 	{
 		return( ++seqIdAsCapableThreshCounter < getSeqIdAsCapableThresh() );
 	}
+
+    /**
+     * @brief  Stores the last seqID on port object
+     * @param  seqid Value to be set
+     */
+    void setLastSeqID(uint16_t seqid)
+    {
+        lastSeqId = seqid;
+    }
+
+    /**
+     * @brief  Gets the last SeqID from Port object
+     * @return lastSeqID
+     */
+    uint16_t getLastSeqId(void)
+    {
+        return lastSeqId;
+    }
 
     /**
      * @brief  Sets the neighbor propagation delay threshold
