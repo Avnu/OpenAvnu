@@ -1360,26 +1360,26 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	req->getPortIdentity(&req_id);
 	resp->getRequestingPortIdentity(&resp_id);
 
-    /*We need to keep track of lost respFUPs. If we have more
-     * than a certain number of lost FUPs we should set asCapable
-     * to false
-     */
-    if( sequenceId != (port->getLastSeqId() + 1) )
-    {
-        XPTPD_ERROR("Current seqID: %d. %d are missing since the last one sent",
-                sequenceId, sequenceId-port->getLastSeqId());
-        if( (sequenceId - port->getLastSeqId() ) > port->getLostPdelayRespThresh() )
-        {
-            port->setAsCapable( false );
-        }
-    }
-    port->setLastSeqID(sequenceId);
+	/*We need to keep track of lost respFUPs. If we have more
+	 * than a certain number of lost FUPs we should set asCapable
+	 * to false
+	 */
+	if( sequenceId != (port->getLastSeqId() + 1) )
+	{
+		XPTPD_ERROR("Current seqID: %d. %d are missing since the last one sent",
+				sequenceId, sequenceId-port->getLastSeqId());
+		if( (sequenceId - port->getLastSeqId() ) > port->getLostPdelayRespThresh() )
+		{
+			port->setAsCapable( false );
+		}
+	}
+	port->setLastSeqID(sequenceId);
 
 
-    // Check if we have received a response
-    /* Count wrong seqIDs and after a threshold (from .ini), mark
-     * gPTP as not asCapable
-     */
+	// Check if we have received a response
+	/* Count wrong seqIDs and after a threshold (from .ini), mark
+	 * gPTP as not asCapable
+	 */
 	if (resp->getSequenceId() != sequenceId
 	    || resp_id != *requestingPortIdentity) {
 		uint16_t resp_port_number;

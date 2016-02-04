@@ -233,9 +233,9 @@ class IEEE1588Port {
 	static const int64_t ONE_WAY_DELAY_DEFAULT = 3600000000000;
 	static const int64_t INVALID_LINKDELAY = 3600000000000;
 	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
-	static const unsigned int SYNC_RECEIPT_THRESH = 5;
-	static const unsigned int SEQID_ASCAPABLE_THRESHOLD = 5;
-	static const uint16_t LOSTPDELAY_RESP_THRESH = 3;
+	static const unsigned int DEFAULT_SYNC_RECEIPT_THRESH = 5;
+	static const unsigned int DEFAULT_SEQID_ASCAPABLE_THRESHOLD = 5;
+	static const uint16_t DEFAULT_LOSTPDELAY_RESP_THRESH = 3;
 
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
@@ -246,7 +246,7 @@ class IEEE1588Port {
 	unsigned int sync_receipt_thresh;
 	unsigned int wrongSeqIDCounter;
 
-    /*SeqID threshold*/
+	/*SeqID threshold*/
 	unsigned int seqIdAsCapableThresh;
 	unsigned int seqIdAsCapableThreshCounter;
 
