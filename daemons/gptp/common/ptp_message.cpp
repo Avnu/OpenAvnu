@@ -1323,6 +1323,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	Timestamp request_tx_timestamp(0, 0, 0);
 	Timestamp remote_req_rx_timestamp(0, 0, 0);
 	Timestamp response_rx_timestamp(0, 0, 0);
+	unsigned int diffLastSeqId;
 
 	if (port->getPortState() == PTP_DISABLED) {
 		// Do nothing all messages should be ignored when in this state
@@ -1354,6 +1355,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		/* Probably shouldn't happen either */
 		XPTPD_ERROR
 		    (">>> Received PDelay followup but no RESPONSE exists");
+
 		goto abort;
 	}
 
@@ -1364,17 +1366,18 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	 * than a certain number of lost FUPs we should set asCapable
 	 * to false
 	 */
+	diffLastSeqId = sequenceId - port->getLastSeqId();
 	if( sequenceId != (port->getLastSeqId() + 1) )
 	{
 		XPTPD_ERROR("Current seqID: %d. %d are missing since the last one sent",
 				sequenceId, sequenceId-port->getLastSeqId());
-		if( (sequenceId - port->getLastSeqId() ) > port->getLostPdelayRespThresh() )
+		if( diffLastSeqId > port->getLostPdelayRespThresh() )
 		{
+			XPTPD_ERROR(">>> Number of missing pDelayResponse messages is bigger than threshold.");
 			port->setAsCapable( false );
 		}
 	}
 	port->setLastSeqID(sequenceId);
-
 
 	// Check if we have received a response
 	/* Count wrong seqIDs and after a threshold (from .ini), mark
@@ -1386,8 +1389,11 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		uint16_t req_port_number;
 		resp_id.getPortNumber(&resp_port_number);
 		requestingPortIdentity->getPortNumber(&req_port_number);
-		if( !port->incSeqIdAsCapableThreshCounter() )
+		bool isSeqIdCounterUnderThresh = port->incSeqIdAsCapableThreshCounter();
+		if( !isSeqIdCounterUnderThresh ||
+				(port->getSeqIdAsCapableThreshCounter() + diffLastSeqId) > SEQID_DIFF_THRESHOLD)
 		{
+			XPTPD_ERROR(">>> SeqID counter bigger than threshold.");
 			port->setAsCapable( false );
 		}
 		XPTPD_ERROR
@@ -1400,10 +1406,6 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 
 		goto abort;
 	}
-    else
-    {
-        port->setSeqIdAsCapableThreshCounter(0);
-    }
 
 	XPTPD_INFO("Request Sequence Id: %u", req->getSequenceId());
 	XPTPD_INFO("Response Sequence Id: %u", resp->getSequenceId());
@@ -1467,6 +1469,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		 remote_req_rx_timestamp.nanoseconds);
 
 	// Adjust turn-around time for peer to local clock rate difference
+	// TODO: Are these .998 and 1.002 specifically defined in the standard?
+	// Should we create a define for them ?
 	if
 		( port->getPeerRateOffset() > .998 &&
 		  port->getPeerRateOffset() < 1.002 ) {

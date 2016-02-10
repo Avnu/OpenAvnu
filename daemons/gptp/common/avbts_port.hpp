@@ -403,13 +403,14 @@ class IEEE1588Port {
 		}
 		if(!ascap){
 			_peer_offset_init = false;
+			setSeqIdAsCapableThreshCounter(0);
 		}
 		asCapable = ascap;
 	}
 
 	/**
 	 * @brief  Gets the asCapable flag
-	 * @return asCapable flag
+	 * @return asCapable flag.
 	 */
 	bool getAsCapable() { return( asCapable ); }
 
@@ -1025,16 +1026,20 @@ class IEEE1588Port {
 	 * @param  [out] cnt Pointer to the counter value. Must be valid
 	 * @return TRUE if incremented value is lower than the syncReceiptThreshold. FALSE otherwise.
 	 */
-
 	bool incWrongSeqIDCounter(unsigned int *cnt)
 	{
-        if( cnt == NULL )
-        {
-            return false;
-        }
-		*cnt = ++wrongSeqIDCounter;
+		if( getAsCapable() )
+		{
+			wrongSeqIDCounter++;
+		}
+		bool ret = wrongSeqIDCounter < getSyncReceiptThresh();
 
-		return ( *cnt < getSyncReceiptThresh() );
+		if( cnt != NULL)
+		{
+			*cnt = wrongSeqIDCounter;
+		}
+
+		return ret;
 	}
 
     /**
@@ -1064,7 +1069,11 @@ class IEEE1588Port {
      */
 	bool incSeqIdAsCapableThreshCounter(void)
 	{
-		return( ++seqIdAsCapableThreshCounter < getSeqIdAsCapableThresh() );
+		if( getAsCapable() )
+		{
+			seqIdAsCapableThreshCounter++;
+		}
+		return(seqIdAsCapableThreshCounter < getSeqIdAsCapableThresh() );
 	}
 
     /**
