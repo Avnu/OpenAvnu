@@ -4,7 +4,7 @@ v0.2
 
 // Use attribute to shorten urls
 :repo: https://github.com/AVnu/Open-AVB
-:img: {repo}/tree/gh-pages/images
+:img: {repo}/blob/gh-pages/images
 
 == Introduction
 
@@ -104,7 +104,7 @@ The asynchronous communication interface sits on top of the synchronous communic
 If application blocking to wait for a command to complete is desired, this can also be supported.  
 
 .Block image
-image::{img}/ipc1.png[]
+image::{img}/ipc1.png[Layers]
 
 === Communication Stack Abstraction
 
