@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation
+  Copyright (c) 2001-2016, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,8 @@
 #include <sys/types.h>
 
 struct resource {
-        u_int64_t       paddr;
-	u_int32_t	mmap_size;
+	u_int64_t paddr;
+	u_int32_t mmap_size;
 };
 
 /* datastructure used to transmit a timed packet */
@@ -47,24 +47,24 @@ struct resource {
 #define IGB_PACKET_LATCHTIME	2	/* grab a timestamp of transmission */
 
 struct igb_packet {
-        struct resource map;            /* bus_dma map for packet */
-	unsigned int	offset;		/* offset into physical page */
-	void		*vaddr;
-	u_int32_t 	len;
-	u_int32_t 	flags;
-	u_int64_t	attime;		/* launchtime */
-	u_int64_t	dmatime;	/* when dma tx desc wb*/
+	struct resource map;	/* bus_dma map for packet */
+	unsigned int offset;	/* offset into physical page */
+	void *vaddr;
+	u_int32_t len;
+	u_int32_t flags;
+	u_int64_t attime;	/* launchtime */
+	u_int64_t dmatime;	/* when dma tx desc wb*/
 	struct igb_packet *next;	/* used in the clean routine */
 };
 
 typedef struct _device_t {
-	void	*private_data;
+	void *private_data;
 	u_int16_t pci_vendor_id;
 	u_int16_t pci_device_id;
 	u_int16_t domain;
-	u_int8_t	bus;
-	u_int8_t	dev;
-	u_int8_t	func;
+	u_int8_t bus;
+	u_int8_t dev;
+	u_int8_t func;
 } device_t;
 
 /*
@@ -72,30 +72,32 @@ typedef struct _device_t {
  * e1000_dma_malloc_page and e1000_dma_free_page.
  */
 struct igb_dma_alloc {
-        u_int64_t               dma_paddr;
-        void                    *dma_vaddr;
-        unsigned int    	mmap_size;
+	u_int64_t dma_paddr;
+	void *dma_vaddr;
+	unsigned int mmap_size;
 };
 
-int	igb_probe( device_t *dev );
-int	igb_attach(char *dev_path, device_t *pdev);
+int igb_probe( device_t *dev );
+int igb_attach(char *dev_path, device_t *pdev);
 int igb_attach_tx( device_t *pdev );
-int	igb_detach(device_t *dev);
-int	igb_suspend(device_t *dev);
-int	igb_resume(device_t *dev);
-int	igb_init(device_t *dev);
-int	igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *page);
-void	igb_dma_free_page(device_t *dev, struct igb_dma_alloc *page);
-int	igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet);
-void	igb_clean(device_t *dev, struct igb_packet **cleaned_packets);
-int	igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc);
+int igb_detach(device_t *dev);
+int igb_suspend(device_t *dev);
+int igb_resume(device_t *dev);
+int igb_init(device_t *dev);
+int igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *page);
+void igb_dma_free_page(device_t *dev, struct igb_dma_alloc *page);
+int igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet);
+void igb_refresh_buffers(device_t *dev, u_int32_t idx, struct igb_packet **rxbuf_packets, u_int32_t num_bufs);
+void igb_receive(device_t *dev, u_int32_t idx, struct igb_packet **received_packets, u_int32_t count);
+void igb_clean(device_t *dev, struct igb_packet **cleaned_packets);
+int igb_get_wallclock(device_t *dev, u_int64_t *curtime, u_int64_t *rdtsc);
 int igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime, struct timespec *system_time );
-int	igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_int32_t tpktsz_a, u_int32_t tpktsz_b);
-int	igb_set_class_bandwidth2(device_t *dev, u_int32_t class_a_bytes_per_second, u_int32_t class_b_bytes_per_second);
+int igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_int32_t tpktsz_a, u_int32_t tpktsz_b);
+int igb_set_class_bandwidth2(device_t *dev, u_int32_t class_a_bytes_per_second, u_int32_t class_b_bytes_per_second);
 
-void	igb_trigger(device_t *dev, u_int32_t data);
-void	igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data);
-void	igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data);
+void igb_trigger(device_t *dev, u_int32_t data);
+void igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data);
+void igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data);
 
 int igb_lock( device_t *dev );
 int igb_unlock( device_t *dev );
@@ -103,5 +105,3 @@ int igb_unlock( device_t *dev );
 int igb_get_mac_addr(device_t *dev, u_int8_t mac_addr[6]);
 
 #endif /* _IGB_H_DEFINED_ */
-
-

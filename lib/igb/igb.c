@@ -64,17 +64,17 @@
  *********************************************************************/
 
 static igb_vendor_info_t igb_vendor_info_array[] = {
-	{ 0x8086, E1000_DEV_ID_I210_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_COPPER, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I210_COPPER_FLASHLESS,
-						PCI_ANY_ID, PCI_ANY_ID, 0},
-	{ 0x8086, E1000_DEV_ID_I210_COPPER_IT,	PCI_ANY_ID, PCI_ANY_ID, 0},
+		PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_COPPER_IT, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I210_COPPER_OEM1,
-						PCI_ANY_ID, PCI_ANY_ID, 0},
-	{ 0x8086, E1000_DEV_ID_I210_FIBER,	PCI_ANY_ID, PCI_ANY_ID, 0},
-	{ 0x8086, E1000_DEV_ID_I210_SERDES,	PCI_ANY_ID, PCI_ANY_ID, 0},
+		PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_FIBER, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_SERDES, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I210_SERDES_FLASHLESS,
-						PCI_ANY_ID, PCI_ANY_ID, 0},
-	{ 0x8086, E1000_DEV_ID_I210_SGMII,	PCI_ANY_ID, PCI_ANY_ID, 0},
+		PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_SGMII, PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -82,20 +82,19 @@ static igb_vendor_info_t igb_vendor_info_array[] = {
 /*********************************************************************
  *  Function prototypes
  *********************************************************************/
-static int	igb_read_mac_addr(struct e1000_hw *hw);
-static int	igb_allocate_pci_resources(struct adapter *adapter);
-static void	igb_free_pci_resources(struct adapter *adapter);
-static void	igb_reset(struct adapter *adapter);
-static int	igb_allocate_queues(struct adapter *adapter);
-static void	igb_setup_transmit_structures(struct adapter *adapter);
-static void	igb_setup_transmit_ring(struct tx_ring *txr);
-static void	igb_initialize_transmit_units(struct adapter *adapter);
-static void	igb_free_transmit_structures(struct adapter *adapter);
-static void	igb_tx_ctx_setup(struct tx_ring *txr,
-				 struct igb_packet *packet);
+static int igb_read_mac_addr(struct e1000_hw *hw);
+static int igb_allocate_pci_resources(struct adapter *adapter);
+static void igb_free_pci_resources(struct adapter *adapter);
+static void igb_reset(struct adapter *adapter);
+static int igb_allocate_queues(struct adapter *adapter);
+static void igb_setup_transmit_structures(struct adapter *adapter);
+static void igb_setup_transmit_ring(struct tx_ring *txr);
+static void igb_initialize_transmit_units(struct adapter *adapter);
+static void igb_free_transmit_structures(struct adapter *adapter);
+static void igb_tx_ctx_setup(struct tx_ring *txr,
+struct igb_packet *packet);
 
-int
-igb_probe(device_t *dev)
+int igb_probe(device_t *dev)
 {
 	igb_vendor_info_t *ent;
 
@@ -120,12 +119,11 @@ igb_probe(device_t *dev)
 
 #define IGB_SEM "igb_sem"
 
-int
-igb_attach(char *dev_path, device_t *pdev)
+int igb_attach(char *dev_path, device_t *pdev)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 	struct igb_bind_cmd	bind;
-	int		error = 0;
+	int error = 0;
 
 	if (pdev == NULL)
 		return -EINVAL;
@@ -229,11 +227,10 @@ igb_attach(char *dev_path, device_t *pdev)
 	return error;
 }
 
-int
-igb_attach_tx(device_t *pdev)
+int igb_attach_tx(device_t *pdev)
 {
 	int error;
-	struct adapter	*adapter;
+	struct adapter *adapter;
 
 	if (pdev == NULL)
 		return -EINVAL;
@@ -270,10 +267,9 @@ igb_attach_tx(device_t *pdev)
 	return error;
 }
 
-int
-igb_detach(device_t *dev)
+int igb_detach(device_t *dev)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 
 	if (dev == NULL)
 		return -EINVAL;
@@ -282,7 +278,7 @@ igb_detach(device_t *dev)
 		return -ENXIO;
 
 	if (sem_wait(adapter->memlock) != 0)
-		goto -err_nolock;
+		goto err_nolock;
 
 	igb_reset(adapter);
 
@@ -301,14 +297,13 @@ igb_detach(device_t *dev)
 	return 0;
 }
 
-int
-igb_suspend(device_t *dev)
+int igb_suspend(device_t *dev)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 	struct tx_ring	*txr;
 	struct e1000_hw *hw;
-	u32		txdctl;
-	int	i;
+	u32 txdctl;
+	int i;
 
 	if (dev == NULL)
 		return -EINVAL;
@@ -339,14 +334,13 @@ igb_suspend(device_t *dev)
 	return 0;
 }
 
-int
-igb_resume(device_t *dev)
+int igb_resume(device_t *dev)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 	struct tx_ring	*txr;
 	struct e1000_hw *hw;
-	u32		txdctl;
-	int	i;
+	u32 txdctl;
+	int i;
 	int error;
 
 	if (dev == NULL)
@@ -384,10 +378,9 @@ igb_resume(device_t *dev)
 	return error;
 }
 
-int
-igb_init(device_t *dev)
+int igb_init(device_t *dev)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 
 	if (dev == NULL)
 		return -EINVAL;
@@ -447,8 +440,7 @@ igb_reset(struct adapter *adapter)
 
 }
 
-static int
-igb_read_mac_addr(struct e1000_hw *hw)
+static int igb_read_mac_addr(struct e1000_hw *hw)
 {
 	u32 rar_high;
 	u32 rar_low;
@@ -470,10 +462,9 @@ igb_read_mac_addr(struct e1000_hw *hw)
 
 }
 
-static int
-igb_allocate_pci_resources(struct adapter *adapter)
+static int igb_allocate_pci_resources(struct adapter *adapter)
 {
-	int		dev = adapter->ldev;
+	int dev = adapter->ldev;
 
 	adapter->hw.hw_addr = (u8 *)mmap(NULL, adapter->csr.mmap_size,
 					 PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -494,10 +485,9 @@ igb_free_pci_resources(struct adapter *adapter)
 /*
  * Manage DMA'able memory.
  */
-int
-igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *dma)
+int igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *dma)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 	int error = 0;
 	struct igb_buf_cmd      ubuf;
 
@@ -542,7 +532,7 @@ err:
 void
 igb_dma_free_page(device_t *dev, struct igb_dma_alloc *dma)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 	struct igb_buf_cmd      ubuf;
 
 	if (dev == NULL)
@@ -581,8 +571,7 @@ igb_dma_free_page(device_t *dev, struct igb_dma_alloc *dma)
  *  the descriptors associated with each, called only once at attach.
  *
  **********************************************************************/
-static int
-igb_allocate_queues(struct adapter *adapter)
+static int igb_allocate_queues(struct adapter *adapter)
 {
 	struct igb_buf_cmd ubuf;
 	int dev = adapter->ldev;
@@ -592,7 +581,7 @@ igb_allocate_queues(struct adapter *adapter)
 	adapter->tx_rings = (struct tx_ring *) malloc(sizeof(struct tx_ring) *
 						      adapter->num_queues);
 
-	if (adapter == NULL->tx_rings) {
+	if (adapter->tx_rings == NULL) {
 		error = -ENOMEM;
 		goto tx_fail;
 	}
@@ -633,7 +622,7 @@ igb_allocate_queues(struct adapter *adapter)
 				malloc(sizeof(struct igb_tx_buffer) *
 				       adapter->num_tx_desc);
 
-		if (adapter == NULL->tx_rings[i].tx_buffers) {
+		if (adapter->tx_rings[i].tx_buffers == NULL) {
 			error = -ENOMEM;
 			goto tx_desc;
 		}
@@ -819,15 +808,14 @@ igb_tx_ctx_setup(struct tx_ring *txr, struct igb_packet *packet)
  *
  **********************************************************************/
 
-int
-igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
+int igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet)
 {
 	struct adapter		*adapter;
 	struct tx_ring	  *txr;
 	struct igb_tx_buffer	*tx_buffer;
 	union e1000_adv_tx_desc	*txd = NULL;
-	u32			cmd_type_len, olinfo_status = 0;
-	int			i, first, last = 0;
+	u32 cmd_type_len, olinfo_status = 0;
+	int i, first, last = 0;
 	int error = 0;
 
 	if (dev == NULL)
@@ -949,7 +937,7 @@ unlock:
 void
 igb_trigger(device_t *dev, u_int32_t data)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 
 	if (dev == NULL)
 		return;
@@ -969,7 +957,7 @@ igb_trigger(device_t *dev, u_int32_t data)
 void
 igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 
 	if (dev == NULL)
 		return;
@@ -984,7 +972,7 @@ igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data)
 void
 igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 
 	if (dev == NULL)
 		return;
@@ -1001,7 +989,7 @@ igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data)
 
 int igb_lock(device_t *dev)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -1015,7 +1003,7 @@ int igb_lock(device_t *dev)
 
 int igb_unlock(device_t *dev)
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -1143,6 +1131,162 @@ unlock:
 	sem_post(adapter->memlock);
 }
 
+/*
+ *  Refresh mbuf buffers for RX descriptor rings
+ *   - now keeps its own state so discards due to resource
+ *     exhaustion are unnecessary, if an mbuf cannot be obtained
+ *     it just returns, keeping its placeholder, thus it can simply
+ *     be recalled to try again.
+ *
+ */
+void igb_refresh_buffers(device_t *dev, u_int32_t idx, struct igb_packet **rxbuf_packets, u_int32_t num_bufs)
+{
+	struct adapter *adapter;
+	struct igb_rx_buffer *rxbuf;
+	struct rx_ring *rxr;
+	struct igb_packet *cur_pkt;
+	int i, j, bufs_used, error;
+	bool refreshed = FALSE;
+
+	if (dev == NULL)
+		return;
+
+	adapter = (struct adapter *)dev->private_data;
+	if (adapter == NULL)
+		return;
+
+	if (rxbuf_packets == NULL)
+		return;
+
+	if (idx > 1)
+		return;
+
+	rxr = &adapter->rx_rings[idx];
+	i = j = rxr->next_to_refresh;
+	cur_pkt = *rxbuf_packets;
+
+	/*
+	 * Get one descriptor beyond
+	 * our work mark to control
+	 * the loop.
+	 */
+	if (++j == adapter->num_rx_desc)
+		j = 0;
+
+	bufs_used = 0;
+
+	while (bufs_used < num_bufs) {
+		rxbuf = &rxr->rx_buffers[i];
+
+		rxr->rx_base[i].read.pkt_addr =
+			htole64(cur_pkt->map.paddr + cur_pkt->offset);
+		refreshed = TRUE; /* I feel wefreshed :) */
+
+		i = j; /* our next is precalculated */
+		rxr->next_to_refresh = i;
+		if (++j == adapter->num_rx_desc)
+			j = 0;
+		bufs_used++;
+	}
+update:
+	if (refreshed) /* update tail */
+		E1000_WRITE_REG(&adapter->hw,
+				E1000_RDT(rxr->me), rxr->next_to_refresh);
+}
+
+
+/**********************************************************************
+ *
+ *  Examine each rx_buffer in the used queue. If the hardware is done
+ *  processing the packet then return the linked list of associated resources.
+ *
+ **********************************************************************/
+void
+igb_receive(device_t *dev, u_int32_t idx, struct igb_packet **received_packets, u_int32_t count)
+{
+	struct adapter *adapter;
+	int first, last, done, i;
+	struct rx_ring *rxr;
+	int processed = 0, rxdone = 0;
+	u32 ptype, staterr = 0;
+	union e1000_adv_rx_desc *cur;
+	struct igb_rx_buffer *rxbuf;
+	u16 hlen, plen, hdr, vtag, pkt_info;
+	bool eop = FALSE;
+
+	if (dev == NULL)
+		return;
+
+	adapter = (struct adapter *)dev->private_data;
+	if (adapter == NULL)
+		return;
+
+	if (received_packets == NULL)
+		return;
+
+	*received_packets = NULL; /* nothing reclaimed yet */
+
+	if (sem_wait(adapter->memlock) != 0)
+		return;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		rxr = &adapter->rx_rings[i];
+
+		/* Main clean loop - receive packets until no more
+		 * received_packets[]
+		 */
+		for (i = rxr->next_to_check; count != 0;) {
+			cur = &rxr->rx_base[i];
+			staterr = le32toh(cur->wb.upper.status_error);
+			if ((staterr & E1000_RXD_STAT_DD) == 0)
+				break;
+			count--;
+
+			cur->wb.upper.status_error = 0;
+			rxbuf = &rxr->rx_buffers[i];
+			plen = le16toh(cur->wb.upper.length);
+			ptype = le32toh(cur->wb.lower.lo_dword.data) &
+				IGB_PKTTYPE_MASK;
+			vtag = le16toh(cur->wb.upper.vlan);
+			hdr = le16toh(cur->wb.lower.lo_dword.hs_rss.hdr_info);
+			pkt_info =
+				le16toh(cur->wb.lower.lo_dword.hs_rss.pkt_info);
+			eop = ((staterr & E1000_RXD_STAT_EOP) ==
+					E1000_RXD_STAT_EOP);
+
+			/*
+			 * Free the frame (all segments) if we're at EOP and
+			 * it's an error.
+			 *
+			 * The datasheet states that EOP + status is only valid
+			 * for the final segment in a multi-segment frame.
+			 */
+			if (eop &&
+			    (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK)) {
+				++rxr->rx_discarded;
+				/* igb_rx_discard(rxr, i); XXX what does this do? shoudl we internally refresh the buffer to the end of the ring? */
+				goto next_desc;
+			}
+
+next_desc:
+			/* Advance our pointers to the next descriptor. */
+			if (++i == adapter->num_rx_desc)
+				i = 0;
+				/* add new packet to list of received packets to return XXX todo */
+				if (rxr != NULL) {
+					rxr->next_to_check = i;
+					i = rxr->next_to_check;
+					rxdone++;
+				}
+		}
+
+		rxr->next_to_check = i;
+	}
+
+unlock:
+	sem_post(adapter->memlock);
+}
+
 #define MAX_ITER 32
 #define MIN_WALLCLOCK_TSC_WINDOW 80 /* cycles */
 #define MIN_SYSCLOCK_WINDOW 72 /* ns */
@@ -1168,8 +1312,7 @@ static inline void __sync(void)
 						  : "memory");
 }
 
-int
-igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
+int igb_get_wallclock(device_t *dev, u_int64_t	*curtime, u_int64_t *rdtsc)
 {
 	u_int64_t t0 = 0, t1 = -1;
 	u_int32_t duration = -1;
@@ -1257,9 +1400,8 @@ struct timespec timespec_addns(struct timespec *a, unsigned long addns)
 
 #define TS2NS(ts) (((ts).tv_sec*1000000000)+(ts).tv_nsec)
 
-int
-igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime,
-			struct timespec *system_time)
+int igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime,
+		struct timespec *system_time)
 {
 	struct timespec	t0 = { 0, 0 }, t1 = { .tv_sec = 4, .tv_nsec = 0 };
 	u_int32_t timh, timl, tsauxc;
@@ -1322,23 +1464,19 @@ err:
 	return error;
 }
 
-int
-igb_set_class_bandwidth(device_t *dev,
-	u_int32_t class_a,
-	u_int32_t class_b,
-	u_int32_t tpktsz_a,
-	u_int32_t tpktsz_b)
+int igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b,
+			    u_int32_t tpktsz_a, u_int32_t tpktsz_b)
 {
-	u_int32_t	tqavctrl;
-	u_int32_t	tqavcc0, tqavcc1;
-	u_int32_t	tqavhc0, tqavhc1;
-	u_int32_t	class_a_idle, class_b_idle;
-	u_int32_t	linkrate;
-	struct adapter	*adapter;
+	u_int32_t tqavctrl;
+	u_int32_t tqavcc0, tqavcc1;
+	u_int32_t tqavhc0, tqavhc1;
+	u_int32_t class_a_idle, class_b_idle;
+	u_int32_t linkrate;
+	struct adapter *adapter;
 	struct e1000_hw *hw;
-	struct igb_link_cmd	link;
-	int	err;
-	float		class_a_percent, class_b_percent;
+	struct igb_link_cmd link;
+	int err;
+	float class_a_percent, class_b_percent;
 	int error = 0;
 
 	if (dev == NULL)
@@ -1477,23 +1615,21 @@ igb_set_class_bandwidth(device_t *dev,
 	return error;
 }
 
-int
-igb_set_class_bandwidth2(device_t *dev,
-	u_int32_t class_a_bytes_per_second,
-	u_int32_t class_b_bytes_per_second)
+int igb_set_class_bandwidth2(device_t *dev, u_int32_t class_a_bytes_per_second,
+			     u_int32_t class_b_bytes_per_second)
 {
-	u_int32_t	tqavctrl;
-	u_int32_t	tqavcc0, tqavcc1;
-	u_int32_t	tqavhc0, tqavhc1;
-	u_int32_t	class_a_idle, class_b_idle;
-	u_int32_t	linkrate;
-	u_int32_t	tpktsz_a;
-	int	temp;
-	struct adapter	*adapter;
+	u_int32_t tqavctrl;
+	u_int32_t tqavcc0, tqavcc1;
+	u_int32_t tqavhc0, tqavhc1;
+	u_int32_t class_a_idle, class_b_idle;
+	u_int32_t linkrate;
+	u_int32_t tpktsz_a;
+	int temp;
+	struct adapter *adapter;
 	struct e1000_hw *hw;
-	struct igb_link_cmd	link;
-	int	err;
-	float		class_a_percent, class_b_percent;
+	struct igb_link_cmd link;
+	int err;
+	float class_a_percent, class_b_percent;
 	int error = 0;
 
 	if (dev == NULL)
@@ -1619,7 +1755,7 @@ igb_set_class_bandwidth2(device_t *dev,
 
 int igb_get_mac_addr(device_t *dev, u_int8_t mac_addr[ETH_ADDR_LEN])
 {
-	struct adapter	*adapter;
+	struct adapter *adapter;
 	struct e1000_hw *hw;
 
 	if (dev == NULL)
