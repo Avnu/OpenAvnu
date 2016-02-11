@@ -60,15 +60,14 @@ int AVBTSN_CommandXYZ(uint64_t stream_id, uint32_t vlan, void *out);
 where the AVBTSN portion of the function name would be replaced by the name of the IEEE AVB/TSN protocol module that is being targeted.
 
 The synchronous communication interface is exposed by the module itself. If a single monolithic application is being produced, it is possible that the synchronous communication interface could be used to call module functionality directly. In this situation the module functions being called will execute within the context of the parent monolithic application.
-The synchonous communication interface is exposed by the module itself.
 
 The examples show two types of IPC commands, one with a single parameter and another one with multiple parameters. These functions return a code to indicate success / failure and have an out pointer, which should provide more detailed information about the reason of failure.
 
-.... Another option for multiple paramters would be creating a structure type with all the parameters. TODO: Discuss it with Andrew.
+.... Another option for multiple parameters would be creating a structure type with all the parameters. TODO: Discuss it with Andrew. Andrew's response: I don't really like structs because you have to remember to set all the fields. A function declaration allows the compiler to check for completeness.
 
 === Defining Error Codes
 
-The IPC calls can and will fail eventually and it is necessary to let the caller know what was the error cause. Each IPC command should have an 'out' pointer that would provide more details about the error. The example below shows one way of creating these codes:
+The IPC calls can and will fail under certain conditions and it is necessary to let the caller know what error occurred. Each IPC command should have an 'out' pointer that provides additional error information. The example below shows one example of creating error codes:
 
 [source c/c++]
 ----
@@ -85,18 +84,17 @@ struct {
 	{AVBTSN_IPC_SUCCESS, "IPC Success."},
 	{AVBTSN_IPC_GENERIC_ERROR1, "IPC Generic Error 1."},
 	{AVBTSN_IPC_GENERIC_ERROR2, "IPC Generic Error 2."},
+	{0, NULL}
 };
 ----
 
 where the AVBTSN portion of the function name would be replaced by the name of the IEEE AVB/TSN protocol module that is being targeted. The generic error codes shall be replaced by the actual failure information to be implemented.
 
-.... The Module could also provide functions to transform the error codes (the enumeration type) in strings. 
-
 Any errors returned should be #defined in a public interface module (typically a .h header file in C) so that the calling application can correctly interpret the returned errors and make decisions on actions to undertake depending on the error returned.
-.... more text about this being usable for single .exe implementation
+
+The synchronous calling interface can be used to create a monolithic application that includes the both the client application and the AVBTSN source code in a single module. The calls to the AVBTSN protocol module functions could potentially be invoked in the calling context of the main application.
 
 The synchronous communication interface turns out to be the same interface that is used in the module interface layer in the asynchronous communication case. The module interface layer can potentially have many different calling interfaces layered on top of it.
-.... text about this being the public interface to the module and that async communication is implemented as a layer on top of this interface.
 
 
 == Asynchronous Communication Interfaces
