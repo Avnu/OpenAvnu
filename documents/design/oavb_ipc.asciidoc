@@ -1,11 +1,14 @@
 = Interprocess Communication Recommendations for AVB/TSN
-Andrew Elder
-David Cemin
-v0.1
+Andrew Elder and David Cemin
+v0.2
+
+// Use attribute to shorten urls
+:repo: https://github.com/AVnu/Open-AVB
+:img: {repo}/tree/gh-pages/images
 
 == Introduction
 
-The AVB/TSN software stack is comprised of a number of modules that implement protocol stacks specified by IEEE standards. Each of these protocols implement an network facing interface and an application facing interface. The required application facing interface is described in some detail in http://avnu.org/wp-content/uploads/2014/05/AVnu_SWAPIs_v1.0.pdf[AVB Software Interfaces and Endpoint Architecture Guidelines]. Since a module running a particular protocol may be a standalone execution unit (for example a Linux daemon), an interprocess communication method is required to interface to the execution unit.
+The AVB/TSN software stack is comprised of a number of modules that implement protocol stacks specified by IEEE standards. Each of these protocols implement an  network facing interface and an application facing interface. The required application facing interface is described in some detail in http://avnu.org/wp-content/uploads/2014/05/AVnu_SWAPIs_v1.0.pdf[AVB Software Interfaces and Endpoint Architecture Guidelines]. Since a module running a particular protocol may be a standalone execution unit (for example a Linux daemon), an interprocess communication method is required to interface to the execution unit.
 
 For portability reasons it is recommended to separate the implementation of the interprocess communication method as much as possible from the logic of the protocol implementation. This applies to both an application that is interfacing to an AVB/TSN module and the implementation of the AVB/TSN module itself.
 
@@ -24,7 +27,7 @@ Asynchronous call::
   The call completes but return status information is returned on by way of a different mechanism. The calling application does not know that requested operations have been completed and must rely on an alternative notification communication mechanism to confirm successful completion of requested operations.
 
 
-== Sychronous Communication Interfaces
+== Synchronous Communication Interfaces
 
 For the purposes of this document the following straw-man application interfaces are described:
 
@@ -56,6 +59,7 @@ int AVBTSN_CommandXYZ(uint64_t stream_id, uint32_t vlan, void *out);
 
 where the AVBTSN portion of the function name would be replaced by the name of the IEEE AVB/TSN protocol module that is being targeted.
 
+The synchronous communication interface is exposed by the module itself. If a single monolithic application is being produced, it is possible that the synchronous communication interface could be used to call module functionality directly. In this situation the module functions being called will execute within the context of the parent monolithic application.
 The synchonous communication interface is exposed by the module itself.
 
 The examples show two types of IPC commands, one with a single parameter and another one with multiple parameters. These functions return a code to indicate success / failure and have an out pointer, which should provide more detailed information about the reason of failure.
@@ -88,8 +92,10 @@ where the AVBTSN portion of the function name would be replaced by the name of t
 
 .... The Module could also provide functions to transform the error codes (the enumeration type) in strings. 
 
+Any errors returned should be #defined in a public interface module (typically a .h header file in C) so that the calling application can correctly interpret the returned errors and make decisions on actions to undertake depending on the error returned.
 .... more text about this being usable for single .exe implementation
 
+The synchronous communication interface turns out to be the same interface that is used in the module interface layer in the asynchronous communication case. The module interface layer can potentially have many different calling interfaces layered on top of it.
 .... text about this being the public interface to the module and that async communication is implemented as a layer on top of this interface.
 
 
@@ -99,6 +105,8 @@ The asynchronous communication interface sits on top of the synchronous communic
 
 If application blocking to wait for a command to complete is desired, this can also be supported.  
 
+.Block image
+image::{img}/ipc1.png[]
 
 === Communication Stack Abstraction
 
@@ -118,7 +126,7 @@ This section outlines abstraction requirements for multiple layers. The layers t
 
 ==== Application Layer
 
-The application layer requires a simple interface that has parameters that closely match those supported by the underlying module implementation. However, since the context for an underlying communication layer is required, an additional IPC context parameter must be added to the application's calling interface. The example straw-man interface now becomes:
+The application layer is the layer that an external client application uses to call an underlying module that implements a particular AVB/TSN protocol. The application layer requires a simple interface that has parameters that closely match those supported by the underlying module implementation. However, since the context for an underlying communication layer is required, an additional IPC context parameter must be added to the application's calling interface. The example straw-man interface now becomes:
 
 .Straw-man Interfaces for External Application
 [source,c/c++]
@@ -148,7 +156,7 @@ The marshalling layer is responsible for encoding parameters into a defined stru
 
 struct avbtsn_packing_header {
 	uint32_t size;
-	uint32_t command;
+	uint32_t command; /* #def'd above */
 	void *this_call_context;
 };
 
@@ -195,9 +203,11 @@ struct oavb_ipc {
 
 ==== Unpacking Layer
 
+The unpacking layer performs the inverse of the packing layer. Parameters are extracted from whatever structure or buffer they were stored in by the external application and the parameters are then used to called the specified interface within the module.
+
 ==== Module Interface Layer
 
-
+This layer consists of a public interface used to make calls to functions within the module. Parameters required by each call are explicitly defined.
 
 
 
