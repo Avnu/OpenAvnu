@@ -77,30 +77,39 @@ struct igb_dma_alloc {
 	unsigned int mmap_size;
 };
 
-int igb_probe( device_t *dev );
+int igb_probe(device_t *dev);
 int igb_attach(char *dev_path, device_t *pdev);
-int igb_attach_tx( device_t *pdev );
+int igb_attach_tx(device_t *pdev);
 int igb_detach(device_t *dev);
 int igb_suspend(device_t *dev);
 int igb_resume(device_t *dev);
 int igb_init(device_t *dev);
 int igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *page);
 void igb_dma_free_page(device_t *dev, struct igb_dma_alloc *page);
-int igb_xmit(device_t *dev, unsigned int queue_index, struct igb_packet *packet);
-void igb_refresh_buffers(device_t *dev, u_int32_t idx, struct igb_packet **rxbuf_packets, u_int32_t num_bufs);
-void igb_receive(device_t *dev, u_int32_t idx, struct igb_packet **received_packets, u_int32_t count);
+int igb_xmit(device_t *dev, unsigned int queue_index,
+	     struct igb_packet *packet);
+void igb_refresh_buffers(device_t *dev, u_int32_t idx,
+			 struct igb_packet **rxbuf_packets, u_int32_t num_bufs);
+void igb_receive(device_t *dev, u_int32_t idx,
+		 struct igb_packet **received_packets, u_int32_t count);
 void igb_clean(device_t *dev, struct igb_packet **cleaned_packets);
 int igb_get_wallclock(device_t *dev, u_int64_t *curtime, u_int64_t *rdtsc);
-int igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime, struct timespec *system_time );
-int igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b, u_int32_t tpktsz_a, u_int32_t tpktsz_b);
-int igb_set_class_bandwidth2(device_t *dev, u_int32_t class_a_bytes_per_second, u_int32_t class_b_bytes_per_second);
-
+int igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime,
+		struct timespec *system_time);
+int igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b,
+			    u_int32_t tpktsz_a, u_int32_t tpktsz_b);
+int igb_set_class_bandwidth2(device_t *dev, u_int32_t class_a_bytes_per_second,
+			     u_int32_t class_b_bytes_per_second);
+int igb_setup_flex_filter(device_t *dev, unsigned int queue_id,
+			  unsigned int filter_id, unsigned int filter_len,
+			  u_int8_t *filter, u_int8_t *mask);
+int igb_clear_flex_filter(device_t *dev, unsigned int filter_id);
 void igb_trigger(device_t *dev, u_int32_t data);
 void igb_readreg(device_t *dev, u_int32_t reg, u_int32_t *data);
 void igb_writereg(device_t *dev, u_int32_t reg, u_int32_t data);
 
-int igb_lock( device_t *dev );
-int igb_unlock( device_t *dev );
+int igb_lock(device_t *dev);
+int igb_unlock(device_t *dev);
 
 int igb_get_mac_addr(device_t *dev, u_int8_t mac_addr[6]);
 

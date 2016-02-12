@@ -48,9 +48,14 @@
 #define ETHER_ALIGN                     2
 #define IGB_TX_BUFFER_SIZE		((uint32_t) 1514)
 
-#define IGB_TX_PTHRESH                  8
-#define IGB_TX_HTHRESH                  1
-#define IGB_TX_WTHRESH                  16
+
+#define IGB_RX_PTHRESH		8
+#define IGB_RX_HTHRESH		8
+#define IGB_RX_WTHRESH          4
+
+#define IGB_TX_PTHRESH		8
+#define IGB_TX_HTHRESH		1
+#define IGB_TX_WTHRESH		16
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -107,7 +112,7 @@ struct tx_ring {
 	u32 next_avail_desc;
 	u32 next_to_clean;
 
-	volatile u16 tx_avail;
+	u16 tx_avail;
 
 	u32 bytes;
 	u32 packets;
