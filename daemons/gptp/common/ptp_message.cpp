@@ -1323,7 +1323,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	Timestamp request_tx_timestamp(0, 0, 0);
 	Timestamp remote_req_rx_timestamp(0, 0, 0);
 	Timestamp response_rx_timestamp(0, 0, 0);
-	unsigned int diffLastSeqId;
+	uint16_t diffLastSeqId;
 
 	if (port->getPortState() == PTP_DISABLED) {
 		// Do nothing all messages should be ignored when in this state
