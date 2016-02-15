@@ -1391,11 +1391,11 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		requestingPortIdentity->getPortNumber(&req_port_number);
 		uint16_t _cntthres = port->getSeqIdAsCapableThreshCounter() + diffLastSeqId;
 		bool isSeqIdCounterUnderThresh = port->incSeqIdAsCapableThreshCounter();
-		bool cntOverThresh = _cntthres > port->getSeqIdAsCapableThresh();
+		bool cntOverThresh = _cntthres > SEQID_DIFF_THRESHOLD;
 
 		if( !isSeqIdCounterUnderThresh || cntOverThresh )
 		{
-			XPTPD_ERROR(">>> SeqID counter bigger than threshold.(%u > %u)", _cntthres, port->getSeqIdAsCapableThresh());
+			XPTPD_ERROR(">>> SeqID counter bigger than threshold.");
 			port->setAsCapable( false );
 		}
 		XPTPD_ERROR
