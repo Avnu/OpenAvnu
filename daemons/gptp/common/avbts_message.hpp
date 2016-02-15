@@ -949,8 +949,6 @@ class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
 	PortIdentity *requestingPortIdentity;
 
 	PTPMessagePathDelayRespFollowUp(void) { }
-
-	static const unsigned int SEQID_DIFF_THRESHOLD = 5;
 public:
 	/**
 	 * Builds the PTPMessagePathDelayRespFollowUp object
