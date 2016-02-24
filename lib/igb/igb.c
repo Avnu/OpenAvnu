@@ -89,9 +89,12 @@ static void igb_reset(struct adapter *adapter);
 static int igb_allocate_queues(struct adapter *adapter);
 static int igb_allocate_rx_queues(struct adapter *adapter);
 static void igb_setup_transmit_structures(struct adapter *adapter);
+static int igb_setup_receive_structures(struct adapter *adapter);
 static void igb_setup_transmit_ring(struct tx_ring *txr);
 static void igb_initialize_transmit_units(struct adapter *adapter);
+static void igb_initialize_receive_units(struct adapter *adapter);
 static void igb_free_transmit_structures(struct adapter *adapter);
+static void igb_free_receive_structures(struct adapter *adapter);
 static void igb_tx_ctx_setup(struct tx_ring *txr, struct igb_packet *packet);
 static void igb_free_receive_buffers(struct rx_ring *rxr);
 
@@ -318,9 +321,9 @@ int igb_detach(device_t *dev)
 
 	sem_post(adapter->memlock);
 
-	igb_free_transmit_structures(adapter);
-	/* XXX FIXME-ADD RX case */
 	igb_free_pci_resources(adapter);
+	igb_free_transmit_structures(adapter);
+	igb_free_receive_structures(adapter);
 
  err_nolock:
 	sem_close(adapter->memlock);
@@ -336,8 +339,9 @@ int igb_suspend(device_t *dev)
 {
 	struct adapter *adapter;
 	struct tx_ring *txr;
+	struct rx_ring *rxr;
 	struct e1000_hw *hw;
-	u32 txdctl;
+	u32 txdctl, srrctl;
 	int i;
 
 	if (dev == NULL)
@@ -347,6 +351,7 @@ int igb_suspend(device_t *dev)
 		return -ENXIO;
 
 	txr = adapter->tx_rings;
+	rxr = adapter->rx_rings;
 	hw = &adapter->hw;
 
 	txdctl = 0;
@@ -363,7 +368,29 @@ int igb_suspend(device_t *dev)
 		txr->queue_status = IGB_QUEUE_IDLE;
 	}
 
-	/* XXX FIXME-ADD RX case */
+	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+
+	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+		u64 bus_addr = rxr->rxdma.paddr;
+		u32 rxdctl;
+
+		E1000_WRITE_REG(hw, E1000_RDLEN(i),
+				adapter->num_rx_desc *
+				sizeof(struct e1000_rx_desc));
+		E1000_WRITE_REG(hw, E1000_RDBAH(i),
+				(uint32_t)(bus_addr >> 32));
+		E1000_WRITE_REG(hw, E1000_RDBAL(i),
+				(uint32_t)bus_addr);
+		E1000_WRITE_REG(hw, E1000_SRRCTL(i), srrctl);
+		/* Enable this Queue */
+		rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
+		rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
+		rxdctl &= 0xFFF00000;
+		rxdctl |= IGB_RX_PTHRESH;
+		rxdctl |= IGB_RX_HTHRESH << 8;
+		rxdctl |= IGB_RX_WTHRESH << 16;
+		E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
+	}
 
 	if (sem_post(adapter->memlock) != 0)
 		return errno;
@@ -375,8 +402,9 @@ int igb_resume(device_t *dev)
 {
 	struct adapter *adapter;
 	struct tx_ring *txr;
+	struct rx_ring *rxr;
 	struct e1000_hw *hw;
-	u32 txdctl;
+	u32 txdctl, srrctl;
 	int i;
 	int error;
 
@@ -387,6 +415,7 @@ int igb_resume(device_t *dev)
 		return -ENXIO;
 
 	txr = adapter->tx_rings;
+	rxr = adapter->rx_rings;
 	hw = &adapter->hw;
 
 	txdctl = 0;
@@ -406,7 +435,30 @@ int igb_resume(device_t *dev)
 		txr->queue_status = IGB_QUEUE_WORKING;
 	}
 
-	/* XXX FIXME-ADD RX case */
+	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+
+	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+		u64 bus_addr = rxr->rxdma.paddr;
+		u32 rxdctl;
+
+		E1000_WRITE_REG(hw, E1000_RDLEN(i),
+				adapter->num_rx_desc *
+				sizeof(struct e1000_rx_desc));
+		E1000_WRITE_REG(hw, E1000_RDBAH(i),
+				(uint32_t)(bus_addr >> 32));
+		E1000_WRITE_REG(hw, E1000_RDBAL(i),
+				(uint32_t)bus_addr);
+		E1000_WRITE_REG(hw, E1000_SRRCTL(i), srrctl);
+		/* Enable this Queue */
+		rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
+		rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
+		rxdctl &= 0xFFF00000;
+		rxdctl |= IGB_RX_PTHRESH;
+		rxdctl |= IGB_RX_HTHRESH << 8;
+		rxdctl |= IGB_RX_WTHRESH << 16;
+		E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
+	}
+
 
 	if (sem_post(adapter->memlock) != 0)
 		return errno;
@@ -436,7 +488,8 @@ int igb_init(device_t *dev)
 	igb_setup_transmit_structures(adapter);
 	igb_initialize_transmit_units(adapter);
 
-	/* XXX FIXME-ADD RX case */
+	igb_setup_receive_structures(adapter);
+	igb_initialize_receive_units(adapter);
 
 	if (sem_post(adapter->memlock) != 0)
 		return errno;
@@ -448,8 +501,9 @@ static void
 igb_reset(struct adapter *adapter)
 {
 	struct tx_ring *txr = adapter->tx_rings;
+	struct rx_ring *rxr = adapter->rx_rings;
 	struct e1000_hw *hw = &adapter->hw;
-	u32 tctl, txdctl;
+	u32 tctl, txdctl, srrctl;
 	int i;
 
 	tctl = txdctl = 0;
@@ -466,11 +520,12 @@ igb_reset(struct adapter *adapter)
 
 		/* reset the descriptor head/tail */
 		E1000_WRITE_REG(hw, E1000_TDLEN(i),
-		    adapter->num_tx_desc * sizeof(struct e1000_tx_desc));
+				adapter->num_tx_desc *
+				sizeof(struct e1000_tx_desc));
 		E1000_WRITE_REG(hw, E1000_TDBAH(i),
-		    (u_int32_t)(bus_addr >> 32));
+				(u_int32_t)(bus_addr >> 32));
 		E1000_WRITE_REG(hw, E1000_TDBAL(i),
-		    (u_int32_t)bus_addr);
+				(u_int32_t)bus_addr);
 
 		/* Setup the HW Tx Head and Tail descriptor pointers */
 		E1000_WRITE_REG(hw, E1000_TDT(i), 0);
@@ -479,7 +534,32 @@ igb_reset(struct adapter *adapter)
 		txr->queue_status = IGB_QUEUE_IDLE;
 	}
 
-	/* XXX FIXME-ADD RX case */
+	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+
+	/* Setup the Base and Length of the Rx Descriptor Rings */
+	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+		u64 bus_addr = rxr->rxdma.paddr;
+		u32 rxdctl;
+
+		E1000_WRITE_REG(hw, E1000_RDLEN(i),
+				adapter->num_rx_desc *
+				sizeof(struct e1000_rx_desc));
+		E1000_WRITE_REG(hw, E1000_RDBAH(i),
+				(uint32_t)(bus_addr >> 32));
+		E1000_WRITE_REG(hw, E1000_RDBAL(i),
+				(uint32_t)bus_addr);
+		E1000_WRITE_REG(hw, E1000_SRRCTL(i), srrctl);
+
+		/* Enable this Queue */
+		rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
+		rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
+		rxdctl &= 0xFFF00000;
+		rxdctl |= IGB_RX_PTHRESH;
+		rxdctl |= IGB_RX_HTHRESH << 8;
+		rxdctl |= IGB_RX_WTHRESH << 16;
+		E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
+	}
+
 }
 
 static int igb_read_mac_addr(struct e1000_hw *hw)

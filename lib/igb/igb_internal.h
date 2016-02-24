@@ -141,14 +141,6 @@ struct rx_ring {
 	u32 next_to_refresh;
 	u32 next_to_check;
 	struct igb_rx_buffer *rx_buffers;
-#ifdef XXX_REMOVE_PACKET_SPLIT_OPTION
-	/*
-	 * First/last mbuf pointers, for
-	 * collecting multisegment RX packets.
-	 **/
-	struct mbuf *fmp;
-	struct mbuf *lmp;
-#endif
 	u32 bytes;
 	u32 packets;
 	int rdt;
