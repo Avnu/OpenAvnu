@@ -10103,8 +10103,8 @@ static int __igb_notify_lookup(struct device *dev, void *data)
 	/* look at pci string - if its me, update the adapter pointer */
 	printk("checking against adapter name %s\n", pci_name(adapter->pdev));
 
-	if !(strncmp(pci_name(adapter->pdev), adapter_lookup->pci_info,
-		     IGB_BIND_NAMESZ))
+	if (!(strncmp(pci_name(adapter->pdev), adapter_lookup->pci_info,
+		     IGB_BIND_NAMESZ)))
 		adapter_lookup->adapter = adapter;
 
 	return E1000_SUCCESS;
