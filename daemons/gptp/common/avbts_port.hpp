@@ -234,8 +234,6 @@ class IEEE1588Port {
 	static const int64_t INVALID_LINKDELAY = 3600000000000;
 	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
 	static const unsigned int DEFAULT_SYNC_RECEIPT_THRESH = 5;
-	static const unsigned int DEFAULT_SEQID_ASCAPABLE_THRESHOLD = 5;
-	static const uint16_t DEFAULT_LOSTPDELAY_RESP_THRESH = 3;
 
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
@@ -245,14 +243,6 @@ class IEEE1588Port {
 	/*Sync threshold*/
 	unsigned int sync_receipt_thresh;
 	unsigned int wrongSeqIDCounter;
-
-	/*SeqID threshold*/
-	unsigned int seqIdAsCapableThresh;
-	unsigned int seqIdAsCapableThreshCounter;
-
-	/*Lost PDelayFUPs*/
-	uint16_t lastSeqId;
-	uint16_t lostPdelayRespThresh;
 
 	/* Implementation Specific data/methods */
 	IEEE1588Clock *clock;
@@ -403,7 +393,6 @@ class IEEE1588Port {
 		}
 		if(!ascap){
 			_peer_offset_init = false;
-			setSeqIdAsCapableThreshCounter(0);
 		}
 		asCapable = ascap;
 	}
@@ -948,42 +937,6 @@ class IEEE1588Port {
 		sync_receipt_thresh = th;
 	}
 
-    /**
-     * @brief  Sets the seqIdAsCapableThresh value
-     * @param  th value to be set
-     */
-	void setSeqIdAsCapableThresh(unsigned int th)
-	{
-		seqIdAsCapableThresh = th;
-	}
-
-    /**
-     * @brief  Gets the seqIdAsCapableThresh value
-     * @return seqIdAsCapableThresh content
-     */
-	unsigned int getSeqIdAsCapableThresh(void)
-	{
-		return seqIdAsCapableThresh;
-	}
-
-    /**
-     * @brief  Sets the lostPdelayRespThresh value
-     * @param  th value to be set
-     */
-	void setLostPdelayRespThresh(unsigned int th)
-	{
-		lostPdelayRespThresh = th;
-	}
-
-    /**
-     * @brief  Gets the lostPdelayRespThresh value
-     * @return lostPdelayRespThresh content
-     */
-	uint16_t getLostPdelayRespThresh(void)
-	{
-		return lostPdelayRespThresh;
-	}
-
 	/**
 	 * @brief  Gets the internal variabl sync_receipt_thresh, which is the
 	 * flag that monitors the amount of wrong syncs enabled before switching
@@ -1041,58 +994,6 @@ class IEEE1588Port {
 
 		return ret;
 	}
-
-    /**
-     * @brief  Set the seqIdAsCapableThreshCounter value
-     * @param  c Value to be set to.
-     * @return void
-     */
-	void setSeqIdAsCapableThreshCounter(unsigned int c)
-	{
-		seqIdAsCapableThreshCounter = c;
-	}
-
-    /**
-     * @brief  Gets the content of seqIdAsCapableThreshCounter
-     * @return seqIdAsCapableThreshCounter value
-     */
-	unsigned int getSeqIdAsCapableThreshCounter(void)
-	{
-		return seqIdAsCapableThreshCounter;
-	}
-
-    /**
-     * @brief  Increments the seqIdAsCapableThreshCounter value
-     * @param  incSeqIdAsCapableThreshCounter
-     * @return TRUE if incremented value is lower than the seqIdAsCapableThresh.
-     * FALSE otherwise.
-     */
-	bool incSeqIdAsCapableThreshCounter(void)
-	{
-		if( getAsCapable() )
-		{
-			seqIdAsCapableThreshCounter++;
-		}
-		return(seqIdAsCapableThreshCounter < getSeqIdAsCapableThresh() );
-	}
-
-    /**
-     * @brief  Stores the last seqID on port object
-     * @param  seqid Value to be set
-     */
-    void setLastSeqID(uint16_t seqid)
-    {
-        lastSeqId = seqid;
-    }
-
-    /**
-     * @brief  Gets the last SeqID from Port object
-     * @return lastSeqID
-     */
-    uint16_t getLastSeqId(void)
-    {
-        return lastSeqId;
-    }
 
     /**
      * @brief  Sets the neighbor propagation delay threshold
