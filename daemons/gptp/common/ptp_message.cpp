@@ -1361,7 +1361,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 
 	if( req->getSequenceId() != sequenceId ) {
 		XPTPD_ERROR
-			(">>> Received PDelay FUP has different seqID than the PDleay request (%d/%d)",
+			(">>> Received PDelay FUP has different seqID than the PDelay request (%d/%d)",
 			 sequenceId, req->getSequenceId() );
 		goto abort;
 	}

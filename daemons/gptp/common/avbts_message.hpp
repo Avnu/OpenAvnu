@@ -950,7 +950,6 @@ class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
 
 	PTPMessagePathDelayRespFollowUp(void) { }
 
-	const static uint16_t SEQID_DIFF_THRESHOLD = 4;
 public:
 	/**
 	 * Builds the PTPMessagePathDelayRespFollowUp object
