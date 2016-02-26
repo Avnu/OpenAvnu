@@ -109,10 +109,7 @@ IEEE1588Port::IEEE1588Port
 	one_way_delay = ONE_WAY_DELAY_DEFAULT;
 	neighbor_prop_delay_thresh = NEIGHBOR_PROP_DELAY_THRESH;
 	sync_receipt_thresh = DEFAULT_SYNC_RECEIPT_THRESH;
-	seqIdAsCapableThresh = DEFAULT_SEQID_ASCAPABLE_THRESHOLD;
 	wrongSeqIDCounter = 0;
-	seqIdAsCapableThreshCounter = 0;
-	lostPdelayRespThresh = DEFAULT_LOSTPDELAY_RESP_THRESH;
 
 	_peer_rate_offset = 1.0;
 
@@ -133,8 +130,6 @@ IEEE1588Port::IEEE1588Port
 
 	pdelay_count = 0;
 	sync_count = 0;
-
-	lastSeqId = 0;
 }
 
 bool IEEE1588Port::init_port(int delay[4])

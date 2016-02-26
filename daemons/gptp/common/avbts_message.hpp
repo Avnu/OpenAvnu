@@ -949,6 +949,7 @@ class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
 	PortIdentity *requestingPortIdentity;
 
 	PTPMessagePathDelayRespFollowUp(void) { }
+
 public:
 	/**
 	 * Builds the PTPMessagePathDelayRespFollowUp object

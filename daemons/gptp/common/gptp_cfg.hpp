@@ -169,24 +169,6 @@ class GptpIniParser
             return _config.syncReceiptThresh;
         }
 
-        /**
-         * @brief  Gets the value from seqIdAsCapableThresh from the configuration file
-         * @return seqIdAsCapableThresh content
-         */
-        unsigned int getSeqIdAsCapableThresh(void)
-        {
-            return _config.seqIdAsCapableThresh;
-        }
-
-        /**
-         * @brief  Reads the lostPdelayRespThresh from the configuration file
-         * @return lostPdelayRespThresh value from the .ini file
-         */
-        uint16_t getLostPdelayRespThresh(void)
-        {
-            return _config.lostPdelayRespThresh;
-        }
-
     private:
         int _error;
         gptp_cfg_t _config;
