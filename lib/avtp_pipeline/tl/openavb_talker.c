@@ -170,7 +170,7 @@ void talkerStopStream(tl_state_t *pTLState)
 		openavbTalkerGetStat(pTLState, TL_STAT_TX_FRAMES),
 		openavbTalkerGetStat(pTLState, TL_STAT_TX_LATE),
 		openavbTalkerGetStat(pTLState, TL_STAT_TX_BYTES),
-		openavbRawsockGetTXOutOfBuffers(rawsock)
+		rawsock ? openavbRawsockGetTXOutOfBuffers(rawsock) : 0
 		);
 
 	if (pTLState->bStreaming) {
