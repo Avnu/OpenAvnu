@@ -370,7 +370,7 @@ int igb_suspend(device_t *dev)
 
 	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+	for (i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 bus_addr = rxr->rxdma.paddr;
 		u32 rxdctl;
 
@@ -437,7 +437,7 @@ int igb_resume(device_t *dev)
 
 	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+	for (i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 bus_addr = rxr->rxdma.paddr;
 		u32 rxdctl;
 
@@ -537,7 +537,7 @@ igb_reset(struct adapter *adapter)
 	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 
 	/* Setup the Base and Length of the Rx Descriptor Rings */
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+	for (i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 bus_addr = rxr->rxdma.paddr;
 		u32 rxdctl;
 
@@ -1321,8 +1321,9 @@ static void igb_free_receive_ring(struct rx_ring *rxr)
 {
 	struct	adapter *adapter = rxr->adapter;
 	struct igb_rx_buffer *rxbuf;
+	int i;
 
-	for (int i = 0; i < adapter->num_rx_desc; i++)
+	for (i = 0; i < adapter->num_rx_desc; i++)
 		rxbuf = &rxr->rx_buffers[i];
 }
 
@@ -1392,7 +1393,7 @@ static void igb_initialize_receive_units(struct adapter *adapter)
 	struct rx_ring *rxr = adapter->rx_rings;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl, rxcsum, psize, srrctl = 0;
-
+	int i;
 
 	/*
 	 * Make sure receives are disabled while setting
@@ -1406,7 +1407,7 @@ static void igb_initialize_receive_units(struct adapter *adapter)
 	rctl |= E1000_RCTL_SZ_2048;
 
 	/* Setup the Base and Length of the Rx Descriptor Rings */
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+	for (i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 bus_addr = rxr->rxdma.paddr;
 		u32 rxdctl;
 
@@ -1462,7 +1463,7 @@ static void igb_initialize_receive_units(struct adapter *adapter)
 	 * Setup the HW Rx Head and Tail Descriptor Pointers
 	 *   - needs to be after enable
 	 */
-	for (int i = 0; i < adapter->num_queues; i++) {
+	for (i = 0; i < adapter->num_queues; i++) {
 		rxr = &adapter->rx_rings[i];
 		E1000_WRITE_REG(hw, E1000_RDH(i), rxr->next_to_check);
 		E1000_WRITE_REG(hw, E1000_RDT(i), rxr->next_to_refresh);
@@ -1475,7 +1476,7 @@ static void igb_free_receive_structures(struct adapter *adapter)
 	struct rx_ring *rxr = adapter->rx_rings;
 	int i;
 
-	for (int i = 0; i < adapter->num_queues; i++, rxr++)
+	for (i = 0; i < adapter->num_queues; i++, rxr++)
 		igb_free_receive_buffers(rxr);
 
 	free(adapter->rx_rings);
