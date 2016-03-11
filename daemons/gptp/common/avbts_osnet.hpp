@@ -272,6 +272,15 @@ class factory_name_t {
 typedef enum { net_trfail, net_fatal, net_succeed } net_result;
 
 /**
+ * Enumeration net_link_event:
+ * 	- net_linkup
+ * 	- net_linkdown
+ * 	
+ */
+typedef enum { NET_LINK_EVENT_DOWN, NET_LINK_EVENT_UP, NET_LINK_EVENT_FAIL } net_link_event;
+
+
+/**
  * Provides a generic network interface
  */
 class OSNetworkInterface {
@@ -279,13 +288,14 @@ class OSNetworkInterface {
 	 /**
 	  * @brief Sends a packet to a remote address
 	  * @param addr [in] Remote link layer address
+	  * @param etherType [in] The EtherType of the message
 	  * @param payload [in] Data buffer
 	  * @param length Size of data buffer
 	  * @param timestamp TRUE if to use the event socket with the PTP multicast address. FALSE if to use
 	  * a general socket.
 	  */
 	 virtual net_result send
-		 (LinkLayerAddress * addr, uint8_t * payload, size_t length,
+		 (LinkLayerAddress * addr, uint16_t etherType, uint8_t * payload, size_t length,
 		  bool timestamp) = 0;
 
 	 /**
@@ -306,9 +316,15 @@ class OSNetworkInterface {
 	 virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
 
 	 /**
+	  * @brief  Watch for net link changes.
+	  */
+	 virtual void watchNetLink(IEEE1588Port *pPort) = 0;
+
+	 /**
 	  * @brief  Provides generic method for getting the payload offset
 	  */
 	 virtual unsigned getPayloadOffset() = 0;
+
 	 /**
 	  * Native support for polimorphic destruction
 	  */

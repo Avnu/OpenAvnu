@@ -264,7 +264,7 @@ FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp loca
 	unsigned long long inter_local_time;
 	FrequencyRatio ppt_offset;
 
-	XPTPD_INFO( "Calculated local to system clock rate difference" );
+	GPTP_LOG_VERBOSE( "Calculated local to system clock rate difference" );
 
 	if( !_local_system_freq_offset_init ) {
 		_prev_system_time = system_time;
@@ -299,7 +299,7 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 	unsigned long long inter_master_time;
 	FrequencyRatio ppt_offset;
 	
-	XPTPD_INFO( "Calculated master to local clock rate difference" );
+	GPTP_LOG_VERBOSE( "Calculated master to local clock rate difference" );
 
 	if( !_master_local_freq_offset_init ) {
 		_prev_sync_time = sync_time;
@@ -367,7 +367,7 @@ void IEEE1588Clock::setMasterOffset
 		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
 		if( _timestamper ) {
 			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
-				XPTPD_ERROR( "Failed to adjust clock rate" );
+				GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 			}
 		}
 	}

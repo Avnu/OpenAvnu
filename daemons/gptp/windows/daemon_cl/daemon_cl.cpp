@@ -140,7 +140,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	// Create Port Object linked to clock and low level
 	IEEE1588Port *port = new IEEE1588Port( clock, 1, false, 0, timestamper, 0, &local_addr,
 		condition_factory, thread_factory, timer_factory, lock_factory );
-	if( !port->init_port() ) {
+	if( !port->init_port(phy_delay) ) {
 		printf( "Failed to initialize port\n" );
 		return -1;
 	}

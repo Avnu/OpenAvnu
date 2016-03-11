@@ -156,7 +156,8 @@ private:
 public:
 	/**
 	 * @brief Sends a packet to a remote address
-	 * @param addr [in] Remote link layer address
+	 * @param addr [in] Remote link layer address 
+	 * @param etherType [in] The EtherType of the message
 	 * @param payload [in] Data buffer
 	 * @param length Size of data buffer
 	 * @param timestamp TRUE if to use the event socket with the PTP multicast address. FALSE if to use
@@ -164,7 +165,7 @@ public:
 	 * @return net_fatal if error, net_success if success
 	 */
 	virtual net_result send
-	( LinkLayerAddress *addr, uint8_t *payload, size_t length,
+	( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length,
 	  bool timestamp );
 
 	/**
@@ -198,6 +199,12 @@ public:
 	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
 		*addr = local_addr;
 	}
+
+	/**
+	 * @brief  Watch for net link changes.
+	 */
+	virtual void watchNetLink(IEEE1588Port *pPort);
+
 
 	/**
 	 *  @brief Gets the payload offset

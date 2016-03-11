@@ -117,10 +117,10 @@ bool WindowsNamedPipeIPC::init(OS_IPC_ARG *arg) {
 	ipclistener = new IPCListener();
 	// Start IPC listen thread
 	if (!ipclistener->start(ipcdata)) {
-		XPTPD_ERROR("Starting IPC listener thread failed");
+		GPTP_LOG_ERROR("Starting IPC listener thread failed");
 	}
 	else {
-		XPTPD_INFO("Starting IPC listener thread succeeded");
+		GPTP_LOG_VERBOSE("Starting IPC listener thread succeeded");
 	}
 
 	return true;

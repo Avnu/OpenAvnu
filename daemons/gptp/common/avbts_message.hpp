@@ -111,6 +111,11 @@
 #define PTP_PDELAY_FOLLOWUP_REQ_CLOCK_ID(x) x+10	/*!< Gets the pdelay followup request clock id offset*/
 #define PTP_PDELAY_FOLLOWUP_REQ_PORT_ID(x) x+18		/*!< Gets the pdelay followup request port id offset*/
 
+#define PTP_SIGNALLING_OFFSET 34						/*!< PTP signalling offset */
+#define PTP_SIGNALLING_LENGTH 10						/*!< PTP signalling length in bytes */
+#define PTP_SIGNALLING_TARGET_PORT_IDENTITY(x) x		/*!< PTP signalling Tareget Port Identity */
+
+
 #define PTP_LI_61_BYTE 1		/*!< PTP_LI_61(leap61) byte offset on flags field */
 #define PTP_LI_61_BIT 0			/*!< PTP_LI_61(leap61) bit offset on PTP_LI_61 byte*/
 #define PTP_LI_59_BYTE 1		/*!< PTP_LI_59(leap59) byte offset on flags field*/
@@ -157,6 +162,7 @@ enum LegacyMessageType {
 enum MulticastType {
 	MCAST_NONE,
 	MCAST_PDELAY,
+	MCAST_TEST_STATUS,
 	MCAST_OTHER
 };
 
@@ -655,6 +661,16 @@ class FollowUpTLV {
 	int32_t getRateOffset() {
 		return cumulativeScaledRateOffset;
 	}
+
+	/**
+	 * @brief  Gets the gmTimeBaseIndicator
+	 * @return 16 bit unsigned value of the gmTimeBaseIndicator
+	 *  	   information.
+	 */
+	uint16_t getGmTimeBaseIndicator() {
+		return gmTimeBaseIndicator;
+	}
+
 };
 
 /* back to whatever the previous packing mode was */
@@ -893,6 +909,162 @@ public:
 	PortIdentity *getRequestingPortIdentity(void) {
 		return requestingPortIdentity;
 	}
+
+	friend PTPMessageCommon *buildPTPMessage
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+};
+
+/*Exact fit. No padding*/
+#pragma pack(push,1)
+
+
+/**
+ * Provides a Signalling Msg Interval Request TLV interface back to the previous 
+ * packing mode 
+ */
+class SignallingTLV {
+ private:
+	uint16_t tlvType;
+	uint16_t lengthField;
+	uint8_t organizationId[3];
+	uint8_t organizationSubType_ms;
+	uint16_t organizationSubType_ls;
+	uint8_t linkDelayInterval;
+	uint8_t timeSyncInterval;
+	uint8_t announceInterval;
+	uint8_t flags;
+	uint16_t reserved;
+ public:
+	/**
+	 * Builds the Signalling Msg Interval Request TLV interface
+	 */
+	SignallingTLV() {
+		tlvType = PLAT_htons(0x3);
+		lengthField = PLAT_htons(28);
+		organizationId[0] = '\x00';
+		organizationId[1] = '\x80';
+		organizationId[2] = '\xC2';
+		organizationSubType_ms = 0;
+		organizationSubType_ls = PLAT_htons(1);
+		linkDelayInterval = 0;
+		timeSyncInterval = 0;
+		announceInterval = 0;
+		flags = 0;
+		reserved = PLAT_htons(0);
+	}
+
+	/**
+	 * @brief  Gets Msg Interval Request TLV information in a byte
+	 *  	   string format
+	 * @param  byte_str [out] Msg Interval Request TLV values
+	 */
+	void toByteString(uint8_t * byte_str) {
+		memcpy(byte_str, this, sizeof(*this));
+	}
+
+	/**
+	 * @brief  Gets the link delay interval.
+	 * @return 8 bit signed value of the link delay interval.
+	 */
+	int8_t getLinkDelayInterval() {
+		return linkDelayInterval;
+	}
+
+	/**
+	* @brief  Sets the link delay interval.
+	* @param 8 bit signed value of the link delay interval.
+	* @return void
+	*/
+	 void setLinkDelayInterval(int8_t linkDelayInterval) {
+		this->linkDelayInterval = linkDelayInterval;
+	}
+
+	/**
+	 * @brief  Gets the time sync interval.
+	 * @return 8 bit signed value of the time sync interval. 
+	 */
+	int8_t getTimeSyncInterval() {
+		return timeSyncInterval;
+	}
+
+	/**
+	 * @brief  Sets the time sync interval. 
+	 * #param  8 bit signed value of the time sync interval.  
+	 * @return void
+	 */
+	void setTimeSyncInterval(int8_t timeSyncInterval) {
+		this->timeSyncInterval = timeSyncInterval;
+	}
+
+	/**
+	 * @brief  Gets the announce interval.
+	 * @return 8 bit signed value of the announce interval.
+	 */
+	int8_t getAnnounceInterval() {
+		return announceInterval;
+	}
+
+	/**
+	* @brief  Sets the announce interval.
+	* @param  8 bit signed value of the announce interval.
+	* @return void
+	*/
+	void setAnnounceInterval(int8_t announceInterval) {
+		this->announceInterval = announceInterval;
+	}
+};
+
+/* back to whatever the previous packing mode was */
+#pragma pack(pop)
+
+/**
+ * Provides a class for building a PTP signalling message 
+ */
+class PTPMessageSignalling:public PTPMessageCommon {
+private:
+	int8_t targetPortIdentify;
+	SignallingTLV tlv;
+	
+	PTPMessageSignalling(void);
+public:
+	static const int8_t sigMsgInterval_Initial =  126;
+	static const int8_t sigMsgInterval_NoSend =  127;
+	static const int8_t sigMsgInterval_NoChange =  -128;
+
+	/**
+	 * Builds the PTPMessageSignalling object
+	 */
+	PTPMessageSignalling(IEEE1588Port * port);
+
+	/**
+	 * Destroys the PTPMessageSignalling object
+	 */
+	~PTPMessageSignalling();
+
+	/**
+	 *@brief Sets the signalling intervals
+	 * @param  linkDelayInterval link delay interval
+	 * @param  timeSyncInterval Sync interval
+	 * @param  announceInterval Announce interval
+	 * @return void
+	 */
+	void setintervals(int8_t linkDelayInterval, int8_t timeSyncInterval, int8_t announceInterval);
+
+	/**
+	 * @brief  Assembles PTPMessageSignalling message on the 
+	 *  	   IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
+	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+
+	/**
+	 * @brief  Processes PTP messages
+	 * @param  port [in] IEEE1588Port
+	 * @return void
+	 */
+	void processMessage(IEEE1588Port * port); 
 
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
