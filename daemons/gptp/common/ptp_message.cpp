@@ -1340,6 +1340,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 
 	PortIdentity req_id;
 	PortIdentity resp_id;
+	ClockIdentity req_clkId;
+	ClockIdentity resp_clkId;
 
 	if (req == NULL) {
 		/* Shouldn't happen */
@@ -1358,6 +1360,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 
 	req->getPortIdentity(&req_id);
 	resp->getRequestingPortIdentity(&resp_id);
+	req_clkId = req_id.getClockIdentity();
+	resp_clkId = resp_id.getClockIdentity();
 
 	if( req->getSequenceId() != sequenceId ) {
 		XPTPD_ERROR
@@ -1378,6 +1382,18 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		XPTPD_ERROR("%hu, %hu, %hu, %hu", resp->getSequenceId(),
 				sequenceId, resp_port_number, req_port_number);
 
+		goto abort;
+	}
+
+	/*
+	 * According to Figure 11-8 of subclause 11.2.15.3, a condition to leave the state
+	 * WAITING_FOR_PDELAY_RESP is if the clock identity in the response is the same
+	 * as this clock
+	 */
+	if (req_clkId != resp_clkId ) {
+		XPTPD_ERROR
+			("ClockID Resp/Req differs. PDelay Response ClockID: %s PDelay Request ClockID: %s",
+			 req_clkId.getIdentityString().c_str(), resp_clkId.getIdentityString().c_str() );
 		goto abort;
 	}
 
