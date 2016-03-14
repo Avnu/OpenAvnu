@@ -1340,6 +1340,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 
 	PortIdentity req_id;
 	PortIdentity resp_id;
+	PortIdentity fup_sourcePortIdentity;
+	PortIdentity resp_sourcePortIdentity;
 	ClockIdentity req_clkId;
 	ClockIdentity resp_clkId;
 
@@ -1367,6 +1369,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	resp_clkId = resp_id.getClockIdentity();
 	resp_id.getPortNumber(&resp_port_number);
 	requestingPortIdentity->getPortNumber(&req_port_number);
+	resp->getPortIdentity(&resp_sourcePortIdentity);
+	getPortIdentity(&fup_sourcePortIdentity);
 
 	if( req->getSequenceId() != sequenceId ) {
 		XPTPD_ERROR
@@ -1407,8 +1411,19 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	 */
 	if ( resp_port_number != req_port_number ) {
 		XPTPD_ERROR
-			("Request portID (%hu) is different from Response portID (%hu)",
+			("Request port number (%hu) is different from Response port number (%hu)",
 				resp_port_number, req_port_number);
+
+		goto abort;
+	}
+
+	/*
+	 * According to Figure 11-8 of subclause 11.2.15.3, a condition to leave the state
+	 * WAITING_FOR_PDELAY_RESP is if the sourcePortIdentity from PDelay Response and PDelay
+	 * response Follow-UP (FUP) are the same.
+	 */
+	if ( fup_sourcePortIdentity != resp_sourcePortIdentity ) {
+		XPTPD_ERROR("Source port identity from PDelay Response/FUP differ");
 
 		goto abort;
 	}
