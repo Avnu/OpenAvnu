@@ -360,7 +360,7 @@ int main(int argc, char **argv) {
 	if( restoredataptr != NULL ) {
 		if (!restorefailed) {
 			restorefailed = !pPort->restoreSerializedState(restoredataptr, &restoredatacount);
-			GPTP_LOG_INFO("Persistent port data restored: asCapable:%d, port_state:%d, one_way_delay:%" PRId64, pPort->getAsCapable(), pPort->getPortState(), pPort->getLinkDelay());
+			GPTP_LOG_INFO("Persistent port data restored: asCapable:%d, port_state:%d, one_way_delay:%lld", pPort->getAsCapable(), pPort->getPortState(), pPort->getLinkDelay());
 		}
 		restoredataptr = ((char *)restoredata) + (restoredatalength - restoredatacount);
 	}
