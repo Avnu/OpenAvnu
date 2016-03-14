@@ -1343,6 +1343,9 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	ClockIdentity req_clkId;
 	ClockIdentity resp_clkId;
 
+	uint16_t resp_port_number;
+	uint16_t req_port_number;
+
 	if (req == NULL) {
 		/* Shouldn't happen */
 		XPTPD_ERROR
@@ -1362,6 +1365,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	resp->getRequestingPortIdentity(&resp_id);
 	req_clkId = req_id.getClockIdentity();
 	resp_clkId = resp_id.getClockIdentity();
+	resp_id.getPortNumber(&resp_port_number);
+	requestingPortIdentity->getPortNumber(&req_port_number);
 
 	if( req->getSequenceId() != sequenceId ) {
 		XPTPD_ERROR
@@ -1370,12 +1375,11 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		goto abort;
 	}
 
+	/*
+	 * According to Figure 11-8 of subclause 11.2.15.3, a condition to leave the state
+	 * WAITING_FOR_PDELAY_RESP is if the response seqID is the same as the requested.
+	 */
 	if (resp->getSequenceId() != sequenceId) {
-		uint16_t resp_port_number;
-		uint16_t req_port_number;
-		resp_id.getPortNumber(&resp_port_number);
-		requestingPortIdentity->getPortNumber(&req_port_number);
-
 		XPTPD_ERROR
 			("Received PDelay Response Follow Up but cannot find "
 			 "corresponding response");
@@ -1394,6 +1398,18 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		XPTPD_ERROR
 			("ClockID Resp/Req differs. PDelay Response ClockID: %s PDelay Request ClockID: %s",
 			 req_clkId.getIdentityString().c_str(), resp_clkId.getIdentityString().c_str() );
+		goto abort;
+	}
+
+	/*
+	 * According to Figure 11-8 of subclause 11.2.15.3, a condition to leave the state
+	 * WAITING_FOR_PDELAY_RESP is if the response portID is the same as the requested.
+	 */
+	if ( resp_port_number != req_port_number ) {
+		XPTPD_ERROR
+			("Request portID (%hu) is different from Response portID (%hu)",
+				resp_port_number, req_port_number);
+
 		goto abort;
 	}
 
