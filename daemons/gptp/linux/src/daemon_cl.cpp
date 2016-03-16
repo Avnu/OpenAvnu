@@ -277,10 +277,10 @@ int main(int argc, char **argv) {
 				portInit.initialLogSyncInterval = atoi(argv[++i]);
 			}
 			else if (strcmp(argv[i] + 1, "OPERSYNC") == 0) {
-				portInit.initialLogPdelayReqInterval = atoi(argv[++i]);
+				portInit.operLogSyncInterval = atoi(argv[++i]);
 			}
 			else if (strcmp(argv[i] + 1, "INITPDELAY") == 0) {
-				portInit.operLogSyncInterval = atoi(argv[++i]);
+				portInit.initialLogPdelayReqInterval = atoi(argv[++i]);
 			}
 			else if (strcmp(argv[i] + 1, "OPERPDELAY") == 0) {
 				portInit.operLogPdelayReqInterval = atoi(argv[++i]);

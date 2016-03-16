@@ -106,18 +106,32 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	if (automotive_profile) {
 		asCapable = true;
 
-		initialLogSyncInterval = -5;		// 31.25 ms
-		initialLogPdelayReqInterval = -3;	// 125 ms
-		operLogPdelayReqInterval = 0;		// 1 second	
-		operLogSyncInterval = 0;			// 1 second
+		if (initialLogSyncInterval == LOG2_INTERVAL_INVALID)
+			initialLogSyncInterval = -5;		// 31.25 ms
+
+		if (initialLogPdelayReqInterval == LOG2_INTERVAL_INVALID)
+			initialLogPdelayReqInterval = -3;	// 125 ms
+											
+		if (operLogPdelayReqInterval == LOG2_INTERVAL_INVALID)
+			operLogPdelayReqInterval = 0;		// 1 second	
+			
+		if (operLogSyncInterval == LOG2_INTERVAL_INVALID)
+			 operLogSyncInterval = 0;			// 1 second
 	}
 	else {
 		asCapable = false;
 
-		initialLogSyncInterval = -3;		// 125 ms
-		initialLogPdelayReqInterval = -3;	// 125 ms
-		operLogPdelayReqInterval = 0;		// 1 second	
-		operLogSyncInterval = 0;			// 1 second
+		if (initialLogSyncInterval == LOG2_INTERVAL_INVALID)
+			initialLogSyncInterval = -3;		// 125 ms
+
+		if (initialLogPdelayReqInterval == LOG2_INTERVAL_INVALID)
+			initialLogPdelayReqInterval = -3;	// 125 ms
+
+		if (operLogPdelayReqInterval == LOG2_INTERVAL_INVALID)
+			operLogPdelayReqInterval = 0;		// 1 second	
+
+		if (operLogSyncInterval == LOG2_INTERVAL_INVALID)
+			 operLogSyncInterval = 0;			// 1 second
 	}
 
 	announce_sequence_id = 0;
@@ -214,8 +228,16 @@ bool IEEE1588Port::init_port(int delay[4])
 }
 
 void IEEE1588Port::startPDelay() {
-	pdelay_started = true;
-	startPDelayIntervalTimer(32000000);
+	if (automotive_profile) {
+		if (log_min_mean_pdelay_req_interval != PTPMessageSignalling::sigMsgInterval_NoSend) {
+			pdelay_started = true;
+			startPDelayIntervalTimer(log_min_mean_pdelay_req_interval);
+		}
+	}
+	else {
+		pdelay_started = true;
+		startPDelayIntervalTimer(32000000);
+	}
 }
 
 void IEEE1588Port::startSyncRateIntervalTimer() {
