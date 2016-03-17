@@ -38,7 +38,6 @@
 
 #include <stdio.h>
 
-// TODO_HARMAN - TEST
 // #define PTP_DEBUG 1
 
 #define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)	/*!< Prints errors at stderr output*/
