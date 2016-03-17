@@ -105,7 +105,7 @@ public:
         if( last_error == ERROR_SUCCESS || last_error == ERROR_PIPE_LISTENING ) {
             return true;
         }
-		XPTPD_ERROR( "Failed to write to named pipe: %u", last_error );
+		GPTP_LOG_ERROR( "Failed to write to named pipe: %u", last_error );
 		return false;
     }
 	/**
@@ -132,7 +132,7 @@ public:
 		if( ReadFile( pipe, ((char *)this)+offs, ol_read_req, &bytes_read, lol ) == 0 ) {
 			int err = GetLastError();
 			if( err != ERROR_IO_PENDING ) {
-				XPTPD_ERROR( "Failed to read %d bytes from named pipe: %u", ol_read_req, err );
+				GPTP_LOG_ERROR( "Failed to read %d bytes from named pipe: %u", ol_read_req, err );
 			}
 			return err == ERROR_IO_PENDING ? 0 : -1;
 		}

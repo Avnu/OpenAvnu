@@ -48,6 +48,8 @@
 #include <ptptypes.hpp>
 
 #include <debugout.hpp>
+#include <gptp_log.hpp>
+
 
 #define MAX_PORTS 32	/*!< Maximum number of IEEE1588Port instances */
 
@@ -75,6 +77,8 @@ typedef enum {
 	NULL_EVENT = 0,						//!< Null Event. Used to initialize events.
 	POWERUP = 5,						//!< Power Up. Initialize state machines.
 	INITIALIZE,							//!< Same as POWERUP.
+	LINKUP,								//!< Triggered when link comes up
+	LINKDOWN,							//!< Triggered when link goes down
 	STATE_CHANGE_EVENT,					//!< Signalizes that something has changed. Recalculates best master.
 	SYNC_INTERVAL_TIMEOUT_EXPIRES,		//!< Sync interval expired. Its time to send a sync message.
 	PDELAY_INTERVAL_TIMEOUT_EXPIRES,	//!< PDELAY interval expired. Its time to send pdelay_req message
@@ -85,6 +89,7 @@ typedef enum {
 	FAULT_DETECTED,						//!< A fault was detected.
 	PDELAY_DEFERRED_PROCESSING,			//!< Defers pdelay processing
 	PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,	//!< Pdelay response message timeout
+	SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED,	//!< Sync rate signal timeout for the Automotive Profile
 } Event;
 
 /**
@@ -214,7 +219,7 @@ class ClockIdentity {
 	 * @return void
 	 */
 	void print(const char *str) {
-		XPTPD_INFO
+		GPTP_LOG_VERBOSE
 			( "Clock Identity(%s): %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
 			  str, id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7] );
 	}
