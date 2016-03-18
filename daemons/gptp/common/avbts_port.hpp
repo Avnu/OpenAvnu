@@ -209,7 +209,7 @@ typedef std::map < PortIdentity, LinkLayerAddress > IdentityMap_t;
 
 
 /**
- * Structure for initializing of the IEE1588 class 
+ * Structure for initializing the IEE1588 class
  */
 typedef struct {
 	/* clock IEEE1588Clock instance */
