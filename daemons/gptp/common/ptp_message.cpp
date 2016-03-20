@@ -1177,6 +1177,9 @@ done:
 void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
 				      PortIdentity * destIdentity)
 {
+	if(port->pdelayHalted())
+		return;
+
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
 	unsigned char tspec_msg_t = 0;
@@ -1186,7 +1189,6 @@ void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
 	messageLength = PTP_COMMON_HDR_LENGTH + PTP_PDELAY_REQ_LENGTH;
 	tspec_msg_t |= messageType & 0xF;
 	buildCommonHeader(buf_ptr);
-
 	port->sendEventPort(buf_t, messageLength, MCAST_PDELAY, destIdentity);
 	return;
 }
@@ -1228,11 +1230,58 @@ void PTPMessagePathDelayResp::processMessage(IEEE1588Port * port)
 		return;
 	}
 
+	PortIdentity resp_id;
+	PortIdentity oldresp_id;
+	uint16_t resp_port_number;
+	uint16_t oldresp_port_number;
+
 	PTPMessagePathDelayResp *old_pdelay_resp = port->getLastPDelayResp();
+	if( old_pdelay_resp == NULL ) {
+		goto bypass_verify_duplicate;
+	}
+
+	old_pdelay_resp->getPortIdentity(&oldresp_id);
+	oldresp_id.getPortNumber(&oldresp_port_number);
+	getPortIdentity(&resp_id);
+	resp_id.getPortNumber(&resp_port_number);
+
+	/* In the case where we have multiple PDelay responses for the same
+	 * PDelay request, and they come from different sources, it is necessary
+	 * to verify if this happens 3 times (sequentially). If it does, PDelayRequests
+	 * are halted for 5 minutes
+	 */
+	if( getSequenceId() == old_pdelay_resp->getSequenceId() )
+	{
+		/*If the duplicates are in sequence and from different sources*/
+		if( (resp_port_number != oldresp_port_number ) && (
+					(port->getLastInvalidSeqID() + 1 ) == getSequenceId() ||
+					port->getDuplicateRespCounter() == 0 ) ){
+			XPTPD_ERROR("Two responses for same Request. seqID %d. First Response Port# %hu. Second Port# %hu. Counter %d",
+				getSequenceId(), oldresp_port_number, resp_port_number, port->getDuplicateRespCounter());
+
+			if( port->incrementDuplicateRespCounter() ) {
+				XPTPD_ERROR("Remote misbehaving. Stopping PDelay Requests for 5 minutes.");
+				port->stopPDelay();
+				port->getClock()->addEventTimerLocked
+					(port, PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES, 300 * 1000000000.0);
+			}
+		}
+		else {
+			port->setDuplicateRespCounter(0);
+		}
+		port->setLastInvalidSeqID(getSequenceId());
+	}
+	else
+	{
+		port->setDuplicateRespCounter(0);
+	}
+
+bypass_verify_duplicate:
+	port->setLastPDelayResp(this);
+
 	if (old_pdelay_resp != NULL) {
 		delete old_pdelay_resp;
 	}
-	port->setLastPDelayResp(this);
 
 	port->putPDelayRxLock();
 	_gc = false;
@@ -1380,8 +1429,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	}
 
 	/*
-	 * According to Figure 11-8 of subclause 11.2.15.3, a condition to leave the state
-	 * WAITING_FOR_PDELAY_RESP is if the response seqID is the same as the requested.
+	 * IEEE 802.1AS, Figure 11-8, subclause 11.2.15.3
 	 */
 	if (resp->getSequenceId() != sequenceId) {
 		XPTPD_ERROR
@@ -1394,9 +1442,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	}
 
 	/*
-	 * According to Figure 11-8 of subclause 11.2.15.3, a condition to leave the state
-	 * WAITING_FOR_PDELAY_RESP is if the clock identity in the response is the same
-	 * as this clock
+	 * IEEE 802.1AS, Figure 11-8, subclause 11.2.15.3
 	 */
 	if (req_clkId != resp_clkId ) {
 		XPTPD_ERROR
@@ -1406,8 +1452,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	}
 
 	/*
-	 * According to Figure 11-8 of subclause 11.2.15.3, a condition to leave the state
-	 * WAITING_FOR_PDELAY_RESP is if the response portID is the same as the requested.
+	 * IEEE 802.1AS, Figure 11-8, subclause 11.2.15.3
 	 */
 	if ( resp_port_number != req_port_number ) {
 		XPTPD_ERROR
@@ -1418,9 +1463,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	}
 
 	/*
-	 * According to Figure 11-8 of subclause 11.2.15.3, a condition to leave the state
-	 * WAITING_FOR_PDELAY_RESP is if the sourcePortIdentity from PDelay Response and PDelay
-	 * response Follow-UP (FUP) are the same.
+	 * IEEE 802.1AS, Figure 11-8, subclause 11.2.15.3
 	 */
 	if ( fup_sourcePortIdentity != resp_sourcePortIdentity ) {
 		XPTPD_ERROR("Source port identity from PDelay Response/FUP differ");

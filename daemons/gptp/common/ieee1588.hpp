@@ -94,6 +94,7 @@ typedef enum {
 	FAULT_DETECTED,						//!< A fault was detected.
 	PDELAY_DEFERRED_PROCESSING,			//!< Defers pdelay processing
 	PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,	//!< Pdelay response message timeout
+	PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES,	//!< Timeout for peer misbehaving. This even will re-enable the PDelay Requests
 } Event;
 
 /**

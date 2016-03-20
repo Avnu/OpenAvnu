@@ -93,6 +93,10 @@ IEEE1588Port::IEEE1588Port
 	sync_sequence_id = 0;
 
 	pdelay_started = false;
+	pdelay_halted = false;
+
+	duplicate_resp_counter = 0;
+	last_invalid_seqid = 0;
 
     /*TODO: Add intervals below to a config interface*/
 	log_mean_sync_interval = -3;
@@ -164,8 +168,16 @@ bool IEEE1588Port::init_port(int delay[4])
 }
 
 void IEEE1588Port::startPDelay() {
-	pdelay_started = true;
-	clock->addEventTimer( this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, 32000000 );
+	if(!pdelayHalted()) {
+		pdelay_started = true;
+		clock->addEventTimer( this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, 32000000 );
+	}
+}
+
+void IEEE1588Port::stopPDelay() {
+	haltPdelay(true);
+	pdelay_started = false;
+	clock->deleteEventTimer( this, PDELAY_INTERVAL_TIMEOUT_EXPIRES);
 }
 
 void IEEE1588Port::startAnnounce() {
@@ -886,6 +898,17 @@ void IEEE1588Port::processEvent(Event e)
 		setAsCapable(false);
 		pdelay_count = 0;
 		break;
+
+	case PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES:
+		XPTPD_INFO("Timeout expired! Restarting PDelay");
+
+		haltPdelay(false);
+		if( port_state != PTP_SLAVE && port_state != PTP_MASTER ) {
+			XPTPD_PRINTF("Starting PDelay\n" );
+			startPDelay();
+		}
+		break;
+
 	default:
 		XPTPD_INFO
 		    ("Unhandled event type in IEEE1588Port::processEvent(), %d",

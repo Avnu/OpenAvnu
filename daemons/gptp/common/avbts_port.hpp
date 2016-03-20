@@ -234,6 +234,10 @@ class IEEE1588Port {
 	static const int64_t INVALID_LINKDELAY = 3600000000000;
 	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
 	static const unsigned int DEFAULT_SYNC_RECEIPT_THRESH = 5;
+	static const unsigned int DUPLICATE_RESP_THRESH = 3;
+
+	unsigned int duplicate_resp_counter;
+	uint16_t last_invalid_seqid;
 
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
@@ -304,6 +308,7 @@ class IEEE1588Port {
 	OSConditionFactory *condition_factory;
 
 	bool pdelay_started;
+	bool pdelay_halted;
  public:
 	bool forceSlave;	//!< Forces port to be slave. Added for testing.
 
@@ -356,6 +361,30 @@ class IEEE1588Port {
 	 * @return void
 	 */
 	void startPDelay();
+
+	/**
+	 * @brief Stops PDelay event timer
+	 * @return void
+	 */
+	void stopPDelay();
+
+	/**
+	 * @brief Enable/Disable PDelay Request messages
+	 * @param hlt True to HALT (stop sending), False to resume (start sending).
+	 */
+	void haltPdelay(bool hlt)
+	{
+		pdelay_halted = hlt;
+	}
+
+	/**
+	 * @brief Get the status of pdelayHalted condition.
+	 * @return True PdelayRequest halted. False when PDelay Request is running
+	 */
+	bool pdelayHalted(void)
+	{
+		return pdelay_halted;
+	}
 
 	/**
 	 * @brief  Starts announce event timer
@@ -993,6 +1022,52 @@ class IEEE1588Port {
 		}
 
 		return ret;
+	}
+
+	/**
+	 * @brief Sets the value of last duplicated SeqID
+	 * @param seqid Value to set
+	 * @return void
+	 */
+	void setLastInvalidSeqID(uint16_t seqid)
+	{
+		last_invalid_seqid = seqid;
+	}
+
+	/**
+	 * @brief  Get the value of last invalid seqID
+	 * @return Last invalid seq id
+	 */
+	uint16_t getLastInvalidSeqID(void)
+	{
+		return last_invalid_seqid;
+	}
+
+	/**
+	 * @brief  Sets the duplicate pdelay_resp counter.
+	 * @param  cnt Value to be set
+	 */
+	void setDuplicateRespCounter(unsigned int cnt)
+	{
+		duplicate_resp_counter = cnt;
+	}
+
+	/**
+	 * @brief  Gets the current value of pdelay_resp duplicate messages counter
+	 * @return Counter value
+	 */
+	unsigned int getDuplicateRespCounter(void)
+	{
+		return duplicate_resp_counter;
+	}
+
+	/**
+	 * @brief  Increment the duplicate PDelayResp message counter
+	 * @return True if it equals the threshold, False otherwise
+	 */
+	bool incrementDuplicateRespCounter(void)
+	{
+		return ++duplicate_resp_counter == DUPLICATE_RESP_THRESH;
 	}
 
     /**
