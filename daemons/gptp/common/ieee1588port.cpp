@@ -900,7 +900,7 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES:
-		XPTPD_INFO("Timeout expired! Restarting PDelay");
+		XPTPD_INFO("PDelay Resp Peer Misbehaving timeout expired! Restarting PDelay");
 
 		haltPdelay(false);
 		if( port_state != PTP_SLAVE && port_state != PTP_MASTER ) {
