@@ -50,6 +50,17 @@
 LinkLayerAddress IEEE1588Port::other_multicast(OTHER_MULTICAST);
 LinkLayerAddress IEEE1588Port::pdelay_multicast(PDELAY_MULTICAST);
 
+OSThreadExitCode watchNetLinkWrapper(void *arg)
+{
+	IEEE1588Port *port;
+
+	port = (IEEE1588Port *) arg;
+	if (port->watchNetLink() == NULL)
+		return osthread_ok;
+	else
+		return osthread_error;
+}
+
 OSThreadExitCode openPortWrapper(void *arg)
 {
 	IEEE1588Port *port;
@@ -134,6 +145,21 @@ IEEE1588Port::IEEE1588Port
 
 	pdelay_count = 0;
 	sync_count = 0;
+	bzero(link_delay, 4);
+}
+
+void IEEE1588Port::timestamper_init(void)
+{
+	if( _hw_timestamper != NULL ) {
+		if( !_hw_timestamper->HWTimestamper_init( net_label, net_iface )) {
+			XPTPD_ERROR
+				( "Failed to initialize hardware timestamper, "
+				  "falling back to software timestamping" );
+			_hw_timestamper = NULL;
+			return;
+		}
+	}
+	_hw_timestamper->init_phy_delay(this->link_delay);
 }
 
 bool IEEE1588Port::init_port(int delay[4])
@@ -145,16 +171,9 @@ bool IEEE1588Port::init_port(int delay[4])
 	this->net_iface = net_iface;
 	this->net_iface->getLinkLayerAddress(&local_addr);
 	clock->setClockIdentity(&local_addr);
+	memcpy(this->link_delay, delay, 4);
 
-	if( _hw_timestamper != NULL ) {
-		if( !_hw_timestamper->HWTimestamper_init( net_label, net_iface )) {
-			XPTPD_ERROR
-				( "Failed to initialize hardware timestamper, "
-				  "falling back to software timestamping" );
-			_hw_timestamper = NULL;
-		}
-	}
-	_hw_timestamper->init_phy_delay(delay);
+	this->timestamper_init();
 
 	pdelay_rx_lock = lock_factory->createLock(oslock_recursive);
 	port_tx_lock = lock_factory->createLock(oslock_recursive);
@@ -432,6 +451,14 @@ void IEEE1588Port::processEvent(Event e)
 			}
 
 			port_ready_condition->wait_prelock();
+
+			link_thread = thread_factory->createThread();
+			if(!link_thread->start(watchNetLinkWrapper, (void *)this))
+			{
+				XPTPD_ERROR("Error creating port link thread");
+				return;
+			}
+
 			listening_thread = thread_factory->createThread();
 			if (!listening_thread->
 				start (openPortWrapper, (void *)this))
@@ -556,6 +583,16 @@ void IEEE1588Port::processEvent(Event e)
 			}
 		}
 		break;
+
+	case LINKUP:
+		XPTPD_INFO("LINKUP");
+		this->timestamper_init();
+		break;
+
+	case LINKDOWN:
+		XPTPD_INFO("LINKDOWN");
+		break;
+
 	case ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES:
 	case SYNC_RECEIPT_TIMEOUT_EXPIRES:
 		{

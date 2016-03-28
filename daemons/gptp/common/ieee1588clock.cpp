@@ -216,6 +216,14 @@ bool IEEE1588Clock::restoreSerializedState( void *buf, off_t *count ) {
   return ret;
 }
 
+void *IEEE1588Port::watchNetLink(void)
+{
+	// Should never return
+	net_iface->watchNetLink(this);
+
+	return NULL;
+}
+
 Timestamp IEEE1588Clock::getSystemTime(void)
 {
 	return (Timestamp(0, 0, 0));

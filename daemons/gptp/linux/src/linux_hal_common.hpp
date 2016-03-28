@@ -200,6 +200,11 @@ public:
 	}
 
 	/**
+	 * @brief Watch for net link changes.
+	 */
+	virtual void watchNetLink(IEEE1588Port *pPort);
+
+	/**
 	 *  @brief Gets the payload offset
 	 *  @return payload offset
 	 */
