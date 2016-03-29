@@ -145,7 +145,7 @@ IEEE1588Port::IEEE1588Port
 
 	pdelay_count = 0;
 	sync_count = 0;
-	bzero(link_delay, 4);
+	memset(link_delay, 0, sizeof(link_delay));
 }
 
 void IEEE1588Port::timestamper_init(void)
@@ -171,7 +171,7 @@ bool IEEE1588Port::init_port(int delay[4])
 	this->net_iface = net_iface;
 	this->net_iface->getLinkLayerAddress(&local_addr);
 	clock->setClockIdentity(&local_addr);
-	memcpy(this->link_delay, delay, 4);
+	memcpy(this->link_delay, delay, sizeof(this->link_delay));
 
 	this->timestamper_init();
 
