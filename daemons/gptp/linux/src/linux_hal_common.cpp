@@ -55,6 +55,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <sys/socket.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+
 Timestamp tsToTimestamp(struct timespec *ts)
 {
 	Timestamp ret;
@@ -162,6 +168,94 @@ void LinuxNetworkInterface::reenable_rx_queue() {
 		fprintf( stderr, "D failed unlock rx lock, %d\n", err );
 	}
 }
+
+static void x_readEvent(int sockint, IEEE1588Port *pPort)
+{
+	int status;
+	char buf[4096];
+	struct iovec iov = { buf, sizeof buf };
+	struct sockaddr_nl snl;
+	struct msghdr msg = { (void *) &snl, sizeof snl, &iov, 1, NULL, 0, 0 };
+	struct nlmsghdr *msgHdr;
+	struct ifinfomsg *ifi;
+
+	status = recvmsg(sockint, &msg, 0);
+
+	if (status < 0) {
+		XPTPD_ERROR("read_netlink: Error recvmsg: %d", status);
+		return;
+	}
+
+	if (status == 0) {
+		XPTPD_ERROR("read_netlink: EOF");
+		return;
+	}
+
+	// Process the NETLINK messages
+	for (msgHdr = (struct nlmsghdr *)buf; NLMSG_OK(msgHdr, (unsigned int)status); msgHdr = NLMSG_NEXT(msgHdr, status))
+	{
+		if (msgHdr->nlmsg_type == NLMSG_DONE)
+			return;
+
+		if (msgHdr->nlmsg_type == NLMSG_ERROR) {
+			XPTPD_ERROR("netlink message error");
+			return;
+		}
+
+		if (msgHdr->nlmsg_type == RTM_NEWLINK) {
+			ifi = (struct ifinfomsg *)NLMSG_DATA(msgHdr);
+			if ((ifi->ifi_flags & IFF_RUNNING)) {
+				pPort->processEvent(LINKUP);
+			}
+			else {
+				pPort->processEvent(LINKDOWN);
+			}
+		}
+	}
+	return;
+}
+
+void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
+{
+	fd_set netLinkFD;
+	int netLinkSocket;
+
+	struct sockaddr_nl addr;
+
+	netLinkSocket = socket (AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (netLinkSocket < 0) {
+		XPTPD_ERROR("NETLINK socket open error");
+		return;
+	}
+
+	memset((void *) &addr, 0, sizeof (addr));
+
+	addr.nl_family = AF_NETLINK;
+	addr.nl_pid = getpid ();
+	addr.nl_groups = RTMGRP_LINK;
+
+	if (bind (netLinkSocket, (struct sockaddr *) &addr, sizeof (addr)) < 0) {
+		XPTPD_ERROR("Socket bind failed");
+		return;
+	}
+
+	while (1) {
+		FD_ZERO(&netLinkFD);
+		FD_CLR(netLinkSocket, &netLinkFD);
+		FD_SET(netLinkSocket, &netLinkFD);
+
+		// Wait forever for a net link event
+		int retval = select(FD_SETSIZE, &netLinkFD, NULL, NULL, NULL);
+		if (retval == -1)
+			; // Error on select. We will ignore and keep going
+		else if (retval) {
+			x_readEvent(netLinkSocket, pPort);
+		}
+		else
+			; // Would be timeout but Won't happen because we wait forever
+	  }
+}
+
 
 struct LinuxTimerQueuePrivate {
 	pthread_t signal_thread;

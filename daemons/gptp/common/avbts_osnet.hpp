@@ -282,6 +282,14 @@ class factory_name_t {
  */
 typedef enum { net_trfail, net_fatal, net_succeed } net_result;
 
+
+/**
+ * Enumeration net_link_event:
+ * 	- net_linkup
+ * 	- net_linkdown
+ */
+typedef enum { NET_LINK_EVENT_DOWN, NET_LINK_EVENT_UP, NET_LINK_EVENT_FAIL } net_link_event;
+
 /**
  * Provides a generic network interface
  */
@@ -317,9 +325,15 @@ class OSNetworkInterface {
 	 virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
 
 	 /**
+	  * @brief Watch for netlink changes.
+	  */
+	 virtual void watchNetLink(IEEE1588Port *pPort) = 0;
+
+	 /**
 	  * @brief  Provides generic method for getting the payload offset
 	  */
 	 virtual unsigned getPayloadOffset() = 0;
+
 	 /**
 	  * Native support for polimorphic destruction
 	  */

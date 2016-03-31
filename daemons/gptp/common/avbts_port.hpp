@@ -214,6 +214,7 @@ class IEEE1588Port {
 
 	OSNetworkInterface *net_iface;
 	LinkLayerAddress local_addr;
+	int link_delay[4];
 
 	/* Port Status */
 	unsigned sync_count;  // 0 for master, ++ for each sync receive as slave
@@ -287,6 +288,8 @@ class IEEE1588Port {
 	PTPMessageSync *last_sync;
 
 	OSThread *listening_thread;
+
+	OSThread *link_thread;
 
 	OSCondition *port_ready_condition;
 
@@ -473,6 +476,12 @@ class IEEE1588Port {
 	 * @return void
 	 */
 	void recoverPort(void);
+
+	/**
+	 * @brief Watch for link up and down events.
+	 * @return Its an infinite loop. Returns NULL in case of error.
+	 */
+	void *watchNetLink(void);
 
 	/**
 	 * @brief Receives messages from the network interface
@@ -850,6 +859,11 @@ class IEEE1588Port {
 			*msg = '\0';
 		}
 	}
+
+	/**
+	 * @brief Initializes the hwtimestamper
+	 */
+	void timestamper_init(void);
 
 	/**
 	 * @brief  Gets RX timestamp based on port identity

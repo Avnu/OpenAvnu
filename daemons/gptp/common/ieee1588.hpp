@@ -84,6 +84,8 @@ typedef enum {
 	NULL_EVENT = 0,						//!< Null Event. Used to initialize events.
 	POWERUP = 5,						//!< Power Up. Initialize state machines.
 	INITIALIZE,							//!< Same as POWERUP.
+	LINKUP,								//!< Triggered when link comes up.
+	LINKDOWN,							//!< Triggered when link goes down.
 	STATE_CHANGE_EVENT,					//!< Signalizes that something has changed. Recalculates best master.
 	SYNC_INTERVAL_TIMEOUT_EXPIRES,		//!< Sync interval expired. Its time to send a sync message.
 	PDELAY_INTERVAL_TIMEOUT_EXPIRES,	//!< PDELAY interval expired. Its time to send pdelay_req message
