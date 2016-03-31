@@ -230,8 +230,11 @@ bool IEEE1588Port::init_port(int delay[4])
 void IEEE1588Port::startPDelay() {
 	if (automotive_profile) {
 		if (log_min_mean_pdelay_req_interval != PTPMessageSignalling::sigMsgInterval_NoSend) {
+			long long unsigned int waitTime;
+			waitTime = ((long long) (pow((double)2, log_min_mean_pdelay_req_interval) *  1000000000.0));
+			waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
 			pdelay_started = true;
-			startPDelayIntervalTimer(log_min_mean_pdelay_req_interval);
+			startPDelayIntervalTimer(waitTime);
 		}
 	}
 	else {
