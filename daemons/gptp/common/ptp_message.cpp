@@ -489,7 +489,7 @@ PTPMessageCommon *buildPTPMessage
 	memcpy(&(msg->correctionField),
 	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
 	       sizeof(msg->correctionField));
-	msg->correctionField = byte_swap64(msg->correctionField);	// Assume LE machine
+	msg->correctionField = PLAT_ntohll(msg->correctionField);
 	msg->sourcePortIdentity = sourcePortIdentity;
 	msg->sequenceId = sequenceId;
 	memcpy(&(msg->control),
@@ -523,7 +523,7 @@ void PTPMessageCommon::buildCommonHeader(uint8_t * buf)
      * So I am not sure why we are adding 0x10 to it
      */
 	tspec_msg_t = messageType | 0x10;
-	long long correctionField_BE = byte_swap64(correctionField);	// Assume LE machine
+	long long correctionField_BE = PLAT_htonll(correctionField);
 	uint16_t messageLength_NO = PLAT_htons(messageLength);
 
 	memcpy(buf + PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(PTP_COMMON_HDR_OFFSET),

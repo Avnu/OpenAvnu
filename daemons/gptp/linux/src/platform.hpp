@@ -73,4 +73,18 @@ uint16_t PLAT_ntohs( uint16_t s );
  */
 uint32_t PLAT_ntohl( uint32_t l );
 
+/**
+ * @brief  Converts a 64-bit word from host to network order
+ * @param  x Value to be converted
+ * @return Converted value
+ */
+uint64_t PLAT_htonll(uint64_t x);
+
+/**
+ * @brief  Converts a 64 bit word from network to host order
+ * @param  x Value to be converted
+ * @return Converted value
+ */
+uint64_t PLAT_ntohll(uint64_t x);
+
 #endif
