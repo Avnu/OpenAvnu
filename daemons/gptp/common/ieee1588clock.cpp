@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -87,9 +87,10 @@ IEEE1588Clock::IEEE1588Clock
 
 	this->forceOrdinarySlave = forceOrdinarySlave;
 
-	clock_quality.clockAccuracy = 0xfe;
+    /*TODO: Make the values below configurable*/
+	clock_quality.clockAccuracy = 0x22;
 	clock_quality.cq_class = 248;
-	clock_quality.offsetScaledLogVariance = 16640;
+	clock_quality.offsetScaledLogVariance = 0x436A;
 
 	time_source = 160;
 
@@ -112,17 +113,20 @@ IEEE1588Clock::IEEE1588Clock
 	// This should be done LAST!! to pass fully initialized clock object
 	timerq = timerq_factory->createOSTimerQueue( this );
 
+    fup_info = new FollowUpTLV();
+    fup_status = new FollowUpTLV();
+
 	return;
 }
 
 bool IEEE1588Clock::serializeState( void *buf, off_t *count ) {
   bool ret = true;
-  
+
   if( buf == NULL ) {
     *count = sizeof( _master_local_freq_offset ) + sizeof( _local_system_freq_offset ) + sizeof( LastEBestIdentity );
     return true;
   }
-  
+
   // Master-Local Frequency Offset
   if( ret && *count >= (off_t) sizeof( _master_local_freq_offset )) {
 	  memcpy
@@ -136,7 +140,7 @@ bool IEEE1588Clock::serializeState( void *buf, off_t *count ) {
 	  *count = sizeof( _master_local_freq_offset )-*count;
 	  ret = false;
   }
-  
+
   // Local-System Frequency Offset
   if( ret && *count >= (off_t) sizeof( _local_system_freq_offset )) {
 	  memcpy
@@ -168,11 +172,11 @@ bool IEEE1588Clock::serializeState( void *buf, off_t *count ) {
 
 bool IEEE1588Clock::restoreSerializedState( void *buf, off_t *count ) {
 	bool ret = true;
-  
+
 	/* Master-Local Frequency Offset */
 	if( ret && *count >= (off_t) sizeof( _master_local_freq_offset )) {
 		memcpy
-			( &_master_local_freq_offset, buf, 
+			( &_master_local_freq_offset, buf,
 			  sizeof( _master_local_freq_offset ));
 		*count -= sizeof( _master_local_freq_offset );
 		buf = ((char *)buf) + sizeof( _master_local_freq_offset );
@@ -182,7 +186,7 @@ bool IEEE1588Clock::restoreSerializedState( void *buf, off_t *count ) {
 		*count = sizeof( _master_local_freq_offset )-*count;
 		ret = false;
 	}
-	
+
 	/* Local-System Frequency Offset */
 	if( ret && *count >= (off_t) sizeof( _local_system_freq_offset )) {
 		memcpy
@@ -210,6 +214,14 @@ bool IEEE1588Clock::restoreSerializedState( void *buf, off_t *count ) {
   }
 
   return ret;
+}
+
+void *IEEE1588Port::watchNetLink(void)
+{
+	// Should never return
+	net_iface->watchNetLink(this);
+
+	return NULL;
 }
 
 Timestamp IEEE1588Clock::getSystemTime(void)
@@ -285,7 +297,7 @@ FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp loca
 	} else {
 		ppt_offset = 1.0;
 	}
-	
+
 	_prev_system_time = system_time;
 	_prev_local_time = local_time;
 
@@ -298,15 +310,15 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 	unsigned long long inter_sync_time;
 	unsigned long long inter_master_time;
 	FrequencyRatio ppt_offset;
-	
+
 	XPTPD_INFO( "Calculated master to local clock rate difference" );
 
 	if( !_master_local_freq_offset_init ) {
 		_prev_sync_time = sync_time;
 		_prev_master_time = master_time;
-	
+
 		_master_local_freq_offset_init = true;
-	
+
 		return 1.0;
 	}
 
@@ -331,7 +343,7 @@ void IEEE1588Clock::setMasterOffset
 ( int64_t master_local_offset, Timestamp local_time,
   FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
   Timestamp system_time, FrequencyRatio local_system_freq_offset,
-  unsigned sync_count, unsigned pdelay_count, PortState port_state )
+  unsigned sync_count, unsigned pdelay_count, PortState port_state, bool asCapable )
 {
 	_master_local_freq_offset = master_local_freq_offset;
 	_local_system_freq_offset = local_system_freq_offset;
@@ -339,7 +351,7 @@ void IEEE1588Clock::setMasterOffset
 	if( ipc != NULL ) ipc->update
 		( master_local_offset, local_system_offset, master_local_freq_offset,
 		  local_system_freq_offset, TIMESTAMP_TO_NS(local_time), sync_count,
-		  pdelay_count, port_state );
+		  pdelay_count, port_state, asCapable );
 
 	if( master_local_offset == 0 && master_local_freq_offset == 1.0 ) {
 		return;
@@ -371,7 +383,7 @@ void IEEE1588Clock::setMasterOffset
 			}
 		}
 	}
-	
+
 	return;
 }
 
@@ -408,22 +420,22 @@ bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
 	tmp = msg->getGrandmasterClockQuality()->offsetScaledLogVariance;
 	tmp = PLAT_htons(tmp);
 	memcpy(that1 + 3, &tmp, sizeof(tmp));
-	
+
 	this1[5] = priority2;
 	that1[5] = msg->getGrandmasterPriority2();
-	
+
 	clock_identity.getIdentityString(this1 + 6);
 	msg->getGrandmasterIdentity((char *)that1 + 6);
 
 #if 0
-	fprintf(stderr, "(Clk)Us: ");
+	XPTPD_PRINTF("(Clk)Us: ");
 	for (int i = 0; i < 14; ++i)
-		fprintf(stderr, "%hhx ", this1[i]);
-	fprintf(stderr, "\n");
-	fprintf(stderr, "(Clk)Them: ");
+		XPTPD_PRINTF("%hhx ", this1[i]);
+	XPTPD_PRINTF("\n");
+	XPTPD_PRINTF("(Clk)Them: ");
 	for (int i = 0; i < 14; ++i)
-		fprintf(stderr, "%hhx ", that1[i]);
-	fprintf(stderr, "\n");
+		XPTPD_PRINTF("%hhx ", that1[i]);
+	XPTPD_PRINTF("\n");
 #endif
 
 	return (memcmp(this1, that1, 14) < 0) ? true : false;

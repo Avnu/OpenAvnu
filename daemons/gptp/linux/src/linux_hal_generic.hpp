@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2012, Intel Corporation 
+  Copyright (c) 2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -64,11 +64,11 @@ private:
 	LinuxNetworkInterfaceList iface_list;
 
 	TicketingLock *net_lock;
-	
+
 #ifdef WITH_IGBLIB
 	LinuxTimestamperIGBPrivate_t igb_private;
 #endif
-	
+
 public:
 	/**
 	 * Default constructor. Initializes internal variables
@@ -137,8 +137,8 @@ public:
 	 * @param  sequenceId Sequence ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
-	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
-	 * @return 0 no error, -1 error, -72 try again.
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp
 	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
@@ -151,18 +151,18 @@ public:
 	 * @param  sequenceId Sequence ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
-	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done. 
-	 * @return 0 no error, -1 error, -72 try again.
+	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
+     * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp
 	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last ) {
 		/* This shouldn't happen. Ever. */
-		if( rxTimestampList.empty() ) return -72;
+		if( rxTimestampList.empty() ) return GPTP_EC_EAGAIN;
 		timestamp = rxTimestampList.back();
 		rxTimestampList.pop_back();
-		
-		return 0;
+
+		return GPTP_EC_SUCCESS;
 	}
 
 	/**
@@ -171,7 +171,7 @@ public:
 	 * @return TRUE if success, FALSE if error.
 	 */
 	virtual bool HWTimestamper_adjclockphase( int64_t phase_adjust );
-	
+
 	/**
 	 * @brief  Adjusts the frequency
 	 * @param  freq_offset Frequency adjustment
