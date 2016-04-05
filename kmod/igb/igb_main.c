@@ -6054,7 +6054,7 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct ptp_clock_event event;
 	struct timespec64 ts;
-	u32 ack = 0, tsauxc, sec, nsec, tsicr = rd32(E1000_TSICR);
+	u32 ack = 0, tsauxc, sec, nsec, tsicr = E1000_READ_REG(hw, E1000_TSICR);
 
 	if (tsicr & TSINTR_SYS_WRAP) {
 		event.type = PTP_CLOCK_PPS;
@@ -6076,11 +6076,11 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 		ts = timespec64_add(adapter->perout[0].start,
 				    adapter->perout[0].period);
 		/* u32 conversion of tv_sec is safe until y2106 */
-		wr32(E1000_TRGTTIML0, ts.tv_nsec);
-		wr32(E1000_TRGTTIMH0, (u32)ts.tv_sec);
-		tsauxc = rd32(E1000_TSAUXC);
+		E1000_WRITE_REG(hw, E1000_TRGTTIML0, ts.tv_nsec);
+		E1000_WRITE_REG(hw, E1000_TRGTTIMH0, (u32)ts.tv_sec);
+		tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
 		tsauxc |= TSAUXC_EN_TT0;
-		wr32(E1000_TSAUXC, tsauxc);
+		E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
 		adapter->perout[0].start = ts;
 		spin_unlock(&adapter->tmreg_lock);
 		ack |= TSINTR_TT0;
@@ -6090,19 +6090,19 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 		spin_lock(&adapter->tmreg_lock);
 		ts = timespec64_add(adapter->perout[1].start,
 				    adapter->perout[1].period);
-		wr32(E1000_TRGTTIML1, ts.tv_nsec);
-		wr32(E1000_TRGTTIMH1, (u32)ts.tv_sec);
-		tsauxc = rd32(E1000_TSAUXC);
+		E1000_WRITE_REG(hw, E1000_TRGTTIML1, ts.tv_nsec);
+		E1000_WRITE_REG(hw, E1000_TRGTTIMH1, (u32)ts.tv_sec);
+		tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
 		tsauxc |= TSAUXC_EN_TT1;
-		wr32(E1000_TSAUXC, tsauxc);
+		E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
 		adapter->perout[1].start = ts;
 		spin_unlock(&adapter->tmreg_lock);
 		ack |= TSINTR_TT1;
 	}
 
 	if (tsicr & TSINTR_AUTT0) {
-		nsec = rd32(E1000_AUXSTMPL0);
-		sec  = rd32(E1000_AUXSTMPH0);
+		nsec = E1000_READ_REG(hw, E1000_AUXSTMPL0);
+		sec  = E1000_READ_REG(hw, E1000_AUXSTMPH0);
 		event.type = PTP_CLOCK_EXTTS;
 		event.index = 0;
 		event.timestamp = sec * 1000000000ULL + nsec;
@@ -6111,8 +6111,8 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 	}
 
 	if (tsicr & TSINTR_AUTT1) {
-		nsec = rd32(E1000_AUXSTMPL1);
-		sec  = rd32(E1000_AUXSTMPH1);
+		nsec = E1000_READ_REG(hw, E1000_AUXSTMPL1);
+		sec  = E1000_READ_REG(hw, E1000_AUXSTMPH1);
 		event.type = PTP_CLOCK_EXTTS;
 		event.index = 1;
 		event.timestamp = sec * 1000000000ULL + nsec;
@@ -6121,7 +6121,7 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 	}
 
 	/* acknowledge the interrupts */
-	wr32(E1000_TSICR, ack);
+	E1000_WRITE_REG(hw, E1000_TSICR, ack);
 }
 
 static irqreturn_t igb_msix_other(int irq, void *data)

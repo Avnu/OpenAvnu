@@ -492,9 +492,9 @@ static void igb_pin_extts(struct igb_adapter *igb, int chan, int pin)
 	struct e1000_hw *hw = &igb->hw;
 	u32 ctrl, ctrl_ext, tssdp = 0;
 
-	ctrl = rd32(E1000_CTRL);
-	ctrl_ext = rd32(E1000_CTRL_EXT);
-	tssdp = rd32(E1000_TSSDP);
+	ctrl = E1000_READ_REG(hw, E1000_CTRL);
+	ctrl_ext = E1000_READ_REG(hw, E1000_CTRL_EXT);
+	tssdp = E1000_READ_REG(hw, E1000_TSSDP);
 
 	igb_pin_direction(pin, 1, &ctrl, &ctrl_ext);
 
@@ -509,9 +509,9 @@ static void igb_pin_extts(struct igb_adapter *igb, int chan, int pin)
 		tssdp |= aux0_sel_sdp[pin] | AUX0_TS_SDP_EN;
 	}
 
-	wr32(E1000_TSSDP, tssdp);
-	wr32(E1000_CTRL, ctrl);
-	wr32(E1000_CTRL_EXT, ctrl_ext);
+	E1000_WRITE_REG(hw, E1000_TSSDP, tssdp);
+	E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
+	E1000_WRITE_REG(hw, E1000_CTRL_EXT, ctrl_ext);
 }
 
 static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin, int freq)
@@ -548,9 +548,9 @@ static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin, int freq)
 	struct e1000_hw *hw = &igb->hw;
 	u32 ctrl, ctrl_ext, tssdp = 0;
 
-	ctrl = rd32(E1000_CTRL);
-	ctrl_ext = rd32(E1000_CTRL_EXT);
-	tssdp = rd32(E1000_TSSDP);
+	ctrl = E1000_READ_REG(hw, E1000_CTRL);
+	ctrl_ext = E1000_READ_REG(hw, E1000_CTRL_EXT);
+	tssdp = E1000_READ_REG(hw, E1000_TSSDP);
 
 	igb_pin_direction(pin, 0, &ctrl, &ctrl_ext);
 
@@ -575,9 +575,9 @@ static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin, int freq)
 	}
 	tssdp |= ts_sdp_en[pin];
 
-	wr32(E1000_TSSDP, tssdp);
-	wr32(E1000_CTRL, ctrl);
-	wr32(E1000_CTRL_EXT, ctrl_ext);
+	E1000_WRITE_REG(hw, E1000_TSSDP, tssdp);
+	E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
+	E1000_WRITE_REG(hw, E1000_CTRL_EXT, ctrl_ext);
 }
 
 static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
@@ -608,8 +608,8 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 			tsim_mask = TSINTR_AUTT0;
 		}
 		spin_lock_irqsave(&igb->tmreg_lock, flags);
-		tsauxc = rd32(E1000_TSAUXC);
-		tsim = rd32(E1000_TSIM);
+		tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+		tsim = E1000_READ_REG(hw, E1000_TSIM);
 		if (on) {
 			igb_pin_extts(igb, rq->extts.index, pin);
 			tsauxc |= tsauxc_mask;
@@ -618,8 +618,8 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 			tsauxc &= ~tsauxc_mask;
 			tsim &= ~tsim_mask;
 		}
-		wr32(E1000_TSAUXC, tsauxc);
-		wr32(E1000_TSIM, tsim);
+		E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+		E1000_WRITE_REG(hw, E1000_TSIM, tsim);
 		spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 		return 0;
 
@@ -665,8 +665,8 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 			freqout = E1000_FREQOUT0;
 		}
 		spin_lock_irqsave(&igb->tmreg_lock, flags);
-		tsauxc = rd32(E1000_TSAUXC);
-		tsim = rd32(E1000_TSIM);
+		tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+		tsim = E1000_READ_REG(hw, E1000_TSIM);
 		if (rq->perout.index == 1) {
 			tsauxc &= ~(TSAUXC_EN_TT1 | TSAUXC_EN_CLK1 | TSAUXC_ST1);
 			tsim &= ~TSINTR_TT1;
@@ -681,26 +681,26 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 			igb->perout[i].start.tv_nsec = rq->perout.start.nsec;
 			igb->perout[i].period.tv_sec = ts.tv_sec;
 			igb->perout[i].period.tv_nsec = ts.tv_nsec;
-			wr32(trgttimh, rq->perout.start.sec);
-			wr32(trgttiml, rq->perout.start.nsec);
+			E1000_WRITE_REG(hw, trgttimh, rq->perout.start.sec);
+			E1000_WRITE_REG(hw, trgttiml, rq->perout.start.nsec);
 			if (use_freq)
-				wr32(freqout, ns);
+				E1000_WRITE_REG(hw, freqout, ns);
 			tsauxc |= tsauxc_mask;
 			tsim |= tsim_mask;
 		}
-		wr32(E1000_TSAUXC, tsauxc);
-		wr32(E1000_TSIM, tsim);
+		E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+		E1000_WRITE_REG(hw, E1000_TSIM, tsim);
 		spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 		return 0;
 
 	case PTP_CLK_REQ_PPS:
 		spin_lock_irqsave(&igb->tmreg_lock, flags);
-		tsim = rd32(E1000_TSIM);
+		tsim = E1000_READ_REG(hw, E1000_TSIM);
 		if (on)
 			tsim |= TSINTR_SYS_WRAP;
 		else
 			tsim &= ~TSINTR_SYS_WRAP;
-		wr32(E1000_TSIM, tsim);
+		E1000_WRITE_REG(hw, E1000_TSIM, tsim);
 		spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 		return 0;
 	}
@@ -1323,7 +1323,7 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 	case e1000_i210:
 	case e1000_i211:
 		E1000_WRITE_REG(hw, E1000_TSAUXC, 0x0);
-		wr32(E1000_TSSDP, 0x0);
+		E1000_WRITE_REG(hw, E1000_TSSDP, 0x0);
 		E1000_WRITE_REG(hw, E1000_TSIM, TSYNC_INTERRUPTS);
 		E1000_WRITE_REG(hw, E1000_IMS, E1000_IMS_TS);
 		break;
