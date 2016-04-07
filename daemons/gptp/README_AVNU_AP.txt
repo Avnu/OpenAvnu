@@ -67,3 +67,34 @@ other platforms.
 - When running as slave (none -GM) there may be a SYNC rx timeout exception reported when signalling to a different SYNC rate.
 - Link down or link up may be incorrectly detected at times.
 
+## Windows Functionality That is Missing
+- The initial implementation of the Automotive Profile for gPTP was done for Linux only. 
+- To locate the functionality that must be implemented for windows one approach is to look at the pull request 
+at https://github.com/AVnu/Open-AVB/pull/355 and review all the differences in the Linux folder.
+- Brief summary to give a sense of scope of updates needed for Windows
+	- MakeFile 
+		- Updates for new files
+	- daemon_cl.cpp
+		- New command line options
+		- Port init via struct rather than separate parameters for the constructor
+		- Changed state save and restore (persistence)
+		- Automotive profile configuration setup
+		- Updates to signal handling
+		- Logging changes
+		- Other updates as well
+	- linux_hal_common.cpp
+		- Link Up and Down functionality
+		- Logging changes
+	- linux_hal_common.hpp
+		- Function prototypes updated
+	- linux_hal_generic.cpp
+		- Logging changes
+	- linux_hal_intelce.cpp
+		- Logging changes
+	- linux_hal_persist_file.cpp
+		- New functionality
+	- linux_hal_persist_file.hpp
+		- New functionality
+
+
+
