@@ -178,6 +178,7 @@ TRACE
 	(void)sockfd; /* unused */
 	(void)flags;  /* unused */
 	memcpy(test_state.tx_PDU, buf, len);
+	test_state.tx_PDU_len = len;
         test_state.sent_count++;
         return len;
 }
@@ -265,7 +266,7 @@ void dump_msrp_attrib(struct msrp_attribute *attr)
 		       attr->attribute.domain.SRclassVID);
 	}
 	printf("substate: %u\n", attr->substate);
-	printf("direction: %u\n", attr->direction);
+	printf("operation: %u\n", attr->operation);
 	printf("applicant:\n");
 	printf("  mrp_state: %d\n", attr->applicant.mrp_state);
 	printf("  tx: %d\n", attr->applicant.tx);
