@@ -31,62 +31,19 @@
 
 ******************************************************************************/
 
-#ifndef AVBTS_OSIPC_HPP
-#define AVBTS_OSIPC_HPP
-
-#include <stdint.h>
-#include <ptptypes.hpp>
-#include <avbts_port.hpp>
+#ifndef DEBUGOUT_HPP
+#define DEBUGOUT_HPP
 
 /**@file*/
 
-/**
- * Generic interface for Inter Process Communication arguments
- */
-class OS_IPC_ARG {
-public:
-	virtual ~OS_IPC_ARG() = 0;
-};
+#include <stdio.h>
 
-inline OS_IPC_ARG::~OS_IPC_ARG () { }
-
-/**
- * Generic interface for Inter Process Communication
- */
-class OS_IPC {
-public:
-	/**
-	 * @brief  Initializes the IPC
-	 * @return Implementation dependent
-	 */
-    virtual bool init( OS_IPC_ARG *arg = NULL ) = 0;
-
-	/**
-	 * @brief  Updates IPC values
-	 * @param ml_phoffset Master to local phase offset
-	 * @param ls_phoffset Local to system phase offset
-	 * @param ml_freqoffset Master to local frequency offset
-	 * @param ls_freq_offset Local to system frequency offset
-	 * @param local_time Local time
-	 * @param sync_count Count of syncs
-	 * @param pdelay_count Count of pdelays
-	 * @param port_state Port's state
-     * @param asCapable asCapable flag
-	 * @return Implementation dependent.
-	 */
-    virtual bool update
-	( int64_t  ml_phoffset, int64_t ls_phoffset,
-	  FrequencyRatio  ml_freqoffset, FrequencyRatio ls_freq_offset,
-	  uint64_t local_time, uint32_t sync_count, uint32_t pdelay_count,
-	  PortState port_state, bool asCapable ) = 0;
-
-	/*
-	 * Destroys IPC
-	 */
-	virtual ~OS_IPC() = 0;
-};
-
-inline OS_IPC::~OS_IPC() {}
-
+#define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)	/*!< Prints errors at stderr output*/
+#define XPTPD_PRINTF(fmt,...) fprintf( stderr, fmt ,## __VA_ARGS__)    /*!< Prints printf() status information at stderr output*/
+#ifdef PTP_DEBUG
+#define XPTPD_INFO(fmt,...) fprintf( stderr, "DEBUG at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__) /*!< Prints debugs at stderr output */
+#else
+#define XPTPD_INFO(fmt,...)	/*!< debugs disabled*/
 #endif
 
+#endif/*DEBUGOUT_HPP*/

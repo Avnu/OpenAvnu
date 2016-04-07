@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2012, Intel Corporation 
+  Copyright (c) 2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -61,8 +61,8 @@ int LinuxTimestamperIntelCE::ce_timestamp_common
 	PortIdentity captured_id;
 	ismd_sysclk_msg_t message;
 	ismd_result_t result;
-	int ret = -72;
-	
+	int ret = GPTP_EC_EAGAIN;
+
 	if( tx ) {
 		result = ismd_sysclk_get_tx_time( &timestamp_s, &message );
 		if( timestamp_s == last_tx_time ) {
@@ -80,11 +80,11 @@ int LinuxTimestamperIntelCE::ce_timestamp_common
 			last_rx_time = timestamp_s;
 		}
 	}
-		
+
 	if( result == ISMD_ERROR_NO_DATA_AVAILABLE ) {
 		goto fail;
 	} else if( result != ISMD_SUCCESS ) {
-		ret = -1;
+		ret = GPTP_EC_FAILURE;
 		goto fail;
 	}
 
@@ -104,7 +104,7 @@ int LinuxTimestamperIntelCE::ce_timestamp_common
 		goto fail;
 	}
 
-	ret = 0;
+	ret = GPTP_EC_SUCCESS;
 
 	if( tx ) {
 		timestamp_s += TX_PHY_TIME;
@@ -146,7 +146,7 @@ bool LinuxTimestamperIntelCE::post_init( int ifindex, int sd, TicketingLock *loc
 	ismd_result_t result;
 
 	result = ismd_sysclk_set_ptp_filter( filter_config );
-	if( result != ISMD_SUCCESS ) return false; 
+	if( result != ISMD_SUCCESS ) return false;
 
 	return true;
 }
@@ -157,7 +157,7 @@ bool LinuxTimestamperIntelCE::HWTimestamper_init
 	// Allocate clock
 	result = ismd_clock_alloc_typed
 		( ISMD_CLOCK_CLASS_SLAVE, ISMD_CLOCK_DOMAIN_TYPE_AV, &iclock );
-	if( result != ISMD_SUCCESS ) return false; 
+	if( result != ISMD_SUCCESS ) return false;
 
 	return true;
 }
@@ -182,14 +182,14 @@ bool LinuxTimestamperIntelCE::HWTimestamper_gettime
 
 	return true;
 }
-	
+
 
 
 net_result LinuxNetworkInterface::nrecv
 ( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) {
 	fd_set readfds;
 	int err;
-	struct sockaddr_ll remote;        
+	struct sockaddr_ll remote;
 	net_result ret = net_succeed;
 	bool got_net_lock;
 
@@ -202,8 +202,8 @@ net_result LinuxNetworkInterface::nrecv
 
 	FD_ZERO( &readfds );
 	FD_SET( sd_event, &readfds );
-  
-	err = select( sd_event+1, &readfds, NULL, NULL, &timeout );		
+
+	err = select( sd_event+1, &readfds, NULL, NULL, &timeout );
 	if( err == 0 ) {
 		ret = net_trfail;
 		goto done;
@@ -222,7 +222,7 @@ net_result LinuxNetworkInterface::nrecv
 		ret = net_trfail;
 		goto done;
 	}
-  
+
 	err = recv( sd_event, payload, length, 0 );
 	if( err < 0 ) {
 		XPTPD_ERROR( "recvmsg() failed: %s", strerror(errno) );
@@ -230,7 +230,7 @@ net_result LinuxNetworkInterface::nrecv
 		goto done;
 	}
 	*addr = LinkLayerAddress( remote.sll_addr );
-  
+
 	length = err;
 
  done:
@@ -239,5 +239,5 @@ net_result LinuxNetworkInterface::nrecv
 		return net_fatal;
 	}
 
-	return ret;		
+	return ret;
 }

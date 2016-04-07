@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -169,22 +169,22 @@ protected:
 	unsigned char versionPTP;	/*!< PTP version */
 	uint16_t versionNetwork;	/*!< Network version */
 	MessageType messageType;	/*!< MessageType to be built */
-	
+
 	PortIdentity *sourcePortIdentity;	/*!< PortIdentity from source*/
-	
+
 	uint16_t sequenceId;		/*!< PTP message sequence ID*/
 	LegacyMessageType control;	/*!< Control message type of LegacyMessageType */
 	unsigned char flags[2];		/*!< PTP flags field */
-	
+
 	uint16_t messageLength;			/*!< PTP message length */
 	char logMeanMessageInterval;	/*!< LogMessageInterval (IEEE 1588-2008 table 24)*/
 	long long correctionField;		/*!< Correction Field (IEEE 1588-2008 table 21) */
 	unsigned char domainNumber;		/*!< PTP domain number */
-	
+
 	Timestamp _timestamp;	/*!< PTP message timestamp */
 	unsigned _timestamp_counter_value;	/*!< PTP timestamp counter value */
 	bool _gc;	/*!< Garbage collection flag */
-	
+
 	/**
 	 * Default constructor
 	 */
@@ -542,7 +542,7 @@ class PTPMessageSync : public PTPMessageCommon {
 	PTPMessageSync();
  public:
 	/**
-	 * @brief Default constructor. Creates PTPMessageSync 
+	 * @brief Default constructor. Creates PTPMessageSync
 	 * @param port IEEE1588Port
 	 */
 	PTPMessageSync(IEEE1588Port * port);
@@ -607,6 +607,39 @@ class scaledNs {
 	void toByteString(uint8_t * byte_str) {
 		memcpy(byte_str, this, sizeof(*this));
 	}
+
+    /**
+     * @brief  Overloads the operator = for this class
+     * @param  other Value to be attributed to this object's instance.
+     * @return Reference to scaledNs object
+     */
+    scaledNs& operator=(const scaledNs& other)
+    {
+        this->ms = other.ms;
+        this->ls = other.ls;
+
+        return *this;
+    }
+
+    /**
+     * @brief  Set the lowest 64bits from the scaledNs object
+     * @param  lsb Value to be set
+     * @return void
+     */
+    void setLSB(uint64_t lsb)
+    {
+        this->ls = lsb;
+    }
+
+    /**
+     * @brief  Set the highest 32bits of the scaledNs object
+     * @param  msb 32-bit signed integer to be set
+     * @return void
+     */
+    void setMSB(int32_t msb)
+    {
+        this->ms = msb;
+    }
 };
 
 /**
@@ -636,7 +669,7 @@ class FollowUpTLV {
 		organizationSubType_ms = 0;
 		organizationSubType_ls = PLAT_htons(1);
 		cumulativeScaledRateOffset = PLAT_htonl(0);
-		gmTimeBaseIndicator = PLAT_htons(0);
+		gmTimeBaseIndicator = 0;
 		scaledLastGmFreqChange = PLAT_htonl(0);
 	}
 
@@ -655,6 +688,72 @@ class FollowUpTLV {
 	int32_t getRateOffset() {
 		return cumulativeScaledRateOffset;
 	}
+
+    /**
+     * @brief  Updates the scaledLastGmFreqChanged private member
+     * @param  val Value to be set
+     * @return void
+     */
+    void setScaledLastGmFreqChange(int32_t val)
+    {
+        scaledLastGmFreqChange = PLAT_htonl(val);
+    }
+
+    /**
+     * @brief  Gets the current scaledLastGmFreqChanged value
+     * @return scaledLastGmFreqChange
+     */
+    int32_t getScaledLastGmFreqChange(void)
+    {
+        return scaledLastGmFreqChange;
+    }
+
+    /**
+     * @brief  Sets the gmTimeBaseIndicator private member
+     * @param  tbi Value to be set
+     * @return void
+     */
+    void setGMTimeBaseIndicator(uint16_t tbi)
+    {
+        gmTimeBaseIndicator = tbi;
+    }
+
+    /**
+     * @brief  Incremets the Time Base Indicator member
+     * @return void
+     */
+    void incrementGMTimeBaseIndicator(void)
+    {
+        ++gmTimeBaseIndicator;
+    }
+
+    /**
+     * @brief  Gets the current gmTimeBaseIndicator value
+     * @return gmTimeBaseIndicator
+     */
+    uint16_t getGMTimeBaseIndicator(void)
+    {
+        return gmTimeBaseIndicator;
+    }
+
+    /**
+     * @brief  Sets the scaledLastGmPhaseChange private member
+     * @param  pc Value to be set
+     * @return void
+     */
+    void setScaledLastGmPhaseChange(scaledNs pc)
+    {
+        scaledLastGmPhaseChange = pc;
+    }
+
+    /**
+     * @brief  Gets the scaledLastGmPhaseChange private member value
+     * @return scaledLastGmPhaseChange value
+     */
+    scaledNs getScaledLastGmPhaseChange(void)
+    {
+        return scaledLastGmPhaseChange;
+    }
 };
 
 /* back to whatever the previous packing mode was */
@@ -666,9 +765,9 @@ class FollowUpTLV {
 class PTPMessageFollowUp:public PTPMessageCommon {
 private:
 	Timestamp preciseOriginTimestamp;
-	
+
 	FollowUpTLV tlv;
-	
+
 	PTPMessageFollowUp(void) { }
 public:
 	/**
@@ -689,7 +788,7 @@ public:
 	 * @param  port [in] IEEE1588Port
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port); 
+	void processMessage(IEEE1588Port * port);
 	/**
 	 * @brief  Gets the precise origin timestamp value
 	 * @return preciseOriginTimestamp value
@@ -706,7 +805,19 @@ public:
 	void setPreciseOriginTimestamp(Timestamp & timestamp) {
 		preciseOriginTimestamp = timestamp;
 	}
-	
+
+	/**
+	 * @brief  Sets the clock source time interface (802.1AS 9.2)
+	 * @param  fup Follow up message
+	 * @return void
+	 */
+    void setClockSourceTime(FollowUpTLV *fup)
+    {
+        tlv.setGMTimeBaseIndicator(fup->getGMTimeBaseIndicator());
+        tlv.setScaledLastGmFreqChange(fup->getScaledLastGmFreqChange());
+        tlv.setScaledLastGmPhaseChange(fup->getScaledLastGmPhaseChange());
+    }
+
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
@@ -755,7 +866,7 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 	Timestamp getOriginTimestamp(void) {
 		return originTimestamp;
 	}
-	
+
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
@@ -767,8 +878,8 @@ class PTPMessagePathDelayResp:public PTPMessageCommon {
 private:
 	PortIdentity * requestingPortIdentity;
 	Timestamp requestReceiptTimestamp;
-	
-	PTPMessagePathDelayResp(void) {	
+
+	PTPMessagePathDelayResp(void) {
 	}
 public:
 	/**
@@ -794,7 +905,7 @@ public:
 	 * @return void
 	 */
 	void processMessage(IEEE1588Port * port);
-	
+
 	/**
 	 * @brief  Sets the request receipt timestamp
 	 * @param  timestamp Timestamp to be set
@@ -803,7 +914,7 @@ public:
 	void setRequestReceiptTimestamp(Timestamp timestamp) {
 		requestReceiptTimestamp = timestamp;
 	}
-	
+
 	/**
 	 * @brief  Sets requesting port identity
 	 * @param  identity [in] PortIdentity to be set
@@ -816,7 +927,7 @@ public:
 	 * @return void
 	 */
 	void getRequestingPortIdentity(PortIdentity * identity);
-	
+
 	/**
 	 * @brief  Gets the request receipt timestamp
 	 * @return requestReceiptTimestamp
@@ -838,6 +949,7 @@ class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
 	PortIdentity *requestingPortIdentity;
 
 	PTPMessagePathDelayRespFollowUp(void) { }
+
 public:
 	/**
 	 * Builds the PTPMessagePathDelayRespFollowUp object
