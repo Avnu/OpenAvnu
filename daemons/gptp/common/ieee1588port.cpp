@@ -613,7 +613,6 @@ void IEEE1588Port::processEvent(Event e)
 						  (pow((double)2,getSyncInterval())*
 						   1000000000.0)));
 				}
-				return;
 			}
 			if (port_state == PTP_INITIALIZING
 			    || port_state == PTP_UNCALIBRATED
@@ -655,8 +654,10 @@ void IEEE1588Port::processEvent(Event e)
 				qualified_announce = NULL;
 
 				// Add timers for Announce and Sync, this is as close to immediately as we get
-				clock->addEventTimer
-					( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
+				if( clock->getPriority1() != 255) {
+					clock->addEventTimer
+						( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
+				}
 				startAnnounce();
 			}
 		}
