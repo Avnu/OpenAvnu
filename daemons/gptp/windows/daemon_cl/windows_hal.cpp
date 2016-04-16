@@ -142,3 +142,8 @@ bool WindowsNamedPipeIPC::update(int64_t ml_phoffset, int64_t ls_phoffset, Frequ
 	return true;
 }
 
+
+void WindowsPCAPNetworkInterface::watchNetLink(IEEE1588Port *pPort)
+{
+	/* ToDo add link up/down detection, Google MIB_IPADDR_DISCONNECTED */
+}

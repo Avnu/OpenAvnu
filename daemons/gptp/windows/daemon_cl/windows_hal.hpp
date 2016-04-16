@@ -105,6 +105,12 @@ public:
 	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
 		*addr = local_addr;
 	}
+
+	/**
+	* @brief Watch for netlink changes.
+	*/
+	virtual void watchNetLink(IEEE1588Port *pPort);
+
 	/**
 	 * @brief  Gets the offset to the start of data in the Layer 2 Frame
 	 * @return ::PACKET_HDR_LENGTH
