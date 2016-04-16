@@ -80,8 +80,6 @@ int pci_connect(device_t * igb_dev)
 		err = igb_attach_tx(igb_dev);
 		if (err) {
 			printf("attach_tx failed! (%s)\n", strerror(errno));
-      // If attach passed but attach_tx failed, need to detach
-      if (!err) igb_detach(igb_dev);
 			continue;
 		}
 

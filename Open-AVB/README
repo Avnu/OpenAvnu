@@ -1,0 +1,29 @@
+EXAMPLE APPLICATIONS
+
+The 'simple_talker' application illustrates the various steps to publish a stream
+and streaming 1722/61883 audio frames after a listener connects. The audio
+itself is a simple sine wave. It has been tested with other vendors listeners
+at AVNu plug-fests.
+
+The simple talker application requires root permissions to execute and 
+attach to the driver.
+	sudo ./simple_talker
+
+To exit the app, hit Ctrl-C. The application gracefully tears down
+the connection to the driver. If the application unexpectedly aborts the
+kernel-mode driver also reclaims the various buffers and attempts to clean up.
+The application should be able to re-initialize and use the transmit queues
+without restarting the driver.
+
+Note this application requires using the provided gptp timesync daemon to
+provide the 802.1AS presentation times included in the 1722 frames. This 
+application also requires the mrpd daemon to be running to detect and 
+establish various stream reservation parameters.
+
+Lastly, to build the application, you need to have the pciutils library
+installed. the latest version can be downloaded from:
+
+	< ftp://ftp.kernel.org/pub/software/utils/pciutils/ >.
+
+Download and extract the library, and run 'make;make install;make install-lib'.
+
