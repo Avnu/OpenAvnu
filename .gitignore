@@ -27,4 +27,3 @@ kmod/igb/*.mod.*
 kmod/igb/modules.order
 lib/igb/*.o
 lib/igb/*.a
-
