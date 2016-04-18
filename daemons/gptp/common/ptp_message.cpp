@@ -1263,7 +1263,7 @@ void PTPMessagePathDelayResp::processMessage(IEEE1588Port * port)
 				XPTPD_ERROR("Remote misbehaving. Stopping PDelay Requests for 5 minutes.");
 				port->stopPDelay();
 				port->getClock()->addEventTimerLocked
-					(port, PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES, 300 * 1000000000.0);
+					(port, PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES, (int64_t)(300 * 1000000000.0));
 			}
 		}
 		else {

@@ -77,7 +77,7 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
         {
             errno = 0;
             char *pEnd;
-            unsigned char p1 = strtoul(value, &pEnd, 10);
+            unsigned char p1 = (unsigned char) strtoul(value, &pEnd, 10);
             if( *pEnd == '\0' && errno == 0) {
                 valOK = true;
                 parser->_config.priority1 = p1;
@@ -140,7 +140,7 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
         {
             errno = 0;
             char *pEnd;
-            uint16_t lostpdelayth = strtoul(value, &pEnd, 10);
+            uint16_t lostpdelayth = (uint16_t) strtoul(value, &pEnd, 10);
             if( *pEnd == '\0' && errno == 0 ) {
                 valOK = true;
                 parser->_config.lostPdelayRespThresh = lostpdelayth;
