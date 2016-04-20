@@ -50,6 +50,17 @@
 LinkLayerAddress IEEE1588Port::other_multicast(OTHER_MULTICAST);
 LinkLayerAddress IEEE1588Port::pdelay_multicast(PDELAY_MULTICAST);
 
+OSThreadExitCode watchNetLinkWrapper(void *arg)
+{
+	IEEE1588Port *port;
+
+	port = (IEEE1588Port *) arg;
+	if (port->watchNetLink() == NULL)
+		return osthread_ok;
+	else
+		return osthread_error;
+}
+
 OSThreadExitCode openPortWrapper(void *arg)
 {
 	IEEE1588Port *port;
@@ -93,7 +104,12 @@ IEEE1588Port::IEEE1588Port
 	sync_sequence_id = 0;
 
 	pdelay_started = false;
+	pdelay_halted = false;
 
+	duplicate_resp_counter = 0;
+	last_invalid_seqid = 0;
+
+    /*TODO: Add intervals below to a config interface*/
 	log_mean_sync_interval = -3;
 	_accelerated_sync_count = accelerated_sync_count;
 	log_mean_announce_interval = 0;
@@ -105,7 +121,10 @@ IEEE1588Port::IEEE1588Port
 
 	_hw_timestamper = timestamper;
 
-	one_way_delay = 3600000000000;
+	one_way_delay = ONE_WAY_DELAY_DEFAULT;
+	neighbor_prop_delay_thresh = NEIGHBOR_PROP_DELAY_THRESH;
+	sync_receipt_thresh = DEFAULT_SYNC_RECEIPT_THRESH;
+	wrongSeqIDCounter = 0;
 
 	_peer_rate_offset = 1.0;
 
@@ -126,6 +145,21 @@ IEEE1588Port::IEEE1588Port
 
 	pdelay_count = 0;
 	sync_count = 0;
+	memset(link_delay, 0, sizeof(link_delay));
+}
+
+void IEEE1588Port::timestamper_init(void)
+{
+	if( _hw_timestamper != NULL ) {
+		if( !_hw_timestamper->HWTimestamper_init( net_label, net_iface )) {
+			XPTPD_ERROR
+				( "Failed to initialize hardware timestamper, "
+				  "falling back to software timestamping" );
+			_hw_timestamper = NULL;
+			return;
+		}
+	}
+	_hw_timestamper->init_phy_delay(this->link_delay);
 }
 
 bool IEEE1588Port::init_port(int delay[4])
@@ -137,16 +171,9 @@ bool IEEE1588Port::init_port(int delay[4])
 	this->net_iface = net_iface;
 	this->net_iface->getLinkLayerAddress(&local_addr);
 	clock->setClockIdentity(&local_addr);
+	memcpy(this->link_delay, delay, sizeof(this->link_delay));
 
-	if( _hw_timestamper != NULL ) {
-		if( !_hw_timestamper->HWTimestamper_init( net_label, net_iface )) {
-			XPTPD_ERROR
-				( "Failed to initialize hardware timestamper, "
-				  "falling back to software timestamping" );
-			_hw_timestamper = NULL;
-		}
-	}
-	_hw_timestamper->init_phy_delay(delay);
+	this->timestamper_init();
 
 	pdelay_rx_lock = lock_factory->createLock(oslock_recursive);
 	port_tx_lock = lock_factory->createLock(oslock_recursive);
@@ -160,8 +187,16 @@ bool IEEE1588Port::init_port(int delay[4])
 }
 
 void IEEE1588Port::startPDelay() {
-	pdelay_started = true;
-	clock->addEventTimer( this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, 32000000 );
+	if(!pdelayHalted()) {
+		pdelay_started = true;
+		clock->addEventTimer( this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, 32000000 );
+	}
+}
+
+void IEEE1588Port::stopPDelay() {
+	haltPdelay(true);
+	pdelay_started = false;
+	clock->deleteEventTimer( this, PDELAY_INTERVAL_TIMEOUT_EXPIRES);
 }
 
 void IEEE1588Port::startAnnounce() {
@@ -395,7 +430,7 @@ void IEEE1588Port::processEvent(Event e)
 			}
 
 			if( port_state != PTP_SLAVE && port_state != PTP_MASTER ) {
-				fprintf( stderr, "Starting PDelay\n" );
+				XPTPD_PRINTF("Starting PDelay\n" );
 				startPDelay();
 			}
 
@@ -404,6 +439,7 @@ void IEEE1588Port::processEvent(Event e)
 			} else if( port_state == PTP_MASTER ) {
 				becomeMaster( true );
 			} else {
+				/*TODO: Should I remove the commented code below ?*/
 				//e3 = SYNC_RECEIPT_TIMEOUT_EXPIRES;
 				e4 = ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES;
 				interval3 = (unsigned long long)
@@ -415,6 +451,14 @@ void IEEE1588Port::processEvent(Event e)
 			}
 
 			port_ready_condition->wait_prelock();
+
+			link_thread = thread_factory->createThread();
+			if(!link_thread->start(watchNetLinkWrapper, (void *)this))
+			{
+				XPTPD_ERROR("Error creating port link thread");
+				return;
+			}
+
 			listening_thread = thread_factory->createThread();
 			if (!listening_thread->
 				start (openPortWrapper, (void *)this))
@@ -441,8 +485,6 @@ void IEEE1588Port::processEvent(Event e)
 
 			IEEE1588Port **ports;
 			clock->getPortList(number_ports, ports);
-
-
 
 			/* Find EBest for all ports */
 			j = 0;
@@ -541,6 +583,16 @@ void IEEE1588Port::processEvent(Event e)
 			}
 		}
 		break;
+
+	case LINKUP:
+		XPTPD_INFO("LINKUP");
+		this->timestamper_init();
+		break;
+
+	case LINKDOWN:
+		XPTPD_INFO("LINKDOWN");
+		break;
+
 	case ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES:
 	case SYNC_RECEIPT_TIMEOUT_EXPIRES:
 		{
@@ -561,14 +613,12 @@ void IEEE1588Port::processEvent(Event e)
 						  (pow((double)2,getSyncInterval())*
 						   1000000000.0)));
 				}
-				return;
 			}
 			if (port_state == PTP_INITIALIZING
 			    || port_state == PTP_UNCALIBRATED
 			    || port_state == PTP_SLAVE
 			    || port_state == PTP_PRE_MASTER) {
-				fprintf
-					(stderr,
+				XPTPD_PRINTF(
 					 "*** %s Timeout Expired - Becoming Master\n",
 					 e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES ? "Announce" :
 					 "Sync" );
@@ -604,10 +654,11 @@ void IEEE1588Port::processEvent(Event e)
 				qualified_announce = NULL;
 
 				// Add timers for Announce and Sync, this is as close to immediately as we get
-				clock->addEventTimer
-					( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
+				if( clock->getPriority1() != 255) {
+					clock->addEventTimer
+						( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
+				}
 				startAnnounce();
-					//
 			}
 		}
 
@@ -647,12 +698,11 @@ void IEEE1588Port::processEvent(Event e)
 				    getTxTimestamp
 					(pdelay_req, req_timestamp, req_timestamp_counter_value,
 					 false);
-				while (ts_good != 0 && iter-- != 0) {
+				while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
 					timer->sleep(req);
 					wait_time += req;
-					if (ts_good != -72 && iter < 1)
-						fprintf
-							(stderr,
+					if (ts_good != GPTP_EC_EAGAIN && iter < 1)
+						XPTPD_PRINTF(
 							 "Error (TX) timestamping PDelay request "
 							 "(Retrying-%d), error=%d\n", iter, ts_good);
 					ts_good =
@@ -663,15 +713,15 @@ void IEEE1588Port::processEvent(Event e)
 				}
 				putTxLock();
 
-				if (ts_good == 0) {
+				if (ts_good == GPTP_EC_SUCCESS) {
 					pdelay_req->setTimestamp(req_timestamp);
 				} else {
 				  Timestamp failed = INVALID_TIMESTAMP;
 				  pdelay_req->setTimestamp(failed);
-				  fprintf( stderr, "Invalid TX\n" );
+				  XPTPD_PRINTF( "Invalid TX\n" );
 				}
 
-				if (ts_good != 0) {
+				if (ts_good != GPTP_EC_SUCCESS) {
 					char msg
 					    [HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 					getExtendedError(msg);
@@ -680,7 +730,7 @@ void IEEE1588Port::processEvent(Event e)
 						ts_good, msg);
 				}
 #ifdef DEBUG
-				if (ts_good == 0) {
+				if (ts_good == GPTP_EC_SUCCESS) {
 					XPTPD_INFO
 					    ("Successful PDelay Req timestamp, %u,%u",
 					     req_timestamp.seconds_ls,
@@ -747,11 +797,11 @@ void IEEE1588Port::processEvent(Event e)
 						getTxTimestamp(sync, sync_timestamp,
 									   sync_timestamp_counter_value,
 									   false);
-					while (ts_good != 0 && iter-- != 0) {
+					while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
 						timer->sleep(req);
 						wait_time += req;
 
-						if (ts_good != -72 && iter < 1)
+						if (ts_good != GPTP_EC_EAGAIN && iter < 1)
 							XPTPD_ERROR(
 								"Error (TX) timestamping Sync (Retrying), "
 								"error=%d", ts_good);
@@ -763,18 +813,17 @@ void IEEE1588Port::processEvent(Event e)
 					}
 					putTxLock();
 
-					if (ts_good != 0) {
-						char msg
-							[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
+					if (ts_good != GPTP_EC_SUCCESS) {
+                        char msg
+                            [HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 						getExtendedError(msg);
-						fprintf
-							(stderr,
+						XPTPD_PRINTF(
 							 "Error (TX) timestamping Sync, error="
 							 "%d\n%s",
 							 ts_good, msg );
  					}
 
-					if (ts_good == 0) {
+					if (ts_good == GPTP_EC_SUCCESS) {
 						XPTPD_INFO("Successful Sync timestamp");
 						XPTPD_INFO("Seconds: %u",
 								   sync_timestamp.seconds_ls);
@@ -786,11 +835,14 @@ void IEEE1588Port::processEvent(Event e)
 					}
 
 					PTPMessageFollowUp *follow_up;
-					if (ts_good == 0) {
+					if (ts_good == GPTP_EC_SUCCESS) {
+
 						follow_up =
 							new PTPMessageFollowUp(this);
 						PortIdentity dest_id;
 						getPortIdentity(dest_id);
+
+                        follow_up->setClockSourceTime(getClock()->getFUPInfo());
 						follow_up->setPortIdentity(&dest_id);
 						follow_up->setSequenceId(sync->getSequenceId());
 						follow_up->setPreciseOriginTimestamp(sync_timestamp);
@@ -819,7 +871,7 @@ void IEEE1588Port::processEvent(Event e)
 			  clock->setMasterOffset
 				  (0, device_time, 1.0, local_system_offset,
 				   system_time, local_system_freq_offset, sync_count,
-				   pdelay_count, port_state );
+				   pdelay_count, port_state, asCapable );
 
 			  /* If accelerated_sync is non-zero then start 16 ms sync
 				 timer, subtract 1, for last one start PDelay also */
@@ -865,11 +917,12 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 	case FAULT_DETECTED:
 		XPTPD_INFO("Received FAULT_DETECTED event");
+		setAsCapable(false);
 		break;
 	case PDELAY_DEFERRED_PROCESSING:
 		pdelay_rx_lock->lock();
 		if (last_pdelay_resp_fwup == NULL) {
-			fprintf(stderr, "PDelay Response Followup is NULL!\n");
+			XPTPD_PRINTF("PDelay Response Followup is NULL!\n");
 			abort();
 		}
 		last_pdelay_resp_fwup->processMessage(this);
@@ -883,6 +936,17 @@ void IEEE1588Port::processEvent(Event e)
 		setAsCapable(false);
 		pdelay_count = 0;
 		break;
+
+	case PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES:
+		XPTPD_INFO("PDelay Resp Peer Misbehaving timeout expired! Restarting PDelay");
+
+		haltPdelay(false);
+		if( port_state != PTP_SLAVE && port_state != PTP_MASTER ) {
+			XPTPD_PRINTF("Starting PDelay\n" );
+			startPDelay();
+		}
+		break;
+
 	default:
 		XPTPD_INFO
 		    ("Unhandled event type in IEEE1588Port::processEvent(), %d",
@@ -933,7 +997,9 @@ void IEEE1588Port::becomeMaster( bool annc ) {
     startAnnounce();
   }
   clock->addEventTimer( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
-  fprintf( stderr, "Switching to Master\n" );
+  XPTPD_PRINTF("Switching to Master\n" );
+
+  clock->updateFUPInfo();
 
   return;
 }
@@ -953,8 +1019,10 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 	   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
 		(unsigned long long)
 		(pow((double)2,getAnnounceInterval())*1000000000.0)));
-  fprintf( stderr, "Switching to Slave\n" );
+  XPTPD_PRINTF("Switching to Slave\n" );
   if( restart_syntonization ) clock->newSyntonizationSetPoint();
+
+  getClock()->updateFUPInfo();
 
   return;
 }
@@ -979,8 +1047,9 @@ void IEEE1588Port::recommendState
 			reset_sync = true;
 		} else {
 		  if( changed_external_master ) {
-		    fprintf( stderr, "Changed master!\n" );
+		    XPTPD_PRINTF("Changed master!\n" );
 		    clock->newSyntonizationSetPoint();
+			getClock()->updateFUPInfo();
 			reset_sync = true;
 		  }
 		}
