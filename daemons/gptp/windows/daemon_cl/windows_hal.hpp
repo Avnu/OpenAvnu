@@ -587,15 +587,41 @@ public:
 	}
 };
 
-#define NETCLOCK_HZ_OTHER 1056000000		/*!< @todo Not sure about what that means*/
-#define NETCLOCK_HZ_NANO 1000000000			/*!< 1 Hertz in nanoseconds */
-#define ONE_WAY_PHY_DELAY 8000				/*!< Phy delay TX/RX */
-#define NANOSECOND_CLOCK_PART_DESCRIPTION "I217-LM"	/*!< Network adapter description */
+#define I217_DESC "I217-LM"
+#define I219_DESC "I219-V"
+
 #define NETWORK_CARD_ID_PREFIX "\\\\.\\"			/*!< Network adapter prefix */
 #define OID_INTEL_GET_RXSTAMP 0xFF020264			/*!< Get RX timestamp code*/
 #define OID_INTEL_GET_TXSTAMP 0xFF020263			/*!< Get TX timestamp code*/
 #define OID_INTEL_GET_SYSTIM  0xFF020262			/*!< Get system time code */
 #define OID_INTEL_SET_SYSTIM  0xFF020261			/*!< Set system time code */
+
+typedef struct
+{
+	uint32_t clock_rate;
+	char *device_desc;
+} DeviceClockRateMapping;
+
+static DeviceClockRateMapping DeviceClockRateMap[] =
+{
+	{ 1000000000, I217_DESC	},
+	{ 1008000000, I219_DESC	},
+	{ 0, NULL },
+};
+
+typedef struct
+{
+	struct phy_delay delay;
+	char *device_desc;
+} DevicePhyDelayMapping;
+
+static DevicePhyDelayMapping DevicePhyDelayMap[] =
+{
+	{{ -1, -1, 6950, 8050, },	I217_DESC	},
+	{{ -1, -1, 6700, 7750, },	I219_DESC	},
+	{{ -1, -1, -1, -1 }, NULL },
+};
+
 
 /**
  * Windows HWTimestamper implementation
@@ -669,12 +695,12 @@ public:
         if(( result = readOID( OID_INTEL_GET_SYSTIM, buf, sizeof(buf), &returned )) != ERROR_SUCCESS ) return false;
 
         now_net = (((uint64_t)buf[1]) << 32) | buf[0];
-        now_net = scaleNativeClockToNanoseconds( now_net );
+		now_net = scaleNativeClockToNanoseconds( now_net );
         *device_time = nanoseconds64ToTimestamp( now_net );
 		device_time->_version = version;
 
         now_tsc = (((uint64_t)buf[3]) << 32) | buf[2];
-        now_tsc = scaleTSCClockToNanoseconds( now_tsc );
+		now_tsc = scaleTSCClockToNanoseconds( now_tsc );
         *system_time = nanoseconds64ToTimestamp( now_tsc );
 		system_time->_version = version;
 
@@ -696,6 +722,11 @@ public:
 		DWORD returned = 0;
 		uint64_t tx_r,tx_s;
 		DWORD result;
+		struct phy_delay delay_val;
+
+		get_phy_delay(&delay_val);//gets the phy delay
+		Timestamp latency(delay_val.gb_tx_phy_delay, 0, 0);
+
 		while(( result = readOID( OID_INTEL_GET_TXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
@@ -706,8 +737,7 @@ public:
 		if( returned != sizeof(buf_tmp) ) return GPTP_EC_EAGAIN;
 		tx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		tx_s = scaleNativeClockToNanoseconds( tx_r );
-		tx_s += ONE_WAY_PHY_DELAY;
-		timestamp = nanoseconds64ToTimestamp( tx_s );
+		timestamp = nanoseconds64ToTimestamp( tx_s ) + latency;
 		timestamp._version = version;
 
 		return GPTP_EC_SUCCESS;
@@ -729,6 +759,11 @@ public:
 		uint64_t rx_r,rx_s;
 		DWORD result;
 		uint16_t packet_sequence_id;
+		struct phy_delay delay_val;
+
+		get_phy_delay(&delay_val);//gets the phy delay
+		Timestamp latency(delay_val.gb_rx_phy_delay, 0, 0);
+
 		while(( result = readOID( OID_INTEL_GET_RXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
@@ -738,8 +773,7 @@ public:
 		if( PLAT_ntohs( packet_sequence_id ) != sequenceId ) return GPTP_EC_EAGAIN;
 		rx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		rx_s = scaleNativeClockToNanoseconds( rx_r );
-		rx_s -= ONE_WAY_PHY_DELAY;
-		timestamp = nanoseconds64ToTimestamp( rx_s );
+		timestamp = nanoseconds64ToTimestamp( rx_s ) - latency;
 		timestamp._version = version;
 
 		return GPTP_EC_SUCCESS;
