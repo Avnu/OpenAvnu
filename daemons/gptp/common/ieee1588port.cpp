@@ -151,6 +151,7 @@ IEEE1588Port::IEEE1588Port
 void IEEE1588Port::timestamper_init(void)
 {
 	if( _hw_timestamper != NULL ) {
+		_hw_timestamper->init_phy_delay(this->link_delay);
 		if( !_hw_timestamper->HWTimestamper_init( net_label, net_iface )) {
 			XPTPD_ERROR
 				( "Failed to initialize hardware timestamper, "
@@ -159,7 +160,6 @@ void IEEE1588Port::timestamper_init(void)
 			return;
 		}
 	}
-	_hw_timestamper->init_phy_delay(this->link_delay);
 }
 
 bool IEEE1588Port::init_port(int delay[4])

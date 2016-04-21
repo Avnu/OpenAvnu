@@ -625,7 +625,23 @@ public:
 		return 0;
 	 }
 
-	/**
+	 /**
+	 * @brief Sets the the PHY delay for TX and RX
+	 * @param [input] struct phy_delay  pointer
+	 * @return 0
+	 **/
+
+	 int set_phy_delay(struct phy_delay *set_delay)
+	 {
+		 delay.mb_tx_phy_delay = set_delay->mb_tx_phy_delay;
+		 delay.mb_rx_phy_delay = set_delay->mb_rx_phy_delay;
+		 delay.gb_tx_phy_delay = set_delay->gb_tx_phy_delay;
+		 delay.gb_rx_phy_delay = set_delay->gb_rx_phy_delay;
+
+		 return 0;
+	 }
+
+	 /**
 	 * Default constructor. Sets version to zero.
 	 */
 	HWTimestamper() { version = 0; }
