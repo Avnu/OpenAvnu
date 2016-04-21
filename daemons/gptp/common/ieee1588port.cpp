@@ -327,8 +327,9 @@ bool IEEE1588Port::restoreSerializedState( void *buf, off_t *count ) {
 void *IEEE1588Port::openPort(IEEE1588Port *port)
 {
 	port_ready_condition->signal();
-	struct phy_delay get_delay;
-	port->_hw_timestamper->get_phy_delay(&get_delay);
+	struct phy_delay get_delay = { 0, 0, 0, 0 };
+	if(port->_hw_timestamper)
+		port->_hw_timestamper->get_phy_delay(&get_delay);
 
 	while (1) {
 		PTPMessageCommon *msg;
