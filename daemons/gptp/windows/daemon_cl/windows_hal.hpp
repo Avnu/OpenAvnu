@@ -684,28 +684,28 @@ public:
 	 * @param  nominal_clock_rate [out] Nominal clock rate
 	 * @return True in case of success. FALSE in case of error
 	 */
-    virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock, uint32_t *nominal_clock_rate )
-    {
-        DWORD buf[6];
-        DWORD returned;
-        uint64_t now_net, now_tsc;
-        DWORD result;
+	virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
+					    uint32_t *nominal_clock_rate ) {
+		DWORD buf[6];
+		DWORD returned;
+		uint64_t now_net, now_tsc;
+		DWORD result;
 
-        memset( buf, 0xFF, sizeof( buf ));
-        if(( result = readOID( OID_INTEL_GET_SYSTIM, buf, sizeof(buf), &returned )) != ERROR_SUCCESS ) return false;
+		memset( buf, 0xFF, sizeof( buf ));
+		if(( result = readOID( OID_INTEL_GET_SYSTIM, buf, sizeof(buf), &returned )) != ERROR_SUCCESS ) return false;
 
-        now_net = (((uint64_t)buf[1]) << 32) | buf[0];
+		now_net = (((uint64_t)buf[1]) << 32) | buf[0];
 		now_net = scaleNativeClockToNanoseconds( now_net );
-        *device_time = nanoseconds64ToTimestamp( now_net );
+		*device_time = nanoseconds64ToTimestamp( now_net );
 		device_time->_version = version;
 
-        now_tsc = (((uint64_t)buf[3]) << 32) | buf[2];
+		now_tsc = (((uint64_t)buf[3]) << 32) | buf[2];
 		now_tsc = scaleTSCClockToNanoseconds( now_tsc );
-        *system_time = nanoseconds64ToTimestamp( now_tsc );
+		*system_time = nanoseconds64ToTimestamp( now_tsc );
 		system_time->_version = version;
 
-        return true;
-    }
+		return true;
+	}
 
 	/**
 	 * @brief  Gets the TX timestamp
