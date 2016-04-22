@@ -42,11 +42,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define MACSTR_LENGTH 17
 
-#define PHY_DELAY_GB_TX_I20 184   //1G delay in nanoseconds
-#define PHY_DELAY_GB_RX_I20 382   //1G delay in nanoseconds
-#define PHY_DELAY_MB_TX_I20 1044  //100M delay in nanoseconds
-#define PHY_DELAY_MB_RX_I20 2133  //100M delay in nanoseconds
-
 static bool exit_flag;
 
 void print_usage( char *arg0 ) {
@@ -87,8 +82,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	int32_t offset = 0;
 	bool syntonize = false;
 	uint8_t priority1 = 248;
-	int phy_delays[4] = { 0 };
 	int i;
+	int phy_delays[4] =	{ -1, -1, -1, -1 };
 
 	// Register default network interface
 	WindowsPCAPNetworkInterfaceFactory *default_factory = new WindowsPCAPNetworkInterfaceFactory();
@@ -138,12 +133,6 @@ int _tmain(int argc, _TCHAR* argv[])
 	}
 	parseMacAddr( argv[i], local_addr_ostr );
 	LinkLayerAddress local_addr(local_addr_ostr);
-
-	// Initialize default PHY delays
-	phy_delays[0] = PHY_DELAY_GB_TX_I20;
-	phy_delays[1] = PHY_DELAY_GB_RX_I20;
-	phy_delays[2] = PHY_DELAY_MB_TX_I20;
-	phy_delays[3] = PHY_DELAY_MB_RX_I20;
 
 	// Create HWTimestamper object
 	HWTimestamper *timestamper = new WindowsTimestamper();

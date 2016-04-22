@@ -384,8 +384,8 @@ class PathTraceTLV {
 		IdentityList::iterator iter;
 		*((uint16_t *)byte_str) = tlvType;  // tlvType already in network byte order
 		byte_str += sizeof(tlvType);
-		*((uint16_t *)byte_str) =
-			PLAT_htons(identityList.size()*PTP_CLOCK_IDENTITY_LENGTH);
+		*((uint16_t *)byte_str) = PLAT_htons
+			((uint16_t)identityList.size()*PTP_CLOCK_IDENTITY_LENGTH);
 		byte_str += sizeof(uint16_t);
 		for
 			(iter = identityList.begin();
@@ -414,7 +414,7 @@ class PathTraceTLV {
 	 * @return Total length
 	 */
 	int length() {
-		return 2*sizeof(uint16_t) + PTP_CLOCK_IDENTITY_LENGTH*identityList.size();
+		return (int)(2*sizeof(uint16_t) + PTP_CLOCK_IDENTITY_LENGTH*identityList.size());
 	}
 };
 
