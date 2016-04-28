@@ -462,6 +462,7 @@ static int igb_ptp_settime_i210(struct ptp_clock_info *ptp,
 }
 
 #endif
+#ifdef HAVE_PTP_1588_CLOCK_PINS
 static void igb_pin_direction(int pin, int input, u32 *ctrl, u32 *ctrl_ext)
 {
 	u32 *ptr = pin < 2 ? ctrl : ctrl_ext;
@@ -579,6 +580,7 @@ static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin, int freq)
 	E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
 	E1000_WRITE_REG(hw, E1000_CTRL_EXT, ctrl_ext);
 }
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 
 static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 				       struct ptp_clock_request *rq, int on)
@@ -586,13 +588,17 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 	struct igb_adapter *igb =
 		container_of(ptp, struct igb_adapter, ptp_caps);
 	struct e1000_hw *hw = &igb->hw;
-	u32 tsauxc, tsim, tsauxc_mask, tsim_mask, trgttiml, trgttimh, freqout;
 	unsigned long flags;
+	u32 tsim;
+#ifdef HAVE_PTP_1588_CLOCK_PINS
+	u32 tsauxc, tsauxc_mask, tsim_mask, trgttiml, trgttimh, freqout;
 	struct timespec64 ts;
 	int use_freq = 0, pin = -1;
 	s64 ns;
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 
 	switch (rq->type) {
+#ifdef HAVE_PTP_1588_CLOCK_PINS
 	case PTP_CLK_REQ_EXTTS:
 		if (on) {
 			pin = ptp_find_pin(igb->ptp_clock, PTP_PF_EXTTS,
@@ -692,6 +698,7 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 		E1000_WRITE_REG(hw, E1000_TSIM, tsim);
 		spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 		return 0;
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 
 	case PTP_CLK_REQ_PPS:
 		spin_lock_irqsave(&igb->tmreg_lock, flags);
@@ -703,6 +710,11 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 		E1000_WRITE_REG(hw, E1000_TSIM, tsim);
 		spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 		return 0;
+
+#ifndef HAVE_PTP_1588_CLOCK_PINS
+	default:
+		break;
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 	}
 
 	return -EOPNOTSUPP;
@@ -714,6 +726,7 @@ static int igb_ptp_feature_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
+#ifdef HAVE_PTP_1588_CLOCK_PINS
 static int igb_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 			      enum ptp_pin_function func, unsigned int chan)
 {
@@ -727,6 +740,7 @@ static int igb_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 	}
 	return 0;
 }
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 
 /**
  * igb_ptp_tx_work
@@ -1124,7 +1138,9 @@ void igb_ptp_init(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
+#ifdef HAVE_PTP_1588_CLOCK_PINS
 	int i;
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 
 	switch (hw->mac.type) {
 	case e1000_82576:
@@ -1178,6 +1194,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		break;
 	case e1000_i210:
 	case e1000_i211:
+#ifdef HAVE_PTP_1588_CLOCK_PINS
 		for (i = 0; i < IGB_N_SDP; i++) {
 			struct ptp_pin_desc *ppd = &adapter->sdp_config[i];
 
@@ -1185,14 +1202,19 @@ void igb_ptp_init(struct igb_adapter *adapter)
 			ppd->index = i;
 			ppd->func = PTP_PF_NONE;
 		}
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
 		adapter->ptp_caps.owner = THIS_MODULE;
 		adapter->ptp_caps.max_adj = 62499999;
 		adapter->ptp_caps.n_ext_ts = IGB_N_EXTTS;
 		adapter->ptp_caps.n_per_out = IGB_N_PEROUT;
+#ifdef HAVE_PTP_1588_CLOCK_PINS
 		adapter->ptp_caps.n_pins = IGB_N_SDP;
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 		adapter->ptp_caps.pps = 1;
+#ifdef HAVE_PTP_1588_CLOCK_PINS
 		adapter->ptp_caps.pin_config = adapter->sdp_config;
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82580;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_i210;
 #ifdef HAVE_PTP_CLOCK_INFO_GETTIME64
@@ -1203,7 +1225,9 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.settime = igb_ptp_settime_i210;
 #endif
 		adapter->ptp_caps.enable = igb_ptp_feature_enable_i210;
+#ifdef HAVE_PTP_1588_CLOCK_PINS
 		adapter->ptp_caps.verify = igb_ptp_verify_pin;
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 		/* Enable the timer functions by clearing bit 31. */
 		E1000_WRITE_REG(hw, E1000_TSAUXC, 0x0);
 		break;

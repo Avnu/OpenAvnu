@@ -663,7 +663,9 @@ struct igb_adapter {
 	u32 tx_hwtstamp_timeouts;
 	u32 rx_hwtstamp_cleared;
 
+#ifdef HAVE_PTP_1588_CLOCK_PINS
 	struct ptp_pin_desc sdp_config[IGB_N_SDP];
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
 	struct {
 		struct timespec64 start;
 		struct timespec64 period;
