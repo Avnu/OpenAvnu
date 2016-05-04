@@ -38,6 +38,8 @@
 
 #include <stdio.h>
 
+//#define PTP_DEBUG 1
+
 #define XPTPD_ERROR(fmt,...) fprintf( stderr, "ERROR at %u in %s: " fmt "\n", __LINE__, __FILE__ ,## __VA_ARGS__)	/*!< Prints errors at stderr output*/
 #define XPTPD_PRINTF(fmt,...) fprintf( stderr, fmt ,## __VA_ARGS__)    /*!< Prints printf() status information at stderr output*/
 #ifdef PTP_DEBUG

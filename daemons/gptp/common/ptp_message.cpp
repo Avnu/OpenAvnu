@@ -465,10 +465,27 @@ PTPMessageCommon *buildPTPMessage
 			msg = annc;
 		}
 		break;
+
+	case SIGNALLING_MESSAGE:
+		{
+			PTPMessageSignalling *signallingMsg = new PTPMessageSignalling();
+			signallingMsg->messageType = messageType;
+
+			memcpy(&(signallingMsg->targetPortIdentify),
+			       buf + PTP_SIGNALLING_TARGET_PORT_IDENTITY(PTP_SIGNALLING_OFFSET),
+			       sizeof(signallingMsg->targetPortIdentify));
+
+			memcpy( &(signallingMsg->tlv), buf + PTP_SIGNALLING_OFFSET + PTP_SIGNALLING_LENGTH, sizeof(signallingMsg->tlv) );
+
+			msg = signallingMsg;
+		}
+		break;
+
 	default:
 
 		XPTPD_ERROR("Received unsupported message type, %d",
-			    (int)messageType);
+		            (int)messageType);
+		port->incCounter_ieee8021AsPortStatRxPTPPacketDiscard();
 
 		goto done;
 	}
@@ -679,7 +696,8 @@ void PTPMessageSync::sendPort(IEEE1588Port * port, PortIdentity * destIdentity)
 	       &(originTimestamp_BE.nanoseconds),
 	       sizeof(originTimestamp.nanoseconds));
 
-	port->sendEventPort(buf_t, messageLength, MCAST_OTHER, destIdentity);
+	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
+	port->incCounter_ieee8021AsPortStatTxSyncCount();
 
 	return;
 }
@@ -750,7 +768,8 @@ void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
 	       &timeSource, sizeof(timeSource));
 	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_ANNOUNCE_LENGTH);
 
-	port->sendGeneralPort(buf_t, messageLength, MCAST_OTHER, destIdentity);
+	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
+	port->incCounter_ieee8021AsPortStatTxAnnounce();
 
 	return;
 }
@@ -758,6 +777,8 @@ void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
 void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 {
 	ClockIdentity my_clock_identity;
+
+	port->incCounter_ieee8021AsPortStatRxAnnounce();
 
 	// Delete announce receipt timeout
 	port->getClock()->deleteEventTimerLocked
@@ -801,6 +822,8 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 		port->recoverPort();
 		return;
 	}
+
+	port->incCounter_ieee8021AsPortStatRxSyncCount();
 
 	if( flags[PTP_ASSIST_BYTE] & (0x1<<PTP_ASSIST_BIT)) {
 		PTPMessageSync *old_sync = port->getLastSync();
@@ -888,7 +911,9 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 #endif
 #endif
 
-	port->sendGeneralPort(buf_t, messageLength, MCAST_OTHER, destIdentity);
+	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
+
+	port->incCounter_ieee8021AsPortStatTxFollowUpCount();
 
 	return;
 }
@@ -925,6 +950,8 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 		port->recoverPort();
 		return;
 	}
+
+  port->incCounter_ieee8021AsPortStatRxFollowUpCount();
 
 	PortIdentity sync_id;
 	PTPMessageSync *sync = port->getLastSync();
@@ -1037,6 +1064,13 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 			   1000000000.0)));
 	}
 
+	uint16_t lastGmTimeBaseIndicator;
+	lastGmTimeBaseIndicator = port->getLastGmTimeBaseIndicator();
+	if ((lastGmTimeBaseIndicator > 0) && (tlv.getGmTimeBaseIndicator() != lastGmTimeBaseIndicator)) {
+		GPTP_LOG_EXCEPTION("Sync discontinuity");
+	}
+	port->setLastGmTimeBaseIndicator(tlv.getGmTimeBaseIndicator());
+
 done:
 	_gc = true;
 	port->setLastSync(NULL);
@@ -1080,6 +1114,8 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 		port->recoverPort();
 		goto done;
 	}
+
+	port->incCounter_ieee8021AsPortStatRxPdelayRequest();
 
 	/* Generate and send message */
 	resp = new PTPMessagePathDelayResp(port);
@@ -1191,7 +1227,8 @@ void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
 	messageLength = PTP_COMMON_HDR_LENGTH + PTP_PDELAY_REQ_LENGTH;
 	tspec_msg_t |= messageType & 0xF;
 	buildCommonHeader(buf_ptr);
-	port->sendEventPort(buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	port->incCounter_ieee8021AsPortStatTxPdelayRequest();
 	return;
 }
 
@@ -1226,6 +1263,8 @@ void PTPMessagePathDelayResp::processMessage(IEEE1588Port * port)
 		port->recoverPort();
 		return;
 	}
+
+	port->incCounter_ieee8021AsPortStatRxPdelayResponse();
 
 	if (port->tryPDelayRxLock() != true) {
 		XPTPD_PRINTF("Failed to get PDelay RX Lock\n");
@@ -1333,7 +1372,8 @@ void PTPMessagePathDelayResp::sendPort(IEEE1588Port * port,
 		   requestReceiptTimestamp.seconds_ls,
 		   requestReceiptTimestamp.nanoseconds);
 
-	port->sendEventPort(buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	port->incCounter_ieee8021AsPortStatTxPdelayResponse();
 	return;
 }
 
@@ -1382,6 +1422,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		port->recoverPort();
 		return;
 	}
+
+	port->incCounter_ieee8021AsPortStatRxPdelayResponseFollowUp();
 
 	if (port->tryPDelayRxLock() != true)
 		return;
@@ -1575,8 +1617,10 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 			port->setAsCapable( true );
 		}
 	}
-    if( !port->setLinkDelay( link_delay ) )
+	if( !port->setLinkDelay( link_delay ) ) {
+		XPTPD_INFO("Link delay %ld beyond neighborPropDelayThresh; not AsCapable", link_delay);
         port->setAsCapable( false );
+	}
 
 	port->setPeerOffset( request_tx_timestamp, remote_req_rx_timestamp );
 
@@ -1639,7 +1683,8 @@ void PTPMessagePathDelayRespFollowUp::sendPort(IEEE1588Port * port,
 		   responseOriginTimestamp.seconds_ls,
 		   responseOriginTimestamp.nanoseconds);
 
-	port->sendGeneralPort(buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	port->incCounter_ieee8021AsPortStatTxPdelayResponseFollowUp();
 	return;
 }
 
@@ -1647,4 +1692,131 @@ void PTPMessagePathDelayRespFollowUp::setRequestingPortIdentity
 (PortIdentity * identity)
 {
 	*requestingPortIdentity = *identity;
+}
+
+
+ PTPMessageSignalling::PTPMessageSignalling(void)
+{
+}
+
+ PTPMessageSignalling::PTPMessageSignalling(IEEE1588Port * port) : PTPMessageCommon(port)
+{
+	messageType = SIGNALLING_MESSAGE;
+	sequenceId = port->getNextSignalSequenceId();
+
+	targetPortIdentify = 0xff;
+
+	control = MESSAGE_OTHER;
+
+	logMeanMessageInterval = 0x7F;    // 802.1AS 2011 10.5.2.2.11 logMessageInterval (Integer8)
+}
+
+ PTPMessageSignalling::~PTPMessageSignalling(void)
+{
+}
+
+void PTPMessageSignalling::setintervals(int8_t linkDelayInterval, int8_t timeSyncInterval, int8_t announceInterval)
+{
+	tlv.setLinkDelayInterval(linkDelayInterval);
+	tlv.setTimeSyncInterval(timeSyncInterval);
+	tlv.setAnnounceInterval(announceInterval);
+}
+
+void PTPMessageSignalling::sendPort(IEEE1588Port * port, PortIdentity * destIdentity)
+{
+	uint8_t buf_t[256];
+	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
+	unsigned char tspec_msg_t = 0x0;
+
+	memset(buf_t, 0, 256);
+	// Create packet in buf
+	// Copy in common header
+	messageLength = PTP_COMMON_HDR_LENGTH + PTP_SIGNALLING_LENGTH + sizeof(tlv);
+	tspec_msg_t |= messageType & 0xF;
+	buildCommonHeader(buf_ptr);
+
+	memcpy(buf_ptr + PTP_SIGNALLING_TARGET_PORT_IDENTITY(PTP_SIGNALLING_OFFSET),
+	       &targetPortIdentify, sizeof(targetPortIdentify));
+
+	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_SIGNALLING_LENGTH);
+
+	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
+}
+
+void PTPMessageSignalling::processMessage(IEEE1588Port * port)
+{
+	long long unsigned int waitTime;
+
+	GPTP_LOG_VERBOSE("Signalling Link Delay Interval: %d", tlv.getLinkDelayInterval());
+	GPTP_LOG_VERBOSE("Signalling Sync Interval: %d", tlv.getTimeSyncInterval());
+	GPTP_LOG_VERBOSE("Signalling Announce Interval: %d", tlv.getAnnounceInterval());
+
+	char linkDelayInterval = tlv.getLinkDelayInterval();
+	char timeSyncInterval = tlv.getTimeSyncInterval();
+	char announceInterval = tlv.getAnnounceInterval();
+
+	if (linkDelayInterval == PTPMessageSignalling::sigMsgInterval_Initial) {
+		port->setInitPDelayInterval();
+
+		waitTime = ((long long) (pow((double)2, port->getPDelayInterval()) *  1000000000.0));
+		waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
+		port->startPDelayIntervalTimer(waitTime);
+	}
+	else if (linkDelayInterval == PTPMessageSignalling::sigMsgInterval_NoSend) {
+		// TODO: No send functionality needs to be implemented.
+		GPTP_LOG_WARNING("Signal received to stop sending pDelay messages: Not implemented");
+	}
+	else if (linkDelayInterval == PTPMessageSignalling::sigMsgInterval_NoChange) {
+		// Nothing to do
+	}
+	else {
+		port->setPDelayInterval(linkDelayInterval);
+
+		waitTime = ((long long) (pow((double)2, port->getPDelayInterval()) *  1000000000.0));
+		waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
+		port->startPDelayIntervalTimer(waitTime);
+	}
+
+	if (timeSyncInterval == PTPMessageSignalling::sigMsgInterval_Initial) {
+		port->setInitSyncInterval();
+
+		waitTime = ((long long) (pow((double)2, port->getSyncInterval()) *  1000000000.0));
+		waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
+		port->startSyncIntervalTimer(waitTime);
+	}
+	else if (timeSyncInterval == PTPMessageSignalling::sigMsgInterval_NoSend) {
+		// TODO: No send functionality needs to be implemented.
+		GPTP_LOG_WARNING("Signal received to stop sending Sync messages: Not implemented");
+	}
+	else if (timeSyncInterval == PTPMessageSignalling::sigMsgInterval_NoChange) {
+		// Nothing to do
+	}
+	else {
+		port->setSyncInterval(timeSyncInterval);
+
+		waitTime = ((long long) (pow((double)2, port->getSyncInterval()) *  1000000000.0));
+		waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
+		port->startSyncIntervalTimer(waitTime);
+	}
+
+	if (!port->getAutomotiveProfile()) {
+		if (announceInterval == PTPMessageSignalling::sigMsgInterval_Initial) {
+			// TODO: Needs implementation
+			GPTP_LOG_WARNING("Signal received to set Announce message to initial interval: Not implemented");
+		}
+		else if (announceInterval == PTPMessageSignalling::sigMsgInterval_NoSend) {
+			// TODO: No send functionality needs to be implemented.
+			GPTP_LOG_WARNING("Signal received to stop sending Announce messages: Not implemented");
+		}
+		else if (announceInterval == PTPMessageSignalling::sigMsgInterval_NoChange) {
+			// Nothing to do
+		}
+		else {
+			port->setAnnounceInterval(announceInterval);
+
+			waitTime = ((long long) (pow((double)2, port->getAnnounceInterval()) *  1000000000.0));
+			waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
+			port->startAnnounceIntervalTimer(waitTime);
+		}
+	}
 }

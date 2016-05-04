@@ -42,10 +42,13 @@ SRC_DIR = ../src
 OBJ_DIR = obj
 
 OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
+		 $(OBJ_DIR)/ap_message.o\
 		 $(OBJ_DIR)/avbts_osnet.o\
 		 $(OBJ_DIR)/ieee1588port.o\
 		 $(OBJ_DIR)/ieee1588clock.o \
-		 $(OBJ_DIR)/linux_hal_common.o \
+		 $(OBJ_DIR)/linux_hal_common.o\
+		 $(OBJ_DIR)/linux_hal_persist_file.o\
+		 $(OBJ_DIR)/gptp_log.o\
 		 $(OBJ_DIR)/platform.o \
 		 $(OBJ_DIR)/ini.o \
 		 $(OBJ_DIR)/gptp_cfg.o
@@ -60,12 +63,16 @@ HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(COMMON_DIR)/avbts_oscondition.hpp\
 		$(COMMON_DIR)/avbts_message.hpp\
 		$(COMMON_DIR)/avbts_clock.hpp\
+		$(COMMON_DIR)/avbts_persist.hpp\
+		$(COMMON_DIR)/avbap_message.hpp\
 		$(COMMON_DIR)/ieee1588.hpp\
 		$(COMMON_DIR)/ipcdef.hpp\
 		$(COMMON_DIR)/ini.h\
 		$(COMMON_DIR)/gptp_cfg.hpp\
+		$(COMMON_DIR)/gptp_log.hpp\
 		$(SRC_DIR)/linux_ipc.hpp\
 		$(SRC_DIR)/linux_hal_common.hpp\
+		$(SRC_DIR)/linux_hal_persist_file.hpp\
 		$(SRC_DIR)/platform.hpp
 
 ifeq ($(ARCH),I210)
@@ -130,8 +137,17 @@ $(OBJ_DIR)/ieee1588clock.o: $(COMMON_DIR)/ieee1588clock.cpp $(HEADER_FILES)
 $(OBJ_DIR)/ptp_message.o: $(COMMON_DIR)/ptp_message.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ptp_message.cpp -o $(OBJ_DIR)/ptp_message.o
 
+$(OBJ_DIR)/ap_message.o: $(COMMON_DIR)/ap_message.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ap_message.cpp -o $(OBJ_DIR)/ap_message.o
+
 $(OBJ_DIR)/avbts_osnet.o: $(COMMON_DIR)/avbts_osnet.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/avbts_osnet.cpp -o $(OBJ_DIR)/avbts_osnet.o
+
+$(OBJ_DIR)/linux_hal_persist_file.o: $(SRC_DIR)/linux_hal_persist_file.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_persist_file.cpp -o $(OBJ_DIR)/linux_hal_persist_file.o
+
+$(OBJ_DIR)/gptp_log.o: $(COMMON_DIR)/gptp_log.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/gptp_log.cpp -o $(OBJ_DIR)/gptp_log.o
 
 $(OBJ_DIR)/gptp_cfg.o: $(COMMON_DIR)/gptp_cfg.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/gptp_cfg.cpp -o $(OBJ_DIR)/gptp_cfg.o

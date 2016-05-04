@@ -83,13 +83,13 @@ LinuxNetworkInterface::~LinuxNetworkInterface() {
 }
 
 net_result LinuxNetworkInterface::send
-( LinkLayerAddress *addr, uint8_t *payload, size_t length, bool timestamp ) {
+( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length, bool timestamp ) {
 	sockaddr_ll *remote = NULL;
 	int err;
 	remote = new struct sockaddr_ll;
 	memset( remote, 0, sizeof( *remote ));
 	remote->sll_family = AF_PACKET;
-	remote->sll_protocol = PLAT_htons( PTP_ETHERTYPE );
+	remote->sll_protocol = PLAT_htons( etherType );
 	remote->sll_ifindex = ifindex;
 	remote->sll_halen = ETH_ALEN;
 	addr->toOctetArray( remote->sll_addr );
@@ -251,9 +251,10 @@ void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 		else if (retval) {
 			x_readEvent(netLinkSocket, pPort);
 		}
-		else
+		else {
 			; // Would be timeout but Won't happen because we wait forever
-	  }
+		}
+	}
 }
 
 
