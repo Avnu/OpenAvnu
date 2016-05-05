@@ -65,7 +65,7 @@ The examples show two types of IPC commands, one with a single parameter and ano
 
 .... Another option for multiple parameters would be creating a structure type with all the parameters. TODO: Discuss it with Andrew. Andrew's response: I don't really like structs because you have to remember to set all the fields. A function declaration allows the compiler to check for completeness.
 
-=== Defining Error Codes
+=== Declaring Error Codes
 
 The IPC calls can and will fail under certain conditions and it is necessary to let the caller know what error occurred. Each IPC command should have an 'out' pointer that provides additional error information. The example below shows one example of creating error codes:
 
@@ -79,7 +79,7 @@ typedef enum {
 
 struct {
 	AVBTSN_ipc_t error_code;
-	char *error_str;
+	const char *error_str;
 } AVBTSN_IpcErrorCode[] = {
 	{AVBTSN_IPC_SUCCESS, "IPC Success."},
 	{AVBTSN_IPC_GENERIC_ERROR1, "IPC Generic Error 1."},
@@ -90,7 +90,7 @@ struct {
 
 where the AVBTSN portion of the function name would be replaced by the name of the IEEE AVB/TSN protocol module that is being targeted. The generic error codes shall be replaced by the actual failure information to be implemented.
 
-Any errors returned should be #defined in a public interface module (typically a .h header file in C) so that the calling application can correctly interpret the returned errors and make decisions on actions to undertake depending on the error returned.
+Any errors returned should be declared as enums in a public interface module (typically a .h header file in C) so that the calling application can correctly interpret the returned errors and make decisions on actions to undertake depending on the error returned.
 
 The synchronous calling interface can be used to create a monolithic application that includes the both the client application and the AVBTSN source code in a single module. The calls to the AVBTSN protocol module functions could potentially be invoked in the calling context of the main application.
 
@@ -122,6 +122,39 @@ This section outlines abstraction requirements for multiple layers. The layers t
 |Module |This is the layer with equivalent calls to the top Application layer
 |=======
 
+image::http://g.gravizo.com/g?
+ digraph G {
+   main -> parse -> execute;
+   main -> init;
+   main -> cleanup;
+   execute -> make_string;
+   execute -> printf
+   init -> make_string;
+   main -> printf;
+   execute -> compare;
+ }
+
+++++
+<p>
+Content in a passthrough block is passed to the output unprocessed.
+That means you can include raw HTML, like this embedded Gist:
+</p>
+
+<img src='http://g.gravizo.com/g?
+ digraph G {
+   main -> parse -> execute;
+   main -> init;
+   main -> cleanup;
+   execute -> make_string;
+   execute -> printf
+   init -> make_string;
+   main -> printf;
+   execute -> compare;
+ }
+'/>
+</script>
+++++
+ 
 ==== Application Layer
 
 The application layer is the layer that an external client application uses to call an underlying module that implements a particular AVB/TSN protocol. The application layer requires a simple interface that has parameters that closely match those supported by the underlying module implementation. However, since the context for an underlying communication layer is required, an additional IPC context parameter must be added to the application's calling interface. The example straw-man interface now becomes:
@@ -149,12 +182,16 @@ The marshalling layer is responsible for encoding parameters into a defined stru
 [source,c/c++]
 ----
 
-#define AVBTSN_COMMAND_SET_XYZ 1
-#define AVBTSN_COMMAND_START 2
+typedef enum {
+	AVBTSN_COMMAND = 0,
+	AVBTSN_COMMAND_SET_XYZ,
+	AVBTSN_COMMAND_START,
+} AVBTSN_cmd_t;
+
 
 struct avbtsn_packing_header {
 	uint32_t size;
-	uint32_t command; /* #def'd above */
+	enum AVBTSN_cmd_t command; /* declared above */
 	void *this_call_context;
 };
 
@@ -172,9 +209,9 @@ struct avbtsn_packing_command_start {
 ----
 
 Upon calling from the application, the packing layer performs the following operations
- 1. allocates the correctly sized packing structure
- 1. fills in the header size, command and this_call_context fields
- 1. fills in call specific parameters and submits the data to the communication layer
+1. allocates the correctly sized packing structure
+1. fills in the header size, command and this_call_context fields
+1. fills in call specific parameters and submits the data to the communication layer
 
 After the application has sent a command it should call the communication layer again to recieve a response. This call could be via a explicit call, or in the case of single threaded application design a poll/WaitForMultipleObjects loop would handle an event for the receive socket/handle that indicates a packet of information containing the call response is ready to be processed.
 
