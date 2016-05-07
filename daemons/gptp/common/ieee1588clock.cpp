@@ -45,6 +45,8 @@
 
 #include <string.h>
 
+#include <math.h>
+
 std::string ClockIdentity::getIdentityString()
 {
 	uint8_t cid[PTP_CLOCK_IDENTITY_LENGTH];
@@ -98,6 +100,8 @@ IEEE1588Clock::IEEE1588Clock
 	_syntonize = syntonize;
 	_new_syntonization_set_point = false;
 	_ppm = 0;
+
+	_phase_error_violation = 0;
 
 	_master_local_freq_offset_init = false;
 	_local_system_freq_offset_init = false;
@@ -346,23 +350,34 @@ void IEEE1588Clock::setMasterOffset
 	}
 
 	if( _syntonize ) {
-		if( _new_syntonization_set_point ) {
+		if( _new_syntonization_set_point || _phase_error_violation > PHASE_ERROR_MAX_COUNT ) {
 			_new_syntonization_set_point = false;
+			_phase_error_violation = 0;
 			if( _timestamper ) {
 				/* Make sure that there are no transmit operations
 				   in progress */
 				getTxLockAll();
-				_timestamper->HWTimestamper_adjclockphase
-					( -master_local_offset );
+
+				GPTP_LOG_DEBUG("before adjust: local_time=%lldns", TIMESTAMP_TO_NS(local_time));
+
+				_timestamper->HWTimestamper_adjclockphase( -master_local_offset );
 				_master_local_freq_offset_init = false;
+				restartPDelayAll();
 				putTxLockAll();
 				master_local_offset = 0;
 			}
 		}
 		// Adjust for frequency offset
 		long double phase_error = (long double) -master_local_offset;
-		_ppm += (float) (INTEGRAL*phase_error +
-			 PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
+		if( fabsl(phase_error) > PHASE_ERROR_THRESHOLD ) {
+			++_phase_error_violation;
+		} else {
+			_phase_error_violation = 0;
+			_ppm += (float) (INTEGRAL*phase_error + PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
+
+			GPTP_LOG_DEBUG("phase_error = %Lf, ppm = %f", phase_error, _ppm );
+		}
+
 		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
 		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
 		if( _timestamper ) {
@@ -370,6 +385,7 @@ void IEEE1588Clock::setMasterOffset
 				GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 			}
 		}
+
 	}
 	
 	return;
