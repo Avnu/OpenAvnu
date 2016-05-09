@@ -223,7 +223,9 @@ PTPMessageCommon *buildPTPMessage
 			    PLAT_ntohl(followup_msg->
 				       preciseOriginTimestamp.nanoseconds);
 
-			memcpy( &(followup_msg->tlv), buf+PTP_FOLLOWUP_LENGTH, sizeof(followup_msg->tlv) );
+			memcpy( &(followup_msg->tlv),
+				buf+PTP_FOLLOWUP_OFFSET+PTP_FOLLOWUP_LENGTH,
+				sizeof(followup_msg->tlv) );
 
 			msg = followup_msg;
         }
