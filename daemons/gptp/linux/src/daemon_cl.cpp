@@ -180,19 +180,19 @@ int main(int argc, char **argv)
     for( i = 2; i < argc; ++i ) {
 
         if( argv[i][0] == '-' ) {
-            if( toupper( argv[i][1] ) == 'S' ) {
+            if( strcmp(argv[i] + 1,  "S") == 0 ) {
                 // Get syntonize directive from command line
                 syntonize = true;
             }
-            else if( toupper( argv[i][1] ) == 'T' ) {
+            else if( strcmp(argv[i] + 1,  "T" ) == 0 ) {
                 override_portstate = true;
                 port_state = PTP_MASTER;
             }
-            else if( toupper( argv[i][1] ) == 'L' ) {
+            else if( strcmp(argv[i] + 1,  "L" ) == 0 ) {
                 override_portstate = true;
                 port_state = PTP_SLAVE;
             }
-            else if( toupper( argv[i][1] ) == 'M' ) {
+            else if( strcmp(argv[i] + 1,  "M" )  == 0 ) {
                 // Open file
                 if( i+1 < argc ) {
                   pGPTPPersist = makeLinuxGPTPPersistFile();
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
                           "command line\n" );
                 }
             }
-            else if( toupper( argv[i][1] ) == 'A' ) {
+            else if( strcmp(argv[i] + 1,  "A" ) == 0 ) {
                 if( i+1 < argc ) {
                     accelerated_sync_count = atoi( argv[++i] );
                 } else {
@@ -213,21 +213,21 @@ int main(int argc, char **argv)
                             "command line with A option\n" );
                 }
             }
-            else if( toupper( argv[i][1] ) == 'G' && toupper( argv[i][2] ) != 'M') {
+            else if( strcmp(argv[i] + 1,  "G") == 0 ) {
                 if( i+1 < argc ) {
                     ipc_arg = new LinuxIPCArg(argv[++i]);
                 } else {
                     printf( "Must specify group name on the command line\n" );
                 }
             }
-            else if( toupper( argv[i][1] ) == 'P' ) {
+            else if( strcmp(argv[i] + 1,  "P") == 0 ) {
                 pps = true;
             }
-            else if( toupper( argv[i][1] ) == 'H' ) {
+            else if( strcmp(argv[i] + 1,  "H") == 0 ) {
                 print_usage( argv[0] );
                 return 0;
             }
-            else if( toupper( argv[i][1] ) == 'R' ) {
+            else if( strcmp(argv[i] + 1,  "R") == 0 ) {
                 if( i+1 >= argc ) {
                     printf( "Priority 1 value must be specified on "
                             "command line, using default value\n" );
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
                     }
                 }
             }
-            else if(toupper(argv[i][1]) == 'D'){
+            else if (strcmp(argv[i] + 1, "D") == 0) {
                 input_delay=true;
                 int delay_count=0;
                 char *cli_inp_delay = strtok(argv[i+1],",");
@@ -285,7 +285,7 @@ int main(int argc, char **argv)
             else if (strcmp(argv[i] + 1, "OPERPDELAY") == 0) {
                 portInit.operLogPdelayReqInterval = atoi(argv[++i]);
             }
-            else if(toupper(argv[i][1]) == 'F')
+            else if (strcmp(argv[i] + 1, "F") == 0)
             {
                 if( i+1 < argc ) {
                     use_config_file = true;
