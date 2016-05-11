@@ -29,6 +29,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdarg.h>
 #include <time.h>
 
+// MS VC++ 2013 has C++11 but not C11 support, use this to get millisecond resolution
+#include <chrono>
+
 void gptpLog(const char *tag, const char *path, int line, const char *fmt, ...)
 {
 	char msg[1024];
@@ -37,20 +40,20 @@ void gptpLog(const char *tag, const char *path, int line, const char *fmt, ...)
 	va_start(args, fmt);
 	vsprintf(msg, fmt, args);
 
-	time_t tNow = time(NULL);
+	std::chrono::system_clock::time_point cNow = std::chrono::system_clock::now();
+	time_t tNow = std::chrono::system_clock::to_time_t(cNow);
 	struct tm tmNow;
 	localtime_r(&tNow, &tmNow);
-
-	struct timespec ts;
-	clock_gettime(CLOCK_REALTIME, &ts);
+	std::chrono::system_clock::duration roundNow = cNow - std::chrono::system_clock::from_time_t(tNow);
+	long int millis = (long int) std::chrono::duration_cast<std::chrono::milliseconds>(roundNow).count();
 
 	if (path) {
 		fprintf(stderr, "%s: GPTP [%2.2d:%2.2d:%2.2d:%3.3ld] [%s:%u] %s\n",
-			   tag, tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec, ts.tv_nsec / 1000000, path, line, msg);
+			   tag, tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec, millis, path, line, msg);
 	}
 	else {
 		fprintf(stderr, "%s: GPTP [%2.2d:%2.2d:%2.2d:%3.3ld] %s\n",
-			   tag, tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec, ts.tv_nsec / 1000000, msg);
+			   tag, tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec, millis, msg);
 	}
 }
 

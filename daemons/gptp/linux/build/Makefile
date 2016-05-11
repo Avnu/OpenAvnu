@@ -30,7 +30,7 @@
 
 ALTERNATE_LINUX_INCPATH=$(HOME)/header/include/
 
-CFLAGS_G = -Wall -g -I. -I../../common -I../src \
+CFLAGS_G = -Wall -std=c++11 -g -I. -I../../common -I../src \
 	-I$(ALTERNATE_LINUX_INCPATH)
 
 CPPFLAGS_G := $(CFLAGS_G) -Wnon-virtual-dtor
