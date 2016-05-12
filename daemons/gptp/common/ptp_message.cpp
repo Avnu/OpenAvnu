@@ -962,8 +962,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 
 	if (sync->getTimestamp()._version != port->getTimestampVersion())
 	{
-		GPTP_LOG_ERROR
-		    ("Received Follow Up but Sync is out of date");
+		GPTP_LOG_ERROR("Received Follow Up but timestamp version indicates Sync is out of date");
 		goto done;
 	}
 

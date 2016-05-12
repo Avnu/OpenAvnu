@@ -180,7 +180,8 @@ public:
 	( LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay );
 
 	/**
-	 * @brief  Disables rx socket descriptor@return void 
+	 * @brief  Disables rx socket descriptor 
+	 * @return void 
 	 */
 	void disable_rx_queue();
 
