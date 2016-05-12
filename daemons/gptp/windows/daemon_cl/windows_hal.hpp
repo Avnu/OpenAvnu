@@ -75,10 +75,10 @@ public:
 	 * @param  timestamp TRUE: Use timestamp, FALSE otherwise
 	 * @return net_result structure
 	 */
-	virtual net_result send( LinkLayerAddress *addr, uint8_t *payload, size_t length, bool timestamp ) {
+	virtual net_result send( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length, bool timestamp) {
 		packet_addr_t dest;
 		addr->toOctetArray( dest.addr );
-		if( sendFrame( handle, &dest, PTP_ETHERTYPE, payload, length ) != PACKET_NO_ERROR ) return net_fatal;
+		if( sendFrame( handle, &dest, etherType, payload, length ) != PACKET_NO_ERROR ) return net_fatal;
 		return net_succeed;
 	}
 	/**

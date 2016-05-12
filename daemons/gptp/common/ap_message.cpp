@@ -34,11 +34,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <math.h>
 
-
-#define ntohll(x)    __bswap_64 (x)
-#define htonll(x)    __bswap_64 (x)
-
-
 // Octet based data 2 buffer macros
 #define OCT_D2BMEMCP(d, s) memcpy(d, s, sizeof(s)); d += sizeof(s);
 #define OCT_D2BBUFCP(d, s, len) memcpy(d, s, len); d += len;
@@ -109,7 +104,7 @@ void APMessageTestStatus::sendPort(IEEE1588Port * port)
 	Timestamp device_time;
 	uint32_t local_clock, nominal_clock_rate;
 	port->getDeviceTime(system_time, device_time, local_clock, nominal_clock_rate);
-	tmp64 = htonll(TIMESTAMP_TO_NS(system_time));
+	tmp64 = PLAT_htonll(TIMESTAMP_TO_NS(system_time));
 	memcpy(buf_ptr + AP_TEST_STATUS_MESSAGE_TIMESTAMP(AP_TEST_STATUS_OFFSET), &tmp64, sizeof(tmp64));
 
 	BIT_D2BHTONB(buf_ptr + AP_TEST_STATUS_STATION_STATE(AP_TEST_STATUS_OFFSET), (uint8_t)port->getStationState(), 0);

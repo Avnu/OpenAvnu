@@ -93,4 +93,12 @@ uint64_t PLAT_htonll(uint64_t x);
  */
 uint64_t PLAT_ntohll(uint64_t x);
 
+/**
+ * @brief  Converts a time_t structure into a tm structure
+ * @param[in]  inTime  The time_t to be converted
+ * @param[out] outTm   The tm to store the converted value in
+ * @return  An error code
+ */
+errno_t PLAT_localtime(const time_t * inTime, struct tm * outTm);
+
 #endif

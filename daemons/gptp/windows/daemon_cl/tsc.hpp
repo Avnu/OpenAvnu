@@ -40,6 +40,10 @@
 #include <stdint.h>
 #include <VersionHelpers.h>
 
+#define WIN10_MAJOR 0x0A
+#define WIN10_MINOR 0x00
+#define WIN10_SVC   0x00
+
 /**
  * @brief  Gets the processor timestamp
  * @return processor timestamp
@@ -113,7 +117,8 @@ inline uint64_t getTSCFrequency( unsigned millis ) {
 	// clock will be returned, *else* use QPC for everything else
 	//
 	// EAX (tmp[0]) must be >= 1, See Intel SDM 17.15.4 "Invariant Time-keeping"
-	if (!IsWindows10OrGreater() && max_cpuid_level >= CLOCK_INFO_CPUID_LEAF &&
+	if (!IsWindowsVersionOrGreater(WIN10_MAJOR, WIN10_MINOR, WIN10_SVC) && 
+		max_cpuid_level >= CLOCK_INFO_CPUID_LEAF &&
 		tmp[0] >= 1) {
 		SYSTEM_INFO info;
 
