@@ -378,8 +378,8 @@ void IEEE1588Clock::setMasterOffset
 			GPTP_LOG_DEBUG("phase_error = %Lf, ppm = %f", phase_error, _ppm );
 		}
 
-		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
-		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
+		if( _ppm < LOWER_LIMIT_PPM ) _ppm = LOWER_LIMIT_PPM;
+		if( _ppm > UPPER_LIMIT_PPM ) _ppm = UPPER_LIMIT_PPM;
 		if( _timestamper ) {
 			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
 				GPTP_LOG_ERROR( "Failed to adjust clock rate" );

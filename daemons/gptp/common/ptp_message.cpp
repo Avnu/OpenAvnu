@@ -1509,13 +1509,9 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	    Timestamp prev_peer_ts_theirs;
 	    FrequencyRatio rate_offset;
 	    if( port->getPeerOffset( prev_peer_ts_mine, prev_peer_ts_theirs )) {
-		    FrequencyRatio upper_limit, lower_limit;
-		    upper_limit = UPPER_FREQ_LIMIT*2;
-		    upper_limit /= US_PER_SEC;
-		    upper_limit += 1;
-		    lower_limit = UPPER_FREQ_LIMIT*2;
-		    lower_limit /= US_PER_SEC;
-		    lower_limit += 1;
+			FrequencyRatio upper_ratio_limit, lower_ratio_limit;
+			upper_ratio_limit = PPM_OFFSET_TO_RATIO(UPPER_LIMIT_PPM);
+			lower_ratio_limit = PPM_OFFSET_TO_RATIO(LOWER_LIMIT_PPM);
 
 			mine_elapsed =  TIMESTAMP_TO_NS(request_tx_timestamp)-TIMESTAMP_TO_NS(prev_peer_ts_mine);
 			theirs_elapsed = TIMESTAMP_TO_NS(remote_req_rx_timestamp)-TIMESTAMP_TO_NS(prev_peer_ts_theirs);
@@ -1523,7 +1519,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 			theirs_elapsed += link_delay < 0 ? 0 : link_delay;
 			rate_offset =  ((FrequencyRatio) mine_elapsed)/theirs_elapsed;
 
-			if( rate_offset < upper_limit && rate_offset > lower_limit ) {
+			if( rate_offset < upper_ratio_limit && rate_offset > lower_ratio_limit ) {
 				port->setPeerRateOffset(rate_offset);
 			}
 			port->setAsCapable( true );
