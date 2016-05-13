@@ -85,6 +85,7 @@ struct mrpd_test_state {
 	unsigned char rx_PDU[MAX_FRAME_SIZE];
 	unsigned char tx_PDU[MAX_FRAME_SIZE];
 	unsigned int rx_PDU_len;
+	size_t tx_PDU_len;
 	int sent_count;
 
 	/* MSRP Events */

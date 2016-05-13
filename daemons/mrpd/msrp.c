@@ -99,6 +99,7 @@ void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 
 		}
 #endif
+#if 0
 		if (MSRP_TALKER_ADV_TYPE == attrib->type) {
 			state_mc_states = mrp_print_status(
 						&(attrib->applicant),
@@ -106,6 +107,17 @@ void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 			mrpd_log_printf("MSRP Talker event %s, %s\n",
 				     mrp_event_string(evt),
 				     state_mc_states);		
+
+		}
+#endif
+		if (MSRP_LISTENER_TYPE == attrib->type) {
+			state_mc_states = mrp_print_status(
+						&(attrib->applicant),
+						&(attrib->registrar));
+			mrpd_log_printf("MSRP Listener (state = %d) event %s, %s\n",
+					attrib->substate,
+					mrp_event_string(evt),
+					state_mc_states);		
 
 		}
 	}
@@ -160,7 +172,23 @@ struct msrp_attribute *msrp_lookup(struct msrp_attribute *rattrib)
 	}
 	return NULL;
 }
+#ifdef MRP_CPPUTEST /* MSRP_PDU_TEST */
+struct msrp_attribute *msrp_lookup_stream_declaration(uint32_t decl_type, uint8_t streamID[8])
+{
+	struct msrp_attribute *attrib;
+	struct msrp_attribute *found_attrib;
 
+	attrib = msrp_alloc();
+	if (NULL == attrib) {
+		return NULL;
+	}
+	attrib->type = decl_type;
+	memcpy(attrib->attribute.talk_listen.StreamID, streamID, 8);
+	found_attrib = msrp_lookup(attrib);
+	free(attrib);
+	return found_attrib;
+}
+#endif
 int msrp_add(struct msrp_attribute *rattrib)
 {
 	struct msrp_attribute *attrib;
@@ -301,20 +329,23 @@ int msrp_merge(struct msrp_attribute *rattrib)
 		 * TalkerFailed <- TalkerAdvertise and
 		 * TalkerAdvertise <- TalkerFailed
 		 */
-		attrib->attribute.talk_listen.FailureInformation.FailureCode =
-		    rattrib->attribute.talk_listen.FailureInformation.
-		    FailureCode;
-		memcpy(attrib->attribute.talk_listen.FailureInformation.
-		       BridgeID,
-		       rattrib->attribute.talk_listen.FailureInformation.
-		       BridgeID, 8);
+		if (rattrib->operation == attrib->operation) {
+
+			attrib->attribute.talk_listen.FailureInformation.FailureCode =
+				rattrib->attribute.talk_listen.FailureInformation.
+				FailureCode;
+			memcpy(attrib->attribute.talk_listen.FailureInformation.
+				BridgeID,
+				rattrib->attribute.talk_listen.FailureInformation.
+				BridgeID, 8);
 #ifdef ENABLE_MERGED_LATENCY
-		attrib->attribute.talk_listen.AccumulatedLatency =
-		    rattrib->attribute.talk_listen.AccumulatedLatency;
+			attrib->attribute.talk_listen.AccumulatedLatency =
+				rattrib->attribute.talk_listen.AccumulatedLatency;
 #endif 
-		if (attrib->type != rattrib->type) {
-			attrib->type = rattrib->type;
-			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
+			if (attrib->type != rattrib->type) {
+				attrib->type = rattrib->type;
+				attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
+			}
 		}
 		break;
 	case MSRP_LISTENER_TYPE:
@@ -337,7 +368,18 @@ int msrp_merge(struct msrp_attribute *rattrib)
 				if (talker_missing)
 					break;
 			}
-			attrib->substate = rattrib->substate;
+			/*
+			 * Listener attributes declared locally have
+			 * attrib->operation set to MSRP_OPERATION_DECLARE.
+			 *
+			 * Listener attributes declared externally have
+			 * attrib->operation set to MSRP_OPERATION_REGISTER.
+			 *
+			 * Support merging the substate only when the directions match.
+			 */
+			if (rattrib->operation == attrib->operation) {
+				attrib->substate = rattrib->substate;
+			}
 			attrib->registrar.mrp_state = MRP_MT_STATE;	/* ugly - force a notify */
 		}
 		break;
@@ -1443,8 +1485,8 @@ int msrp_recv_msg()
 						    MSRP_TALKER_ADV_TYPE;
 
 						/* note this ISNT from us ... */
-						attrib->direction =
-						    MSRP_DIRECTION_LISTENER;
+						attrib->operation =
+						    MSRP_OPERATION_REGISTER;
 
 						memcpy(attrib->attribute.
 						       talk_listen.StreamID,
@@ -1705,8 +1747,8 @@ int msrp_recv_msg()
 						    MSRP_TALKER_FAILED_TYPE;
 
 						/* NOTE this isn't from us */
-						attrib->direction =
-						    MSRP_DIRECTION_LISTENER;
+						attrib->operation =
+						    MSRP_OPERATION_REGISTER;
 
 						memcpy(attrib->attribute.
 						       talk_listen.StreamID,
@@ -2235,7 +2277,7 @@ msrp_emit_talkervectors(unsigned char *msgbuf, unsigned char *msgbuf_eof,
 			continue;
 		}
 #ifdef CHECK
-		if (MSRP_DIRECTION_LISTENER == attrib->direction) {
+		if (MSRP_OPERATION_REGISTER == attrib->direction) {
 			attrib = attrib->next;
 			continue;
 		}
@@ -3373,6 +3415,7 @@ static int msrp_cmd_join_or_new_stream(struct msrpdu_talker_fail *talker_ad,
 		return -1;
 	}
 	attrib->type = attrib_type;
+	attrib->operation = MSRP_OPERATION_DECLARE;
 	attrib->attribute.talk_listen = *talker_ad;
 	msrp_event(mrp_event, attrib);
 	return 0;
@@ -3436,7 +3479,7 @@ static int msrp_cmd_report_listener_status(struct msrpdu_talker_fail *talker_ad,
 		return -1;
 	}
 	attrib->type = MSRP_LISTENER_TYPE;
-	attrib->direction = MSRP_DIRECTION_LISTENER;
+	attrib->operation = MSRP_OPERATION_DECLARE;
 	attrib->substate = substate;
 	attrib->attribute.talk_listen = *talker_ad;
 	msrp_event(MRP_EVENT_NEW, attrib);

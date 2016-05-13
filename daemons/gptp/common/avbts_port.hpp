@@ -214,6 +214,7 @@ class IEEE1588Port {
 
 	OSNetworkInterface *net_iface;
 	LinkLayerAddress local_addr;
+	int link_delay[4];
 
 	/* Port Status */
 	unsigned sync_count;  // 0 for master, ++ for each sync receive as slave
@@ -230,9 +231,24 @@ class IEEE1588Port {
 	char log_min_mean_pdelay_req_interval;
 	bool burst_enabled;
 	int _accelerated_sync_count;
+	static const int64_t ONE_WAY_DELAY_DEFAULT = 3600000000000;
+	static const int64_t INVALID_LINKDELAY = 3600000000000;
+	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
+	static const unsigned int DEFAULT_SYNC_RECEIPT_THRESH = 5;
+	static const unsigned int DUPLICATE_RESP_THRESH = 3;
+
+	unsigned int duplicate_resp_counter;
+	uint16_t last_invalid_seqid;
+
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
 	int64_t one_way_delay;
+    int64_t neighbor_prop_delay_thresh;
+
+	/*Sync threshold*/
+	unsigned int sync_receipt_thresh;
+	unsigned int wrongSeqIDCounter;
+
 	/* Implementation Specific data/methods */
 	IEEE1588Clock *clock;
 
@@ -273,6 +289,8 @@ class IEEE1588Port {
 
 	OSThread *listening_thread;
 
+	OSThread *link_thread;
+
 	OSCondition *port_ready_condition;
 
 	OSLock *pdelay_rx_lock;
@@ -293,6 +311,7 @@ class IEEE1588Port {
 	OSConditionFactory *condition_factory;
 
 	bool pdelay_started;
+	bool pdelay_halted;
  public:
 	bool forceSlave;	//!< Forces port to be slave. Added for testing.
 
@@ -347,6 +366,30 @@ class IEEE1588Port {
 	void startPDelay();
 
 	/**
+	 * @brief Stops PDelay event timer
+	 * @return void
+	 */
+	void stopPDelay();
+
+	/**
+	 * @brief Enable/Disable PDelay Request messages
+	 * @param hlt True to HALT (stop sending), False to resume (start sending).
+	 */
+	void haltPdelay(bool hlt)
+	{
+		pdelay_halted = hlt;
+	}
+
+	/**
+	 * @brief Get the status of pdelayHalted condition.
+	 * @return True PdelayRequest halted. False when PDelay Request is running
+	 */
+	bool pdelayHalted(void)
+	{
+		return pdelay_halted;
+	}
+
+	/**
 	 * @brief  Starts announce event timer
 	 * @return void
 	 */
@@ -377,7 +420,7 @@ class IEEE1588Port {
 	 */
 	void setAsCapable(bool ascap) {
 		if (ascap != asCapable) {
-			fprintf(stderr, "AsCapable: %s\n",
+			XPTPD_PRINTF("AsCapable: %s\n",
 					ascap == true ? "Enabled" : "Disabled");
 		}
 		if(!ascap){
@@ -388,7 +431,7 @@ class IEEE1588Port {
 
 	/**
 	 * @brief  Gets the asCapable flag
-	 * @return asCapable flag
+	 * @return asCapable flag.
 	 */
 	bool getAsCapable() { return( asCapable ); }
 
@@ -433,6 +476,12 @@ class IEEE1588Port {
 	 * @return void
 	 */
 	void recoverPort(void);
+
+	/**
+	 * @brief Watch for link up and down events.
+	 * @return Its an infinite loop. Returns NULL in case of error.
+	 */
+	void *watchNetLink(void);
 
 	/**
 	 * @brief Receives messages from the network interface
@@ -812,13 +861,18 @@ class IEEE1588Port {
 	}
 
 	/**
+	 * @brief Initializes the hwtimestamper
+	 */
+	void timestamper_init(void);
+
+	/**
 	 * @brief  Gets RX timestamp based on port identity
 	 * @param  sourcePortIdentity [in] Source port identity
 	 * @param  sequenceId Sequence ID
 	 * @param  timestamp [out] RX timestamp
 	 * @param  counter_value [out] timestamp count value
 	 * @param  last If true, removes the rx lock.
-	 * @return -1 error, -72 to try again. 0 Success.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getRxTimestamp
 	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
@@ -831,7 +885,7 @@ class IEEE1588Port {
 	 * @param  timestamp [out] TX timestamp
 	 * @param  counter_value [out] timestamp count value
 	 * @param  last If true, removes the TX lock
-	 * @return -1 error, -72 to try again. 0 Success.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getTxTimestamp
 	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
@@ -843,7 +897,7 @@ class IEEE1588Port {
 	 * @param  timestamp [out] TX timestamp
 	 * @param  counter_value [out] timestamp count value
 	 * @param  last If true, removes the TX lock
-	 * @return -1 error, -72 to try again. 0 Success.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getTxTimestamp
 	(PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,
@@ -855,7 +909,7 @@ class IEEE1588Port {
 	 * @param  timestamp [out] RX timestamp
 	 * @param  counter_value [out] timestamp count value
 	 * @param  last If true, removes the RX lock
-	 * @return -1 error, -72 to try again. 0 Success.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getRxTimestamp
 	(PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,
@@ -886,16 +940,158 @@ class IEEE1588Port {
 		return one_way_delay > 0LL ? one_way_delay : 0LL;
 	}
 
+    /**
+	 * @brief  Gets the link delay information.
+	 * @param  [in] delay Pointer to the delay information
+	 * @return True if valid, false if invalid
+	 */
+	bool getLinkDelay(uint64_t *delay) {
+		if(delay == NULL) {
+			return false;
+		}
+		*delay = getLinkDelay();
+		return *delay <= INVALID_LINKDELAY;
+	}
+
 	/**
 	 * @brief  Sets link delay information.
 	 * Signed value allows this to be negative result because
 	 * of inaccurate timestamps.
 	 * @param  delay Link delay
+	 * @return True if one_way_delay is lower or equal than neighbor propagation delay threshold
+     * False otherwise
+	 */
+	bool setLinkDelay(int64_t delay) {
+		one_way_delay = delay;
+        int64_t abs_delay = (one_way_delay < 0 ? -one_way_delay : one_way_delay);
+
+        return (abs_delay <= neighbor_prop_delay_thresh);
+	}
+
+	/**
+	 * @brief  Sets the internal variabl sync_receipt_thresh, which is the
+	 * flag that monitors the amount of wrong syncs enabled before switching
+	 * the ptp to master.
+	 * @param  th Threshold to be set
 	 * @return void
 	 */
-	void setLinkDelay(int64_t delay) {
-		one_way_delay = delay;
+	void setSyncReceiptThresh(unsigned int th)
+	{
+		sync_receipt_thresh = th;
 	}
+
+	/**
+	 * @brief  Gets the internal variabl sync_receipt_thresh, which is the
+	 * flag that monitors the amount of wrong syncs enabled before switching
+	 * the ptp to master.
+	 * @return sync_receipt_thresh value
+	 */
+	unsigned int getSyncReceiptThresh(void)
+	{
+		return sync_receipt_thresh;
+	}
+
+	/**
+	 * @brief  Sets the wrongSeqIDCounter variable
+	 * @param  cnt Value to be set
+	 * @return void
+	 */
+	void setWrongSeqIDCounter(unsigned int cnt)
+	{
+		wrongSeqIDCounter = cnt;
+	}
+
+	/**
+	 * @brief  Gets the wrongSeqIDCounter value
+	 * @param  [out] cnt Pointer to the counter value. It must be valid
+	 * @return TRUE if ok and lower than the syncReceiptThreshold value. FALSE otherwise
+	 */
+	bool getWrongSeqIDCounter(unsigned int *cnt)
+	{
+        if( cnt == NULL )
+        {
+            return false;
+        }
+        *cnt = wrongSeqIDCounter;
+
+		return( *cnt < getSyncReceiptThresh() );
+	}
+
+	/**
+	 * @brief  Increments the wrongSeqIDCounter value
+	 * @param  [out] cnt Pointer to the counter value. Must be valid
+	 * @return TRUE if incremented value is lower than the syncReceiptThreshold. FALSE otherwise.
+	 */
+	bool incWrongSeqIDCounter(unsigned int *cnt)
+	{
+		if( getAsCapable() )
+		{
+			wrongSeqIDCounter++;
+		}
+		bool ret = wrongSeqIDCounter < getSyncReceiptThresh();
+
+		if( cnt != NULL)
+		{
+			*cnt = wrongSeqIDCounter;
+		}
+
+		return ret;
+	}
+
+	/**
+	 * @brief Sets the value of last duplicated SeqID
+	 * @param seqid Value to set
+	 * @return void
+	 */
+	void setLastInvalidSeqID(uint16_t seqid)
+	{
+		last_invalid_seqid = seqid;
+	}
+
+	/**
+	 * @brief  Get the value of last invalid seqID
+	 * @return Last invalid seq id
+	 */
+	uint16_t getLastInvalidSeqID(void)
+	{
+		return last_invalid_seqid;
+	}
+
+	/**
+	 * @brief  Sets the duplicate pdelay_resp counter.
+	 * @param  cnt Value to be set
+	 */
+	void setDuplicateRespCounter(unsigned int cnt)
+	{
+		duplicate_resp_counter = cnt;
+	}
+
+	/**
+	 * @brief  Gets the current value of pdelay_resp duplicate messages counter
+	 * @return Counter value
+	 */
+	unsigned int getDuplicateRespCounter(void)
+	{
+		return duplicate_resp_counter;
+	}
+
+	/**
+	 * @brief  Increment the duplicate PDelayResp message counter
+	 * @return True if it equals the threshold, False otherwise
+	 */
+	bool incrementDuplicateRespCounter(void)
+	{
+		return ++duplicate_resp_counter == DUPLICATE_RESP_THRESH;
+	}
+
+    /**
+     * @brief  Sets the neighbor propagation delay threshold
+     * @param  delay Delay in nanoseconds
+     * @return void
+     */
+    void setNeighPropDelayThresh(int64_t delay) {
+        neighbor_prop_delay_thresh = delay;
+    }
 
 	/**
 	 * @brief  Changes the port state

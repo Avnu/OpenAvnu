@@ -53,6 +53,15 @@
 
 #define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS Clause 8.5.2.4*/
 
+
+/**
+ * Return codes for gPTP
+*/
+#define GPTP_EC_SUCCESS     0       /*!< No errors.*/
+#define GPTP_EC_FAILURE     -1      /*!< Generic error */
+#define GPTP_EC_EAGAIN      -72     /*!< Error: Try again */
+
+
 class LinkLayerAddress;
 struct ClockQuality;
 class PortIdentity;
@@ -75,6 +84,8 @@ typedef enum {
 	NULL_EVENT = 0,						//!< Null Event. Used to initialize events.
 	POWERUP = 5,						//!< Power Up. Initialize state machines.
 	INITIALIZE,							//!< Same as POWERUP.
+	LINKUP,								//!< Triggered when link comes up.
+	LINKDOWN,							//!< Triggered when link goes down.
 	STATE_CHANGE_EVENT,					//!< Signalizes that something has changed. Recalculates best master.
 	SYNC_INTERVAL_TIMEOUT_EXPIRES,		//!< Sync interval expired. Its time to send a sync message.
 	PDELAY_INTERVAL_TIMEOUT_EXPIRES,	//!< PDELAY interval expired. Its time to send pdelay_req message
@@ -85,6 +96,7 @@ typedef enum {
 	FAULT_DETECTED,						//!< A fault was detected.
 	PDELAY_DEFERRED_PROCESSING,			//!< Defers pdelay processing
 	PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,	//!< Pdelay response message timeout
+	PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES,	//!< Timeout for peer misbehaving. This even will re-enable the PDelay Requests
 } Event;
 
 /**
@@ -512,7 +524,7 @@ public:
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
-	 * @return 0 no error, -1 error, -72 try again.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
 			uint16_t sequenceId,
@@ -527,7 +539,7 @@ public:
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
-	 * @return 0 no error, -1 error, -72 try again.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
 			uint16_t sequenceId,
@@ -613,7 +625,23 @@ public:
 		return 0;
 	 }
 
-	/**
+	 /**
+	 * @brief Sets the the PHY delay for TX and RX
+	 * @param [input] struct phy_delay  pointer
+	 * @return 0
+	 **/
+
+	 int set_phy_delay(struct phy_delay *set_delay)
+	 {
+		 delay.mb_tx_phy_delay = set_delay->mb_tx_phy_delay;
+		 delay.mb_rx_phy_delay = set_delay->mb_rx_phy_delay;
+		 delay.gb_tx_phy_delay = set_delay->gb_tx_phy_delay;
+		 delay.gb_rx_phy_delay = set_delay->gb_rx_phy_delay;
+
+		 return 0;
+	 }
+
+	 /**
 	 * Default constructor. Sets version to zero.
 	 */
 	HWTimestamper() { version = 0; }

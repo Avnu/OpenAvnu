@@ -83,6 +83,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	bool syntonize = false;
 	uint8_t priority1 = 248;
 	int i;
+	int phy_delays[4] =	{ -1, -1, -1, -1 };
 
 	// Register default network interface
 	WindowsPCAPNetworkInterfaceFactory *default_factory = new WindowsPCAPNetworkInterfaceFactory();
@@ -140,7 +141,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	// Create Port Object linked to clock and low level
 	IEEE1588Port *port = new IEEE1588Port( clock, 1, false, 0, timestamper, 0, &local_addr,
 		condition_factory, thread_factory, timer_factory, lock_factory );
-	if( !port->init_port() ) {
+	if (!port->init_port(phy_delays)) {
 		printf( "Failed to initialize port\n" );
 		return -1;
 	}

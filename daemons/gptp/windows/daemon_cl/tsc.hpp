@@ -38,8 +38,7 @@
 
 #include <intrin.h>
 #include <stdint.h>
-
-#define BASE_FREQUENCY  100000000		/*!< Base frequency in HZ */
+#include <VersionHelpers.h>
 
 /**
  * @brief  Gets the processor timestamp
@@ -50,30 +49,86 @@ inline unsigned __int64 PLAT_rdtsc()
 	return __rdtsc();
 }
 
+#define CLOCK_INFO_CPUID_LEAF	(0x15)
+#define SYSTEM_CLOCK_24MHZ	(24000000)
+#define MAX_MODEL_LIST_LEN	(2)
+
+typedef struct
+{
+	short		model_list[MAX_MODEL_LIST_LEN+1];	// Terminate model list with -1
+	uint32_t	clock_rate;				// clock_rate of 0 is invalid
+}
+ModelNumberSystemClockRateMapping;
+
+static ModelNumberSystemClockRateMapping ModelNumberSystemClockRateMap[] =
+{
+	{{ 0x5E, 0x4E, -1 }, SYSTEM_CLOCK_24MHZ },
+	{{ -1 }, 0 },
+};
+
+/**
+* @brief  Gets the system clock frequency using CPU model number
+* @param  model_query model number to look up
+* @return System frequency, or 0 on error
+*/
+inline uint32_t FindFrequencyByModel(uint8_t model_query) {
+	ModelNumberSystemClockRateMapping *map = ModelNumberSystemClockRateMap;
+	uint32_t ret = 0;
+
+	while (map->clock_rate != 0)
+	{
+		short *model = map->model_list;
+
+		while (*model != -1)
+		{
+			if (*model == model_query) {
+				ret = map->clock_rate;
+				break;
+			}
+			++model;
+		}
+		++map;
+	}
+
+	return ret;
+}
+
+
 /**
  * @brief  Gets the TSC frequnecy
  * @param  millis time in miliseconds
- * @return TSC frequency
+ * @return TSC frequency, or 0 on error
  */
 inline uint64_t getTSCFrequency( unsigned millis ) {
-	UINT16 multiplierx2;
-	uint64_t frequency = 0;
-	DWORD mhz;
-	DWORD mhz_sz = sizeof(mhz);
+	int max_cpuid_level;
+	int tmp[4];
 
-	if( RegGetValue( HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", "~MHz", RRF_RT_REG_DWORD, NULL, &mhz, &mhz_sz ) != ERROR_SUCCESS ) {
-		goto done;
+	// Find the max cpuid level, and if possible find clock info
+	__cpuid(tmp, 0);
+	max_cpuid_level = tmp[0];
+	if (max_cpuid_level >= CLOCK_INFO_CPUID_LEAF)
+		__cpuid(tmp, CLOCK_INFO_CPUID_LEAF);
+
+	// For pre-Win10 on 6th Generation or greater Intel CPUs the raw hardware
+	// clock will be returned, *else* use QPC for everything else
+	//
+	// EAX (tmp[0]) must be >= 1, See Intel SDM 17.15.4 "Invariant Time-keeping"
+	if (!IsWindows10OrGreater() && max_cpuid_level >= CLOCK_INFO_CPUID_LEAF &&
+		tmp[0] >= 1) {
+		SYSTEM_INFO info;
+
+		GetSystemInfo(&info);
+
+		// Look at processor model (upper byte of revision) number to determine clock rate
+		return FindFrequencyByModel(info.wProcessorRevision >> 8);
 	}
-	fprintf( stderr, "mhz: %u\n", mhz );
-	multiplierx2 = (UINT16)((2*mhz*1000000ULL)/BASE_FREQUENCY);
-	if( multiplierx2 % 2 == 1 ) ++multiplierx2;
-	fprintf( stderr, "Multiplier: %hhu\n", multiplierx2/2 );
 
-	frequency = (((uint64_t)multiplierx2)*BASE_FREQUENCY)/2;
-	fprintf( stderr, "Frequency: %llu\n", frequency );
+	LARGE_INTEGER freq;
 
-done:
-	return frequency;
+	if (QueryPerformanceFrequency(&freq))
+		return freq.QuadPart;
+
+	return 0;
 }
 
 #endif/*TSC_HPP*/

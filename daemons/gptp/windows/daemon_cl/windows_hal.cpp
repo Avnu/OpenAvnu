@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -75,24 +75,73 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 	PIP_ADAPTER_INFO pAdapterInfo;
 	IP_ADAPTER_INFO AdapterInfo[32];       // Allocate information for up to 32 NICs
 	DWORD dwBufLen = sizeof(AdapterInfo);  // Save memory size of buffer
+	struct phy_delay delay_val;
 
 	DWORD dwStatus = GetAdaptersInfo( AdapterInfo, &dwBufLen );
 	if( dwStatus != ERROR_SUCCESS ) return false;
 
 	for( pAdapterInfo = AdapterInfo; pAdapterInfo != NULL; pAdapterInfo = pAdapterInfo->Next ) {
-		if( pAdapterInfo->AddressLength == ETHER_ADDR_OCTETS && *addr == LinkLayerAddress( pAdapterInfo->Address )) { 
+		if( pAdapterInfo->AddressLength == ETHER_ADDR_OCTETS && *addr == LinkLayerAddress( pAdapterInfo->Address )) {
 			break;
 		}
 	}
 
 	if( pAdapterInfo == NULL ) return false;
 
-	if( strstr( pAdapterInfo->Description, NANOSECOND_CLOCK_PART_DESCRIPTION ) != NULL ) {
-		netclock_hz.QuadPart = NETCLOCK_HZ_NANO;
-	} else {
-		netclock_hz.QuadPart = NETCLOCK_HZ_OTHER;
+	get_phy_delay(&delay_val);
+
+	DeviceClockRateMapping *rate_map = DeviceClockRateMap;
+	while (rate_map->device_desc != NULL)
+	{
+		if (strstr(pAdapterInfo->Description, rate_map->device_desc) != NULL)
+			break;
+		++rate_map;
 	}
-	fprintf( stderr, "Adapter UID: %s\n", pAdapterInfo->AdapterName );
+	if (rate_map->device_desc != NULL) {
+		netclock_hz.QuadPart = rate_map->clock_rate;
+	}
+	else {
+		XPTPD_ERROR("Unable to determine clock rate for interface %s", pAdapterInfo->Description);
+		return false;
+	}
+
+	DevicePhyDelayMapping *phy_map = DevicePhyDelayMap;
+	while (phy_map->device_desc != NULL)
+	{
+		if (strstr(pAdapterInfo->Description, phy_map->device_desc) != NULL)
+			break;
+		++phy_map;
+	}
+	if (phy_map->device_desc != NULL) {
+		if(delay_val.gb_rx_phy_delay == -1)
+			delay_val.gb_rx_phy_delay = phy_map->delay.gb_rx_phy_delay;
+		if (delay_val.gb_tx_phy_delay == -1)
+			delay_val.gb_tx_phy_delay = phy_map->delay.gb_tx_phy_delay;
+		if (delay_val.mb_rx_phy_delay == -1)
+			delay_val.mb_rx_phy_delay = phy_map->delay.mb_rx_phy_delay;
+		if (delay_val.mb_tx_phy_delay == -1)
+			delay_val.mb_tx_phy_delay = phy_map->delay.mb_tx_phy_delay;
+		set_phy_delay(&delay_val);
+	}
+
+	if (delay_val.gb_rx_phy_delay == -1) {
+		XPTPD_ERROR("Warning: Gbit receive PHY delay is unknown using 0");
+		delay_val.gb_rx_phy_delay = 0;
+	}
+	if (delay_val.gb_tx_phy_delay == -1) {
+		XPTPD_ERROR("Warning: Gbit transmit PHY delay is unknown using 0");
+		delay_val.gb_tx_phy_delay = 0;
+	}
+	if (delay_val.mb_rx_phy_delay == -1) {
+		XPTPD_ERROR("Warning: Mbit receive PHY delay is unknown using 0");
+		delay_val.mb_rx_phy_delay = 0;
+	}
+	if (delay_val.mb_tx_phy_delay == -1) {
+		XPTPD_ERROR("Warning: Mbit transmit PHY delay is unknown using 0");
+		delay_val.gb_tx_phy_delay = 0;
+	}
+
+	XPTPD_INFO( "Adapter UID: %s\n", pAdapterInfo->AdapterName );
 	PLAT_strncpy( network_card_id, NETWORK_CARD_ID_PREFIX, 63 );
 	PLAT_strncpy( network_card_id+strlen(network_card_id), pAdapterInfo->AdapterName, 63-strlen(network_card_id) );
 
@@ -127,7 +176,7 @@ bool WindowsNamedPipeIPC::init(OS_IPC_ARG *arg) {
 }
 
 bool WindowsNamedPipeIPC::update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-	uint32_t sync_count, uint32_t pdelay_count, PortState port_state) {
+	uint32_t sync_count, uint32_t pdelay_count, PortState port_state, bool asCapable) {
 
 
 	lOffset_.get();
@@ -142,3 +191,8 @@ bool WindowsNamedPipeIPC::update(int64_t ml_phoffset, int64_t ls_phoffset, Frequ
 	return true;
 }
 
+
+void WindowsPCAPNetworkInterface::watchNetLink(IEEE1588Port *pPort)
+{
+	/* ToDo add link up/down detection, Google MIB_IPADDR_DISCONNECTED */
+}
