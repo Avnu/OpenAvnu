@@ -196,7 +196,7 @@ net_result LinuxNetworkInterface::nrecv
 	struct timeval timeout = { 0, 16000 }; // 16 ms
 
 	if( !net_lock.lock( &got_net_lock ) || !got_net_lock ) {
-		XPTPD_ERROR( "A Failed to lock mutex" );
+		GPTP_LOG_ERROR( "A Failed to lock mutex" );
 		return net_fatal;
 	}
 
@@ -210,11 +210,11 @@ net_result LinuxNetworkInterface::nrecv
 	} else if( err == -1 ) {
 		if( err == EINTR ) {
 			// Caught signal
-			XPTPD_ERROR( "select() recv signal" );
+			GPTP_LOG_ERROR( "select() recv signal" );
 			ret = net_trfail;
 			goto done;
 		} else {
-			XPTPD_ERROR( "select() failed" );
+			GPTP_LOG_ERROR( "select() failed" );
 			ret = net_fatal;
 			goto done;
 		}
@@ -225,7 +225,7 @@ net_result LinuxNetworkInterface::nrecv
 
 	err = recv( sd_event, payload, length, 0 );
 	if( err < 0 ) {
-		XPTPD_ERROR( "recvmsg() failed: %s", strerror(errno) );
+		GPTP_LOG_ERROR( "recvmsg() failed: %s", strerror(errno) );
 		ret = net_fatal;
 		goto done;
 	}
@@ -235,7 +235,7 @@ net_result LinuxNetworkInterface::nrecv
 
  done:
 	if( !net_lock.unlock()) {
-		XPTPD_ERROR( "A Failed to unlock, %d\n", err );
+		GPTP_LOG_ERROR( "A Failed to unlock, %d\n", err );
 		return net_fatal;
 	}
 

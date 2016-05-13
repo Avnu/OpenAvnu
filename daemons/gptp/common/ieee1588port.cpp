@@ -194,7 +194,7 @@ void IEEE1588Port::timestamper_init(void)
 	if( _hw_timestamper != NULL ) {
 		_hw_timestamper->init_phy_delay(this->link_delay);
 		if( !_hw_timestamper->HWTimestamper_init( net_label, net_iface )) {
-			XPTPD_ERROR
+			GPTP_LOG_ERROR
 				( "Failed to initialize hardware timestamper, "
 				  "falling back to software timestamping" );
 			_hw_timestamper = NULL;
@@ -421,20 +421,20 @@ void *IEEE1588Port::openPort(IEEE1588Port *port)
 		size_t length = sizeof(buf);
 
 		if ((rrecv = net_iface->nrecv(&remote, buf, length,&get_delay)) == net_succeed) {
-			XPTPD_INFO("Processing network buffer");
+			GPTP_LOG_VERBOSE("Processing network buffer");
 			msg = buildPTPMessage((char *)buf, (int)length, &remote,
 					    this);
 			if (msg != NULL) {
-				XPTPD_INFO("Processing message");
+				GPTP_LOG_VERBOSE("Processing message");
 				msg->processMessage(this);
 				if (msg->garbage()) {
 					delete msg;
 				}
 			} else {
-				XPTPD_ERROR("Discarding invalid message");
+				GPTP_LOG_ERROR("Discarding invalid message");
 			}
 		} else if (rrecv == net_fatal) {
-			XPTPD_ERROR("read from network interface failed");
+			GPTP_LOG_ERROR("read from network interface failed");
 			this->processEvent(FAULT_DETECTED);
 			break;
 		}
@@ -477,7 +477,7 @@ void IEEE1588Port::sendEventPort(uint16_t etherType, uint8_t * buf, int size,
 {
 	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, true);
 	if (rtx != net_succeed) {
-		XPTPD_ERROR("sendEventPort(): failure");
+		GPTP_LOG_ERROR("sendEventPort(): failure");
 	}
 
 	return;
@@ -489,7 +489,7 @@ void IEEE1588Port::sendGeneralPort(uint16_t etherType, uint8_t * buf, int size,
 {
 	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, false);
 	if (rtx != net_succeed) {
-		XPTPD_ERROR("sendGeneralPort(): failure");
+		GPTP_LOG_ERROR("sendGeneralPort(): failure");
 	}
 
 	return;
@@ -503,7 +503,7 @@ void IEEE1588Port::processEvent(Event e)
 	switch (e) {
 	case POWERUP:
 	case INITIALIZE:
-		XPTPD_INFO("Received POWERUP/INITIALIZE event");
+		GPTP_LOG_DEBUG("Received POWERUP/INITIALIZE event");
 		clock->getTimerQLock();
 
 		{
@@ -518,7 +518,7 @@ void IEEE1588Port::processEvent(Event e)
 
 			if (!automotive_profile) {
 				if (port_state != PTP_SLAVE && port_state != PTP_MASTER) {
-					GPTP_LOG_INFO("Starting PDelay");
+					GPTP_LOG_STATUS("Starting PDelay");
 					startPDelay();
 				}
 			}
@@ -547,7 +547,7 @@ void IEEE1588Port::processEvent(Event e)
 			link_thread = thread_factory->createThread();
 			if(!link_thread->start(watchNetLinkWrapper, (void *)this))
 			{
-				XPTPD_ERROR("Error creating port link thread");
+				GPTP_LOG_ERROR("Error creating port link thread");
 				return;
 			}
 
@@ -555,7 +555,7 @@ void IEEE1588Port::processEvent(Event e)
 			if (!listening_thread->
 				start (openPortWrapper, (void *)this))
 			{
-				XPTPD_ERROR("Error creating port thread");
+				GPTP_LOG_ERROR("Error creating port thread");
 				return;
 			}
 			port_ready_condition->wait();
@@ -699,7 +699,7 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case LINKUP:
-		XPTPD_INFO("LINKUP");
+		GPTP_LOG_DEBUG("LINKUP");
 		if (automotive_profile) {
 			asCapable = true;
 
@@ -784,7 +784,7 @@ void IEEE1588Port::processEvent(Event e)
 				    || port_state == PTP_UNCALIBRATED
 				    || port_state == PTP_SLAVE
 				    || port_state == PTP_PRE_MASTER) {
-					XPTPD_PRINTF(
+					GPTP_LOG_STATUS(
 					  "*** %s Timeout Expired - Becoming Master\n",
 					  e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES ? "Announce" :
 					  "Sync" );
@@ -837,7 +837,7 @@ void IEEE1588Port::processEvent(Event e)
 
 		break;
 	case PDELAY_INTERVAL_TIMEOUT_EXPIRES:
-		XPTPD_INFO("PDELAY_INTERVAL_TIMEOUT_EXPIRES occured");
+		GPTP_LOG_DEBUG("PDELAY_INTERVAL_TIMEOUT_EXPIRES occured");
 		{
 			int ts_good;
 			Timestamp req_timestamp;
@@ -865,7 +865,7 @@ void IEEE1588Port::processEvent(Event e)
 
 			getTxLock();
 			pdelay_req->sendPort(this, NULL);
-			XPTPD_INFO("Sent PDelay Request");
+			GPTP_LOG_DEBUG("Sent PDelay Request");
 
 			ts_good = getTxTimestamp
 				(pdelay_req, req_timestamp, req_timestamp_counter_value, false);
@@ -873,7 +873,7 @@ void IEEE1588Port::processEvent(Event e)
 				timer->sleep(req);
 				wait_time += req;
 				if (ts_good != GPTP_EC_EAGAIN && iter < 1)
-					XPTPD_PRINTF(
+					GPTP_LOG_ERROR(
 						 "Error (TX) timestamping PDelay request "
 						 "(Retrying-%d), error=%d\n", iter, ts_good);
 				ts_good =
@@ -889,25 +889,25 @@ void IEEE1588Port::processEvent(Event e)
 			} else {
 			  Timestamp failed = INVALID_TIMESTAMP;
 			  pdelay_req->setTimestamp(failed);
-			  XPTPD_PRINTF( "Invalid TX\n" );
+			  GPTP_LOG_ERROR( "Invalid TX\n" );
 			}
 
 			if (ts_good != GPTP_EC_SUCCESS) {
 				char msg
 				    [HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 				getExtendedError(msg);
-				XPTPD_ERROR(
+				GPTP_LOG_ERROR(
 					"Error (TX) timestamping PDelay request, error=%d\t%s",
 					ts_good, msg);
 			}
 #ifdef DEBUG
 			if (ts_good == GPTP_EC_SUCCESS) {
-				XPTPD_INFO
+				GPTP_LOG_DEBUG
 				    ("Successful PDelay Req timestamp, %u,%u",
 				     req_timestamp.seconds_ls,
 				     req_timestamp.nanoseconds);
 			} else {
-				XPTPD_INFO
+				GPTP_LOG_DEBUG
 				    ("*** Unsuccessful PDelay Req timestamp");
 			}
 #endif
@@ -936,7 +936,7 @@ void IEEE1588Port::processEvent(Event e)
 		}
 		break;
 	case SYNC_INTERVAL_TIMEOUT_EXPIRES:
-		XPTPD_INFO("SYNC_INTERVAL_TIMEOUT_EXPIRES occured");
+		GPTP_LOG_DEBUG("SYNC_INTERVAL_TIMEOUT_EXPIRES occured");
 		{
 			/* Set offset from master to zero, update device vs
 			   system time offset */
@@ -956,7 +956,7 @@ void IEEE1588Port::processEvent(Event e)
 				sync->setPortIdentity(&dest_id);
 				getTxLock();
 				sync->sendPort(this, NULL);
-				XPTPD_INFO("Sent SYNC message");
+				GPTP_LOG_DEBUG("Sent SYNC message");
 
 				if (automotive_profile && testMode && port_state == PTP_MASTER) {
 					if (avbSyncState > 0) {
@@ -987,7 +987,7 @@ void IEEE1588Port::processEvent(Event e)
 					wait_time += req;
 
 					if (ts_good != GPTP_EC_EAGAIN && iter < 1)
-						XPTPD_ERROR(
+						GPTP_LOG_ERROR(
 							"Error (TX) timestamping Sync (Retrying), "
 							"error=%d", ts_good);
 					ts_good =
@@ -1001,20 +1001,20 @@ void IEEE1588Port::processEvent(Event e)
 				if (ts_good != GPTP_EC_SUCCESS) {
 					char msg [HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 					getExtendedError(msg);
-					XPTPD_PRINTF(
+					GPTP_LOG_ERROR(
 						 "Error (TX) timestamping Sync, error="
 						 "%d\n%s",
 						 ts_good, msg );
 				}
 
 				if (ts_good == GPTP_EC_SUCCESS) {
-					XPTPD_INFO("Successful Sync timestamp");
-					XPTPD_INFO("Seconds: %u",
+					GPTP_LOG_VERBOSE("Successful Sync timestamp");
+					GPTP_LOG_VERBOSE("Seconds: %u",
 							   sync_timestamp.seconds_ls);
-					XPTPD_INFO("Nanoseconds: %u",
+					GPTP_LOG_VERBOSE("Nanoseconds: %u",
 							   sync_timestamp.nanoseconds);
 				} else {
-					XPTPD_INFO
+					GPTP_LOG_ERROR
 						("*** Unsuccessful Sync timestamp");
 				}
 
@@ -1041,7 +1041,7 @@ void IEEE1588Port::processEvent(Event e)
 			getDeviceTime
 				(system_time, device_time, local_clock, nominal_clock_rate);
 
-			XPTPD_INFO
+			GPTP_LOG_VERBOSE
 				("port::processEvent(): System time: %u,%u Device Time: %u,%u",
 				 system_time.seconds_ls, system_time.nanoseconds,
 				 device_time.seconds_ls, device_time.nanoseconds);
@@ -1106,13 +1106,15 @@ void IEEE1588Port::processEvent(Event e)
 		startAnnounceIntervalTimer(pow((double)2, getAnnounceInterval()) * 1000000000.0);
 		break;
 	case FAULT_DETECTED:
-		XPTPD_INFO("Received FAULT_DETECTED event");
-		setAsCapable(false);
+		GPTP_LOG_ERROR("Received FAULT_DETECTED event");
+		if (!automotive_profile) {
+			setAsCapable(false);
+		}
 		break;
 	case PDELAY_DEFERRED_PROCESSING:
 		pdelay_rx_lock->lock();
 		if (last_pdelay_resp_fwup == NULL) {
-			XPTPD_PRINTF("PDelay Response Followup is NULL!\n");
+			GPTP_LOG_ERROR("PDelay Response Followup is NULL!\n");
 			abort();
 		}
 		last_pdelay_resp_fwup->processMessage(this);
@@ -1124,24 +1126,24 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 	case PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES:
 		if (!automotive_profile) {
-			XPTPD_INFO("PDelay Response Receipt Timeout\n");
+			GPTP_LOG_EXCEPTION("PDelay Response Receipt Timeout\n");
 			setAsCapable(false);
 		}
 		pdelay_count = 0;
 		break;
 
 	case PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES:
-		XPTPD_INFO("PDelay Resp Peer Misbehaving timeout expired! Restarting PDelay");
+		GPTP_LOG_EXCEPTION("PDelay Resp Peer Misbehaving timeout expired! Restarting PDelay");
 
 		haltPdelay(false);
 		if( port_state != PTP_SLAVE && port_state != PTP_MASTER ) {
-			XPTPD_PRINTF("Starting PDelay\n" );
+			GPTP_LOG_STATUS("Starting PDelay\n" );
 			startPDelay();
 		}
 		break;
 	case SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED:
 		{
-			GPTP_LOG_WARNING("SYNC_RATE_INTERVAL_TIMEOUT_EXPIRES occured");
+			GPTP_LOG_INFO("SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED occured");
 
 			sync_rate_interval_timer_started = false;
 
@@ -1171,7 +1173,7 @@ void IEEE1588Port::processEvent(Event e)
 
 		break;
 	default:
-		XPTPD_INFO
+		GPTP_LOG_ERROR
 		  ("Unhandled event type in IEEE1588Port::processEvent(), %d",
 		   e);
 		break;
@@ -1220,7 +1222,7 @@ void IEEE1588Port::becomeMaster( bool annc ) {
 		startAnnounce();
 	}
 	startSyncIntervalTimer(16000000);
-	XPTPD_PRINTF("Switching to Master\n" );
+	GPTP_LOG_STATUS("Switching to Master\n" );
 
 	clock->updateFUPInfo();
 
@@ -1242,7 +1244,7 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 	   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
 	    (unsigned long long)
 	    (pow((double)2,getAnnounceInterval())*1000000000.0)));
-	XPTPD_PRINTF("Switching to Slave\n" );
+	GPTP_LOG_STATUS("Switching to Slave\n" );
 	if( restart_syntonization ) clock->newSyntonizationSetPoint();
 
 	getClock()->updateFUPInfo();
@@ -1270,7 +1272,7 @@ void IEEE1588Port::recommendState
 			reset_sync = true;
 		} else {
 			if( changed_external_master ) {
-				XPTPD_PRINTF("Changed master!\n" );
+				GPTP_LOG_STATUS("Changed master!\n" );
 				clock->newSyntonizationSetPoint();
 				getClock()->updateFUPInfo();
 				reset_sync = true;
@@ -1278,7 +1280,7 @@ void IEEE1588Port::recommendState
 		}
 		break;
 	default:
-		XPTPD_INFO
+		GPTP_LOG_ERROR
 		    ("Invalid state change requested by call to "
 		     "1588Port::recommendState()");
 		break;

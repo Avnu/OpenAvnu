@@ -268,7 +268,7 @@ FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp loca
 	unsigned long long inter_local_time;
 	FrequencyRatio ppt_offset;
 
-	XPTPD_INFO( "Calculated local to system clock rate difference" );
+	GPTP_LOG_DEBUG( "Calculated local to system clock rate difference" );
 
 	if( !_local_system_freq_offset_init ) {
 		_prev_system_time = system_time;
@@ -303,7 +303,7 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 	unsigned long long inter_master_time;
 	FrequencyRatio ppt_offset;
 
-	XPTPD_INFO( "Calculated master to local clock rate difference" );
+	GPTP_LOG_DEBUG( "Calculated master to local clock rate difference" );
 
 	if( !_master_local_freq_offset_init ) {
 		_prev_sync_time = sync_time;
@@ -371,7 +371,7 @@ void IEEE1588Clock::setMasterOffset
 		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
 		if( _timestamper ) {
 			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
-				XPTPD_ERROR( "Failed to adjust clock rate" );
+				GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 			}
 		}
 	}
@@ -420,14 +420,14 @@ bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
 	msg->getGrandmasterIdentity((char *)that1 + 6);
 
 #if 0
-	XPTPD_PRINTF("(Clk)Us: ");
+	GPTP_LOG_DEBUG("(Clk)Us: ");
 	for (int i = 0; i < 14; ++i)
-		XPTPD_PRINTF("%hhx ", this1[i]);
-	XPTPD_PRINTF("\n");
-	XPTPD_PRINTF("(Clk)Them: ");
+		GPTP_LOG_DEBUG("%hhx ", this1[i]);
+	GPTP_LOG_DEBUG("\n");
+	GPTP_LOG_DEBUG("(Clk)Them: ");
 	for (int i = 0; i < 14; ++i)
-		XPTPD_PRINTF("%hhx ", that1[i]);
-	XPTPD_PRINTF("\n");
+		GPTP_LOG_DEBUG("%hhx ", that1[i]);
+	GPTP_LOG_DEBUG("\n");
 #endif
 
 	return (memcmp(this1, that1, 14) < 0) ? true : false;

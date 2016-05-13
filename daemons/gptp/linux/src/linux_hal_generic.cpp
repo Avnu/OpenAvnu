@@ -88,11 +88,11 @@ net_result LinuxNetworkInterface::nrecv
 	} else if( err == -1 ) {
 		if( err == EINTR ) {
 			// Caught signal
-			XPTPD_ERROR( "select() recv signal" );
+			GPTP_LOG_ERROR( "select() recv signal" );
 			ret = net_trfail;
 			goto done;
 		} else {
-			XPTPD_ERROR( "select() failed" );
+			GPTP_LOG_ERROR( "select() failed" );
 			ret = net_fatal;
 			goto done;
     }
@@ -122,7 +122,7 @@ net_result LinuxNetworkInterface::nrecv
 			ret = net_trfail;
 			goto done;
 		}
-		XPTPD_ERROR( "recvmsg() failed: %s", strerror(errno) );
+		GPTP_LOG_ERROR( "recvmsg() failed: %s", strerror(errno) );
 		ret = net_fatal;
 		goto done;
 	}
@@ -211,7 +211,7 @@ LinuxTimestamperGeneric::LinuxTimestamperGeneric() {
 
 bool LinuxTimestamperGeneric::Adjust( void *tmx ) {
 	if( syscall(__NR_clock_adjtime, _private->clockid, tmx ) != 0 ) {
-		XPTPD_ERROR( "Failed to adjust PTP clock rate" );
+		GPTP_LOG_ERROR( "Failed to adjust PTP clock rate" );
 		return false;
 	}
 	return true;
@@ -245,7 +245,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	}
 
 	if( !resetFrequencyAdjustment() ) {
-		XPTPD_ERROR( "Failed to reset (zero) frequency adjustment" );
+		GPTP_LOG_ERROR( "Failed to reset (zero) frequency adjustment" );
 		return false;
 	}
 
@@ -346,7 +346,7 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 	device.ifr_ifindex = ifindex;
 	err = ioctl( sd, SIOCGIFNAME, &device );
 	if( err == -1 ) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			( "Failed to get interface name: %s", strerror( errno ));
 		return false;
 	}
@@ -357,7 +357,7 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 	hwconfig.tx_type = HWTSTAMP_TX_ON;
 	err = ioctl( sd, SIOCSHWTSTAMP, &device );
 	if( err == -1 ) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			( "Failed to configure timestamping: %s", strerror( errno ));
 		return false;
 	}
@@ -370,7 +370,7 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 		( sd, SOL_SOCKET, SO_TIMESTAMPING, &timestamp_flags,
 		  sizeof(timestamp_flags) );
 	if( err == -1 ) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			( "Failed to configure timestamping on socket: %s",
 			  strerror( errno ));
 		return false;

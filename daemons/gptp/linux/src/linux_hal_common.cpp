@@ -108,7 +108,7 @@ net_result LinuxNetworkInterface::send
   }
 	delete remote;
 	if( err == -1 ) {
-		XPTPD_ERROR( "Failed to send: %s(%d)", strerror(errno), errno );
+		GPTP_LOG_ERROR( "Failed to send: %s(%d)", strerror(errno), errno );
 		return net_fatal;
 	}
 	return net_succeed;
@@ -134,7 +134,7 @@ void LinuxNetworkInterface::disable_clear_rx_queue() {
 		( sd_event, SOL_PACKET, PACKET_DROP_MEMBERSHIP, &mr_8021as,
 		  sizeof( mr_8021as ));
 	if( err == -1 ) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			( "Unable to add PTP multicast addresses to port id: %u",
 			  ifindex );
 		return;
@@ -158,7 +158,7 @@ void LinuxNetworkInterface::reenable_rx_queue() {
 		( sd_event, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr_8021as,
 		  sizeof( mr_8021as ));
 	if( err == -1 ) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			( "Unable to add PTP multicast addresses to port id: %u",
 			  ifindex );
 		return;
@@ -182,12 +182,12 @@ static void x_readEvent(int sockint, IEEE1588Port *pPort)
 	status = recvmsg(sockint, &msg, 0);
 
 	if (status < 0) {
-		XPTPD_ERROR("read_netlink: Error recvmsg: %d", status);
+		GPTP_LOG_ERROR("read_netlink: Error recvmsg: %d", status);
 		return;
 	}
 
 	if (status == 0) {
-		XPTPD_ERROR("read_netlink: EOF");
+		GPTP_LOG_ERROR("read_netlink: EOF");
 		return;
 	}
 
@@ -198,7 +198,7 @@ static void x_readEvent(int sockint, IEEE1588Port *pPort)
 			return;
 
 		if (msgHdr->nlmsg_type == NLMSG_ERROR) {
-			XPTPD_ERROR("netlink message error");
+			GPTP_LOG_ERROR("netlink message error");
 			return;
 		}
 
@@ -224,7 +224,7 @@ void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 
 	netLinkSocket = socket (AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (netLinkSocket < 0) {
-		XPTPD_ERROR("NETLINK socket open error");
+		GPTP_LOG_ERROR("NETLINK socket open error");
 		return;
 	}
 
@@ -235,7 +235,7 @@ void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 	addr.nl_groups = RTMGRP_LINK;
 
 	if (bind (netLinkSocket, (struct sockaddr *) &addr, sizeof (addr)) < 0) {
-		XPTPD_ERROR("Socket bind failed");
+		GPTP_LOG_ERROR("Socket bind failed");
 		return;
 	}
 
@@ -380,7 +380,7 @@ bool LinuxTimerQueue::addEvent
 		if ( timer_create
 			 (CLOCK_MONOTONIC, &outer_arg->sevp, &outer_arg->timer_handle)
 			 == -1) {
-			XPTPD_ERROR("timer_create failed - %s", strerror(errno));
+			GPTP_LOG_ERROR("timer_create failed - %s", strerror(errno));
 			return false;
 		}
 		timerQueueMap[key] = outer_arg;
@@ -563,7 +563,7 @@ bool LinuxLock::initialize( OSLockType type ) {
 		pthread_mutexattr_settype(&_private->mta, PTHREAD_MUTEX_RECURSIVE);
 	lock_c = pthread_mutex_init(&_private->mutex,&_private->mta);
 	if(lock_c != 0) {
-		XPTPD_ERROR("Mutex initialization failed - %s\n",strerror(errno));
+		GPTP_LOG_ERROR("Mutex initialization failed - %s\n",strerror(errno));
 		return oslock_fail;
 	}
 	return oslock_ok;
@@ -666,7 +666,7 @@ bool LinuxThread::start(OSThreadFunction function, void *arg) {
 	sigaddset(&set, SIGALRM);
 	err = pthread_sigmask(SIG_BLOCK, &set, &oset);
 	if (err != 0) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			("Add timer pthread_sigmask( SIG_BLOCK ... )");
 		return false;
 	}
@@ -677,7 +677,7 @@ bool LinuxThread::start(OSThreadFunction function, void *arg) {
 	sigdelset(&oset, SIGALRM);
 	err = pthread_sigmask(SIG_SETMASK, &oset, NULL);
 	if (err != 0) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			("Add timer pthread_sigmask( SIG_SETMASK ... )");
 		return false;
 	}
@@ -720,7 +720,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	} else {
 		arg = dynamic_cast<LinuxIPCArg *> (barg);
 		if( arg == NULL ) {
-			XPTPD_ERROR( "Wrong IPC init arg type" );
+			GPTP_LOG_ERROR( "Wrong IPC init arg type" );
 			goto exit_error;
 		} else {
 			group_name = arg->group_name;
@@ -728,33 +728,33 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	}
 	grp = getgrnam( group_name );
 	if( grp == NULL ) {
-		XPTPD_ERROR( "Group %s not found, will try root (0) instead", group_name );
+		GPTP_LOG_ERROR( "Group %s not found, will try root (0) instead", group_name );
 	}
 
 	shm_fd = shm_open( SHM_NAME, O_RDWR | O_CREAT, 0660 );
 	if( shm_fd == -1 ) {
-		XPTPD_ERROR( "shm_open(): %s", strerror(errno) );
+		GPTP_LOG_ERROR( "shm_open(): %s", strerror(errno) );
 		goto exit_error;
 	}
 	(void) umask(oldumask);
 	if (fchown(shm_fd, -1, grp != NULL ? grp->gr_gid : 0) < 0) {
-		XPTPD_ERROR("shm_open(): Failed to set ownership");
+		GPTP_LOG_ERROR("shm_open(): Failed to set ownership");
 	}
 	if( ftruncate( shm_fd, SHM_SIZE ) == -1 ) {
-		XPTPD_ERROR( "ftruncate()" );
+		GPTP_LOG_ERROR( "ftruncate()" );
 		goto exit_unlink;
 	}
 	master_offset_buffer = (char *) mmap
 		( NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_LOCKED | MAP_SHARED,
 		  shm_fd, 0 );
 	if( master_offset_buffer == (char *) -1 ) {
-		XPTPD_ERROR( "mmap()" );
+		GPTP_LOG_ERROR( "mmap()" );
 		goto exit_unlink;
 	}
 	/*create mutex attr */
 	err = pthread_mutexattr_init(&shared);
 	if(err != 0) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			("mutex attr initialization failed - %s\n",
 			 strerror(errno));
 		goto exit_unlink;
@@ -763,7 +763,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	/*create a mutex */
 	err = pthread_mutex_init((pthread_mutex_t *) master_offset_buffer, &shared);
 	if(err != 0) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			("sharedmem - Mutex initialization failed - %s\n",
 			 strerror(errno));
 		goto exit_unlink;
@@ -824,24 +824,24 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	LinuxNetworkInterface *net_iface_l = new LinuxNetworkInterface();
 
 	if( !net_iface_l->net_lock.init()) {
-		XPTPD_ERROR( "Failed to initialize network lock");
+		GPTP_LOG_ERROR( "Failed to initialize network lock");
 		return false;
 	}
 
 	InterfaceName *ifname = dynamic_cast<InterfaceName *>(label);
 	if( ifname == NULL ){
-		XPTPD_ERROR( "ifname == NULL");
+		GPTP_LOG_ERROR( "ifname == NULL");
 		return false;
 	}
 
 	net_iface_l->sd_general = socket( PF_PACKET, SOCK_DGRAM, 0 );
 	if( net_iface_l->sd_general == -1 ) {
-		XPTPD_ERROR( "failed to open general socket: %s", strerror(errno));
+		GPTP_LOG_ERROR( "failed to open general socket: %s", strerror(errno));
 		return false;
 	}
 	net_iface_l->sd_event = socket( PF_PACKET, SOCK_DGRAM, 0 );
 	if( net_iface_l->sd_event == -1 ) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			( "failed to open event socket: %s \n", strerror(errno));
 		return false;
 	}
@@ -850,7 +850,7 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	ifname->toString( device.ifr_name, IFNAMSIZ );
 	err = ioctl( net_iface_l->sd_event, SIOCGIFHWADDR, &device );
 	if( err == -1 ) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			( "Failed to get interface address: %s", strerror( errno ));
 		return false;
 	}
@@ -859,7 +859,7 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	net_iface_l->local_addr = addr;
 	err = ioctl( net_iface_l->sd_event, SIOCGIFINDEX, &device );
 	if( err == -1 ) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			( "Failed to get interface index: %s", strerror( errno ));
 		return false;
 	}
@@ -874,7 +874,7 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		( net_iface_l->sd_event, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
 		  &mr_8021as, sizeof( mr_8021as ));
 	if( err == -1 ) {
-		XPTPD_ERROR
+		GPTP_LOG_ERROR
 			( "Unable to add PTP multicast addresses to port id: %u",
 			  ifindex );
 		return false;
@@ -888,19 +888,19 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		( net_iface_l->sd_event, (sockaddr *) &ifsock_addr,
 		  sizeof( ifsock_addr ));
 	if( err == -1 ) {
-		XPTPD_ERROR( "Call to bind() failed: %s", strerror(errno) );
+		GPTP_LOG_ERROR( "Call to bind() failed: %s", strerror(errno) );
 		return false;
 	}
 
 	net_iface_l->timestamper =
 		dynamic_cast <LinuxTimestamper *>(timestamper);
 	if(net_iface_l->timestamper == NULL) {
-		XPTPD_ERROR( "timestamper == NULL\n" );
+		GPTP_LOG_ERROR( "timestamper == NULL\n" );
 		return false;
 	}
 	if( !net_iface_l->timestamper->post_init
 		( ifindex, net_iface_l->sd_event, &net_iface_l->net_lock )) {
-		XPTPD_ERROR( "post_init failed\n" );
+		GPTP_LOG_ERROR( "post_init failed\n" );
 		return false;
 	}
 	*net_iface = net_iface_l;

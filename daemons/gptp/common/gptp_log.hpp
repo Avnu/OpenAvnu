@@ -32,10 +32,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdarg.h>
 #include <time.h>
 
-#define GPTP_LOG_CRITICAL_ON 		1
-#define GPTP_LOG_ERROR_ON 			1
-#define GPTP_LOG_EXCEPTION_ON 		1
-#define GPTP_LOG_INFO_ON 			1
+#define GPTP_LOG_CRITICAL_ON		1
+#define GPTP_LOG_ERROR_ON			1
+#define GPTP_LOG_EXCEPTION_ON	1
+#define GPTP_LOG_WARNING_ON		1
+#define GPTP_LOG_INFO_ON				1
 #define GPTP_LOG_STATUS_ON			1
 //#define GPTP_LOG_DEBUG_ON			1
 //#define GPTP_LOG_VERBOSE_ON		1

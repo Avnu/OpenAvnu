@@ -47,7 +47,7 @@
 #include <platform.hpp>
 #include <ptptypes.hpp>
 
-#include <debugout.hpp>
+#include <gptp_log.hpp>
 
 #define MAX_PORTS 32	/*!< Maximum number of IEEE1588Port instances */
 
@@ -227,7 +227,7 @@ class ClockIdentity {
 	 * @return void
 	 */
 	void print(const char *str) {
-		XPTPD_INFO
+		GPTP_LOG_VERBOSE
 			( "Clock Identity(%s): %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
 			  str, id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7] );
 	}

@@ -36,7 +36,7 @@
 #include <windows_hal.hpp>
 #include <IPCListener.hpp>
 #include <PeerList.hpp>
-#include <debugout.hpp>
+#include <gptp_log.hpp>
 
 DWORD WINAPI OSThreadCallback( LPVOID input ) {
 	OSThreadArg *arg = (OSThreadArg*) input;
@@ -101,7 +101,7 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 		netclock_hz.QuadPart = rate_map->clock_rate;
 	}
 	else {
-		XPTPD_ERROR("Unable to determine clock rate for interface %s", pAdapterInfo->Description);
+		GPTP_LOG_ERROR("Unable to determine clock rate for interface %s", pAdapterInfo->Description);
 		return false;
 	}
 
@@ -125,23 +125,23 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 	}
 
 	if (delay_val.gb_rx_phy_delay == -1) {
-		XPTPD_ERROR("Warning: Gbit receive PHY delay is unknown using 0");
+		GPTP_LOG_ERROR("Warning: Gbit receive PHY delay is unknown using 0");
 		delay_val.gb_rx_phy_delay = 0;
 	}
 	if (delay_val.gb_tx_phy_delay == -1) {
-		XPTPD_ERROR("Warning: Gbit transmit PHY delay is unknown using 0");
+		GPTP_LOG_ERROR("Warning: Gbit transmit PHY delay is unknown using 0");
 		delay_val.gb_tx_phy_delay = 0;
 	}
 	if (delay_val.mb_rx_phy_delay == -1) {
-		XPTPD_ERROR("Warning: Mbit receive PHY delay is unknown using 0");
+		GPTP_LOG_ERROR("Warning: Mbit receive PHY delay is unknown using 0");
 		delay_val.mb_rx_phy_delay = 0;
 	}
 	if (delay_val.mb_tx_phy_delay == -1) {
-		XPTPD_ERROR("Warning: Mbit transmit PHY delay is unknown using 0");
+		GPTP_LOG_ERROR("Warning: Mbit transmit PHY delay is unknown using 0");
 		delay_val.gb_tx_phy_delay = 0;
 	}
 
-	XPTPD_INFO( "Adapter UID: %s\n", pAdapterInfo->AdapterName );
+	GPTP_LOG_INFO( "Adapter UID: %s\n", pAdapterInfo->AdapterName );
 	PLAT_strncpy( network_card_id, NETWORK_CARD_ID_PREFIX, 63 );
 	PLAT_strncpy( network_card_id+strlen(network_card_id), pAdapterInfo->AdapterName, 63-strlen(network_card_id) );
 
@@ -166,10 +166,10 @@ bool WindowsNamedPipeIPC::init(OS_IPC_ARG *arg) {
 	ipclistener = new IPCListener();
 	// Start IPC listen thread
 	if (!ipclistener->start(ipcdata)) {
-		XPTPD_ERROR("Starting IPC listener thread failed");
+		GPTP_LOG_ERROR("Starting IPC listener thread failed");
 	}
 	else {
-		XPTPD_INFO("Starting IPC listener thread succeeded");
+		GPTP_LOG_INFO("Starting IPC listener thread succeeded");
 	}
 
 	return true;
