@@ -54,12 +54,14 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/prctl.h>
 
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+
 
 Timestamp tsToTimestamp(struct timespec *ts)
 {
@@ -287,6 +289,9 @@ void *LinuxTimerQueueHandler( void *arg ) {
 	sigset_t waitfor;
 	struct timespec timeout;
 	timeout.tv_sec = 0; timeout.tv_nsec = 100000000; /* 100 ms */
+
+	// Ingoring the return value
+	/* s = */ prctl(PR_SET_NAME, "gPTPTimerQueue", NULL, NULL, NULL);
 
 	sigemptyset( &waitfor );
 
@@ -683,6 +688,13 @@ bool LinuxThread::start(OSThreadFunction function, void *arg) {
 
 	return true;
 }
+
+void LinuxThread::setName(const char *name)
+{
+	// Ingoring the return value
+	/* s = */ prctl(PR_SET_NAME, name, NULL, NULL, NULL);
+}
+
 
 bool LinuxThread::join(OSThreadExitCode & exit_code) {
 	int err;

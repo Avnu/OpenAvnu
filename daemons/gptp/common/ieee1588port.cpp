@@ -59,6 +59,7 @@ OSThreadExitCode watchNetLinkWrapper(void *arg)
 	IEEE1588Port *port;
 
 	port = (IEEE1588Port *) arg;
+	port->link_thread->setName("gPTPLinkWatch");
 	if (port->watchNetlink() == NULL)
 		return osthread_ok;
 	else
@@ -70,8 +71,9 @@ OSThreadExitCode openPortWrapper(void *arg)
 	IEEE1588Port *port;
 
 	port = (IEEE1588Port *) arg;
+	port->listening_thread->setName("gPTPListener");
 	if (port->openPort(port) == NULL)
-		return osthread_ok;
+			return osthread_ok;
 	else
 		return osthread_error;
 }

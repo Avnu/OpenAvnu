@@ -548,6 +548,17 @@ public:
         if( thread_id == NULL ) return false;
         else return true;
     }
+
+	/**
+	 * @brief  Name a new thread
+	 * @param  name The name to give to the calling thread
+	 * @return void
+	 */
+	virtual void setName(const char *name)
+	{
+		// No Windows support for named threads
+	}
+
 	/**
 	 * @brief  Joins a terminated thread
 	 * @param  exit_code [out] Thread's return code

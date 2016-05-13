@@ -534,6 +534,13 @@ class LinuxThread : public OSThread {
 	virtual bool start(OSThreadFunction function, void *arg);
 
 	/**
+	 * @brief  Name a new thread
+	 * @param  name The name to give to the calling thread
+	 * @return void
+	 */
+	virtual void setName(const char *name);
+
+	/**
 	 * @brief  Joins a new thread
 	 * @param  exit_code Callback's return code
 	 * @return TRUE if ok, FALSE if error.

@@ -62,6 +62,13 @@ public:
 	virtual bool start(OSThreadFunction function, void *arg) = 0;
 
 	/**
+	 * @brief  Name a new thread
+	 * @param  name The name to give to the calling thread
+	 * @return void
+	 */
+	virtual void setName(const char *name) = 0;
+
+	/**
 	 * @brief  Joins the thread
 	 * @param  exit_code OSThreadExitCode enumeration
 	 * @return Implementation specific
