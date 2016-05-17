@@ -1,6 +1,6 @@
 [submodule "thirdparty/cpputest"]
 	path = thirdparty/cpputest
-	url = git@github.com:cpputest/cpputest.git
+	url = ../../cpputest/cpputest.git
 [submodule "avdecc-lib"]
 	path = avdecc-lib
 	url = ../../AVnu/avdecc-lib
