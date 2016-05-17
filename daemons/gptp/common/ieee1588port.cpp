@@ -73,7 +73,7 @@ OSThreadExitCode openPortWrapper(void *arg)
 	port = (IEEE1588Port *) arg;
 	port->listening_thread->setName("gPTPListener");
 	if (port->openPort(port) == NULL)
-			return osthread_ok;
+		return osthread_ok;
 	else
 		return osthread_error;
 }
