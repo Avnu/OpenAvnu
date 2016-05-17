@@ -178,7 +178,7 @@ PTPMessageCommon *buildPTPMessage
 			       buf + PTP_SYNC_NSEC(PTP_SYNC_OFFSET),
 			       sizeof(sync_msg->originTimestamp.nanoseconds));
 			msg = sync_msg;
-        }
+		}
 		break;
 	case FOLLOWUP_MESSAGE:
 
@@ -1600,23 +1600,26 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 
 	{
 		uint64_t mine_elapsed;
-	    uint64_t theirs_elapsed;
-	    Timestamp prev_peer_ts_mine;
-	    Timestamp prev_peer_ts_theirs;
-	    FrequencyRatio rate_offset;
-	    if( port->getPeerOffset( prev_peer_ts_mine, prev_peer_ts_theirs )) {
+		uint64_t theirs_elapsed;
+		Timestamp prev_peer_ts_mine;
+		Timestamp prev_peer_ts_theirs;
+		FrequencyRatio rate_offset;
+		if( port->getPeerOffset( prev_peer_ts_mine, prev_peer_ts_theirs )) {
 			mine_elapsed =  TIMESTAMP_TO_NS(request_tx_timestamp)-TIMESTAMP_TO_NS(prev_peer_ts_mine);
 			theirs_elapsed = TIMESTAMP_TO_NS(remote_req_rx_timestamp)-TIMESTAMP_TO_NS(prev_peer_ts_theirs);
 			theirs_elapsed -= port->getLinkDelay();
 			theirs_elapsed += link_delay < 0 ? 0 : link_delay;
 			rate_offset =  ((FrequencyRatio) mine_elapsed)/theirs_elapsed;
 			port->setPeerRateOffset(rate_offset);
-			port->setAsCapable( true );
+			if (!port->getAutomotiveProfile()) {
+				if( !port->setLinkDelay( link_delay ) ) {
+					GPTP_LOG_ERROR("Link delay %ld beyond neighborPropDelayThresh; not AsCapable", link_delay);
+					port->setAsCapable( false );
+				} else {
+					port->setAsCapable( true );
+				}
+			}
 		}
-	}
-	if( !port->setLinkDelay( link_delay ) ) {
-		GPTP_LOG_INFO("Link delay %ld beyond neighborPropDelayThresh; not AsCapable", link_delay);
-        port->setAsCapable( false );
 	}
 
 	port->setPeerOffset( request_tx_timestamp, remote_req_rx_timestamp );
