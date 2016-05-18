@@ -14,12 +14,13 @@ echo "Starting daemons on "$nic
 if true; then
     sudo rmmod igb
     sudo insmod kmod/igb/igb_avb.ko
+    groupadd ptp
 else
     sudo rmmod igb > /dev/null 2>&1
     sudo insmod kmod/igb/igb_avb.ko > /dev/null 2>&1
+    groupadd ptp > /dev/null 2>&1
 fi
 
-groupadd ptp
 sudo daemons/gptp/linux/build/obj/daemon_cl $nic &
 sudo daemons/mrpd/mrpd -mvs -i $nic &
 sudo daemons/maap/linux/maap_daemon -i $nic &
