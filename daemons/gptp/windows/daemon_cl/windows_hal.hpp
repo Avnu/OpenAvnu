@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2009-2012, Intel Corporation 
+  Copyright (c) 2009-2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -47,7 +47,7 @@
 #include "packet.hpp"
 #include "ieee1588.hpp"
 #include "iphlpapi.h"
-#include "ipcdef.hpp"
+#include "windows_ipc.hpp"
 #include "tsc.hpp"
 
 #include "avbts_osipc.hpp"
@@ -73,7 +73,7 @@ public:
 	 * @param  payload [in] Data buffer
 	 * @param  length Size of buffer
 	 * @param  timestamp TRUE: Use timestamp, FALSE otherwise
-	 * @return net_result structure 
+	 * @return net_result structure
 	 */
 	virtual net_result send( LinkLayerAddress *addr, uint8_t *payload, size_t length, bool timestamp ) {
 		packet_addr_t dest;
@@ -86,9 +86,10 @@ public:
 	 * @param  addr [out] Remote link layer address
 	 * @param  payload [out] Data buffer
 	 * @param  length [out] Length of received data
+	 * @param  delay [in] Specifications for PHY input and output delays in nanoseconds
 	 * @return net_result structure
 	 */
-	virtual net_result nrecv( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) {
+	virtual net_result nrecv(LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay) {
 		packet_addr_t dest;
 		packet_error_t pferror = recvFrame( handle, &dest, payload, length );
 		if( pferror != PACKET_NO_ERROR && pferror != PACKET_RECVTIMEOUT_ERROR ) return net_fatal;
@@ -104,6 +105,12 @@ public:
 	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
 		*addr = local_addr;
 	}
+
+	/**
+	* @brief Watch for netlink changes.
+	*/
+	virtual void watchNetLink(IEEE1588Port *pPort);
+
 	/**
 	 * @brief  Gets the offset to the start of data in the Layer 2 Frame
 	 * @return ::PACKET_HDR_LENGTH
@@ -580,15 +587,41 @@ public:
 	}
 };
 
-#define NETCLOCK_HZ_OTHER 1056000000		/*!< @todo Not sure about what that means*/
-#define NETCLOCK_HZ_NANO 1000000000			/*!< 1 Hertz in nanoseconds */
-#define ONE_WAY_PHY_DELAY 8000				/*!< Phy delay TX/RX */
-#define NANOSECOND_CLOCK_PART_DESCRIPTION "I217-LM"	/*!< Network adapter description */
+#define I217_DESC "I217-LM"
+#define I219_DESC "I219-V"
+
 #define NETWORK_CARD_ID_PREFIX "\\\\.\\"			/*!< Network adapter prefix */
 #define OID_INTEL_GET_RXSTAMP 0xFF020264			/*!< Get RX timestamp code*/
 #define OID_INTEL_GET_TXSTAMP 0xFF020263			/*!< Get TX timestamp code*/
 #define OID_INTEL_GET_SYSTIM  0xFF020262			/*!< Get system time code */
 #define OID_INTEL_SET_SYSTIM  0xFF020261			/*!< Set system time code */
+
+typedef struct
+{
+	uint32_t clock_rate;
+	char *device_desc;
+} DeviceClockRateMapping;
+
+static DeviceClockRateMapping DeviceClockRateMap[] =
+{
+	{ 1000000000, I217_DESC	},
+	{ 1008000000, I219_DESC	},
+	{ 0, NULL },
+};
+
+typedef struct
+{
+	struct phy_delay delay;
+	char *device_desc;
+} DevicePhyDelayMapping;
+
+static DevicePhyDelayMapping DevicePhyDelayMap[] =
+{
+	{{ -1, -1, 6950, 8050, },	I217_DESC	},
+	{{ -1, -1, 6700, 7750, },	I219_DESC	},
+	{{ -1, -1, -1, -1 }, NULL },
+};
+
 
 /**
  * Windows HWTimestamper implementation
@@ -633,13 +666,13 @@ private:
 public:
 	/**
 	 * @brief  Initializes the network adaptor and the hw timestamper interface
-	 * @param  iface_label InterfaceLabel 
+	 * @param  iface_label InterfaceLabel
 	 * @param  net_iface Network interface
 	 * @return TRUE if success; FALSE if error
 	 */
 	virtual bool HWTimestamper_init( InterfaceLabel *iface_label, OSNetworkInterface *net_iface );
 	/**
-	 * @brief  Get the cross timestamping information. 
+	 * @brief  Get the cross timestamping information.
 	 * The gPTP subsystem uses these samples to calculate
 	 * ratios which can be used to translate or extrapolate
 	 * one clock into another clock reference. The gPTP service
@@ -651,28 +684,28 @@ public:
 	 * @param  nominal_clock_rate [out] Nominal clock rate
 	 * @return True in case of success. FALSE in case of error
 	 */
-    virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock, uint32_t *nominal_clock_rate )
-    {
-        DWORD buf[6];
-        DWORD returned;
-        uint64_t now_net, now_tsc;
-        DWORD result;
+	virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
+					    uint32_t *nominal_clock_rate ) {
+		DWORD buf[6];
+		DWORD returned;
+		uint64_t now_net, now_tsc;
+		DWORD result;
 
-        memset( buf, 0xFF, sizeof( buf ));
-        if(( result = readOID( OID_INTEL_GET_SYSTIM, buf, sizeof(buf), &returned )) != ERROR_SUCCESS ) return false;
+		memset( buf, 0xFF, sizeof( buf ));
+		if(( result = readOID( OID_INTEL_GET_SYSTIM, buf, sizeof(buf), &returned )) != ERROR_SUCCESS ) return false;
 
-        now_net = (((uint64_t)buf[1]) << 32) | buf[0];
-        now_net = scaleNativeClockToNanoseconds( now_net );
-        *device_time = nanoseconds64ToTimestamp( now_net );
+		now_net = (((uint64_t)buf[1]) << 32) | buf[0];
+		now_net = scaleNativeClockToNanoseconds( now_net );
+		*device_time = nanoseconds64ToTimestamp( now_net );
 		device_time->_version = version;
 
-        now_tsc = (((uint64_t)buf[3]) << 32) | buf[2];
-        now_tsc = scaleTSCClockToNanoseconds( now_tsc );
-        *system_time = nanoseconds64ToTimestamp( now_tsc );
+		now_tsc = (((uint64_t)buf[3]) << 32) | buf[2];
+		now_tsc = scaleTSCClockToNanoseconds( now_tsc );
+		*system_time = nanoseconds64ToTimestamp( now_tsc );
 		system_time->_version = version;
 
-        return true;
-    }
+		return true;
+	}
 
 	/**
 	 * @brief  Gets the TX timestamp
@@ -681,7 +714,7 @@ public:
 	 * @param  timestamp [out] TX hardware timestamp
 	 * @param  clock_value Not used
 	 * @param  last Not used
-	 * @return -1 if error, 0 if success;
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, unsigned &clock_value, bool last )
 	{
@@ -689,31 +722,35 @@ public:
 		DWORD returned = 0;
 		uint64_t tx_r,tx_s;
 		DWORD result;
+		struct phy_delay delay_val;
+
+		get_phy_delay(&delay_val);//gets the phy delay
+		Timestamp latency(delay_val.gb_tx_phy_delay, 0, 0);
+
 		while(( result = readOID( OID_INTEL_GET_TXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
 		if( result != ERROR_GEN_FAILURE ) {
 			fprintf( stderr, "Error is: %d\n", result );
-			return -1;
+			return GPTP_EC_FAILURE;
 		}
-		if( returned != sizeof(buf_tmp) ) return -72;
+		if( returned != sizeof(buf_tmp) ) return GPTP_EC_EAGAIN;
 		tx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		tx_s = scaleNativeClockToNanoseconds( tx_r );
-		tx_s += ONE_WAY_PHY_DELAY;
-		timestamp = nanoseconds64ToTimestamp( tx_s );
+		timestamp = nanoseconds64ToTimestamp( tx_s ) + latency;
 		timestamp._version = version;
 
-		return 0;
+		return GPTP_EC_SUCCESS;
 	}
 
 	/**
 	 * @brief  Gets the RX timestamp
-	 * @param  identity PortIdentity interface 
+	 * @param  identity PortIdentity interface
 	 * @param  sequenceId  Sequence ID
 	 * @param  timestamp [out] RX hardware timestamp
 	 * @param  clock_value [out] Not used
 	 * @param  last Not used
-	 * @return 0 ok, -1 error, -72 try again.
+	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, unsigned &clock_value, bool last )
 	{
@@ -722,20 +759,24 @@ public:
 		uint64_t rx_r,rx_s;
 		DWORD result;
 		uint16_t packet_sequence_id;
+		struct phy_delay delay_val;
+
+		get_phy_delay(&delay_val);//gets the phy delay
+		Timestamp latency(delay_val.gb_rx_phy_delay, 0, 0);
+
 		while(( result = readOID( OID_INTEL_GET_RXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
-		if( result != ERROR_GEN_FAILURE ) return -1;
-		if( returned != sizeof(buf_tmp) ) return -72;
+		if( result != ERROR_GEN_FAILURE ) return GPTP_EC_FAILURE;
+		if( returned != sizeof(buf_tmp) ) return GPTP_EC_EAGAIN;
 		packet_sequence_id = *((uint32_t *) buf+3) >> 16;
-		if( PLAT_ntohs( packet_sequence_id ) != sequenceId ) return -72;
+		if( PLAT_ntohs( packet_sequence_id ) != sequenceId ) return GPTP_EC_EAGAIN;
 		rx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		rx_s = scaleNativeClockToNanoseconds( rx_r );
-		rx_s -= ONE_WAY_PHY_DELAY;
-		timestamp = nanoseconds64ToTimestamp( rx_s );
+		timestamp = nanoseconds64ToTimestamp( rx_s ) - latency;
 		timestamp._version = version;
 
-		return 0;
+		return GPTP_EC_SUCCESS;
 	}
 };
 
@@ -776,10 +817,11 @@ public:
 	 * @param  sync_count Counts of sync mesasges
 	 * @param  pdelay_count Counts of pdelays
 	 * @param  port_state PortState information
+     * @param  asCapable asCapable flag
 	 * @return TRUE if sucess; FALSE if error
 	 */
 	virtual bool update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-		uint32_t sync_count, uint32_t pdelay_count, PortState port_state);
+		uint32_t sync_count, uint32_t pdelay_count, PortState port_state, bool asCapable);
 };
 
 #endif
