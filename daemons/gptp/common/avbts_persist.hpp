@@ -57,7 +57,7 @@ public:
 	 * @param persistID string identifer of the persistence storage. For example a file name
 	 * @return True on success otherwise False
 	 */
-    virtual bool initStorage(const char *persistID) = 0;
+	virtual bool initStorage(const char *persistID) = 0;
 
 	/**
 	 * @brief  Closes the GPTP_PERSIST instance
@@ -71,7 +71,7 @@ public:
 	 * @param bufSize The size of the restored data.
 	 * @return True on success otherwise False
 	 */
-    virtual bool readStorage(char **bufPtr, uint32_t *bufSize) = 0;
+	virtual bool readStorage(char **bufPtr, uint32_t *bufSize) = 0;
 
 	/**
 	 * @brief Register the write call back
