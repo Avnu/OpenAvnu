@@ -247,6 +247,7 @@ int pci_connect()
 		err = igb_attach_tx(&glob_igb_dev);
 		if (err) {
 			printf("igb_attach_tx failed! (%s)\n", strerror(errno));
+			igb_detach(&glob_igb_dev);
 			continue;
 		}
 		goto out;
