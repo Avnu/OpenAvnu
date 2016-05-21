@@ -47,7 +47,7 @@
 #include <platform.hpp>
 #include <ptptypes.hpp>
 
-#include <debugout.hpp>
+#include <gptp_log.hpp>
 
 #define MAX_PORTS 32	/*!< Maximum number of IEEE1588Port instances */
 
@@ -97,6 +97,7 @@ typedef enum {
 	PDELAY_DEFERRED_PROCESSING,			//!< Defers pdelay processing
 	PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,	//!< Pdelay response message timeout
 	PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES,	//!< Timeout for peer misbehaving. This even will re-enable the PDelay Requests
+	SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED,  //!< Sync rate signal timeout for the Automotive Profile
 } Event;
 
 /**
@@ -226,7 +227,7 @@ class ClockIdentity {
 	 * @return void
 	 */
 	void print(const char *str) {
-		XPTPD_INFO
+		GPTP_LOG_VERBOSE
 			( "Clock Identity(%s): %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
 			  str, id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7] );
 	}

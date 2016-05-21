@@ -8,4 +8,4 @@ if [ "$#" -eq "0" ]; then
 fi
 
 groupadd ptp
-daemons/gptp/linux/build/obj/daemon_cl $1
+daemons/gptp/linux/build/obj/daemon_cl $1 $2 $3 $4 $5 $6 $7 $8

@@ -298,13 +298,14 @@ class OSNetworkInterface {
 	 /**
 	  * @brief Sends a packet to a remote address
 	  * @param addr [in] Remote link layer address
+	  * @param etherType [in] The EtherType of the message
 	  * @param payload [in] Data buffer
 	  * @param length Size of data buffer
 	  * @param timestamp TRUE if to use the event socket with the PTP multicast address. FALSE if to use
 	  * a general socket.
 	  */
 	 virtual net_result send
-		 (LinkLayerAddress * addr, uint8_t * payload, size_t length,
+		(LinkLayerAddress * addr, uint16_t etherType, uint8_t * payload, size_t length,
 		  bool timestamp) = 0;
 
 	 /**
@@ -315,7 +316,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecv
-		 (LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
+		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
 
 	 /**
 	  * @brief Get Link Layer address (mac address)

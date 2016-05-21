@@ -263,7 +263,7 @@ public:
    */
   void setGrandmasterClockIdentity(ClockIdentity id) {
 	  if (id != grandmaster_clock_identity) {
-		  XPTPD_PRINTF("New Grandmaster \"%s\" (previous \"%s\")\n", id.getIdentityString().c_str(), grandmaster_clock_identity.getIdentityString().c_str());
+		  GPTP_LOG_STATUS("New Grandmaster \"%s\" (previous \"%s\")\n", id.getIdentityString().c_str(), grandmaster_clock_identity.getIdentityString().c_str());
 		  grandmaster_clock_identity = id;
 	  }
   }

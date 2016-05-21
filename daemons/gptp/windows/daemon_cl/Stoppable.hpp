@@ -35,7 +35,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define STOPPABLE_HPP
 
 #include <Windows.h>
-#include <debugout.hpp>
+#include <gptp_log.hpp>
 
 /**@file*/
 
@@ -60,7 +60,7 @@ public:
 		exit_waiting = true;
 		if( WaitForSingleObject( thread, INFINITE ) == WAIT_FAILED ) {
 			char *errstr;
-			XPTPD_ERROR( "Wait for thread exit failed %s", errstr );
+			GPTP_LOG_ERROR( "Wait for thread exit failed %s", errstr );
 			delete errstr;
 		}
 		exit_waiting = false;
