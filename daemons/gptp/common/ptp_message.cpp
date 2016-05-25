@@ -458,7 +458,8 @@ PTPMessageCommon *buildPTPMessage
 			buf += PTP_COMMON_HDR_LENGTH + PTP_ANNOUNCE_LENGTH;
 			if( tlv_length > (int) (2*sizeof(uint16_t)) && PLAT_ntohs(*((uint16_t *)buf)) == PATH_TRACE_TLV_TYPE)  {
 				buf += sizeof(uint16_t);
-				annc->tlv.parseClockIdentity((uint8_t *)buf, tlv_length - sizeof(uint16_t));
+				tlv_length -= sizeof(uint16_t);
+				annc->tlv.parseClockIdentity((uint8_t *)buf, tlv_length);
 			}
 
 			msg = annc;

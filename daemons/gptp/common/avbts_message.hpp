@@ -358,16 +358,20 @@ class PathTraceTLV {
 	/**
 	 * @brief  Parses ClockIdentity from message buffer
 	 * @param  buffer [in] Message buffer. It should be at least ::PTP_CLOCK_IDENTITY_LENGTH bytes long.
+	 * @param  size [in] Buffer size. Should be the length of the data pointed to by the buffer argument.
 	 * @return void
 	 */
 	void parseClockIdentity(uint8_t *buffer, int size) {
 		int length = PLAT_ntohs(*(uint16_t*)buffer);
 
+		buffer += sizeof(uint16_t);
+		size -= sizeof(uint16_t);
+
 		if((unsigned)size < (unsigned)length) {
 			length = size;
 		}
 		length /= PTP_CLOCK_IDENTITY_LENGTH;
-		buffer += sizeof(uint16_t);
+
 		for(; length > 0; --length) {
 			ClockIdentity add;
 			add.set(buffer);
