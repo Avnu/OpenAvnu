@@ -213,47 +213,50 @@ void sigint_handler(int signum)
 	glob_unleash_jack = 0;
 }
 
-int pci_connect()
+int pci_connect(device_t *igb_dev)
 {
+	char devpath[IGB_BIND_NAMESZ];
 	struct pci_access *pacc;
 	struct pci_dev *dev;
 	int err;
-	char devpath[IGB_BIND_NAMESZ];
-	memset(&glob_igb_dev, 0, sizeof(device_t));
+
+	memset(igb_dev, 0, sizeof(device_t));
 	pacc = pci_alloc();
 	pci_init(pacc);
 	pci_scan_bus(pacc);
+
 	for (dev = pacc->devices; dev; dev = dev->next) {
-		pci_fill_info(dev,
-			      PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
-		glob_igb_dev.pci_vendor_id = dev->vendor_id;
-		glob_igb_dev.pci_device_id = dev->device_id;
-		glob_igb_dev.domain = dev->domain;
-		glob_igb_dev.bus = dev->bus;
-		glob_igb_dev.dev = dev->dev;
-		glob_igb_dev.func = dev->func;
+		pci_fill_info(dev, PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
+		igb_dev->pci_vendor_id = dev->vendor_id;
+		igb_dev->pci_device_id = dev->device_id;
+		igb_dev->domain = dev->domain;
+		igb_dev->bus = dev->bus;
+		igb_dev->dev = dev->dev;
+		igb_dev->func = dev->func;
 		snprintf(devpath, IGB_BIND_NAMESZ, "%04x:%02x:%02x.%d",
-			 dev->domain, dev->bus, dev->dev, dev->func);
-		err = igb_probe(&glob_igb_dev);
+				dev->domain, dev->bus, dev->dev, dev->func);
+		err = igb_probe(igb_dev);
 		if (err) {
 			continue;
 		}
 		printf("attaching to %s\n", devpath);
-		err = igb_attach(devpath, &glob_igb_dev);
+		err = igb_attach(devpath, igb_dev);
 		if (err) {
-			printf("attach failed! (%s)\n", strerror(errno));
+			printf("attach failed! (%s)\n", strerror(err));
 			continue;
 		}
-		err = igb_attach_tx(&glob_igb_dev);
+		err = igb_attach_tx(igb_dev);
 		if (err) {
-			printf("igb_attach_tx failed! (%s)\n", strerror(errno));
+			printf("attach_tx failed! (%s)\n", strerror(err));
+			igb_detach(igb_dev);
 			continue;
 		}
 		goto out;
 	}
 	pci_cleanup(pacc);
 	return ENXIO;
- out:	pci_cleanup(pacc);
+out:
+	pci_cleanup(pacc);
 	return 0;
 }
 
@@ -446,7 +449,7 @@ int main(int argc, char *argv[])
 		printf("socket creation failed\n");
 		return errno;
 	}
-	err = pci_connect();
+	err = pci_connect(&glob_igb_dev);
 	if (err) {
 		printf("connect failed (%s) - are you running as root?\n",
 		       strerror(errno));
