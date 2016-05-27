@@ -21,8 +21,6 @@
 
 #include <inttypes.h>
 
-#include "igb.h"
-
 #define VALID		1
 #define INVALID		0
 
@@ -30,7 +28,7 @@
 
 #define IGB_BIND_NAMESZ		24
 
-#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
+#define SHM_SIZE (4*8 + sizeof(pthread_mutex_t)) /* 3 - 64 bit and 2 - 32 bits */
 #define SHM_NAME  "/ptp"
 
 #define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
@@ -112,11 +110,11 @@ typedef enum { false = 0, true = 1 } bool;
 
 int pci_connect(device_t * igb_dev);
 
-int gptpscaling(gPtpTimeData * td, char *memory_offset_buffer);
+int gptpscaling(char *igb_mmap, gPtpTimeData *td);
 
 bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local);
 
-void gptpdeinit(int shm_fd, char *memory_offset_buffer);
+int gptpdeinit(int *shm_fd, char **memory_offset_buffer);
 
 int gptpinit(int *shm_fd, char **memory_offset_buffer);
 

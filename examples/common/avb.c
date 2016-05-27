@@ -38,7 +38,9 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 
+#include "igb.h"
 #include "avb.h"
+
 
 int pci_connect(device_t *igb_dev)
 {
@@ -87,47 +89,59 @@ out:
 	return 0;
 }
 
-int gptpinit(int *shm_fd, char **memory_offset_buffer)
+int gptpinit(int *igb_shm_fd, char **igb_mmap)
 {
-	*shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	if (*shm_fd == -1) {
+	if (NULL == igb_shm_fd)
+		return -1;
+
+	*igb_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
+	if (*igb_shm_fd == -1) {
 		perror("shm_open()");
-		return false;
+		return -1;
 	}
-	*memory_offset_buffer =
-	    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-			 *shm_fd, 0);
-	if (*memory_offset_buffer == (char *)-1) {
+	*igb_mmap = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
+				MAP_SHARED, *igb_shm_fd, 0);
+	if (*igb_mmap == (char *)-1) {
 		perror("mmap()");
-		*memory_offset_buffer = NULL;
+		*igb_mmap = NULL;
 		shm_unlink(SHM_NAME);
-		return false;
+		return -1;
 	}
-	return true;
+
+	return 0;
 }
 
-void gptpdeinit(int shm_fd, char *memory_offset_buffer)
+int gptpdeinit(int *igb_shm_fd, char **igb_mmap)
 {
-	if (memory_offset_buffer != NULL) {
-		munmap(memory_offset_buffer, SHM_SIZE);
+	if (NULL != *igb_mmap) {
+		munmap(*igb_mmap, SHM_SIZE);
+		*igb_mmap = NULL;
 	}
-	if (shm_fd != -1) {
-		close(shm_fd);
+	if (NULL == igb_shm_fd) {
+		return -1;
 	}
+	if (*igb_shm_fd != -1) {
+		close(*igb_shm_fd);
+		*igb_shm_fd = -1;
+	}
+	return 0;
 }
 
-int gptpscaling(gPtpTimeData * td, char *memory_offset_buffer)
+int gptpscaling(char *igb_mmap, gPtpTimeData *td)
 {
-	pthread_mutex_lock((pthread_mutex_t *) memory_offset_buffer);
-	memcpy(td, memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
-	pthread_mutex_unlock((pthread_mutex_t *) memory_offset_buffer);
+	if (NULL == igb_mmap || NULL == td)
+		return -1;
+
+	pthread_mutex_lock((pthread_mutex_t *) igb_mmap);
+	memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
+	pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
 
 	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",
 		td->ml_phoffset, td->ls_phoffset);
 	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
 		td->ml_freqoffset, td->ls_freqoffset);
 
-	return true;
+	return 0;
 }
 
 bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local)

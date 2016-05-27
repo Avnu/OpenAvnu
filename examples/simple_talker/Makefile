@@ -12,6 +12,9 @@ simple_talker: simple_talker.o ../common/talker_mrp_client.o ../common/avb.o
 simple_talker.o: simple_talker.c
 	$(CC) $(CFLAGS) $(INCFLAGS) -c simple_talker.c
 
+../common/avb.o: ../common/avb.h ../common/avb.c
+	make -C ../common/ avb.o
+
 ../common/talker_mrp_client.o: ../common/talker_mrp_client.c ../common/talker_mrp_client.h
 	make -C ../common/ talker_mrp_client.o
 

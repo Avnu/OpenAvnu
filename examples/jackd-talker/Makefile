@@ -15,6 +15,9 @@ jack.o: jack.c jack.h defines.h
 jackd_talker.o: jackd_talker.c defines.h jack.h
 	$(CC) -c $(INCFLAGS) -I../../daemons/mrpd $(CFLAGS) jackd_talker.c
 
+../common/avb.o: ../common/avb.c ../common/avb.h
+	make -C ../common/ avb.o
+
 ../common/talker_mrp_client.o:
 	make -C ../common/ talker_mrp_client.o
 
