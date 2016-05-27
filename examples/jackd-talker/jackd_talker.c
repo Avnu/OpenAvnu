@@ -49,7 +49,6 @@
 #include <jack/ringbuffer.h>
 #include <jack/thread.h>
 
-#include "igb.h"
 #include "talker_mrp_client.h"
 #include "jack.h"
 #include "defines.h"

@@ -46,7 +46,6 @@
 
 #include <pci/pci.h>
 
-#include "igb.h"
 #include "talker_mrp_client.h"
 #include "avb.h"
 

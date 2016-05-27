@@ -38,9 +38,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 
-#include "igb.h"
 #include "avb.h"
-
 
 int pci_connect(device_t *igb_dev)
 {
