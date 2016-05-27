@@ -7,7 +7,7 @@ LDFLAGS = -L../../lib/igb
 
 all: jackd_talker
 
-jackd_talker: jackd_talker.o jack.o ../common/talker_mrp_client.o
+jackd_talker: jackd_talker.o jack.o ../common/talker_mrp_client.o ../common/avb.o
 
 jack.o: jack.c jack.h defines.h
 	$(CC) $(CFLAGS) -c jack.c

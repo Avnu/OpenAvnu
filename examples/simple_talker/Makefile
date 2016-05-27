@@ -7,7 +7,7 @@ LDFLAGS=-L../../lib/igb
 
 all: simple_talker
 
-simple_talker: simple_talker.o ../common/talker_mrp_client.o
+simple_talker: simple_talker.o ../common/talker_mrp_client.o ../common/avb.o
 
 simple_talker.o: simple_talker.c
 	$(CC) $(CFLAGS) $(INCFLAGS) -c simple_talker.c
