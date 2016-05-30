@@ -89,9 +89,9 @@ out:
 
 int gptpinit(int *igb_shm_fd, char **igb_mmap)
 {
-	if (NULL == igb_shm_fd)
+	if (igb_shm_fd == NULL || igb_mmap == NULL) {
 		return -1;
-
+	}
 	*igb_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
 	if (*igb_shm_fd == -1) {
 		perror("shm_open()");
@@ -105,31 +105,44 @@ int gptpinit(int *igb_shm_fd, char **igb_mmap)
 		shm_unlink(SHM_NAME);
 		return -1;
 	}
-
 	return 0;
 }
 
+/* gptpdeinit
+ * Return values:
+ *  0 = Success
+ * -1 = close failed
+ * -2 = munmap failed
+ * -3 = close and munmap failed
+ * */
+
 int gptpdeinit(int *igb_shm_fd, char **igb_mmap)
 {
-	if (NULL != *igb_mmap) {
-		munmap(*igb_mmap, SHM_SIZE);
-		*igb_mmap = NULL;
-	}
-	if (NULL == igb_shm_fd) {
-		return -1;
-	}
-	if (*igb_shm_fd != -1) {
-		close(*igb_shm_fd);
+	int ret = 0;
+	if (igb_shm_fd == NULL) {
+		ret -= 1;
+	}else if (*igb_shm_fd != -1) {
+		if(close(*igb_shm_fd) == -1) {
+			ret -= 1;
+		}
 		*igb_shm_fd = -1;
 	}
-	return 0;
+	if (igb_mmap == NULL) {
+		ret -= 2;
+	}else if (NULL != *igb_mmap) {
+		if (munmap(*igb_mmap, SHM_SIZE) == -1) {
+			ret -= 2;
+		}
+		*igb_mmap = NULL;
+	}
+	return ret;
 }
 
 int gptpscaling(char *igb_mmap, gPtpTimeData *td)
 {
-	if (NULL == igb_mmap || NULL == td)
+	if (NULL == igb_mmap || NULL == td) {
 		return -1;
-
+	}
 	pthread_mutex_lock((pthread_mutex_t *) igb_mmap);
 	memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
 	pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
