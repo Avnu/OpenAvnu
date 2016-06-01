@@ -7,10 +7,13 @@ LDFLAGS=-L../../lib/igb
 
 all: simple_rx
 
-simple_rx: simple_rx.o
+simple_rx: igb.o simple_rx.o
 
 simple_rx.o: simple_rx.c
 	$(CC) $(CFLAGS) $(INCFLAGS) -c simple_rx.c
+
+igb.o:  ../../lib/igb/igb.c
+	make -C ../../igb igb.o
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@

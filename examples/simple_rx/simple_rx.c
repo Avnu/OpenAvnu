@@ -43,7 +43,10 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <linux/if.h>
+#include <linux/if_packet.h>
 #include <arpa/inet.h>
+
+#include <netinet/in.h>
 
 #include <pci/pci.h>
 
@@ -56,7 +59,7 @@
 #define PKT_SZ (1514)
 
 /* Global variable for signal handler */
-int *halt_rx_sig;
+volatile int halt_rx_sig;
 
 /* globals */
 
@@ -66,13 +69,14 @@ static const char *version_str = "simple_rx v" VERSION_STR "\n"
 unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
-unsigned char glob_l2_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
+/* unsigned char glob_l2_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 }; */
+unsigned char glob_l2_dest_addr[] = {0xa0, 0x36, 0x9f, 0x10, 0xcd, 0xe6 };
 unsigned char glob_l3_dest_addr[] = { 224, 0, 0, 115 };
 
 void sigint_handler(int signum)
 {
 	printf("got SIGINT\n");
-	*halt_rx_sig = signum;
+	halt_rx_sig = 0;
 }
 
 int pci_connect(device_t *igb_dev)
@@ -97,15 +101,24 @@ int pci_connect(device_t *igb_dev)
 		igb_dev->func = dev->func;
 		snprintf(devpath, IGB_BIND_NAMESZ, "%04x:%02x:%02x.%d",
 			 dev->domain, dev->bus, dev->dev, dev->func);
+
 		err = igb_probe(igb_dev);
 
 		if (err)
 			continue;
 
 		printf("attaching to %s\n", devpath);
-		err = igb_attach(devpath, igb_dev);
-		if (err || igb_attach_tx(igb_dev)) {
+
+		if (igb_attach(devpath, igb_dev)) {
 			printf("attach failed! (%s)\n", strerror(errno));
+			continue;
+		}
+		if (igb_attach_tx(igb_dev)) {
+			printf("tx attach failed! (%s)\n", strerror(err));
+			continue;
+		}
+		if (igb_attach_rx(igb_dev)) {
+			printf("rx attach failed! (%s)\n", strerror(err));
 			continue;
 		}
 		goto out;
@@ -151,6 +164,88 @@ int get_mac_address(char *interface)
 	return 0;
 }
 
+int mrpd_init_protocol_socket(u_int16_t etype, int *sock,
+			      unsigned char *multicast_addr, char *interface)
+{
+	struct sockaddr_ll addr;
+	struct ifreq if_request;
+	int lsock;
+	int rc;
+	struct packet_mreq multicast_req;
+
+	if (NULL == sock)
+		return -1;
+	if (NULL == multicast_addr)
+		return -1;
+
+	memset(&multicast_req, 0, sizeof(multicast_req));
+	*sock = -1;
+
+	lsock = socket(PF_PACKET, SOCK_RAW, htons(etype));
+	if (lsock < 0)
+		return -1;
+
+	memset(&if_request, 0, sizeof(if_request));
+
+	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name) - 1);
+
+	rc = ioctl(lsock, SIOCGIFHWADDR, &if_request);
+	if (rc < 0) {
+		close(lsock);
+		return -1;
+	}
+
+	memcpy(glob_l2_dest_addr, if_request.ifr_hwaddr.sa_data,
+	       sizeof(glob_l2_dest_addr));
+
+	memset(&if_request, 0, sizeof(if_request));
+
+	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name)-1);
+
+	rc = ioctl(lsock, SIOCGIFINDEX, &if_request);
+	if (rc < 0) {
+		close(lsock);
+		return -1;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sll_ifindex = if_request.ifr_ifindex;
+	addr.sll_family = AF_PACKET;
+	addr.sll_protocol = htons(etype);
+
+	rc = bind(lsock, (struct sockaddr *)&addr, sizeof(addr));
+	if (0 != rc) {
+#if LOG_ERRORS
+		fprintf(stderr, "%s - Error on bind %s", __FUNCTION__, strerror(errno));
+#endif
+		close(lsock);
+		return -1;
+	}
+
+	rc = setsockopt(lsock, SOL_SOCKET, SO_BINDTODEVICE, interface,
+			strlen(interface));
+	if (0 != rc) {
+		close(lsock);
+		return -1;
+	}
+
+	multicast_req.mr_ifindex = if_request.ifr_ifindex;
+	multicast_req.mr_type = PACKET_MR_MULTICAST;
+	multicast_req.mr_alen = 6;
+	memcpy(multicast_req.mr_address, multicast_addr, 6);
+
+	rc = setsockopt(lsock, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
+			&multicast_req, sizeof(multicast_req));
+	if (0 != rc) {
+		close(lsock);
+		return -1;
+	}
+
+	*sock = lsock;
+
+	return 0;
+}
+
 static void usage(void)
 {
 	fprintf(stderr, "\n"
@@ -166,16 +261,18 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
 	/* int igb_shm_fd = -1; */
-	struct igb_dma_alloc a_page;
-	struct igb_packet *tmp_packet;
 	struct igb_packet *received_packets;
 	struct igb_packet *free_packets;
+	struct igb_packet *tmp_packet;
+	struct igb_dma_alloc a_page;
+	unsigned char test_filter[128];
 	char *interface = NULL;
 	u_int8_t filter_mask[64];
 	device_t igb_dev;
 	unsigned i;
 	int c, rc = 0;
 	int err;
+	int sock;
 
 	for (;;) {
 		c = getopt(argc, argv, "hi:t:");
@@ -204,33 +301,32 @@ int main(int argc, char *argv[])
 	err = pci_connect(&igb_dev);
 	if (err) {
 		printf("connect failed (%s) - are you running as root?\n",
-		       strerror(errno));
-		return errno;
+		       strerror(err));
+		return err;
 	}
 	err = igb_init(&igb_dev);
 	if (err) {
 		printf("init failed (%s) - is the driver really loaded?\n",
-		       strerror(errno));
-		return errno;
+		       strerror(err));
+		return err;
 	}
 	/*
 	 * allocate a bunch of pages and
 	 * stitch into a linked list of igb_packets ...
 	 */
-
 	free_packets = NULL;
 
 	for (i = 0; i < 128; i++) {
 		tmp_packet = malloc(sizeof(struct igb_packet));
 		if (tmp_packet == NULL) {
 			printf("failed to allocate igb_packet memory!\n");
-			return errno;
+			return err;
 		}
 		err = igb_dma_malloc_page(&igb_dev, &a_page);
 		if (err) {
 			printf("malloc failed (%s) - out of memory?\n",
-			       strerror(errno));
-			return errno;
+			       strerror(err));
+			return err;
 		}
 		tmp_packet->dmatime = 0;
 		tmp_packet->attime = 0;
@@ -248,9 +344,33 @@ int main(int argc, char *argv[])
 
 	igb_refresh_buffers(&igb_dev, 0, &free_packets, 128);
 
+#if 0
 	filter_mask[0] = 0x3F; /* 1st 6 bytes of destination MAC address */
 	igb_setup_flex_filter(&igb_dev, 0, 0, 6,
 			      glob_l2_dest_addr, filter_mask);
+#endif
+
+#if 1
+	memset(filter_mask, 0, sizeof(filter_mask));
+	memset(test_filter, 0, sizeof(test_filter));
+
+	/* ethertype */
+//	test_filter[0x0C] = 0x86;
+//	test_filter[0x0D] = 0x22;
+
+	/* mac address */
+//	test_filter[0x30] = 0xa0;
+//	test_filter[0x31] = 0x36;
+//	test_filter[0x32] = 0x9f;
+//	filter_mask[6] |= 0x3F;
+
+	filter_mask[1] = 0x30;
+
+	igb_setup_flex_filter(&igb_dev, 0, 0, 16,
+			      test_filter, filter_mask);
+#endif
+
+	mrpd_init_protocol_socket(0x2272, &sock, glob_l2_dest_addr, interface);
 
 	signal(SIGINT, sigint_handler);
 	rc = get_mac_address(interface);
@@ -262,13 +382,13 @@ int main(int argc, char *argv[])
 	memset(glob_stream_id, 0, sizeof(glob_stream_id));
 	memcpy(glob_stream_id, glob_station_addr, sizeof(glob_station_addr));
 
-	*halt_rx_sig = 0;
+	halt_rx_sig = 1;
 
 	rc = nice(-20);
 
-	while (*halt_rx_sig) {
+	while (halt_rx_sig) {
 		received_packets = NULL;
-		igb_receive(&igb_dev, 0, &received_packets, 1);
+		igb_receive(&igb_dev, &received_packets, 1);
 
 		if (received_packets == NULL)
 			continue;
@@ -281,7 +401,7 @@ int main(int argc, char *argv[])
 	}
 	rc = nice(0);
 
-	*halt_rx_sig = 1;
+	halt_rx_sig = 0;
 
 	igb_clear_flex_filter(&igb_dev, 0);
 	igb_dma_free_page(&igb_dev, &a_page);

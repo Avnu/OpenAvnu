@@ -4051,6 +4051,10 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	      hw->fc.requested_mode == e1000_fc_rx_pause)))
 		srrctl |= E1000_SRRCTL_DROP_EN;
 
+	/* turn off header split */
+	srrctl &= 0xF3FFFFFF;
+	srrctl |= 0x02000000;
+
 	E1000_WRITE_REG(hw, E1000_SRRCTL(reg_idx), srrctl);
 
 	/* set filtering for VMDQ pools */
