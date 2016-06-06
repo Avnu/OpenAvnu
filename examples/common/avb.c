@@ -95,26 +95,26 @@ out:
 
 /**
  * @brief Open the memory mapping used for IPC
- * @param igb_shm_fd [inout] File descriptor for mapping
- * @param igb_mmap [inout] Pointer to mapping
+ * @param shm_fd [inout] File descriptor for mapping
+ * @param shm_map [inout] Pointer to mapping
  * @return 0 for success, negative for failure
  */
  
-int gptpinit(int *igb_shm_fd, char **igb_mmap)
+int gptpinit(int *shm_fd, char **shm_map)
 {
-	if (igb_shm_fd == NULL || igb_mmap == NULL) {
+	if (shm_fd == NULL || shm_map == NULL) {
 		return -1;
 	}
-	*igb_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	if (*igb_shm_fd == -1) {
+	*shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
+	if (*shm_fd == -1) {
 		perror("shm_open()");
 		return -1;
 	}
-	*igb_mmap = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
-				MAP_SHARED, *igb_shm_fd, 0);
-	if (*igb_mmap == (char *)-1) {
+	*shm_map = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
+				MAP_SHARED, *shm_fd, 0);
+	if (*shm_map == (char *)-1) {
 		perror("mmap()");
-		*igb_mmap = NULL;
+		*shm_map = NULL;
 		shm_unlink(SHM_NAME);
 		return -1;
 	}
@@ -123,66 +123,66 @@ int gptpinit(int *igb_shm_fd, char **igb_mmap)
 
 /**
  * @brief Free the memory mapping used for IPC
- * @param igb_shm_fd [in] File descriptor for mapping
- * @param igb_mmap [in] Pointer to mapping
+ * @param shm_fd [in] File descriptor for mapping
+ * @param shm_map [in] Pointer to mapping
  * @return 0 for success, negative for failure
  *	-1 = close failed
  *	-2 = munmap failed
  *	-3 = close and munmap failed
  */
 
-int gptpdeinit(int *igb_shm_fd, char **igb_mmap)
+int gptpdeinit(int *shm_fd, char **shm_map)
 {
 	int ret = 0;
-	if (igb_shm_fd == NULL) {
+	if (shm_fd == NULL) {
 		ret -= 1;
-	}else if (*igb_shm_fd != -1) {
-		if(close(*igb_shm_fd) == -1) {
+	}else if (*shm_fd != -1) {
+		if(close(*shm_fd) == -1) {
 			ret -= 1;
 		}
-		*igb_shm_fd = -1;
+		*shm_fd = -1;
 	}
-	if (igb_mmap == NULL) {
+	if (shm_map == NULL) {
 		ret -= 2;
-	}else if (NULL != *igb_mmap) {
-		if (munmap(*igb_mmap, SHM_SIZE) == -1) {
+	}else if (NULL != *shm_map) {
+		if (munmap(*shm_map, SHM_SIZE) == -1) {
 			ret -= 2;
 		}
-		*igb_mmap = NULL;
+		*shm_map = NULL;
 	}
 	return ret;
 }
 
 /**
  * @brief Read the ptp data from IPC memory
- * @param igb_mmap [in] Pointer to mapping
+ * @param shm_map [in] Pointer to mapping
  * @param td [inout] Struct to read the data into
  * @return 0 for success, negative for failure
  */
 
-int gptpgetdata(char *igb_mmap, gPtpTimeData *td)
+int gptpgetdata(char *shm_map, gPtpTimeData *td)
 {
-	if (NULL == igb_mmap || NULL == td) {
+	if (NULL == shm_map || NULL == td) {
 		return -1;
 	}
-	pthread_mutex_lock((pthread_mutex_t *) igb_mmap);
-	memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
-	pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
+	pthread_mutex_lock((pthread_mutex_t *) shm_map);
+	memcpy(td, shm_map + sizeof(pthread_mutex_t), sizeof(*td));
+	pthread_mutex_unlock((pthread_mutex_t *) shm_map);
 
 	return 0;
 }
 
 /**
  * @brief Read the ptp data from IPC memory and print its contents
- * @param igb_mmap [in] Pointer to mapping
+ * @param shm_map [in] Pointer to mapping
  * @param td [inout] Struct to read the data into
  * @return 0 for success, negative for failure
  */
 
-int gptpscaling(char *igb_mmap, gPtpTimeData *td) //change this function name ??
+int gptpscaling(char *shm_map, gPtpTimeData *td) //change this function name ??
 {
 	int i;
-	if ((i = gptpgetdata(igb_mmap, td)) < 0) {
+	if ((i = gptpgetdata(shm_map, td)) < 0) {
 		return i;
 	}
 	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",

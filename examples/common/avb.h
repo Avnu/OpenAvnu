@@ -112,10 +112,10 @@ typedef enum { false = 0, true = 1 } bool;
 
 int pci_connect(device_t * igb_dev);
 
-int gptpinit(int *shm_fd, char **memory_offset_buffer);
-int gptpdeinit(int *shm_fd, char **memory_offset_buffer);
-int gptpgetdata(char *igb_mmap, gPtpTimeData *td);
-int gptpscaling(char *igb_mmap, gPtpTimeData *td);
+int gptpinit(int *shm_fd, char **shm_map);
+int gptpdeinit(int *shm_fd, char **shm_map);
+int gptpgetdata(char *shm_mmap, gPtpTimeData *td);
+int gptpscaling(char *shm_mmap, gPtpTimeData *td);
 bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local);
 
 void avb_set_1722_cd_indicator(seventeen22_header *h1722, uint64_t cd_indicator);
