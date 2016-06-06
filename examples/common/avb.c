@@ -154,13 +154,13 @@ int gptpdeinit(int *igb_shm_fd, char **igb_mmap)
 }
 
 /**
- * @brief Read the ptp data from IPC memory and print its contents
+ * @brief Read the ptp data from IPC memory
  * @param igb_mmap [in] Pointer to mapping
  * @param td [inout] Struct to read the data into
  * @return 0 for success, negative for failure
  */
 
-int gptpscaling(char *igb_mmap, gPtpTimeData *td)
+int gptpgetdata(char *igb_mmap, gPtpTimeData *td)
 {
 	if (NULL == igb_mmap || NULL == td) {
 		return -1;
@@ -169,6 +169,22 @@ int gptpscaling(char *igb_mmap, gPtpTimeData *td)
 	memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
 	pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
 
+	return 0;
+}
+
+/**
+ * @brief Read the ptp data from IPC memory and print its contents
+ * @param igb_mmap [in] Pointer to mapping
+ * @param td [inout] Struct to read the data into
+ * @return 0 for success, negative for failure
+ */
+
+int gptpscaling(char *igb_mmap, gPtpTimeData *td) //change this function name ??
+{
+	int i;
+	if ((i = gptpgetdata(igb_mmap, td)) < 0) {
+		return i;
+	}
 	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",
 		td->ml_phoffset, td->ls_phoffset);
 	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
