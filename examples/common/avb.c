@@ -40,6 +40,12 @@
 
 #include "avb.h"
 
+/**
+ * @brief Connect to the network card 
+ * @param igb_dev [inout] Device handle
+ * @return 0 for success, ENXIO for failure
+ */
+
 int pci_connect(device_t *igb_dev)
 {
 	char devpath[IGB_BIND_NAMESZ];
@@ -87,6 +93,13 @@ out:
 	return 0;
 }
 
+/**
+ * @brief Open the memory mapping used for IPC
+ * @param igb_shm_fd [inout] File descriptor for mapping
+ * @param igb_mmap [inout] Pointer to mapping
+ * @return 0 for success, negative for failure
+ */
+ 
 int gptpinit(int *igb_shm_fd, char **igb_mmap)
 {
 	if (igb_shm_fd == NULL || igb_mmap == NULL) {
@@ -108,13 +121,15 @@ int gptpinit(int *igb_shm_fd, char **igb_mmap)
 	return 0;
 }
 
-/* gptpdeinit
- * Return values:
- *  0 = Success
- * -1 = close failed
- * -2 = munmap failed
- * -3 = close and munmap failed
- * */
+/**
+ * @brief Free the memory mapping used for IPC
+ * @param igb_shm_fd [in] File descriptor for mapping
+ * @param igb_mmap [in] Pointer to mapping
+ * @return 0 for success, negative for failure
+ *	-1 = close failed
+ *	-2 = munmap failed
+ *	-3 = close and munmap failed
+ */
 
 int gptpdeinit(int *igb_shm_fd, char **igb_mmap)
 {
@@ -137,6 +152,13 @@ int gptpdeinit(int *igb_shm_fd, char **igb_mmap)
 	}
 	return ret;
 }
+
+/**
+ * @brief Read the ptp data from IPC memory and print its contents
+ * @param igb_mmap [in] Pointer to mapping
+ * @param td [inout] Struct to read the data into
+ * @return 0 for success, negative for failure
+ */
 
 int gptpscaling(char *igb_mmap, gPtpTimeData *td)
 {
