@@ -98,6 +98,11 @@ PTPMessageCommon *buildPTPMessage
 	messageType = (MessageType) (tspec_msg_t & 0xF);
 	transportSpecific = (tspec_msg_t >> 4) & 0x0F;
 
+	if (transportSpecific!=1) {
+		GPTP_LOG_EXCEPTION("*** Received message with unsupported transportSpecific type=%d",transportSpecific);
+		goto done;
+	}
+
 	sourcePortIdentity = new PortIdentity
 		((uint8_t *)
 		 (buf + PTP_COMMON_HDR_SOURCE_CLOCK_ID
@@ -148,12 +153,7 @@ PTPMessageCommon *buildPTPMessage
 		}
 
 	}
-
-	if (transportSpecific!=1) {
-		GPTP_LOG_EXCEPTION("*** Received message with unsupported transportSpecific type=%d",transportSpecific);
-		return NULL;
-	}
-
+ 
 	switch (messageType) {
 	case SYNC_MESSAGE:
 
