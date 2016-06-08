@@ -98,8 +98,8 @@ PTPMessageCommon *buildPTPMessage
 	messageType = (MessageType) (tspec_msg_t & 0xF);
 	transportSpecific = (tspec_msg_t >> 4) & 0x0F;
 
-	if (transportSpecific!=1) {
-		GPTP_LOG_EXCEPTION("*** Received message with unsupported transportSpecific type=%d",transportSpecific);
+	if (1 != transportSpecific) {
+		GPTP_LOG_EXCEPTION("*** Received message with unsupported transportSpecific type=%d", transportSpecific);
 		goto done;
 	}
 
