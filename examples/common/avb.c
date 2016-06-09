@@ -102,7 +102,7 @@ out:
  
 int gptpinit(int *shm_fd, char **shm_map)
 {
-	if (shm_fd == NULL || shm_map == NULL) {
+	if (NULL == shm_fd || NULL == shm_map) {
 		return -1;
 	}
 	*shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
@@ -112,7 +112,7 @@ int gptpinit(int *shm_fd, char **shm_map)
 	}
 	*shm_map = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
 				MAP_SHARED, *shm_fd, 0);
-	if (*shm_map == (char *)-1) {
+	if ((char*)-1 == *shm_map) {
 		perror("mmap()");
 		*shm_map = NULL;
 		shm_unlink(SHM_NAME);
@@ -134,7 +134,7 @@ int gptpinit(int *shm_fd, char **shm_map)
 int gptpdeinit(int *shm_fd, char **shm_map)
 {
 	int ret = 0;
-	if (shm_fd == NULL) {
+	if (NULL == shm_fd) {
 		ret -= 1;
 	}else if (*shm_fd != -1) {
 		if(close(*shm_fd) == -1) {
@@ -142,7 +142,7 @@ int gptpdeinit(int *shm_fd, char **shm_map)
 		}
 		*shm_fd = -1;
 	}
-	if (shm_map == NULL) {
+	if (NULL == shm_map) {
 		ret -= 2;
 	}else if (NULL != *shm_map) {
 		if (munmap(*shm_map, SHM_SIZE) == -1) {
