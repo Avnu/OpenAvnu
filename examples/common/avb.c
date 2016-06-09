@@ -134,17 +134,17 @@ int gptpinit(int *shm_fd, char **shm_map)
 int gptpdeinit(int *shm_fd, char **shm_map)
 {
 	int ret = 0;
-	if (NULL == shm_fd) {
+	if (NULL == shm_fd || -1 == *shm_fd) {
 		ret -= 1;
-	}else if (*shm_fd != -1) {
+	} else {
 		if(close(*shm_fd) == -1) {
 			ret -= 1;
 		}
 		*shm_fd = -1;
 	}
-	if (NULL == shm_map) {
+	if (NULL == shm_map || NULL == *shm_map) {
 		ret -= 2;
-	}else if (NULL != *shm_map) {
+	} else {
 		if (munmap(*shm_map, SHM_SIZE) == -1) {
 			ret -= 2;
 		}
