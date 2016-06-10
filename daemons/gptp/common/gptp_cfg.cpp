@@ -29,10 +29,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /**
- * \file
-* MODULE SUMMARY : Reads the .ini file and parses it into information
-* to be used on daemon_cl
-*/
+ * @file
+ * MODULE SUMMARY : Reads the .ini file and parses it into information
+ * to be used on daemon_cl
+ */
 
 #include <iostream>
 

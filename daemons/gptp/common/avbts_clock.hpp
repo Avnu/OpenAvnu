@@ -50,7 +50,7 @@
 #define LOWER_FREQ_LIMIT -250.0		/*!< Lower frequency limit */
 
 /**
- * Provides the clock quality abstraction.
+ * @brief Provides the clock quality abstraction.
  * Represents the quality of the clock
  * Defined at IEEE 802.1AS-2011
  * Clause 6.3.3.8
@@ -72,7 +72,7 @@ struct ClockQuality {
 };
 
 /**
- * Provides the 1588 clock interface
+ * @brief Provides the 1588 clock interface
  */
 class IEEE1588Clock {
 private:
@@ -131,7 +131,7 @@ private:
 	FrequencyRatio _local_system_freq_offset;
 
     /**
-     * fup info stores information of the last time
+     * @brief fup info stores information of the last time
      * the base time has changed. When that happens
      * the information from fup_status is copied over
      * fup_info. The follow-up sendPort method is
@@ -141,7 +141,7 @@ private:
     FollowUpTLV *fup_info;
 
     /**
-     * fup status has the instantaneous info
+     * @brief fup status has the instantaneous info
      */
     FollowUpTLV *fup_status;
 

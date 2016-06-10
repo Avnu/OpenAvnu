@@ -44,7 +44,7 @@ typedef long double FrequencyRatio; /*!< Frequency Ratio */
 #define AVTP_ETHERTYPE 0x22F0   /*!< AVTP ethertype used for Test Status Message */
 
 /**
- * PortState enumeration
+ * @brief PortState enumeration
  */
 typedef enum {
 	PTP_MASTER = 7,		//!< Port is PTP Master

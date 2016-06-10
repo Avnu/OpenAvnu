@@ -40,7 +40,7 @@
 /**@file*/
 
 /**
- * Extends the LinuxTimestamper to IntelCE cards
+ * @brief Extends the LinuxTimestamper to IntelCE cards
  */
 class LinuxTimestamperIntelCE : public LinuxTimestamper {
 private:
@@ -99,13 +99,13 @@ public:
 	bool post_init( int ifindex, int sd, TicketingLock *lock );
 
 	/**
-	 * Destroys timestamper
+	 * @brief Destroys timestamper
 	 */
 	virtual ~LinuxTimestamperIntelCE() {
 	}
 
 	/**
-	 * Default constructor. Initialize some internal variables
+	 * @brief Default constructor. Initialize some internal variables
 	 */
 	LinuxTimestamperIntelCE() {
 		last_tx_time = 0;

@@ -63,7 +63,7 @@
 #include <ptptypes.hpp>
 
 /**
- * Provides a data structure for gPTP time
+ * @brief Provides a data structure for gPTP time
  */
 typedef struct {
     int64_t ml_phoffset;			//!< Master to local phase offset
