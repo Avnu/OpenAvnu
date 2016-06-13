@@ -65,7 +65,7 @@
 #define LOG2_INTERVAL_INVALID -127	/* Simple out of range Log base 2 value used for Sync and PDelay msg internvals */
 
 /**
- * PortType enumeration. Selects between delay request-response (E2E) mechanism
+ * @brief PortType enumeration. Selects between delay request-response (E2E) mechanism
  * or PTPV1 or PTPV2 P2P (peer delay) mechanism.
  */
 typedef enum {
@@ -75,7 +75,7 @@ typedef enum {
 } PortType;
 
 /**
- * PortIdentity interface
+ * @brief PortIdentity interface
  * Defined at IEEE 802.1AS Clause 8.5.2
  */
 class PortIdentity {
@@ -84,7 +84,7 @@ private:
 	uint16_t portNumber;
 public:
 	/**
-	 * Default Constructor
+	 * @brief Default Constructor
 	 */
 	PortIdentity() { };
 
@@ -202,12 +202,12 @@ public:
 };
 
 /**
- * Provides a map for the identityMap member of IEEE1588Port class
+ * @brief Provides a map for the identityMap member of IEEE1588Port class
  */
 typedef std::map < PortIdentity, LinkLayerAddress > IdentityMap_t;
 
 /**
- * Structure for initializing the IEEE1588 class
+ * @brief Structure for initializing the IEEE1588 class
  */
 typedef struct {
 	/* clock IEEE1588Clock instance */
@@ -267,7 +267,7 @@ typedef struct {
 
 
 /**
- * Structure for IEE1588Port Counters
+ * @brief Structure for IEE1588Port Counters
  */
 typedef struct {
 	int32_t ieee8021AsPortStatRxSyncCount;
@@ -290,7 +290,7 @@ typedef struct {
 
 
 /**
- * Provides the IEEE 1588 port interface
+ * @brief Provides the IEEE 1588 port interface
  */
 class IEEE1588Port {
 	static LinkLayerAddress other_multicast;
@@ -598,7 +598,7 @@ class IEEE1588Port {
 	bool getAutomotiveProfile() { return( automotive_profile ); }
 
 	/**
-	 * Destroys a IEEE1588Port
+	 * @brief Destroys a IEEE1588Port
 	 */
 	~IEEE1588Port();
 

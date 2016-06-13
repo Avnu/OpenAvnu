@@ -58,7 +58,7 @@
 #include <list>
 
 /**
- * WindowsPCAPNetworkInterface implements an interface to the network adapter
+ * @brief WindowsPCAPNetworkInterface implements an interface to the network adapter
  * through calls to the publicly available libraries known as PCap.
  */
 class WindowsPCAPNetworkInterface : public OSNetworkInterface {
@@ -119,7 +119,7 @@ public:
 		return PACKET_HDR_LENGTH;
 	}
 	/**
-	 * Destroys the network interface
+	 * @brief Destroys the network interface
 	 */
 	virtual ~WindowsPCAPNetworkInterface() {
 		closeInterface( handle );
@@ -127,13 +127,13 @@ public:
 	}
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	WindowsPCAPNetworkInterface() { handle = NULL; };
 };
 
 /**
- * WindowsPCAPNetworkInterface implements an interface to the network adapter
+ * @brief WindowsPCAPNetworkInterface implements an interface to the network adapter
  * through calls to the publicly available libraries known as PCap.
  */
 class WindowsPCAPNetworkInterfaceFactory : public OSNetworkInterfaceFactory {
@@ -168,7 +168,7 @@ error_nofree:
 };
 
 /**
- * Provides lock interface for windows
+ * @brief Provides lock interface for windows
  */
 class WindowsLock : public OSLock {
 	friend class WindowsLockFactory;
@@ -202,7 +202,7 @@ private:
 	}
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	WindowsLock() {
 		lock_c = NULL;
@@ -248,7 +248,7 @@ protected:
 };
 
 /**
- * Provides the LockFactory abstraction
+ * @brief Provides the LockFactory abstraction
  */
 class WindowsLockFactory : public OSLockFactory {
 public:
@@ -268,7 +268,7 @@ public:
 };
 
 /**
- * Provides a OSCondition interface for windows
+ * @brief Provides a OSCondition interface for windows
  */
 class WindowsCondition : public OSCondition {
 	friend class WindowsConditionFactory;
@@ -277,7 +277,7 @@ private:
 	CONDITION_VARIABLE condition;
 protected:
 	/**
-	 * Initializes the locks and condition variables
+	 * @brief Initializes the locks and condition variables
 	 */
 	bool initialize() {
 		InitializeSRWLock( &lock );
@@ -322,7 +322,7 @@ public:
 };
 
 /**
- * Condition factory for windows
+ * @brief Condition factory for windows
  */
 class WindowsConditionFactory : public OSConditionFactory {
 public:
@@ -337,7 +337,7 @@ class WindowsTimerQueue;
 struct TimerQueue_t;
 
 /**
- * Timer queue handler arguments structure
+ * @brief Timer queue handler arguments structure
  * @todo Needs more details from original developer
  */
 struct WindowsTimerQueueHandlerArg {
@@ -352,11 +352,11 @@ struct WindowsTimerQueueHandlerArg {
 };
 
 /**
- * Creates a list of type WindowsTimerQueueHandlerArg
+ * @brief Creates a list of type WindowsTimerQueueHandlerArg
  */
 typedef std::list<WindowsTimerQueueHandlerArg *> TimerArgList_t;
 /**
- * Timer queue type
+ * @brief Timer queue type
  */
 struct TimerQueue_t {
 	TimerArgList_t arg_list;		/*!< Argument list */
@@ -365,17 +365,17 @@ struct TimerQueue_t {
 };
 
 /**
- * Windows Timer queue handler callback definition
+ * @brief Windows Timer queue handler callback definition
  */
 VOID CALLBACK WindowsTimerQueueHandler( PVOID arg_in, BOOLEAN ignore );
 
 /**
- * Creates a map for the timerQueue
+ * @brief Creates a map for the timerQueue
  */
 typedef std::map<int,TimerQueue_t> TimerQueueMap_t;
 
 /**
- * Windows timer queue interface
+ * @brief Windows timer queue interface
  */
 class WindowsTimerQueue : public OSTimerQueue {
 	friend class WindowsTimerQueueFactory;
@@ -400,7 +400,7 @@ private:
 	}
 protected:
 	/**
-	 * Default constructor. Initializes timers lock
+	 * @brief Default constructor. Initializes timers lock
 	 */
 	WindowsTimerQueue() {
 		InitializeSRWLock( &retiredTimersLock );
@@ -462,12 +462,12 @@ public:
 };
 
 /**
- * Windows callback for the timer queue handler
+ * @brief Windows callback for the timer queue handler
  */
 VOID CALLBACK WindowsTimerQueueHandler( PVOID arg_in, BOOLEAN ignore );
 
 /**
- * Windows implementation of OSTimerQueueFactory
+ * @brief Windows implementation of OSTimerQueueFactory
  */
 class WindowsTimerQueueFactory : public OSTimerQueueFactory {
 public:
@@ -483,7 +483,7 @@ public:
 };
 
 /**
- * Windows implementation of OSTimer
+ * @brief Windows implementation of OSTimer
  */
 class WindowsTimer : public OSTimer {
     friend class WindowsTimerFactory;
@@ -499,13 +499,13 @@ public:
     }
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
     WindowsTimer() {};
 };
 
 /**
- * Windows implementation of OSTimerFactory
+ * @brief Windows implementation of OSTimerFactory
  */
 class WindowsTimerFactory : public OSTimerFactory {
 public:
@@ -519,7 +519,7 @@ public:
 };
 
 /**
- * OSThread argument structure
+ * @brief OSThread argument structure
  */
 struct OSThreadArg {
     OSThreadFunction func;	/*!< Thread callback function */
@@ -528,12 +528,12 @@ struct OSThreadArg {
 };
 
 /**
- * Windows OSThread callback
+ * @brief Windows OSThread callback
  */
 DWORD WINAPI OSThreadCallback( LPVOID input );
 
 /**
- * Implements OSThread interface for windows
+ * @brief Implements OSThread interface for windows
  */
 class WindowsThread : public OSThread {
     friend class WindowsThreadFactory;
@@ -568,13 +568,13 @@ public:
     }
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	WindowsThread() {};
 };
 
 /**
- * Provides a windows implmementation of OSThreadFactory
+ * @brief Provides a windows implmementation of OSThreadFactory
  */
 class WindowsThreadFactory : public OSThreadFactory {
 public:
@@ -624,7 +624,7 @@ static DevicePhyDelayMapping DevicePhyDelayMap[] =
 
 
 /**
- * Windows HWTimestamper implementation
+ * @brief Windows HWTimestamper implementation
  */
 class WindowsTimestamper : public HWTimestamper {
 private:
@@ -782,7 +782,7 @@ public:
 
 
 /**
- * Named pipe interface
+ * @brief Named pipe interface
  */
 class WindowsNamedPipeIPC : public OS_IPC {
 private:
@@ -791,11 +791,11 @@ private:
 	PeerList peerList_;
 public:
 	/**
-	 * Default constructor. Initializes the IPC interface
+	 * @brief Default constructor. Initializes the IPC interface
 	 */
 	WindowsNamedPipeIPC() : pipe_(INVALID_HANDLE_VALUE) { };
 	/**
-	 * Destroys the IPC interface
+	 * @brief Destroys the IPC interface
 	 */
 	~WindowsNamedPipeIPC() {
 		if (pipe_ != 0 && pipe_ != INVALID_HANDLE_VALUE)

@@ -48,7 +48,7 @@ typedef void (*gPTPPersistWriteCB_t)(char *bufPtr, uint32_t bufSize);
 
 
 /**
- * Generic interface for Simple Persistence for gPTP values
+ * @brief Generic interface for Simple Persistence for gPTP values
  */
 class GPTPPersist {
 public:

@@ -37,7 +37,7 @@
 /**@file*/
 
 /**
- * OSTimer generic interface
+ * @brief OSTimer generic interface
  */
 class OSTimer {
 public:
@@ -57,7 +57,7 @@ public:
 inline OSTimer::~OSTimer() {}
 
 /**
- * Provides factory design patter for OSTimer class
+ * @brief Provides factory design patter for OSTimer class
  */
 class OSTimerFactory {
 public:

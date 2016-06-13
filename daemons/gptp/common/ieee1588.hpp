@@ -55,7 +55,7 @@
 
 
 /**
- * Return codes for gPTP
+ * @brief Return codes for gPTP
 */
 #define GPTP_EC_SUCCESS     0       /*!< No errors.*/
 #define GPTP_EC_FAILURE     -1      /*!< Generic error */
@@ -101,7 +101,7 @@ typedef enum {
 } Event;
 
 /**
- * Defines an event descriptor type
+ * @brief Defines an event descriptor type
  */
 typedef struct {
 	IEEE1588Port *port;	//!< IEEE 1588 Port
@@ -117,7 +117,7 @@ struct phy_delay
 };
 
 /**
- * Provides a generic InterfaceLabel class
+ * @brief Provides a generic InterfaceLabel class
  */
 class InterfaceLabel {
  public:
@@ -126,7 +126,7 @@ class InterfaceLabel {
 };
 
 /**
- * Provides a ClockIdentity abstraction
+ * @brief Provides a ClockIdentity abstraction
  * See IEEE 802.1AS-2011 Clause 8.5.2.2
  */
 class ClockIdentity {
@@ -134,7 +134,7 @@ class ClockIdentity {
 	uint8_t id[PTP_CLOCK_IDENTITY_LENGTH];
  public:
 	/**
-	 * Default constructor. Sets ID to zero
+	 * @brief Default constructor. Sets ID to zero
 	 */
 	ClockIdentity() {
 		memset( id, 0, PTP_CLOCK_IDENTITY_LENGTH );
@@ -238,7 +238,7 @@ class ClockIdentity {
 #define MAX_TIMESTAMP_STRLEN 28				/*!< Maximum size of timestamp strlen*/
 
 /**
- * Provides a Timestamp interface
+ * @brief Provides a Timestamp interface
  */
 class Timestamp {
 private:
@@ -459,7 +459,7 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
 #define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096	/*!< Maximum size of HWTimestamper extended message */
 
 /**
- * Provides a generic interface for hardware timestamping
+ * @brief Provides a generic interface for hardware timestamping
  */
 class HWTimestamper {
 
@@ -643,12 +643,13 @@ public:
 	 }
 
 	 /**
-	 * Default constructor. Sets version to zero.
+	 * @brief Default constructor. Sets version to zero.
 	 */
 	HWTimestamper() { version = 0; }
 
-	/*Deletes HWtimestamper object
-	*/
+	 /**
+	 * @brief Deletes HWtimestamper object
+	 */
 	virtual ~HWTimestamper() { }
 };
 

@@ -42,14 +42,14 @@ POSSIBILITY OF SUCH DAMAGE.
 /**@file */
 
 /**
- * Provides an interface for offset with lock
+ * @brief Provides an interface for offset with lock
  */
 class LockableOffset : public Lockable, public Offset {
 private:
 	bool ready;
 public:
 	/**
-	 * Default constructor. Initializes internal variables
+	 * @brief Default constructor. Initializes internal variables
 	 */
 	LockableOffset() {
 		ml_phoffset = 0;
@@ -71,7 +71,7 @@ public:
 };
 
 /**
- * Provides an interface for the IPC shared data
+ * @brief Provides an interface for the IPC shared data
  */
 class IPCSharedData {
 public:
@@ -80,7 +80,7 @@ public:
 };
 
 /**
- * Provides an interface for the IPC Listener
+ * @brief Provides an interface for the IPC Listener
  */
 class IPCListener : public Stoppable {
 private:
@@ -112,7 +112,7 @@ public:
 		else return false;
 	}
 	/**
-	 * Destroys the IPC listener interface
+	 * @brief Destroys the IPC listener interface
 	 */
 	~IPCListener() {}
 };

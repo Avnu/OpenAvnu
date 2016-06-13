@@ -37,14 +37,14 @@
 /**@file*/
 
 /**
- * ostimerq callback definition
+ * @brief ostimerq callback definition
  */
 typedef void (*ostimerq_handler) (void *);
 
 class IEEE1588Clock;
 
 /**
- * OSTimerQueue generic interface
+ * @brief OSTimerQueue generic interface
  */
 class OSTimerQueue {
 protected:
@@ -55,7 +55,7 @@ protected:
 	virtual bool init() { return true; }
 
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	OSTimerQueue() {}
 public:
@@ -86,14 +86,14 @@ public:
 inline OSTimerQueue::~OSTimerQueue() {}
 
 /**
- * Implements factory design patter for OSTimerQueue class
+ * @brief Implements factory design patter for OSTimerQueue class
  */
 class OSTimerQueueFactory {
 public:
 	/**
 	 * @brief Creates the OSTimerQueue object
 	 * @param clock [in] Pointer to the IEEE1555Clock object
-	 * @return Pointer to OSTimerQueue 
+	 * @return Pointer to OSTimerQueue
 	 */
 	virtual OSTimerQueue *createOSTimerQueue( IEEE1588Clock *clock ) = 0;
 	virtual ~OSTimerQueueFactory() = 0;
