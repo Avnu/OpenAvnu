@@ -108,7 +108,10 @@ typedef struct {
 	uint64_t local_time;
 } gPtpTimeData;
 
+/*TODO fix this*/
+#ifndef false
 typedef enum { false = 0, true = 1 } bool;
+#endif
 
 int pci_connect(device_t * igb_dev);
 

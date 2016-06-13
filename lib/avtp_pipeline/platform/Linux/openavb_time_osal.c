@@ -71,7 +71,7 @@ static bool x_timeInit(void) {
 		return FALSE;
 	}
 
-	if (!gptpscaling(&gPtpTD, gIgbMmap)) {
+	if (!gptpscaling(gIgbMmap, &gPtpTD)) {
 		AVB_LOG_ERROR("GPTP scaling failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
@@ -88,7 +88,7 @@ static bool x_timeInit(void) {
 static bool x_getPTPTime(U64 *timeNsec) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	if (!gptpscaling(&gPtpTD, gIgbMmap)) {
+	if (!gptpscaling(gIgbMmap, &gPtpTD)) {
 		AVB_LOG_ERROR("GPTP scaling failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
