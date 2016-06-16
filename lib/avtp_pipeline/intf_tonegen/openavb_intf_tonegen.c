@@ -48,7 +48,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_intf_pub.h"
 
 #define	AVB_LOG_COMPONENT	"Tone Gen Interface"
-#include "openavb_log_pub.h" 
+#include "openavb_log_pub.h"
 
 #define PI 3.14159265358979f
 
@@ -58,7 +58,7 @@ typedef struct {
 	/////////////
 	// intf_nv_tone_hz: The tone hz to generate
 	U32 toneHz;
-	
+
 	// intf_nv_on_off_interval_msec: Interval for turning tone on and off. A value of zero will keep the tone on.
 	U32 onOffIntervalMSec;
 
@@ -69,16 +69,27 @@ typedef struct {
 	avb_audio_rate_t audioRate;
 
 	// intf_nv_audio_type
-	avb_audio_bit_depth_t audioType;
+	avb_audio_type_t audioType;
 
 	// intf_nv_audio_bit_depth
 	avb_audio_bit_depth_t audioBitDepth;
 
 	// intf_nv_audio_endian
-	avb_audio_bit_depth_t audioEndian;
+	avb_audio_endian_t audioEndian;
 
 	// intf_nv_channels
 	avb_audio_channels_t audioChannels;
+
+	// Volume for the tone generation
+	float volume;
+
+	// Fixed 32 bit value 1
+	bool fv1Enabled;
+	U32 fv1;
+
+	// Fixed 32 bit value 2
+	bool fv2Enabled;
+	U32 fv2;
 
 	/////////////
 	// Variable data
@@ -87,9 +98,9 @@ typedef struct {
 	// Packing interval
 	U32 intervalCounter;
 
-	// Keeps track of if the tone is currently on or off	
+	// Keeps track of if the tone is currently on or off
 	U32 freq;
-	
+
 	// Keeps track of how long before toggling the tone on / off
 	U32 freqCountdown;
 
@@ -98,9 +109,11 @@ typedef struct {
 
 	// Index to into the melody string
 	U32 melodyIdx;
-	
+
 	// Length of the melody string
 	U32 melodyLen;
+
+	U32 fvChannels;
 
 } pvt_data_t;
 
@@ -243,6 +256,7 @@ void openavbIntfToneGenCfgCB(media_q_t *pMediaQ, const char *name, const char *v
 			}
 		}
 
+#if 1 // both bit_depth and audio_type are not required, just use audio_type, always do big endian
 		else if (strcmp(name, "intf_nv_audio_bit_depth") == 0) {
 			val = strtol(value, &pEnd, 10);
 			// TODO: Should check for specific values
@@ -262,42 +276,72 @@ void openavbIntfToneGenCfgCB(media_q_t *pMediaQ, const char *name, const char *v
 
 		else if (strcmp(name, "intf_nv_audio_type") == 0) {
 			if (strncasecmp(value, "float", 5) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_TYPE_FLOAT;
+				pPvtData->audioType = AVB_AUDIO_TYPE_FLOAT;
 			else if (strncasecmp(value, "sign", 4) == 0 || strncasecmp(value, "int", 4) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_TYPE_INT;
+				pPvtData->audioType = AVB_AUDIO_TYPE_INT;
 			else if (strncasecmp(value, "unsign", 6) == 0 || strncasecmp(value, "uint", 4) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_TYPE_UINT;
+				pPvtData->audioType = AVB_AUDIO_TYPE_UINT;
 			else {
 				AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_type.");
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_TYPE_UNSPEC;
+				pPvtData->audioType = AVB_AUDIO_TYPE_UNSPEC;
 			}
 
 			// Give the audio parameters to the mapping module.
 			if (xSupportedMappingFormat(pMediaQ)) {
-				pPubMapUncmpAudioInfo->audioType = (avb_audio_type_t)pPvtData->audioType;
+				pPubMapUncmpAudioInfo->audioType = pPvtData->audioType;
 			}
 		}
 
 		else if (strcmp(name, "intf_nv_audio_endian") == 0) {
 			if (strncasecmp(value, "big", 3) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_ENDIAN_BIG;
+				pPvtData->audioEndian = AVB_AUDIO_ENDIAN_BIG;
 			else if (strncasecmp(value, "little", 6) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_ENDIAN_LITTLE;
+				pPvtData->audioEndian = AVB_AUDIO_ENDIAN_LITTLE;
 			else {
 				AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_endian.");
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_ENDIAN_UNSPEC;
+				pPvtData->audioEndian = AVB_AUDIO_ENDIAN_UNSPEC;
 			}
 
 			// Give the audio parameters to the mapping module.
 			if (xSupportedMappingFormat(pMediaQ)) {
-				pPubMapUncmpAudioInfo->audioEndian = (avb_audio_endian_t)pPvtData->audioEndian;
+				pPubMapUncmpAudioInfo->audioEndian = pPvtData->audioEndian;
 			}
 		}
+#else
+		else if (strcmp(name, "intf_nv_audio_type") == 0) {
+			if (strncasecmp(value, "float", 5) == 0) {
+				pPvtData->audioType = AVB_AUDIO_TYPE_FLOAT;
+				pPvtData->audioBitDepth = 32;
+			} else if (strncasecmp(value, "int32", 5) == 0) {
+				pPvtData->audioType = AVB_AUDIO_TYPE_INT;
+				pPvtData->audioBitDepth = 32;
+			} else if (strncasecmp(value, "int24", 5) == 0) {
+				pPvtData->audioType = AVB_AUDIO_TYPE_INT;
+				pPvtData->audioBitDepth = 24;
+			} else if (strncasecmp(value, "int16", 5) == 0) {
+				pPvtData->audioType = AVB_AUDIO_TYPE_INT;
+				pPvtData->audioBitDepth = 16;
+			} else {
+				AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_type.");
+				pPvtData->audioType = AVB_AUDIO_TYPE_UNSPEC;
+			}
+
+			// always big endian
+			pPvtData->audioEndian = AVB_AUDIO_ENDIAN_BIG;
+
+			// Give the audio parameters to the mapping module.
+			if (xSupportedMappingFormat(pMediaQ)) {
+				pPubMapUncmpAudioInfo->audioType = pPvtData->audioType;
+				pPubMapUncmpAudioInfo->audioBitDepth = pPvtData->audioBitDepth;
+				pPubMapUncmpAudioInfo->audioEndian = pPvtData->audioEndian;
+			}
+		}
+#endif
 
 		else if (strcmp(name, "intf_nv_audio_channels") == 0) {
 			val = strtol(value, &pEnd, 10);
 			// TODO: Should check for specific values
-			if (val >= AVB_AUDIO_CHANNELS_1 && val <= AVB_AUDIO_CHANNELS_8) {
+			if (val >= AVB_AUDIO_CHANNELS_1) {
 				pPvtData->audioChannels = (avb_audio_channels_t)val;
 			}
 			else {
@@ -310,7 +354,27 @@ void openavbIntfToneGenCfgCB(media_q_t *pMediaQ, const char *name, const char *v
 				pPubMapUncmpAudioInfo->audioChannels = pPvtData->audioChannels;
 			}
 		}
-	
+
+		else if (strcmp(name, "intf_nv_volume") == 0) {
+			U32 vol = strtol(value, &pEnd, 10);
+			if (vol > 100) {
+				vol = 100;
+			}
+			pPvtData->volume = (float)vol / 100.0;
+		}
+
+		else if (strcmp(name, "intf_nv_fv1") == 0) {
+			pPvtData->fv1 = strtol(value, &pEnd, 10);
+			pPvtData->fv1Enabled = true;
+			pPvtData->fvChannels++;
+		}
+
+		else if (strcmp(name, "intf_nv_fv2") == 0) {
+			pPvtData->fv2 = strtol(value, &pEnd, 10);
+			pPvtData->fv2Enabled = true;
+			pPvtData->fvChannels++;
+		}
+
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -387,7 +451,8 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 			static U32 runningFrameCnt = 0;
 			U32 frameCnt;
 			U32 channelCnt;
-			U32 idx = 0;
+			U8 *pData = pMediaQItem->pPubData;
+
 			for (frameCnt = 0; frameCnt < pPubMapUncmpAudioInfo->framesPerItem; frameCnt++) {
 
 				// Check for tone on / off toggle
@@ -408,44 +473,87 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 					else {
 						// Fixed tone
 						if (pPvtData->onOffIntervalMSec > 0) {
-							if (pPvtData->freq == 0)
+							if (pPvtData->freq == 0) {
 								pPvtData->freq = pPvtData->toneHz;
-							else
+							} else {
 								pPvtData->freq = 0;
+							}
 							pPvtData->freqCountdown = (pPubMapUncmpAudioInfo->audioRate / 1000) * pPvtData->onOffIntervalMSec;
 						}
 						else {
 							pPvtData->freqCountdown = pPubMapUncmpAudioInfo->audioRate;		// Just run steady for 1 sec
+							pPvtData->freq = pPvtData->toneHz;
 						}
 					}
-					pPvtData->ratio = pPvtData->freq / (float)pPubMapUncmpAudioInfo->audioRate;
+					pPvtData->ratio = (float)pPvtData->freq / (float)pPubMapUncmpAudioInfo->audioRate;
 				}
 				pPvtData->freqCountdown--;
 
+				float value = SIN(2 * PI * (runningFrameCnt++ % pPubMapUncmpAudioInfo->audioRate) * pPvtData->ratio) * pPvtData->volume;
 
-				float value = SIN(2 * PI * (runningFrameCnt++ % pPubMapUncmpAudioInfo->audioRate) * pPvtData->ratio);
 
-				if (pPubMapUncmpAudioInfo->itemSampleSizeBytes == 2) {
-					// 16 bit audio
-					S16 sample = (S16)(value * 15000);
-					for (channelCnt = 0; channelCnt < pPubMapUncmpAudioInfo->audioChannels; channelCnt++) {
-						unsigned char c;
-						U8 *pData = pMediaQItem->pPubData;
-						c = (unsigned)sample % 256;
-						pData[idx++] = c;
-						c = (unsigned)sample / 256 % 256;
-						pData[idx++] = c;
+#if 0 // for debug
+				printf("value(%f), runningFrameCnt(%ul), audioRate(%d), ratio(%f)\n", value, runningFrameCnt, (int)pPubMapUncmpAudioInfo->audioRate, pPvtData->ratio);
+#endif
+				for (channelCnt = 0; channelCnt < pPubMapUncmpAudioInfo->audioChannels - pPvtData->fvChannels; channelCnt++) {
+					if (pPvtData->audioType == AVB_AUDIO_TYPE_INT) {
+						if (pPvtData->audioBitDepth == 32) {
+							S32 sample32 = (S32)(value * (32000 << 16));
+							S32 tmp32 = htonl(sample32);
+							memcpy(pData, (U8 *)&tmp32, 4);
+							pData += 4;
+						} else if (pPvtData->audioBitDepth == 24) {
+							S32 sample24 = (S32)(value * (32000 << 16));
+							S32 tmp24 = htonl(sample24);
+							memcpy(pData, (U8 *)&tmp24, 3);
+							pData += 3;
+						} else if (pPvtData->audioBitDepth == 16) {
+							S16 sample16 = (S32)(value * 32000);
+							S16 tmp16 = htons(sample16);
+							memcpy(pData, (U8 *)&tmp16, 2);
+							pData += 2;
+						}
+					} else if (pPvtData->audioType == AVB_AUDIO_TYPE_FLOAT) {
+						U32 tmp32f;
+						// value *= .75; // attenuate value
+						memcpy((U8 *)&tmp32f, (U8 *)&value, 4);  // done so no warning with -Wstrict-aliasing
+						tmp32f = htonl(tmp32f);
+						memcpy(pData, (U8 *)&tmp32f, 4);
+#if 0 // for debug
+						if (runningFrameCnt == 20) {
+							printf("sin(%f), tmp32f_0(%08X), tmp32f_1(%08X)\n", value, tmp32f_0, tmp32f_1);
+						}
+#endif
+						pData += 4;
+					} else {
+						// CORE_TODO
+						AVB_LOG_ERROR("Audio sample size format not implemented yet for tone generator interface module");
 					}
 				}
-				else {
-					// CORE_TODO
-					AVB_LOG_ERROR("Audio sample size format not implemented yet for tone generator interface module");
+
+				if (pPvtData->fvChannels > 0) {
+					if (pPvtData->audioType == AVB_AUDIO_TYPE_INT) {
+						if (pPvtData->audioBitDepth == 32) {
+							if (pPvtData->fv1Enabled) {
+								S32 tmp32 = htonl(pPvtData->fv1);
+								memcpy(pData, (U8 *)&tmp32, 4);
+								pData += 4;
+							}
+
+							if (pPvtData->fv2Enabled) {
+								S32 tmp32 = htonl(pPvtData->fv2);
+								memcpy(pData, (U8 *)&tmp32, 4);
+								pData += 4;
+							}
+						}
+					}
 				}
 			}
 			
 			pMediaQItem->dataLen = pPubMapUncmpAudioInfo->itemSize;
 
 			openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+
 			openavbMediaQHeadPush(pMediaQ);
 
 			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
@@ -492,7 +600,8 @@ void openavbIntfToneGenGenEndCB(media_q_t *pMediaQ)
 }
 
 // Main initialization entry point into the interface module
-extern DLL_EXPORT bool openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
+//extern DLL_EXPORT bool openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
+extern bool DLL_EXPORT openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -517,6 +626,15 @@ extern DLL_EXPORT bool openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_
 
 		pPvtData->intervalCounter = 0;
 		pPvtData->melodyIdx = 0;
+		pPvtData->audioType = AVB_AUDIO_TYPE_INT;
+		pPvtData->audioEndian = AVB_AUDIO_ENDIAN_BIG;
+
+		pPvtData->volume = 50;
+		pPvtData->fv1Enabled = false;
+		pPvtData->fv1 = 0;
+		pPvtData->fv2Enabled = false;
+		pPvtData->fv2 = 0;
+		pPvtData->fvChannels = 0;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
