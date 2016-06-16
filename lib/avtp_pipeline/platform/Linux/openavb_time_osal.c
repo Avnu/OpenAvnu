@@ -204,4 +204,3 @@ bool osalClockGettime64(openavb_clockId_t openavbClockId, U64 *timeNsec) {
 	return FALSE;
 }
 
-
