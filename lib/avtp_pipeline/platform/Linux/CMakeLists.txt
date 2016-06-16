@@ -247,7 +247,7 @@ if ( AVB_FEATURE_PCAP )
 endif ()
 
 add_library ( avbTl ${SRC_FILES} )
-target_link_libraries ( avbTl dl )
+target_link_libraries ( avbTl dl m )
 
 install ( TARGETS avbTl ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
 
