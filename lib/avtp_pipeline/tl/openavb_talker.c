@@ -118,8 +118,10 @@ bool talkerStartStream(tl_state_t *pTLState)
 
 	// setup the initial times
 	U64 nowNS;
-	CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
-	
+	// KENTEST
+	//CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
+	CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
+
 	// Align clock : allows for some performance gain
 	nowNS = ((nowNS + (pTalkerData->intervalNS)) / pTalkerData->intervalNS) * pTalkerData->intervalNS;
 
@@ -200,8 +202,13 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 
 		if (!pCfg->tx_blocking_in_intf) {
 
+
+#if 0
 			// sleep until the next interval
 			SLEEP_UNTIL_NSEC(pTalkerData->nextCycleNS);
+#else
+			SPIN_UNTIL_NSEC(pTalkerData->nextCycleNS);
+#endif
 
 			//AVB_DBG_INTERVAL(8000, TRUE);
 
@@ -224,7 +231,9 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 			bRet = TRUE;
 		}
 
-		CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
+		// KENTEST
+		//CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
+		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
 
 		if (pCfg->report_seconds > 0) {
 			if (nowNS > pTalkerData->nextReportNS) {

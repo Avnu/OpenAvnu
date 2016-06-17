@@ -46,6 +46,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_map_uncmp_audio_pub.h"
 #include "openavb_map_aaf_audio_pub.h"
 #include "openavb_intf_pub.h"
+#include "openavb_mcs.h"
 
 #define	AVB_LOG_COMPONENT	"Tone Gen Interface"
 #include "openavb_log_pub.h"
@@ -114,6 +115,9 @@ typedef struct {
 	U32 melodyLen;
 
 	U32 fvChannels;
+
+	// Media clock synthesis for precise timestamps
+	mcs_t mcs;
 
 } pvt_data_t;
 
@@ -552,7 +556,12 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 			
 			pMediaQItem->dataLen = pPubMapUncmpAudioInfo->itemSize;
 
+#if 0
 			openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+#else
+			openavbMcsAdvance(&pPvtData->mcs);
+			openavbAvtpTimeSetToTimestampNS(pMediaQItem->pAvtpTime, pPvtData->mcs.edgeTime);
+#endif
 
 			openavbMediaQHeadPush(pMediaQ);
 
@@ -635,6 +644,8 @@ extern bool DLL_EXPORT openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_
 		pPvtData->fv2Enabled = false;
 		pPvtData->fv2 = 0;
 		pPvtData->fvChannels = 0;
+
+		openavbMcsInit(&pPvtData->mcs, 125000UL);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);

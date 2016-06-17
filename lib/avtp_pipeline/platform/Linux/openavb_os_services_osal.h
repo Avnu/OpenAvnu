@@ -74,7 +74,17 @@ inline static void xSleepUntilNSec(U64 nSec)
 	clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &tmpTime, NULL);
 }
 
-
+#define SPIN_UNTIL_NSEC(nsec)					xSpinUntilNSec(nsec)
+inline static void xSpinUntilNSec(U64 nSec)
+{
+	do {
+		U64 spinNowNS;
+		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &spinNowNS);
+		if (spinNowNS > nSec)
+			break;
+	}
+	while (1);
+}
 
 #define RAND()  								   random()
 #define SRAND(seed) 							   srandom(seed)
@@ -117,6 +127,26 @@ thread##_type	thread##_ThreadData
 				(void*)thread_function_arg);																		\
 		} while (0);																								\
 		pthread_attr_destroy(&thread_attr);																			\
+	}
+
+// KENTEST
+#define THREAD_SET_RT_PRIORITY(threadhandle, priority) 													\
+	{																									\
+		struct sched_param param;																		\
+		param.__sched_priority = priority;																\
+		pthread_setschedparam(threadhandle##_ThreadData.pthread, SCHED_RR, &param);						\
+	}
+
+// KENTEST - quick hard code pinning to core 2 and 3.
+#define THREAD_PIN(threadhandle) 																		\
+	{																									\
+		cpu_set_t cpuset;																				\
+		int i1;																							\
+		CPU_ZERO(&cpuset);																				\
+		for (i1 = 2; i1 < 4; i1++) {																	\
+			CPU_SET(i1, &cpuset);																		\
+		}																								\
+		pthread_setaffinity_np(threadhandle##_ThreadData.pthread, sizeof(cpu_set_t), &cpuset);			\
 	}
 
 #define THREAD_CHECK_ERROR(threadhandle, message, error)										\

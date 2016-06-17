@@ -509,6 +509,10 @@ EXTERN_DLL_EXPORT bool openavbTLRun(tl_handle_t handle)
 		pTLState->bRunning = TRUE;
 		if (pTLState->cfg.role == AVB_ROLE_TALKER) {
 			THREAD_CREATE_TALKER();
+
+			// KENTEST
+			THREAD_SET_RT_PRIORITY(pTLState->TLThread, 10);
+			THREAD_PIN(pTLState->TLThread);
 		}
 		else if (pTLState->cfg.role == AVB_ROLE_LISTENER) {
 			THREAD_CREATE_LISTENER();
