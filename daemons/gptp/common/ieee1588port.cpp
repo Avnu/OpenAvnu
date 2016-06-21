@@ -119,7 +119,7 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 		if (initialLogSyncInterval == LOG2_INTERVAL_INVALID)
 			initialLogSyncInterval = -3;       // 125 ms
 		if (initialLogPdelayReqInterval == LOG2_INTERVAL_INVALID)
-			initialLogPdelayReqInterval = -3;  // 125 ms
+			initialLogPdelayReqInterval = 0;   // 1 second
 		if (operLogPdelayReqInterval == LOG2_INTERVAL_INVALID)
 			operLogPdelayReqInterval = 0;      // 1 second
 		if (operLogSyncInterval == LOG2_INTERVAL_INVALID)
