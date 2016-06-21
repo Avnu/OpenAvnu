@@ -241,10 +241,10 @@ void IEEE1588Port::startPDelay() {
 				pdelay_started = true;
 				startPDelayIntervalTimer(waitTime);
 			}
-			else {
-				pdelay_started = true;
-				startPDelayIntervalTimer(32000000);
-			}
+		}
+		else {
+			pdelay_started = true;
+			startPDelayIntervalTimer(32000000);
 		}
 	}
 }
