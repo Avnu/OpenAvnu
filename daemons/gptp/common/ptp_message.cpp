@@ -98,11 +98,6 @@ PTPMessageCommon *buildPTPMessage
 	messageType = (MessageType) (tspec_msg_t & 0xF);
 	transportSpecific = (tspec_msg_t >> 4) & 0x0F;
 
-	if (1 != transportSpecific) {
-		GPTP_LOG_EXCEPTION("*** Received message with unsupported transportSpecific type=%d", transportSpecific);
-		goto done;
-	}
-
 	sourcePortIdentity = new PortIdentity
 		((uint8_t *)
 		 (buf + PTP_COMMON_HDR_SOURCE_CLOCK_ID
@@ -145,13 +140,18 @@ PTPMessageCommon *buildPTPMessage
 			    ("*** Received an event packet but cannot retrieve timestamp, discarding. messageType=%u,error=%d\n%s",
 			     messageType, ts_good, msg);
 			//_exit(-1);
-			return NULL;
+			goto abort;
 		}
 
 		else {
 			GPTP_LOG_VERBOSE("Timestamping event packet");
 		}
 
+	}
+
+	if (1 != transportSpecific) {
+		GPTP_LOG_EXCEPTION("*** Received message with unsupported transportSpecific type=%d", transportSpecific);
+		goto abort;
 	}
  
 	switch (messageType) {
@@ -162,7 +162,7 @@ PTPMessageCommon *buildPTPMessage
 
 		// Be sure buffer is the correction size
 		if (size < PTP_COMMON_HDR_LENGTH + PTP_SYNC_LENGTH) {
-			goto done;
+			goto abort;
 		}
 		{
 			PTPMessageSync *sync_msg = new PTPMessageSync();
@@ -186,7 +186,7 @@ PTPMessageCommon *buildPTPMessage
 
 		// Be sure buffer is the correction size
 		if (size < (int)(PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH + sizeof(FollowUpTLV))) {
-			goto done;
+			goto abort;
 		}
 		{
 			PTPMessageFollowUp *followup_msg =
@@ -237,7 +237,7 @@ PTPMessageCommon *buildPTPMessage
 		// Be sure buffer is the correction size
 		if (size < PTP_COMMON_HDR_LENGTH + PTP_PDELAY_REQ_LENGTH
 		    && /* For Broadcom compatibility */ size != 46) {
-			goto done;
+			goto abort;
 		}
 		{
 			PTPMessagePathDelayReq *pdelay_req_msg =
@@ -285,7 +285,7 @@ PTPMessageCommon *buildPTPMessage
 
 		// Be sure buffer is the correction size
 		if (size < PTP_COMMON_HDR_LENGTH + PTP_PDELAY_RESP_LENGTH) {
-			goto done;
+			goto abort;
 		}
 		{
 			PTPMessagePathDelayResp *pdelay_resp_msg =
@@ -344,7 +344,7 @@ PTPMessageCommon *buildPTPMessage
 
 		// Be sure buffer is the correction size
 //     if( size < PTP_COMMON_HDR_LENGTH + PTP_PDELAY_FOLLOWUP_LENGTH ) {
-//       goto done;
+//       goto abort;
 //     }
 		{
 			PTPMessagePathDelayRespFollowUp *pdelay_resp_fwup_msg =
@@ -487,7 +487,7 @@ PTPMessageCommon *buildPTPMessage
 		            (int)messageType);
 		port->incCounter_ieee8021AsPortStatRxPTPPacketDiscard();
 
-		goto done;
+		goto abort;
 	}
 
 	msg->_gc = false;
@@ -523,10 +523,15 @@ PTPMessageCommon *buildPTPMessage
 	msg->_timestamp = timestamp;
 	msg->_timestamp_counter_value = counter_value;
 
- done:
 	delete timer;
 
 	return msg;
+
+abort:
+	delete sourcePortIdentity;
+	delete timer;
+
+	return NULL;
 }
 
 void PTPMessageCommon::processMessage(IEEE1588Port * port)

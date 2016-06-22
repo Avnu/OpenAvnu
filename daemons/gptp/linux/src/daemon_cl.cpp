@@ -320,10 +320,6 @@ int main(int argc, char **argv)
       restoredataptr = (char *)restoredata;
     }
 
-    if (argc < 2)
-        return -1;
-    ifname = new InterfaceName(argv[1], strlen(argv[1]));
-
 #ifdef ARCH_INTELCE
     HWTimestamper *timestamper = new LinuxTimestamperIntelCE();
 #else
