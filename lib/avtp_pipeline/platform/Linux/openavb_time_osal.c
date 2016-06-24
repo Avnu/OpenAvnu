@@ -65,13 +65,13 @@ static bool x_timeInit(void) {
 		return FALSE;
 	}
 
-	if (!gptpinit(&gIgbShmFd, &gIgbMmap)) {
+	if (gptpinit(&gIgbShmFd, &gIgbMmap) < 0) {
 		AVB_LOG_ERROR("GPTP init failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
 	}
 
-	if (!gptpscaling(&gPtpTD, gIgbMmap)) {
+	if (gptpscaling(gIgbMmap, &gPtpTD) < 0) {
 		AVB_LOG_ERROR("GPTP scaling failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
@@ -88,7 +88,7 @@ static bool x_timeInit(void) {
 static bool x_getPTPTime(U64 *timeNsec) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	if (!gptpscaling(&gPtpTD, gIgbMmap)) {
+	if (gptpscaling(gIgbMmap, &gPtpTD) < 0) {
 		AVB_LOG_ERROR("GPTP scaling failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
@@ -130,7 +130,7 @@ bool osalAVBTimeInit(void) {
 bool osalAVBTimeClose(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	gptpdeinit(gIgbShmFd, gIgbMmap);
+	gptpdeinit(&gIgbShmFd, &gIgbMmap);
 
 	halTimeFinalize();
 
