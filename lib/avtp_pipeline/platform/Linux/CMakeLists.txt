@@ -205,6 +205,7 @@ include_directories(
 		${AVB_OSAL_DIR}/endpoint
 		${AVB_OSAL_DIR}/fqtss/qmgr
 		${AVB_SRC_DIR}/../common
+		${AVB_SRC_DIR}/mcs
 		)
 
 # Need include and link directories for GLIB
@@ -220,6 +221,7 @@ add_subdirectory ( mediaq )
 add_subdirectory ( inih )
 add_subdirectory ( rawsock ) 
 add_subdirectory ( qmgr ) 
+add_subdirectory ( mcs )
 if (AVB_FEATURE_ENDPOINT)
 	add_subdirectory ( endpoint )
 	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal_endpoint.c )
