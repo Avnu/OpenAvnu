@@ -1,19 +1,20 @@
 CC?=gcc
 OPT=-O2 -g
 CFLAGS=$(OPT) -Wall -Wextra -Wno-parentheses
-INCFLAGS=-I../../lib/igb -I../common 
+IGBDIR=../../lib/igb
+INCFLAGS=-I$(IGBDIR) -I../common
 LDLIBS=-ligb -lpci -lrt -lm -pthread
-LDFLAGS=-L../../lib/igb
+LDFLAGS=-L$(IGBDIR)
 
 all: simple_rx
 
-simple_rx: igb.o simple_rx.o
+simple_rx: $(IGBDIR)/igb.o simple_rx.o
 
 simple_rx.o: simple_rx.c
 	$(CC) $(CFLAGS) $(INCFLAGS) -c simple_rx.c
 
-igb.o:  ../../lib/igb/igb.c
-	make -C ../../igb igb.o
+igb.o:  $(IGBDIR)/igb.c
+	make -C $(IGBDIR) igb.o
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@

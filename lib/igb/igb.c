@@ -1548,6 +1548,7 @@ void igb_receive(device_t *dev, struct igb_packet **received_packets,
 	int i, rxdone = 0;
 	bool eop = FALSE;
 	u32 staterr = 0;
+	u32 desc = 0;
 
 	if (dev == NULL)
 		return;
