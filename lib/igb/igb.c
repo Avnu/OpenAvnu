@@ -1452,11 +1452,20 @@ static void igb_free_receive_structures(struct adapter *adapter)
 {
 	struct rx_ring *rxr = adapter->rx_rings;
 	int i;
+	struct igb_buf_cmd ubuf;
 
-	for (i = 0; i < adapter->num_queues; i++, rxr++)
+	for (i = 0; i < adapter->num_queues; i++, rxr++) {
+		if (rxr->rx_base) {
+			memset(rxr->rx_base, 0, rxr->rxdma.mmap_size);
+			munmap(rxr->rx_base, rxr->rxdma.mmap_size);
+		}
+		ubuf.queue = i;
+		ioctl(adapter->ldev, IGB_UNMAP_RX_RING, &ubuf);
 		igb_free_receive_buffers(rxr);
+	}
 
 	free(adapter->rx_rings);
+	adapter->rx_rings = NULL;
 }
 
 
