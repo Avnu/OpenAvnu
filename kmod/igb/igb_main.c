@@ -10337,7 +10337,7 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		return -ENOENT;
 	}
 
-	if ((ring == IGB_MAPRING) || (ring == IGB_MAP_TX_RING)) {
+	if ((ring == IGB_UNMAP_TX_RING)) {
 		/* its easy to figure out what to free on the rings ... */
 		if (req.queue >= 3)
 			return -EINVAL;
@@ -10346,7 +10346,7 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 			return -EINVAL;
 
 		adapter->uring_tx_init &= ~(1 << req.queue);
-	} else if (ring == IGB_MAP_RX_RING) {
+	} else if (ring == IGB_UNMAP_RX_RING) {
 		/* its easy to figure out what to free on the rings ... */
 		if (req.queue >= 3)
 			return -EINVAL;
