@@ -1599,6 +1599,7 @@ void igb_receive(device_t *dev, struct igb_packet **received_packets,
 		 */
 		for (desc = rxr->next_to_check; count != 0;) {
 			cur = &(rxr->rx_base[desc]);
+#ifdef DEBUG
 			if (i%2)
 				printf("\033[2A");
 
@@ -1609,7 +1610,7 @@ void igb_receive(device_t *dev, struct igb_packet **received_packets,
 					cur->wb.lower.hi_dword.rss,
 					cur->wb.lower.lo_dword.hs_rss.pkt_info,
 					cur->wb.lower.lo_dword.hs_rss.hdr_info);
-
+#endif
 			staterr = le32toh(cur->wb.upper.status_error);
 			if ((staterr & E1000_RXD_STAT_DD) == 0)
 				break;
