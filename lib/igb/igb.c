@@ -1343,7 +1343,7 @@ static void igb_setup_receive_ring(struct rx_ring *rxr)
 
 	/* Setup our descriptor indices */
 	rxr->next_to_check = 0;
-	rxr->next_to_refresh = adapter->num_rx_desc - 1;
+	rxr->next_to_refresh = 0;
 	rxr->rx_split_packets = 0;
 	rxr->rx_bytes = 0;
 
@@ -1526,8 +1526,12 @@ void igb_refresh_buffers(device_t *dev, u_int32_t idx,
 	bufs_used = 0;
 
 	while (bufs_used < num_bufs) {
+		if (!cur_pkt)
+			break;
 		rxr->rx_base[i].read.pkt_addr =
 			htole64(cur_pkt->map.paddr + cur_pkt->offset);
+		rxr->rx_buffers[i].packet = cur_pkt;
+
 		refreshed = TRUE; /* I feel wefreshed :) */
 
 		i = j; /* our next is precalculated */
@@ -1535,6 +1539,7 @@ void igb_refresh_buffers(device_t *dev, u_int32_t idx,
 		if (++j == adapter->num_rx_desc)
 			j = 0;
 		bufs_used++;
+		cur_pkt = cur_pkt->next;
 	}
 
 	if (refreshed) /* update tail */
@@ -1615,26 +1620,38 @@ void igb_receive(device_t *dev, struct igb_packet **received_packets,
 			eop = ((staterr & E1000_RXD_STAT_EOP) ==
 					E1000_RXD_STAT_EOP);
 
-			/*
-			 * Free the frame (all segments) if we're at EOP and
-			 * it's an error.
-			 *
-			 * The datasheet states that EOP + status is only valid
-			 * for the final segment in a multi-segment frame.
-			 */
-			if (eop &&
-			    (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK)) {
-				++rxr->rx_discarded;
+			if (eop) {
 				/*
-				 * igb_rx_discard(rxr, i);
+				 * Free the frame (all segments) if we're at EOP and
+				 * it's an error.
 				 *
-				 * XXX what does this do?
-				 * should we internally refresh the buffer
-				 * to the end of the ring?
+				 * The datasheet states that EOP + status is only valid
+				 * for the final segment in a multi-segment frame.
 				 */
-				goto next_desc;
+				if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
+					++rxr->rx_discarded;
+					/*
+					 * igb_rx_discard(rxr, i);
+					 *
+					 * XXX what does this do?
+					 * should we internally refresh the buffer
+					 * to the end of the ring?
+					 */
+					printf ("discard error packet\n");
+					igb_refresh_buffers(dev, i,
+							&rxr->rx_buffers[desc].packet, 1);
+				} else
+				{
+					if (!*received_packets)
+						*received_packets = rxr->rx_buffers[desc].packet;
+					rxr->rx_buffers[desc].packet->len = cur->wb.upper.length;
+				}
+			} else {
+				/* multi-segment frame is not supported yet */
+				printf ("discard non-eop packet\n");
+				igb_refresh_buffers(dev, i,
+						&rxr->rx_buffers[desc].packet, 1);
 			}
-
 next_desc:
 			/* Advance our pointers to the next descriptor. */
 			if (++desc == adapter->num_rx_desc)
