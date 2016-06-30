@@ -550,6 +550,9 @@ igb_reset(struct adapter *adapter)
 			u64 bus_addr = rxr->rxdma.paddr;
 			u32 rxdctl;
 
+			/* Disable this Queue */
+			E1000_WRITE_REG(hw, E1000_RXDCTL(i), 0);
+
 			E1000_WRITE_REG(hw, E1000_RDLEN(i),
 					adapter->num_rx_desc *
 					sizeof(union e1000_adv_rx_desc));
@@ -1387,6 +1390,9 @@ static void igb_initialize_receive_units(struct adapter *adapter)
 	for (i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 bus_addr = rxr->rxdma.paddr;
 		u32 rxdctl;
+
+		/* Disable this Queue */
+		E1000_WRITE_REG(hw, E1000_RXDCTL(i), 0);
 
 		E1000_WRITE_REG(hw, E1000_RDLEN(i),
 				adapter->num_rx_desc *
