@@ -371,6 +371,7 @@ int igb_suspend(device_t *dev)
 	}
 
 	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 
 	for (i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 bus_addr = rxr->rxdma.paddr;
@@ -378,7 +379,7 @@ int igb_suspend(device_t *dev)
 
 		E1000_WRITE_REG(hw, E1000_RDLEN(i),
 				adapter->num_rx_desc *
-				sizeof(struct e1000_rx_desc));
+				sizeof(union e1000_adv_rx_desc));
 		E1000_WRITE_REG(hw, E1000_RDBAH(i),
 				(uint32_t)(bus_addr >> 32));
 		E1000_WRITE_REG(hw, E1000_RDBAL(i),
@@ -437,6 +438,7 @@ int igb_resume(device_t *dev)
 	}
 
 	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 
 	for (i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 bus_addr = rxr->rxdma.paddr;
@@ -444,7 +446,7 @@ int igb_resume(device_t *dev)
 
 		E1000_WRITE_REG(hw, E1000_RDLEN(i),
 				adapter->num_rx_desc *
-				sizeof(struct e1000_rx_desc));
+				sizeof(union e1000_adv_rx_desc));
 		E1000_WRITE_REG(hw, E1000_RDBAH(i),
 				(uint32_t)(bus_addr >> 32));
 		E1000_WRITE_REG(hw, E1000_RDBAL(i),
@@ -537,6 +539,7 @@ igb_reset(struct adapter *adapter)
 	}
 
 	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 
 	/* Setup the Base and Length of the Rx Descriptor Rings */
 	if (adapter->rx_rings == NULL)
@@ -549,7 +552,7 @@ igb_reset(struct adapter *adapter)
 
 			E1000_WRITE_REG(hw, E1000_RDLEN(i),
 					adapter->num_rx_desc *
-					sizeof(struct e1000_rx_desc));
+					sizeof(union e1000_adv_rx_desc));
 			E1000_WRITE_REG(hw, E1000_RDBAH(i),
 					(uint32_t)(bus_addr >> 32));
 			E1000_WRITE_REG(hw, E1000_RDBAL(i),
@@ -1377,6 +1380,7 @@ static void igb_initialize_receive_units(struct adapter *adapter)
 
 	rctl &= ~E1000_RCTL_LPE;
 	srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	rctl |= E1000_RCTL_SZ_2048;
 
 	/* Setup the Base and Length of the Rx Descriptor Rings */
@@ -1386,7 +1390,7 @@ static void igb_initialize_receive_units(struct adapter *adapter)
 
 		E1000_WRITE_REG(hw, E1000_RDLEN(i),
 				adapter->num_rx_desc *
-					sizeof(struct e1000_rx_desc));
+					sizeof(union e1000_adv_rx_desc));
 		E1000_WRITE_REG(hw, E1000_RDBAH(i),
 				(uint32_t)(bus_addr >> 32));
 		E1000_WRITE_REG(hw, E1000_RDBAL(i),
