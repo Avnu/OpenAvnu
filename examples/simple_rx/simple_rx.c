@@ -44,6 +44,8 @@
 #include <sys/socket.h>
 #include <linux/if.h>
 #include <linux/if_packet.h>
+#include <linux/if_ether.h>
+#include <linux/if_vlan.h>
 #include <arpa/inet.h>
 
 #include <netinet/in.h>
@@ -57,6 +59,11 @@
 #define IGB_BIND_NAMESZ (24)
 
 #define PKT_SZ (1514)
+#define PKT_NUM (256)
+
+#ifndef ETH_P_IEEE1722
+#define ETH_P_IEEE1722 0x22F0
+#endif
 
 /* Global variable for signal handler */
 volatile int halt_rx_sig;
@@ -75,6 +82,7 @@ unsigned char glob_l3_dest_addr[] = { 224, 0, 0, 115 };
 
 void sigint_handler(int signum)
 {
+	(void)signum;
 	printf("got SIGINT\n");
 	halt_rx_sig = 0;
 }
@@ -113,12 +121,12 @@ int pci_connect(device_t *igb_dev)
 			printf("attach failed! (%s)\n", strerror(errno));
 			continue;
 		}
-		if (igb_attach_tx(igb_dev)) {
-			printf("tx attach failed! (%s)\n", strerror(err));
-			continue;
-		}
 		if (igb_attach_rx(igb_dev)) {
 			printf("rx attach failed! (%s)\n", strerror(err));
+			continue;
+		}
+		if (igb_attach_tx(igb_dev)) {
+			printf("tx attach failed! (%s)\n", strerror(err));
 			continue;
 		}
 		goto out;
@@ -261,10 +269,10 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
 	/* int igb_shm_fd = -1; */
-	struct igb_packet *received_packets;
-	struct igb_packet *free_packets;
-	struct igb_packet *tmp_packet;
-	struct igb_dma_alloc a_page;
+	struct igb_packet *received_packets = NULL;
+	struct igb_packet *free_packets = NULL;
+	struct igb_packet *tmp_packet = NULL;
+	struct igb_dma_alloc dma_pages[PKT_NUM];
 	unsigned char test_filter[128];
 	char *interface = NULL;
 	u_int8_t filter_mask[64];
@@ -273,6 +281,8 @@ int main(int argc, char *argv[])
 	int c, rc = 0;
 	int err;
 	int sock;
+	struct ethhdr *ethhdr = NULL;
+	u_int16_t		*vlan_ethtype = NULL;
 
 	for (;;) {
 		c = getopt(argc, argv, "hi:t:");
@@ -298,6 +308,9 @@ int main(int argc, char *argv[])
 	if (interface == NULL)
 		usage();
 
+	free_packets = NULL;
+	memset (dma_pages, 0, sizeof(dma_pages));
+
 	err = pci_connect(&igb_dev);
 	if (err) {
 		printf("connect failed (%s) - are you running as root?\n",
@@ -314,61 +327,53 @@ int main(int argc, char *argv[])
 	 * allocate a bunch of pages and
 	 * stitch into a linked list of igb_packets ...
 	 */
-	free_packets = NULL;
 
-	for (i = 0; i < 128; i++) {
-		tmp_packet = malloc(sizeof(struct igb_packet));
-		if (tmp_packet == NULL) {
-			printf("failed to allocate igb_packet memory!\n");
-			return err;
-		}
-		err = igb_dma_malloc_page(&igb_dev, &a_page);
+	for (i = 0; i < PKT_NUM; i++) {
+		err = igb_dma_malloc_page(&igb_dev, &dma_pages[i]);
 		if (err) {
 			printf("malloc failed (%s) - out of memory?\n",
 			       strerror(err));
-			return err;
+			goto exit;
+		}
+
+		tmp_packet = calloc(1, sizeof(struct igb_packet));
+		if (tmp_packet == NULL) {
+			printf("failed to allocate igb_packet memory!\n");
+			err = -errno;
+			goto exit;
 		}
 		tmp_packet->dmatime = 0;
 		tmp_packet->attime = 0;
 		tmp_packet->flags = 0;
-		tmp_packet->map.paddr = a_page.dma_paddr;
-		tmp_packet->map.mmap_size = a_page.mmap_size;
+		tmp_packet->map.paddr = dma_pages[i].dma_paddr;
+		tmp_packet->map.mmap_size = dma_pages[i].mmap_size;
 		tmp_packet->offset = 0;
-		tmp_packet->vaddr = a_page.dma_vaddr + tmp_packet->offset;
+		tmp_packet->vaddr = dma_pages[i].dma_vaddr + tmp_packet->offset;
 		tmp_packet->len = PKT_SZ;
-		tmp_packet->next = NULL;
 
+		memset(tmp_packet->vaddr, 0, PKT_SZ);
 		tmp_packet->next = free_packets;
 		free_packets = tmp_packet;
+
+		igb_refresh_buffers(&igb_dev, 0, &free_packets, 1);
 	}
 
-	igb_refresh_buffers(&igb_dev, 0, &free_packets, 128);
-
-#if 0
-	filter_mask[0] = 0x3F; /* 1st 6 bytes of destination MAC address */
-	igb_setup_flex_filter(&igb_dev, 0, 0, 6,
-			      glob_l2_dest_addr, filter_mask);
-#endif
-
-#if 1
+	/* filtering example */
 	memset(filter_mask, 0, sizeof(filter_mask));
 	memset(test_filter, 0, sizeof(test_filter));
 
-	/* ethertype */
-//	test_filter[0x0C] = 0x86;
-//	test_filter[0x0D] = 0x22;
-
-	/* mac address */
-//	test_filter[0x30] = 0xa0;
-//	test_filter[0x31] = 0x36;
-//	test_filter[0x32] = 0x9f;
-//	filter_mask[6] |= 0x3F;
+	/* accept the IEEE1722 packets with a VLAN tag */
+	ethhdr = (struct ethhdr *)test_filter;
+	ethhdr->h_proto = htons(ETH_P_8021Q);
+	
+	vlan_ethtype = (u_int16_t*)(test_filter + ETH_HLEN + 2);
+	*vlan_ethtype = htons(ETH_P_IEEE1722);
 
 	filter_mask[1] = 0x30;
+	filter_mask[2] = 0x03;
 
 	igb_setup_flex_filter(&igb_dev, 0, 0, 16,
 			      test_filter, filter_mask);
-#endif
 
 	mrpd_init_protocol_socket(0x2272, &sock, glob_l2_dest_addr, interface);
 
@@ -387,6 +392,7 @@ int main(int argc, char *argv[])
 	rc = nice(-20);
 
 	while (halt_rx_sig) {
+
 		received_packets = NULL;
 		igb_receive(&igb_dev, &received_packets, 1);
 
@@ -394,18 +400,40 @@ int main(int argc, char *argv[])
 			continue;
 
 		/* print out the received packet? what do do with it? */
-		printf("received a packet !\n");
+		printf("received a packet ! hex dump (the first 32 bytes)\n");
+		for (i = 0; i < 32; i++) {
+			printf ("%02x ", ((u8*)received_packets->vaddr)[i]);
+		}
+		printf ("\n\n");
+
 		/* put back for now */
 		igb_refresh_buffers(&igb_dev, 0, &received_packets, 1);
-
 	}
+
+	err = EXIT_SUCCESS;
+exit:
 	rc = nice(0);
 
 	halt_rx_sig = 0;
 
 	igb_clear_flex_filter(&igb_dev, 0);
-	igb_dma_free_page(&igb_dev, &a_page);
-	err = igb_detach(&igb_dev);
 
-	return EXIT_SUCCESS;
+	for (i = 0; i < PKT_NUM; i++) {
+		if (dma_pages[i].dma_paddr != 0)
+			igb_dma_free_page(&igb_dev, &dma_pages[i]);
+	}
+	while (free_packets) {
+		tmp_packet = free_packets;
+		free_packets = free_packets->next;
+		if (tmp_packet) {
+			free(tmp_packet);
+		}
+	}
+
+	igb_detach(&igb_dev);
+
+	if (interface)
+		free (interface);
+
+	return err;
 }
