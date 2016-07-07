@@ -325,7 +325,8 @@ int igb_detach(device_t *dev)
 
 	igb_free_pci_resources(adapter);
 	igb_free_transmit_structures(adapter);
-	igb_free_receive_structures(adapter);
+	if (adapter->rx_rings)
+		igb_free_receive_structures(adapter);
 
 err_nolock:
 	sem_close(adapter->memlock);
@@ -487,8 +488,10 @@ int igb_init(device_t *dev)
 	igb_setup_transmit_structures(adapter);
 	igb_initialize_transmit_units(adapter);
 
-	igb_setup_receive_structures(adapter);
-	igb_initialize_receive_units(adapter);
+	if (adapter->rx_rings) {
+		igb_setup_receive_structures(adapter);
+		igb_initialize_receive_units(adapter);
+	}
 
 	if (sem_post(adapter->memlock) != 0)
 		return errno;
