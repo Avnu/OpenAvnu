@@ -176,6 +176,8 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	sync_count = 0;
 	memset(link_delay, 0, sizeof(link_delay));
 
+	_peer_offset_init = false;
+
 	if (testMode) {
 		if (isGM) {
 			avbSyncState = 1;

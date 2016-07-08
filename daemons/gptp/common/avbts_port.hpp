@@ -570,6 +570,14 @@ class IEEE1588Port {
 	}
 
 	/**
+	 * @brief  Restart PDelay
+	 * @return void
+	 */
+	void restartPDelay() {
+		_peer_offset_init = false;
+	}
+
+	/**
 	 * @brief  Sets asCapable flag
 	 * @param  ascap flag to be set. If FALSE, marks peer_offset_init as false.
 	 * @return void

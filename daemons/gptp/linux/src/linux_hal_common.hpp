@@ -180,17 +180,17 @@ public:
 	( LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay );
 
 	/**
-	 * @brief  Disables rx socket descriptor and and clears the rx queue
+	 * @brief  Disables rx socket descriptor rx queue
 	 * @return void
 	 */
-	void disable_clear_rx_queue();
+	void disable_rx_queue();;
 
 	/**
-	 * @brief  Enables the rx socket descriptor
+	 * @brief  Clears and enables the rx socket descriptor
 	 * @return void
 	 */
-	void reenable_rx_queue();
-
+	void clear_reenable_rx_queue();
+	
 	/**
 	 * @brief  Gets the local link layer address
 	 * @param  addr [out] Pointer to the LinkLayerAddress object

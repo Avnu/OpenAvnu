@@ -115,10 +115,9 @@ net_result LinuxNetworkInterface::send
 }
 
 
-void LinuxNetworkInterface::disable_clear_rx_queue() {
+void LinuxNetworkInterface::disable_rx_queue() {
 	struct packet_mreq mr_8021as;
 	int err;
-	char buf[256];
 
 	if( !net_lock.lock() ) {
 		fprintf( stderr, "D rx lock failed\n" );
@@ -140,14 +139,15 @@ void LinuxNetworkInterface::disable_clear_rx_queue() {
 		return;
 	}
 
-	while( recvfrom( sd_event, buf, 256, MSG_DONTWAIT, NULL, 0 ) != -1 );
-
 	return;
 }
 
-void LinuxNetworkInterface::reenable_rx_queue() {
+void LinuxNetworkInterface::clear_reenable_rx_queue() {
 	struct packet_mreq mr_8021as;
+	char buf[256];
 	int err;
+
+	while( recvfrom( sd_event, buf, 256, MSG_DONTWAIT, NULL, 0 ) != -1 );
 
 	memset( &mr_8021as, 0, sizeof( mr_8021as ));
 	mr_8021as.mr_ifindex = ifindex;

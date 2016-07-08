@@ -953,7 +953,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 		return;
 	}
 
-  port->incCounter_ieee8021AsPortStatRxFollowUpCount();
+	port->incCounter_ieee8021AsPortStatRxFollowUpCount();
 
 	PortIdentity sync_id;
 	PTPMessageSync *sync = port->getLastSync();
@@ -974,6 +974,12 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 		}
 		GPTP_LOG_ERROR
 		    ("Received Follow Up %d times but cannot find corresponding Sync", cnt);
+		goto done;
+	}
+
+	if (sync->getTimestamp()._version != port->getTimestampVersion())
+	{
+		GPTP_LOG_ERROR("Received Follow Up but timestamp version indicates Sync is out of date");
 		goto done;
 	}
 
@@ -1407,6 +1413,7 @@ PTPMessagePathDelayRespFollowUp::~PTPMessagePathDelayRespFollowUp()
 	delete requestingPortIdentity;
 }
 
+#define US_PER_SEC 1000000
 void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 {
 	Timestamp remote_resp_tx_timestamp(0, 0, 0);
@@ -1609,25 +1616,32 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 		Timestamp prev_peer_ts_theirs;
 		FrequencyRatio rate_offset;
 		if( port->getPeerOffset( prev_peer_ts_mine, prev_peer_ts_theirs )) {
+			FrequencyRatio upper_ratio_limit, lower_ratio_limit;
+			upper_ratio_limit = PPM_OFFSET_TO_RATIO(UPPER_LIMIT_PPM);
+			lower_ratio_limit = PPM_OFFSET_TO_RATIO(LOWER_LIMIT_PPM);
+
 			mine_elapsed =  TIMESTAMP_TO_NS(request_tx_timestamp)-TIMESTAMP_TO_NS(prev_peer_ts_mine);
 			theirs_elapsed = TIMESTAMP_TO_NS(remote_req_rx_timestamp)-TIMESTAMP_TO_NS(prev_peer_ts_theirs);
 			theirs_elapsed -= port->getLinkDelay();
 			theirs_elapsed += link_delay < 0 ? 0 : link_delay;
 			rate_offset =  ((FrequencyRatio) mine_elapsed)/theirs_elapsed;
-			port->setPeerRateOffset(rate_offset);
-			if( !port->setLinkDelay( link_delay ) ) {
-				if (!port->getAutomotiveProfile()) {
-					GPTP_LOG_ERROR("Link delay %ld beyond neighborPropDelayThresh; not AsCapable", link_delay);
-					port->setAsCapable( false );
-				}
-			} else {
-				if (!port->getAutomotiveProfile()) {
-					port->setAsCapable( true );
-				}
+
+			if( rate_offset < upper_ratio_limit && rate_offset > lower_ratio_limit ) {
+				port->setPeerRateOffset(rate_offset);
 			}
+			port->setAsCapable( true );
 		}
 	}
-
+	if( !port->setLinkDelay( link_delay ) ) {
+		if (!port->getAutomotiveProfile()) {
+			GPTP_LOG_ERROR("Link delay %ld beyond neighborPropDelayThresh; not AsCapable", link_delay);
+			port->setAsCapable( false );
+		}
+	} else {
+		if (!port->getAutomotiveProfile()) {
+			port->setAsCapable( true );
+		}
+	}
 	port->setPeerOffset( request_tx_timestamp, remote_req_rx_timestamp );
 
  abort:
