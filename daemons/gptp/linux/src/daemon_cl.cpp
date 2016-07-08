@@ -99,6 +99,8 @@ static IEEE1588Port *pPort = NULL;
 
 int main(int argc, char **argv)
 {
+	GPTP_LOG_INFO("gPTP starting");
+
     IEEE1588PortInit_t portInit;
 
     sigset_t set;
