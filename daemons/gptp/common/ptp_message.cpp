@@ -1615,11 +1615,13 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 			theirs_elapsed += link_delay < 0 ? 0 : link_delay;
 			rate_offset =  ((FrequencyRatio) mine_elapsed)/theirs_elapsed;
 			port->setPeerRateOffset(rate_offset);
-			if (!port->getAutomotiveProfile()) {
-				if( !port->setLinkDelay( link_delay ) ) {
+			if( !port->setLinkDelay( link_delay ) ) {
+				if (!port->getAutomotiveProfile()) {
 					GPTP_LOG_ERROR("Link delay %ld beyond neighborPropDelayThresh; not AsCapable", link_delay);
 					port->setAsCapable( false );
-				} else {
+				}
+			} else {
+				if (!port->getAutomotiveProfile()) {
 					port->setAsCapable( true );
 				}
 			}
