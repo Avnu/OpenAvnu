@@ -1629,7 +1629,6 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 			if( rate_offset < upper_ratio_limit && rate_offset > lower_ratio_limit ) {
 				port->setPeerRateOffset(rate_offset);
 			}
-			port->setAsCapable( true );
 		}
 	}
 	if( !port->setLinkDelay( link_delay ) ) {
