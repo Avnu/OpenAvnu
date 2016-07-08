@@ -1053,7 +1053,7 @@ void IEEE1588Port::processEvent(Event e)
 			    clock->calcLocalSystemClockRateDifference
 			      ( device_time, system_time );
 			clock->setMasterOffset
-			  (0, device_time, 1.0, local_system_offset,
+			  (this, 0, device_time, 1.0, local_system_offset,
 			   system_time, local_system_freq_offset, sync_count,
 			   pdelay_count, port_state, asCapable );
 

@@ -1214,6 +1214,10 @@ class IEEE1588Port {
 		one_way_delay = delay;
 		int64_t abs_delay = (one_way_delay < 0 ? -one_way_delay : one_way_delay);
 
+		if (testMode) {
+			GPTP_LOG_STATUS("Link delay: %d", delay);
+		}
+
 		return (abs_delay <= neighbor_prop_delay_thresh);
 	}
 
@@ -1444,6 +1448,14 @@ class IEEE1588Port {
 	 */
 	void setLastGmTimeBaseIndicator(uint16_t gmTimeBaseIndicator) {
 		lastGmTimeBaseIndicator = gmTimeBaseIndicator;
+	}
+
+	/**
+	 * @brief  Gets the testMode
+	 * @return bool of the test mode value
+	 */
+	bool getTestMode(void) {
+		return testMode;
 	}
 
 	/**

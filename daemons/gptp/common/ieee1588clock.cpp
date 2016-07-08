@@ -332,13 +332,17 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 }
 
 void IEEE1588Clock::setMasterOffset
-( int64_t master_local_offset, Timestamp local_time,
+( IEEE1588Port * port, int64_t master_local_offset, Timestamp local_time,
   FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
   Timestamp system_time, FrequencyRatio local_system_freq_offset,
   unsigned sync_count, unsigned pdelay_count, PortState port_state, bool asCapable )
 {
 	_master_local_freq_offset = master_local_freq_offset;
 	_local_system_freq_offset = local_system_freq_offset;
+
+	if (port->getTestMode()) {
+		GPTP_LOG_STATUS("Clock offset:%lld  Clock rate ratio:%Lf", master_local_offset, master_local_freq_offset);
+	}
 
 	if( ipc != NULL ) ipc->update
 		( master_local_offset, local_system_offset, master_local_freq_offset,
@@ -356,6 +360,9 @@ void IEEE1588Clock::setMasterOffset
 				/* Make sure that there are no transmit operations
 				   in progress */
 				getTxLockAll();
+				if (port->getTestMode()) {
+					GPTP_LOG_STATUS("Adjust clock phase offset:%lld", -master_local_offset);
+				}
 				_timestamper->HWTimestamper_adjclockphase
 					( -master_local_offset );
 				_master_local_freq_offset_init = false;
@@ -370,6 +377,9 @@ void IEEE1588Clock::setMasterOffset
 		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
 		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
 		if( _timestamper ) {
+			if (port->getTestMode()) {
+				GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
+			}
 			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
 				GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 			}

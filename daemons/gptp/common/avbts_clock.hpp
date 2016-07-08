@@ -528,7 +528,7 @@ public:
    * @param  asCapable asCapable flag
    */
   void setMasterOffset
-	  ( int64_t master_local_offset, Timestamp local_time,
+	  ( IEEE1588Port * port, int64_t master_local_offset, Timestamp local_time,
 		FrequencyRatio master_local_freq_offset,
 		int64_t local_system_offset,
 		Timestamp system_time,
