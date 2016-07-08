@@ -576,7 +576,7 @@ class IEEE1588Port {
 	 */
 	void setAsCapable(bool ascap) {
 		if (ascap != asCapable) {
-			GPTP_LOG_STATUS("AsCapable: %s\n",
+			GPTP_LOG_STATUS("AsCapable: %s",
 					ascap == true ? "Enabled" : "Disabled");
 		}
 		if(!ascap){

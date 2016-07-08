@@ -125,7 +125,7 @@ PTPMessageCommon *buildPTPMessage
 			timer->sleep(req);
 			if (ts_good != GPTP_EC_EAGAIN)
 				GPTP_LOG_ERROR(
-					"Error (RX) timestamping RX event packet (Retrying), error=%d\n",
+					"Error (RX) timestamping RX event packet (Retrying), error=%d",
 					  ts_good );
 			ts_good =
 			    port->getRxTimestamp(sourcePortIdentity, sequenceId,
@@ -158,7 +158,7 @@ PTPMessageCommon *buildPTPMessage
 	case SYNC_MESSAGE:
 
 		GPTP_LOG_DEBUG("*** Received Sync message\n" );
-		GPTP_LOG_VERBOSE("Sync RX timestamp = %hu,%u,%u\n", timestamp.seconds_ms, timestamp.seconds_ls, timestamp.nanoseconds );
+		GPTP_LOG_VERBOSE("Sync RX timestamp = %hu,%u,%u", timestamp.seconds_ms, timestamp.seconds_ls, timestamp.nanoseconds );
 
 		// Be sure buffer is the correction size
 		if (size < PTP_COMMON_HDR_LENGTH + PTP_SYNC_LENGTH) {
@@ -907,11 +907,10 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	GPTP_LOG_VERBOSE
 		("FW-UP Time: %x nanoseconds", preciseOriginTimestamp.nanoseconds);
 #ifdef DEBUG
-	GPTP_LOG_VERBOSE("Follow-up Dump:\n");
+	GPTP_LOG_VERBOSE("Follow-up Dump:");
 	for (int i = 0; i < messageLength; ++i) {
 		GPTP_LOG_VERBOSE("%d:%02x ", i, (unsigned char)buf_t[i]);
 	}
-	GPTP_LOG_VERBOSE("\n");
 #endif
 
 	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
@@ -1012,7 +1011,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	port->getDeviceTime(system_time, device_time, local_clock,
 			    nominal_clock_rate);
 	GPTP_LOG_VERBOSE
-		( "Device Time = %llu,System Time = %llu\n",
+		( "Device Time = %llu,System Time = %llu",
 		  TIMESTAMP_TO_NS(device_time), TIMESTAMP_TO_NS(system_time));
 
 	/* Adjust local_clock to correspond to sync_arrival */
@@ -1132,7 +1131,6 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	for (int n = 0; n < PTP_CLOCK_IDENTITY_LENGTH; ++n) {
 		GPTP_LOG_VERBOSE("%c", resp_id.clockIdentity[n]);
 	}
-	GPTP_LOG_VERBOSE("\"\n");
 #endif
 
 	this->getPortIdentity(&requestingPortIdentity_p);
@@ -1171,7 +1169,7 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	}
 
 	if( resp_timestamp._version != _timestamp._version ) {
-		GPTP_LOG_ERROR("TX timestamp version mismatch: %u/%u\n",
+		GPTP_LOG_ERROR("TX timestamp version mismatch: %u/%u",
 			    resp_timestamp._version, _timestamp._version);
 #if 0 // discarding the request could lead to the peer setting the link to non-asCapable
 		delete resp;
@@ -1270,7 +1268,7 @@ void PTPMessagePathDelayResp::processMessage(IEEE1588Port * port)
 	port->incCounter_ieee8021AsPortStatRxPdelayResponse();
 
 	if (port->tryPDelayRxLock() != true) {
-		GPTP_LOG_ERROR("Failed to get PDelay RX Lock\n");
+		GPTP_LOG_ERROR("Failed to get PDelay RX Lock");
 		return;
 	}
 

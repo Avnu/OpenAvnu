@@ -423,11 +423,9 @@ bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
 	GPTP_LOG_DEBUG("(Clk)Us: ");
 	for (int i = 0; i < 14; ++i)
 		GPTP_LOG_DEBUG("%hhx ", this1[i]);
-	GPTP_LOG_DEBUG("\n");
 	GPTP_LOG_DEBUG("(Clk)Them: ");
 	for (int i = 0; i < 14; ++i)
 		GPTP_LOG_DEBUG("%hhx ", that1[i]);
-	GPTP_LOG_DEBUG("\n");
 #endif
 
 	return (memcmp(this1, that1, 14) < 0) ? true : false;

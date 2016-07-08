@@ -785,7 +785,7 @@ void IEEE1588Port::processEvent(Event e)
 				    || port_state == PTP_SLAVE
 				    || port_state == PTP_PRE_MASTER) {
 					GPTP_LOG_STATUS(
-					  "*** %s Timeout Expired - Becoming Master\n",
+					  "*** %s Timeout Expired - Becoming Master",
 					  e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES ? "Announce" :
 					  "Sync" );
 					{
@@ -875,7 +875,7 @@ void IEEE1588Port::processEvent(Event e)
 				if (ts_good != GPTP_EC_EAGAIN && iter < 1)
 					GPTP_LOG_ERROR(
 						 "Error (TX) timestamping PDelay request "
-						 "(Retrying-%d), error=%d\n", iter, ts_good);
+						 "(Retrying-%d), error=%d", iter, ts_good);
 				ts_good =
 				    getTxTimestamp
 					(pdelay_req, req_timestamp,
@@ -889,7 +889,7 @@ void IEEE1588Port::processEvent(Event e)
 			} else {
 			  Timestamp failed = INVALID_TIMESTAMP;
 			  pdelay_req->setTimestamp(failed);
-			  GPTP_LOG_ERROR( "Invalid TX\n" );
+			  GPTP_LOG_ERROR( "Invalid TX" );
 			}
 
 			if (ts_good != GPTP_EC_SUCCESS) {
@@ -1114,7 +1114,7 @@ void IEEE1588Port::processEvent(Event e)
 	case PDELAY_DEFERRED_PROCESSING:
 		pdelay_rx_lock->lock();
 		if (last_pdelay_resp_fwup == NULL) {
-			GPTP_LOG_ERROR("PDelay Response Followup is NULL!\n");
+			GPTP_LOG_ERROR("PDelay Response Followup is NULL!");
 			abort();
 		}
 		last_pdelay_resp_fwup->processMessage(this);
@@ -1126,7 +1126,7 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 	case PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES:
 		if (!automotive_profile) {
-			GPTP_LOG_EXCEPTION("PDelay Response Receipt Timeout\n");
+			GPTP_LOG_EXCEPTION("PDelay Response Receipt Timeout");
 			setAsCapable(false);
 		}
 		pdelay_count = 0;
@@ -1137,7 +1137,7 @@ void IEEE1588Port::processEvent(Event e)
 
 		haltPdelay(false);
 		if( port_state != PTP_SLAVE && port_state != PTP_MASTER ) {
-			GPTP_LOG_STATUS("Starting PDelay\n" );
+			GPTP_LOG_STATUS("Starting PDelay" );
 			startPDelay();
 		}
 		break;
@@ -1222,7 +1222,7 @@ void IEEE1588Port::becomeMaster( bool annc ) {
 		startAnnounce();
 	}
 	startSyncIntervalTimer(16000000);
-	GPTP_LOG_STATUS("Switching to Master\n" );
+	GPTP_LOG_STATUS("Switching to Master" );
 
 	clock->updateFUPInfo();
 
@@ -1244,7 +1244,7 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 	   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
 	    (unsigned long long)
 	    (pow((double)2,getAnnounceInterval())*1000000000.0)));
-	GPTP_LOG_STATUS("Switching to Slave\n" );
+	GPTP_LOG_STATUS("Switching to Slave" );
 	if( restart_syntonization ) clock->newSyntonizationSetPoint();
 
 	getClock()->updateFUPInfo();
@@ -1272,7 +1272,7 @@ void IEEE1588Port::recommendState
 			reset_sync = true;
 		} else {
 			if( changed_external_master ) {
-				GPTP_LOG_STATUS("Changed master!\n" );
+				GPTP_LOG_STATUS("Changed master!" );
 				clock->newSyntonizationSetPoint();
 				getClock()->updateFUPInfo();
 				reset_sync = true;
