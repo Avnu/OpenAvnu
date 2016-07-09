@@ -383,7 +383,9 @@ void IEEE1588Clock::setMasterOffset
 			++_phase_error_violation;
 		} else {
 			_phase_error_violation = 0;
-			_ppm += (float) (INTEGRAL*phase_error + PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
+
+			float syncPerSec = (float)(1.0 / pow((float)2, port->getSyncInterval()));
+			_ppm += (float) ((INTEGRAL * syncPerSec * phase_error) + PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
 
 			GPTP_LOG_DEBUG("phase_error = %Lf, ppm = %f", phase_error, _ppm );
 		}

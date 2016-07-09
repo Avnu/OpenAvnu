@@ -44,7 +44,7 @@
 
 #define EVENT_TIMER_GRANULARITY 5000000		/*!< Event timer granularity*/
 
-#define INTEGRAL 0.0024				/*!< PI controller integral factor*/
+#define INTEGRAL 0.0003				/*!< PI controller integral factor*/
 #define PROPORTIONAL 1.0			/*!< PI controller proportional factor*/
 #define UPPER_FREQ_LIMIT  250.0		/*!< Upper frequency limit */
 #define LOWER_FREQ_LIMIT -250.0		/*!< Lower frequency limit */
