@@ -1207,7 +1207,7 @@ class IEEE1588Port {
 			return false;
 		}
 		*delay = getLinkDelay();
-		return *delay <= INVALID_LINKDELAY;
+		return *delay < INVALID_LINKDELAY;
 	}
 
 	/**
