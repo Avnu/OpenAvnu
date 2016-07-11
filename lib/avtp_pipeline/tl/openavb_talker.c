@@ -203,11 +203,13 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 		if (!pCfg->tx_blocking_in_intf) {
 
 
+#if !IGB_LAUNCHTIME_ENABLED
 #if 0
 			// sleep until the next interval
 			SLEEP_UNTIL_NSEC(pTalkerData->nextCycleNS);
 #else
 			SPIN_UNTIL_NSEC(pTalkerData->nextCycleNS);
+#endif
 #endif
 
 			//AVB_DBG_INTERVAL(8000, TRUE);
