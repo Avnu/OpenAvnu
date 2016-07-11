@@ -77,6 +77,9 @@ typedef struct {
 	/////////////
 	// When increment is enable this is the counter
 	U32 Counter;
+#if IGB_LAUNCHTIME_ENABLED
+	avtp_time_t walltime;
+#endif
 } pvt_data_t;
 
 
@@ -168,6 +171,10 @@ void openavbIntfEchoTxInitCB(media_q_t *pMediaQ)
 		}
 
 		pPvtData->Counter = 0;
+#if IGB_LAUNCHTIME_ENABLED
+		openavbAvtpTimeSetToWallTime(&pPvtData->walltime);
+		AVB_LOG_INFO(__func__);
+#endif
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -209,7 +216,12 @@ bool openavbIntfEchoTxCB(media_q_t *pMediaQ)
 					printf("%s\n\r", (char *)pMediaQItem->pPubData); 
 			}
 
+#if IGB_LAUNCHTIME_ENABLED
+				openavbAvtpTimeAddUSec(&pPvtData->walltime, 125);
+				*pMediaQItem->pAvtpTime = pPvtData->walltime;
+#else
 			openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+#endif
 			openavbMediaQHeadPush(pMediaQ);
 			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 			return TRUE;
