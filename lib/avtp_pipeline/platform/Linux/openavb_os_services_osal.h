@@ -64,7 +64,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #define SLEEP(sec)  							   sleep(sec)
 #define SLEEP_MSEC(mSec)						   usleep(mSec * 1000)
-#define SLEEP_NSEC(nSec)						   usleep(nSec)
+#define SLEEP_NSEC(nSec)						   usleep(nSec / 1000)
 #define SLEEP_UNTIL_NSEC(nSec)  				   xSleepUntilNSec(nSec)
 inline static void xSleepUntilNSec(U64 nSec)
 {
