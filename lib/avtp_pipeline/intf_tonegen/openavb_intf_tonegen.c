@@ -360,11 +360,8 @@ void openavbIntfToneGenCfgCB(media_q_t *pMediaQ, const char *name, const char *v
 		}
 
 		else if (strcmp(name, "intf_nv_volume") == 0) {
-			U32 vol = strtol(value, &pEnd, 10);
-			if (vol > 100) {
-				vol = 100;
-			}
-			pPvtData->volume = (float)vol / 100.0;
+			S32 vol = strtol(value, &pEnd, 10);
+			pPvtData->volume = pow(10.0, vol/10.0);
 		}
 
 		else if (strcmp(name, "intf_nv_fv1") == 0) {
@@ -638,7 +635,7 @@ extern bool DLL_EXPORT openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_
 		pPvtData->audioType = AVB_AUDIO_TYPE_INT;
 		pPvtData->audioEndian = AVB_AUDIO_ENDIAN_BIG;
 
-		pPvtData->volume = 50;
+		pPvtData->volume = 1.0f;
 		pPvtData->fv1Enabled = false;
 		pPvtData->fv1 = 0;
 		pPvtData->fv2Enabled = false;
