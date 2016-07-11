@@ -325,12 +325,12 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 		}
 
 		if (!txBlockingInIntf) {
-		// Call interface module to read data
-		pStream->pIntfCB->intf_tx_cb(pStream->pMediaQ);
-		// Call mapping module to move data into AVTP frame
-		txCBResult = pStream->pMapCB->map_tx_cb(pStream->pMediaQ, pAvtpFrame, &avtpFrameLen);
-
-		pStream->bytes += avtpFrameLen;
+			// Call interface module to read data
+			pStream->pIntfCB->intf_tx_cb(pStream->pMediaQ);
+			// Call mapping module to move data into AVTP frame
+			txCBResult = pStream->pMapCB->map_tx_cb(pStream->pMediaQ, pAvtpFrame, &avtpFrameLen);
+		
+			pStream->bytes += avtpFrameLen;
 		}
 		else {
 			// Blocking in interface mode. Pull from media queue for tx first

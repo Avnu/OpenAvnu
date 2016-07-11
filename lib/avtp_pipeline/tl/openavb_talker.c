@@ -215,11 +215,12 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 			// send the frames for this interval
 			int i;
 			for (i = pTalkerData->wakeFrames; i > 0; i--) {
-					if (IS_OPENAVB_SUCCESS(openavbAvtpTx(pTalkerData->avtpHandle, i == 1, pCfg->tx_blocking_in_intf)))
+				if (IS_OPENAVB_SUCCESS(openavbAvtpTx(pTalkerData->avtpHandle, i == 1, pCfg->tx_blocking_in_intf)))
 					pTalkerData->cntFrames++;
-				else break;
-				}
+				else
+					break;
 			}
+		}
 		else {
 			// Interface module block option
 			if (IS_OPENAVB_SUCCESS(openavbAvtpTx(pTalkerData->avtpHandle, TRUE, pCfg->tx_blocking_in_intf)))
