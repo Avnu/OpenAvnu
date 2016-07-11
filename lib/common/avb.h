@@ -120,6 +120,7 @@ int gptpdeinit(int *shm_fd, char **shm_map);
 int gptpgetdata(char *shm_mmap, gPtpTimeData *td);
 int gptpscaling(char *shm_mmap, gPtpTimeData *td);
 bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local);
+bool gptpmaster2local(const gPtpTimeData *td, const uint64_t master, uint64_t *local);
 
 void avb_set_1722_cd_indicator(seventeen22_header *h1722, uint64_t cd_indicator);
 uint64_t avb_get_1722_cd_indicator(seventeen22_header *h1722);
