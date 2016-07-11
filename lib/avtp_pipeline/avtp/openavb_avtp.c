@@ -353,7 +353,7 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			// Increment the sequence number now that we are sure this is a good packet.
 			pStream->avtp_sequence_num++;
 			// Mark the frame "ready to send".
-			openavbRawsockTxFrameReady(pStream->rawsock, pStream->pBuf, avtpFrameLen + pStream->ethHdrLen);
+			openavbRawsockTxFrameReady(pStream->rawsock, pStream->pBuf, avtpFrameLen + pStream->ethHdrLen, 0);
 			// Send if requested
 			if (bSend)
 				openavbRawsockSend(pStream->rawsock);
