@@ -190,7 +190,7 @@ public:
 	 * @return void
 	 */
 	void clear_reenable_rx_queue();
-	
+
 	/**
 	 * @brief  Gets the local link layer address
 	 * @param  addr [out] Pointer to the LinkLayerAddress object
