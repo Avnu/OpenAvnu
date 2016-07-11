@@ -1,4 +1,5 @@
 AVB_FEATURE_ENDPOINT ?= 1
+IGB_LAUNCHTIME_ENABLED ?= 0
 
 .PHONY: all clean
 
@@ -18,4 +19,5 @@ build/Makefile:
 	cd build && \
 	cmake -DCMAKE_TOOLCHAIN_FILE=../platform/Linux/x86_i210_linux.cmake \
 	      -DAVB_FEATURE_ENDPOINT=$(AVB_FEATURE_ENDPOINT) \
+	      -DIGB_LAUNCHTIME_ENABLED=$(IGB_LAUNCHTIME_ENABLED) \
               ..

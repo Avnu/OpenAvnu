@@ -93,6 +93,14 @@ if (NOT DEFINED AVB_FEATURE_ENDPOINT)
   set ( AVB_FEATURE_ENDPOINT 0 )
 endif ()
 
+# Default launchtime feature
+if (NOT DEFINED IGB_LAUNCHTIME_ENABLED)
+  set ( IGB_LAUNCHTIME_ENABLED 0 )
+else ()
+  MESSAGE ( "-- IGB launch time enabled" )
+endif ()
+set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DIGB_LAUNCHTIME_ENABLED=${IGB_LAUNCHTIME_ENABLED}" )
+
 
 # Export feature flags for sub-builds
 if (AVB_FEATURE_FQTSS)
