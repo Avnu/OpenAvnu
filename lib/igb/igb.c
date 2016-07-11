@@ -1332,9 +1332,6 @@ static void igb_setup_receive_ring(struct rx_ring *rxr)
 
 
 	/* Clear the ring contents */
-//	sem_wait(adapter->memlock);
-//	rsize = adapter->num_rx_desc * sizeof(union e1000_adv_rx_desc);
-//	bzero((void *)rxr->rx_base, rsize);
 	memset((void *)rxr->rx_base,  0,
 	       (sizeof(union e1000_adv_rx_desc)) * adapter->num_rx_desc);
 
@@ -1349,14 +1346,6 @@ static void igb_setup_receive_ring(struct rx_ring *rxr)
 	rxr->next_to_refresh = 0;
 	rxr->rx_split_packets = 0;
 	rxr->rx_bytes = 0;
-
-//	sem_post(adapter->memlock);
-//	return 0;
-
-//fail:
-//	igb_free_receive_ring(rxr);
-//	sem_post(adapter->memlock);
-//	return error;
 }
 
 /* Initialize all receive rings. */
@@ -1598,11 +1587,6 @@ int igb_receive(device_t *dev, struct igb_packet **received_packets,
 
 	*received_packets = NULL; /* nothing reclaimed yet */
 
-#ifdef XXX_LOCK
-	if (sem_wait(adapter->memlock) != 0)
-		return errno;
-#endif
-
 	for (i = 0; i < adapter->num_queues; i++) {
 		rxr = &(adapter->rx_rings[i]);
 
@@ -1651,13 +1635,6 @@ int igb_receive(device_t *dev, struct igb_packet **received_packets,
 				 */
 				if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
 					++rxr->rx_discarded;
-					/*
-					 * igb_rx_discard(rxr, i);
-					 *
-					 * XXX what does this do?
-					 * should we internally refresh the buffer
-					 * to the end of the ring?
-					 */
 					printf ("discard error packet\n");
 					igb_refresh_buffers(dev, i,
 							&rxr->rx_buffers[desc].packet, 1);
@@ -1693,10 +1670,6 @@ next_desc:
 
 		rxr->next_to_check = desc;
 	}
-
-#ifdef XXX_LOCK
-	sem_post(adapter->memlock);
-#endif
 
 	return 0;
 }
