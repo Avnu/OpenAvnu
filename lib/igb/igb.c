@@ -1566,32 +1566,41 @@ void igb_refresh_buffers(device_t *dev, u_int32_t idx,
  *  processing the packet then return the linked list of associated resources.
  *
  **********************************************************************/
-void igb_receive(device_t *dev, struct igb_packet **received_packets,
-		 u_int32_t count)
+int igb_receive(device_t *dev, struct igb_packet **received_packets,
+		 u_int32_t *count)
 {
 	struct adapter *adapter;
 	struct rx_ring *rxr;
 	union e1000_adv_rx_desc *cur;
-	int i, rxdone = 0;
+	int i;
 	bool eop = FALSE;
-	u32 staterr = 0;
-	u32 desc = 0;
+	u_int32_t staterr = 0;
+	u_int32_t desc    = 0;
+	u_int32_t max_pkt = 0;
+	struct igb_packet *curr_pkt = NULL;
+	struct igb_packet *prev_pkt = NULL;
 
 	if (dev == NULL)
-		return;
+		return -EINVAL;
 
 	adapter = (struct adapter *)dev->private_data;
 	if (adapter == NULL)
-		return;
+		return -ENXIO;
+
+	if (count == NULL)
+		return -EINVAL;
+
+	max_pkt = *count;
+	*count  = 0;
 
 	if (received_packets == NULL)
-		return;
+		return -EINVAL;
 
 	*received_packets = NULL; /* nothing reclaimed yet */
 
 #ifdef XXX_LOCK
 	if (sem_wait(adapter->memlock) != 0)
-		return;
+		return errno;
 #endif
 
 	for (i = 0; i < adapter->num_queues; i++) {
@@ -1600,7 +1609,7 @@ void igb_receive(device_t *dev, struct igb_packet **received_packets,
 		/* Main clean loop - receive packets until no more
 		 * received_packets[]
 		 */
-		for (desc = rxr->next_to_check; count != 0;) {
+		for (desc = rxr->next_to_check; *count < max_pkt;) {
 			cur = &(rxr->rx_base[desc]);
 #ifdef DEBUG
 			if (i%2)
@@ -1617,7 +1626,6 @@ void igb_receive(device_t *dev, struct igb_packet **received_packets,
 			staterr = le32toh(cur->wb.upper.status_error);
 			if ((staterr & E1000_RXD_STAT_DD) == 0)
 				break;
-			count--;
 
 			cur->wb.upper.status_error = 0;
 			/*
@@ -1653,14 +1661,26 @@ void igb_receive(device_t *dev, struct igb_packet **received_packets,
 					printf ("discard error packet\n");
 					igb_refresh_buffers(dev, i,
 							&rxr->rx_buffers[desc].packet, 1);
-				} else
-				{
-					if (!*received_packets)
-						*received_packets = rxr->rx_buffers[desc].packet;
-					rxr->rx_buffers[desc].packet->len = cur->wb.upper.length;
+				} else {
+					/*
+					 * add new packet to list of received packets
+					 * to return
+					 */
+					curr_pkt = rxr->rx_buffers[desc].packet;
+					curr_pkt->len = cur->wb.upper.length;
+
+					if (*received_packets == NULL)
+						*received_packets = curr_pkt;
+					if (prev_pkt)
+						prev_pkt->next = curr_pkt;
+					prev_pkt = curr_pkt;
+					(*count)++;
+
+					++rxr->rx_packets;
 				}
 			} else {
 				/* multi-segment frame is not supported yet */
+				++rxr->rx_discarded;
 				printf ("discard non-eop packet\n");
 				igb_refresh_buffers(dev, i,
 						&rxr->rx_buffers[desc].packet, 1);
@@ -1669,15 +1689,6 @@ next_desc:
 			/* Advance our pointers to the next descriptor. */
 			if (++desc == adapter->num_rx_desc)
 				desc = 0;
-				/*
-				 * add new packet to list of received packets
-				 * to return XXX todo
-				 */
-				if (rxr != NULL) {
-					rxr->next_to_check = desc;
-					desc = rxr->next_to_check;
-					rxdone++;
-				}
 		}
 
 		rxr->next_to_check = desc;
@@ -1686,6 +1697,8 @@ next_desc:
 #ifdef XXX_LOCK
 	sem_post(adapter->memlock);
 #endif
+
+	return 0;
 }
 
 #define MAX_ITER 32

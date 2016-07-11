@@ -92,8 +92,8 @@ int igb_xmit(device_t *dev, unsigned int queue_index,
 void igb_refresh_buffers(device_t *dev, u_int32_t idx,
 			 struct igb_packet **rxbuf_packets,
 			 u_int32_t num_bufs);
-void igb_receive(device_t *dev, struct igb_packet **received_packets,
-		 u_int32_t count);
+int igb_receive(device_t *dev, struct igb_packet **received_packets,
+		 u_int32_t *count);
 void igb_clean(device_t *dev, struct igb_packet **cleaned_packets);
 int igb_get_wallclock(device_t *dev, u_int64_t *curtime, u_int64_t *rdtsc);
 int igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime,
