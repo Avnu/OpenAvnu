@@ -676,6 +676,7 @@ struct igb_adapter {
 	u32 rss_indir_tbl_init;
 	u8 rss_indir_tbl[IGB_RETA_SIZE];
 #endif
+	struct mutex lock;
 };
 
 #ifdef CONFIG_IGB_VMDQ_NETDEV
