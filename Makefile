@@ -78,7 +78,14 @@ simple_listener:
 	$(call descend,examples/$@)
 
 simple_listener_clean:
-	$(call descend,examples/simple_listener/,clean)
+	$(call descend,examples/simple_rx/,clean)
+
+simple_rx:
+	$(MAKE) lib
+	$(call descend,examples/$@)
+
+simple_rx_clean:
+	$(call descend,examples/simple_rx/,clean)
 
 mrp_client:
 	$(call descend,examples/$@)

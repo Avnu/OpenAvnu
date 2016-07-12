@@ -76,8 +76,7 @@ static const char *version_str = "simple_rx v" VERSION_STR "\n"
 unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
 unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 /* IEEE 1722 reserved address */
-/* unsigned char glob_l2_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 }; */
-unsigned char glob_l2_dest_addr[] = {0xa0, 0x36, 0x9f, 0x10, 0xcd, 0xe6 };
+unsigned char glob_l2_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
 unsigned char glob_l3_dest_addr[] = { 224, 0, 0, 115 };
 
 void sigint_handler(int signum)
@@ -203,9 +202,6 @@ int mrpd_init_protocol_socket(u_int16_t etype, int *sock,
 		return -1;
 	}
 
-	memcpy(glob_l2_dest_addr, if_request.ifr_hwaddr.sa_data,
-	       sizeof(glob_l2_dest_addr));
-
 	memset(&if_request, 0, sizeof(if_request));
 
 	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name)-1);
@@ -270,7 +266,7 @@ int main(int argc, char *argv[])
 {
 	/* int igb_shm_fd = -1; */
 	struct igb_packet *received_packets = NULL;
-	struct igb_packet *free_packets = NULL;
+	struct igb_packet *free_packets[PKT_NUM];
 	struct igb_packet *tmp_packet = NULL;
 	struct igb_dma_alloc dma_pages[PKT_NUM];
 	unsigned char test_filter[128];
@@ -283,6 +279,7 @@ int main(int argc, char *argv[])
 	int sock;
 	struct ethhdr *ethhdr = NULL;
 	u_int16_t		*vlan_ethtype = NULL;
+	u_int32_t count;
 
 	for (;;) {
 		c = getopt(argc, argv, "hi:t:");
@@ -308,8 +305,8 @@ int main(int argc, char *argv[])
 	if (interface == NULL)
 		usage();
 
-	free_packets = NULL;
 	memset (dma_pages, 0, sizeof(dma_pages));
+	memset (free_packets, 0, sizeof(free_packets));
 
 	err = pci_connect(&igb_dev);
 	if (err) {
@@ -352,10 +349,11 @@ int main(int argc, char *argv[])
 		tmp_packet->len = PKT_SZ;
 
 		memset(tmp_packet->vaddr, 0, PKT_SZ);
-		tmp_packet->next = free_packets;
-		free_packets = tmp_packet;
+		if (i != 0)
+			tmp_packet->next = free_packets[i-1];
+		free_packets[i] = tmp_packet;
 
-		igb_refresh_buffers(&igb_dev, 0, &free_packets, 1);
+		igb_refresh_buffers(&igb_dev, 0, free_packets, 1);
 	}
 
 	/* filtering example */
@@ -394,7 +392,8 @@ int main(int argc, char *argv[])
 	while (halt_rx_sig) {
 
 		received_packets = NULL;
-		igb_receive(&igb_dev, &received_packets, 1);
+		count = 1;
+		igb_receive(&igb_dev, &received_packets, &count);
 
 		if (received_packets == NULL)
 			continue;
@@ -421,12 +420,8 @@ exit:
 	for (i = 0; i < PKT_NUM; i++) {
 		if (dma_pages[i].dma_paddr != 0)
 			igb_dma_free_page(&igb_dev, &dma_pages[i]);
-	}
-	while (free_packets) {
-		tmp_packet = free_packets;
-		free_packets = free_packets->next;
-		if (tmp_packet) {
-			free(tmp_packet);
+		if (free_packets[i]) {
+			free(free_packets[i]);
 		}
 	}
 
