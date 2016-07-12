@@ -570,13 +570,21 @@ class IEEE1588Port {
 	}
 
 	/**
+	 * @brief  Restart PDelay
+	 * @return void
+	 */
+	void restartPDelay() {
+		_peer_offset_init = false;
+	}
+
+	/**
 	 * @brief  Sets asCapable flag
 	 * @param  ascap flag to be set. If FALSE, marks peer_offset_init as false.
 	 * @return void
 	 */
 	void setAsCapable(bool ascap) {
 		if (ascap != asCapable) {
-			GPTP_LOG_STATUS("AsCapable: %s\n",
+			GPTP_LOG_STATUS("AsCapable: %s",
 					ascap == true ? "Enabled" : "Disabled");
 		}
 		if(!ascap){
@@ -1199,7 +1207,7 @@ class IEEE1588Port {
 			return false;
 		}
 		*delay = getLinkDelay();
-		return *delay <= INVALID_LINKDELAY;
+		return *delay < INVALID_LINKDELAY;
 	}
 
 	/**
@@ -1213,6 +1221,10 @@ class IEEE1588Port {
 	bool setLinkDelay(int64_t delay) {
 		one_way_delay = delay;
 		int64_t abs_delay = (one_way_delay < 0 ? -one_way_delay : one_way_delay);
+
+		if (testMode) {
+			GPTP_LOG_STATUS("Link delay: %d", delay);
+		}
 
 		return (abs_delay <= neighbor_prop_delay_thresh);
 	}
@@ -1444,6 +1456,14 @@ class IEEE1588Port {
 	 */
 	void setLastGmTimeBaseIndicator(uint16_t gmTimeBaseIndicator) {
 		lastGmTimeBaseIndicator = gmTimeBaseIndicator;
+	}
+
+	/**
+	 * @brief  Gets the testMode
+	 * @return bool of the test mode value
+	 */
+	bool getTestMode(void) {
+		return testMode;
 	}
 
 	/**

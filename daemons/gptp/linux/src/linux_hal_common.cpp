@@ -115,10 +115,9 @@ net_result LinuxNetworkInterface::send
 }
 
 
-void LinuxNetworkInterface::disable_clear_rx_queue() {
+void LinuxNetworkInterface::disable_rx_queue() {
 	struct packet_mreq mr_8021as;
 	int err;
-	char buf[256];
 
 	if( !net_lock.lock() ) {
 		fprintf( stderr, "D rx lock failed\n" );
@@ -140,14 +139,15 @@ void LinuxNetworkInterface::disable_clear_rx_queue() {
 		return;
 	}
 
-	while( recvfrom( sd_event, buf, 256, MSG_DONTWAIT, NULL, 0 ) != -1 );
-
 	return;
 }
 
-void LinuxNetworkInterface::reenable_rx_queue() {
+void LinuxNetworkInterface::clear_reenable_rx_queue() {
 	struct packet_mreq mr_8021as;
+	char buf[256];
 	int err;
+
+	while( recvfrom( sd_event, buf, 256, MSG_DONTWAIT, NULL, 0 ) != -1 );
 
 	memset( &mr_8021as, 0, sizeof( mr_8021as ));
 	mr_8021as.mr_ifindex = ifindex;
@@ -563,7 +563,7 @@ bool LinuxLock::initialize( OSLockType type ) {
 		pthread_mutexattr_settype(&_private->mta, PTHREAD_MUTEX_RECURSIVE);
 	lock_c = pthread_mutex_init(&_private->mutex,&_private->mta);
 	if(lock_c != 0) {
-		GPTP_LOG_ERROR("Mutex initialization failed - %s\n",strerror(errno));
+		GPTP_LOG_ERROR("Mutex initialization failed - %s",strerror(errno));
 		return oslock_fail;
 	}
 	return oslock_ok;
@@ -755,7 +755,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	err = pthread_mutexattr_init(&shared);
 	if(err != 0) {
 		GPTP_LOG_ERROR
-			("mutex attr initialization failed - %s\n",
+			("mutex attr initialization failed - %s",
 			 strerror(errno));
 		goto exit_unlink;
 	}
@@ -764,7 +764,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	err = pthread_mutex_init((pthread_mutex_t *) master_offset_buffer, &shared);
 	if(err != 0) {
 		GPTP_LOG_ERROR
-			("sharedmem - Mutex initialization failed - %s\n",
+			("sharedmem - Mutex initialization failed - %s",
 			 strerror(errno));
 		goto exit_unlink;
 	}
@@ -842,7 +842,7 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	net_iface_l->sd_event = socket( PF_PACKET, SOCK_DGRAM, 0 );
 	if( net_iface_l->sd_event == -1 ) {
 		GPTP_LOG_ERROR
-			( "failed to open event socket: %s \n", strerror(errno));
+			( "failed to open event socket: %s ", strerror(errno));
 		return false;
 	}
 
@@ -895,7 +895,7 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	net_iface_l->timestamper =
 		dynamic_cast <LinuxTimestamper *>(timestamper);
 	if(net_iface_l->timestamper == NULL) {
-		GPTP_LOG_ERROR( "timestamper == NULL\n" );
+		GPTP_LOG_ERROR( "timestamper == NULL" );
 		return false;
 	}
 	if( !net_iface_l->timestamper->post_init

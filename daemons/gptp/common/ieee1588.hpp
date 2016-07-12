@@ -228,7 +228,7 @@ class ClockIdentity {
 	 */
 	void print(const char *str) {
 		GPTP_LOG_VERBOSE
-			( "Clock Identity(%s): %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
+			( "Clock Identity(%s): %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx",
 			  str, id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7] );
 	}
 };
