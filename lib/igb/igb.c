@@ -53,6 +53,8 @@
 #include "e1000_82575.h"
 #include "igb_internal.h"
 
+#undef DEBUG
+
 /*********************************************************************
  *  PCI Device ID Table
  *
@@ -512,9 +514,11 @@ igb_reset(struct adapter *adapter)
 	txdctl = 0;
 
 	/* Set up the Tx Descriptor Rings, leave queues idle */
-	if (adapter->tx_rings == NULL)
+	if (adapter->tx_rings == NULL) {
+#if DEBUG
 		printf("txr null\n");
-	else {
+#endif
+	} else {
 		for (i = 0; i < adapter->num_queues; i++, txr++) {
 			u64 bus_addr = txr->txdma.paddr;
 
@@ -545,9 +549,11 @@ igb_reset(struct adapter *adapter)
 	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 
 	/* Setup the Base and Length of the Rx Descriptor Rings */
-	if (adapter->rx_rings == NULL)
+	if (adapter->rx_rings == NULL) {
+#if DEBUG
 		printf("rxr null\n");
-	else {
+#endif
+	} else {
 
 		for (i = 0; i < adapter->num_queues; i++, rxr++) {
 			u64 bus_addr = rxr->rxdma.paddr;
