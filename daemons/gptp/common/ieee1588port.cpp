@@ -187,7 +187,7 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 		}
 		linkUpCount = 1;  // TODO : really should check the current linkup status http://stackoverflow.com/questions/15723061/how-to-check-if-interface-is-up
 		linkDownCount = 0;
-		stationState = STATION_STATE_RESERVED;
+		setStationState(STATION_STATE_RESERVED);
 	}
 }
 
@@ -572,7 +572,7 @@ void IEEE1588Port::processEvent(Event e)
 
 		if (automotive_profile) {
 			if (testMode) {
-				stationState = STATION_STATE_ETHERNET_READY;
+				setStationState(STATION_STATE_ETHERNET_READY);
 				APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
 				if (testStatusMsg) {
 					testStatusMsg->sendPort(this);
@@ -712,7 +712,7 @@ void IEEE1588Port::processEvent(Event e)
 			asCapable = true;
 
 			if (testMode) {
-				stationState = STATION_STATE_ETHERNET_READY;
+				setStationState(STATION_STATE_ETHERNET_READY);
 				APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
 				if (testStatusMsg) {
 					testStatusMsg->sendPort(this);
@@ -973,8 +973,8 @@ void IEEE1588Port::processEvent(Event e)
 					if (avbSyncState > 0) {
 						avbSyncState--;
 						if (avbSyncState == 0) {
-							// Send an initial signalling message
-							stationState = STATION_STATE_AVB_SYNC;
+							// Send Avnu Automotive Profile status message
+							setStationState(STATION_STATE_AVB_SYNC);
 							APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
 							if (testStatusMsg) {
 								testStatusMsg->sendPort(this);

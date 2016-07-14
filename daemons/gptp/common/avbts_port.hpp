@@ -538,7 +538,7 @@ class IEEE1588Port {
 			if (avbSyncState > 0) {
 				avbSyncState--;
 				if (avbSyncState == 0) {
-					stationState = STATION_STATE_AVB_SYNC;
+					setStationState(STATION_STATE_AVB_SYNC);
 					APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
 					if (testStatusMsg) {
 						testStatusMsg->sendPort(this);
@@ -1429,6 +1429,15 @@ class IEEE1588Port {
 	 */
 	uint32_t getLinkDownCount() {
 		return linkDownCount;
+	}
+
+	/**
+	 * @brief  Sets the Station State for the Test Status message 
+	 * @param  StationState_t [in] The station state  
+	 * @return none
+	 */
+	void setStationState(StationState_t _stationState) {
+		stationState = _stationState;
 	}
 
 	/**
