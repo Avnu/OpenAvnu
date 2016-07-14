@@ -124,10 +124,10 @@ avtp_pipeline_doc: lib
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_pipeline.mk doc
 
 examples_all: simple_talker simple_listener mrp_client live_stream jackd-talker \
-	jackd-listener
+	jackd-listener simple_rx
 
 examples_all_clean: simple_talker_clean simple_listener_clean mrp_client_clean \
-	jackd-talker_clean jackd-listener_clean live_stream_clean
+	jackd-talker_clean jackd-listener_clean live_stream_clean simple_rx_clean
 
 all: igb lib daemons_all examples_all avtp_pipeline
 

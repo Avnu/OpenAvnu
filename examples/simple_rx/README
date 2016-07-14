@@ -5,7 +5,7 @@ directly into a user-space AVB application.
 
 The simple rx application requires root permissions to execute and 
 attach to the driver.
-	sudo ./simple_rx
+	sudo ./simple_rx -i enp3s0 -f out.wav
 
 To exit the app, hit Ctrl-C. The application gracefully tears down
 the connection to the driver. If the application unexpectedly aborts the

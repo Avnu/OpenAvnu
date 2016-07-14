@@ -1,6 +1,29 @@
+/*
+Copyright (c) 2013 Katja Rohloff <Katja.Rohloff@uni-jena.de>
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
 /******************************************************************************
 
-  Copyright (c) 2012-2016, Intel Corporation
+  Copyright (c) 2016, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -32,58 +55,239 @@
 ******************************************************************************/
 
 #include <errno.h>
-#include <inttypes.h>
-#include <fcntl.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+
+#include <pcap/pcap.h>
+#include <sndfile.h>
+
+#include <search.h>
+#include <pci/pci.h>
+#include <linux/if_ether.h>
+#include <linux/if_vlan.h>
+
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <sys/socket.h>
 #include <linux/if.h>
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
-#include <arpa/inet.h>
-
-#include <netinet/in.h>
-
-#include <pci/pci.h>
 
 #include "igb.h"
+#include "listener_mrp_client.h"
 
-#define VERSION_STR "1.0"
+#define DEBUG 0
+#define PCAP 0
+#define LIBSND 1
+#define DIRECT_RX 1
 
+#if DIRECT_RX
+#undef PCAP
+#endif
+
+#define VERSION_STR "1.1"
+
+#define ETHERNET_HEADER_SIZE (18)
+#define SEVENTEEN22_HEADER_PART1_SIZE (4)
+#define STREAM_ID_SIZE (8)
+#define SEVENTEEN22_HEADER_PART2_SIZE (10)
+#define SIX1883_HEADER_SIZE (10)
+#define HEADER_SIZE (ETHERNET_HEADER_SIZE		\
+			+ SEVENTEEN22_HEADER_PART1_SIZE \
+			+ STREAM_ID_SIZE		\
+			+ SEVENTEEN22_HEADER_PART2_SIZE \
+			+ SIX1883_HEADER_SIZE)
+#define SAMPLES_PER_SECOND (48000)
+#define SAMPLES_PER_FRAME (6)
+#define CHANNELS (2)
+
+#if DIRECT_RX
 #define IGB_BIND_NAMESZ (24)
+#define IGB_QUEUE_0 (0)
 
-#define PKT_SZ (1514)
-#define PKT_NUM (256)
+#define PKT_SZ   (2048)
+#define PKT_NUM  (256)
 
 #ifndef ETH_P_IEEE1722
 #define ETH_P_IEEE1722 0x22F0
 #endif
 
-/* Global variable for signal handler */
-volatile int halt_rx_sig;
+struct myqelem {
+	struct myqelem *q_forw;
+	struct myqelem *q_back;
+	void	*q_data;
+};
+#endif /* DIRECT_RX */
+
+struct mrp_listener_ctx *ctx_sig;//Context pointer for signal handler
+
+struct ethernet_header{
+	u_char dst[6];
+	u_char src[6];
+	u_char stuff[4];
+	u_char type[2];
+};
 
 /* globals */
 
-static const char *version_str = "simple_rx v" VERSION_STR "\n"
-	"Copyright (c) 2012-2016, Intel Corporation\n";
+static const char *version_str = "simple_listener v" VERSION_STR "\n"
+    "Copyright (c) 2012, Intel Corporation\n";
 
-unsigned char glob_station_addr[] = { 0, 0, 0, 0, 0, 0 };
-unsigned char glob_stream_id[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-/* IEEE 1722 reserved address */
-unsigned char glob_l2_dest_addr[] = { 0x91, 0xE0, 0xF0, 0x00, 0x0e, 0x80 };
-unsigned char glob_l3_dest_addr[] = { 224, 0, 0, 115 };
+pcap_t* glob_pcap_handle;
+u_char glob_ether_type[] = { 0x22, 0xf0 };
+SNDFILE* glob_snd_file;
+
+#if DIRECT_RX
+/* Global variable for signal handler */
+volatile int halt_rx_sig;
+
+struct myqelem *glob_pkt_head  = NULL;
+struct myqelem *glob_page_head = NULL;
+struct igb_packet		*glob_rx_packets[PKT_NUM];
+struct igb_dma_alloc	glob_dma_pages[PKT_NUM];
+
+/* used to configure the device to accept multicast packets */
+int glob_sock = -1;
+
+void igb_stop_rx(device_t *igb_dev);
+void cleanup(void);
+#endif /* DIRECT_RX */
+
+static void help()
+{
+	fprintf(stderr, "\n"
+		"Usage: listener [-h] -i interface -f file_name.wav"
+		"\n"
+		"Options:\n"
+		"    -h  show this message\n"
+		"    -i  specify interface for AVB connection\n"
+		"    -f  set the name of the output wav-file\n"
+		"\n" "%s" "\n", version_str);
+	exit(EXIT_FAILURE);
+}
+
+void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const u_char* packet)
+{
+	unsigned char* test_stream_id;
+	struct ethernet_header* eth_header;
+	uint32_t *buf;
+	uint32_t frame[2] = { 0 , 0 };
+	int i;
+	struct mrp_listener_ctx *ctx = (struct mrp_listener_ctx*) args;
+	(void) packet_header; /* unused */
+
+#if DEBUG
+	fprintf(stdout,"Got packet.\n");
+#endif /* DEBUG*/
+
+	eth_header = (struct ethernet_header*)(packet);
+
+#if DEBUG
+	fprintf(stdout,"Ether Type: 0x%02x%02x\n", eth_header->type[0], eth_header->type[1]);
+#endif /* DEBUG*/
+
+	if (0 == memcmp(glob_ether_type,eth_header->type,sizeof(eth_header->type)))
+	{
+		test_stream_id = (unsigned char*)(packet + ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE);
+
+#if DEBUG
+		fprintf(stderr, "Received stream id: %02x%02x%02x%02x%02x%02x%02x%02x\n ",
+			     test_stream_id[0], test_stream_id[1],
+			     test_stream_id[2], test_stream_id[3],
+			     test_stream_id[4], test_stream_id[5],
+			     test_stream_id[6], test_stream_id[7]);
+#endif /* DEBUG*/
+
+		if (0 == memcmp(test_stream_id, ctx->stream_id, sizeof(STREAM_ID_SIZE)))
+		{
+
+#if DEBUG
+			fprintf(stdout,"Stream ids matched.\n");
+#endif /* DEBUG*/
+			buf = (uint32_t*) (packet + HEADER_SIZE);
+			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
+			{
+				memcpy(&frame[0], &buf[i], sizeof(frame));
+
+				frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
+				frame[1] = ntohl(frame[1]);
+				frame[0] &= 0x00ffffff;       /* ignore leading label */
+				frame[1] &= 0x00ffffff;
+				frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
+				frame[1] <<= 8;
+
+				sf_writef_int(glob_snd_file, (const int *)frame, 1);
+			}
+		}
+	}
+}
 
 void sigint_handler(int signum)
 {
-	(void)signum;
-	printf("got SIGINT\n");
+	fprintf(stdout,"Received signal %d:leaving...\n", signum);
+
+#if PCAP
+	if (NULL != glob_pcap_handle)
+	{
+		pcap_breakloop(glob_pcap_handle);
+		pcap_close(glob_pcap_handle);
+	}
+#endif /* PCAP */
+
+#if DIRECT_RX
 	halt_rx_sig = 0;
+#endif /* DIRECT_RX */
+}
+
+#if DIRECT_RX
+int join_mcast(char *interface, struct mrp_listener_ctx *ctx)
+{
+	struct sockaddr_ll addr;
+	struct ifreq if_request;
+	int rc;
+	struct packet_mreq multicast_req;
+
+	if (NULL == ctx)
+		return -1;
+
+	glob_sock = socket(PF_PACKET, SOCK_RAW, htons(0x2272));
+	if (glob_sock < 0)
+		return -1;
+
+	memset(&if_request, 0, sizeof(if_request));
+	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name)-1);
+
+	rc = ioctl(glob_sock, SIOCGIFINDEX, &if_request);
+	if (rc < 0) {
+		/* glob_sock will be closed by cleanup() */
+		return -1;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sll_ifindex = if_request.ifr_ifindex;
+	addr.sll_family = AF_PACKET;
+	addr.sll_protocol = htons(0x2272);
+
+	rc = bind(glob_sock, (struct sockaddr *)&addr, sizeof(addr));
+	if (0 != rc)
+		return -1;
+
+	rc = setsockopt(glob_sock, SOL_SOCKET, SO_BINDTODEVICE, interface,
+			strlen(interface));
+	if (0 != rc)
+		return -1;
+
+	memset(&multicast_req, 0, sizeof(multicast_req));
+	multicast_req.mr_ifindex = if_request.ifr_ifindex;
+	multicast_req.mr_type = PACKET_MR_MULTICAST;
+	multicast_req.mr_alen = 6;
+	memcpy(multicast_req.mr_address, (void*)ctx->dst_mac, 6);
+
+	rc = setsockopt(glob_sock, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
+			&multicast_req, sizeof(multicast_req));
+	if (0 != rc)
+		return -1;
+
+	return 0;
 }
 
 int pci_connect(device_t *igb_dev)
@@ -132,303 +336,486 @@ int pci_connect(device_t *igb_dev)
 	}
 	pci_cleanup(pacc);
 	return -ENXIO;
- out:	pci_cleanup(pacc);
+out:
+	pci_cleanup(pacc);
 	return 0;
 }
 
-void l3_to_l2_multicast(unsigned char *l2, unsigned char *l3)
+int igb_start_rx(device_t *igb_dev, struct mrp_listener_ctx *ctx)
 {
-	 l2[0]  = 0x1;
-	 l2[1]  = 0x0;
-	 l2[2]  = 0x5e;
-	 l2[3]  = l3[1] & 0x7F;
-	 l2[4]  = l3[2];
-	 l2[5]  = l3[3];
-}
-
-int get_mac_address(char *interface)
-{
-	struct ifreq if_request;
-	int lsock;
-	int rc;
-
-	lsock = socket(PF_PACKET, SOCK_RAW, htons(0x800));
-	if (lsock < 0)
-		return -1;
-
-	memset(&if_request, 0, sizeof(if_request));
-	strncpy(if_request.ifr_name,
-		interface, sizeof(if_request.ifr_name) - 1);
-	rc = ioctl(lsock, SIOCGIFHWADDR, &if_request);
-	if (rc < 0) {
-		close(lsock);
-		return -1;
-	}
-
-	memcpy(glob_station_addr, if_request.ifr_hwaddr.sa_data,
-	       sizeof(glob_station_addr));
-	close(lsock);
-	return 0;
-}
-
-int mrpd_init_protocol_socket(u_int16_t etype, int *sock,
-			      unsigned char *multicast_addr, char *interface)
-{
-	struct sockaddr_ll addr;
-	struct ifreq if_request;
-	int lsock;
-	int rc;
-	struct packet_mreq multicast_req;
-
-	if (NULL == sock)
-		return -1;
-	if (NULL == multicast_addr)
-		return -1;
-
-	memset(&multicast_req, 0, sizeof(multicast_req));
-	*sock = -1;
-
-	lsock = socket(PF_PACKET, SOCK_RAW, htons(etype));
-	if (lsock < 0)
-		return -1;
-
-	memset(&if_request, 0, sizeof(if_request));
-
-	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name) - 1);
-
-	rc = ioctl(lsock, SIOCGIFHWADDR, &if_request);
-	if (rc < 0) {
-		close(lsock);
-		return -1;
-	}
-
-	memset(&if_request, 0, sizeof(if_request));
-
-	strncpy(if_request.ifr_name, interface, sizeof(if_request.ifr_name)-1);
-
-	rc = ioctl(lsock, SIOCGIFINDEX, &if_request);
-	if (rc < 0) {
-		close(lsock);
-		return -1;
-	}
-
-	memset(&addr, 0, sizeof(addr));
-	addr.sll_ifindex = if_request.ifr_ifindex;
-	addr.sll_family = AF_PACKET;
-	addr.sll_protocol = htons(etype);
-
-	rc = bind(lsock, (struct sockaddr *)&addr, sizeof(addr));
-	if (0 != rc) {
-#if LOG_ERRORS
-		fprintf(stderr, "%s - Error on bind %s", __FUNCTION__, strerror(errno));
-#endif
-		close(lsock);
-		return -1;
-	}
-
-	rc = setsockopt(lsock, SOL_SOCKET, SO_BINDTODEVICE, interface,
-			strlen(interface));
-	if (0 != rc) {
-		close(lsock);
-		return -1;
-	}
-
-	multicast_req.mr_ifindex = if_request.ifr_ifindex;
-	multicast_req.mr_type = PACKET_MR_MULTICAST;
-	multicast_req.mr_alen = 6;
-	memcpy(multicast_req.mr_address, multicast_addr, 6);
-
-	rc = setsockopt(lsock, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
-			&multicast_req, sizeof(multicast_req));
-	if (0 != rc) {
-		close(lsock);
-		return -1;
-	}
-
-	*sock = lsock;
-
-	return 0;
-}
-
-static void usage(void)
-{
-	fprintf(stderr, "\n"
-		"usage: simple_rx [-h] -i interface-name\n"
-		"options:\n"
-		"    -h  show this message\n"
-		"    -i  specify interface for AVB connection\n"
-		"    -t  transport equal to 2 for 1722 or 3 for RTP\n"
-		"\n%s\n", version_str);
-	exit(EXIT_FAILURE);
-}
-
-int main(int argc, char *argv[])
-{
-	/* int igb_shm_fd = -1; */
-	struct igb_packet *received_packets = NULL;
-	struct igb_packet *free_packets[PKT_NUM];
-	struct igb_packet *tmp_packet = NULL;
-	struct igb_dma_alloc dma_pages[PKT_NUM];
-	unsigned char test_filter[128];
-	char *interface = NULL;
-	u_int8_t filter_mask[64];
-	device_t igb_dev;
-	unsigned i;
-	int c, rc = 0;
+	int rc = -1;
 	int err;
-	int sock;
+
+	uint32_t i;
+	uint32_t count = 0;
+
+	struct myqelem *page_qelem		= NULL;
+	struct myqelem *prev_page_qelem	= NULL;
+	struct myqelem *pkt_qelem		= NULL;
+	struct myqelem *prev_pkt_qelem	= NULL;
+
+	struct igb_dma_alloc	*a_page		= NULL;
+	struct igb_packet		*a_packet	= NULL;
+
+	uint8_t test_filter[128];
+	uint8_t filter_mask[64];
 	struct ethhdr *ethhdr = NULL;
-	u_int16_t		*vlan_ethtype = NULL;
-	u_int32_t count;
+	uint16_t *ethtype = NULL;
 
-	for (;;) {
-		c = getopt(argc, argv, "hi:t:");
-		if (c < 0)
-			break;
-		switch (c) {
-		case 'h':
-			usage();
-			break;
-		case 'i':
-			if (interface) {
-				printf("only one interface per daemon is supported\n");
-				usage();
-			}
-			interface = strdup(optarg);
-			break;
-		}
-	}
+	if (0 != pci_connect(igb_dev))
+		goto out;
 
-	if (optind < argc)
-		usage();
+	if (0 != igb_init(igb_dev))
+		goto out;
 
-	if (interface == NULL)
-		usage();
+	memset (glob_dma_pages, 0, sizeof(glob_dma_pages));
+	memset (glob_rx_packets, 0, sizeof(glob_rx_packets));
 
-	memset (dma_pages, 0, sizeof(dma_pages));
-	memset (free_packets, 0, sizeof(free_packets));
+	while (count < PKT_NUM) {
+		page_qelem = calloc(1, sizeof(struct myqelem));
+		if (!page_qelem)
+			goto out;
 
-	err = pci_connect(&igb_dev);
-	if (err) {
-		printf("connect failed (%s) - are you running as root?\n",
-		       strerror(err));
-		return err;
-	}
-	err = igb_init(&igb_dev);
-	if (err) {
-		printf("init failed (%s) - is the driver really loaded?\n",
-		       strerror(err));
-		return err;
-	}
-	/*
-	 * allocate a bunch of pages and
-	 * stitch into a linked list of igb_packets ...
-	 */
+		if (!glob_page_head)
+			glob_page_head = page_qelem;
 
-	for (i = 0; i < PKT_NUM; i++) {
-		err = igb_dma_malloc_page(&igb_dev, &dma_pages[i]);
+		a_page = (struct igb_dma_alloc*)calloc(1, sizeof(struct igb_dma_alloc));
+		if (!a_page)
+			goto out;
+
+		err = igb_dma_malloc_page(igb_dev, a_page);
 		if (err) {
 			printf("malloc failed (%s) - out of memory?\n",
 			       strerror(err));
-			goto exit;
+			goto out;
 		}
 
-		tmp_packet = calloc(1, sizeof(struct igb_packet));
-		if (tmp_packet == NULL) {
-			printf("failed to allocate igb_packet memory!\n");
-			err = -errno;
-			goto exit;
+		if (a_page->mmap_size < PKT_SZ)
+			goto out;
+
+		page_qelem->q_data = (void*)a_page;
+		insque(page_qelem, prev_page_qelem);
+		prev_page_qelem = page_qelem;
+
+		/* divide the dma page into buffers for packets */
+		for (i = 0; i < a_page->mmap_size/PKT_SZ; i++) {
+			pkt_qelem = calloc(1, sizeof(struct myqelem));
+			if (!pkt_qelem)
+				goto out;
+
+			if (!glob_pkt_head)
+				glob_pkt_head = pkt_qelem;
+
+			a_packet = (struct igb_packet*)calloc(1, sizeof(struct igb_packet));
+			if (a_packet == NULL) {
+				printf("failed to allocate igb_packet memory!\n");
+				err = -errno;
+				goto out;
+			}
+
+			a_packet->dmatime = 0;
+			a_packet->attime = 0;
+			a_packet->flags = 0;
+			a_packet->map.paddr = a_page->dma_paddr;
+			a_packet->map.mmap_size = a_page->mmap_size;
+			a_packet->offset = (i * PKT_SZ);
+			a_packet->vaddr = a_page->dma_vaddr + a_packet->offset;
+			a_packet->len = PKT_SZ;
+			memset(a_packet->vaddr, 0, a_packet->len);
+			if (prev_pkt_qelem)
+				((struct igb_packet*)prev_pkt_qelem->q_data)->next = a_packet;	
+
+			igb_refresh_buffers(igb_dev, IGB_QUEUE_0, &a_packet, 1);
+
+			pkt_qelem->q_data = (void*)a_packet;
+			insque(pkt_qelem, prev_pkt_qelem);
+			prev_pkt_qelem = pkt_qelem;
+
+			count++;
 		}
-		tmp_packet->dmatime = 0;
-		tmp_packet->attime = 0;
-		tmp_packet->flags = 0;
-		tmp_packet->map.paddr = dma_pages[i].dma_paddr;
-		tmp_packet->map.mmap_size = dma_pages[i].mmap_size;
-		tmp_packet->offset = 0;
-		tmp_packet->vaddr = dma_pages[i].dma_vaddr + tmp_packet->offset;
-		tmp_packet->len = PKT_SZ;
-
-		memset(tmp_packet->vaddr, 0, PKT_SZ);
-		if (i != 0)
-			tmp_packet->next = free_packets[i-1];
-		free_packets[i] = tmp_packet;
-
-		igb_refresh_buffers(&igb_dev, 0, free_packets, 1);
 	}
 
 	/* filtering example */
 	memset(filter_mask, 0, sizeof(filter_mask));
 	memset(test_filter, 0, sizeof(test_filter));
 
-	/* accept the IEEE1722 packets with a VLAN tag */
+	/* the filter for IEEE1722 w/o a VLAN tag */
+
+	/* accept packets toward the dst mac */
 	ethhdr = (struct ethhdr *)test_filter;
-	ethhdr->h_proto = htons(ETH_P_8021Q);
+	memcpy((void*)ethhdr->h_dest, (void*)ctx->dst_mac, ETH_ALEN);
+
+	/* ethtype in ethernet frame = IEEE1722 */
+	ethhdr->h_proto = htons(ETH_P_IEEE1722);
 	
-	vlan_ethtype = (u_int16_t*)(test_filter + ETH_HLEN + 2);
-	*vlan_ethtype = htons(ETH_P_IEEE1722);
+	filter_mask[0] = 0x3F; /* 00111111b = dst mac */
+	filter_mask[1] = 0x30; /* 00110000b = ethtype */
 
-	filter_mask[1] = 0x30;
-	filter_mask[2] = 0x03;
+	/* install the filter on queue0 */
+	igb_setup_flex_filter(igb_dev, IGB_QUEUE_0, 0, ETH_HLEN, 
+								test_filter, filter_mask);
 
-	igb_setup_flex_filter(&igb_dev, 0, 0, 16,
-			      test_filter, filter_mask);
+	/* the filter for IEEE1722 with VLAN */
+	
+	/* ethtype in ethernet frame = 802.1Q */
+	ethhdr->h_proto = htons(ETH_P_8021Q);
 
-	mrpd_init_protocol_socket(0x2272, &sock, glob_l2_dest_addr, interface);
+	/* real ethtype = IEEE1722 */
+	ethtype = (uint16_t*)(test_filter + ETH_HLEN + 2);
+	*ethtype = htons(ETH_P_IEEE1722);
 
-	signal(SIGINT, sigint_handler);
-	rc = get_mac_address(interface);
-	if (rc) {
-		printf("failed to open interface\n");
-		usage();
+	filter_mask[2] = 0x03; /* 00000011b = ethtype after a vlan tag */
+
+	/* install the filter on queue0 */
+	igb_setup_flex_filter(igb_dev, IGB_QUEUE_0, 1, ETHERNET_HEADER_SIZE, 
+								test_filter, filter_mask);
+	
+	rc = 0;
+out:
+	if (rc != 0)
+		igb_stop_rx(igb_dev);
+
+	return rc;
+}
+
+void igb_stop_rx(device_t *igb_dev)
+{
+	struct myqelem *qelem = NULL;
+
+	igb_clear_flex_filter(igb_dev, 0);
+	igb_clear_flex_filter(igb_dev, 1);
+
+	while (glob_pkt_head) {
+		qelem = glob_pkt_head;
+		glob_pkt_head = qelem->q_forw;
+		if (qelem->q_data)
+			free(qelem->q_data);
+		free(qelem);
 	}
 
-	memset(glob_stream_id, 0, sizeof(glob_stream_id));
-	memcpy(glob_stream_id, glob_station_addr, sizeof(glob_station_addr));
+	while (glob_page_head) {
+		qelem = glob_page_head;
+		glob_page_head = qelem->q_forw;
+		if (qelem->q_data){
+			igb_dma_free_page(igb_dev, (struct igb_dma_alloc*)qelem->q_data);
+			free(qelem->q_data);
+		}
+		free(qelem);
+	}
+
+	igb_detach(igb_dev);
+}
+
+void igb_process_rx(device_t *igb_dev, struct mrp_listener_ctx *ctx)
+{
+	uint32_t i;
+	uint32_t count;
+	uint8_t  *packet;
+	uint32_t *buf;
+	uint32_t frame[2] = { 0 , 0 };
+	uint8_t  *test_stream_id;
+
+	struct igb_packet *igb_pkt = NULL;
+	struct ethhdr* eth_hdr;
+	uint16_t *ethtype = NULL;
 
 	halt_rx_sig = 1;
 
-	rc = nice(-20);
-
 	while (halt_rx_sig) {
 
-		received_packets = NULL;
-		count = 1;
-		igb_receive(&igb_dev, &received_packets, &count);
-
-		if (received_packets == NULL)
-			continue;
-
-		/* print out the received packet? what do do with it? */
-		printf("received a packet ! hex dump (the first 32 bytes)\n");
-		for (i = 0; i < 32; i++) {
-			printf ("%02x ", ((u8*)received_packets->vaddr)[i]);
+		/* put back */
+		if (igb_pkt) {
+			igb_refresh_buffers(igb_dev, IGB_QUEUE_0, &igb_pkt, 1);
+			igb_pkt = NULL;
 		}
-		printf ("\n\n");
 
-		/* put back for now */
-		igb_refresh_buffers(&igb_dev, 0, &received_packets, 1);
+		count = 1;
+		igb_receive(igb_dev, IGB_QUEUE_0, &igb_pkt, &count);
+		if (igb_pkt == NULL) {
+			continue;
+		}
+
+		packet = igb_pkt->vaddr;
+		eth_hdr = (struct ethhdr*)(packet);
+		switch (htons(eth_hdr->h_proto)) {
+			case ETH_P_8021Q:
+				ethtype = (uint16_t*)(packet + ETH_HLEN + 2);
+				if (*ethtype != htons(ETH_P_IEEE1722))
+					continue; 	/* drop the packet */
+				break;
+			case ETH_P_IEEE1722:
+				break;
+			default:
+				continue;	/* drop the packet */
+				break;
+		}
+
+		test_stream_id = (uint8_t*)(packet + ETHERNET_HEADER_SIZE + 
+										SEVENTEEN22_HEADER_PART1_SIZE);
+		buf = (uint32_t*)(packet + HEADER_SIZE);
+
+		if (ETH_P_IEEE1722 == htons(eth_hdr->h_proto)) {
+			/* I210 would strip the VLAN tag field when CTRL.VME = 1b */
+			/* pull 4 bytes the VLAN tag size */
+			test_stream_id = ((uint8_t*)test_stream_id - 4);
+			buf = ((uint32_t*)buf - 1);
+		}
+
+		if (0 == memcmp(test_stream_id, ctx->stream_id, STREAM_ID_SIZE))
+		{
+			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
+			{
+				memcpy(&frame[0], &buf[i], sizeof(frame));
+
+				frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
+				frame[1] = ntohl(frame[1]);
+				frame[0] &= 0x00ffffff;       /* ignore leading label */
+				frame[1] &= 0x00ffffff;
+				frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
+				frame[1] <<= 8;
+
+				sf_writef_int(glob_snd_file, (const int *)frame, 1);
+			}
+		}
+	}
+}
+
+void cleanup(void)
+{
+	int ret;
+
+	if (0 != ctx_sig->talker) {
+		ret = send_leave(ctx_sig);
+		if (ret)
+			printf("send_leave failed\n");
 	}
 
-	err = EXIT_SUCCESS;
-exit:
-	rc = nice(0);
+	if (2 > ctx_sig->control_socket)
+	{
+		close(ctx_sig->control_socket);
+		ctx_sig->control_socket = -1;
+		ret = mrp_disconnect(ctx_sig);
+		if (ret)
+			printf("mrp_disconnect failed\n");
+	}
+
+#if LIBSND
+	if (glob_snd_file) {
+		sf_write_sync(glob_snd_file);
+		sf_close(glob_snd_file);
+		glob_snd_file = NULL;
+	}
+#endif /* LIBSND */
+
+	if (glob_sock >= 0) {
+		close (glob_sock);
+		glob_sock = -1;
+	}
 
 	halt_rx_sig = 0;
+}
+#endif /* DIRECT_RX */
 
-	igb_clear_flex_filter(&igb_dev, 0);
+int main(int argc, char *argv[])
+{
+	char* file_name = NULL;
+	char* dev = NULL;
+#if PCAP
+	char errbuf[PCAP_ERRBUF_SIZE];
+	struct bpf_program comp_filter_exp;		/* The compiled filter expression */
+	char filter_exp[100];				/* The filter expression */
+#endif
+	struct mrp_listener_ctx *ctx = malloc(sizeof(struct mrp_listener_ctx));
+	struct mrp_domain_attr *class_a = malloc(sizeof(struct mrp_domain_attr));
+	struct mrp_domain_attr *class_b = malloc(sizeof(struct mrp_domain_attr));
 
-	for (i = 0; i < PKT_NUM; i++) {
-		if (dma_pages[i].dma_paddr != 0)
-			igb_dma_free_page(&igb_dev, &dma_pages[i]);
-		if (free_packets[i]) {
-			free(free_packets[i]);
+#if LIBSND
+	SF_INFO* sf_info = NULL;
+#endif /* LIBSND */
+
+#if DIRECT_RX
+	device_t igb_dev;
+#endif /* DIRECT_RX */
+
+	ctx_sig = ctx;
+	signal(SIGINT, sigint_handler);
+
+	int c,rc;
+	while((c = getopt(argc, argv, "hi:f:")) > 0)
+	{
+		switch (c)
+		{
+		case 'h':
+			help();
+			break;
+		case 'i':
+			dev = strdup(optarg);
+			break;
+		case 'f':
+			file_name = strdup(optarg);
+			break;
+		default:
+          		fprintf(stderr, "Unrecognized option!\n");
 		}
 	}
 
-	igb_detach(&igb_dev);
+	if ((NULL == dev) || (NULL == file_name))
+		help();
 
-	if (interface)
-		free (interface);
+	rc = mrp_listener_client_init(ctx);
+	if (rc)
+	{
+		printf("failed to initialize global variables\n");
+		goto out;
+	}
 
-	return err;
+	if (create_socket(ctx))
+	{
+		fprintf(stderr, "Socket creation failed.\n");
+		rc = EXIT_FAILURE;
+		goto out;
+	}
+
+	rc = mrp_monitor(ctx);
+	if (rc)
+	{
+		printf("failed creating MRP monitor thread\n");
+		goto out;
+	}
+	rc=mrp_get_domain(ctx, class_a, class_b);
+	if (rc)
+	{
+		printf("failed calling mrp_get_domain()\n");
+		goto out;
+	}
+
+	printf("detected domain Class A PRIO=%d VID=%04x...\n",class_a->priority,class_a->vid);
+
+	rc = report_domain_status(class_a,ctx);
+	if (rc) {
+		printf("report_domain_status failed\n");
+		goto out;
+	}
+
+	rc = join_vlan(class_a, ctx);
+	if (rc) {
+		printf("join_vlan failed\n");
+		goto out;
+	}
+
+	fprintf(stdout,"Waiting for talker...\n");
+	await_talker(ctx);
+
+#if DEBUG
+	fprintf(stdout,"Send ready-msg...\n");
+#endif /* DEBUG */
+	rc = send_ready(ctx);
+	if (rc) {
+		printf("send_ready failed\n");
+		goto out;
+	}
+
+#if LIBSND
+	sf_info = (SF_INFO*)malloc(sizeof(SF_INFO));
+
+	memset(sf_info, 0, sizeof(SF_INFO));
+
+	sf_info->samplerate = SAMPLES_PER_SECOND;
+	sf_info->channels = CHANNELS;
+	sf_info->format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
+
+	if (0 == sf_format_check(sf_info))
+	{
+		fprintf(stderr, "Wrong format.");
+		rc = EXIT_FAILURE;
+		goto out;
+	}
+
+	if (NULL == (glob_snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
+	{
+		fprintf(stderr, "Could not create file.");
+		rc = EXIT_FAILURE;
+		goto out;
+	}
+	fprintf(stdout,"Created file called %s\n", file_name);
+#endif /* LIBSND */
+
+#if PCAP
+	/** session, get session handler */
+	/* take promiscuous vs. non-promiscuous sniffing? (0 or 1) */
+	glob_pcap_handle = pcap_open_live(dev, BUFSIZ, 1, -1, errbuf);
+	if (NULL == glob_pcap_handle)
+	{
+		fprintf(stderr, "Could not open device %s: %s\n", dev, errbuf);
+		rc = EXIT_FAILURE;
+		goto out;
+	}
+
+#if DEBUG
+	fprintf(stdout,"Got session pcap handler.\n");
+#endif /* DEBUG */
+	/* compile and apply filter */
+	sprintf(filter_exp,"ether dst %02x:%02x:%02x:%02x:%02x:%02x",ctx->dst_mac[0],ctx->dst_mac[1],ctx->dst_mac[2],ctx->dst_mac[3],ctx->dst_mac[4],ctx->dst_mac[5]);
+	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
+	{
+		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
+		rc = EXIT_FAILURE;
+		goto out;
+	}
+
+	if (-1 == pcap_setfilter(glob_pcap_handle, &comp_filter_exp))
+	{
+		fprintf(stderr, "Could not install filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
+		rc = EXIT_FAILURE;
+		goto out;
+	}
+
+#if DEBUG
+	fprintf(stdout,"Compiled and applied filter.\n");
+#endif /* DEBUG */
+
+	/** loop forever and call callback-function for every received packet */
+	pcap_loop(glob_pcap_handle, -1, pcap_callback, (u_char*)ctx);
+#endif /* PCAP */
+
+#if DIRECT_RX
+	if (0 != join_mcast(dev, ctx)) {
+		fprintf(stderr, "Could not join the mcast group\n");
+		rc = EXIT_FAILURE;
+		goto out;
+	}
+
+	if (0 != igb_start_rx(&igb_dev, ctx)) {
+		fprintf(stderr, "Could not start the igb device\n");
+		rc = EXIT_FAILURE;
+		goto out;
+	}
+
+	igb_process_rx(&igb_dev, ctx);
+
+#endif
+	rc = EXIT_SUCCESS;
+out:
+#if DIRECT_RX
+	igb_stop_rx(&igb_dev);
+	cleanup();
+#endif /* DIRECT_RX */
+
+	if (ctx)
+		free(ctx);
+	if (class_a)
+		free(class_a);
+	if (class_b)
+		free(class_b);
+	if (dev)
+		free(dev);
+	if (file_name)
+		free(file_name);
+#if LIBSND
+	if (sf_info)
+		free(sf_info);
+#endif /* LIBSND */
+
+	return rc;
 }
+
