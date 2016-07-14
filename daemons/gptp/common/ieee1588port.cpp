@@ -178,15 +178,17 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 
 	_peer_offset_init = false;
 
-	if (testMode) {
+	if (automotive_profile) {
 		if (isGM) {
 			avbSyncState = 1;
 		}
 		else {
 			avbSyncState = 2;
 		}
-		linkUpCount = 1;  // TODO : really should check the current linkup status http://stackoverflow.com/questions/15723061/how-to-check-if-interface-is-up
-		linkDownCount = 0;
+		if (testMode) {
+			linkUpCount = 1;  // TODO : really should check the current linkup status http://stackoverflow.com/questions/15723061/how-to-check-if-interface-is-up
+			linkDownCount = 0;
+		}
 		setStationState(STATION_STATE_RESERVED);
 	}
 }
@@ -571,8 +573,8 @@ void IEEE1588Port::processEvent(Event e)
 		clock->putTimerQLock();
 
 		if (automotive_profile) {
+			setStationState(STATION_STATE_ETHERNET_READY);
 			if (testMode) {
-				setStationState(STATION_STATE_ETHERNET_READY);
 				APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
 				if (testStatusMsg) {
 					testStatusMsg->sendPort(this);
@@ -711,8 +713,8 @@ void IEEE1588Port::processEvent(Event e)
 		if (automotive_profile) {
 			asCapable = true;
 
+			setStationState(STATION_STATE_ETHERNET_READY);
 			if (testMode) {
-				setStationState(STATION_STATE_ETHERNET_READY);
 				APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
 				if (testStatusMsg) {
 					testStatusMsg->sendPort(this);
@@ -736,14 +738,15 @@ void IEEE1588Port::processEvent(Event e)
 
 				// Start AVB SYNC at 2. It will decrement after each sync. When it reaches 0 the Test Status message
 				// can be sent
+				if (isGM) {
+					avbSyncState = 1;
+				}
+				else {
+					avbSyncState = 2;
+				}
+
 				if (testMode) {
 					linkUpCount++;
-					if (isGM) {
-						avbSyncState = 1;
-					}
-					else {
-						avbSyncState = 2;
-					}
 				}
 			}
 		this->timestamper_init();
@@ -969,16 +972,18 @@ void IEEE1588Port::processEvent(Event e)
 				sync->sendPort(this, NULL);
 				GPTP_LOG_DEBUG("Sent SYNC message");
 
-				if (automotive_profile && testMode && port_state == PTP_MASTER) {
+				if (automotive_profile && port_state == PTP_MASTER) {
 					if (avbSyncState > 0) {
 						avbSyncState--;
 						if (avbSyncState == 0) {
 							// Send Avnu Automotive Profile status message
 							setStationState(STATION_STATE_AVB_SYNC);
-							APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
-							if (testStatusMsg) {
-								testStatusMsg->sendPort(this);
-								delete testStatusMsg;
+							if (testMode) {
+								APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
+								if (testStatusMsg) {
+									testStatusMsg->sendPort(this);
+									delete testStatusMsg;
+								}
 							}
 						}
 					}

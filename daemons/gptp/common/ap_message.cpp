@@ -109,16 +109,6 @@ void APMessageTestStatus::sendPort(IEEE1588Port * port)
 
 	BIT_D2BHTONB(buf_ptr + AP_TEST_STATUS_STATION_STATE(AP_TEST_STATUS_OFFSET), (uint8_t)port->getStationState(), 0);
 
-	if (port->getStationState() == STATION_STATE_ETHERNET_READY) {
-		GPTP_LOG_INFO("AVnu AP Status : STATION_STATE_ETHERNET_READY");
-	}
-	else if (port->getStationState() == STATION_STATE_AVB_SYNC) {
-		GPTP_LOG_INFO("AVnu AP Status : STATION_STATE_AVB_SYNC");
-	}
-	else if (port->getStationState() == STATION_STATE_AVB_MEDIA_READY) {
-		GPTP_LOG_INFO("AVnu AP Status : STATION_STATE_AVB_MEDIA_READY");
-	}
-
 	port->sendGeneralPort(AVTP_ETHERTYPE, buf_t, messageLength, MCAST_TEST_STATUS, NULL);
 
 	return;

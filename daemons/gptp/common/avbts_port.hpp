@@ -534,15 +534,17 @@ class IEEE1588Port {
 	void syncDone() {
 		GPTP_LOG_VERBOSE("Sync complete");
 
-		if (automotive_profile && testMode && port_state == PTP_SLAVE) {
+		if (automotive_profile && port_state == PTP_SLAVE) {
 			if (avbSyncState > 0) {
 				avbSyncState--;
 				if (avbSyncState == 0) {
 					setStationState(STATION_STATE_AVB_SYNC);
-					APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
-					if (testStatusMsg) {
-						testStatusMsg->sendPort(this);
-						delete testStatusMsg;
+					if (testMode) {
+						APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
+						if (testStatusMsg) {
+							testStatusMsg->sendPort(this);
+							delete testStatusMsg;
+						}
 					}
 				}
 			}
@@ -1438,6 +1440,15 @@ class IEEE1588Port {
 	 */
 	void setStationState(StationState_t _stationState) {
 		stationState = _stationState;
+		if (stationState == STATION_STATE_ETHERNET_READY) {
+			GPTP_LOG_STATUS("AVnu AP Status : STATION_STATE_ETHERNET_READY");
+		}
+		else if (stationState == STATION_STATE_AVB_SYNC) {
+			GPTP_LOG_STATUS("AVnu AP Status : STATION_STATE_AVB_SYNC");
+		}
+		else if (stationState == STATION_STATE_AVB_MEDIA_READY) {
+			GPTP_LOG_STATUS("AVnu AP Status : STATION_STATE_AVB_MEDIA_READY");
+		}
 	}
 
 	/**
