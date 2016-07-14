@@ -1618,16 +1618,7 @@ int igb_receive(device_t *dev, struct igb_packet **received_packets,
 				break;
 
 			cur->wb.upper.status_error = 0;
-			/*
-			rxbuf = &rxr->rx_buffers[i];
-			plen = le16toh(cur->wb.upper.length);
-			ptype = le32toh(cur->wb.lower.lo_dword.data) &
-				IGB_PKTTYPE_MASK;
-			vtag = le16toh(cur->wb.upper.vlan);
-			hdr = le16toh(cur->wb.lower.lo_dword.hs_rss.hdr_info);
-			pkt_info =
-				le16toh(cur->wb.lower.lo_dword.hs_rss.pkt_info);
-			*/
+
 			eop = ((staterr & E1000_RXD_STAT_EOP) ==
 					E1000_RXD_STAT_EOP);
 
