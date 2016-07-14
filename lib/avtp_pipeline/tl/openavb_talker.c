@@ -71,6 +71,18 @@ bool talkerStartStream(tl_state_t *pTLState)
 	if (pCfg->max_transmit_deficit_usec == 0)
 		pCfg->max_transmit_deficit_usec = 50000;
 
+	U32 transmitInterval = pTalkerData->classRate;
+	if (pCfg->map_cb.map_transmit_interval_cb(pTLState->pMediaQ)) {
+		// Override the class observation interval with the one provided by the mapping module.
+		transmitInterval = pCfg->map_cb.map_transmit_interval_cb(pTLState->pMediaQ);
+	}
+
+	if (pCfg->intf_cb.intf_enable_fixed_timestamp) {
+		pCfg->intf_cb.intf_enable_fixed_timestamp(pTLState->pMediaQ, pCfg->fixed_timestamp, transmitInterval, pCfg->batch_factor);
+	} else if (pCfg->fixed_timestamp) {
+		AVB_LOG_ERROR("Fixed timestamp enabled but interface doesn't support it");
+	}
+
 	openavbRC rc = openavbAvtpTxInit(pTLState->pMediaQ,
 		&pCfg->map_cb,
 		&pCfg->intf_cb,
@@ -91,13 +103,8 @@ bool talkerStartStream(tl_state_t *pTLState)
 
 	avtp_stream_t *pStream = (avtp_stream_t *)(pTalkerData->avtpHandle);
 
-	if (!pStream->pMapCB->map_transmit_interval_cb(pTLState->pMediaQ)) {
-		pTalkerData->wakeRate = pTalkerData->classRate / pCfg->batch_factor;
-	}
-	else {
-		// Override the class observation interval with the one provided by the mapping module.
-		pTalkerData->wakeRate = pStream->pMapCB->map_transmit_interval_cb(pTLState->pMediaQ) / pCfg->batch_factor;
-	}
+	pTalkerData->wakeRate = transmitInterval / pCfg->batch_factor;
+
 	pTalkerData->sleepUsec = MICROSECONDS_PER_SECOND / pTalkerData->wakeRate;
 	pTalkerData->intervalNS = NANOSECONDS_PER_SECOND / pTalkerData->wakeRate;
 
@@ -118,9 +125,12 @@ bool talkerStartStream(tl_state_t *pTLState)
 
 	// setup the initial times
 	U64 nowNS;
-	// KENTEST
-	//CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
-	CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
+
+	if (!pCfg->fixed_timestamp) {
+		CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
+	} else {
+		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
+	}
 
 	// Align clock : allows for some performance gain
 	nowNS = ((nowNS + (pTalkerData->intervalNS)) / pTalkerData->intervalNS) * pTalkerData->intervalNS;
@@ -202,15 +212,14 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 
 		if (!pCfg->tx_blocking_in_intf) {
 
-
+			if (!pCfg->fixed_timestamp) {
+				// sleep until the next interval
+				SLEEP_UNTIL_NSEC(pTalkerData->nextCycleNS);
+			} else {
 #if !IGB_LAUNCHTIME_ENABLED
-#if 0
-			// sleep until the next interval
-			SLEEP_UNTIL_NSEC(pTalkerData->nextCycleNS);
-#else
-			SPIN_UNTIL_NSEC(pTalkerData->nextCycleNS);
+				SPIN_UNTIL_NSEC(pTalkerData->nextCycleNS);
 #endif
-#endif
+			}
 
 			//AVB_DBG_INTERVAL(8000, TRUE);
 
@@ -234,9 +243,11 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 			bRet = TRUE;
 		}
 
-		// KENTEST
-		//CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
-		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
+		if (!pCfg->fixed_timestamp) {
+			CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
+		} else {
+			CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
+		}
 
 		if (pCfg->report_seconds > 0) {
 			if (nowNS > pTalkerData->nextReportNS) {

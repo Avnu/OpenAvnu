@@ -129,6 +129,8 @@ typedef struct {
 	U16 vlan_id;
 	/// When set incoming packets will trigger a signal to the stream task to wakeup.
 	bool rx_signal_mode;
+	///
+	U32 fixed_timestamp;
 
 	/// Initialization function in mapper
 	openavb_map_initialize_fn_t pMapInitFn;

@@ -396,6 +396,7 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	pCfg->pMapInitFn = NULL;
 	pCfg->pIntfInitFn = NULL;
 	pCfg->vlan_id = VLAN_NULL;
+	pCfg->fixed_timestamp = 0;
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }

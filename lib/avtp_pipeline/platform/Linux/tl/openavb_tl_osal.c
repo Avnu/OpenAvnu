@@ -312,6 +312,15 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 			valOK = TRUE;
 		}
 	}
+	else if (MATCH(name, "fixed_timestamp")) {
+		errno = 0;
+		long tmp;
+		tmp = strtol(value, &pEnd, 0);
+		if (*pEnd == '\0' && errno == 0) {
+			pCfg->fixed_timestamp = tmp;
+			valOK = TRUE;
+		}
+	}
 
 	else if (MATCH(name, "map_lib")) {
 		if (pTLState->mapLib.libName)
