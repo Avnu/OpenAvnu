@@ -701,7 +701,13 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case LINKUP:
-		GPTP_LOG_DEBUG("LINKUP");
+		if (automotive_profile) {
+			GPTP_LOG_EXCEPTION("LINKUP");
+		}
+		else {
+			GPTP_LOG_STATUS("LINKUP");
+		}
+
 		if (automotive_profile) {
 			asCapable = true;
 
@@ -744,9 +750,12 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case LINKDOWN:
-		// TODO : The determination of link down may not be reliable. It has been observed on one system routine LINKDOWN
-		//  events without any matching LINKUP events yet network traffic continues.
-		GPTP_LOG_EXCEPTION("LINK DOWN (maybe)");
+		if (automotive_profile) {
+			GPTP_LOG_EXCEPTION("LINK DOWN");
+		}
+		else {
+			GPTP_LOG_STATUS("LINK DOWN");
+		}
 		if (testMode) {
 			linkDownCount++;
 		}
