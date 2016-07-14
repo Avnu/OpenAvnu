@@ -1561,8 +1561,8 @@ void igb_refresh_buffers(device_t *dev, u_int32_t idx,
  *  processing the packet then return the linked list of associated resources.
  *
  **********************************************************************/
-int igb_receive(device_t *dev, struct igb_packet **received_packets,
-		 u_int32_t *count)
+int igb_receive(device_t *dev, unsigned int queue_index, 
+					struct igb_packet **received_packets, u_int32_t *count)
 {
 	struct adapter *adapter;
 	struct rx_ring *rxr;
@@ -1582,6 +1582,13 @@ int igb_receive(device_t *dev, struct igb_packet **received_packets,
 	if (adapter == NULL)
 		return -ENXIO;
 
+	if (queue_index > adapter->num_queues)
+		return -EINVAL;
+
+	rxr = &(adapter->rx_rings[queue_index]);
+	if (!rxr)
+		return -EINVAL;
+
 	if (count == NULL)
 		return -EINVAL;
 
@@ -1593,80 +1600,76 @@ int igb_receive(device_t *dev, struct igb_packet **received_packets,
 
 	*received_packets = NULL; /* nothing reclaimed yet */
 
-	for (i = 0; i < adapter->num_queues; i++) {
-		rxr = &(adapter->rx_rings[i]);
-
-		/* Main clean loop - receive packets until no more
-		 * received_packets[]
-		 */
-		for (desc = rxr->next_to_check; *count < max_pkt;) {
-			cur = &(rxr->rx_base[desc]);
+	/* Main clean loop - receive packets until no more
+	 * received_packets[]
+	 */
+	for (desc = rxr->next_to_check; *count < max_pkt;) {
+		cur = &(rxr->rx_base[desc]);
 #ifdef DEBUG
-			if (i%2)
-				printf("\033[2A");
+		if (i%2)
+			printf("\033[2A");
 
-			printf("desc.status_error=%x desc.length=%x desc.vlan=%x desc.rss=%x desc.pkt_info=%x desc.hdr_info=%x\n", 
-					cur->wb.upper.status_error, 
-					cur->wb.upper.length, 
-					cur->wb.upper.vlan, 
-					cur->wb.lower.hi_dword.rss,
-					cur->wb.lower.lo_dword.hs_rss.pkt_info,
-					cur->wb.lower.lo_dword.hs_rss.hdr_info);
+		printf("desc.status_error=%x desc.length=%x desc.vlan=%x desc.rss=%x desc.pkt_info=%x desc.hdr_info=%x\n", 
+				cur->wb.upper.status_error, 
+				cur->wb.upper.length, 
+				cur->wb.upper.vlan, 
+				cur->wb.lower.hi_dword.rss,
+				cur->wb.lower.lo_dword.hs_rss.pkt_info,
+				cur->wb.lower.lo_dword.hs_rss.hdr_info);
 #endif
-			staterr = le32toh(cur->wb.upper.status_error);
-			if ((staterr & E1000_RXD_STAT_DD) == 0)
-				break;
+		staterr = le32toh(cur->wb.upper.status_error);
+		if ((staterr & E1000_RXD_STAT_DD) == 0)
+			break;
 
-			cur->wb.upper.status_error = 0;
+		cur->wb.upper.status_error = 0;
 
-			eop = ((staterr & E1000_RXD_STAT_EOP) ==
-					E1000_RXD_STAT_EOP);
+		eop = ((staterr & E1000_RXD_STAT_EOP) ==
+				E1000_RXD_STAT_EOP);
 
-			if (eop) {
-				/*
-				 * Free the frame (all segments) if we're at EOP and
-				 * it's an error.
-				 *
-				 * The datasheet states that EOP + status is only valid
-				 * for the final segment in a multi-segment frame.
-				 */
-				if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
-					++rxr->rx_discarded;
-					printf ("discard error packet\n");
-					igb_refresh_buffers(dev, i,
-							&rxr->rx_buffers[desc].packet, 1);
-				} else {
-					/*
-					 * add new packet to list of received packets
-					 * to return
-					 */
-					curr_pkt = rxr->rx_buffers[desc].packet;
-					curr_pkt->len = cur->wb.upper.length;
-
-					if (*received_packets == NULL)
-						*received_packets = curr_pkt;
-					if (prev_pkt)
-						prev_pkt->next = curr_pkt;
-					prev_pkt = curr_pkt;
-					(*count)++;
-
-					++rxr->rx_packets;
-				}
-			} else {
-				/* multi-segment frame is not supported yet */
+		if (eop) {
+			/*
+			 * Free the frame (all segments) if we're at EOP and
+			 * it's an error.
+			 *
+			 * The datasheet states that EOP + status is only valid
+			 * for the final segment in a multi-segment frame.
+			 */
+			if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
 				++rxr->rx_discarded;
-				printf ("discard non-eop packet\n");
+				printf ("discard error packet\n");
 				igb_refresh_buffers(dev, i,
 						&rxr->rx_buffers[desc].packet, 1);
-			}
-next_desc:
-			/* Advance our pointers to the next descriptor. */
-			if (++desc == adapter->num_rx_desc)
-				desc = 0;
-		}
+			} else {
+				/*
+				 * add new packet to list of received packets
+				 * to return
+				 */
+				curr_pkt = rxr->rx_buffers[desc].packet;
+				curr_pkt->len = cur->wb.upper.length;
 
-		rxr->next_to_check = desc;
+				if (*received_packets == NULL)
+					*received_packets = curr_pkt;
+				if (prev_pkt)
+					prev_pkt->next = curr_pkt;
+				prev_pkt = curr_pkt;
+				(*count)++;
+
+				++rxr->rx_packets;
+			}
+		} else {
+			/* multi-segment frame is not supported yet */
+			++rxr->rx_discarded;
+			printf ("discard non-eop packet\n");
+			igb_refresh_buffers(dev, i,
+					&rxr->rx_buffers[desc].packet, 1);
+		}
+next_desc:
+		/* Advance our pointers to the next descriptor. */
+		if (++desc == adapter->num_rx_desc)
+			desc = 0;
 	}
+
+	rxr->next_to_check = desc;
 
 	return 0;
 }
