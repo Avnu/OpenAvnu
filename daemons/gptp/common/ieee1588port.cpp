@@ -503,7 +503,6 @@ void IEEE1588Port::sendGeneralPort(uint16_t etherType, uint8_t * buf, int size,
 void IEEE1588Port::processEvent(Event e)
 {
 	bool changed_external_master;
-	OSTimer *timer = timer_factory->createTimer();
 
 	switch (e) {
 	case POWERUP:
@@ -897,6 +896,8 @@ void IEEE1588Port::processEvent(Event e)
 			pdelay_req->sendPort(this, NULL);
 			GPTP_LOG_DEBUG("Sent PDelay Request");
 
+			OSTimer *timer = timer_factory->createTimer();
+
 			ts_good = getTxTimestamp
 				(pdelay_req, req_timestamp, req_timestamp_counter_value, false);
 			while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
@@ -912,6 +913,7 @@ void IEEE1588Port::processEvent(Event e)
 					 req_timestamp_counter_value, iter == 0);
 				req *= 2;
 			}
+			delete timer;
 			putTxLock();
 
 			if (ts_good == GPTP_EC_SUCCESS) {
@@ -1010,6 +1012,9 @@ void IEEE1588Port::processEvent(Event e)
 				unsigned sync_timestamp_counter_value;
 				int iter = TX_TIMEOUT_ITER;
 				long req = TX_TIMEOUT_BASE;
+
+				OSTimer *timer = timer_factory->createTimer();
+
 				ts_good =
 					getTxTimestamp(sync, sync_timestamp,
 								   sync_timestamp_counter_value,
@@ -1028,6 +1033,7 @@ void IEEE1588Port::processEvent(Event e)
 						 sync_timestamp_counter_value, iter == 0);
 					req *= 2;
 				}
+				delete timer;
 				putTxLock();
 
 				if (ts_good != GPTP_EC_SUCCESS) {
@@ -1216,7 +1222,6 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 	}
 
-	delete timer;
 	return;
 }
 
