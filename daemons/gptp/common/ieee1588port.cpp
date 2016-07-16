@@ -223,6 +223,7 @@ bool IEEE1588Port::init_port(int delay[4])
 	pdelay_rx_lock = lock_factory->createLock(oslock_recursive);
 	port_tx_lock = lock_factory->createLock(oslock_recursive);
 
+	syncReceiptTimerLock = lock_factory->createLock(oslock_recursive);
 	syncIntervalTimerLock = lock_factory->createLock(oslock_recursive);
 	announceIntervalTimerLock = lock_factory->createLock(oslock_recursive);
 	pDelayIntervalTimerLock = lock_factory->createLock(oslock_recursive);
@@ -589,6 +590,11 @@ void IEEE1588Port::processEvent(Event e)
 					sigMsg->sendPort(this, NULL);
 					delete sigMsg;
 				}
+
+				startSyncReceiptTimer((unsigned long long)
+					 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+					  ((double) pow((double)2, getSyncInterval()) *
+					   1000000000.0)));
 			}
 		}
 
@@ -729,26 +735,31 @@ void IEEE1588Port::processEvent(Event e)
 			if (!isGM) {
 				// Send an initial signaling message
 				PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
-					if (sigMsg) {
-						sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
-						sigMsg->sendPort(this, NULL);
-						delete sigMsg;
-					}
+				if (sigMsg) {
+					sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
+					sigMsg->sendPort(this, NULL);
+					delete sigMsg;
 				}
 
-				// Start AVB SYNC at 2. It will decrement after each sync. When it reaches 0 the Test Status message
-				// can be sent
-				if (isGM) {
-					avbSyncState = 1;
-				}
-				else {
-					avbSyncState = 2;
-				}
-
-				if (testMode) {
-					linkUpCount++;
-				}
+				startSyncReceiptTimer((unsigned long long)
+					 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+					  ((double) pow((double)2, getSyncInterval()) *
+					   1000000000.0)));
 			}
+
+			// Start AVB SYNC at 2. It will decrement after each sync. When it reaches 0 the Test Status message
+			// can be sent
+			if (isGM) {
+				avbSyncState = 1;
+			}
+			else {
+				avbSyncState = 2;
+			}
+
+			if (testMode) {
+				linkUpCount++;
+			}
+		}
 		this->timestamper_init();
 		break;
 
@@ -785,12 +796,10 @@ void IEEE1588Port::processEvent(Event e)
 						    (pow((double)2,getAnnounceInterval())*
 						     1000000000.0)));
 					} else {
-						clock->addEventTimer
-						  (this, SYNC_RECEIPT_TIMEOUT_EXPIRES,
-						   (SYNC_RECEIPT_TIMEOUT_MULTIPLIER*
-						    (unsigned long long)
-						    (pow((double)2,getSyncInterval())*
-						     1000000000.0)));
+						startSyncReceiptTimer((unsigned long long)
+							 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+							  ((double) pow((double)2, getSyncInterval()) *
+							   1000000000.0)));
 					}
 				}
 
@@ -844,7 +853,14 @@ void IEEE1588Port::processEvent(Event e)
 			}
 			else {
 				// Automotive Profile
-				GPTP_LOG_EXCEPTION("SYNC receipt timeout");
+				if (e == SYNC_RECEIPT_TIMEOUT_EXPIRES) {
+					GPTP_LOG_EXCEPTION("SYNC receipt timeout");
+
+					startSyncReceiptTimer((unsigned long long)
+						 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+						  ((double) pow((double)2, getSyncInterval()) *
+						   1000000000.0)));
+				}
 			}
 
 		}
@@ -1183,6 +1199,11 @@ void IEEE1588Port::processEvent(Event e)
 						sigMsg->sendPort(this, NULL);
 						delete sigMsg;
 					}
+
+					startSyncReceiptTimer((unsigned long long)
+						 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+						  ((double) pow((double)2, getSyncInterval()) *
+						   1000000000.0)));
 				}
 			}
 		}
@@ -1230,10 +1251,12 @@ void IEEE1588Port::getDeviceTime
 
 void IEEE1588Port::becomeMaster( bool annc ) {
 	port_state = PTP_MASTER;
-	// Start announce receipt timeout timer
-	// Start sync receipt timeout timer
+	// Stop announce receipt timeout timer
 	clock->deleteEventTimer( this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES );
-	clock->deleteEventTimer( this, SYNC_RECEIPT_TIMEOUT_EXPIRES );
+
+	// Stop sync receipt timeout timer
+	stopSyncReceiptTimer();
+
 	if( annc ) {
 		startAnnounce();
 	}
@@ -1251,10 +1274,12 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 
 	port_state = PTP_SLAVE;
 
-	/*clock->addEventTimer
-		( this, SYNC_RECEIPT_TIMEOUT_EXPIRES,
-		(SYNC_RECEIPT_TIMEOUT_MULTIPLIER*
-		 (unsigned long long)(pow((double)2,getSyncInterval())*1000000000.0)));*/
+	/* TODO : Seems this be active here
+	startSyncReceiptTimer((unsigned long long)
+		 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+		  ((double) pow((double)2, getSyncInterval()) *
+		   1000000000.0)));*/
+
 	clock->addEventTimer
 	  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
 	   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
@@ -1364,21 +1389,38 @@ int IEEE1588Port::getRxTimestamp(PortIdentity * sourcePortIdentity,
 	return 0;
 }
 
-void IEEE1588Port::startSyncIntervalTimer(long long unsigned int waitTime) {
+void IEEE1588Port::startSyncReceiptTimer(long long unsigned int waitTime) {
+	syncReceiptTimerLock->lock();
+	clock->deleteEventTimer(this, SYNC_RECEIPT_TIMEOUT_EXPIRES);
+	clock->addEventTimer(this, SYNC_RECEIPT_TIMEOUT_EXPIRES, waitTime);
+	syncReceiptTimerLock->unlock();
+}
+
+void IEEE1588Port::stopSyncReceiptTimer(void)
+{
+	syncReceiptTimerLock->lock();
+	clock->deleteEventTimer(this, SYNC_RECEIPT_TIMEOUT_EXPIRES);
+	syncReceiptTimerLock->unlock();
+}
+
+void IEEE1588Port::startSyncIntervalTimer(long long unsigned int waitTime)
+{
 	syncIntervalTimerLock->lock();
 	clock->deleteEventTimer(this, SYNC_INTERVAL_TIMEOUT_EXPIRES);
 	clock->addEventTimer(this, SYNC_INTERVAL_TIMEOUT_EXPIRES, waitTime);
 	syncIntervalTimerLock->unlock();
 }
 
-void IEEE1588Port::startAnnounceIntervalTimer(long long unsigned int waitTime) {
+void IEEE1588Port::startAnnounceIntervalTimer(long long unsigned int waitTime)
+{
 	announceIntervalTimerLock->lock();
 	clock->deleteEventTimer(this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES);
 	clock->addEventTimer(this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES, waitTime);
 	announceIntervalTimerLock->unlock();
 }
 
-void IEEE1588Port::startPDelayIntervalTimer(long long unsigned int waitTime) {
+void IEEE1588Port::startPDelayIntervalTimer(long long unsigned int waitTime)
+{
 	pDelayIntervalTimerLock->lock();
 	clock->deleteEventTimer(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES);
 	clock->addEventTimer(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, waitTime);

@@ -411,6 +411,7 @@ class IEEE1588Port {
 	OSLock *pdelay_rx_lock;
 	OSLock *port_tx_lock;
 
+	OSLock *syncReceiptTimerLock;
 	OSLock *syncIntervalTimerLock;
 	OSLock *announceIntervalTimerLock;
 	OSLock *pDelayIntervalTimerLock;
@@ -777,6 +778,19 @@ class IEEE1588Port {
 	void setInitSyncInterval(void) {
 		log_mean_sync_interval = initialLogSyncInterval;;
 	}
+
+	/**
+	 * @brief  Start sync receipt timer
+	 * @param  waitTime time interval
+	 * @return none
+	 */
+	void startSyncReceiptTimer(long long unsigned int waitTime);
+
+	/**
+	 * @brief  Stop sync receipt timer
+	 * @return none
+	 */
+	void stopSyncReceiptTimer(void);
 
 	/**
 	 * @brief  Start sync interval timer
