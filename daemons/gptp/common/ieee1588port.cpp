@@ -1258,7 +1258,9 @@ void IEEE1588Port::becomeMaster( bool annc ) {
 	stopSyncReceiptTimer();
 
 	if( annc ) {
-		startAnnounce();
+		if (!automotive_profile) {
+			startAnnounce();
+		}
 	}
 	startSyncIntervalTimer(16000000);
 	GPTP_LOG_STATUS("Switching to Master" );
@@ -1274,17 +1276,20 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 
 	port_state = PTP_SLAVE;
 
-	/* TODO : Seems this be active here
+	/* TODO : Should this be active for non-automotive profile uses
 	startSyncReceiptTimer((unsigned long long)
 		 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
 		  ((double) pow((double)2, getSyncInterval()) *
 		   1000000000.0)));*/
 
-	clock->addEventTimer
-	  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
-	   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
-	    (unsigned long long)
-	    (pow((double)2,getAnnounceInterval())*1000000000.0)));
+	if (!automotive_profile) {
+		clock->addEventTimer
+		  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
+		   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
+			(unsigned long long)
+			(pow((double)2,getAnnounceInterval())*1000000000.0)));
+	}
+
 	GPTP_LOG_STATUS("Switching to Slave" );
 	if( restart_syntonization ) clock->newSyntonizationSetPoint();
 
