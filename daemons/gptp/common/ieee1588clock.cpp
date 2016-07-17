@@ -112,7 +112,7 @@ IEEE1588Clock::IEEE1588Clock
 
  	memset( &LastEBestIdentity, 0xFF, sizeof( LastEBestIdentity ));
 
-	timerq_lock = lock_factory->createLock( oslock_nonrecursive );
+	timerq_lock = lock_factory->createLock( oslock_recursive );
 
 	// This should be done LAST!! to pass fully initialized clock object
 	timerq = timerq_factory->createOSTimerQueue( this );
