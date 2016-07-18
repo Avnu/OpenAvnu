@@ -151,6 +151,8 @@ struct rx_ring {
 	u64 rx_discarded;
 	u64 rx_packets;
 	u64 rx_bytes;
+
+	sem_t lock;
 };
 
 struct adapter {

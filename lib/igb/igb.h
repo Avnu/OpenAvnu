@@ -89,7 +89,7 @@ int igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *page);
 void igb_dma_free_page(device_t *dev, struct igb_dma_alloc *page);
 int igb_xmit(device_t *dev, unsigned int queue_index,
 	     struct igb_packet *packet);
-void igb_refresh_buffers(device_t *dev, u_int32_t idx,
+int igb_refresh_buffers(device_t *dev, u_int32_t idx,
 			 struct igb_packet **rxbuf_packets,
 			 u_int32_t num_bufs);
 int igb_receive(device_t *dev, unsigned int queue_index, 

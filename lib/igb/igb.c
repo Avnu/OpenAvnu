@@ -1263,6 +1263,17 @@ static int igb_allocate_rx_queues(struct adapter *adapter)
 					    adapter->num_queues);
 
 	for (i = 0; i < adapter->num_queues; i++) {
+
+		if (sem_init(&adapter->rx_rings[i].lock, 0, 1) != 0) {
+			error = errno;
+			goto rx_desc;
+		}
+
+		if (sem_wait(&adapter->rx_rings[i].lock) != 0) {
+			error = errno;
+			goto rx_desc;
+		}
+
 		ubuf.queue = i;
 		error = ioctl(dev, IGB_MAP_RX_RING, &ubuf);
 		if (error < 0) {
@@ -1300,6 +1311,11 @@ static int igb_allocate_rx_queues(struct adapter *adapter)
 
 		memset(adapter->rx_rings[i].rx_buffers, 0,
 		       sizeof(struct igb_rx_buffer) * adapter->num_rx_desc);
+
+		if (sem_post(&adapter->rx_rings[i].lock) != 0) {
+			error = errno;
+			goto rx_desc;
+		}
 	}
 
 	return 0;
@@ -1311,6 +1327,8 @@ rx_desc:
 			       adapter->rx_rings[i].rxdma.mmap_size);
 		ubuf.queue = i;
 		ioctl(dev, IGB_UNMAP_RX_RING, &ubuf);
+
+		sem_destroy(&adapter->rx_rings[i].lock);
 	};
 rx_fail:
 	free(adapter->rx_rings);
@@ -1336,6 +1354,7 @@ static void igb_setup_receive_ring(struct rx_ring *rxr)
 {
 	struct adapter *adapter = rxr->adapter;
 
+	(void)sem_wait(&rxr->lock);
 
 	/* Clear the ring contents */
 	memset((void *)rxr->rx_base,  0,
@@ -1352,6 +1371,8 @@ static void igb_setup_receive_ring(struct rx_ring *rxr)
 	rxr->next_to_refresh = 0;
 	rxr->rx_split_packets = 0;
 	rxr->rx_bytes = 0;
+
+	(void)sem_post(&rxr->lock);
 }
 
 /* Initialize all receive rings. */
@@ -1453,6 +1474,8 @@ static void igb_free_receive_structures(struct adapter *adapter)
 	struct igb_buf_cmd ubuf;
 
 	for (i = 0; i < adapter->num_queues; i++, rxr++) {
+		(void)sem_wait(&adapter->rx_rings[i].lock);
+
 		if (rxr->rx_base) {
 			memset(rxr->rx_base, 0, rxr->rxdma.mmap_size);
 			munmap(rxr->rx_base, rxr->rxdma.mmap_size);
@@ -1460,6 +1483,8 @@ static void igb_free_receive_structures(struct adapter *adapter)
 		ubuf.queue = i;
 		ioctl(adapter->ldev, IGB_UNMAP_RX_RING, &ubuf);
 		igb_free_receive_buffers(rxr);
+
+		(void)sem_destroy(&adapter->rx_rings[i].lock);
 	}
 
 	free(adapter->rx_rings);
@@ -1496,7 +1521,7 @@ static void igb_free_receive_buffers(struct rx_ring *rxr)
  *     be recalled to try again.
  *
  */
-void igb_refresh_buffers(device_t *dev, u_int32_t idx,
+int igb_refresh_buffers(device_t *dev, u_int32_t idx,
 			 struct igb_packet **rxbuf_packets, u_int32_t num_bufs)
 {
 	struct igb_packet *cur_pkt;
@@ -1506,19 +1531,25 @@ void igb_refresh_buffers(device_t *dev, u_int32_t idx,
 	bool refreshed = FALSE;
 
 	if (dev == NULL)
-		return;
+		return -EINVAL;
 
 	adapter = (struct adapter *)dev->private_data;
 	if (adapter == NULL)
-		return;
+		return -EINVAL;
 
 	if (rxbuf_packets == NULL)
-		return;
+		return -EINVAL;
 
 	if (idx > 1)
-		return;
+		return -EINVAL;
 
 	rxr = &adapter->rx_rings[idx];
+	if (rxr == NULL)
+		return -EINVAL;
+
+	if (sem_trywait(&rxr->lock) != 0)
+		return errno; /* EAGAIN */
+
 	i = j = rxr->next_to_refresh;
 	cur_pkt = *rxbuf_packets;
 
@@ -1552,6 +1583,9 @@ void igb_refresh_buffers(device_t *dev, u_int32_t idx,
 	if (refreshed) /* update tail */
 		E1000_WRITE_REG(&adapter->hw,
 				E1000_RDT(rxr->me), rxr->next_to_refresh);
+
+	if (sem_post(&rxr->lock) != 0)
+		return errno;
 }
 
 
@@ -1599,6 +1633,9 @@ int igb_receive(device_t *dev, unsigned int queue_index,
 		return -EINVAL;
 
 	*received_packets = NULL; /* nothing reclaimed yet */
+
+	if (sem_trywait(&rxr->lock) != 0)
+		return errno; /* EAGAIN */
 
 	/* Main clean loop - receive packets until no more
 	 * received_packets[]
@@ -1670,6 +1707,9 @@ next_desc:
 	}
 
 	rxr->next_to_check = desc;
+
+	if (sem_post(&rxr->lock) != 0)
+		return errno;
 
 	return 0;
 }
