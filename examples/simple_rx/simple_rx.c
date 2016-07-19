@@ -383,6 +383,10 @@ int igb_start_rx(device_t *igb_dev, struct mrp_listener_ctx *ctx)
 		if (!a_page)
 			goto out;
 
+		page_qelem->q_data = (void*)a_page;
+		insque(page_qelem, prev_page_qelem);
+		prev_page_qelem = page_qelem;
+
 		err = igb_dma_malloc_page(igb_dev, a_page);
 		if (err) {
 			printf("malloc failed (%s) - out of memory?\n",
@@ -392,10 +396,6 @@ int igb_start_rx(device_t *igb_dev, struct mrp_listener_ctx *ctx)
 
 		if (a_page->mmap_size < PKT_SZ)
 			goto out;
-
-		page_qelem->q_data = (void*)a_page;
-		insque(page_qelem, prev_page_qelem);
-		prev_page_qelem = page_qelem;
 
 		/* divide the dma page into buffers for packets */
 		for (i = 0; i < a_page->mmap_size/PKT_SZ; i++) {
@@ -637,10 +637,17 @@ int main(int argc, char *argv[])
 	device_t igb_dev;
 #endif /* DIRECT_RX */
 
+	int c,rc;
+
+	if ((NULL == ctx) || (NULL == class_a) || (NULL == class_b)) {
+		fprintf(stderr, "failed allocating memory\n");
+		rc = EXIT_FAILURE;
+		goto out;
+	}
+
 	ctx_sig = ctx;
 	signal(SIGINT, sigint_handler);
 
-	int c,rc;
 	while((c = getopt(argc, argv, "hi:f:")) > 0)
 	{
 		switch (c)
@@ -717,6 +724,11 @@ int main(int argc, char *argv[])
 
 #if LIBSND
 	sf_info = (SF_INFO*)malloc(sizeof(SF_INFO));
+	if (NULL == sf_info) {
+		fprintf(stderr, "failed allocating memory\n");
+		rc = EXIT_FAILURE;
+		goto out;
+	}
 
 	memset(sf_info, 0, sizeof(SF_INFO));
 
