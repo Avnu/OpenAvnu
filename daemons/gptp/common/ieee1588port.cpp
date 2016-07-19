@@ -172,8 +172,8 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	this->condition_factory = portInit->condition_factory;
 	this->lock_factory = portInit->lock_factory;
 
-	pdelay_count = 0;
-	sync_count = 0;
+	setPdelayCount(0);
+	setSyncCount(0);
 	memset(link_delay, 0, sizeof(link_delay));
 
 	_peer_offset_init = false;
@@ -742,6 +742,10 @@ void IEEE1588Port::processEvent(Event e)
 					  ((double) pow((double)2, getSyncInterval()) *
 					   1000000000.0)));
 			}
+
+			// Reset Sync count and pdelay count
+			setPdelayCount(0);
+			setSyncCount(0);
 
 			// Start AVB SYNC at 2. It will decrement after each sync. When it reaches 0 the Test Status message
 			// can be sent

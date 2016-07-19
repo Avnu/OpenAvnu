@@ -1397,6 +1397,15 @@ class IEEE1588Port {
 	(PortIdentity * destIdentity, LinkLayerAddress * remote);
 
 	/**
+	 * @brief  Sets current pdelay count value.
+	 * @param  cnt [in] pdelay count value
+	 * @return void
+	 */
+	void setPdelayCount(unsigned int cnt) {
+		pdelay_count = cnt;
+	}
+
+	/**
 	 * @brief  Increments Pdelay count
 	 * @return void
 	 */
@@ -1411,6 +1420,15 @@ class IEEE1588Port {
 	 */
 	unsigned getPdelayCount() {
 		return pdelay_count;
+	}
+
+	/**
+	 * @brief  Sets current sync count value.
+	 * @param  cnt [in] sync count value
+	 * @return void
+	 */
+	void setSyncCount(unsigned int cnt) {
+		sync_count = cnt;
 	}
 
 	/**
@@ -1429,7 +1447,6 @@ class IEEE1588Port {
 	unsigned getSyncCount() {
 		return sync_count;
 	}
-
 
 	/**
 	 * @brief  Gets link up count
