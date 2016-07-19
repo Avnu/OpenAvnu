@@ -1586,6 +1586,8 @@ int igb_refresh_buffers(device_t *dev, u_int32_t idx,
 
 	if (sem_post(&rxr->lock) != 0)
 		return errno;
+
+	return 0;
 }
 
 
@@ -1601,7 +1603,6 @@ int igb_receive(device_t *dev, unsigned int queue_index,
 	struct adapter *adapter;
 	struct rx_ring *rxr;
 	union e1000_adv_rx_desc *cur;
-	int i;
 	bool eop = FALSE;
 	u_int32_t staterr = 0;
 	u_int32_t desc    = 0;
@@ -1674,7 +1675,7 @@ int igb_receive(device_t *dev, unsigned int queue_index,
 			if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
 				++rxr->rx_discarded;
 				printf ("discard error packet\n");
-				igb_refresh_buffers(dev, i,
+				igb_refresh_buffers(dev, queue_index,
 						&rxr->rx_buffers[desc].packet, 1);
 			} else {
 				/*
@@ -1697,7 +1698,7 @@ int igb_receive(device_t *dev, unsigned int queue_index,
 			/* multi-segment frame is not supported yet */
 			++rxr->rx_discarded;
 			printf ("discard non-eop packet\n");
-			igb_refresh_buffers(dev, i,
+			igb_refresh_buffers(dev, queue_index,
 					&rxr->rx_buffers[desc].packet, 1);
 		}
 next_desc:
