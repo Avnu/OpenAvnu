@@ -439,12 +439,24 @@ int igb_start_rx(device_t *igb_dev, struct mrp_listener_ctx *ctx)
 	memset(filter_mask, 0, sizeof(filter_mask));
 	memset(test_filter, 0, sizeof(test_filter));
 
-	/* the filter for IEEE1722 with VLAN */
+	/* the filter for IEEE1722 w/o a VLAN tag */
 
-	/* accept packets toward the multicast dst mac given by MRP */
+	/* accept packets toward the dst mac */
 	ethhdr = (struct ethhdr *)test_filter;
 	memcpy((void*)ethhdr->h_dest, (void*)ctx->dst_mac, ETH_ALEN);
 
+	/* ethtype in ethernet frame = IEEE1722 */
+	ethhdr->h_proto = htons(ETH_P_IEEE1722);
+	
+	filter_mask[0] = 0x3F; /* 00111111b = dst mac */
+	filter_mask[1] = 0x30; /* 00110000b = ethtype */
+
+	/* install the filter on queue0 */
+	igb_setup_flex_filter(igb_dev, IGB_QUEUE_0, 0, ETH_HLEN, 
+								test_filter, filter_mask);
+
+	/* the filter for IEEE1722 with VLAN */
+	
 	/* ethtype in ethernet frame = 802.1Q */
 	ethhdr->h_proto = htons(ETH_P_8021Q);
 
@@ -452,12 +464,10 @@ int igb_start_rx(device_t *igb_dev, struct mrp_listener_ctx *ctx)
 	ethtype = (uint16_t*)(test_filter + ETH_HLEN + 2);
 	*ethtype = htons(ETH_P_IEEE1722);
 
-	filter_mask[0] = 0x3F; /* 00111111b = dst mac */
-	filter_mask[1] = 0x30; /* 00110000b = ethtype */
 	filter_mask[2] = 0x03; /* 00000011b = ethtype after a vlan tag */
 
 	/* install the filter on queue0 */
-	igb_setup_flex_filter(igb_dev, IGB_QUEUE_0, 0, ETHERNET_HEADER_SIZE, 
+	igb_setup_flex_filter(igb_dev, IGB_QUEUE_0, 1, ETHERNET_HEADER_SIZE, 
 								test_filter, filter_mask);
 	
 	rc = 0;
@@ -473,6 +483,7 @@ void igb_stop_rx(device_t *igb_dev)
 	struct myqelem *qelem = NULL;
 
 	igb_clear_flex_filter(igb_dev, 0);
+	igb_clear_flex_filter(igb_dev, 1);
 
 	while (glob_pkt_head) {
 		qelem = glob_pkt_head;
