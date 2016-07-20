@@ -1712,6 +1712,12 @@ next_desc:
 	if (sem_post(&rxr->lock) != 0)
 		return errno;
 
+	if (*received_packets == NULL) {
+		/* nothing reclaimed yet */
+		errno = EAGAIN;
+		return errno;
+	}
+
 	return 0;
 }
 
