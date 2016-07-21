@@ -1040,8 +1040,13 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	port->getClock()->getFUPStatus()->setScaledLastGmFreqChange( scaledLastGmFreqChange );
 	port->getClock()->getFUPStatus()->setScaledLastGmPhaseChange( scaledLastGmPhaseChange );
 
-	if( port->getPortState() != PTP_MASTER ) {
+	if( port->getPortState() == PTP_SLAVE )
+   {
+      /* The sync_count counts the number of sync messages received
+         that influence the time on the device. Since adjustments are only
+         made in the PTP_SLAVE state, increment it here */
 		port->incSyncCount();
+
 		/* Do not call calcLocalSystemClockRateDifference it updates state
 		   global to the clock object and if we are master then the network
 		   is transitioning to us not being master but the master process
