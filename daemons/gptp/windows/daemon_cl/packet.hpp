@@ -43,7 +43,7 @@
 #define PACKET_HDR_LENGTH 14	/*!< Packet header length in bytes */
 
 /**
- * Packet error enumeration. Possible values are:
+ * @brief Packet error enumeration. Possible values are:
  * 	- PACKET_NO_ERROR;
  * 	- PACKET_NOMEMORY_ERROR;
  * 	- PACKET_BADBUFFER_ERROR;
@@ -64,13 +64,13 @@ typedef enum {
 } packet_error_t; 
 
 /**
- * type to ethernet address
+ * @brief type to ethernet address
  */
 typedef struct { 
 	uint8_t addr[ETHER_ADDR_OCTETS];	/*!< Link layer address*/
 } packet_addr_t;
 /**
- * Type to packet handle
+ * @brief Type to packet handle
  */
 typedef struct packet_handle * pfhandle_t;
 

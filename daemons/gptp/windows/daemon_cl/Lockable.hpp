@@ -39,14 +39,14 @@ POSSIBILITY OF SUCH DAMAGE.
 /**@file*/
 
 /**
- * Provides a lock abstraction
+ * @brief Provides a lock abstraction
  */
 class Lockable {
 private:
 	SRWLOCK lock;
 public:
 	/**
-	 * Initializes lock interface
+	 * @brief Initializes lock interface
 	 */
 	Lockable() { InitializeSRWLock( &lock ); }
 	/**

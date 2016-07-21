@@ -2689,6 +2689,7 @@ static int igb_probe(struct pci_dev *pdev,
 	adapter->userpages = NULL;
 	adapter->uring_tx_init = 0;
 	adapter->uring_rx_init = 0;
+	mutex_init(&adapter->lock);
 #ifdef HAVE_PCI_ERS
 	err = pci_save_state(pdev);
 	if (err)
@@ -3203,6 +3204,7 @@ static void igb_remove(struct pci_dev *pdev)
 #endif /* IGB_HWMON */
 	kfree(adapter->mac_table);
 	kfree(adapter->shadow_vfta);
+	mutex_destroy(&adapter->lock);
 	free_netdev(netdev);
 
 	pci_disable_pcie_error_reporting(pdev);
@@ -10269,9 +10271,7 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 			goto failed;
 		}
 
-		/* multi-threaded warning - a good impl woudl put a
-		 * mutex around this
-		 */
+		mutex_lock(&adapter->lock);
 		if (adapter->userpages == NULL) {
 			adapter->userpages = userpage;
 		} else {
@@ -10291,6 +10291,7 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 #endif /* defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL) */
 		if (unlikely(!page)) {
 			err = -ENOMEM;
+			mutex_unlock(&adapter->lock);
 			goto failed;
 		}
 
@@ -10300,7 +10301,8 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		if (dma_mapping_error(pci_dev_to_dev(adapter->pdev), page_dma)) {
 			put_page(page);
 			err = -ENOMEM;
-			goto failed;
+			mutex_unlock(&adapter->lock);
+			goto failed;;
 		}
 
 		adapter->userpages->page = page;
@@ -10308,6 +10310,7 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 
 		req.physaddr = page_dma;
 		req.mmap_size = PAGE_SIZE;
+		mutex_unlock(&adapter->lock);
 	}
 
 	if (copy_to_user(arg, &req, sizeof(req))) {
@@ -10357,8 +10360,9 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		adapter->uring_rx_init &= ~(1 << req.queue);
 	} else {
 		/* have to find the corresponding page to free */
-		struct igb_user_page *userpage;
+		struct igb_user_page *userpage; 
 
+		mutex_lock(&adapter->lock);
 		userpage = adapter->userpages;
 
 		while (userpage != NULL) {
@@ -10367,8 +10371,10 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 			userpage = userpage->next;
 		}
 
-		if (userpage == NULL)
+		if (userpage == NULL) {
+			mutex_unlock(&adapter->lock);
 			return -EINVAL;
+		}
 
 		dma_unmap_page(pci_dev_to_dev(adapter->pdev),
 				userpage->page_dma,
@@ -10388,6 +10394,7 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 			adapter->userpages = userpage->next;
 
 		vfree(userpage);
+		mutex_unlock(&adapter->lock);
 	}
 	return err;
 }
@@ -10457,6 +10464,7 @@ static int igb_close_file(struct inode *inode, struct file *file)
 		}
 	}
 
+	mutex_lock(&adapter->lock);
 	userpage = adapter->userpages;
 
 	while (userpage != NULL) {
@@ -10480,6 +10488,7 @@ static int igb_close_file(struct inode *inode, struct file *file)
 		vfree(userpage);
 		userpage = adapter->userpages;
 	}
+	mutex_unlock(&adapter->lock);
 
 	err = igb_unbind(file);
 	return err;

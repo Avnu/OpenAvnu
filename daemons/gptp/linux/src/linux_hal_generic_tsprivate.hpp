@@ -42,7 +42,7 @@ extern "C" {
 #include <igb.h>
 }
 /**
- * Private IGB structure.
+ * @brief Private IGB structure.
  */
 struct LinuxTimestamperIGBPrivate {
 	device_t igb_dev;
@@ -51,8 +51,7 @@ struct LinuxTimestamperIGBPrivate {
 #endif
 
 /**
- * Provides private members for the
- * LinuxTimestamperGeneric class
+ * @brief Provides private members for the LinuxTimestamperGeneric class
  */
 struct LinuxTimestamperGenericPrivate {
 	pthread_mutex_t cross_stamp_lock;		/*!< Cross timestamp lock*/

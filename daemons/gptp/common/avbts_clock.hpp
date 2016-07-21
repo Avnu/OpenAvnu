@@ -44,13 +44,26 @@
 
 #define EVENT_TIMER_GRANULARITY 5000000		/*!< Event timer granularity*/
 
-#define INTEGRAL 0.0024				/*!< PI controller integral factor*/
+/* These 4 macros are used only when Syntonize mode is enabled */
+#define INTEGRAL 0.0003				/*!< PI controller integral factor*/
 #define PROPORTIONAL 1.0			/*!< PI controller proportional factor*/
 #define UPPER_FREQ_LIMIT  250.0		/*!< Upper frequency limit */
 #define LOWER_FREQ_LIMIT -250.0		/*!< Lower frequency limit */
 
+#define UPPER_LIMIT_PPM 250
+#define LOWER_LIMIT_PPM -250
+#define PPM_OFFSET_TO_RATIO(ppm) ((ppm) / ((FrequencyRatio)US_PER_SEC) + 1)
+
+/* This is the threshold in ns for which frequency adjustments will be made */
+#define PHASE_ERROR_THRESHOLD (1000000000)
+
+/* This is the maximum count of phase error, outside of the threshold before
+   adjustment is performed */
+#define PHASE_ERROR_MAX_COUNT (6)
+
+
 /**
- * Provides the clock quality abstraction.
+ * @brief Provides the clock quality abstraction.
  * Represents the quality of the clock
  * Defined at IEEE 802.1AS-2011
  * Clause 6.3.3.8
@@ -72,7 +85,7 @@ struct ClockQuality {
 };
 
 /**
- * Provides the 1588 clock interface
+ * @brief Provides the 1588 clock interface
  */
 class IEEE1588Clock {
 private:
@@ -106,6 +119,7 @@ private:
 	bool _syntonize;
 	bool _new_syntonization_set_point;
 	float _ppm;
+	int _phase_error_violation;
 
 	IEEE1588Port *port_list[MAX_PORTS];
 
@@ -131,7 +145,7 @@ private:
 	FrequencyRatio _local_system_freq_offset;
 
     /**
-     * fup info stores information of the last time
+     * @brief fup info stores information of the last time
      * the base time has changed. When that happens
      * the information from fup_status is copied over
      * fup_info. The follow-up sendPort method is
@@ -141,7 +155,7 @@ private:
     FollowUpTLV *fup_info;
 
     /**
-     * fup status has the instantaneous info
+     * @brief fup status has the instantaneous info
      */
     FollowUpTLV *fup_status;
 
@@ -263,7 +277,7 @@ public:
    */
   void setGrandmasterClockIdentity(ClockIdentity id) {
 	  if (id != grandmaster_clock_identity) {
-		  XPTPD_PRINTF("New Grandmaster \"%s\" (previous \"%s\")\n", id.getIdentityString().c_str(), grandmaster_clock_identity.getIdentityString().c_str());
+		  GPTP_LOG_STATUS("New Grandmaster \"%s\" (previous \"%s\")", id.getIdentityString().c_str(), grandmaster_clock_identity.getIdentityString().c_str());
 		  grandmaster_clock_identity = id;
 	  }
   }
@@ -528,7 +542,7 @@ public:
    * @param  asCapable asCapable flag
    */
   void setMasterOffset
-	  ( int64_t master_local_offset, Timestamp local_time,
+	  ( IEEE1588Port * port, int64_t master_local_offset, Timestamp local_time,
 		FrequencyRatio master_local_freq_offset,
 		int64_t local_system_offset,
 		Timestamp system_time,
@@ -552,6 +566,22 @@ public:
    */
   void newSyntonizationSetPoint() {
 	  _new_syntonization_set_point = true;
+  }
+
+  /**
+   * @brief  Restart PDelays on all ports
+   * @return void
+   */
+  void restartPDelayAll() {
+	  int number_ports, i, j = 0;
+	  IEEE1588Port **ports;
+
+	  getPortList( number_ports, ports );
+
+	  for( i = 0; i < number_ports; ++i ) {
+		  while( ports[j] == NULL ) ++j;
+		  ports[j]->restartPDelay();
+	  }
   }
 
   /**

@@ -58,7 +58,7 @@
 #include <list>
 
 /**
- * WindowsPCAPNetworkInterface implements an interface to the network adapter
+ * @brief WindowsPCAPNetworkInterface implements an interface to the network adapter
  * through calls to the publicly available libraries known as PCap.
  */
 class WindowsPCAPNetworkInterface : public OSNetworkInterface {
@@ -75,10 +75,10 @@ public:
 	 * @param  timestamp TRUE: Use timestamp, FALSE otherwise
 	 * @return net_result structure
 	 */
-	virtual net_result send( LinkLayerAddress *addr, uint8_t *payload, size_t length, bool timestamp ) {
+	virtual net_result send( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length, bool timestamp) {
 		packet_addr_t dest;
 		addr->toOctetArray( dest.addr );
-		if( sendFrame( handle, &dest, PTP_ETHERTYPE, payload, length ) != PACKET_NO_ERROR ) return net_fatal;
+		if( sendFrame( handle, &dest, etherType, payload, length ) != PACKET_NO_ERROR ) return net_fatal;
 		return net_succeed;
 	}
 	/**
@@ -119,7 +119,7 @@ public:
 		return PACKET_HDR_LENGTH;
 	}
 	/**
-	 * Destroys the network interface
+	 * @brief Destroys the network interface
 	 */
 	virtual ~WindowsPCAPNetworkInterface() {
 		closeInterface( handle );
@@ -127,13 +127,13 @@ public:
 	}
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	WindowsPCAPNetworkInterface() { handle = NULL; };
 };
 
 /**
- * WindowsPCAPNetworkInterface implements an interface to the network adapter
+ * @brief WindowsPCAPNetworkInterface implements an interface to the network adapter
  * through calls to the publicly available libraries known as PCap.
  */
 class WindowsPCAPNetworkInterfaceFactory : public OSNetworkInterfaceFactory {
@@ -168,7 +168,7 @@ error_nofree:
 };
 
 /**
- * Provides lock interface for windows
+ * @brief Provides lock interface for windows
  */
 class WindowsLock : public OSLock {
 	friend class WindowsLockFactory;
@@ -202,7 +202,7 @@ private:
 	}
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	WindowsLock() {
 		lock_c = NULL;
@@ -248,7 +248,7 @@ protected:
 };
 
 /**
- * Provides the LockFactory abstraction
+ * @brief Provides the LockFactory abstraction
  */
 class WindowsLockFactory : public OSLockFactory {
 public:
@@ -268,7 +268,7 @@ public:
 };
 
 /**
- * Provides a OSCondition interface for windows
+ * @brief Provides a OSCondition interface for windows
  */
 class WindowsCondition : public OSCondition {
 	friend class WindowsConditionFactory;
@@ -277,7 +277,7 @@ private:
 	CONDITION_VARIABLE condition;
 protected:
 	/**
-	 * Initializes the locks and condition variables
+	 * @brief Initializes the locks and condition variables
 	 */
 	bool initialize() {
 		InitializeSRWLock( &lock );
@@ -322,7 +322,7 @@ public:
 };
 
 /**
- * Condition factory for windows
+ * @brief Condition factory for windows
  */
 class WindowsConditionFactory : public OSConditionFactory {
 public:
@@ -337,7 +337,7 @@ class WindowsTimerQueue;
 struct TimerQueue_t;
 
 /**
- * Timer queue handler arguments structure
+ * @brief Timer queue handler arguments structure
  * @todo Needs more details from original developer
  */
 struct WindowsTimerQueueHandlerArg {
@@ -352,11 +352,11 @@ struct WindowsTimerQueueHandlerArg {
 };
 
 /**
- * Creates a list of type WindowsTimerQueueHandlerArg
+ * @brief Creates a list of type WindowsTimerQueueHandlerArg
  */
 typedef std::list<WindowsTimerQueueHandlerArg *> TimerArgList_t;
 /**
- * Timer queue type
+ * @brief Timer queue type
  */
 struct TimerQueue_t {
 	TimerArgList_t arg_list;		/*!< Argument list */
@@ -365,17 +365,17 @@ struct TimerQueue_t {
 };
 
 /**
- * Windows Timer queue handler callback definition
+ * @brief Windows Timer queue handler callback definition
  */
 VOID CALLBACK WindowsTimerQueueHandler( PVOID arg_in, BOOLEAN ignore );
 
 /**
- * Creates a map for the timerQueue
+ * @brief Creates a map for the timerQueue
  */
 typedef std::map<int,TimerQueue_t> TimerQueueMap_t;
 
 /**
- * Windows timer queue interface
+ * @brief Windows timer queue interface
  */
 class WindowsTimerQueue : public OSTimerQueue {
 	friend class WindowsTimerQueueFactory;
@@ -400,7 +400,7 @@ private:
 	}
 protected:
 	/**
-	 * Default constructor. Initializes timers lock
+	 * @brief Default constructor. Initializes timers lock
 	 */
 	WindowsTimerQueue() {
 		InitializeSRWLock( &retiredTimersLock );
@@ -462,12 +462,12 @@ public:
 };
 
 /**
- * Windows callback for the timer queue handler
+ * @brief Windows callback for the timer queue handler
  */
 VOID CALLBACK WindowsTimerQueueHandler( PVOID arg_in, BOOLEAN ignore );
 
 /**
- * Windows implementation of OSTimerQueueFactory
+ * @brief Windows implementation of OSTimerQueueFactory
  */
 class WindowsTimerQueueFactory : public OSTimerQueueFactory {
 public:
@@ -483,7 +483,7 @@ public:
 };
 
 /**
- * Windows implementation of OSTimer
+ * @brief Windows implementation of OSTimer
  */
 class WindowsTimer : public OSTimer {
     friend class WindowsTimerFactory;
@@ -499,13 +499,13 @@ public:
     }
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
     WindowsTimer() {};
 };
 
 /**
- * Windows implementation of OSTimerFactory
+ * @brief Windows implementation of OSTimerFactory
  */
 class WindowsTimerFactory : public OSTimerFactory {
 public:
@@ -519,7 +519,7 @@ public:
 };
 
 /**
- * OSThread argument structure
+ * @brief OSThread argument structure
  */
 struct OSThreadArg {
     OSThreadFunction func;	/*!< Thread callback function */
@@ -528,12 +528,12 @@ struct OSThreadArg {
 };
 
 /**
- * Windows OSThread callback
+ * @brief Windows OSThread callback
  */
 DWORD WINAPI OSThreadCallback( LPVOID input );
 
 /**
- * Implements OSThread interface for windows
+ * @brief Implements OSThread interface for windows
  */
 class WindowsThread : public OSThread {
     friend class WindowsThreadFactory;
@@ -568,13 +568,13 @@ public:
     }
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	WindowsThread() {};
 };
 
 /**
- * Provides a windows implmementation of OSThreadFactory
+ * @brief Provides a windows implmementation of OSThreadFactory
  */
 class WindowsThreadFactory : public OSThreadFactory {
 public:
@@ -587,18 +587,44 @@ public:
 	}
 };
 
-#define NETCLOCK_HZ_OTHER 1056000000		/*!< @todo Not sure about what that means*/
-#define NETCLOCK_HZ_NANO 1000000000			/*!< 1 Hertz in nanoseconds */
-#define ONE_WAY_PHY_DELAY 8000				/*!< Phy delay TX/RX */
-#define NANOSECOND_CLOCK_PART_DESCRIPTION "I217-LM"	/*!< Network adapter description */
+#define I217_DESC "I217-LM"
+#define I219_DESC "I219-V"
+
 #define NETWORK_CARD_ID_PREFIX "\\\\.\\"			/*!< Network adapter prefix */
 #define OID_INTEL_GET_RXSTAMP 0xFF020264			/*!< Get RX timestamp code*/
 #define OID_INTEL_GET_TXSTAMP 0xFF020263			/*!< Get TX timestamp code*/
 #define OID_INTEL_GET_SYSTIM  0xFF020262			/*!< Get system time code */
 #define OID_INTEL_SET_SYSTIM  0xFF020261			/*!< Set system time code */
 
+typedef struct
+{
+	uint32_t clock_rate;
+	char *device_desc;
+} DeviceClockRateMapping;
+
+static DeviceClockRateMapping DeviceClockRateMap[] =
+{
+	{ 1000000000, I217_DESC	},
+	{ 1008000000, I219_DESC	},
+	{ 0, NULL },
+};
+
+typedef struct
+{
+	struct phy_delay delay;
+	char *device_desc;
+} DevicePhyDelayMapping;
+
+static DevicePhyDelayMapping DevicePhyDelayMap[] =
+{
+	{{ -1, -1, 6950, 8050, },	I217_DESC	},
+	{{ -1, -1, 6700, 7750, },	I219_DESC	},
+	{{ -1, -1, -1, -1 }, NULL },
+};
+
+
 /**
- * Windows HWTimestamper implementation
+ * @brief Windows HWTimestamper implementation
  */
 class WindowsTimestamper : public HWTimestamper {
 private:
@@ -658,28 +684,28 @@ public:
 	 * @param  nominal_clock_rate [out] Nominal clock rate
 	 * @return True in case of success. FALSE in case of error
 	 */
-    virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock, uint32_t *nominal_clock_rate )
-    {
-        DWORD buf[6];
-        DWORD returned;
-        uint64_t now_net, now_tsc;
-        DWORD result;
+	virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
+					    uint32_t *nominal_clock_rate ) {
+		DWORD buf[6];
+		DWORD returned;
+		uint64_t now_net, now_tsc;
+		DWORD result;
 
-        memset( buf, 0xFF, sizeof( buf ));
-        if(( result = readOID( OID_INTEL_GET_SYSTIM, buf, sizeof(buf), &returned )) != ERROR_SUCCESS ) return false;
+		memset( buf, 0xFF, sizeof( buf ));
+		if(( result = readOID( OID_INTEL_GET_SYSTIM, buf, sizeof(buf), &returned )) != ERROR_SUCCESS ) return false;
 
-        now_net = (((uint64_t)buf[1]) << 32) | buf[0];
-        now_net = scaleNativeClockToNanoseconds( now_net );
-        *device_time = nanoseconds64ToTimestamp( now_net );
+		now_net = (((uint64_t)buf[1]) << 32) | buf[0];
+		now_net = scaleNativeClockToNanoseconds( now_net );
+		*device_time = nanoseconds64ToTimestamp( now_net );
 		device_time->_version = version;
 
-        now_tsc = (((uint64_t)buf[3]) << 32) | buf[2];
-        now_tsc = scaleTSCClockToNanoseconds( now_tsc );
-        *system_time = nanoseconds64ToTimestamp( now_tsc );
+		now_tsc = (((uint64_t)buf[3]) << 32) | buf[2];
+		now_tsc = scaleTSCClockToNanoseconds( now_tsc );
+		*system_time = nanoseconds64ToTimestamp( now_tsc );
 		system_time->_version = version;
 
-        return true;
-    }
+		return true;
+	}
 
 	/**
 	 * @brief  Gets the TX timestamp
@@ -696,6 +722,11 @@ public:
 		DWORD returned = 0;
 		uint64_t tx_r,tx_s;
 		DWORD result;
+		struct phy_delay delay_val;
+
+		get_phy_delay(&delay_val);//gets the phy delay
+		Timestamp latency(delay_val.gb_tx_phy_delay, 0, 0);
+
 		while(( result = readOID( OID_INTEL_GET_TXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
@@ -706,8 +737,7 @@ public:
 		if( returned != sizeof(buf_tmp) ) return GPTP_EC_EAGAIN;
 		tx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		tx_s = scaleNativeClockToNanoseconds( tx_r );
-		tx_s += ONE_WAY_PHY_DELAY;
-		timestamp = nanoseconds64ToTimestamp( tx_s );
+		timestamp = nanoseconds64ToTimestamp( tx_s ) + latency;
 		timestamp._version = version;
 
 		return GPTP_EC_SUCCESS;
@@ -729,6 +759,11 @@ public:
 		uint64_t rx_r,rx_s;
 		DWORD result;
 		uint16_t packet_sequence_id;
+		struct phy_delay delay_val;
+
+		get_phy_delay(&delay_val);//gets the phy delay
+		Timestamp latency(delay_val.gb_rx_phy_delay, 0, 0);
+
 		while(( result = readOID( OID_INTEL_GET_RXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
 		}
@@ -738,8 +773,7 @@ public:
 		if( PLAT_ntohs( packet_sequence_id ) != sequenceId ) return GPTP_EC_EAGAIN;
 		rx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		rx_s = scaleNativeClockToNanoseconds( rx_r );
-		rx_s -= ONE_WAY_PHY_DELAY;
-		timestamp = nanoseconds64ToTimestamp( rx_s );
+		timestamp = nanoseconds64ToTimestamp( rx_s ) - latency;
 		timestamp._version = version;
 
 		return GPTP_EC_SUCCESS;
@@ -748,7 +782,7 @@ public:
 
 
 /**
- * Named pipe interface
+ * @brief Named pipe interface
  */
 class WindowsNamedPipeIPC : public OS_IPC {
 private:
@@ -757,11 +791,11 @@ private:
 	PeerList peerList_;
 public:
 	/**
-	 * Default constructor. Initializes the IPC interface
+	 * @brief Default constructor. Initializes the IPC interface
 	 */
 	WindowsNamedPipeIPC() : pipe_(INVALID_HANDLE_VALUE) { };
 	/**
-	 * Destroys the IPC interface
+	 * @brief Destroys the IPC interface
 	 */
 	~WindowsNamedPipeIPC() {
 		if (pipe_ != 0 && pipe_ != INVALID_HANDLE_VALUE)

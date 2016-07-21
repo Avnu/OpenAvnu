@@ -65,7 +65,7 @@ DWORD WINAPI IPCListener::IPCListenerLoop( IPCSharedData *arg ) {
 			pipe = CreateNamedPipe( pipename, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE , PIPE_UNLIMITED_INSTANCES,
 				OUTSTANDING_MESSAGES*NPIPE_MAX_SERVER_MSG_SZ, OUTSTANDING_MESSAGES*NPIPE_MAX_MSG_SZ, 0, NULL );
 			if( pipe == INVALID_HANDLE_VALUE ) {
-				XPTPD_ERROR( "Open pipe error (%s): %d", pipename, GetLastError() );
+				GPTP_LOG_ERROR( "Open pipe error (%s): %d", pipename, GetLastError() );
 				goto do_error;
 			}
 			pipe_state = PIPE_UNCONNECT;
@@ -82,7 +82,7 @@ DWORD WINAPI IPCListener::IPCListenerLoop( IPCSharedData *arg ) {
 					err = GetLastError();
 					switch( err ) {
 					default:
-						XPTPD_ERROR( "Attempt to connect on Pipe failed, %d", err );
+						GPTP_LOG_ERROR( "Attempt to connect on Pipe failed, %d", err );
 						goto do_error;
 					case ERROR_PIPE_CONNECTED:
 						pipe_state = PIPE_CONNECT;
@@ -112,7 +112,7 @@ DWORD WINAPI IPCListener::IPCListenerLoop( IPCSharedData *arg ) {
 					err = GetLastError();
 					switch( err ) {
 					default:
-						XPTPD_ERROR( "Failed to read from pipe @%u,%d", __LINE__, err );
+						GPTP_LOG_ERROR( "Failed to read from pipe @%u,%d", __LINE__, err );
 						goto do_error;
 					case ERROR_BROKEN_PIPE:
 						pipe_state = PIPE_CLOSED;
@@ -137,30 +137,30 @@ DWORD WINAPI IPCListener::IPCListenerLoop( IPCSharedData *arg ) {
 						pipe_state = PIPE_CLOSED;
 						continue;
 					}
-					XPTPD_ERROR( "Failed to read from pipe @%u,%d", __LINE__, err );
+					GPTP_LOG_ERROR( "Failed to read from pipe @%u,%d", __LINE__, err );
 					goto do_error;
 				}
 				switch( ((WindowsNPipeMessage *)tmp)->getType() ) {
 				case CTRL_MSG:
 					((WinNPipeCtrlMessage *)tmp)->init();
 					if(( readlen = ((WinNPipeCtrlMessage *)tmp)->read( pipe, readlen )) == -1 ) {
-						XPTPD_ERROR( "Failed to read from pipe @%u", __LINE__ );
+						GPTP_LOG_ERROR( "Failed to read from pipe @%u", __LINE__ );
 						goto do_error;
 					}
 					//readlen may not be set properly ??
 					// Attempt to add or remove from the list
 					switch( ((WinNPipeCtrlMessage *)tmp)->getCtrlWhich() ) {
 					default:
-						XPTPD_ERROR( "Recvd CTRL cmd specifying illegal operation @%u", __LINE__ );
+						GPTP_LOG_ERROR( "Recvd CTRL cmd specifying illegal operation @%u", __LINE__ );
 						goto do_error;
 					case ADD_PEER:
 						if( !list->IsReady() || !list->add( ((WinNPipeCtrlMessage *)tmp)->getPeerAddr() ) ) {
-							XPTPD_ERROR( "Failed to add peer @%u", __LINE__ );
+							GPTP_LOG_ERROR( "Failed to add peer @%u", __LINE__ );
 						}
 						break;
 					case REMOVE_PEER:
 						if( !list->IsReady() || !list->remove( ((WinNPipeCtrlMessage *)tmp)->getPeerAddr() ) ) {
-							XPTPD_ERROR( "Failed to remove peer @%u", __LINE__ );
+							GPTP_LOG_ERROR( "Failed to remove peer @%u", __LINE__ );
 						}
 						break;
 					}
@@ -168,7 +168,7 @@ DWORD WINAPI IPCListener::IPCListenerLoop( IPCSharedData *arg ) {
 				case OFFSET_MSG:
 					((WinNPipeQueryMessage *)tmp)->init();
 					if(( readlen = ((WinNPipeQueryMessage *)tmp)->read( pipe, readlen )) == -1 ) {
-						XPTPD_ERROR( "Failed to read from pipe @%u", __LINE__ );
+						GPTP_LOG_ERROR( "Failed to read from pipe @%u", __LINE__ );
 						goto do_error;
 					}
 					// Create an offset message and send it
@@ -179,7 +179,7 @@ DWORD WINAPI IPCListener::IPCListenerLoop( IPCSharedData *arg ) {
 					((WinNPipeOffsetUpdateMessage *)tmp)->write(pipe);
 					break;
 				default:
-					XPTPD_ERROR( "Recvd Unknown Message" );
+					GPTP_LOG_ERROR( "Recvd Unknown Message" );
 					// Is this recoverable?
 					goto do_error;
 				}

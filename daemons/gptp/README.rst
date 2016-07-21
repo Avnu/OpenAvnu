@@ -58,8 +58,22 @@ such as
 The daemon creates a shared memory segment with the 'ptp' group. Some distributions may not have this group installed.  The IPC interface will not available unless the 'ptp' group is available.
 
 
-Windows Version
-+++++++++++++++
+Windows Specific
+++++++++++++++++
+
+Registry Changes
+
+* Find the driver key:
+  Go to device manager, device properties, details, and select driver key.
+  For instance, the registry could be: {4d36e972-e325-11ce-bfc1-08002be10318}\0000.
+
+* Search the registry for the subkey found on the driver key above:
+  Following the example above, search for 4d36e972-e325-11ce-bfc1-08002be10318 where there is a subkey 0000.
+  For instance, it could be located at HKLM/System/ControlSet001/Control/Class.
+
+* Add a DWORD value called TimeSync with a value of 1 to the subkey (0000 in the example above).
+
+* Reset the driver by disabling and re-enabling (or reboot).
 
 Build Dependencies
 

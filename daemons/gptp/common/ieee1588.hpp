@@ -47,7 +47,7 @@
 #include <platform.hpp>
 #include <ptptypes.hpp>
 
-#include <debugout.hpp>
+#include <gptp_log.hpp>
 
 #define MAX_PORTS 32	/*!< Maximum number of IEEE1588Port instances */
 
@@ -55,7 +55,7 @@
 
 
 /**
- * Return codes for gPTP
+ * @brief Return codes for gPTP
 */
 #define GPTP_EC_SUCCESS     0       /*!< No errors.*/
 #define GPTP_EC_FAILURE     -1      /*!< Generic error */
@@ -97,10 +97,11 @@ typedef enum {
 	PDELAY_DEFERRED_PROCESSING,			//!< Defers pdelay processing
 	PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES,	//!< Pdelay response message timeout
 	PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES,	//!< Timeout for peer misbehaving. This even will re-enable the PDelay Requests
+	SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED,  //!< Sync rate signal timeout for the Automotive Profile
 } Event;
 
 /**
- * Defines an event descriptor type
+ * @brief Defines an event descriptor type
  */
 typedef struct {
 	IEEE1588Port *port;	//!< IEEE 1588 Port
@@ -116,7 +117,7 @@ struct phy_delay
 };
 
 /**
- * Provides a generic InterfaceLabel class
+ * @brief Provides a generic InterfaceLabel class
  */
 class InterfaceLabel {
  public:
@@ -125,7 +126,7 @@ class InterfaceLabel {
 };
 
 /**
- * Provides a ClockIdentity abstraction
+ * @brief Provides a ClockIdentity abstraction
  * See IEEE 802.1AS-2011 Clause 8.5.2.2
  */
 class ClockIdentity {
@@ -133,7 +134,7 @@ class ClockIdentity {
 	uint8_t id[PTP_CLOCK_IDENTITY_LENGTH];
  public:
 	/**
-	 * Default constructor. Sets ID to zero
+	 * @brief Default constructor. Sets ID to zero
 	 */
 	ClockIdentity() {
 		memset( id, 0, PTP_CLOCK_IDENTITY_LENGTH );
@@ -226,8 +227,8 @@ class ClockIdentity {
 	 * @return void
 	 */
 	void print(const char *str) {
-		XPTPD_INFO
-			( "Clock Identity(%s): %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
+		GPTP_LOG_VERBOSE
+			( "Clock Identity(%s): %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx",
 			  str, id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7] );
 	}
 };
@@ -237,7 +238,7 @@ class ClockIdentity {
 #define MAX_TIMESTAMP_STRLEN 28				/*!< Maximum size of timestamp strlen*/
 
 /**
- * Provides a Timestamp interface
+ * @brief Provides a Timestamp interface
  */
 class Timestamp {
 private:
@@ -458,7 +459,7 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
 #define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096	/*!< Maximum size of HWTimestamper extended message */
 
 /**
- * Provides a generic interface for hardware timestamping
+ * @brief Provides a generic interface for hardware timestamping
  */
 class HWTimestamper {
 
@@ -625,13 +626,30 @@ public:
 		return 0;
 	 }
 
-	/**
-	 * Default constructor. Sets version to zero.
+	 /**
+	 * @brief Sets the the PHY delay for TX and RX
+	 * @param [input] struct phy_delay  pointer
+	 * @return 0
+	 **/
+
+	 int set_phy_delay(struct phy_delay *set_delay)
+	 {
+		 delay.mb_tx_phy_delay = set_delay->mb_tx_phy_delay;
+		 delay.mb_rx_phy_delay = set_delay->mb_rx_phy_delay;
+		 delay.gb_tx_phy_delay = set_delay->gb_tx_phy_delay;
+		 delay.gb_rx_phy_delay = set_delay->gb_rx_phy_delay;
+
+		 return 0;
+	 }
+
+	 /**
+	 * @brief Default constructor. Sets version to zero.
 	 */
 	HWTimestamper() { version = 0; }
 
-	/*Deletes HWtimestamper object
-	*/
+	 /**
+	 * @brief Deletes HWtimestamper object
+	 */
 	virtual ~HWTimestamper() { }
 };
 

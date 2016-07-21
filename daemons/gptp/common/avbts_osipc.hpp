@@ -41,7 +41,7 @@
 /**@file*/
 
 /**
- * Generic interface for Inter Process Communication arguments
+ * @brief Generic interface for Inter Process Communication arguments
  */
 class OS_IPC_ARG {
 public:
@@ -51,7 +51,7 @@ public:
 inline OS_IPC_ARG::~OS_IPC_ARG () { }
 
 /**
- * Generic interface for Inter Process Communication
+ * @brief Generic interface for Inter Process Communication
  */
 class OS_IPC {
 public:
