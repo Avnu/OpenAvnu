@@ -407,6 +407,9 @@ PTPMessageCommon *buildPTPMessage
 		}
 		break;
 	case ANNOUNCE_MESSAGE:
+
+		XPTPD_INFO("*** Received Announce message");
+
 		{
 			PTPMessageAnnounce *annc = new PTPMessageAnnounce();
 			annc->messageType = messageType;
@@ -933,7 +936,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	FrequencyRatio local_clock_adjustment;
 	FrequencyRatio local_system_freq_offset;
 	FrequencyRatio master_local_freq_offset;
-	int correction;
+	int64_t correction;
 	int32_t scaledLastGmFreqChange = 0;
 	scaledNs scaledLastGmPhaseChange;
 
@@ -993,9 +996,8 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	master_local_freq_offset += 1.0;
 	master_local_freq_offset /= port->getPeerRateOffset();
 
-	correctionField = (uint64_t)
-		((correctionField >> 16)/master_local_freq_offset);
-	correction = (int) (delay + correctionField);
+	correctionField = (correctionField >> 16);
+	correction = (int64_t)((delay * master_local_freq_offset) + correctionField );
 
 	if( correction > 0 )
 	  TIMESTAMP_ADD_NS( preciseOriginTimestamp, correction );
@@ -1041,10 +1043,10 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	port->getClock()->getFUPStatus()->setScaledLastGmPhaseChange( scaledLastGmPhaseChange );
 
 	if( port->getPortState() == PTP_SLAVE )
-   {
-      /* The sync_count counts the number of sync messages received
-         that influence the time on the device. Since adjustments are only
-         made in the PTP_SLAVE state, increment it here */
+	{
+		/* The sync_count counts the number of sync messages received
+		   that influence the time on the device. Since adjustments are only
+		   made in the PTP_SLAVE state, increment it here */
 		port->incSyncCount();
 
 		/* Do not call calcLocalSystemClockRateDifference it updates state
