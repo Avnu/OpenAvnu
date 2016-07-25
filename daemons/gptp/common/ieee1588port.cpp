@@ -1282,12 +1282,6 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 
 	port_state = PTP_SLAVE;
 
-	/* TODO : Should this be active for non-automotive profile uses
-	startSyncReceiptTimer((unsigned long long)
-		 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
-		  ((double) pow((double)2, getSyncInterval()) *
-		   1000000000.0)));*/
-
 	if (!automotive_profile) {
 		clock->addEventTimerLocked
 		  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
