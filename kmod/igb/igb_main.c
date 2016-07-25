@@ -10397,7 +10397,6 @@ static int igb_mmap(struct file *file, struct vm_area_struct *vma)
 	} else {
 		physaddr = pgoff;
 	}
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	if (remap_pfn_range(vma, vma->vm_start,  \
 				physaddr,
