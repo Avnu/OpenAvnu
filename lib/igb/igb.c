@@ -326,7 +326,10 @@ int igb_detach(device_t *dev)
 	sem_post(adapter->memlock);
 
 	igb_free_pci_resources(adapter);
-	igb_free_transmit_structures(adapter);
+
+	if (adapter->tx_rings)
+		igb_free_transmit_structures(adapter);
+
 	if (adapter->rx_rings)
 		igb_free_receive_structures(adapter);
 
@@ -487,8 +490,10 @@ int igb_init(device_t *dev)
 	igb_reset(adapter);
 
 	/* Prepare transmit descriptors and buffers */
-	igb_setup_transmit_structures(adapter);
-	igb_initialize_transmit_units(adapter);
+	if (adapter->tx_rings) {
+		igb_setup_transmit_structures(adapter);
+		igb_initialize_transmit_units(adapter);
+	}
 
 	if (adapter->rx_rings) {
 		igb_setup_receive_structures(adapter);
