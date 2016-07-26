@@ -328,10 +328,6 @@ int pci_connect(device_t *igb_dev)
 			printf("rx attach failed! (%s)\n", strerror(err));
 			continue;
 		}
-		if (igb_attach_tx(igb_dev)) {
-			printf("tx attach failed! (%s)\n", strerror(err));
-			continue;
-		}
 		goto out;
 	}
 	pci_cleanup(pacc);
