@@ -160,6 +160,23 @@ private:
     FollowUpTLV *fup_status;
 
     OSLock *timerq_lock;
+
+	/**
+	 * @brief  Add a new event to the timer queue
+	 * @param  target IEEE1588Port target
+	 * @param  e Event to be added
+	 * @param  time_ns Time in nanoseconds
+	 */
+	void addEventTimer
+		( IEEE1588Port * target, Event e, unsigned long long time_ns );
+
+	/**
+	 * @brief  Deletes an event from the timer queue
+	 * @param  target Target port to remove the event from
+	 * @param  e Event to be removed
+	 * @return void
+	 */
+	void deleteEventTimer(IEEE1588Port * target, Event e);
 public:
   /**
    * @brief Instantiates a IEEE 1588 Clock
@@ -474,23 +491,6 @@ public:
    * @return Instance of a Timestamp object
    */
   static Timestamp getSystemTime(void);
-
-  /**
-   * @brief  Add a new event to the timer queue
-   * @param  target IEEE1588Port target
-   * @param  e Event to be added
-   * @param  time_ns Time in nanoseconds
-   */
-  void addEventTimer
-	  ( IEEE1588Port * target, Event e, unsigned long long time_ns );
-
-  /**
-   * @brief  Deletes an event from the timer queue
-   * @param  target Target port to remove the event from
-   * @param  e Event to be removed
-   * @return void
-   */
-  void deleteEventTimer(IEEE1588Port * target, Event e);
 
   /**
    * @brief  Adds an event to the timer queue using a lock

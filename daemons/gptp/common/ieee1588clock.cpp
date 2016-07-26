@@ -112,7 +112,7 @@ IEEE1588Clock::IEEE1588Clock
 
  	memset( &LastEBestIdentity, 0xFF, sizeof( LastEBestIdentity ));
 
-	timerq_lock = lock_factory->createLock( oslock_nonrecursive );
+	timerq_lock = lock_factory->createLock( oslock_recursive );
 
 	// This should be done LAST!! to pass fully initialized clock object
 	timerq = timerq_factory->createOSTimerQueue( this );
@@ -345,7 +345,8 @@ void IEEE1588Clock::setMasterOffset
 	_local_system_freq_offset = local_system_freq_offset;
 
 	if (port->getTestMode()) {
-		GPTP_LOG_STATUS("Clock offset:%lld  Clock rate ratio:%Lf", master_local_offset, master_local_freq_offset);
+		GPTP_LOG_STATUS("Clock offset:%lld   Clock rate ratio:%Lf   Sync Count:%u   PDelay Count:%u", 
+						master_local_offset, master_local_freq_offset, sync_count, pdelay_count);
 	}
 
 	if( ipc != NULL ) ipc->update

@@ -172,22 +172,24 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	this->condition_factory = portInit->condition_factory;
 	this->lock_factory = portInit->lock_factory;
 
-	pdelay_count = 0;
-	sync_count = 0;
+	setPdelayCount(0);
+	setSyncCount(0);
 	memset(link_delay, 0, sizeof(link_delay));
 
 	_peer_offset_init = false;
 
-	if (testMode) {
+	if (automotive_profile) {
 		if (isGM) {
 			avbSyncState = 1;
 		}
 		else {
 			avbSyncState = 2;
 		}
-		linkUpCount = 1;  // TODO : really should check the current linkup status http://stackoverflow.com/questions/15723061/how-to-check-if-interface-is-up
-		linkDownCount = 0;
-		stationState = STATION_STATE_RESERVED;
+		if (testMode) {
+			linkUpCount = 1;  // TODO : really should check the current linkup status http://stackoverflow.com/questions/15723061/how-to-check-if-interface-is-up
+			linkDownCount = 0;
+		}
+		setStationState(STATION_STATE_RESERVED);
 	}
 }
 
@@ -221,6 +223,7 @@ bool IEEE1588Port::init_port(int delay[4])
 	pdelay_rx_lock = lock_factory->createLock(oslock_recursive);
 	port_tx_lock = lock_factory->createLock(oslock_recursive);
 
+	syncReceiptTimerLock = lock_factory->createLock(oslock_recursive);
 	syncIntervalTimerLock = lock_factory->createLock(oslock_recursive);
 	announceIntervalTimerLock = lock_factory->createLock(oslock_recursive);
 	pDelayIntervalTimerLock = lock_factory->createLock(oslock_recursive);
@@ -254,7 +257,7 @@ void IEEE1588Port::startPDelay() {
 void IEEE1588Port::stopPDelay() {
 	haltPdelay(true);
 	pdelay_started = false;
-	clock->deleteEventTimer( this, PDELAY_INTERVAL_TIMEOUT_EXPIRES);
+	clock->deleteEventTimerLocked( this, PDELAY_INTERVAL_TIMEOUT_EXPIRES);
 }
 
 void IEEE1588Port::startSyncRateIntervalTimer() {
@@ -264,11 +267,11 @@ void IEEE1588Port::startSyncRateIntervalTimer() {
 			// GM will wait up to 8  seconds for signaling rate
 			// TODO: This isn't according to spec but set because it is believed that some slave devices aren't signalling
 			//  to reduce the rate
-			clock->addEventTimer( this, SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED, 8000000000 );
+			clock->addEventTimerLocked( this, SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED, 8000000000 );
 		}
 		else {
 			// Slave will time out after 4 seconds
-			clock->addEventTimer( this, SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED, 4000000000 );
+			clock->addEventTimerLocked( this, SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED, 4000000000 );
 		}
 	}
 }
@@ -500,13 +503,11 @@ void IEEE1588Port::sendGeneralPort(uint16_t etherType, uint8_t * buf, int size,
 void IEEE1588Port::processEvent(Event e)
 {
 	bool changed_external_master;
-	OSTimer *timer = timer_factory->createTimer();
 
 	switch (e) {
 	case POWERUP:
 	case INITIALIZE:
 		GPTP_LOG_DEBUG("Received POWERUP/INITIALIZE event");
-		clock->getTimerQLock();
 
 		{
 			unsigned long long interval3;
@@ -563,16 +564,14 @@ void IEEE1588Port::processEvent(Event e)
 			port_ready_condition->wait();
 
 			if (e3 != NULL_EVENT)
-				clock->addEventTimer(this, e3, interval3);
+				clock->addEventTimerLocked(this, e3, interval3);
 			if (e4 != NULL_EVENT)
-				clock->addEventTimer(this, e4, interval4);
+				clock->addEventTimerLocked(this, e4, interval4);
 		}
 
-		clock->putTimerQLock();
-
 		if (automotive_profile) {
+			setStationState(STATION_STATE_ETHERNET_READY);
 			if (testMode) {
-				stationState = STATION_STATE_ETHERNET_READY;
 				APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
 				if (testStatusMsg) {
 					testStatusMsg->sendPort(this);
@@ -587,6 +586,11 @@ void IEEE1588Port::processEvent(Event e)
 					sigMsg->sendPort(this, NULL);
 					delete sigMsg;
 				}
+
+				startSyncReceiptTimer((unsigned long long)
+					 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+					  ((double) pow((double)2, getSyncInterval()) *
+					   1000000000.0)));
 			}
 		}
 
@@ -701,12 +705,18 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case LINKUP:
-		GPTP_LOG_DEBUG("LINKUP");
+		if (automotive_profile) {
+			GPTP_LOG_EXCEPTION("LINKUP");
+		}
+		else {
+			GPTP_LOG_STATUS("LINKUP");
+		}
+
 		if (automotive_profile) {
 			asCapable = true;
 
+			setStationState(STATION_STATE_ETHERNET_READY);
 			if (testMode) {
-				stationState = STATION_STATE_ETHERNET_READY;
 				APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
 				if (testStatusMsg) {
 					testStatusMsg->sendPort(this);
@@ -721,32 +731,45 @@ void IEEE1588Port::processEvent(Event e)
 			if (!isGM) {
 				// Send an initial signaling message
 				PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
-					if (sigMsg) {
-						sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
-						sigMsg->sendPort(this, NULL);
-						delete sigMsg;
-					}
+				if (sigMsg) {
+					sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
+					sigMsg->sendPort(this, NULL);
+					delete sigMsg;
 				}
 
-				// Start AVB SYNC at 2. It will decrement after each sync. When it reaches 0 the Test Status message
-				// can be sent
-				if (testMode) {
-					linkUpCount++;
-					if (isGM) {
-						avbSyncState = 1;
-					}
-					else {
-						avbSyncState = 2;
-					}
-				}
+				startSyncReceiptTimer((unsigned long long)
+					 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+					  ((double) pow((double)2, getSyncInterval()) *
+					   1000000000.0)));
 			}
+
+			// Reset Sync count and pdelay count
+			setPdelayCount(0);
+			setSyncCount(0);
+
+			// Start AVB SYNC at 2. It will decrement after each sync. When it reaches 0 the Test Status message
+			// can be sent
+			if (isGM) {
+				avbSyncState = 1;
+			}
+			else {
+				avbSyncState = 2;
+			}
+
+			if (testMode) {
+				linkUpCount++;
+			}
+		}
 		this->timestamper_init();
 		break;
 
 	case LINKDOWN:
-		// TODO : The determination of link down may not be reliable. It has been observed on one system routine LINKDOWN
-		//  events without any matching LINKUP events yet network traffic continues.
-		GPTP_LOG_EXCEPTION("LINK DOWN (maybe)");
+		if (automotive_profile) {
+			GPTP_LOG_EXCEPTION("LINK DOWN");
+		}
+		else {
+			GPTP_LOG_STATUS("LINK DOWN");
+		}
 		if (testMode) {
 			linkDownCount++;
 		}
@@ -766,19 +789,17 @@ void IEEE1588Port::processEvent(Event e)
 				if( clock->getPriority1() == 255 ) {
 					// Restart timer
 					if( e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES ) {
-						clock->addEventTimer
+						clock->addEventTimerLocked
 						  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
 						   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
 						    (unsigned long long)
 						    (pow((double)2,getAnnounceInterval())*
 						     1000000000.0)));
 					} else {
-						clock->addEventTimer
-						  (this, SYNC_RECEIPT_TIMEOUT_EXPIRES,
-						   (SYNC_RECEIPT_TIMEOUT_MULTIPLIER*
-						    (unsigned long long)
-						    (pow((double)2,getSyncInterval())*
-						     1000000000.0)));
+						startSyncReceiptTimer((unsigned long long)
+							 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+							  ((double) pow((double)2, getSyncInterval()) *
+							   1000000000.0)));
 					}
 				}
 
@@ -823,7 +844,7 @@ void IEEE1588Port::processEvent(Event e)
 
 					// Add timers for Announce and Sync, this is as close to immediately as we get
 					if( clock->getPriority1() != 255) {
-						clock->addEventTimer
+						clock->addEventTimerLocked
 						  ( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 16000000 );
 					}
 					startAnnounce();
@@ -832,7 +853,14 @@ void IEEE1588Port::processEvent(Event e)
 			}
 			else {
 				// Automotive Profile
-				GPTP_LOG_EXCEPTION("SYNC receipt timeout");
+				if (e == SYNC_RECEIPT_TIMEOUT_EXPIRES) {
+					GPTP_LOG_EXCEPTION("SYNC receipt timeout");
+
+					startSyncReceiptTimer((unsigned long long)
+						 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+						  ((double) pow((double)2, getSyncInterval()) *
+						   1000000000.0)));
+				}
 			}
 
 		}
@@ -869,6 +897,8 @@ void IEEE1588Port::processEvent(Event e)
 			pdelay_req->sendPort(this, NULL);
 			GPTP_LOG_DEBUG("Sent PDelay Request");
 
+			OSTimer *timer = timer_factory->createTimer();
+
 			ts_good = getTxTimestamp
 				(pdelay_req, req_timestamp, req_timestamp_counter_value, false);
 			while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
@@ -884,6 +914,7 @@ void IEEE1588Port::processEvent(Event e)
 					 req_timestamp_counter_value, iter == 0);
 				req *= 2;
 			}
+			delete timer;
 			putTxLock();
 
 			if (ts_good == GPTP_EC_SUCCESS) {
@@ -924,7 +955,7 @@ void IEEE1588Port::processEvent(Event e)
 					wait_time*1000;
 				timeout = timeout > EVENT_TIMER_GRANULARITY ?
 					timeout : EVENT_TIMER_GRANULARITY;
-				clock->addEventTimer
+				clock->addEventTimerLocked
 					(this, PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES, timeout );
 
 				interval =
@@ -960,16 +991,18 @@ void IEEE1588Port::processEvent(Event e)
 				sync->sendPort(this, NULL);
 				GPTP_LOG_DEBUG("Sent SYNC message");
 
-				if (automotive_profile && testMode && port_state == PTP_MASTER) {
+				if (automotive_profile && port_state == PTP_MASTER) {
 					if (avbSyncState > 0) {
 						avbSyncState--;
 						if (avbSyncState == 0) {
-							// Send an initial signalling message
-							stationState = STATION_STATE_AVB_SYNC;
-							APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
-							if (testStatusMsg) {
-								testStatusMsg->sendPort(this);
-								delete testStatusMsg;
+							// Send Avnu Automotive Profile status message
+							setStationState(STATION_STATE_AVB_SYNC);
+							if (testMode) {
+								APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
+								if (testStatusMsg) {
+									testStatusMsg->sendPort(this);
+									delete testStatusMsg;
+								}
 							}
 						}
 					}
@@ -980,6 +1013,9 @@ void IEEE1588Port::processEvent(Event e)
 				unsigned sync_timestamp_counter_value;
 				int iter = TX_TIMEOUT_ITER;
 				long req = TX_TIMEOUT_BASE;
+
+				OSTimer *timer = timer_factory->createTimer();
+
 				ts_good =
 					getTxTimestamp(sync, sync_timestamp,
 								   sync_timestamp_counter_value,
@@ -998,6 +1034,7 @@ void IEEE1588Port::processEvent(Event e)
 						 sync_timestamp_counter_value, iter == 0);
 					req *= 2;
 				}
+				delete timer;
 				putTxLock();
 
 				if (ts_good != GPTP_EC_SUCCESS) {
@@ -1063,7 +1100,7 @@ void IEEE1588Port::processEvent(Event e)
 				/* If accelerated_sync is non-zero then start 16 ms sync
 				   timer, subtract 1, for last one start PDelay also */
 				if( _accelerated_sync_count > 0 ) {
-					clock->addEventTimer
+					clock->addEventTimerLocked
 					  ( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 8000000 );
 					    --_accelerated_sync_count;
 				} else {
@@ -1169,6 +1206,11 @@ void IEEE1588Port::processEvent(Event e)
 						sigMsg->sendPort(this, NULL);
 						delete sigMsg;
 					}
+
+					startSyncReceiptTimer((unsigned long long)
+						 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+						  ((double) pow((double)2, getSyncInterval()) *
+						   1000000000.0)));
 				}
 			}
 		}
@@ -1181,7 +1223,6 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 	}
 
-	delete timer;
 	return;
 }
 
@@ -1216,12 +1257,16 @@ void IEEE1588Port::getDeviceTime
 
 void IEEE1588Port::becomeMaster( bool annc ) {
 	port_state = PTP_MASTER;
-	// Start announce receipt timeout timer
-	// Start sync receipt timeout timer
-	clock->deleteEventTimer( this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES );
-	clock->deleteEventTimer( this, SYNC_RECEIPT_TIMEOUT_EXPIRES );
+	// Stop announce receipt timeout timer
+	clock->deleteEventTimerLocked( this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES );
+
+	// Stop sync receipt timeout timer
+	stopSyncReceiptTimer();
+
 	if( annc ) {
-		startAnnounce();
+		if (!automotive_profile) {
+			startAnnounce();
+		}
 	}
 	startSyncIntervalTimer(16000000);
 	GPTP_LOG_STATUS("Switching to Master" );
@@ -1232,20 +1277,19 @@ void IEEE1588Port::becomeMaster( bool annc ) {
 }
 
 void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
-	clock->deleteEventTimer( this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES );
-	clock->deleteEventTimer( this, SYNC_INTERVAL_TIMEOUT_EXPIRES );
+	clock->deleteEventTimerLocked( this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES );
+	clock->deleteEventTimerLocked( this, SYNC_INTERVAL_TIMEOUT_EXPIRES );
 
 	port_state = PTP_SLAVE;
 
-	/*clock->addEventTimer
-		( this, SYNC_RECEIPT_TIMEOUT_EXPIRES,
-		(SYNC_RECEIPT_TIMEOUT_MULTIPLIER*
-		 (unsigned long long)(pow((double)2,getSyncInterval())*1000000000.0)));*/
-	clock->addEventTimer
-	  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
-	   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
-	    (unsigned long long)
-	    (pow((double)2,getAnnounceInterval())*1000000000.0)));
+	if (!automotive_profile) {
+		clock->addEventTimerLocked
+		  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
+		   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
+			(unsigned long long)
+			(pow((double)2,getAnnounceInterval())*1000000000.0)));
+	}
+
 	GPTP_LOG_STATUS("Switching to Slave" );
 	if( restart_syntonization ) clock->newSyntonizationSetPoint();
 
@@ -1350,24 +1394,41 @@ int IEEE1588Port::getRxTimestamp(PortIdentity * sourcePortIdentity,
 	return 0;
 }
 
-void IEEE1588Port::startSyncIntervalTimer(long long unsigned int waitTime) {
+void IEEE1588Port::startSyncReceiptTimer(long long unsigned int waitTime) {
+	syncReceiptTimerLock->lock();
+	clock->deleteEventTimerLocked(this, SYNC_RECEIPT_TIMEOUT_EXPIRES);
+	clock->addEventTimerLocked(this, SYNC_RECEIPT_TIMEOUT_EXPIRES, waitTime);
+	syncReceiptTimerLock->unlock();
+}
+
+void IEEE1588Port::stopSyncReceiptTimer(void)
+{
+	syncReceiptTimerLock->lock();
+	clock->deleteEventTimerLocked(this, SYNC_RECEIPT_TIMEOUT_EXPIRES);
+	syncReceiptTimerLock->unlock();
+}
+
+void IEEE1588Port::startSyncIntervalTimer(long long unsigned int waitTime)
+{
 	syncIntervalTimerLock->lock();
-	clock->deleteEventTimer(this, SYNC_INTERVAL_TIMEOUT_EXPIRES);
-	clock->addEventTimer(this, SYNC_INTERVAL_TIMEOUT_EXPIRES, waitTime);
+	clock->deleteEventTimerLocked(this, SYNC_INTERVAL_TIMEOUT_EXPIRES);
+	clock->addEventTimerLocked(this, SYNC_INTERVAL_TIMEOUT_EXPIRES, waitTime);
 	syncIntervalTimerLock->unlock();
 }
 
-void IEEE1588Port::startAnnounceIntervalTimer(long long unsigned int waitTime) {
+void IEEE1588Port::startAnnounceIntervalTimer(long long unsigned int waitTime)
+{
 	announceIntervalTimerLock->lock();
-	clock->deleteEventTimer(this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES);
-	clock->addEventTimer(this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES, waitTime);
+	clock->deleteEventTimerLocked(this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES);
+	clock->addEventTimerLocked(this, ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES, waitTime);
 	announceIntervalTimerLock->unlock();
 }
 
-void IEEE1588Port::startPDelayIntervalTimer(long long unsigned int waitTime) {
+void IEEE1588Port::startPDelayIntervalTimer(long long unsigned int waitTime)
+{
 	pDelayIntervalTimerLock->lock();
-	clock->deleteEventTimer(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES);
-	clock->addEventTimer(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, waitTime);
+	clock->deleteEventTimerLocked(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES);
+	clock->addEventTimerLocked(this, PDELAY_INTERVAL_TIMEOUT_EXPIRES, waitTime);
 	pDelayIntervalTimerLock->unlock();
 }
 
