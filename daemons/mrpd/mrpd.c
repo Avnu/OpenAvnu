@@ -280,6 +280,9 @@ int process_ctl_msg(char *buf, int buflen, struct sockaddr_in *client)
 	 * S+? - JOIN_MT a Stream
 	 * S++ - JOIN_IN a Stream
 	 * S-- - LV a Stream
+	 * I+S   Add a stream id to the interesting talker stream id list
+	 * I-S   Remove a stream id from the interesting talker stream id list
+	 * I-A   Remove all stream ids from the interesting talker and listener stream id lists
 	 *
 	 * Outbound messages
 	 * ERC - error, unrecognized command
