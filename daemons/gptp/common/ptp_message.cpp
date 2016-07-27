@@ -940,8 +940,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	GPTP_LOG_DEBUG("Processing a follow-up message");
 
 	// Expire any SYNC_RECEIPT timers that exist
-	port->getClock()->deleteEventTimerLocked
-		(port, SYNC_RECEIPT_TIMEOUT_EXPIRES);
+	port->stopSyncReceiptTimer();
 
 	if (port->getPortState() == PTP_DISABLED ) {
 		// Do nothing Sync messages should be ignored when in this state
@@ -1065,8 +1064,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 			  port->getPortState(), port->getAsCapable() );
 		port->syncDone();
 		// Restart the SYNC_RECEIPT timer
-		port->getClock()->addEventTimerLocked
-			(port, SYNC_RECEIPT_TIMEOUT_EXPIRES, (unsigned long long)
+		port->startSyncReceiptTimer((unsigned long long)
 			 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
 			  ((double) pow((double)2, port->getSyncInterval()) *
 			   1000000000.0)));
