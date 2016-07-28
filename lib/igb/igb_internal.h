@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation
+  Copyright (c) 2001-2016, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -48,9 +48,14 @@
 #define ETHER_ALIGN                     2
 #define IGB_TX_BUFFER_SIZE		((uint32_t) 1514)
 
-#define IGB_TX_PTHRESH                  8
-#define IGB_TX_HTHRESH                  1
-#define IGB_TX_WTHRESH                  16
+
+#define IGB_RX_PTHRESH		8
+#define IGB_RX_HTHRESH		8
+#define IGB_RX_WTHRESH          4
+
+#define IGB_TX_PTHRESH		8
+#define IGB_TX_HTHRESH		1
+#define IGB_TX_WTHRESH		16
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -91,72 +96,104 @@
 #define TSYNC_PORT		319 /* UDP port for the protocol */
 
 struct igb_tx_buffer {
-	int                next_eop;  /* Index of the desc to watch */
-	struct igb_packet *packet;	  /* app-relevant handle */
+	int next_eop; /* Index of the desc to watch */
+	struct igb_packet *packet; /* app-relevant handle */
 };
 
 /*
  * Transmit ring: one per queue
  */
 struct tx_ring {
-	struct adapter		*adapter;
-	u32			me;
-	struct resource		txdma;
-	struct e1000_tx_desc	*tx_base;
-	struct igb_tx_buffer	*tx_buffers;
-	u32			next_avail_desc;
-	u32			next_to_clean;
-	volatile u16		tx_avail;
+	struct adapter *adapter;
+	u32 me;
+	struct resource txdma;
+	struct e1000_tx_desc *tx_base;
+	struct igb_tx_buffer *tx_buffers;
+	u32 next_avail_desc;
+	u32 next_to_clean;
 
-	u32			bytes;
-	u32			packets;
+	u16 tx_avail;
 
-	int			tdt;
-	int			tdh;
-	u64			no_desc_avail;
-	u64			tx_packets;
-	int			queue_status;
+	u32 bytes;
+	u32 packets;
+
+	int tdt;
+	int tdh;
+	u64 no_desc_avail;
+	u64 tx_packets;
+	int queue_status;
+};
+
+struct igb_rx_buffer {
+	int next_eop; /* Index of the desc to watch */
+	struct igb_packet *packet; /* app-relevant handle */
+};
+
+/*
+ * Receive ring: one per queue
+ */
+struct rx_ring {
+	struct adapter *adapter;
+	u32 me;
+	struct resource rxdma;
+	union e1000_adv_rx_desc *rx_base;
+	bool hdr_split;
+	u32 next_to_refresh;
+	u32 next_to_check;
+	struct igb_rx_buffer *rx_buffers;
+	u32 bytes;
+	u32 packets;
+	int rdt;
+	int rdh;
+
+	/* Soft stats */
+	u64 rx_split_packets;
+	u64 rx_discarded;
+	u64 rx_packets;
+	u64 rx_bytes;
+
+	sem_t lock;
 };
 
 struct adapter {
-	struct e1000_hw	hw;
+	struct e1000_hw hw;
 
 	sem_t *memlock;
 
-	int 		ldev;	/* file descriptor to igb */
+	int ldev; /* file descriptor to igb */
 
-	struct resource	csr;
-	int		max_frame_size;
-	int		min_frame_size;
-	int		igb_insert_vlan_header;
-        u16		num_queues;
+	struct resource csr;
+	int max_frame_size;
+	int min_frame_size;
+	int igb_insert_vlan_header;
+	u16 num_queues;
 
 	/* Interface queues */
-	struct igb_queue	*queues;
+	struct igb_queue *queues;
 
 	/*
-	 * Transmit rings
+	 * rings
 	 */
-	struct tx_ring		*tx_rings;
-        u16			num_tx_desc;
-
+	struct tx_ring *tx_rings;
+	u16 num_tx_desc;
+	struct rx_ring *rx_rings;
+	u16 num_rx_desc;
 #ifdef IGB_IEEE1588
 	/* IEEE 1588 precision time support */
-	struct cyclecounter     cycles;
-	struct nettimer         clock;
-	struct nettime_compare  compare;
-	struct hwtstamp_ctrl    hwtstamp;
+	struct cyclecounter cycles;
+	struct nettimer clock;
+	struct nettime_compare compare;
+	struct hwtstamp_ctrl hwtstamp;
 #endif
-
 };
 
-/* ******************************************************************************
+/*
  * vendor_info_array
  *
  * This array contains the list of Subvendor/Subdevice IDs on which the driver
  * should load.
  *
- * ******************************************************************************/
+ */
 typedef struct _igb_vendor_info_t {
 	unsigned int vendor_id;
 	unsigned int device_id;
@@ -169,28 +206,32 @@ typedef struct _igb_vendor_info_t {
 #define IGB_BIND       _IOW('E', 200, int)
 #define IGB_UNBIND     _IOW('E', 201, int)
 #define IGB_MAPRING    _IOW('E', 202, int)
+#define IGB_MAP_TX_RING    IGB_MAPRING
 #define IGB_UNMAPRING  _IOW('E', 203, int)
+#define IGB_UNMAP_TX_RING  IGB_UNMAPRING
 #define IGB_MAPBUF     _IOW('E', 204, int)
 #define IGB_UNMAPBUF   _IOW('E', 205, int)
 #define IGB_LINKSPEED  _IOW('E', 206, int)
+#define IGB_MAP_RX_RING    _IOW('E', 207, int)
+#define IGB_UNMAP_RX_RING  _IOW('E', 208, int)
 
 #define IGB_BIND_NAMESZ 24
 
 struct igb_bind_cmd {
-        char    iface[IGB_BIND_NAMESZ];
-        unsigned     mmap_size;
+	char iface[IGB_BIND_NAMESZ];
+	unsigned mmap_size;
 };
 
 struct igb_buf_cmd {
-        u_int64_t       physaddr; /* dma_addr_t is 64-bit */
-        unsigned int    queue;
-        unsigned int    mmap_size;
+	u_int64_t physaddr; /* dma_addr_t is 64-bit */
+	unsigned int queue;
+	unsigned int mmap_size;
 };
 
 struct igb_link_cmd {
-        u_int32_t 	up; /* dma_addr_t is 64-bit */
-        u_int32_t	speed;
-        u_int32_t	duplex;
+	u_int32_t up; /* dma_addr_t is 64-bit */
+	u_int32_t speed;
+	u_int32_t duplex;
 };
 
 
