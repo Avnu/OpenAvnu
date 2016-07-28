@@ -111,6 +111,10 @@
 #define PTP_PDELAY_FOLLOWUP_REQ_CLOCK_ID(x) x+10	/*!< Gets the pdelay followup request clock id offset*/
 #define PTP_PDELAY_FOLLOWUP_REQ_PORT_ID(x) x+18		/*!< Gets the pdelay followup request port id offset*/
 
+#define PTP_SIGNALLING_OFFSET 34                        /*!< PTP signalling offset */
+#define PTP_SIGNALLING_LENGTH 10                        /*!< PTP signalling length in bytes */
+#define PTP_SIGNALLING_TARGET_PORT_IDENTITY(x) x        /*!< PTP signalling Tareget Port Identity */
+
 #define PTP_LI_61_BYTE 1		/*!< PTP_LI_61(leap61) byte offset on flags field */
 #define PTP_LI_61_BIT 0			/*!< PTP_LI_61(leap61) bit offset on PTP_LI_61 byte*/
 #define PTP_LI_59_BYTE 1		/*!< PTP_LI_59(leap59) byte offset on flags field*/
@@ -124,7 +128,7 @@
 #define TX_TIMEOUT_ITER 6		/*!< Number of timeout iteractions for sending/receiving messages*/
 
 /**
- * Enumeration message type. IEEE 1588-2008 Clause 13.3.2.2
+ * @brief Enumeration message type. IEEE 1588-2008 Clause 13.3.2.2
  */
 enum MessageType {
 	SYNC_MESSAGE = 0,
@@ -140,7 +144,7 @@ enum MessageType {
 };
 
 /**
- * Enumeration legacy message type
+ * @brief Enumeration legacy message type
  */
 enum LegacyMessageType {
 	SYNC,
@@ -152,16 +156,17 @@ enum LegacyMessageType {
 };
 
 /**
- * Enumeration multicast type.
+ * @brief Enumeration multicast type.
  */
 enum MulticastType {
 	MCAST_NONE,
 	MCAST_PDELAY,
+	MCAST_TEST_STATUS,
 	MCAST_OTHER
 };
 
 /**
- * Provides the PTPMessage common interface used during building of
+ * @brief Provides the PTPMessage common interface used during building of
  * PTP messages.
  */
 class PTPMessageCommon {
@@ -186,7 +191,7 @@ protected:
 	bool _gc;	/*!< Garbage collection flag */
 
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	PTPMessageCommon(void) { };
  public:
@@ -196,7 +201,7 @@ protected:
 	 */
 	PTPMessageCommon(IEEE1588Port * port);
 	/**
-	 * Destroys PTPMessageCommon interface
+	 * @brief Destroys PTPMessageCommon interface
 	 */
 	virtual ~PTPMessageCommon(void);
 
@@ -332,7 +337,7 @@ protected:
 									  as PATH_TRACE, whose value is 0x8. */
 
 /**
- * Provides the PathTraceTLV interface
+ * @brief Provides the PathTraceTLV interface
  * The fields of the path TLV shall be as specified in Table 10-8 and in
  * 10.5.4.3.2 through 10.5.4.3.9 from IEEE 802.1AS. This TLV,
  * and its use, are defined in IEEE Std 1588-2008 (see 16.2 and Table 34 of IEEE Std 1588-2008).
@@ -344,7 +349,7 @@ class PathTraceTLV {
 	IdentityList identityList;
  public:
 	/**
-	 * Creates the PathTraceTLV interface.
+	 * @brief Creates the PathTraceTLV interface.
 	 * Sets tlvType to PATH_TRACE_TLV_TYPE using network byte order
 	 */
 	PathTraceTLV() {
@@ -353,11 +358,20 @@ class PathTraceTLV {
 	/**
 	 * @brief  Parses ClockIdentity from message buffer
 	 * @param  buffer [in] Message buffer. It should be at least ::PTP_CLOCK_IDENTITY_LENGTH bytes long.
+	 * @param  size [in] Buffer size. Should be the length of the data pointed to by the buffer argument.
 	 * @return void
 	 */
-	void parseClockIdentity(uint8_t *buffer) {
-		int length = PLAT_ntohs(*((uint16_t *)buffer))/PTP_CLOCK_IDENTITY_LENGTH;
+	void parseClockIdentity(uint8_t *buffer, int size) {
+		int length = PLAT_ntohs(*(uint16_t*)buffer);
+
 		buffer += sizeof(uint16_t);
+		size -= sizeof(uint16_t);
+
+		if((unsigned)size < (unsigned)length) {
+			length = size;
+		}
+		length /= PTP_CLOCK_IDENTITY_LENGTH;
+
 		for(; length > 0; --length) {
 			ClockIdentity add;
 			add.set(buffer);
@@ -422,7 +436,7 @@ class PathTraceTLV {
 #pragma pack(pop)
 
 /**
- * Provides the PTPMessageAnnounce interface
+ * @brief Provides the PTPMessageAnnounce interface
  * The PTPMessageAnnounce class is used to create
  * announce messages on the 802.1AS format when building
  * the ptp messages.
@@ -444,12 +458,12 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	 PTPMessageAnnounce(void);
  public:
 	 /**
-	  * Creates the PTPMessageAnnounce interface
+	  * @brief Creates the PTPMessageAnnounce interface
 	  */
 	 PTPMessageAnnounce(IEEE1588Port * port);
 
 	 /**
-	  * Destroys the PTPMessageAnnounce interface
+	  * @brief Destroys the PTPMessageAnnounce interface
 	  */
 	~PTPMessageAnnounce();
 
@@ -533,7 +547,7 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 };
 
 /**
- * Provides a class for building the PTP Sync message
+ * @brief Provides a class for building the PTP Sync message
  */
 class PTPMessageSync : public PTPMessageCommon {
  private:
@@ -548,7 +562,7 @@ class PTPMessageSync : public PTPMessageCommon {
 	PTPMessageSync(IEEE1588Port * port);
 
 	/**
-	 * Destroys PTPMessageSync interface
+	 * @brief Destroys PTPMessageSync interface
 	 */
 	~PTPMessageSync();
 
@@ -583,7 +597,7 @@ class PTPMessageSync : public PTPMessageCommon {
 #pragma pack(push,1)
 
 /**
- * Provides a scaledNs interface
+ * @brief Provides a scaledNs interface
  * The scaledNs type represents signed values of time and time interval in units of 2e-16 ns.
  */
 class scaledNs {
@@ -592,7 +606,7 @@ class scaledNs {
 	uint64_t ls;
  public:
 	/**
-	 * Builds scaledNs interface
+	 * @brief Builds scaledNs interface
 	 */
 	scaledNs() {
 		ms = 0;
@@ -608,42 +622,42 @@ class scaledNs {
 		memcpy(byte_str, this, sizeof(*this));
 	}
 
-    /**
-     * @brief  Overloads the operator = for this class
-     * @param  other Value to be attributed to this object's instance.
-     * @return Reference to scaledNs object
-     */
-    scaledNs& operator=(const scaledNs& other)
-    {
-        this->ms = other.ms;
-        this->ls = other.ls;
+	/**
+	 * @brief  Overloads the operator = for this class
+	 * @param  other Value to be attributed to this object's instance.
+	 * @return Reference to scaledNs object
+	 */
+	scaledNs& operator=(const scaledNs& other)
+	{
+		this->ms = other.ms;
+		this->ls = other.ls;
 
-        return *this;
-    }
+		return *this;
+	}
 
-    /**
-     * @brief  Set the lowest 64bits from the scaledNs object
-     * @param  lsb Value to be set
-     * @return void
-     */
-    void setLSB(uint64_t lsb)
-    {
-        this->ls = lsb;
-    }
+	/**
+	 * @brief  Set the lowest 64bits from the scaledNs object
+	 * @param  lsb Value to be set
+	 * @return void
+	 */
+	void setLSB(uint64_t lsb)
+	{
+		this->ls = lsb;
+	}
 
-    /**
-     * @brief  Set the highest 32bits of the scaledNs object
-     * @param  msb 32-bit signed integer to be set
-     * @return void
-     */
-    void setMSB(int32_t msb)
-    {
-        this->ms = msb;
-    }
+	/**
+	 * @brief  Set the highest 32bits of the scaledNs object
+	 * @param  msb 32-bit signed integer to be set
+	 * @return void
+	 */
+	void setMSB(int32_t msb)
+	{
+		this->ms = msb;
+	}
 };
 
 /**
- * Provides a follow-up TLV interface back to the previous packing mode
+ * @brief Provides a follow-up TLV interface back to the previous packing mode
  */
 class FollowUpTLV {
  private:
@@ -658,7 +672,7 @@ class FollowUpTLV {
 	int32_t scaledLastGmFreqChange;
  public:
 	/**
-	 * Builds the FollowUpTLV interface
+	 * @brief Builds the FollowUpTLV interface
 	 */
 	FollowUpTLV() {
 		tlvType = PLAT_htons(0x3);
@@ -689,78 +703,87 @@ class FollowUpTLV {
 		return cumulativeScaledRateOffset;
 	}
 
-    /**
-     * @brief  Updates the scaledLastGmFreqChanged private member
-     * @param  val Value to be set
-     * @return void
-     */
-    void setScaledLastGmFreqChange(int32_t val)
-    {
-        scaledLastGmFreqChange = PLAT_htonl(val);
-    }
+	/**
+	 * @brief Gets the gmTimeBaseIndicator
+	 * @return 16 bit unsigned value of the gmTimeBaseIndicator
+	 *         information
+	 */
+	uint16_t getGmTimeBaseIndicator() {
+		return gmTimeBaseIndicator;
+	}
 
-    /**
-     * @brief  Gets the current scaledLastGmFreqChanged value
-     * @return scaledLastGmFreqChange
-     */
-    int32_t getScaledLastGmFreqChange(void)
-    {
-        return scaledLastGmFreqChange;
-    }
+	/**
+	 * @brief  Updates the scaledLastGmFreqChanged private member
+	 * @param  val Value to be set
+	 * @return void
+	 */
+	void setScaledLastGmFreqChange(int32_t val)
+	{
+		scaledLastGmFreqChange = PLAT_htonl(val);
+	}
 
-    /**
-     * @brief  Sets the gmTimeBaseIndicator private member
-     * @param  tbi Value to be set
-     * @return void
-     */
-    void setGMTimeBaseIndicator(uint16_t tbi)
-    {
-        gmTimeBaseIndicator = tbi;
-    }
+	/**
+	 * @brief  Gets the current scaledLastGmFreqChanged value
+	 * @return scaledLastGmFreqChange
+	 */
+	int32_t getScaledLastGmFreqChange(void)
+	{
+		return scaledLastGmFreqChange;
+	}
 
-    /**
-     * @brief  Incremets the Time Base Indicator member
-     * @return void
-     */
-    void incrementGMTimeBaseIndicator(void)
-    {
-        ++gmTimeBaseIndicator;
-    }
+	/**
+	 * @brief  Sets the gmTimeBaseIndicator private member
+	 * @param  tbi Value to be set
+	 * @return void
+	 */
+	void setGMTimeBaseIndicator(uint16_t tbi)
+	{
+		gmTimeBaseIndicator = tbi;
+	}
 
-    /**
-     * @brief  Gets the current gmTimeBaseIndicator value
-     * @return gmTimeBaseIndicator
-     */
-    uint16_t getGMTimeBaseIndicator(void)
-    {
-        return gmTimeBaseIndicator;
-    }
+	/**
+	 * @brief  Incremets the Time Base Indicator member
+	 * @return void
+	 */
+	void incrementGMTimeBaseIndicator(void)
+	{
+		++gmTimeBaseIndicator;
+	}
 
-    /**
-     * @brief  Sets the scaledLastGmPhaseChange private member
-     * @param  pc Value to be set
-     * @return void
-     */
-    void setScaledLastGmPhaseChange(scaledNs pc)
-    {
-        scaledLastGmPhaseChange = pc;
-    }
+	/**
+	 * @brief  Gets the current gmTimeBaseIndicator value
+	 * @return gmTimeBaseIndicator
+	 */
+	uint16_t getGMTimeBaseIndicator(void)
+	{
+		return gmTimeBaseIndicator;
+	}
 
-    /**
-     * @brief  Gets the scaledLastGmPhaseChange private member value
-     * @return scaledLastGmPhaseChange value
-     */
-    scaledNs getScaledLastGmPhaseChange(void)
-    {
-        return scaledLastGmPhaseChange;
-    }
+	/**
+	 * @brief  Sets the scaledLastGmPhaseChange private member
+	 * @param  pc Value to be set
+	 * @return void
+	 */
+	void setScaledLastGmPhaseChange(scaledNs pc)
+	{
+		scaledLastGmPhaseChange = pc;
+	}
+
+	/**
+	 * @brief  Gets the scaledLastGmPhaseChange private member value
+	 * @return scaledLastGmPhaseChange value
+	 */
+	scaledNs getScaledLastGmPhaseChange(void)
+	{
+		return scaledLastGmPhaseChange;
+	}
 };
 
 /* back to whatever the previous packing mode was */
 #pragma pack(pop)
 
 /**
- * Provides a class for a class for building a PTP follow up message
+ * @brief Provides a class for a class for building a PTP follow up message
  */
 class PTPMessageFollowUp:public PTPMessageCommon {
 private:
@@ -771,7 +794,7 @@ private:
 	PTPMessageFollowUp(void) { }
 public:
 	/**
-	 * Builds the PTPMessageFollowUP object
+	 * @brief Builds the PTPMessageFollowUP object
 	 */
 	PTPMessageFollowUp(IEEE1588Port * port);
 
@@ -811,19 +834,19 @@ public:
 	 * @param  fup Follow up message
 	 * @return void
 	 */
-    void setClockSourceTime(FollowUpTLV *fup)
-    {
-        tlv.setGMTimeBaseIndicator(fup->getGMTimeBaseIndicator());
-        tlv.setScaledLastGmFreqChange(fup->getScaledLastGmFreqChange());
-        tlv.setScaledLastGmPhaseChange(fup->getScaledLastGmPhaseChange());
-    }
+	void setClockSourceTime(FollowUpTLV *fup)
+	{
+		tlv.setGMTimeBaseIndicator(fup->getGMTimeBaseIndicator());
+		tlv.setScaledLastGmFreqChange(fup->getScaledLastGmFreqChange());
+		tlv.setScaledLastGmPhaseChange(fup->getScaledLastGmPhaseChange());
+	}
 
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 /**
- * Provides a class for building the PTP Path Delay Request message
+ * @brief Provides a class for building the PTP Path Delay Request message
  */
 class PTPMessagePathDelayReq : public PTPMessageCommon {
  private:
@@ -834,13 +857,13 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 	}
  public:
 	/**
-	 * Destroys the PTPMessagePathDelayReq object
+	 * @brief Destroys the PTPMessagePathDelayReq object
 	 */
 	~PTPMessagePathDelayReq() {
 	}
 
 	/**
-	 * Builds the PTPMessagePathDelayReq message
+	 * @brief Builds the PTPMessagePathDelayReq message
 	 */
 	PTPMessagePathDelayReq(IEEE1588Port * port);
 
@@ -872,7 +895,7 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 };
 
 /**
- * Provides a class for building the PTP Path Delay Response message.
+ * @brief Provides a class for building the PTP Path Delay Response message.
  */
 class PTPMessagePathDelayResp:public PTPMessageCommon {
 private:
@@ -883,11 +906,11 @@ private:
 	}
 public:
 	/**
-	 * Destroys the PTPMessagePathDelayResp object
+	 * @brief Destroys the PTPMessagePathDelayResp object
 	 */
 	~PTPMessagePathDelayResp();
 	/**
-	 * Builds the PTPMessagePathDelayResp object
+	 * @brief Builds the PTPMessagePathDelayResp object
 	 */
 	PTPMessagePathDelayResp(IEEE1588Port * port);
 
@@ -941,7 +964,7 @@ public:
 };
 
 /**
- * Provides a class for building the PTP Path Delay Response follow up message.
+ * @brief Provides a class for building the PTP Path Delay Response follow up message.
  */
 class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
  private:
@@ -952,12 +975,12 @@ class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
 
 public:
 	/**
-	 * Builds the PTPMessagePathDelayRespFollowUp object
+	 * @brief Builds the PTPMessagePathDelayRespFollowUp object
 	 */
 	PTPMessagePathDelayRespFollowUp(IEEE1588Port * port);
 
 	/**
-	 * Destroys the PTPMessagePathDelayRespFollowUp object
+	 * @brief Destroys the PTPMessagePathDelayRespFollowUp object
 	 */
 	~PTPMessagePathDelayRespFollowUp();
 
@@ -1008,6 +1031,162 @@ public:
 
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+};
+
+/*Exact fit. No padding*/
+#pragma pack(push,1)
+
+
+/**
+ * @brief Provides a Signalling Msg Interval Request TLV interface back to the previous
+ * packing mode
+ */
+class SignallingTLV {
+ private:
+	uint16_t tlvType;
+	uint16_t lengthField;
+	uint8_t organizationId[3];
+	uint8_t organizationSubType_ms;
+	uint16_t organizationSubType_ls;
+	uint8_t linkDelayInterval;
+	uint8_t timeSyncInterval;
+	uint8_t announceInterval;
+	uint8_t flags;
+	uint16_t reserved;
+ public:
+	/**
+	 * @brief Builds the Signalling Msg Interval Request TLV interface
+	 */
+	SignallingTLV() {
+		tlvType = PLAT_htons(0x3);
+		lengthField = PLAT_htons(28);
+		organizationId[0] = '\x00';
+		organizationId[1] = '\x80';
+		organizationId[2] = '\xC2';
+		organizationSubType_ms = 0;
+		organizationSubType_ls = PLAT_htons(1);
+		linkDelayInterval = 0;
+		timeSyncInterval = 0;
+		announceInterval = 0;
+		flags = 0;
+		reserved = PLAT_htons(0);
+	}
+
+	/**
+	 * @brief  Gets Msg Interval Request TLV information in a byte
+	 *         string format
+	 * @param  byte_str [out] Msg Interval Request TLV values
+	 */
+	void toByteString(uint8_t * byte_str) {
+		memcpy(byte_str, this, sizeof(*this));
+	}
+
+	/**
+	 * @brief  Gets the link delay interval.
+	 * @return 8 bit signed value of the link delay interval.
+	 */
+	int8_t getLinkDelayInterval() {
+		return linkDelayInterval;
+	}
+
+	/**
+	 * @brief  Sets the link delay interval.
+	 * @param 8 bit signed value of the link delay interval.
+	 * @return void
+	 */
+	void setLinkDelayInterval(int8_t linkDelayInterval) {
+		this->linkDelayInterval = linkDelayInterval;
+	}
+
+	/**
+	 * @brief  Gets the time sync interval.
+	 * @return 8 bit signed value of the time sync interval.
+	 */
+	int8_t getTimeSyncInterval() {
+		return timeSyncInterval;
+	}
+
+	/**
+	 * @brief  Sets the time sync interval.
+	 * #param  8 bit signed value of the time sync interval.
+	 * @return void
+	 */
+	void setTimeSyncInterval(int8_t timeSyncInterval) {
+		this->timeSyncInterval = timeSyncInterval;
+	}
+
+	/**
+	 * @brief  Gets the announce interval.
+	 * @return 8 bit signed value of the announce interval.
+	 */
+	int8_t getAnnounceInterval() {
+		return announceInterval;
+	}
+
+	/**
+	 * @brief  Sets the announce interval.
+	 * @param  8 bit signed value of the announce interval.
+	 * @return void
+	 */
+	void setAnnounceInterval(int8_t announceInterval) {
+		this->announceInterval = announceInterval;
+	}
+};
+
+/* back to whatever the previous packing mode was */
+#pragma pack(pop)
+
+/**
+ * @brief Provides a class for building a PTP signalling message
+ */
+class PTPMessageSignalling:public PTPMessageCommon {
+private:
+	int8_t targetPortIdentify;
+	SignallingTLV tlv;
+
+	PTPMessageSignalling(void);
+public:
+	static const int8_t sigMsgInterval_Initial =  126;
+	static const int8_t sigMsgInterval_NoSend =  127;
+	static const int8_t sigMsgInterval_NoChange =  -128;
+
+	/**
+	 * @brief Builds the PTPMessageSignalling object
+	 */
+	PTPMessageSignalling(IEEE1588Port * port);
+
+	/**
+	 * @brief Destroys the PTPMessageSignalling object
+	 */
+	~PTPMessageSignalling();
+
+	/**
+	 * @brief Sets the signalling intervals
+	 * @param  linkDelayInterval link delay interval
+	 * @param  timeSyncInterval Sync interval
+	 * @param  announceInterval Announce interval
+	 * @return void
+	 */
+	void setintervals(int8_t linkDelayInterval, int8_t timeSyncInterval, int8_t announceInterval);
+
+	/**
+	 * @brief  Assembles PTPMessageSignalling message on the
+	 *         IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
+	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+
+	/**
+	 * @brief  Processes PTP messages
+	 * @param  port [in] IEEE1588Port
+	 * @return void
+	 */
+	void processMessage(IEEE1588Port * port);
+
+	friend PTPMessageCommon *buildPTPMessage
+	  (char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
 
 #endif

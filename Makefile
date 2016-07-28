@@ -40,6 +40,7 @@ igb_clean:
 
 lib: FORCE
 	$(call descend,lib/igb)
+	$(call descend,lib/common)
 
 lib_clean:
 	$(call descend,lib/igb/,clean)

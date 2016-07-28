@@ -65,12 +65,12 @@ extern Timestamp tsToTimestamp(struct timespec *ts);
 struct TicketingLockPrivate;
 
 /**
- * Provides the type for the TicketingLock private structure
+ * @brief Provides the type for the TicketingLock private structure
  */
 typedef struct TicketingLockPrivate * TicketingLockPrivate_t;
 
 /**
- * TicketingLock: Implements the ticket lock algorithm.
+ * @brief TicketingLock: Implements the ticket lock algorithm.
  * A ticket lock consists of two counters, one containing the
  * number of requests to acquire the lock, and the other the
  * number of times the lock has been released.  A processor acquires the lock
@@ -102,13 +102,13 @@ public:
 	bool init();
 
 	/**
-	 * Default constructor sets some flags to false that will be initialized on
+	 * @brief Default constructor sets some flags to false that will be initialized on
 	 * the init method. Protects against using lock/unlock without calling init.
 	 */
 	TicketingLock();
 
 	/**
-	 * Deletes the object and private structures.
+	 * @brief Deletes the object and private structures.
 	 */
 	~TicketingLock();
 private:
@@ -120,13 +120,13 @@ private:
 };
 
 /**
- * LinuxTimestamper: Provides a generic hardware
+ * @brief LinuxTimestamper: Provides a generic hardware
  * timestamp interface for linux based systems.
  */
 class LinuxTimestamper : public HWTimestamper {
 public:
 	/**
-	 * Destructor
+	 * @brief Destructor
 	 */
 	virtual ~LinuxTimestamper() = 0;
 
@@ -141,7 +141,7 @@ public:
 };
 
 /**
- * Provides a Linux network generic interface
+ * @brief Provides a Linux network generic interface
  */
 class LinuxNetworkInterface : public OSNetworkInterface {
 	friend class LinuxNetworkInterfaceFactory;
@@ -157,6 +157,7 @@ public:
 	/**
 	 * @brief Sends a packet to a remote address
 	 * @param addr [in] Remote link layer address
+	 * @param etherType [in] The EtherType of the message
 	 * @param payload [in] Data buffer
 	 * @param length Size of data buffer
 	 * @param timestamp TRUE if to use the event socket with the PTP multicast address. FALSE if to use
@@ -164,7 +165,7 @@ public:
 	 * @return net_fatal if error, net_success if success
 	 */
 	virtual net_result send
-	( LinkLayerAddress *addr, uint8_t *payload, size_t length,
+	( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length,
 	  bool timestamp );
 
 	/**
@@ -179,16 +180,16 @@ public:
 	( LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay );
 
 	/**
-	 * @brief  Disables rx socket descriptor and and clears the rx queue
+	 * @brief  Disables rx socket descriptor rx queue
 	 * @return void
 	 */
-	void disable_clear_rx_queue();
+	void disable_rx_queue();;
 
 	/**
-	 * @brief  Enables the rx socket descriptor
+	 * @brief  Clears and enables the rx socket descriptor
 	 * @return void
 	 */
-	void reenable_rx_queue();
+	void clear_reenable_rx_queue();
 
 	/**
 	 * @brief  Gets the local link layer address
@@ -205,36 +206,36 @@ public:
 	virtual void watchNetLink(IEEE1588Port *pPort);
 
 	/**
-	 *  @brief Gets the payload offset
-	 *  @return payload offset
+	 * @brief Gets the payload offset
+	 * @return payload offset
 	 */
 	virtual unsigned getPayloadOffset() {
 		return 0;
 	}
 	/**
-	 * Destroys the network interface
+	 * @brief Destroys the network interface
 	 */
 	~LinuxNetworkInterface();
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	LinuxNetworkInterface() {};
 };
 
 /**
- * Provides a list of LinuxNetworkInterface members
+ * @brief Provides a list of LinuxNetworkInterface members
  */
 typedef std::list<LinuxNetworkInterface *> LinuxNetworkInterfaceList;
 
 struct LinuxLockPrivate;
 /**
- * Provides a type for the LinuxLock class
+ * @brief Provides a type for the LinuxLock class
  */
 typedef LinuxLockPrivate * LinuxLockPrivate_t;
 
 /**
- * Extends OSLock generic interface to Linux
+ * @brief Extends OSLock generic interface to Linux
  */
 class LinuxLock : public OSLock {
 	friend class LinuxLockFactory;
@@ -243,7 +244,7 @@ private:
 	LinuxLockPrivate_t _private;
 protected:
 	/**
-	 * Default constructor.
+	 * @brief Default constructor.
 	 */
 	LinuxLock() {
 		_private = NULL;
@@ -258,7 +259,7 @@ protected:
 	bool initialize( OSLockType type );
 
 	/**
-	 * Destroys mutexes if lock is still valid
+	 * @brief Destroys mutexes if lock is still valid
 	 */
 	~LinuxLock();
 
@@ -282,7 +283,7 @@ protected:
 };
 
 /**
- * Provides a factory pattern for LinuxLock class
+ * @brief Provides a factory pattern for LinuxLock class
  */
 class LinuxLockFactory:public OSLockFactory {
 public:
@@ -303,12 +304,12 @@ public:
 
 struct LinuxConditionPrivate;
 /**
- * Provides a private type for the LinuxCondition class
+ * @brief Provides a private type for the LinuxCondition class
  */
 typedef struct LinuxConditionPrivate * LinuxConditionPrivate_t;
 
 /**
- * Extends OSCondition class to Linux
+ * @brief Extends OSCondition class to Linux
  */
 class LinuxCondition : public OSCondition {
 	friend class LinuxConditionFactory;
@@ -356,7 +357,7 @@ public:
 };
 
 /**
- * Implements factory design pattern for LinuxCondition class
+ * @brief Implements factory design pattern for LinuxCondition class
  */
 class LinuxConditionFactory : public OSConditionFactory {
 public:
@@ -373,7 +374,7 @@ public:
 struct LinuxTimerQueueActionArg;
 
 /**
- * Provides a map type for the LinuxTimerQueue class
+ * @brief Provides a map type for the LinuxTimerQueue class
  */
 typedef std::map < int, struct LinuxTimerQueueActionArg *> LinuxTimerQueueMap_t;
 
@@ -386,12 +387,12 @@ void *LinuxTimerQueueHandler( void *arg );
 
 struct LinuxTimerQueuePrivate;
 /**
- * Provides a private type for the LinuxTimerQueue class
+ * @brief Provides a private type for the LinuxTimerQueue class
  */
 typedef struct LinuxTimerQueuePrivate * LinuxTimerQueuePrivate_t;
 
 /**
- * Extends OSTimerQueue to Linux
+ * @brief Extends OSTimerQueue to Linux
  */
 class LinuxTimerQueue : public OSTimerQueue {
 	friend class LinuxTimerQueueFactory;
@@ -405,7 +406,7 @@ private:
 	void LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg );
 protected:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	LinuxTimerQueue() {
 		_private = NULL;
@@ -418,7 +419,7 @@ protected:
 	virtual bool init();
 public:
 	/**
-	 * Deletes pre-allocated internal variables.
+	 * @brief Deletes pre-allocated internal variables.
 	 */
 	~LinuxTimerQueue();
 
@@ -446,7 +447,7 @@ public:
 };
 
 /**
- * Implements factory design pattern for linux
+ * @brief Implements factory design pattern for linux
  */
 class LinuxTimerQueueFactory : public OSTimerQueueFactory {
 public:
@@ -459,7 +460,7 @@ public:
 };
 
 /**
- * Extends the OSTimer generic class to Linux
+ * @brief Extends the OSTimer generic class to Linux
  */
 class LinuxTimer : public OSTimer {
 	friend class LinuxTimerFactory;
@@ -472,13 +473,13 @@ class LinuxTimer : public OSTimer {
 	virtual unsigned long sleep(unsigned long micros);
  protected:
 	/**
-	 * Destroys linux timer
+	 * @brief Destroys linux timer
 	 */
 	LinuxTimer() {};
 };
 
 /**
- * Provides factory design pattern for LinuxTimer
+ * @brief Provides factory design pattern for LinuxTimer
  */
 class LinuxTimerFactory : public OSTimerFactory {
  public:
@@ -492,7 +493,7 @@ class LinuxTimerFactory : public OSTimerFactory {
 };
 
 /**
- * Privdes the default arguments for the OSThread class
+ * @brief Provides the default arguments for the OSThread class
  */
 struct OSThreadArg {
 	OSThreadFunction func;  /*!< Callback function */
@@ -509,12 +510,12 @@ void *OSThreadCallback(void *input);
 
 struct LinuxThreadPrivate;
 /**
- * Provides a private type for the LinuxThread class
+ * @brief Provides a private type for the LinuxThread class
  */
 typedef LinuxThreadPrivate * LinuxThreadPrivate_t;
 
 /**
- * Extends OSThread class to Linux
+ * @brief Extends OSThread class to Linux
  */
 class LinuxThread : public OSThread {
 	friend class LinuxThreadFactory;
@@ -542,7 +543,7 @@ class LinuxThread : public OSThread {
 };
 
 /**
- * Provides factory design pattern for LinuxThread class
+ * @brief Provides factory design pattern for LinuxThread class
  */
 class LinuxThreadFactory:public OSThreadFactory {
  public:
@@ -556,7 +557,7 @@ class LinuxThreadFactory:public OSThreadFactory {
 };
 
 /**
- * Extends OSNetworkInterfaceFactory for LinuxNetworkInterface
+ * @brief Extends OSNetworkInterfaceFactory for LinuxNetworkInterface
  */
 class LinuxNetworkInterfaceFactory : public OSNetworkInterfaceFactory {
 public:
@@ -573,7 +574,7 @@ public:
 };
 
 /**
- * Extends IPC ARG generic interface to linux
+ * @brief Extends IPC ARG generic interface to linux
  */
 class LinuxIPCArg : public OS_IPC_ARG {
 private:
@@ -590,7 +591,7 @@ public:
 		this->group_name[len] = '\0';
 	}
 	/**
-	 * Destroys IPCArg internal variables
+	 * @brief Destroys IPCArg internal variables
 	 */
 	virtual ~LinuxIPCArg() {
 		delete group_name;
@@ -601,7 +602,7 @@ public:
 #define DEFAULT_GROUPNAME "ptp"		/*!< Default groupname for the shared memory interface*/
 
 /**
- * Linux shared memory interface
+ * @brief Linux shared memory interface
  */
 class LinuxSharedMemoryIPC:public OS_IPC {
 private:
@@ -610,7 +611,7 @@ private:
 	int err;
 public:
 	/**
-	 * Initializes the internal flags
+	 * @brief Initializes the internal flags
 	 */
 	LinuxSharedMemoryIPC() {
 		shm_fd = 0;
@@ -618,7 +619,7 @@ public:
 		master_offset_buffer = NULL;
 	};
 	/**
-	 * Destroys and unlinks shared memory
+	 * @brief Destroys and unlinks shared memory
 	 */
 	~LinuxSharedMemoryIPC();
 
@@ -639,7 +640,7 @@ public:
 	 * @param sync_count Count of syncs
 	 * @param pdelay_count Count of pdelays
 	 * @param port_state Port's state
-     * @param asCapable asCapable flag
+	 * @param asCapable asCapable flag
 	 * @return TRUE
 	 */
 	virtual bool update

@@ -29,10 +29,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /**
- * \file
-* MODULE SUMMARY : Reads the .ini file and parses it into information
-* to be used on daemon_cl
-*/
+ * @file
+ * MODULE SUMMARY : Reads the .ini file and parses it into information
+ * to be used on daemon_cl
+ */
 
 #include <string>
 
@@ -40,7 +40,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "ieee1588.hpp"
 
 /**
- * Provides the gptp interface for
+ * @brief Provides the gptp interface for
  * the iniParser external module
  */
 class GptpIniParser
@@ -48,7 +48,7 @@ class GptpIniParser
     public:
 
         /**
-         * Container with the information to get from the .ini file
+         * @brief Container with the information to get from the .ini file
          */
         typedef struct
         {

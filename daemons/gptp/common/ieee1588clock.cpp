@@ -45,6 +45,8 @@
 
 #include <string.h>
 
+#include <math.h>
+
 std::string ClockIdentity::getIdentityString()
 {
 	uint8_t cid[PTP_CLOCK_IDENTITY_LENGTH];
@@ -100,6 +102,8 @@ IEEE1588Clock::IEEE1588Clock
 	_new_syntonization_set_point = false;
 	_ppm = 0;
 
+	_phase_error_violation = 0;
+
 	_master_local_freq_offset_init = false;
 	_local_system_freq_offset_init = false;
 	_timestamper = timestamper;
@@ -108,7 +112,7 @@ IEEE1588Clock::IEEE1588Clock
 
  	memset( &LastEBestIdentity, 0xFF, sizeof( LastEBestIdentity ));
 
-	timerq_lock = lock_factory->createLock( oslock_nonrecursive );
+	timerq_lock = lock_factory->createLock( oslock_recursive );
 
 	// This should be done LAST!! to pass fully initialized clock object
 	timerq = timerq_factory->createOSTimerQueue( this );
@@ -216,14 +220,6 @@ bool IEEE1588Clock::restoreSerializedState( void *buf, off_t *count ) {
   return ret;
 }
 
-void *IEEE1588Port::watchNetLink(void)
-{
-	// Should never return
-	net_iface->watchNetLink(this);
-
-	return NULL;
-}
-
 Timestamp IEEE1588Clock::getSystemTime(void)
 {
 	return (Timestamp(0, 0, 0));
@@ -276,7 +272,7 @@ FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp loca
 	unsigned long long inter_local_time;
 	FrequencyRatio ppt_offset;
 
-	XPTPD_INFO( "Calculated local to system clock rate difference" );
+	GPTP_LOG_DEBUG( "Calculated local to system clock rate difference" );
 
 	if( !_local_system_freq_offset_init ) {
 		_prev_system_time = system_time;
@@ -311,7 +307,7 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 	unsigned long long inter_master_time;
 	FrequencyRatio ppt_offset;
 
-	XPTPD_INFO( "Calculated master to local clock rate difference" );
+	GPTP_LOG_DEBUG( "Calculated master to local clock rate difference" );
 
 	if( !_master_local_freq_offset_init ) {
 		_prev_sync_time = sync_time;
@@ -340,13 +336,18 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 }
 
 void IEEE1588Clock::setMasterOffset
-( int64_t master_local_offset, Timestamp local_time,
+( IEEE1588Port * port, int64_t master_local_offset, Timestamp local_time,
   FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
   Timestamp system_time, FrequencyRatio local_system_freq_offset,
   unsigned sync_count, unsigned pdelay_count, PortState port_state, bool asCapable )
 {
 	_master_local_freq_offset = master_local_freq_offset;
 	_local_system_freq_offset = local_system_freq_offset;
+
+	if (port->getTestMode()) {
+		GPTP_LOG_STATUS("Clock offset:%lld   Clock rate ratio:%Lf   Sync Count:%u   PDelay Count:%u", 
+						master_local_offset, master_local_freq_offset, sync_count, pdelay_count);
+	}
 
 	if( ipc != NULL ) ipc->update
 		( master_local_offset, local_system_offset, master_local_freq_offset,
@@ -358,28 +359,46 @@ void IEEE1588Clock::setMasterOffset
 	}
 
 	if( _syntonize ) {
-		if( _new_syntonization_set_point ) {
+		if( _new_syntonization_set_point || _phase_error_violation > PHASE_ERROR_MAX_COUNT ) {
 			_new_syntonization_set_point = false;
+			_phase_error_violation = 0;
 			if( _timestamper ) {
 				/* Make sure that there are no transmit operations
 				   in progress */
 				getTxLockAll();
+				if (port->getTestMode()) {
+					GPTP_LOG_STATUS("Adjust clock phase offset:%lld", -master_local_offset);
+				}
 				_timestamper->HWTimestamper_adjclockphase
 					( -master_local_offset );
 				_master_local_freq_offset_init = false;
+				restartPDelayAll();
 				putTxLockAll();
 				master_local_offset = 0;
 			}
 		}
+
 		// Adjust for frequency offset
 		long double phase_error = (long double) -master_local_offset;
-		_ppm += (float) (INTEGRAL*phase_error +
-			 PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
+		if( fabsl(phase_error) > PHASE_ERROR_THRESHOLD ) {
+			++_phase_error_violation;
+		} else {
+			_phase_error_violation = 0;
+
+			float syncPerSec = (float)(1.0 / pow((float)2, port->getSyncInterval()));
+			_ppm += (float) ((INTEGRAL * syncPerSec * phase_error) + PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
+
+			GPTP_LOG_DEBUG("phase_error = %Lf, ppm = %f", phase_error, _ppm );
+		}
+
 		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
 		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
 		if( _timestamper ) {
+			if (port->getTestMode()) {
+				GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
+			}
 			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
-				XPTPD_ERROR( "Failed to adjust clock rate" );
+				GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 			}
 		}
 	}
@@ -428,14 +447,12 @@ bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
 	msg->getGrandmasterIdentity((char *)that1 + 6);
 
 #if 0
-	XPTPD_PRINTF("(Clk)Us: ");
+	GPTP_LOG_DEBUG("(Clk)Us: ");
 	for (int i = 0; i < 14; ++i)
-		XPTPD_PRINTF("%hhx ", this1[i]);
-	XPTPD_PRINTF("\n");
-	XPTPD_PRINTF("(Clk)Them: ");
+		GPTP_LOG_DEBUG("%hhx ", this1[i]);
+	GPTP_LOG_DEBUG("(Clk)Them: ");
 	for (int i = 0; i < 14; ++i)
-		XPTPD_PRINTF("%hhx ", that1[i]);
-	XPTPD_PRINTF("\n");
+		GPTP_LOG_DEBUG("%hhx ", that1[i]);
 #endif
 
 	return (memcmp(this1, that1, 14) < 0) ? true : false;

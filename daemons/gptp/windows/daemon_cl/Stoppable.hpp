@@ -35,12 +35,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #define STOPPABLE_HPP
 
 #include <Windows.h>
-#include <debugout.hpp>
+#include <gptp_log.hpp>
 
 /**@file*/
 
 /**
- * Provides an interface to stop threads
+ * @brief Provides an interface to stop threads
  */
 class Stoppable {
 protected:
@@ -48,7 +48,7 @@ protected:
 	HANDLE thread;		/*!< Thread handler */
 public:
 	/**
-	 * Initializes interface
+	 * @brief Initializes interface
 	 */
 	Stoppable() { thread = NULL; exit_waiting = false; }
 	/**
@@ -60,14 +60,14 @@ public:
 		exit_waiting = true;
 		if( WaitForSingleObject( thread, INFINITE ) == WAIT_FAILED ) {
 			char *errstr;
-			XPTPD_ERROR( "Wait for thread exit failed %s", errstr );
+			GPTP_LOG_ERROR( "Wait for thread exit failed %s", errstr );
 			delete errstr;
 		}
 		exit_waiting = false;
 		return true;
 	}
 	/**
-	 * destroys the interface
+	 * @brief destroys the interface
 	 */
 	virtual ~Stoppable() = 0 {};
 };

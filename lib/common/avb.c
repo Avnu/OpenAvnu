@@ -40,7 +40,13 @@
 
 #include "avb.h"
 
-int pci_connect(device_t * igb_dev)
+/**
+ * @brief Connect to the network card 
+ * @param igb_dev [inout] Device handle
+ * @return 0 for success, ENXIO for failure
+ */
+
+int pci_connect(device_t *igb_dev)
 {
 	char devpath[IGB_BIND_NAMESZ];
 	struct pci_access *pacc;
@@ -48,16 +54,12 @@ int pci_connect(device_t * igb_dev)
 	int err;
 
 	memset(igb_dev, 0, sizeof(device_t));
-
 	pacc = pci_alloc();
-
 	pci_init(pacc);
-
 	pci_scan_bus(pacc);
 
 	for (dev = pacc->devices; dev; dev = dev->next) {
-		pci_fill_info(dev,
-				PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
+		pci_fill_info(dev, PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
 		igb_dev->pci_vendor_id = dev->vendor_id;
 		igb_dev->pci_device_id = dev->device_id;
 		igb_dev->domain = dev->domain;
@@ -67,72 +69,128 @@ int pci_connect(device_t * igb_dev)
 		snprintf(devpath, IGB_BIND_NAMESZ, "%04x:%02x:%02x.%d",
 				dev->domain, dev->bus, dev->dev, dev->func);
 		err = igb_probe(igb_dev);
-		if (err)
+		if (err) {
 			continue;
-
+		}
 		printf("attaching to %s\n", devpath);
 		err = igb_attach(devpath, igb_dev);
 		if (err) {
 			printf("attach failed! (%s)\n", strerror(err));
 			continue;
 		}
-
 		err = igb_attach_tx(igb_dev);
 		if (err) {
 			printf("attach_tx failed! (%s)\n", strerror(err));
+			igb_detach(igb_dev);
 			continue;
 		}
-
 		goto out;
 	}
-
 	pci_cleanup(pacc);
 	return ENXIO;
+out:
+	pci_cleanup(pacc);
+	return 0;
+}
 
-out:	pci_cleanup(pacc);
+/**
+ * @brief Open the memory mapping used for IPC
+ * @param shm_fd [inout] File descriptor for mapping
+ * @param shm_map [inout] Pointer to mapping
+ * @return 0 for success, negative for failure
+ */
+ 
+int gptpinit(int *shm_fd, char **shm_map)
+{
+	if (NULL == shm_fd || NULL == shm_map) {
+		return -1;
+	}
+	*shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
+	if (*shm_fd == -1) {
+		perror("shm_open()");
+		return -1;
+	}
+	*shm_map = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
+				MAP_SHARED, *shm_fd, 0);
+	if ((char*)-1 == *shm_map) {
+		perror("mmap()");
+		*shm_map = NULL;
+		shm_unlink(SHM_NAME);
+		return -1;
+	}
+	return 0;
+}
+
+/**
+ * @brief Free the memory mapping used for IPC
+ * @param shm_fd [in] File descriptor for mapping
+ * @param shm_map [in] Pointer to mapping
+ * @return 0 for success, negative for failure
+ *	-1 = close failed
+ *	-2 = munmap failed
+ *	-3 = close and munmap failed
+ */
+
+int gptpdeinit(int *shm_fd, char **shm_map)
+{
+	int ret = 0;
+	if (NULL == shm_fd || -1 == *shm_fd) {
+		ret -= 1;
+	} else {
+		if(close(*shm_fd) == -1) {
+			ret -= 1;
+		}
+		*shm_fd = -1;
+	}
+	if (NULL == shm_map || NULL == *shm_map) {
+		ret -= 2;
+	} else {
+		if (munmap(*shm_map, SHM_SIZE) == -1) {
+			ret -= 2;
+		}
+		*shm_map = NULL;
+	}
+	return ret;
+}
+
+/**
+ * @brief Read the ptp data from IPC memory
+ * @param shm_map [in] Pointer to mapping
+ * @param td [inout] Struct to read the data into
+ * @return 0 for success, negative for failure
+ */
+
+int gptpgetdata(char *shm_map, gPtpTimeData *td)
+{
+	if (NULL == shm_map || NULL == td) {
+		return -1;
+	}
+	pthread_mutex_lock((pthread_mutex_t *) shm_map);
+	memcpy(td, shm_map + sizeof(pthread_mutex_t), sizeof(*td));
+	pthread_mutex_unlock((pthread_mutex_t *) shm_map);
 
 	return 0;
 }
 
-int gptpinit(int *shm_fd, char **memory_offset_buffer)
+/**
+ * @brief Read the ptp data from IPC memory and print its contents
+ * @param shm_map [in] Pointer to mapping
+ * @param td [inout] Struct to read the data into
+ * @return 0 for success, negative for failure
+ */
+
+int gptpscaling(char *shm_map, gPtpTimeData *td) //change this function name ??
 {
-	*shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	if (*shm_fd == -1) {
-		perror("shm_open()");
-		return false;
+	int i;
+	if ((i = gptpgetdata(shm_map, td)) < 0) {
+		return i;
 	}
-	*memory_offset_buffer =
-	    (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-			 *shm_fd, 0);
-	if (*memory_offset_buffer == (char *)-1) {
-		perror("mmap()");
-		*memory_offset_buffer = NULL;
-		shm_unlink(SHM_NAME);
-		return false;
-	}
-	return true;
-}
+	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",
+		td->ml_phoffset, td->ls_phoffset);
+	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
+		td->ml_freqoffset, td->ls_freqoffset);
 
-void gptpdeinit(int shm_fd, char *memory_offset_buffer)
-{
-	if (memory_offset_buffer != NULL) {
-		munmap(memory_offset_buffer, SHM_SIZE);
-	}
-	if (shm_fd != -1) {
-		close(shm_fd);
-	}
-}
-
-int gptpscaling(gPtpTimeData * td, char *memory_offset_buffer)
-{
-	if (td == NULL)
-		return true;
-
-	pthread_mutex_lock((pthread_mutex_t *) memory_offset_buffer);
-	memcpy(td, memory_offset_buffer + sizeof(pthread_mutex_t), sizeof(*td));
-	pthread_mutex_unlock((pthread_mutex_t *) memory_offset_buffer);
-
-	return true;
+	return 0;
 }
 
 bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local)

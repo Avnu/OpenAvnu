@@ -78,8 +78,27 @@ int parseMacAddr( _TCHAR *macstr, uint8_t *octet_string ) {
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	bool force_slave = false;
-	int32_t offset = 0;
+	IEEE1588PortInit_t portInit;
+
+	portInit.clock = NULL;
+	portInit.index = 1;
+	portInit.forceSlave = false;
+	portInit.accelerated_sync_count = 0;
+	portInit.timestamper = NULL;
+	portInit.offset = 0;
+	portInit.net_label = NULL;
+	portInit.automotive_profile = false;
+	portInit.isGM = false;
+	portInit.testMode = false;
+	portInit.initialLogSyncInterval = LOG2_INTERVAL_INVALID;
+	portInit.initialLogPdelayReqInterval = LOG2_INTERVAL_INVALID;
+	portInit.operLogPdelayReqInterval = LOG2_INTERVAL_INVALID;
+	portInit.operLogSyncInterval = LOG2_INTERVAL_INVALID;
+	portInit.condition_factory = NULL;
+	portInit.thread_factory = NULL;
+	portInit.timer_factory = NULL;
+	portInit.lock_factory = NULL;
+
 	bool syntonize = false;
 	uint8_t priority1 = 248;
 	int i;
@@ -90,12 +109,13 @@ int _tmain(int argc, _TCHAR* argv[])
 	OSNetworkInterfaceFactory::registerFactory( factory_name_t( "default" ), default_factory );
 
 	// Create thread, lock, timer, timerq factories
-	WindowsThreadFactory *thread_factory = new WindowsThreadFactory();
-	WindowsTimerQueueFactory *timerq_factory = new WindowsTimerQueueFactory();
-	WindowsLockFactory *lock_factory = new WindowsLockFactory();
-	WindowsTimerFactory *timer_factory = new WindowsTimerFactory();
-	WindowsConditionFactory *condition_factory = new WindowsConditionFactory();
+	portInit.thread_factory = new WindowsThreadFactory();
+	portInit.lock_factory = new WindowsLockFactory();
+	portInit.timer_factory = new WindowsTimerFactory();
+	portInit.condition_factory = new WindowsConditionFactory();
 	WindowsNamedPipeIPC *ipc = new WindowsNamedPipeIPC();
+	WindowsTimerQueueFactory *timerq_factory = new WindowsTimerQueueFactory();
+
 	if( !ipc->init() ) {
 		delete ipc;
 		ipc = NULL;
@@ -133,14 +153,13 @@ int _tmain(int argc, _TCHAR* argv[])
 	}
 	parseMacAddr( argv[i], local_addr_ostr );
 	LinkLayerAddress local_addr(local_addr_ostr);
-
+	portInit.net_label = &local_addr;
 	// Create HWTimestamper object
-	HWTimestamper *timestamper = new WindowsTimestamper();
+	portInit.timestamper = new WindowsTimestamper();
 	// Create Clock object
-	IEEE1588Clock *clock = new IEEE1588Clock( false, false, priority1, timestamper, timerq_factory, ipc, lock_factory );  // Do not force slave
+	portInit.clock = new IEEE1588Clock( false, false, priority1, portInit.timestamper, timerq_factory, ipc, portInit.lock_factory );  // Do not force slave
 	// Create Port Object linked to clock and low level
-	IEEE1588Port *port = new IEEE1588Port( clock, 1, false, 0, timestamper, 0, &local_addr,
-		condition_factory, thread_factory, timer_factory, lock_factory );
+	IEEE1588Port *port = new IEEE1588Port( &portInit );
 	if (!port->init_port(phy_delays)) {
 		printf( "Failed to initialize port\n" );
 		return -1;

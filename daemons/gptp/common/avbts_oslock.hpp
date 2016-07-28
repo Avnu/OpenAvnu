@@ -37,13 +37,13 @@
 /**@file*/
 
 /**
- * Lock type enumeration. The possible values are:
+ * @brief Lock type enumeration. The possible values are:
  * 	- oslock_recursive;
  * 	- oslock_nonrecursive;
  */
 typedef enum { oslock_recursive, oslock_nonrecursive } OSLockType;
 /**
- * Lock result enumeration. The possible values are:
+ * @brief Lock result enumeration. The possible values are:
  * 	- oslock_ok;
  * 	- oslock_self;
  * 	- oslock_held;
@@ -52,7 +52,7 @@ typedef enum { oslock_recursive, oslock_nonrecursive } OSLockType;
 typedef enum { oslock_ok, oslock_self, oslock_held, oslock_fail } OSLockResult;
 
 /**
- * Provides a generic mechanism for locking critical sections.
+ * @brief Provides a generic mechanism for locking critical sections.
  */
 class OSLock {
 	public:
@@ -75,7 +75,7 @@ class OSLock {
 		virtual OSLockResult trylock() = 0;
 	protected:
 		/**
-		 * Default constructor
+		 * @brief Default constructor
 		 */
 		OSLock() { }
 
@@ -93,7 +93,7 @@ class OSLock {
 inline OSLock::~OSLock() {}
 
 /**
- * Provides a factory pattern for OSLock
+ * @brief Provides a factory pattern for OSLock
  */
 class OSLockFactory {
 	public:

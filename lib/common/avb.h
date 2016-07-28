@@ -21,7 +21,7 @@
 
 #include <inttypes.h>
 
-#include "igb.h"
+#include <igb.h>
 
 #define VALID		1
 #define INVALID		0
@@ -30,7 +30,7 @@
 
 #define IGB_BIND_NAMESZ		24
 
-#define SHM_SIZE 4*8 + sizeof(pthread_mutex_t) /* 3 - 64 bit and 2 - 32 bits */
+#define SHM_SIZE (4*8 + sizeof(pthread_mutex_t)) /* 3 - 64 bit and 2 - 32 bits */
 #define SHM_NAME  "/ptp"
 
 #define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t)*8)-1))-1)
@@ -108,17 +108,18 @@ typedef struct {
 	uint64_t local_time;
 } gPtpTimeData;
 
+/*TODO fix this*/
+#ifndef false
 typedef enum { false = 0, true = 1 } bool;
+#endif
 
 int pci_connect(device_t * igb_dev);
 
-int gptpscaling(gPtpTimeData * td, char *memory_offset_buffer);
-
+int gptpinit(int *shm_fd, char **shm_map);
+int gptpdeinit(int *shm_fd, char **shm_map);
+int gptpgetdata(char *shm_mmap, gPtpTimeData *td);
+int gptpscaling(char *shm_mmap, gPtpTimeData *td);
 bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local);
-
-void gptpdeinit(int shm_fd, char *memory_offset_buffer);
-
-int gptpinit(int *shm_fd, char **memory_offset_buffer);
 
 void avb_set_1722_cd_indicator(seventeen22_header *h1722, uint64_t cd_indicator);
 uint64_t avb_get_1722_cd_indicator(seventeen22_header *h1722);
