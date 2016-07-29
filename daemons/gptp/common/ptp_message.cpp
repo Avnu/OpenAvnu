@@ -408,7 +408,7 @@ PTPMessageCommon *buildPTPMessage
 		break;
 	case ANNOUNCE_MESSAGE:
 
-		XPTPD_INFO("*** Received Announce message");
+		GPTP_LOG_VERBOSE("*** Received Announce message");
 
 		{
 			PTPMessageAnnounce *annc = new PTPMessageAnnounce();
