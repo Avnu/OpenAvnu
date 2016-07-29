@@ -992,7 +992,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	}
 
 	master_local_freq_offset  =  tlv.getRateOffset();
-	master_local_freq_offset /= 2ULL << 41;
+	master_local_freq_offset /= 1ULL << 41;
 	master_local_freq_offset += 1.0;
 	master_local_freq_offset /= port->getPeerRateOffset();
 
