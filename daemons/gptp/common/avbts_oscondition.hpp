@@ -37,7 +37,7 @@
 /**@file*/
 
 /**
- * Provides a generic interface for OS's locking condition
+ * @brief Provides a generic interface for OS's locking condition
  */
 class OSCondition {
 private:
@@ -62,12 +62,12 @@ public:
 	virtual bool signal() = 0;
 
 	/**
-	 * Deletes previously declared flags
+	 * @brief Deletes previously declared flags
 	 */
 	virtual ~OSCondition() = 0;
 protected:
 	/**
-	 * Default constructor. Initializes internal variables
+	 * @brief Default constructor. Initializes internal variables
 	 */
 	OSCondition() {
 		wait_count = 0;
@@ -101,7 +101,7 @@ protected:
 inline OSCondition::~OSCondition() { }
 
 /**
- * Provides factory design patter for OS Condition class
+ * @brief Provides factory design patter for OS Condition class
  */
 class OSConditionFactory {
 public:
@@ -112,7 +112,7 @@ public:
 	virtual OSCondition * createCondition() = 0;
 
 	/**
-	 * Destroys OSCondition objects
+	 * @brief Destroys OSCondition objects
 	 */
 	virtual ~OSConditionFactory() = 0;
 };

@@ -39,11 +39,11 @@
 #include <stdio.h>
 
 /**
- * Provides strncpy
+ * @brief Provides strncpy
  */
 errno_t PLAT_strncpy( char *dest, const char *src, rsize_t max );
 /**
- * provides snprintf
+ * @brief provides snprintf
  */
 #define PLAT_snprintf(buffer,count,...) _snprintf_s(buffer,count,count,__VA_ARGS__);
 

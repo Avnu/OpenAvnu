@@ -41,7 +41,7 @@ POSSIBILITY OF SUCH DAMAGE.
 /**@file*/
 
 /**
- * Type Peer address with state
+ * @brief Type Peer address with state
  */
 typedef struct {
 	PeerAddr addr;	/*!< Peer address */
@@ -49,21 +49,21 @@ typedef struct {
 } PeerAddrWithState;
 
 /**
- * Peer init handler callback definition
+ * @brief Peer init handler callback definition
  */
 typedef bool (*peer_init_handler)( void **, void *, PeerAddr addr );
 /**
- * Peer remove callback definition
+ * @brief Peer remove callback definition
  */
 typedef bool (*peer_rm_handler)( void *, void * );
 
 /**
- * Type peer vector
+ * @brief Type peer vector
  */
 typedef std::vector<PeerAddrWithState> PeerVector;
 
 /**
- * Peer List interface
+ * @brief Peer List interface
  */
 class PeerList : public Lockable {
 private:
@@ -76,7 +76,7 @@ public:
 	typedef PeerVector::const_iterator const_iterator;	/*!< Peer constant iterator*/
 	typedef PeerVector::iterator PeerVectorIt;			/*!< Peer vector iterator*/
 	/**
-	 * Initializes peer list
+	 * @brief Initializes peer list
 	 */
 	PeerList() { rm = NULL; init = NULL; }
 	/**

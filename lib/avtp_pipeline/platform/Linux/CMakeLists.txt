@@ -204,6 +204,7 @@ include_directories(
 		${AVB_SRC_DIR}/util
 		${AVB_OSAL_DIR}/endpoint
 		${AVB_OSAL_DIR}/fqtss/qmgr
+		${AVB_SRC_DIR}/../common
 		)
 
 # Need include and link directories for GLIB
@@ -235,7 +236,7 @@ SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/openavb_time_hal.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/mcr/openavb_mcr_hal.c )
 
 # OpenAVB Common (support) files
-SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/avb.c )
+SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/../common/avb.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/mrp_client.c )
 
 if ( AVB_FEATURE_PCAP )

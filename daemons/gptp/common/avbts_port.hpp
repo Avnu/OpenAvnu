@@ -65,7 +65,7 @@
 #define LOG2_INTERVAL_INVALID -127	/* Simple out of range Log base 2 value used for Sync and PDelay msg internvals */
 
 /**
- * PortType enumeration. Selects between delay request-response (E2E) mechanism
+ * @brief PortType enumeration. Selects between delay request-response (E2E) mechanism
  * or PTPV1 or PTPV2 P2P (peer delay) mechanism.
  */
 typedef enum {
@@ -75,7 +75,7 @@ typedef enum {
 } PortType;
 
 /**
- * PortIdentity interface
+ * @brief PortIdentity interface
  * Defined at IEEE 802.1AS Clause 8.5.2
  */
 class PortIdentity {
@@ -84,7 +84,7 @@ private:
 	uint16_t portNumber;
 public:
 	/**
-	 * Default Constructor
+	 * @brief Default Constructor
 	 */
 	PortIdentity() { };
 
@@ -202,12 +202,12 @@ public:
 };
 
 /**
- * Provides a map for the identityMap member of IEEE1588Port class
+ * @brief Provides a map for the identityMap member of IEEE1588Port class
  */
 typedef std::map < PortIdentity, LinkLayerAddress > IdentityMap_t;
 
 /**
- * Structure for initializing the IEEE1588 class
+ * @brief Structure for initializing the IEEE1588 class
  */
 typedef struct {
 	/* clock IEEE1588Clock instance */
@@ -267,7 +267,7 @@ typedef struct {
 
 
 /**
- * Structure for IEE1588Port Counters
+ * @brief Structure for IEE1588Port Counters
  */
 typedef struct {
 	int32_t ieee8021AsPortStatRxSyncCount;
@@ -290,7 +290,7 @@ typedef struct {
 
 
 /**
- * Provides the IEEE 1588 port interface
+ * @brief Provides the IEEE 1588 port interface
  */
 class IEEE1588Port {
 	static LinkLayerAddress other_multicast;
@@ -411,6 +411,7 @@ class IEEE1588Port {
 	OSLock *pdelay_rx_lock;
 	OSLock *port_tx_lock;
 
+	OSLock *syncReceiptTimerLock;
 	OSLock *syncIntervalTimerLock;
 	OSLock *announceIntervalTimerLock;
 	OSLock *pDelayIntervalTimerLock;
@@ -534,15 +535,17 @@ class IEEE1588Port {
 	void syncDone() {
 		GPTP_LOG_VERBOSE("Sync complete");
 
-		if (automotive_profile && testMode && port_state == PTP_SLAVE) {
+		if (automotive_profile && port_state == PTP_SLAVE) {
 			if (avbSyncState > 0) {
 				avbSyncState--;
 				if (avbSyncState == 0) {
-					stationState = STATION_STATE_AVB_SYNC;
-					APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
-					if (testStatusMsg) {
-						testStatusMsg->sendPort(this);
-						delete testStatusMsg;
+					setStationState(STATION_STATE_AVB_SYNC);
+					if (testMode) {
+						APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
+						if (testStatusMsg) {
+							testStatusMsg->sendPort(this);
+							delete testStatusMsg;
+						}
 					}
 				}
 			}
@@ -570,13 +573,21 @@ class IEEE1588Port {
 	}
 
 	/**
+	 * @brief  Restart PDelay
+	 * @return void
+	 */
+	void restartPDelay() {
+		_peer_offset_init = false;
+	}
+
+	/**
 	 * @brief  Sets asCapable flag
 	 * @param  ascap flag to be set. If FALSE, marks peer_offset_init as false.
 	 * @return void
 	 */
 	void setAsCapable(bool ascap) {
 		if (ascap != asCapable) {
-			GPTP_LOG_STATUS("AsCapable: %s\n",
+			GPTP_LOG_STATUS("AsCapable: %s",
 					ascap == true ? "Enabled" : "Disabled");
 		}
 		if(!ascap){
@@ -598,7 +609,7 @@ class IEEE1588Port {
 	bool getAutomotiveProfile() { return( automotive_profile ); }
 
 	/**
-	 * Destroys a IEEE1588Port
+	 * @brief Destroys a IEEE1588Port
 	 */
 	~IEEE1588Port();
 
@@ -767,6 +778,19 @@ class IEEE1588Port {
 	void setInitSyncInterval(void) {
 		log_mean_sync_interval = initialLogSyncInterval;;
 	}
+
+	/**
+	 * @brief  Start sync receipt timer
+	 * @param  waitTime time interval
+	 * @return none
+	 */
+	void startSyncReceiptTimer(long long unsigned int waitTime);
+
+	/**
+	 * @brief  Stop sync receipt timer
+	 * @return none
+	 */
+	void stopSyncReceiptTimer(void);
 
 	/**
 	 * @brief  Start sync interval timer
@@ -1199,7 +1223,7 @@ class IEEE1588Port {
 			return false;
 		}
 		*delay = getLinkDelay();
-		return *delay <= INVALID_LINKDELAY;
+		return *delay < INVALID_LINKDELAY;
 	}
 
 	/**
@@ -1213,6 +1237,10 @@ class IEEE1588Port {
 	bool setLinkDelay(int64_t delay) {
 		one_way_delay = delay;
 		int64_t abs_delay = (one_way_delay < 0 ? -one_way_delay : one_way_delay);
+
+		if (testMode) {
+			GPTP_LOG_STATUS("Link delay: %d", delay);
+		}
 
 		return (abs_delay <= neighbor_prop_delay_thresh);
 	}
@@ -1369,6 +1397,15 @@ class IEEE1588Port {
 	(PortIdentity * destIdentity, LinkLayerAddress * remote);
 
 	/**
+	 * @brief  Sets current pdelay count value.
+	 * @param  cnt [in] pdelay count value
+	 * @return void
+	 */
+	void setPdelayCount(unsigned int cnt) {
+		pdelay_count = cnt;
+	}
+
+	/**
 	 * @brief  Increments Pdelay count
 	 * @return void
 	 */
@@ -1383,6 +1420,15 @@ class IEEE1588Port {
 	 */
 	unsigned getPdelayCount() {
 		return pdelay_count;
+	}
+
+	/**
+	 * @brief  Sets current sync count value.
+	 * @param  cnt [in] sync count value
+	 * @return void
+	 */
+	void setSyncCount(unsigned int cnt) {
+		sync_count = cnt;
 	}
 
 	/**
@@ -1402,7 +1448,6 @@ class IEEE1588Port {
 		return sync_count;
 	}
 
-
 	/**
 	 * @brief  Gets link up count
 	 * @return Link up  count
@@ -1417,6 +1462,24 @@ class IEEE1588Port {
 	 */
 	uint32_t getLinkDownCount() {
 		return linkDownCount;
+	}
+
+	/**
+	 * @brief  Sets the Station State for the Test Status message 
+	 * @param  StationState_t [in] The station state  
+	 * @return none
+	 */
+	void setStationState(StationState_t _stationState) {
+		stationState = _stationState;
+		if (stationState == STATION_STATE_ETHERNET_READY) {
+			GPTP_LOG_STATUS("AVnu AP Status : STATION_STATE_ETHERNET_READY");
+		}
+		else if (stationState == STATION_STATE_AVB_SYNC) {
+			GPTP_LOG_STATUS("AVnu AP Status : STATION_STATE_AVB_SYNC");
+		}
+		else if (stationState == STATION_STATE_AVB_MEDIA_READY) {
+			GPTP_LOG_STATUS("AVnu AP Status : STATION_STATE_AVB_MEDIA_READY");
+		}
 	}
 
 	/**
@@ -1444,6 +1507,14 @@ class IEEE1588Port {
 	 */
 	void setLastGmTimeBaseIndicator(uint16_t gmTimeBaseIndicator) {
 		lastGmTimeBaseIndicator = gmTimeBaseIndicator;
+	}
+
+	/**
+	 * @brief  Gets the testMode
+	 * @return bool of the test mode value
+	 */
+	bool getTestMode(void) {
+		return testMode;
 	}
 
 	/**

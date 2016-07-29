@@ -40,7 +40,7 @@
 
 struct LinuxTimestamperGenericPrivate;
 /**
- * Povides LinuxTimestamperGeneric a private type
+ * @brief Provides LinuxTimestamperGeneric a private type
  */
 typedef struct LinuxTimestamperGenericPrivate * LinuxTimestamperGenericPrivate_t;
 
@@ -50,7 +50,7 @@ typedef struct LinuxTimestamperIGBPrivate * LinuxTimestamperIGBPrivate_t;
 #endif
 
 /**
- * Linux timestamper generic interface
+ * @brief Linux timestamper generic interface
  */
 class LinuxTimestamperGeneric : public LinuxTimestamper {
 private:
@@ -71,7 +71,7 @@ private:
 
 public:
 	/**
-	 * Default constructor. Initializes internal variables
+	 * @brief Default constructor. Initializes internal variables
 	 */
 	LinuxTimestamperGeneric();
 
@@ -185,7 +185,7 @@ public:
 #endif
 
 	/**
-	 * deletes LinuxTimestamperGeneric object
+	 * @brief deletes LinuxTimestamperGeneric object
 	 */
 	virtual ~LinuxTimestamperGeneric();
 };

@@ -40,6 +40,7 @@ igb_clean:
 
 lib: FORCE
 	$(call descend,lib/igb)
+	$(call descend,lib/common)
 
 lib_clean:
 	$(call descend,lib/igb/,clean)
@@ -78,7 +79,14 @@ simple_listener:
 	$(call descend,examples/$@)
 
 simple_listener_clean:
-	$(call descend,examples/simple_listener/,clean)
+	$(call descend,examples/simple_rx/,clean)
+
+simple_rx:
+	$(MAKE) lib
+	$(call descend,examples/$@)
+
+simple_rx_clean:
+	$(call descend,examples/simple_rx/,clean)
 
 mrp_client:
 	$(call descend,examples/$@)
@@ -117,10 +125,10 @@ avtp_pipeline_doc: lib
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_pipeline.mk doc
 
 examples_all: simple_talker simple_listener mrp_client live_stream jackd-talker \
-	jackd-listener
+	jackd-listener simple_rx
 
 examples_all_clean: simple_talker_clean simple_listener_clean mrp_client_clean \
-	jackd-talker_clean jackd-listener_clean live_stream_clean
+	jackd-talker_clean jackd-listener_clean live_stream_clean simple_rx_clean
 
 all: igb lib daemons_all examples_all avtp_pipeline
 

@@ -66,7 +66,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 /**
- * Automotive Profile Test Status Station State
+ * @brief Automotive Profile Test Status Station State
  */
 typedef enum {
 	STATION_STATE_RESERVED,
@@ -77,7 +77,7 @@ typedef enum {
 
 
 /**
- * Provides a class for building the ANvu Automotive
+ * @brief Provides a class for building the ANvu Automotive
  * Profile Test Status message
  */
 class APMessageTestStatus {
@@ -93,7 +93,7 @@ class APMessageTestStatus {
 	APMessageTestStatus(IEEE1588Port * port);
 
 	/**
-	 * Destroys APMessageTestStatus interface
+	 * @brief Destroys APMessageTestStatus interface
 	 */
 	~APMessageTestStatus();
 

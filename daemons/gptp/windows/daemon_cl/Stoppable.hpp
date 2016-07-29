@@ -40,7 +40,7 @@ POSSIBILITY OF SUCH DAMAGE.
 /**@file*/
 
 /**
- * Provides an interface to stop threads
+ * @brief Provides an interface to stop threads
  */
 class Stoppable {
 protected:
@@ -48,7 +48,7 @@ protected:
 	HANDLE thread;		/*!< Thread handler */
 public:
 	/**
-	 * Initializes interface
+	 * @brief Initializes interface
 	 */
 	Stoppable() { thread = NULL; exit_waiting = false; }
 	/**
@@ -67,7 +67,7 @@ public:
 		return true;
 	}
 	/**
-	 * destroys the interface
+	 * @brief destroys the interface
 	 */
 	virtual ~Stoppable() = 0 {};
 };

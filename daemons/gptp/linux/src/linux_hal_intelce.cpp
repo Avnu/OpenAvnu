@@ -235,7 +235,7 @@ net_result LinuxNetworkInterface::nrecv
 
  done:
 	if( !net_lock.unlock()) {
-		GPTP_LOG_ERROR( "A Failed to unlock, %d\n", err );
+		GPTP_LOG_ERROR( "A Failed to unlock, %d", err );
 		return net_fatal;
 	}
 

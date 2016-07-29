@@ -34,6 +34,7 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/ptp_classify.h>
+#include <linux/clocksource.h>
 
 #define INCVALUE_MASK		0x7fffffff
 #define ISGN			0x80000000

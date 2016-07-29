@@ -49,7 +49,7 @@
 #pragma pack(push,1)
 
 /**
- * Enumeration named pipe message type. Possible values are:
+ * @brief Enumeration named pipe message type. Possible values are:
  *  - BASE_MSG;
  *  - CTRL_MSG;
  *  - QUERY_MSG;
@@ -58,7 +58,7 @@
 typedef enum { BASE_MSG = 0, CTRL_MSG, QUERY_MSG, OFFSET_MSG } NPIPE_MSG_TYPE;
 
 /**
- * Provides a windows named pipe interface
+ * @brief Provides a windows named pipe interface
  */
 class WindowsNPipeMessage {
     protected:
@@ -153,7 +153,7 @@ class WindowsNPipeMessage {
 };
 
 /**
- * Provides an interface for the phase/frequency offsets
+ * @brief Provides an interface for the phase/frequency offsets
  */
 class Offset {
     public:
@@ -165,7 +165,7 @@ class Offset {
 };
 
 /**
- * Provides an interface to update the Offset information
+ * @brief Provides an interface to update the Offset information
  */
 class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
     private:
@@ -241,13 +241,13 @@ class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
 };
 
 /**
- * Enumeration CtrlWhich. It can assume the following values:
+ * @brief Enumeration CtrlWhich. It can assume the following values:
  *  - ADD_PEER;
  *  - REMOVE_PEER;
  */
 typedef enum { ADD_PEER, REMOVE_PEER } CtrlWhich;
 /**
- * Enumeration AddrWhich. It can assume the following values:
+ * @brief Enumeration AddrWhich. It can assume the following values:
  *  - MAC_ADDR;
  *  - IP_ADDR;
  *  - INVALID_ADDR;
@@ -255,13 +255,13 @@ typedef enum { ADD_PEER, REMOVE_PEER } CtrlWhich;
 typedef enum { MAC_ADDR, IP_ADDR, INVALID_ADDR } AddrWhich;
 
 /**
- * Provides an interface for Peer addresses
+ * @brief Provides an interface for Peer addresses
  */
 class PeerAddr {
     public:
         AddrWhich which;	/*!< Peer address */
         /**
-         * shared memory between mac and ip addresses
+         * @brief shared memory between mac and ip addresses
          */
         union {
             uint8_t mac[ETHER_ADDR_OCTETS];	/*!< Link Layer address */
@@ -310,7 +310,7 @@ class PeerAddr {
 };
 
 /**
- * Provides an interface for named pipe control messages
+ * @brief Provides an interface for named pipe control messages
  */
 class WinNPipeCtrlMessage : public WindowsNPipeMessage {
     private:
@@ -370,7 +370,7 @@ class WinNPipeCtrlMessage : public WindowsNPipeMessage {
 };
 
 /**
- * WindowsNPipeQueryMessage is sent from the client to gPTP daemon to query the
+ * @brief WindowsNPipeQueryMessage is sent from the client to gPTP daemon to query the
  * offset of type ::NPIPE_MSG_TYPE.  The daemon sends WindowsNPipeMessage in response.
  * Currently there is no data associated with this message.
  */
@@ -384,7 +384,7 @@ class WinNPipeQueryMessage : public WindowsNPipeMessage {
 };
 
 /**
- * Provides the client's named pipe interface
+ * @brief Provides the client's named pipe interface
  * @todo Not in use and should be removed.
  */
 typedef union {
@@ -393,7 +393,7 @@ typedef union {
 } WindowsNPipeMsgClient;
 
 /**
- * Provides the server's named pipe interface
+ * @brief Provides the server's named pipe interface
  * @todo Not in use and should be removed.
  */
 typedef union {
