@@ -996,7 +996,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	master_local_freq_offset += 1.0;
 	master_local_freq_offset /= port->getPeerRateOffset();
 
-	correctionField = (correctionField >> 16);
+	correctionField /= 1 << 16;
 	correction = (int64_t)((delay * master_local_freq_offset) + correctionField );
 
 	if( correction > 0 )
