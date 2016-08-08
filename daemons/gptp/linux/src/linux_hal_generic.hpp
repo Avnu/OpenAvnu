@@ -62,6 +62,9 @@ private:
 	bool cross_stamp_good;
 	std::list<Timestamp> rxTimestampList;
 	LinuxNetworkInterfaceList iface_list;
+#ifdef PTP_HW_CROSSTSTAMP
+	bool precise_timestamp_enabled;
+#endif
 
 	TicketingLock *net_lock;
 
