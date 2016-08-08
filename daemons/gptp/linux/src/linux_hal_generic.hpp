@@ -62,6 +62,7 @@ private:
 	bool cross_stamp_good;
 	std::list<Timestamp> rxTimestampList;
 	LinuxNetworkInterfaceList iface_list;
+	bool precise_timestamp_enabled;
 
 	TicketingLock *net_lock;
 

@@ -222,6 +222,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	cross_stamp_good = false;
 	int phc_index;
 	char ptp_device[] = PTP_DEVICE;
+	struct ptp_clock_caps ptp_capability;
 
 	_private = new LinuxTimestamperGenericPrivate;
 
@@ -243,6 +244,13 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 		fprintf( stderr, "Failed to open PTP clock device\n" );
 		return false;
 	}
+
+	if( ioctl( phc_fd, PTP_CLOCK_GETCAPS, &ptp_capability ) == -1 )
+	{
+		GPTP_LOG_ERROR( "Failed to query PTP clock capabilities" );
+		return false;
+	}
+	precise_timestamp_enabled = ptp_capability.cross_timestamping;
 
 	if( !resetFrequencyAdjustment() ) {
 		GPTP_LOG_ERROR( "Failed to reset (zero) frequency adjustment" );
@@ -414,14 +422,17 @@ static inline Timestamp pctTimestamp( struct ptp_clock_time *t ) {
 bool LinuxTimestamperGeneric::HWTimestamper_gettime
 ( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
   uint32_t *nominal_clock_rate ) {
-	unsigned i;
-	struct ptp_sys_offset offset;
-	struct ptp_clock_time *pct;
-	struct ptp_clock_time *system_time_l, *device_time_l;
+	if( phc_fd == -1 )
+		return false;
 
-	int64_t interval = LLONG_MAX;
+	if( !precise_timestamp_enabled )
+	{
+		unsigned i;
+		struct ptp_clock_time *pct;
+		struct ptp_clock_time *system_time_l, *device_time_l;
+		int64_t interval = LLONG_MAX;
+		struct ptp_sys_offset offset;
 
-	if( phc_fd != -1 ) {
 		memset( &offset, 0, sizeof(offset));
 		offset.n_samples = PTP_MAX_SAMPLES;
 		ioctl( phc_fd, PTP_SYS_OFFSET, &offset );
@@ -439,9 +450,17 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 
 		*device_time = pctTimestamp( device_time_l );
 		*system_time = pctTimestamp( system_time_l );
+	}
+	else
+	{
+		struct ptp_sys_offset_precise offset;
+		memset( &offset, 0, sizeof(offset));
+		if( ioctl( phc_fd, PTP_SYS_OFFSET_PRECISE, &offset ) == -1 )
+			return false;
 
-		return true;
+		*device_time = pctTimestamp( &offset.device );
+		*system_time = pctTimestamp( &offset.sys_realtime );
 	}
 
-	return false;
+	return true;
 }
