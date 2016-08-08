@@ -435,7 +435,8 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 
 		memset( &offset, 0, sizeof(offset));
 		offset.n_samples = PTP_MAX_SAMPLES;
-		ioctl( phc_fd, PTP_SYS_OFFSET, &offset );
+		if( ioctl( phc_fd, PTP_SYS_OFFSET, &offset ) == -1 )
+			return false;
 
 		pct = &offset.ts[0];
 		for( i = 0; i < offset.n_samples; ++i ) {
