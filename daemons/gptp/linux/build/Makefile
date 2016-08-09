@@ -33,7 +33,7 @@ ALTERNATE_LINUX_INCPATH=$(HOME)/header/include/
 CFLAGS_G = -Wall -std=c++0x -g -I. -I../../common -I../src \
 	-I$(ALTERNATE_LINUX_INCPATH)
 
-CPPFLAGS_G := $(CFLAGS_G) -Wnon-virtual-dtor
+CPPFLAGS_G = $(CFLAGS_G) -Wnon-virtual-dtor
 
 LDFLAGS_G = -lpthread -lrt
 
