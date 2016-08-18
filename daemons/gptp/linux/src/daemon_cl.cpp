@@ -363,10 +363,6 @@ int main(int argc, char **argv)
 	portInit.lock_factory = lock_factory;
 
 	pPort = new IEEE1588Port(&portInit);
-	if (!pPort->init_port(phy_delay)) {
-		printf("failed to initialize port \n");
-		return -1;
-	}
 
 	if(use_config_file)
 	{
@@ -406,6 +402,11 @@ int main(int argc, char **argv)
 			}
 		}
 
+	}
+
+	if (!pPort->init_port(phy_delay)) {
+		printf("failed to initialize port \n");
+		return -1;
 	}
 
 	if( restoredataptr != NULL ) {
