@@ -575,7 +575,6 @@ struct igb_adapter {
 	/* OS defined structs */
 	struct pci_dev *pdev;
 	/* user-dma specific variables */
-	struct igb_user_page	*userpages;
 	u32	uring_tx_init;
 	u32	uring_rx_init;
 #ifndef HAVE_NETDEV_STATS_IN_NETDEV
@@ -893,6 +892,15 @@ struct igb_link_cmd {
 	u32		up;
 	u32		speed;
 	u32		duplex;
+};
+
+struct igb_private_data {
+	struct igb_adapter *adapter;
+	/* user-dma specific variable for buffer */
+	struct igb_user_page *userpages;
+	/* user-dma specific variable for TX and RX */
+	u32	uring_tx_init;
+	u32	uring_rx_init;
 };
 
 #endif /* _IGB_H_ */
