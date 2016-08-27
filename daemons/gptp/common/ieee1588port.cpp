@@ -618,11 +618,15 @@ void IEEE1588Port::processEvent(Event e)
 					}
 					if (EBest == NULL) {
 						EBest = ports[j]->calculateERBest();
-					} else {
+					}else if (ports[j]->calculateERBest()) {
 						if (ports[j]->calculateERBest()->isBetterThan(EBest)) {
 							EBest = ports[j]->calculateERBest();
 						}
 					}
+				}
+
+				if (EBest == NULL) {
+					break;
 				}
 
 				/* Check if we've changed */
