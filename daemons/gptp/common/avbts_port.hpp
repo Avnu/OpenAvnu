@@ -1149,7 +1149,7 @@ class IEEE1588Port {
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getRxTimestamp
-	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
+	(PortIdentity * sourcePortIdentity, PTPMessageId messageId,
 	 Timestamp & timestamp, unsigned &counter_value, bool last);
 
 	/**
@@ -1162,7 +1162,7 @@ class IEEE1588Port {
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getTxTimestamp
-	(PortIdentity * sourcePortIdentity, uint16_t sequenceId,
+	(PortIdentity * sourcePortIdentity, PTPMessageId messageId,
 	 Timestamp & timestamp, unsigned &counter_value, bool last);
 
 	/**

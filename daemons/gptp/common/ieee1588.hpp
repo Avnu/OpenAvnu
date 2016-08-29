@@ -65,6 +65,7 @@
 class LinkLayerAddress;
 struct ClockQuality;
 class PortIdentity;
+class PTPMessageId;
 class PTPMessageCommon;
 class PTPMessageSync;
 class PTPMessageAnnounce;
@@ -528,14 +529,14 @@ public:
 	/**
 	 * @brief  Gets the tx timestamp from hardware
 	 * @param  identity PTP port identity
-	 * @param  sequenceId Sequence ID
+	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
-			uint16_t sequenceId,
+			PTPMessageId messageId,
 			Timestamp & timestamp,
 			unsigned &clock_value,
 			bool last) = 0;
@@ -543,14 +544,14 @@ public:
 	/**
 	 * @brief  Get rx timestamp
 	 * @param  identity PTP port identity
-	 * @param  sequenceId Sequence ID
+	 * @param  messageId Message ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
-			uint16_t sequenceId,
+			PTPMessageId messageId,
 			Timestamp & timestamp,
 			unsigned &clock_value,
 			bool last) = 0;

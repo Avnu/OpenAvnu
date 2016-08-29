@@ -38,6 +38,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "avbts_osnet.hpp"
 #include "avbts_oslock.hpp"
 #include "windows_hal.hpp"
+#include "avbts_message.hpp"
 #include <tchar.h>
 
 #define MACSTR_LENGTH 17
