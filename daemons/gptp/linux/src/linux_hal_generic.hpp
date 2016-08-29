@@ -143,28 +143,28 @@ public:
 	/**
 	 * @brief  Gets the TX timestamp from hardware interface
 	 * @param  identity PTP port identity
-	 * @param  sequenceId Sequence ID
+	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp
-	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last );
 
 	/**
 	 * @brief  Gets the RX timestamp from the hardware interface. This
 	 * Currently the RX timestamp is retrieved at LinuxNetworkInterface::nrecv method.
 	 * @param  identity PTP port identity
-	 * @param  sequenceId Sequence ID
+	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
      * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp
-	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last ) {
 		/* This shouldn't happen. Ever. */
 		if( rxTimestampList.empty() ) return GPTP_EC_EAGAIN;
