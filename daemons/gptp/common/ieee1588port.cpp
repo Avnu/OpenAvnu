@@ -1154,7 +1154,7 @@ void IEEE1588Port::processEvent(Event e)
 			annc->sendPort(this, NULL);
 			delete annc;
 		}
-		startAnnounceIntervalTimer(pow((double)2, getAnnounceInterval()) * 1000000000.0);
+		startAnnounceIntervalTimer((uint64_t)(pow((double)2, getAnnounceInterval()) * 1000000000.0));
 		break;
 	case FAULT_DETECTED:
 		GPTP_LOG_ERROR("Received FAULT_DETECTED event");
