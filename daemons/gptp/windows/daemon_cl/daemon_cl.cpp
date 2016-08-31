@@ -47,7 +47,8 @@ static bool exit_flag;
 void print_usage( char *arg0 ) {
 	fprintf( stderr,
 		"%s "
-		"[-R <priority 1>] <network interface>\n",
+		"[-R <priority 1>] <network interface>\n"
+		"where <network interface> is a MAC address entered as xx-xx-xx-xx-xx-xx\n",
 		arg0 );
 }
 
@@ -121,8 +122,15 @@ int _tmain(int argc, _TCHAR* argv[])
 		ipc = NULL;
 	}
 
+	// If there are no arguments, output usage
+	if (1 == argc) {
+		print_usage(argv[0]);
+		return -1;
+	}
+
+
 	/* Process optional arguments */
-	for( i = 1; i < argc-1; ++i ) {
+	for( i = 1; i < argc; ++i ) {
 		if( ispunct(argv[i][0]) ) {
 			if( toupper( argv[i][1] ) == 'H' ) {
 				print_usage( argv[0] );
@@ -145,12 +153,11 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 	}
 
+	// the last argument is supposed to be a MAC address, so decrement argv index to read it
+	i--;
+
 	// Create Low level network interface object
 	uint8_t local_addr_ostr[ETHER_ADDR_OCTETS];
-	if( i >= argc ) {
-		print_usage( argv[0] );
-		return -1;
-	}
 	parseMacAddr( argv[i], local_addr_ostr );
 	LinkLayerAddress local_addr(local_addr_ostr);
 	portInit.net_label = &local_addr;
