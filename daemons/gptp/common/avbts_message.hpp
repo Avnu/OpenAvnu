@@ -1059,16 +1059,16 @@ class SignallingTLV {
 	 */
 	SignallingTLV() {
 		tlvType = PLAT_htons(0x3);
-		lengthField = PLAT_htons(28);
+		lengthField = PLAT_htons(12);
 		organizationId[0] = '\x00';
 		organizationId[1] = '\x80';
 		organizationId[2] = '\xC2';
 		organizationSubType_ms = 0;
-		organizationSubType_ls = PLAT_htons(1);
+		organizationSubType_ls = PLAT_htons(2);
 		linkDelayInterval = 0;
 		timeSyncInterval = 0;
 		announceInterval = 0;
-		flags = 0;
+		flags = 3;
 		reserved = PLAT_htons(0);
 	}
 
