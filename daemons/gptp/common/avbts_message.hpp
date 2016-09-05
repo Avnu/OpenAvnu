@@ -618,8 +618,10 @@ class scaledNs {
 	 * @param  byte_str [out] scaledNs value
 	 * @return void
 	 */
-	void toByteString(uint8_t * byte_str) {
-		memcpy(byte_str, this, sizeof(*this));
+	void toByteString(uint8_t * byte_str, size_t sizeof_byte_str_array) {
+
+		if(sizeof_byte_str_array >= sizeof(*this))
+			memcpy(byte_str, this, sizeof(*this));
 	}
 
 	/**
@@ -691,8 +693,10 @@ class FollowUpTLV {
 	 * @brief  Gets FollowUpTLV information in a byte string format
 	 * @param  byte_str [out] FollowUpTLV values
 	 */
-	void toByteString(uint8_t * byte_str) {
-		memcpy(byte_str, this, sizeof(*this));
+	void toByteString(uint8_t * byte_str, size_t sizeof_byte_str_array) {
+
+		if(sizeof_byte_str_array >= sizeof(*this))
+			memcpy(byte_str, this, sizeof(*this));
 	}
 
 	/**
@@ -1077,8 +1081,10 @@ class SignallingTLV {
 	 *         string format
 	 * @param  byte_str [out] Msg Interval Request TLV values
 	 */
-	void toByteString(uint8_t * byte_str) {
-		memcpy(byte_str, this, sizeof(*this));
+	void toByteString(uint8_t * byte_str, size_t sizeof_byte_str_array) {
+
+		if(sizeof_byte_str_array >= sizeof(*this))
+			memcpy(byte_str, this, sizeof(*this));
 	}
 
 	/**

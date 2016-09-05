@@ -774,8 +774,8 @@ void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
 	       &stepsRemoved_l, sizeof(stepsRemoved));
 	memcpy(buf_ptr + PTP_ANNOUNCE_TIME_SOURCE(PTP_ANNOUNCE_OFFSET),
 	       &timeSource, sizeof(timeSource));
+	
 	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_ANNOUNCE_LENGTH);
-
 	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
 	port->incCounter_ieee8021AsPortStatTxAnnounce();
 
@@ -897,7 +897,10 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	/*Change time base indicator to Network Order before sending it*/
 	uint16_t tbi_NO = PLAT_htonl(tlv.getGMTimeBaseIndicator());
 	tlv.setGMTimeBaseIndicator(tbi_NO);
-	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH);
+
+	size_t available_size = sizeof(buf_t) - (PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH
+						+port->getPayloadOffset());
+	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH, available_size);
 
 	GPTP_LOG_VERBOSE
 		("Follow-Up Time: %u seconds(hi)", preciseOriginTimestamp.seconds_ms);
@@ -1762,7 +1765,9 @@ void PTPMessageSignalling::sendPort(IEEE1588Port * port, PortIdentity * destIden
 	memcpy(buf_ptr + PTP_SIGNALLING_TARGET_PORT_IDENTITY(PTP_SIGNALLING_OFFSET),
 	       &targetPortIdentify, sizeof(targetPortIdentify));
 
-	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_SIGNALLING_LENGTH);
+	size_t available_size = sizeof(buf_t) - (PTP_COMMON_HDR_LENGTH + PTP_SIGNALLING_LENGTH
+						+ port->getPayloadOffset());
+	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_SIGNALLING_LENGTH, available_size);
 
 	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
 }
