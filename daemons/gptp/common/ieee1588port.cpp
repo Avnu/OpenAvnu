@@ -211,6 +211,7 @@ void IEEE1588Port::timestamper_reset(void)
 {
 	if( _hw_timestamper != NULL ) {
 		_hw_timestamper->init_phy_delay(this->link_delay);
+		_hw_timestamper->HWTimestamper_reset();
 	}
 }
 
