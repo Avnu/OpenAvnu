@@ -899,8 +899,11 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	tlv.setGMTimeBaseIndicator(tbi_NO);
 
 	size_t available_size = sizeof(buf_t) - (PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH
-						+port->getPayloadOffset());
-	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH, available_size);
+						+ port->getPayloadOffset());
+	int result = tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH,
+						 available_size);
+	if(result != 0)
+		GPTP_LOG_ERROR("toByteString returned an error - invalid size passed");
 
 	GPTP_LOG_VERBOSE
 		("Follow-Up Time: %u seconds(hi)", preciseOriginTimestamp.seconds_ms);
@@ -1767,7 +1770,10 @@ void PTPMessageSignalling::sendPort(IEEE1588Port * port, PortIdentity * destIden
 
 	size_t available_size = sizeof(buf_t) - (PTP_COMMON_HDR_LENGTH + PTP_SIGNALLING_LENGTH
 						+ port->getPayloadOffset());
-	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_SIGNALLING_LENGTH, available_size);
+	int result = tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_SIGNALLING_LENGTH,
+						 available_size);
+	if(result != 0)
+		GPTP_LOG_ERROR("toByteString returned an error - invalid size passed");
 
 	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
 }
