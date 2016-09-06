@@ -907,7 +907,7 @@ void IEEE1588Port::processEvent(Event e)
 
 			getTxLock();
 			pdelay_req->sendPort(this, NULL);
-			GPTP_LOG_DEBUG("Sent PDelay Request");
+			GPTP_LOG_DEBUG("*** Sent PDelay Request message");
 
 			OSTimer *timer = timer_factory->createTimer();
 
@@ -969,6 +969,9 @@ void IEEE1588Port::processEvent(Event e)
 					timeout : EVENT_TIMER_GRANULARITY;
 				clock->addEventTimerLocked
 					(this, PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES, timeout );
+				GPTP_LOG_DEBUG("Schedule PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES, "
+					"PDelay interval %d, wait_time %lld, timeout %lld",
+					getPDelayInterval(), wait_time, timeout);
 
 				interval =
 					((long long)
