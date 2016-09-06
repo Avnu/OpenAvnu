@@ -207,6 +207,13 @@ void IEEE1588Port::timestamper_init(void)
 	}
 }
 
+void IEEE1588Port::timestamper_reset(void)
+{
+	if( _hw_timestamper != NULL ) {
+		_hw_timestamper->init_phy_delay(this->link_delay);
+	}
+}
+
 bool IEEE1588Port::init_port(int delay[4])
 {
 	if (!OSNetworkInterfaceFactory::buildInterface
@@ -764,7 +771,7 @@ void IEEE1588Port::processEvent(Event e)
 				linkUpCount++;
 			}
 		}
-		this->timestamper_init();
+		this->timestamper_reset();
 		break;
 
 	case LINKDOWN:
