@@ -79,7 +79,7 @@ simple_listener:
 	$(call descend,examples/$@)
 
 simple_listener_clean:
-	$(call descend,examples/simple_rx/,clean)
+	$(call descend,examples/simple_listener/,clean)
 
 simple_rx:
 	$(MAKE) lib

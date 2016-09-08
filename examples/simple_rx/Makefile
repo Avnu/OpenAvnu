@@ -23,5 +23,5 @@ $(IGBDIR)/igb.o:  $(IGBDIR)/igb.c
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 clean:
-	$(RM)  simple_listener
+	$(RM)  simple_rx
 	$(RM) `find . -name "*~" -o -name "*.[oa]" -o -name "\#*\#" -o -name TAGS -o -name core -o -name "*.orig"`
