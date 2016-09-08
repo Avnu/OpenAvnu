@@ -598,8 +598,7 @@ void IEEE1588Port::processEvent(Event e)
 
 	case STATE_CHANGE_EVENT:
 		if (!automotive_profile) {       // BMCA is not active with Automotive Profile
-			if ( clock->getPriority1() != 255 && qualified_announce != NULL ) {
-
+			if ( clock->getPriority1() != 255 ) {
 				int number_ports, j;
 				PTPMessageAnnounce *EBest = NULL;
 				char EBestClockIdentity[PTP_CLOCK_IDENTITY_LENGTH];
