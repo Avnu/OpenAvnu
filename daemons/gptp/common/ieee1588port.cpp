@@ -140,7 +140,6 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 
 	/*TODO: Add intervals below to a config interface*/
 	log_mean_sync_interval = initialLogSyncInterval;
-	_accelerated_sync_count = portInit->accelerated_sync_count;
 	log_mean_announce_interval = 0;
 	log_min_mean_pdelay_req_interval = initialLogPdelayReqInterval;
 
@@ -522,10 +521,6 @@ void IEEE1588Port::processEvent(Event e)
 			unsigned long long interval4;
 			Event e3 = NULL_EVENT;
 			Event e4 = NULL_EVENT;
-
-			if( port_state != PTP_MASTER ) {
-				_accelerated_sync_count = -1;
-			}
 
 			if (!automotive_profile) {
 				if (port_state != PTP_SLAVE && port_state != PTP_MASTER) {
@@ -1104,36 +1099,11 @@ void IEEE1588Port::processEvent(Event e)
 			   system_time, local_system_freq_offset, sync_count,
 			   pdelay_count, port_state, asCapable );
 
-			if (!automotive_profile) {
-				/* If accelerated_sync is non-zero then start 16 ms sync
-				   timer, subtract 1, for last one start PDelay also */
-				if( _accelerated_sync_count > 0 ) {
-					clock->addEventTimerLocked
-					  ( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 8000000 );
-					    --_accelerated_sync_count;
-				} else {
-					syncDone();
-					if( _accelerated_sync_count == 0 ) {
-						--_accelerated_sync_count;
-					}
-					wait_time *= 1000; // to ns
-					wait_time =
-					  ((long long)
-					     (pow((double)2,getSyncInterval())*1000000000.0)) -
-					    wait_time;
-					wait_time = wait_time > EVENT_TIMER_GRANULARITY ? wait_time :
-					            EVENT_TIMER_GRANULARITY;
-					startSyncIntervalTimer(wait_time);
-				}
-			}
-			else {
-				// Automotive Profile
-				syncDone();
+			syncDone();
 
-				wait_time = ((long long) (pow((double)2, getSyncInterval()) * 1000000000.0));
-				wait_time = wait_time > EVENT_TIMER_GRANULARITY ? wait_time : EVENT_TIMER_GRANULARITY;
-				startSyncIntervalTimer(wait_time);
-			}
+			wait_time = ((long long) (pow((double)2, getSyncInterval()) * 1000000000.0));
+			wait_time = wait_time > EVENT_TIMER_GRANULARITY ? wait_time : EVENT_TIMER_GRANULARITY;
+			startSyncIntervalTimer(wait_time);
 
 		}
 		break;
