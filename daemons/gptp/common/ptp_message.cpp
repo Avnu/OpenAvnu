@@ -279,7 +279,7 @@ PTPMessageCommon *buildPTPMessage
 		break;
 	case PATH_DELAY_RESP_MESSAGE:
 
-		GPTP_LOG_DEBUG("*** Received PDelay Response message, %u, %u, %u",
+		GPTP_LOG_DEBUG("*** Received PDelay Response message, Timestamp %u (sec) %u (ns), seqID %u",
 			   timestamp.seconds_ls, timestamp.nanoseconds,
 			   sequenceId);
 
