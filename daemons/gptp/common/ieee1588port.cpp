@@ -931,6 +931,10 @@ void IEEE1588Port::processEvent(Event e)
 
 			if (ts_good == GPTP_EC_SUCCESS) {
 				pdelay_req->setTimestamp(req_timestamp);
+				GPTP_LOG_DEBUG(
+					"PDelay Request message, Timestamp %u (sec) %u (ns), seqID %u",
+					req_timestamp.seconds_ls, req_timestamp.nanoseconds,
+					pdelay_req->getSequenceId());
 			} else {
 			  Timestamp failed = INVALID_TIMESTAMP;
 			  pdelay_req->setTimestamp(failed);
@@ -945,17 +949,6 @@ void IEEE1588Port::processEvent(Event e)
 					"Error (TX) timestamping PDelay request, error=%d\t%s",
 					ts_good, msg);
 			}
-#ifdef DEBUG
-			if (ts_good == GPTP_EC_SUCCESS) {
-				GPTP_LOG_DEBUG
-				    ("Successful PDelay Req timestamp, %u,%u",
-				     req_timestamp.seconds_ls,
-				     req_timestamp.nanoseconds);
-			} else {
-				GPTP_LOG_DEBUG
-				    ("*** Unsuccessful PDelay Req timestamp");
-			}
-#endif
 
 			{
 				long long timeout;
@@ -1145,6 +1138,7 @@ void IEEE1588Port::processEvent(Event e)
 		}
 		break;
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
+		GPTP_LOG_DEBUG("ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES occured");
 		if (asCapable) {
 			// Send an announce message
 			PTPMessageAnnounce *annc = new PTPMessageAnnounce(this);
@@ -1166,6 +1160,7 @@ void IEEE1588Port::processEvent(Event e)
 		}
 		break;
 	case PDELAY_DEFERRED_PROCESSING:
+		GPTP_LOG_DEBUG("PDELAY_DEFERRED_PROCESSING occured");
 		pdelay_rx_lock->lock();
 		if (last_pdelay_resp_fwup == NULL) {
 			GPTP_LOG_ERROR("PDelay Response Followup is NULL!");
