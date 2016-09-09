@@ -129,7 +129,6 @@ thread##_type	thread##_ThreadData
 		pthread_attr_destroy(&thread_attr);																			\
 	}
 
-// KENTEST
 #define THREAD_SET_RT_PRIORITY(threadhandle, priority) 													\
 	{																									\
 		struct sched_param param;																		\
@@ -137,14 +136,13 @@ thread##_type	thread##_ThreadData
 		pthread_setschedparam(threadhandle##_ThreadData.pthread, SCHED_RR, &param);						\
 	}
 
-// KENTEST - quick hard code pinning to core 2 and 3.
-#define THREAD_PIN(threadhandle) 																		\
+#define THREAD_PIN(threadhandle, affinity) 																		\
 	{																									\
 		cpu_set_t cpuset;																				\
 		int i1;																							\
 		CPU_ZERO(&cpuset);																				\
-		for (i1 = 2; i1 < 4; i1++) {																	\
-			CPU_SET(i1, &cpuset);																		\
+		for (i1 = 0; i1 < 32; i1++) {																	\
+			if (affinity & (1 << i1)) CPU_SET(i1, &cpuset);																		\
 		}																								\
 		pthread_setaffinity_np(threadhandle##_ThreadData.pthread, sizeof(cpu_set_t), &cpuset);			\
 	}

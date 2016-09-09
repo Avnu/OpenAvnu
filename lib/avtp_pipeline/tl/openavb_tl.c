@@ -397,6 +397,8 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	pCfg->pIntfInitFn = NULL;
 	pCfg->vlan_id = VLAN_NULL;
 	pCfg->fixed_timestamp = 0;
+	pCfg->thread_rt_priority = 0;
+	pCfg->thread_affinity = 0xFFFFFFFF;
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }
@@ -511,9 +513,8 @@ EXTERN_DLL_EXPORT bool openavbTLRun(tl_handle_t handle)
 		if (pTLState->cfg.role == AVB_ROLE_TALKER) {
 			THREAD_CREATE_TALKER();
 
-			// KENTEST
-			THREAD_SET_RT_PRIORITY(pTLState->TLThread, 10);
-			THREAD_PIN(pTLState->TLThread);
+			THREAD_SET_RT_PRIORITY(pTLState->TLThread, pTLState->cfg.thread_rt_priority);
+			THREAD_PIN(pTLState->TLThread, pTLState->cfg.thread_affinity);
 		}
 		else if (pTLState->cfg.role == AVB_ROLE_LISTENER) {
 			THREAD_CREATE_LISTENER();

@@ -330,6 +330,24 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 			valOK = TRUE;
 		}
 	}
+	else if (MATCH(name, "thread_rt_priority")) {
+		errno = 0;
+		long tmp;
+		tmp = strtol(value, &pEnd, 0);
+		if (*pEnd == '\0' && errno == 0) {
+			pCfg->thread_rt_priority = tmp;
+			valOK = TRUE;
+		}
+	}
+	else if (MATCH(name, "thread_affinity")) {
+		errno = 0;
+		unsigned long tmp;
+		tmp = strtoul(value, &pEnd, 0);
+		if (*pEnd == '\0' && errno == 0) {
+			pCfg->thread_affinity = tmp;
+			valOK = TRUE;
+		}
+	}
 
 	else if (MATCH(name, "map_lib")) {
 		if (pTLState->mapLib.libName)
