@@ -424,6 +424,9 @@ bool IEEE1588Clock::isBetterThan(PTPMessageAnnounce * msg)
 	unsigned char that1[14];
 	uint16_t tmp;
 
+	if (msg == NULL)
+		return true;
+
 	this1[0] = priority1;
 	that1[0] = msg->getGrandmasterPriority1();
 

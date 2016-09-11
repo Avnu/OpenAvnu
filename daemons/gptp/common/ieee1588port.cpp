@@ -582,7 +582,7 @@ void IEEE1588Port::processEvent(Event e)
 				// Send an initial signalling message
 				PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
 				if (sigMsg) {
-					sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
+					sigMsg->setintervals(PTPMessageSignalling::sigMsgInterval_NoSend, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
 					sigMsg->sendPort(this, NULL);
 					delete sigMsg;
 				}
@@ -617,11 +617,15 @@ void IEEE1588Port::processEvent(Event e)
 					}
 					if (EBest == NULL) {
 						EBest = ports[j]->calculateERBest();
-					} else {
+					} else if (ports[j]->calculateERBest()) {
 						if (ports[j]->calculateERBest()->isBetterThan(EBest)) {
 							EBest = ports[j]->calculateERBest();
 						}
 					}
+				}
+
+				if (EBest == NULL) {
+					break;
 				}
 
 				/* Check if we've changed */
@@ -732,7 +736,7 @@ void IEEE1588Port::processEvent(Event e)
 				// Send an initial signaling message
 				PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
 				if (sigMsg) {
-					sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
+					sigMsg->setintervals(PTPMessageSignalling::sigMsgInterval_NoSend, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
 					sigMsg->sendPort(this, NULL);
 					delete sigMsg;
 				}
@@ -1202,7 +1206,10 @@ void IEEE1588Port::processEvent(Event e)
 				// Send operational signalling message
 					PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
 					if (sigMsg) {
-						sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoChange);
+						if (automotive_profile)
+							sigMsg->setintervals(PTPMessageSignalling::sigMsgInterval_NoChange, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoChange);
+						else 
+							sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoChange);
 						sigMsg->sendPort(this, NULL);
 						delete sigMsg;
 					}
