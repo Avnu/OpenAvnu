@@ -10542,7 +10542,7 @@ static int igb_open_file(struct inode *inode, struct file *file)
        struct igb_private_data *igb_priv = NULL;
        int ret = 0;
 
-       igb_priv = kzalloc(sizeof(struct igb_private_data *), GFP_KERNEL);
+       igb_priv = kzalloc(sizeof(struct igb_private_data), GFP_KERNEL);
        if (igb_priv == NULL) {
                ret = -ENOMEM;
                goto out;
