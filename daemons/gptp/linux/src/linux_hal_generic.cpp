@@ -269,6 +269,13 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	return true;
 }
 
+void LinuxTimestamperGeneric::HWTimestamper_reset()
+{
+	if( !resetFrequencyAdjustment() ) {
+		GPTP_LOG_ERROR( "Failed to reset (zero) frequency adjustment" );
+	}
+}
+
 int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 ( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
   unsigned &clock_value, bool last ) {

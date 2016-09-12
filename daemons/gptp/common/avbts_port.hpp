@@ -1139,6 +1139,12 @@ class IEEE1588Port {
 	void timestamper_init(void);
 
 	/**
+	 * @brief Resets the hwtimestamper
+	 */
+	void timestamper_reset(void);
+
+
+	/**
 	 * @brief  Gets RX timestamp based on port identity
 	 * @param  sourcePortIdentity [in] Source port identity
 	 * @param  sequenceId Sequence ID
