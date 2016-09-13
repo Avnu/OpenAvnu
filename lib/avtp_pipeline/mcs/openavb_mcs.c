@@ -49,11 +49,13 @@ void openavbMcsAdvance(mcs_t *mediaClockSynth)
   }
   else	{
     mediaClockSynth->edgeTime += mediaClockSynth->nsPerAdvance;
+#if !IGB_LAUNCHTIME_ENABLED
     IF_LOG_INTERVAL(8000) {
       U64 nowNS;
       CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
       S64 fixedRealDelta = mediaClockSynth->edgeTime - nowNS;
       AVB_LOGF_INFO("Fixed/Real TS Delta: %llu", fixedRealDelta);
     }
+#endif
   }
 }
