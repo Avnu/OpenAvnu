@@ -103,6 +103,12 @@ public:
 	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
 
 	/**
+	 * @brief  Reset the Hardware timestamp interface
+	 * @return void
+	 */
+	virtual void HWTimestamper_reset();
+
+	/**
 	 * @brief  Inserts a new timestamp to the beginning of the
 	 * RX timestamp list.
 	 * @param tstamp [in] RX timestamp
