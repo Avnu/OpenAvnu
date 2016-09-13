@@ -123,7 +123,9 @@ public:
 
 		bool result = false;
 		if (memoryDataLength > storedDataLength) {
-			ftruncate(persistFD, memoryDataLength);
+			int ret = ftruncate(persistFD, memoryDataLength);
+			if (ret != 0) {
+			}
 			if (restoredata != ((void *)-1)) {
 				restoredata = mremap(restoredata, storedDataLength, memoryDataLength, MREMAP_MAYMOVE);
 			}

@@ -847,7 +847,7 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	}
 
 	memset( &device, 0, sizeof(device));
-	ifname->toString( device.ifr_name, IFNAMSIZ );
+	ifname->toString( device.ifr_name, IFNAMSIZ - 1 );
 	err = ioctl( net_iface_l->sd_event, SIOCGIFHWADDR, &device );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR

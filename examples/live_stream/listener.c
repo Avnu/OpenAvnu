@@ -198,8 +198,10 @@ int main(int argc, char *argv[ ])
 			fprintf(stderr,"frame sequence = %lld\n", frame_sequence++);
 			h1722 = (seventeen22_header *)((uint8_t*)frame + sizeof(eth_header));
 			length = ntohs(h1722->length) - sizeof(six1883_header);
-			write(1, (uint8_t *)((uint8_t*)frame + sizeof(eth_header) + sizeof(seventeen22_header) +
+			rc = write(1, (uint8_t *)((uint8_t*)frame + sizeof(eth_header) + sizeof(seventeen22_header) +
 				sizeof(six1883_header)), length);
+			if (rc != length) {
+			}
 		} else {
 			fprintf(stderr,"recvfrom() error for frame sequence = %lld\n", frame_sequence++);
 		}
