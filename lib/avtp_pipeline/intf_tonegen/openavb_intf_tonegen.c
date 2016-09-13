@@ -262,7 +262,6 @@ void openavbIntfToneGenCfgCB(media_q_t *pMediaQ, const char *name, const char *v
 			}
 		}
 
-#if 1 // both bit_depth and audio_type are not required, just use audio_type, always do big endian
 		else if (strcmp(name, "intf_nv_audio_bit_depth") == 0) {
 			val = strtol(value, &pEnd, 10);
 			// TODO: Should check for specific values
@@ -313,36 +312,6 @@ void openavbIntfToneGenCfgCB(media_q_t *pMediaQ, const char *name, const char *v
 				pPubMapUncmpAudioInfo->audioEndian = pPvtData->audioEndian;
 			}
 		}
-#else
-		else if (strcmp(name, "intf_nv_audio_type") == 0) {
-			if (strncasecmp(value, "float", 5) == 0) {
-				pPvtData->audioType = AVB_AUDIO_TYPE_FLOAT;
-				pPvtData->audioBitDepth = 32;
-			} else if (strncasecmp(value, "int32", 5) == 0) {
-				pPvtData->audioType = AVB_AUDIO_TYPE_INT;
-				pPvtData->audioBitDepth = 32;
-			} else if (strncasecmp(value, "int24", 5) == 0) {
-				pPvtData->audioType = AVB_AUDIO_TYPE_INT;
-				pPvtData->audioBitDepth = 24;
-			} else if (strncasecmp(value, "int16", 5) == 0) {
-				pPvtData->audioType = AVB_AUDIO_TYPE_INT;
-				pPvtData->audioBitDepth = 16;
-			} else {
-				AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_type.");
-				pPvtData->audioType = AVB_AUDIO_TYPE_UNSPEC;
-			}
-
-			// always big endian
-			pPvtData->audioEndian = AVB_AUDIO_ENDIAN_BIG;
-
-			// Give the audio parameters to the mapping module.
-			if (xSupportedMappingFormat(pMediaQ)) {
-				pPubMapUncmpAudioInfo->audioType = pPvtData->audioType;
-				pPubMapUncmpAudioInfo->audioBitDepth = pPvtData->audioBitDepth;
-				pPubMapUncmpAudioInfo->audioEndian = pPvtData->audioEndian;
-			}
-		}
-#endif
 
 		else if (strcmp(name, "intf_nv_audio_channels") == 0) {
 			val = strtol(value, &pEnd, 10);
@@ -494,10 +463,6 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 
 				float value = SIN(2 * PI * (runningFrameCnt++ % pPubMapUncmpAudioInfo->audioRate) * pPvtData->ratio) * pPvtData->volume;
 
-
-#if 0 // for debug
-				printf("value(%f), runningFrameCnt(%ul), audioRate(%d), ratio(%f)\n", value, runningFrameCnt, (int)pPubMapUncmpAudioInfo->audioRate, pPvtData->ratio);
-#endif
 				for (channelCnt = 0; channelCnt < pPubMapUncmpAudioInfo->audioChannels - pPvtData->fvChannels; channelCnt++) {
 					if (pPvtData->audioType == AVB_AUDIO_TYPE_INT) {
 						if (pPvtData->audioBitDepth == 32) {
@@ -522,11 +487,6 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 						memcpy((U8 *)&tmp32f, (U8 *)&value, 4);  // done so no warning with -Wstrict-aliasing
 						tmp32f = htonl(tmp32f);
 						memcpy(pData, (U8 *)&tmp32f, 4);
-#if 0 // for debug
-						if (runningFrameCnt == 20) {
-							printf("sin(%f), tmp32f_0(%08X), tmp32f_1(%08X)\n", value, tmp32f_0, tmp32f_1);
-						}
-#endif
 						pData += 4;
 					} else {
 						// CORE_TODO
