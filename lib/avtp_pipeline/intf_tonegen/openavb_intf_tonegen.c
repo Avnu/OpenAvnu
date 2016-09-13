@@ -119,6 +119,8 @@ typedef struct {
 	// Media clock synthesis for precise timestamps
 	mcs_t mcs;
 
+	bool fixedTimestampEnabled;
+
 } pvt_data_t;
 
 #define MSEC_PER_COUNT 250
@@ -553,12 +555,12 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 			
 			pMediaQItem->dataLen = pPubMapUncmpAudioInfo->itemSize;
 
-#if 0
-			openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
-#else
-			openavbMcsAdvance(&pPvtData->mcs);
-			openavbAvtpTimeSetToTimestampNS(pMediaQItem->pAvtpTime, pPvtData->mcs.edgeTime);
-#endif
+			if (!pPvtData->fixedTimestampEnabled) {
+				openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+			} else {
+				openavbMcsAdvance(&pPvtData->mcs);
+				openavbAvtpTimeSetToTimestampNS(pMediaQItem->pAvtpTime, pPvtData->mcs.edgeTime);
+			}
 
 			openavbMediaQHeadPush(pMediaQ);
 
@@ -605,6 +607,26 @@ void openavbIntfToneGenGenEndCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
+void openavbIntfToneGenEnableFixedTimestamp(media_q_t *pMediaQ, bool enabled, U32 transmitInterval, U32 batchFactor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
+	if (pMediaQ && pMediaQ->pPvtIntfInfo) {
+		pvt_data_t *pPvtData = (pvt_data_t *)pMediaQ->pPvtIntfInfo;
+
+		pPvtData->fixedTimestampEnabled = enabled;
+		if (pPvtData->fixedTimestampEnabled) {
+				openavbMcsInit(&pPvtData->mcs, NANOSECONDS_PER_SECOND/transmitInterval);
+				AVB_LOG_INFO("Fixed timestamping enabled");
+		}
+
+		if (batchFactor != 1) {
+			AVB_LOGF_WARNING("batchFactor of %d ignored (must be 1)", batchFactor);
+		}
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_INTF);
+}
+
 // Main initialization entry point into the interface module
 //extern DLL_EXPORT bool openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
 extern bool DLL_EXPORT openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
@@ -629,6 +651,7 @@ extern bool DLL_EXPORT openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_
 		pIntfCB->intf_rx_cb = openavbIntfToneGenRxCB;
 		pIntfCB->intf_end_cb = openavbIntfToneGenEndCB;
 		pIntfCB->intf_gen_end_cb = openavbIntfToneGenGenEndCB;
+		pIntfCB->intf_enable_fixed_timestamp = openavbIntfToneGenEnableFixedTimestamp;
 
 		pPvtData->intervalCounter = 0;
 		pPvtData->melodyIdx = 0;
@@ -642,7 +665,7 @@ extern bool DLL_EXPORT openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_
 		pPvtData->fv2 = 0;
 		pPvtData->fvChannels = 0;
 
-		openavbMcsInit(&pPvtData->mcs, 125000UL);
+		pPvtData->fixedTimestampEnabled = false;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
