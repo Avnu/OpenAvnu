@@ -1728,7 +1728,7 @@ void PTPMessagePathDelayRespFollowUp::setRequestingPortIdentity
 	messageType = SIGNALLING_MESSAGE;
 	sequenceId = port->getNextSignalSequenceId();
 
-	targetPortIdentify = 0xff;
+	targetPortIdentify = (int8_t)0xff;
 
 	control = MESSAGE_OTHER;
 
