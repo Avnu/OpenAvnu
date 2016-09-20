@@ -70,6 +70,7 @@ public:
 	/**
 	 * @brief  Sends a packet to a remote address
 	 * @param  addr [in] Destination link Layer address
+	 * @param etherType [in] The EtherType of the message in host order
 	 * @param  payload [in] Data buffer
 	 * @param  length Size of buffer
 	 * @param  timestamp TRUE: Use timestamp, FALSE otherwise

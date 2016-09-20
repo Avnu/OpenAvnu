@@ -157,7 +157,7 @@ public:
 	/**
 	 * @brief Sends a packet to a remote address
 	 * @param addr [in] Remote link layer address
-	 * @param etherType [in] The EtherType of the message
+	 * @param etherType [in] The EtherType of the message in host order
 	 * @param payload [in] Data buffer
 	 * @param length Size of data buffer
 	 * @param timestamp TRUE if to use the event socket with the PTP multicast address. FALSE if to use

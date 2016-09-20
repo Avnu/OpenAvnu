@@ -794,7 +794,7 @@ class IEEE1588Port {
 
 	/**
 	 * @brief  Start sync interval timer
-	 * @param  waitTime time interval
+	 * @param  waitTime time interval in nanoseconds
 	 * @return none
 	 */
 	void startSyncIntervalTimer(long long unsigned int waitTime);

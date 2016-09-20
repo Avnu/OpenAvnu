@@ -496,7 +496,7 @@ public:
    * @brief  Adds an event to the timer queue using a lock
    * @param  target IEEE1588Port target
    * @param  e Event to be added
-   * @param  time_ns current time in nanoseconds
+   * @param  time_ns event time in nanoseconds
    * @return void
    */
   void addEventTimerLocked
