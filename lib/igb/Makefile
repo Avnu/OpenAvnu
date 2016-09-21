@@ -2,7 +2,6 @@ OBJS=igb
 INCL=e1000_82575.h e1000_defines.h e1000_hw.h e1000_osdep.h e1000_regs.h igb.h
 AVBLIB=libigb.a
 #CFLAGS=-ggdb
-CFLAGS=-fPIC
 
 CC?=gcc
 RANLIB?=ranlib

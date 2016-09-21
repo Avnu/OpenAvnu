@@ -30,7 +30,7 @@
 
 ALTERNATE_LINUX_INCPATH=$(HOME)/header/include/
 
-CFLAGS_G = -Wall -fPIC -g -I. -I../../common -I../src \
+CFLAGS_G = -Wall -g -I. -I../../common -I../src \
 	-I$(ALTERNATE_LINUX_INCPATH)
 
 # Check to see if PTP cross-timestamping is supported in hardware/driver
