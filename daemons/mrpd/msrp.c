@@ -124,7 +124,7 @@ void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 }
 #endif
 
-int msrp_count_type(int attrib_type)
+int msrp_count_type(uint32_t attrib_type)
 {
 	int count = 0;
 	struct msrp_attribute *attrib;
