@@ -712,6 +712,8 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case LINKUP:
+		haltPdelay(false);
+		startPDelay();
 		if (automotive_profile) {
 			GPTP_LOG_EXCEPTION("LINKUP");
 		}
@@ -771,6 +773,8 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case LINKDOWN:
+		setAsCapable(false);
+		stopPDelay();
 		if (automotive_profile) {
 			GPTP_LOG_EXCEPTION("LINK DOWN");
 		}
