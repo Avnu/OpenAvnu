@@ -3,40 +3,41 @@
 
 #include <stdint.h>
 
-#define MAAP_SOCKET_NAME "/var/tmp/maap.socket"
-#define MAAP_CMD_BUF_SZ 500
+//#define MAAP_SOCKET_NAME "/var/tmp/maap.socket"
+//#define MAAP_CMD_BUF_SZ 500
 
-/* MAAP Reqeust Format
+/* MAAP Request Format
  *
  * This is the format of the request the driver expects to receive from the
  * Host application via a write().
  */
 
 typedef enum {
+  MAAP_INVALID = 0,
   MAAP_INIT,
   MAAP_RESERVE,
   MAAP_RELEASE,
-} Cmd_Tag;
+} Maap_Cmd_Tag;
 
 typedef struct {
-  Cmd_Tag kind;
+  Maap_Cmd_Tag kind;
   union {
     uint64_t range_info;
     uint16_t length;
     int id;
   } param;
-} Cmd;
+} Maap_Cmd;
 
 typedef enum {
   MAAP_ACQUIRED,
   MAAP_YIELDED,
-} Notify_Tag;
+} Maap_Notify_Tag;
 
 typedef struct {
-  Notify_Tag kind;
+  Maap_Notify_Tag kind;
   int id;
   uint64_t start;
   uint16_t count;
-} Notify;
+} Maap_Notify;
 
 #endif
