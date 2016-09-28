@@ -16,10 +16,10 @@ maap_daemon_legacy: $(LINUX_DIR)/maap_linux_legacy.c
 	$(CC) -o $(BUILD_DIR)/maap_daemon_legacy $(COMMON_DIR)/maap_protocol.c src/maap_linux_legacy.c $(CFLAGS) $(FLAGS) $(EXTRA_FLAGS)
 
 maap_daemon: $(LINUX_DIR)/maap_linux.c $(LINUX_DIR)/maap_net_linux.c $(LINUX_DIR)/maap_timer_linux.c \
-		$(COMMON_DIR)/intervals.c $(COMMON_DIR)/maap.c $(COMMON_DIR)/maap_packet.c
+		$(COMMON_DIR)/intervals.c $(COMMON_DIR)/maap.c $(COMMON_DIR)/maap_packet.c $(COMMON_DIR)/maap_parse.c
 	$(CC) -o $(BUILD_DIR)/maap_daemon \
 		$(LINUX_DIR)/maap_linux.c $(LINUX_DIR)/maap_net_linux.c $(LINUX_DIR)/maap_timer_linux.c \
-		$(COMMON_DIR)/intervals.c $(COMMON_DIR)/maap.c $(COMMON_DIR)/maap_packet.c \
+		$(COMMON_DIR)/intervals.c $(COMMON_DIR)/maap.c $(COMMON_DIR)/maap_packet.c $(COMMON_DIR)/maap_parse.c \
 		$(CFLAGS) $(FLAGS) $(EXTRA_FLAGS)
 
 

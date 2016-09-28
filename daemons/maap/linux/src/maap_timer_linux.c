@@ -1,14 +1,14 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
-
-#include "maap_timer.h"
 
 struct maap_timer {
   timer_t timer_id;
 };
 
-#include <stdio.h>
+#include "maap_timer.h"
+
 
 Timer *Time_newTimer(void)
 {

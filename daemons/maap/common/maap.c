@@ -12,16 +12,16 @@
 #include <inttypes.h>
 #include <linux/if_ether.h>
 
-static int get_count(Client *mc, Range *range) {
+static int get_count(Maap_Client *mc, Range *range) {
   (void)mc;
   return range->interval->high - range->interval->low + 1;
 }
 
-static uint64_t get_start_address(Client *mc, Range *range) {
+static uint64_t get_start_address(Maap_Client *mc, Range *range) {
   return mc->address_base + range->interval->high;
 }
 
-static int send_packet(Client *mc, MAAP_Packet *p) {
+static int send_packet(Maap_Client *mc, MAAP_Packet *p) {
   uint8_t *pbuf = NULL;
   int ret = 0;
   (void)mc;
@@ -34,7 +34,7 @@ static int send_packet(Client *mc, MAAP_Packet *p) {
   return ret;
 }
 
-static int send_probe(Client *mc, Range *range) {
+static int send_probe(Maap_Client *mc, Range *range) {
   MAAP_Packet p;
 
   init_packet(&p);
@@ -46,7 +46,7 @@ static int send_probe(Client *mc, Range *range) {
   return send_packet(mc, &p);
 }
 
-static int send_announce(Client *mc, Range *range) {
+static int send_announce(Maap_Client *mc, Range *range) {
   MAAP_Packet p;
 
   init_packet(&p);
@@ -58,7 +58,7 @@ static int send_announce(Client *mc, Range *range) {
   return send_packet(mc, &p);
 }
 
-static int send_defend(Client *mc, Range *range, uint64_t start,
+static int send_defend(Maap_Client *mc, Range *range, uint64_t start,
                        uint16_t count, uint64_t destination) {
   MAAP_Packet p;
 
@@ -74,8 +74,8 @@ static int send_defend(Client *mc, Range *range, uint64_t start,
   return send_packet(mc, &p);
 }
 
-static int inform_acquired(Client *mc, Range *range) {
-  Notify note;
+static int inform_acquired(Maap_Client *mc, Range *range) {
+  Maap_Notify note;
   printf("Address range acquired: %" PRIx64 " %d\n",
          get_start_address(mc, range),
          get_count(mc, range));
@@ -89,8 +89,8 @@ static int inform_acquired(Client *mc, Range *range) {
   return 0;
 }
 
-static int inform_yielded(Client *mc, Range *range) {
-  Notify note;
+static int inform_yielded(Maap_Client *mc, Range *range) {
+  Maap_Notify note;
   printf("Address range yielded\n");
 
   note.kind = MAAP_YIELDED;
@@ -102,7 +102,7 @@ static int inform_yielded(Client *mc, Range *range) {
   return 0;
 }
 
-static void start_timer(Client *mc) {
+static void start_timer(Maap_Client *mc) {
 
   if (mc->timer_queue) {
     Time_setTimer(mc->timer, &mc->timer_queue->next_act_time);
@@ -111,9 +111,9 @@ static void start_timer(Client *mc) {
   mc->timer_running = 1;
 }
 
-void add_notify(Client *mc, Notify *mn) {
-  Notify_List *tmp, *li = calloc(1, sizeof (Notify_List));
-  memcpy(&li->notify, mn, sizeof (Notify));
+void add_notify(Maap_Client *mc, Maap_Notify *mn) {
+  Maap_Notify_List *tmp, *li = calloc(1, sizeof (Maap_Notify_List));
+  memcpy(&li->notify, mn, sizeof (Maap_Notify));
 
   if (mc->notifies == NULL) {
     mc->notifies = li;
@@ -126,12 +126,12 @@ void add_notify(Client *mc, Notify *mn) {
   }
 }
 
-int get_notify(Client *mc, Notify *mn) {
-  Notify_List *tmp;
+int get_notify(Maap_Client *mc, Maap_Notify *mn) {
+  Maap_Notify_List *tmp;
 
   if (mc->notifies) {
     tmp = mc->notifies;
-    memcpy(mn, tmp, sizeof (Notify));
+    memcpy(mn, tmp, sizeof (Maap_Notify));
     mc->notifies = tmp->next;
     free(tmp);
     return 1;
@@ -139,7 +139,7 @@ int get_notify(Client *mc, Notify *mn) {
   return 0;
 }
 
-int maap_init_client(Client *mc, uint64_t range_info) {
+int maap_init_client(Maap_Client *mc, uint64_t range_info) {
   if (mc->initialized) {
     printf("MAAP already initialized\n");
     return -1;
@@ -171,13 +171,13 @@ int maap_init_client(Client *mc, uint64_t range_info) {
 
   mc->initialized = 1;
 
-  printf("MAAP initialized, start: %012llx, max: %08x", 
+  printf("MAAP initialized, start: %012llx, max: %08x\n",
          (unsigned long long)range_info & MAAP_BASE_MASK,
          (unsigned int)((range_info & MAAP_RANGE_MASK) >> (ETH_ALEN * 8)) - 1);
   return 0;
 }
 
-void maap_deinit_client(Client *mc) {
+void maap_deinit_client(Maap_Client *mc) {
   assert(!mc->initialized);
   assert(!mc->timer_queue);
 
@@ -193,7 +193,7 @@ int rand_ms(int variation) {
   return random() % variation;
 }
 
-int schedule_timer(Client *mc, Range *range) {
+int schedule_timer(Maap_Client *mc, Range *range) {
   Range *rp;
   uint64_t ns;
   Time ts;
@@ -201,25 +201,26 @@ int schedule_timer(Client *mc, Range *range) {
   if (range->state == MAAP_STATE_PROBING) {
     ns = MAAP_PROBE_INTERVAL_BASE + rand_ms(MAAP_PROBE_INTERVAL_VARIATION);
     ns = ns * 1000000;
-    printf("Scheduling probe timer for %" PRIu64 " ns from now", ns);
+    printf("Scheduling probe timer for %" PRIu64 " ns from now\n", ns);
     Time_setFromNanos(&ts, ns);
-    printf("Which is a timespec of:");
+    printf("Which is a timespec of:  ");
     Time_dump(&ts);
     Time_setFromMonotonicTimer(&range->next_act_time);
-    printf("Current time is:");
+    printf("\nCurrent time is:  ");
     Time_dump(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
-    printf("Expiration time is:");
+    printf("\nExpiration time is:  ");
     Time_dump(&range->next_act_time);
     printf("\n\n");
   } else if (range->state == MAAP_STATE_DEFENDING) {
     ns = MAAP_ANNOUNCE_INTERVAL_BASE + rand_ms(MAAP_ANNOUNCE_INTERVAL_VARIATION);
     ns = ns * 1000000;
-    printf("Scheduling defend timer for %" PRIx64 " ns from now", ns);
+    printf("Scheduling defend timer for %" PRIx64 " ns from now\n", ns);
     Time_setFromNanos(&ts, (uint64_t)ns);
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
     Time_dump(&range->next_act_time);
+    printf("\n\n");
   }
 
   if (mc->timer_queue == NULL ||
@@ -239,7 +240,7 @@ int schedule_timer(Client *mc, Range *range) {
   return 0;
 }
 
-int assign_interval(Client *mc, Range *range, uint16_t len) {
+int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
   Interval *iv;
   int rv = INTERVAL_OVERLAP;
   uint32_t range_max;
@@ -264,7 +265,7 @@ int assign_interval(Client *mc, Range *range, uint16_t len) {
   return 0;
 }
 
-int maap_reserve_range(Client *mc, uint16_t length) {
+int maap_reserve_range(Maap_Client *mc, uint16_t length) {
   int id;
   Range *range;
 
@@ -287,12 +288,12 @@ int maap_reserve_range(Client *mc, uint16_t length) {
   schedule_timer(mc, range);
   start_timer(mc);
 
-  printf("Requested address range, id %d", id);
+  printf("Requested address range, id %d\n", id);
 
   return id;
 }
 
-int maap_release_range(Client *mc, int id) {
+int maap_release_range(Maap_Client *mc, int id) {
   Interval *iv;
   Range *range;
   int rv = -1;
@@ -305,7 +306,7 @@ int maap_release_range(Client *mc, int id) {
       free_interval(iv);
       /* memory for range will be freed the next time its timer elapses */
       range->state = MAAP_STATE_RELEASED;
-      printf("Released range id %d", id);
+      printf("Released range id %d\n", id);
       rv = 0;
     }
     range = range->next_timer;
@@ -314,7 +315,7 @@ int maap_release_range(Client *mc, int id) {
   return rv;
 }
 
-int maap_handle_packet(Client *mc, uint8_t *stream, int len) {
+int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
   MAAP_Packet p;
   Interval *iv;
   uint32_t start;
@@ -322,9 +323,9 @@ int maap_handle_packet(Client *mc, uint8_t *stream, int len) {
   int rv;
   unsigned long long int a, b, c, d;
 
-  printf("RECEIVED MAAP PACKET LEN %d", len);
+  printf("RECEIVED MAAP PACKET LEN %d\n", len);
   if (len < 42) {
-    printf("Truncated MAAP packet recieved, discarding");
+    printf("Truncated MAAP packet received, discarding\n");
     return 0;
   }
   rv = unpack_maap(&p, stream);
@@ -332,15 +333,15 @@ int maap_handle_packet(Client *mc, uint8_t *stream, int len) {
     return rv;
   }
 
-  printf("Unpacked packet");
+  printf("Unpacked packet\n");
 
   a = p.requested_start_address + p.requested_count - 1;
   b = mc->address_base;
   c = mc->address_base + mc->range_len - 1;
   d = p.requested_start_address;
   if (a < b || c < d) {
-    printf("Packet refers to a range outside of our concern");
-    printf("%016llx < %016llx || %016llx < %016llx", a, b, c, d);
+    printf("Packet refers to a range outside of our concern\n");
+    printf("%016llx < %016llx || %016llx < %016llx\n", a, b, c, d);
     return 0;
   }
 
@@ -349,7 +350,7 @@ int maap_handle_packet(Client *mc, uint8_t *stream, int len) {
   if (iv != NULL) {
     range = iv->data;
     if (range->state == MAAP_STATE_PROBING) {
-      printf("Found a conflicting preexisting range, look for a new one");
+      printf("Found a conflicting preexisting range, look for a new one\n");
       /* Find an alternate interval, remove old interval,
          and restart probe counter */
       assign_interval(mc, range, iv->high - iv->low + 1);
@@ -357,20 +358,20 @@ int maap_handle_packet(Client *mc, uint8_t *stream, int len) {
       free_interval(iv);
       range->counter = MAAP_PROBE_RETRANSMITS;
     } else if (range->state == MAAP_STATE_DEFENDING) {
-      printf("Someone is messing with our range!");
+      printf("Someone is messing with our range!\n");
       if (p.message_type == MAAP_PROBE) {
-        printf("DEFEND!");
+        printf("DEFEND!\n");
         send_defend(mc, range, p.requested_start_address, p.requested_count,
                     p.SA);
       } else if (p.message_type == MAAP_ANNOUNCE) {
         /* We may only defend vs. an ANNOUNCE once */
         if (range->counter == 0) {
-          printf("Defend vs. ANNOUNCE");
+          printf("Defend vs. ANNOUNCE\n");
           send_defend(mc, range, p.requested_start_address, p.requested_count,
                       p.SA);
           range->counter = 1;
         } else {
-          printf("Yield vs. ANNOUNCE");
+          printf("Yield vs. ANNOUNCE\n");
           inform_yielded(mc, range);
           iv = remove_interval(&mc->ranges, iv);
           free_interval(iv);
@@ -378,7 +379,7 @@ int maap_handle_packet(Client *mc, uint8_t *stream, int len) {
           range->state = MAAP_STATE_RELEASED;
         }
       } else {
-        printf("Got a DEFEND vs. a range we own");
+        printf("Got a DEFEND vs. a range we own\n");
         /* Don't know what to do with a DEFEND, so ignore it.  They'll
            send another ANNOUNCE anyway.  We could yield here if we wanted
            to be nice */
@@ -390,7 +391,7 @@ int maap_handle_packet(Client *mc, uint8_t *stream, int len) {
   return 0;
 }
 
-int handle_probe_timer(Client *mc, Range *range) {
+int handle_probe_timer(Maap_Client *mc, Range *range) {
   if (range->counter == 0) {
     inform_acquired(mc, range);
     range->state = MAAP_STATE_DEFENDING;
@@ -405,14 +406,14 @@ int handle_probe_timer(Client *mc, Range *range) {
   return 0;
 }
 
-int handle_defend_timer(Client *mc, Range *range) {
+int handle_defend_timer(Maap_Client *mc, Range *range) {
   send_announce(mc, range);
   schedule_timer(mc, range);
 
   return 0;
 }
 
-int maap_handle_timer(Client *mc, Time *time) {
+int maap_handle_timer(Maap_Client *mc, Time *time) {
   Range *range;
 
   mc->timer_running = 0;
@@ -420,19 +421,20 @@ int maap_handle_timer(Client *mc, Time *time) {
   while ((range = mc->timer_queue) && Time_passed(time, &range->next_act_time)) {
     printf("Current time:");
     Time_dump(time);
-    printf("Due timer:");
+    printf("\nDue timer:");
     Time_dump(&range->next_act_time);
     mc->timer_queue = range->next_timer;
     range->next_timer = NULL;
+    printf("\n");
 
     if (range->state == MAAP_STATE_PROBING) {
-      printf("Handling probe timer");
+      printf("Handling probe timer\n");
       handle_probe_timer(mc, range);
     } else if (range->state == MAAP_STATE_DEFENDING) {
-      printf("Handling defend timer");
+      printf("Handling defend timer\n");
       handle_defend_timer(mc, range);
     } else if (range->state == MAAP_STATE_RELEASED) {
-      printf("Freeing released timer");
+      printf("Freeing released timer\n");
       free(range);
     }
 
