@@ -65,7 +65,7 @@ void gPTPPersistWriteCB(char *bufPtr, uint32_t bufSize);
 void print_usage( char *arg0 ) {
 	fprintf( stderr,
 			"%s <network interface> [-S] [-P] [-M <filename>] "
-			"[-A <count>] [-G <group>] [-R <priority 1>] "
+			"[-G <group>] [-R <priority 1>] "
 			"[-D <gb_tx_delay,gb_rx_delay,mb_tx_delay,mb_rx_delay>] "
 			"[-T] [-L] [-E] [-GM] [-INITSYNC <value>] [-OPERSYNC <value>] "
 			"[-INITPDELAY <value>] [-OPERPDELAY <value>] "
@@ -77,7 +77,6 @@ void print_usage( char *arg0 ) {
 		  "\t-S start syntonization\n"
 		  "\t-P pulse per second\n"
 		  "\t-M <filename> save/restore state\n"
-		  "\t-A <count> initial accelerated sync count\n"
 		  "\t-G <group> group id for shared memory\n"
 		  "\t-R <priority 1> priority 1 value\n"
 		  "\t-D Phy Delay <gb_tx_delay,gb_rx_delay,mb_tx_delay,mb_rx_delay>\n"
@@ -120,7 +119,6 @@ int main(int argc, char **argv)
 	off_t restoredatacount = 0;
 	bool restorefailed = false;
 	LinuxIPCArg *ipc_arg = NULL;
-	int accelerated_sync_count = 0;
 	bool use_config_file = false;
 	char config_file_path[512];
 	memset(config_file_path, 0, 512);
@@ -130,7 +128,6 @@ int main(int argc, char **argv)
 	portInit.clock = NULL;
 	portInit.index = 0;
 	portInit.forceSlave = false;
-	portInit.accelerated_sync_count = 0;
 	portInit.timestamper = NULL;
 	portInit.offset = 0;
 	portInit.net_label = NULL;
@@ -205,14 +202,6 @@ int main(int argc, char **argv)
 				else {
 					printf( "Restore file must be specified on "
 							"command line\n" );
-				}
-			}
-			else if( strcmp(argv[i] + 1,  "A" ) == 0 ) {
-				if( i+1 < argc ) {
-					accelerated_sync_count = atoi( argv[++i] );
-				} else {
-					printf( "Accelerated sync count must be specified on the "
-							"command line with A option\n" );
 				}
 			}
 			else if( strcmp(argv[i] + 1,  "G") == 0 ) {
@@ -353,7 +342,6 @@ int main(int argc, char **argv)
 	portInit.clock = pClock;
 	portInit.index = 1;
 	portInit.forceSlave = false;
-	portInit.accelerated_sync_count = accelerated_sync_count;
 	portInit.timestamper = timestamper;
 	portInit.offset = 0;
 	portInit.net_label = ifname;
