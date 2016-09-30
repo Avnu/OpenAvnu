@@ -215,7 +215,7 @@ int schedule_timer(Maap_Client *mc, Range *range) {
   } else if (range->state == MAAP_STATE_DEFENDING) {
     ns = MAAP_ANNOUNCE_INTERVAL_BASE + rand_ms(MAAP_ANNOUNCE_INTERVAL_VARIATION);
     ns = ns * 1000000;
-    printf("Scheduling defend timer for %" PRIx64 " ns from now\n", ns);
+    printf("Scheduling defend timer for %" PRIu64 " ns from now\n", ns);
     Time_setFromNanos(&ts, (uint64_t)ns);
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
@@ -413,15 +413,20 @@ int handle_defend_timer(Maap_Client *mc, Range *range) {
   return 0;
 }
 
-int maap_handle_timer(Maap_Client *mc, Time *time) {
+int maap_handle_timer(Maap_Client *mc) {
+  Time currenttime;
   Range *range;
+
+  /* Get the current time. */
+  Time_setFromMonotonicTimer(&currenttime);
+  printf("Current time is:  ");
+  Time_dump(&currenttime);
+  printf("\n");
 
   mc->timer_running = 0;
 
-  while ((range = mc->timer_queue) && Time_passed(time, &range->next_act_time)) {
-    printf("Current time:");
-    Time_dump(time);
-    printf("\nDue timer:");
+  while ((range = mc->timer_queue) && Time_passed(&currenttime, &range->next_act_time)) {
+    printf("Due timer:  ");
     Time_dump(&range->next_act_time);
     mc->timer_queue = range->next_timer;
     range->next_timer = NULL;
@@ -443,4 +448,23 @@ int maap_handle_timer(Maap_Client *mc, Time *time) {
   start_timer(mc);
 
   return 0;
+}
+
+int64_t maap_get_delay_to_next_timer(Maap_Client *mc)
+{
+	int64_t timeRemaining;
+
+	if (!(mc->timer) || !(mc->timer_queue))
+	{
+		/* There are no timers waiting, so wait for an hour.
+		 * (No particular reason; it just sounded reasonable.) */
+		timeRemaining = 60LL * 60LL * 1000000000LL;
+	}
+	else
+	{
+		/* Get the time remaining for the next timer. */
+		timeRemaining = Time_remaining(mc->timer);
+	}
+	printf("Next delay:  %" PRId64 " ns\n\n", timeRemaining);
+	return timeRemaining;
 }

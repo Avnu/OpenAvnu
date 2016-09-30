@@ -65,11 +65,22 @@ typedef struct {
 
 int maap_init_client(Maap_Client *mc, uint64_t range_info);
 void maap_deinit_client(Maap_Client *mc);
+
 int maap_reserve_range(Maap_Client *mc, uint16_t length);
 int maap_release_range(Maap_Client *mc, int id);
 
 int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len);
-int maap_handle_timer(Maap_Client *mc, Time *time);
+int maap_handle_timer(Maap_Client *mc);
+
+/**
+ * Get the number of nanoseconds until the next timer event.
+ *
+ * @param mc Pointer to the Maap_Client to use
+ *
+ * @return Number of nanoseconds until the next timer expires, or a very large value if there are no timers waiting.
+ */
+int64_t maap_get_delay_to_next_timer(Maap_Client *mc);
+
 void add_notify(Maap_Client *mc, Maap_Notify *mn);
 int get_notify(Maap_Client *mc, Maap_Notify *mn);
 

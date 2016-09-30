@@ -26,6 +26,12 @@ void Time_setTimer(Timer *timer, Time *t)
   (void)timer; (void)t;
 }
 
+int64_t Time_remaining(Timer *timer)
+{
+  (void)timer;
+  return 1;
+}
+
 void Time_add(Time *a, Time *b)
 {
   a->tv_sec = a->tv_sec + b->tv_sec;

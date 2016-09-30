@@ -90,6 +90,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_ll sockaddr;
 	struct packet_mreq mreq;
 	Maap_Client mc;
+	int64_t waittime;
 	struct timeval tv;
 //	fd_set master;	// master file descriptor list
 	fd_set read_fds;  // temp file descriptor list for select()
@@ -192,7 +193,6 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-#if 0
 	/* filter multicast address */
 	memset(&mreq, 0, sizeof(mreq));
 	mreq.mr_ifindex = ifindex;
@@ -205,7 +205,6 @@ int main(int argc, char *argv[])
 		printf("setsockopt PACKET_ADD_MEMBERSHIP failed\n");
 		return -1;
 	}
-#endif
 
 
 	/*
@@ -223,12 +222,25 @@ int main(int argc, char *argv[])
 
 
 	/*
-	 *  Start an event loop: Events are received packets, received client messages,
-	 and timers elapsing
+	 * Main event loop
 	 */
 
 	while (1)
 	{
+		/* Determine how long to wait. */
+		waittime = maap_get_delay_to_next_timer(&mc);
+		if (waittime > 0)
+		{
+			tv.tv_sec = waittime / 1000000000;
+			tv.tv_usec = (waittime % 1000000000) / 1000;
+		}
+		else
+		{
+			/* Act immediately. */
+			tv.tv_sec = 0;
+			tv.tv_usec = 0;
+		}
+
 		/* Wait for something to happen. */
 		FD_ZERO(&read_fds);
 		fdmax = 0;
@@ -236,9 +248,6 @@ int main(int argc, char *argv[])
 		fdmax++;
 		FD_SET(STDIN_FILENO, &read_fds);
 		fdmax++;
-		tv.tv_sec = 10;
-		tv.tv_usec = 0;
-		//printf("Calling select()\n");
 		ret = select(fdmax+1, &read_fds, NULL, NULL, &tv);
 		if (ret < 0)
 		{
@@ -247,11 +256,10 @@ int main(int argc, char *argv[])
 		}
 		if (ret == 0)
 		{
-			/* TODO:  The timer timed out.  Handle the timer. */
-			//printf("select() timed out\n");
+			/* The timer timed out.  Handle the timer. */
+			maap_handle_timer(&mc);
 			continue;
 		}
-		//printf("select() triggered\n");
 
 		/* Handle any packets received. */
 		if (FD_ISSET(socketfd, &read_fds))
@@ -272,35 +280,19 @@ int main(int argc, char *argv[])
 		/* Handle any commands received via stdin. */
 		if (FD_ISSET(STDIN_FILENO, &read_fds))
 		{
-			recvbytes = read(STDIN_FILENO, recvbuffer, sizeof(recvbuffer));
+			recvbytes = read(STDIN_FILENO, recvbuffer, sizeof(recvbuffer) - 1);
 			if (recvbytes < 0)
 			{
 				printf("Error %d reading from stdin\n", errno);
-				recvbytes = 0;
 			}
 			else
 			{
 				recvbuffer[recvbytes] = '\0';
-			}
-			recvbuffer[recvbytes] = '\0';
 
-			/* Process the data (may be binary or text.) */
-			//for (int i = 0; i < recvbytes; ++i) printf("*%c*\n", recvbuffer[i]);
-			memset(&recvcmd, 0, sizeof(recvcmd));
-printf("stdin point 1\n");
-			if (parse_text_cmd(recvbuffer, &recvcmd))
-			{
-printf("stdin point 2.1\n");
-				/* Process the results from the text parsing. */
-				parse_write(&mc, (char *)&recvcmd);
-			}
-			else
-			{
-printf("stdin point 2.2\n");
-				/* See if we were passed a binary data blob. */
+				/* Process the data (may be binary or text.) */
+				memset(&recvcmd, 0, sizeof(recvcmd));
 				parse_write(&mc, recvbuffer);
 			}
-printf("stdin point 3\n");
 		}
 	}
 

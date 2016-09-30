@@ -8,74 +8,47 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "maap.h"
 #include "maap_parse.h"
 
 int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
-  char *argv[40];
+  char *argv[5];
   int argc = 0;
-  char *p, opt;
-  int set_cmd = 0, set_data = 0;
+  char *p;
+  int set_cmd = 0;
 
-  argv[argc++] = "maap-app";
   p = strtok(buf, " \r\n");
-  while ((p != NULL) && (argc < 40)) {
+  while ((p != NULL) && (argc < sizeof(argv) / sizeof(*argv))) {
     argv[argc++] = p;
     p = strtok(NULL, " \r\n");
   }
 
-  optind = 1;
-
-  while (!set_cmd || !set_data) {
-    opt = getopt(argc, argv, "c:m:l:i:");
-    switch (opt) {
-    case 'c':
-      if (set_cmd) {
-        printf("Only one command type at a time\n");
-        return 0;
-      }
-      if (strncmp(optarg, "init", 4) == 0) {
-        cmd->kind = MAAP_INIT;
-        set_cmd = 1;
-      } else if (strncmp(optarg, "reserve", 7) == 0) {
-        cmd->kind = MAAP_RESERVE;
-        set_cmd = 1;
-      } else if (strncmp(optarg, "release", 7) == 0) {
-        cmd->kind = MAAP_RELEASE;
-        set_cmd = 1;
-      } else {
-        printf("Invalid command type\n");
-        return 0;
-      }
-      break;
-    case 'm':
-      if (set_data) {
-        printf("Only one data argument can be used at a time\n");
-        return 0;
-      }
-      cmd->param.range_info = strtoull(optarg, NULL, 16);
-      set_data = 1;
-      break;
-    case 'l':
-      if (set_data) {
-        printf("Only one data argument can be used at a time\n");
-        return 0;
-      }
-      cmd->param.length = (uint16_t)strtoul(optarg, NULL, 0);
-      set_data = 1;
-      break;
-    case 'i':
-      if (set_data) {
-        printf("Only one data argument can be used at a time\n");
-        return 0;
-      }
-      cmd->param.id = (int)strtoul(optarg, NULL, 0);
-      set_data = 1;
-      break;
+  if (argc == 2)
+  {
+    if (strncmp(argv[0], "init", 4) == 0) {
+      cmd->kind = MAAP_INIT;
+      cmd->param.range_info = strtoull(argv[1], NULL, 16);
+      set_cmd = 1;
+    } else if (strncmp(argv[0], "reserve", 7) == 0) {
+      cmd->kind = MAAP_RESERVE;
+      cmd->param.length = (uint16_t)strtoul(argv[1], NULL, 0);
+      set_cmd = 1;
+    } else if (strncmp(argv[0], "release", 7) == 0) {
+      cmd->kind = MAAP_RELEASE;
+      cmd->param.id = (int)strtoul(argv[1], NULL, 0);
+      set_cmd = 1;
+    } else {
+      printf("Invalid command type\n");
     }
   }
+
+  if (!set_cmd)
+  {
+    printf("input usage:  init|reserve|release <value>\n");
+    return 0;
+  }
+
   return 1;
 }
 

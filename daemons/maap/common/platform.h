@@ -4,8 +4,9 @@
 #if defined(__linux__)
 
 #include <endian.h>
+#include <time.h>
 
-#define OS_TIME_TYPE struct timespec
+typedef struct timespec OS_TIME_TYPE;
 
 #elif defined(__APPLE__)
 
