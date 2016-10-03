@@ -25,7 +25,6 @@
 #define MAAP_CB_YIELDED  1
 
 #define MAAP_DEST_MAC {0x91, 0xE0, 0xF0, 0x00, 0xFF, 0x00}
-#define MAAP_DEST_64 0x000091E0F000FF00LL
 #define MAAP_RANGE_SIZE 0xFFDF
 #define MAAP_RANGE_SIZE_64 (((uint64_t)MAAP_RANGE_SIZE) << 48)
 #define MAAP_TYPE 0x22F0
@@ -51,6 +50,8 @@ struct range {
 };
 
 typedef struct {
+  uint64_t dest_mac;
+  uint64_t src_mac;
   uint64_t address_base;
   uint32_t range_len;
   Interval *ranges;
