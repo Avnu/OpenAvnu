@@ -30,14 +30,14 @@ static int send_packet(Maap_Client *mc, MAAP_Packet *p) {
 
   pack_maap(p, pbuf);
 
-  ret = Net_sendPacket(mc->net, pbuf);
+  ret = Net_queuePacket(mc->net, pbuf);
   return ret;
 }
 
 static int send_probe(Maap_Client *mc, Range *range) {
   MAAP_Packet p;
 
-  init_packet(&p);
+  init_packet(&p, mc->dest_mac, mc->src_mac);
 
   p.message_type = MAAP_PROBE;
   p.requested_start_address = get_start_address(mc, range);
@@ -49,7 +49,7 @@ static int send_probe(Maap_Client *mc, Range *range) {
 static int send_announce(Maap_Client *mc, Range *range) {
   MAAP_Packet p;
 
-  init_packet(&p);
+  init_packet(&p, mc->dest_mac, mc->src_mac);
 
   p.message_type = MAAP_ANNOUNCE;
   p.requested_start_address = get_start_address(mc, range);
@@ -62,7 +62,7 @@ static int send_defend(Maap_Client *mc, Range *range, uint64_t start,
                        uint16_t count, uint64_t destination) {
   MAAP_Packet p;
 
-  init_packet(&p);
+  init_packet(&p, mc->dest_mac, mc->src_mac);
 
   p.DA = destination;
   p.message_type = MAAP_DEFEND;

@@ -119,12 +119,13 @@ int pack_maap(MAAP_Packet *packet, uint8_t *stream) {
   return 0;
 }
 
-void init_packet(MAAP_Packet *packet) {
+void init_packet(MAAP_Packet *packet, uint64_t dest_mac, uint64_t src_mac) {
   assert(packet);
+  assert(dest_mac != 0);
+  assert(src_mac != 0);
 
-  packet->DA = MAAP_DEST_64;
-  //  packet->DA = 0xFFFFFFFFFFFF;
-  packet->SA = 0x0;
+  packet->DA = dest_mac;
+  packet->SA = src_mac;
   packet->Ethertype = MAAP_TYPE;
   packet->CD = 1;
   packet->subtype = 0x7e;
@@ -138,4 +139,13 @@ void init_packet(MAAP_Packet *packet) {
   packet->requested_count = 0;
   packet->start_address = 0;
   packet->count = 0;
+}
+
+uint64_t convert_mac_address(uint8_t macaddr[])
+{
+  uint64_t retVal;
+
+  assert(macaddr);
+  retVal = BE64TOH(*(uint64_t *)macaddr) >> 16;
+  return retVal;
 }

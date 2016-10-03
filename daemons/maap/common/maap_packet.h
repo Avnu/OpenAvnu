@@ -28,8 +28,10 @@ typedef struct maap_packet {
   uint16_t count;
 } MAAP_Packet;
 
-void init_packet(MAAP_Packet *packet);
+void init_packet(MAAP_Packet *packet, uint64_t dest_mac, uint64_t src_mac);
 int pack_maap(MAAP_Packet *packet, uint8_t *stream);
 int unpack_maap(MAAP_Packet *packet, uint8_t *stream);
+
+uint64_t convert_mac_address(uint8_t macaddr[]);
 
 #endif

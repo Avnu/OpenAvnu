@@ -53,6 +53,7 @@
 #include <unistd.h>
 
 #include "maap.h"
+#include "maap_packet.h"
 #include "maap_parse.h"
 
 
@@ -90,6 +91,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_ll sockaddr;
 	struct packet_mreq mreq;
 	Maap_Client mc;
+	void *packet_data;
 	int64_t waittime;
 	struct timeval tv;
 //	fd_set master;	// master file descriptor list
@@ -193,6 +195,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+#if 1
 	/* filter multicast address */
 	memset(&mreq, 0, sizeof(mreq));
 	mreq.mr_ifindex = ifindex;
@@ -205,14 +208,22 @@ int main(int argc, char *argv[])
 		printf("setsockopt PACKET_ADD_MEMBERSHIP failed\n");
 		return -1;
 	}
+#endif
 
 
+	/*
+	 * Initialize the Maap_Client data structure.
+	 */
+	memset(&mc, 0, sizeof(mc));
+	mc.dest_mac = convert_mac_address(dest_mac);
+	mc.src_mac = convert_mac_address(src_mac);
+
+
+#if 0
 	/*
 	 * Initialize the low-level MAAP support, using the default MAAP Dynamic Allocation Pool.
 	 */
 
-	memset(&mc, 0, sizeof(mc));
-#if 0
 	if (maap_init_client(&mc, MAAP_DEST_64 | MAAP_RANGE_SIZE_64) < 0)
 	{
 		printf("maap_init_client() failed\n");
@@ -227,6 +238,18 @@ int main(int argc, char *argv[])
 
 	while (1)
 	{
+		/* Send any queued packets. */
+		while (mc.net != NULL && (packet_data = Net_getNextQueuedPacket(mc.net)) != NULL)
+		{
+			if (send(socketfd, packet_data, MAAP_NET_BUFFER_SIZE, 0) < 0)
+			{
+				/* Something went wrong.  Abort! */
+				printf("Error %d writing to network socket\n", errno);
+				break;
+			}
+			Net_freeQueuedPacket(mc.net, packet_data);
+		}
+
 		/* Determine how long to wait. */
 		waittime = maap_get_delay_to_next_timer(&mc);
 		if (waittime > 0)
@@ -243,12 +266,10 @@ int main(int argc, char *argv[])
 
 		/* Wait for something to happen. */
 		FD_ZERO(&read_fds);
-		fdmax = 0;
-		FD_SET(socketfd, &read_fds);
-		fdmax++;
 		FD_SET(STDIN_FILENO, &read_fds);
-		fdmax++;
-		ret = select(fdmax+1, &read_fds, NULL, NULL, &tv);
+		FD_SET(socketfd, &read_fds);
+		fdmax = socketfd;
+		ret = select(fdmax, &read_fds, NULL, NULL, &tv);
 		if (ret < 0)
 		{
 			printf("select() error %d\n", errno);
