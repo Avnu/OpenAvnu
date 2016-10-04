@@ -14,6 +14,7 @@ typedef enum {
   MAAP_INIT,
   MAAP_RESERVE,
   MAAP_RELEASE,
+  MAAP_EXIT,
 } Maap_Cmd_Tag;
 
 typedef struct {

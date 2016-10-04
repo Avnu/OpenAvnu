@@ -186,15 +186,16 @@ int maap_init_client(Maap_Client *mc, uint64_t range_info) {
 }
 
 void maap_deinit_client(Maap_Client *mc) {
-  assert(!mc->initialized);
-  assert(!mc->timer_queue);
+  if (mc->initialized) {
+    if (mc->timer_queue) {
+	  Time_delTimer(mc->timer);
+	  Net_delNet(mc->net);
+    }
 
-  Time_delTimer(mc->timer);
-  Net_delNet(mc->net);
-
-  mc->timer = NULL;
-  mc->net = NULL;
-  mc->initialized = 0;
+    mc->timer = NULL;
+    mc->net = NULL;
+    mc->initialized = 0;
+  }
 }
 
 int rand_ms(int variation) {

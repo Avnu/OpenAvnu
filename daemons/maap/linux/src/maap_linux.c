@@ -300,7 +300,10 @@ int main(int argc, char *argv[])
 
 				/* Process the data (may be binary or text.) */
 				memset(&recvcmd, 0, sizeof(recvcmd));
-				parse_write(&mc, recvbuffer);
+				if (parse_write(&mc, recvbuffer)) {
+					/* Received a command to exit. */
+					break;
+				}
 			}
 		}
 
