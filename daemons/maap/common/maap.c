@@ -9,7 +9,6 @@
 #include <assert.h>
 
 /* Linux-specific header files */
-#include <inttypes.h>
 #include <linux/if_ether.h>
 
 /* Uncomment the DEBUG_TIMER_MSG define to display debug messages. */
@@ -21,7 +20,11 @@ static int get_count(Maap_Client *mc, Range *range) {
   return range->interval->high - range->interval->low + 1;
 }
 
-static uint64_t get_start_address(Maap_Client *mc, Range *range) {
+static unsigned long long int get_start_address(Maap_Client *mc, Range *range) {
+  return mc->address_base + range->interval->low;
+}
+
+static unsigned long long int get_end_address(Maap_Client *mc, Range *range) {
   return mc->address_base + range->interval->high;
 }
 
@@ -80,8 +83,9 @@ static int send_defend(Maap_Client *mc, Range *range, uint64_t start,
 
 static int inform_acquired(Maap_Client *mc, Range *range) {
   Maap_Notify note;
-  printf("Address range acquired: 0x%" PRIx64 " %d\n",
+  printf("Address range acquired: 0x%012llx-0x%012llx (Size %d)\n",
          get_start_address(mc, range),
+         get_end_address(mc, range),
          get_count(mc, range));
 
   note.kind = MAAP_ACQUIRED;
@@ -299,6 +303,7 @@ int maap_reserve_range(Maap_Client *mc, uint16_t length) {
   range->next_timer = NULL;
 
   assign_interval(mc, range, length);
+  printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, range), get_end_address(mc, range));
   send_probe(mc, range);
   range->counter--;
   schedule_timer(mc, range);
@@ -337,10 +342,10 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
   uint32_t start;
   Range *range;
   int rv;
-  unsigned long long int a, b, c, d;
+  unsigned long long int own_base, own_max, incoming_base, incoming_max;
 
   /* printf("RECEIVED MAAP PACKET LEN %d\n", len); */
-  if (len < 42) {
+  if (len < MAAP_PKT_SIZE) {
     printf("Truncated MAAP packet received, discarding\n");
     return 0;
   }
@@ -352,13 +357,25 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
 
   /* printf("Unpacked packet\n"); */
 
-  a = p.requested_start_address + p.requested_count - 1;
-  b = mc->address_base;
-  c = mc->address_base + mc->range_len - 1;
-  d = p.requested_start_address;
-  if (a < b || c < d) {
+  if (p.message_type < MAAP_PROBE || p.message_type > MAAP_ANNOUNCE) {
+    printf("Maap packet message type %u not recognized\n", p.message_type);
+    return 0;
+  }
+
+  own_base = mc->address_base;
+  own_max = mc->address_base + mc->range_len - 1;
+  incoming_base = p.requested_start_address;
+  incoming_max = p.requested_start_address + p.requested_count - 1;
+
+#if 0
+  if (p.message_type == MAAP_PROBE) { printf("Received PROBE for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
+  if (p.message_type == MAAP_DEFEND) { printf("Received DEFEND for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
+  if (p.message_type == MAAP_ANNOUNCE) { printf("Received ANNOUNCE for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
+#endif
+
+  if (incoming_max < own_base || own_max < incoming_base) {
     printf("Packet refers to a range outside of our concern\n");
-    printf("0x%016llx < 0x%016llx || 0x%016llx < 0x%016llx\n", a, b, c, d);
+    printf("0x%012llx < 0x%012llx || 0x%012llx < 0x%012llx\n", incoming_max, own_base, own_max, incoming_base);
     return 0;
   }
 
@@ -368,6 +385,10 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
     range = iv->data;
     if (range->state == MAAP_STATE_PROBING) {
       printf("Found a conflicting preexisting range, look for a new one\n");
+      printf("    Response of 0x%012llx-0x%012llx overlaps our\n",
+    		 incoming_base, incoming_max);
+      printf("    request of 0x%012llx-0x%012llx\n",
+    		 get_start_address(mc, range), get_end_address(mc, range));
       /* Find an alternate interval, remove old interval,
          and restart probe counter */
       assign_interval(mc, range, iv->high - iv->low + 1);
@@ -376,6 +397,10 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
       range->counter = MAAP_PROBE_RETRANSMITS;
     } else if (range->state == MAAP_STATE_DEFENDING) {
       printf("Someone is messing with our range!\n");
+      printf("    Request of 0x%012llx-0x%012llx inside our\n",
+    		 incoming_base, incoming_max);
+      printf("    range of 0x%012llx-0x%012llx\n",
+    		 get_start_address(mc, range), get_end_address(mc, range));
       if (p.message_type == MAAP_PROBE) {
         printf("DEFEND!\n");
         send_defend(mc, range, p.requested_start_address, p.requested_count,
