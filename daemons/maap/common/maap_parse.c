@@ -24,17 +24,23 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
     p = strtok(NULL, " \r\n");
   }
 
-  if (argc == 2)
+  if (argc >= 1 && argc <= 3)
   {
     if (strncmp(argv[0], "init", 4) == 0) {
-      cmd->kind = MAAP_INIT;
-      cmd->param.range_info = strtoull(argv[1], NULL, 16);
-      set_cmd = 1;
-    } else if (strncmp(argv[0], "reserve", 7) == 0) {
+      if (argc == 1) {
+        cmd->kind = MAAP_INIT;
+        cmd->param.range_info = MAAP_DEST_64 | MAAP_RANGE_SIZE_64;
+        set_cmd = 1;
+      } else if (argc == 3) {
+        cmd->kind = MAAP_INIT;
+        cmd->param.range_info = strtoull(argv[1], NULL, 16) | (strtoull(argv[2], NULL, 16) << 48);
+        set_cmd = 1;
+      }
+    } else if (strncmp(argv[0], "reserve", 7) == 0 && argc == 2) {
       cmd->kind = MAAP_RESERVE;
       cmd->param.length = (uint16_t)strtoul(argv[1], NULL, 0);
       set_cmd = 1;
-    } else if (strncmp(argv[0], "release", 7) == 0) {
+    } else if (strncmp(argv[0], "release", 7) == 0 && argc == 2) {
       cmd->kind = MAAP_RELEASE;
       cmd->param.id = (int)strtoul(argv[1], NULL, 0);
       set_cmd = 1;
@@ -45,7 +51,11 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
 
   if (!set_cmd)
   {
-    printf("input usage:  init|reserve|release <value>\n");
+    printf("input usage:\n");
+    printf("    init [<range_base> <range_size>]\n");
+    printf("        If not specified, range_base=0x%llx, range_size=0x%04x\n", MAAP_DEST_64, MAAP_RANGE_SIZE);
+    printf("    reserve <addr_size>\n");
+    printf("    release <id>\n\n");
     return 0;
   }
 
@@ -74,7 +84,7 @@ void parse_write(Maap_Client *mc, char *buf) {
   if (rv) {
     switch(cmd.kind) {
     case MAAP_INIT:
-      printf("Got cmd maap_init_client, range_info: %016llx\n", (unsigned long long)cmd.param.range_info);
+      printf("Got cmd maap_init_client, range_info: 0x%016llx\n", (unsigned long long)cmd.param.range_info);
       rv = maap_init_client(mc, cmd.param.range_info);
       break;
     case MAAP_RESERVE:
