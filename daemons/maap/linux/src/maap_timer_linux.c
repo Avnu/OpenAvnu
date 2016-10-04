@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 #include <assert.h>
 #include <time.h>
 #include <errno.h>
@@ -56,7 +57,7 @@ int64_t Time_remaining(Timer *timer)
 	assert(timer);
 	if (timer_gettime(timer->timer_id, &curr_value) < 0)
 	{
-		printf("Error %d getting the timer time remaining\n", errno);
+		printf("Error %d getting the timer time remaining (%s)\n", errno, strerror(errno));
 		return -1;
 	}
 

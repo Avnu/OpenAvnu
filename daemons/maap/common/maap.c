@@ -12,6 +12,10 @@
 #include <inttypes.h>
 #include <linux/if_ether.h>
 
+/* Uncomment the DEBUG_TIMER_MSG define to display debug messages. */
+/* #define DEBUG_TIMER_MSG */
+
+
 static int get_count(Maap_Client *mc, Range *range) {
   (void)mc;
   return range->interval->high - range->interval->low + 1;
@@ -76,7 +80,7 @@ static int send_defend(Maap_Client *mc, Range *range, uint64_t start,
 
 static int inform_acquired(Maap_Client *mc, Range *range) {
   Maap_Notify note;
-  printf("Address range acquired: %" PRIx64 " %d\n",
+  printf("Address range acquired: 0x%" PRIx64 " %d\n",
          get_start_address(mc, range),
          get_count(mc, range));
 
@@ -171,7 +175,7 @@ int maap_init_client(Maap_Client *mc, uint64_t range_info) {
 
   mc->initialized = 1;
 
-  printf("MAAP initialized, start: %012llx, max: %08x\n",
+  printf("MAAP initialized, start: 0x%012llx, max: 0x%04x\n",
          (unsigned long long)range_info & MAAP_BASE_MASK,
          (unsigned int)((range_info & MAAP_RANGE_MASK) >> (ETH_ALEN * 8)) - 1);
   return 0;
@@ -201,26 +205,38 @@ int schedule_timer(Maap_Client *mc, Range *range) {
   if (range->state == MAAP_STATE_PROBING) {
     ns = MAAP_PROBE_INTERVAL_BASE + rand_ms(MAAP_PROBE_INTERVAL_VARIATION);
     ns = ns * 1000000;
+#ifdef DEBUG_TIMER_MSG
     printf("Scheduling probe timer for %" PRIu64 " ns from now\n", ns);
+#endif
     Time_setFromNanos(&ts, ns);
+#ifdef DEBUG_TIMER_MSG
     printf("Which is a timespec of:  ");
     Time_dump(&ts);
+#endif
     Time_setFromMonotonicTimer(&range->next_act_time);
+#ifdef DEBUG_TIMER_MSG
     printf("\nCurrent time is:  ");
     Time_dump(&range->next_act_time);
+#endif
     Time_add(&range->next_act_time, &ts);
+#ifdef DEBUG_TIMER_MSG
     printf("\nExpiration time is:  ");
     Time_dump(&range->next_act_time);
     printf("\n\n");
+#endif
   } else if (range->state == MAAP_STATE_DEFENDING) {
     ns = MAAP_ANNOUNCE_INTERVAL_BASE + rand_ms(MAAP_ANNOUNCE_INTERVAL_VARIATION);
     ns = ns * 1000000;
+#ifdef DEBUG_TIMER_MSG
     printf("Scheduling defend timer for %" PRIu64 " ns from now\n", ns);
+#endif
     Time_setFromNanos(&ts, (uint64_t)ns);
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
+#ifdef DEBUG_TIMER_MSG
     Time_dump(&range->next_act_time);
     printf("\n\n");
+#endif
   }
 
   if (mc->timer_queue == NULL ||
@@ -323,17 +339,18 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
   int rv;
   unsigned long long int a, b, c, d;
 
-  printf("RECEIVED MAAP PACKET LEN %d\n", len);
+  /* printf("RECEIVED MAAP PACKET LEN %d\n", len); */
   if (len < 42) {
     printf("Truncated MAAP packet received, discarding\n");
     return 0;
   }
   rv = unpack_maap(&p, stream);
   if (rv != 0) {
+    printf("Error unpacking the MAAP packet\n");
     return rv;
   }
 
-  printf("Unpacked packet\n");
+  /* printf("Unpacked packet\n"); */
 
   a = p.requested_start_address + p.requested_count - 1;
   b = mc->address_base;
@@ -341,7 +358,7 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
   d = p.requested_start_address;
   if (a < b || c < d) {
     printf("Packet refers to a range outside of our concern\n");
-    printf("%016llx < %016llx || %016llx < %016llx\n", a, b, c, d);
+    printf("0x%016llx < 0x%016llx || 0x%016llx < 0x%016llx\n", a, b, c, d);
     return 0;
   }
 
@@ -419,27 +436,37 @@ int maap_handle_timer(Maap_Client *mc) {
 
   /* Get the current time. */
   Time_setFromMonotonicTimer(&currenttime);
+#ifdef DEBUG_TIMER_MSG
   printf("Current time is:  ");
   Time_dump(&currenttime);
   printf("\n");
+#endif
 
   mc->timer_running = 0;
 
   while ((range = mc->timer_queue) && Time_passed(&currenttime, &range->next_act_time)) {
+#ifdef DEBUG_TIMER_MSG
     printf("Due timer:  ");
     Time_dump(&range->next_act_time);
+    printf("\n");
+#endif
     mc->timer_queue = range->next_timer;
     range->next_timer = NULL;
-    printf("\n");
 
     if (range->state == MAAP_STATE_PROBING) {
+#ifdef DEBUG_TIMER_MSG
       printf("Handling probe timer\n");
+#endif
       handle_probe_timer(mc, range);
     } else if (range->state == MAAP_STATE_DEFENDING) {
+#ifdef DEBUG_TIMER_MSG
       printf("Handling defend timer\n");
+#endif
       handle_defend_timer(mc, range);
     } else if (range->state == MAAP_STATE_RELEASED) {
+#ifdef DEBUG_TIMER_MSG
       printf("Freeing released timer\n");
+#endif
       free(range);
     }
 
@@ -465,6 +492,8 @@ int64_t maap_get_delay_to_next_timer(Maap_Client *mc)
 		/* Get the time remaining for the next timer. */
 		timeRemaining = Time_remaining(mc->timer);
 	}
+#ifdef DEBUG_TIMER_MSG
 	printf("Next delay:  %" PRId64 " ns\n\n", timeRemaining);
+#endif
 	return timeRemaining;
 }
