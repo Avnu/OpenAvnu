@@ -3,9 +3,6 @@
 
 #include <stdint.h>
 
-//#define MAAP_SOCKET_NAME "/var/tmp/maap.socket"
-//#define MAAP_CMD_BUF_SZ 500
-
 /* MAAP Request Format
  *
  * This is the format of the request the driver expects to receive from the

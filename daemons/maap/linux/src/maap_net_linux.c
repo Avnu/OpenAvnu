@@ -7,6 +7,10 @@
 
 #define NUM_BUFFERS 4
 
+/* Uncomment the DEBUG_NET_MSG define to display debug messages. */
+/* #define DEBUG_NET_MSG */
+
+
 struct maap_net {
 	char net_buffer[NUM_BUFFERS][MAAP_NET_BUFFER_SIZE];
 	int buffer_available[NUM_BUFFERS];
@@ -45,7 +49,9 @@ void *Net_getPacketBuffer(Net *net)
 		if (net->buffer_available[i])
 		{
 			net->buffer_available[i] = 0;
+#ifdef DEBUG_NET_MSG
 			printf("Allocated buffer %d\n", i);
+#endif
 			return (void *)(net->net_buffer[i]);
 		}
 	}
@@ -57,13 +63,14 @@ int Net_queuePacket(Net *net, void *buffer)
 	int buffer_index, queue_index;
 
 	assert(net);
-	/* @TODO: This could be done mathematically, rather than in a loop. */
 	for (buffer_index = 0; buffer_index < NUM_BUFFERS; ++buffer_index)
 	{
 		if (net->net_buffer[buffer_index] == buffer)
 		{
 			/* We found the index of the buffer provided. */
+#ifdef DEBUG_NET_MSG
 			printf("Queuing buffer %d\n", buffer_index);
+#endif
 			break;
 		}
 	}
@@ -76,7 +83,9 @@ int Net_queuePacket(Net *net, void *buffer)
 		{
 			/* We can add the buffer to this spot in the queue. */
 			net->index_to_send[queue_index] = buffer_index;
+#ifdef DEBUG_NET_MSG
 			printf("Buffer %d queued at index %d\n", buffer_index, queue_index);
+#endif
 			return 0;
 		}
 	}
@@ -91,7 +100,9 @@ void *Net_getNextQueuedPacket(Net *net)
 	assert(net);
 	if (net->index_to_send[0] >= 0)
 	{
+#ifdef DEBUG_NET_MSG
 		printf("Buffer %d pulled from queue\n", net->index_to_send[0]);
+#endif
 		pBuffer = net->net_buffer[net->index_to_send[0]];
 		for (i = 0; i < NUM_BUFFERS - 1; ++i)
 		{
@@ -108,13 +119,14 @@ int Net_freeQueuedPacket(Net *net, void *buffer)
 	int buffer_index;
 
 	assert(net);
-	/* @TODO: This could be done mathematically, rather than in a loop. */
 	for (buffer_index = 0; buffer_index < NUM_BUFFERS; ++buffer_index)
 	{
 		if (net->net_buffer[buffer_index] == buffer)
 		{
 			/* We found the index of the buffer provided. */
+#ifdef DEBUG_NET_MSG
 			printf("Freed buffer %d\n", buffer_index);
+#endif
 			break;
 		}
 	}

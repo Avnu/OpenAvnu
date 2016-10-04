@@ -94,9 +94,8 @@ int main(int argc, char *argv[])
 	void *packet_data;
 	int64_t waittime;
 	struct timeval tv;
-//	fd_set master;	// master file descriptor list
-	fd_set read_fds;  // temp file descriptor list for select()
-	int fdmax;		// maximum file descriptor number
+	fd_set read_fds;
+	int fdmax;
 	char recvbuffer[1600];
 	int recvbytes;
 	Maap_Cmd recvcmd;
@@ -244,7 +243,7 @@ int main(int argc, char *argv[])
 			if (send(socketfd, packet_data, MAAP_NET_BUFFER_SIZE, 0) < 0)
 			{
 				/* Something went wrong.  Abort! */
-				printf("Error %d writing to network socket\n", errno);
+				printf("Error %d writing to network socket (%s)\n", errno, strerror(errno));
 				break;
 			}
 			Net_freeQueuedPacket(mc.net, packet_data);
@@ -272,7 +271,7 @@ int main(int argc, char *argv[])
 		ret = select(fdmax+1, &read_fds, NULL, NULL, &tv);
 		if (ret < 0)
 		{
-			printf("select() error %d\n", errno);
+			printf("select() error %d (%s)\n", errno, strerror(errno));
 			break;
 		}
 		if (ret == 0)
@@ -290,13 +289,12 @@ int main(int argc, char *argv[])
 
 			while ((recvbytes = recvfrom(socketfd, recvbuffer, sizeof(recvbuffer), MSG_DONTWAIT, (struct sockaddr*)&ll_addr, &addr_len)) > 0)
 			{
-				printf("Received %d byte packet\n", recvbytes);
 				maap_handle_packet(&mc, (uint8_t *)recvbuffer, recvbytes);
 			}
 			if (recvbytes < 0 && errno != EWOULDBLOCK)
 			{
 				/* Something went wrong.  Abort! */
-				printf("Error %d reading from network socket\n", errno);
+				printf("Error %d reading from network socket (%s)\n", errno, strerror(errno));
 				break;
 			}
 		}
@@ -307,7 +305,7 @@ int main(int argc, char *argv[])
 			recvbytes = read(STDIN_FILENO, recvbuffer, sizeof(recvbuffer) - 1);
 			if (recvbytes < 0)
 			{
-				printf("Error %d reading from stdin\n", errno);
+				printf("Error %d reading from stdin (%s)\n", errno, strerror(errno));
 			}
 			else
 			{

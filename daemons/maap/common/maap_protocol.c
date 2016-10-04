@@ -83,7 +83,7 @@ int state_transit(maap_info_t *maap_info)
 			num_bytes = recv_packet(pkt_rx, NON_BLOCK);
 			if (num_bytes > 0) {
 				msg_type = pkt_rx->data.message_type; 
-				DBG("msg_type %x \n",msg_type);
+				DBG("msg_type 0x%x \n",msg_type);
 
 				if (msg_type == MAAP_DEFEND || 
 				msg_type ==  MAAP_ANNOUNCE ||
