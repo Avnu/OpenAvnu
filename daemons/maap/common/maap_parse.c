@@ -44,6 +44,9 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
       cmd->kind = MAAP_RELEASE;
       cmd->param.id = (int)strtoul(argv[1], NULL, 0);
       set_cmd = 1;
+    } else if (strncmp(argv[0], "exit", 4) == 0 && argc == 1) {
+      cmd->kind = MAAP_EXIT;
+      set_cmd = 1;
     } else {
       printf("Invalid command type\n");
     }
@@ -55,16 +58,18 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
     printf("    init [<range_base> <range_size>]\n");
     printf("        If not specified, range_base=0x%llx, range_size=0x%04x\n", MAAP_DEST_64, MAAP_RANGE_SIZE);
     printf("    reserve <addr_size>\n");
-    printf("    release <id>\n\n");
+    printf("    release <id>\n");
+    printf("    exit\n\n");
     return 0;
   }
 
   return 1;
 }
 
-void parse_write(Maap_Client *mc, char *buf) {
+int parse_write(Maap_Client *mc, char *buf) {
   Maap_Cmd *bufcmd, cmd;
   int rv = 0;
+  int retVal = 0;
 
   bufcmd = (Maap_Cmd *)buf;
 
@@ -95,10 +100,16 @@ void parse_write(Maap_Client *mc, char *buf) {
       printf("Got cmd maap_release_range, id: %d\n", cmd.param.id);
       rv = maap_release_range(mc, cmd.param.id);
       break;
+    case MAAP_EXIT:
+      printf("Got cmd maap_exit\n");
+      retVal = 1; /* Indicate that we should exit. */
+      break;
     default:
       printf("Error parsing in parse_write\n");
       rv = 0;
       break;
     }
   }
+
+  return retVal;
 }
