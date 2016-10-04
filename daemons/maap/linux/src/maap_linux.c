@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 		FD_SET(STDIN_FILENO, &read_fds);
 		FD_SET(socketfd, &read_fds);
 		fdmax = socketfd;
-		ret = select(fdmax, &read_fds, NULL, NULL, &tv);
+		ret = select(fdmax+1, &read_fds, NULL, NULL, &tv);
 		if (ret < 0)
 		{
 			printf("select() error %d\n", errno);
@@ -285,7 +285,10 @@ int main(int argc, char *argv[])
 		/* Handle any packets received. */
 		if (FD_ISSET(socketfd, &read_fds))
 		{
-			while ((recvbytes = recv(socketfd, recvbuffer, sizeof(recvbuffer), 0)) > 0)
+			struct sockaddr_ll ll_addr;
+			socklen_t addr_len;
+
+			while ((recvbytes = recvfrom(socketfd, recvbuffer, sizeof(recvbuffer), MSG_DONTWAIT, (struct sockaddr*)&ll_addr, &addr_len)) > 0)
 			{
 				printf("Received %d byte packet\n", recvbytes);
 				maap_handle_packet(&mc, (uint8_t *)recvbuffer, recvbytes);
@@ -315,6 +318,7 @@ int main(int argc, char *argv[])
 				parse_write(&mc, recvbuffer);
 			}
 		}
+
 	}
 
 	close(socketfd);
