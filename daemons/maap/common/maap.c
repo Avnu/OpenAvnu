@@ -289,6 +289,11 @@ int maap_reserve_range(Maap_Client *mc, uint16_t length) {
   int id;
   Range *range;
 
+  if (!mc->initialized) {
+    printf("Reserve not allowed, as MAAP not initialized\n");
+    return -1;
+  }
+
   range = malloc(sizeof (Range));
   if (range == NULL) {
     return -1;
@@ -317,23 +322,28 @@ int maap_reserve_range(Maap_Client *mc, uint16_t length) {
 int maap_release_range(Maap_Client *mc, int id) {
   Interval *iv;
   Range *range;
-  int rv = -1;
+
+  if (!mc->initialized) {
+    printf("Release not allowed, as MAAP not initialized\n");
+    return -1;
+  }
 
   range = mc->timer_queue;
   while (range) {
-    if (range->id == id) {
+    if (range->id == id && range->state != MAAP_STATE_RELEASED) {
       iv = range->interval;
       iv = remove_interval(&mc->ranges, iv);
       free_interval(iv);
       /* memory for range will be freed the next time its timer elapses */
       range->state = MAAP_STATE_RELEASED;
       printf("Released range id %d\n", id);
-      rv = 0;
+      return 0;
     }
     range = range->next_timer;
   }
 
-  return rv;
+  printf("Range id %d does not exist to release\n", id);
+  return -1;
 }
 
 int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
