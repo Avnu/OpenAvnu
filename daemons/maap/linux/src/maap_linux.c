@@ -32,10 +32,6 @@
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
@@ -45,8 +41,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
-#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -194,7 +188,6 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-#if 1
 	/* filter multicast address */
 	memset(&mreq, 0, sizeof(mreq));
 	mreq.mr_ifindex = ifindex;
@@ -207,7 +200,6 @@ int main(int argc, char *argv[])
 		printf("setsockopt PACKET_ADD_MEMBERSHIP failed\n");
 		return -1;
 	}
-#endif
 
 
 	/*
@@ -218,17 +210,12 @@ int main(int argc, char *argv[])
 	mc.src_mac = convert_mac_address(src_mac);
 
 
-#if 0
 	/*
-	 * Initialize the low-level MAAP support, using the default MAAP Dynamic Allocation Pool.
+	 * Seed the random number generator.
 	 */
 
-	if (maap_init_client(&mc, MAAP_DEST_64 | MAAP_RANGE_SIZE_64) < 0)
-	{
-		printf("maap_init_client() failed\n");
-		return -1;
-	}
-#endif
+	srand((unsigned int)mc.src_mac ^ (unsigned int)time(NULL));
+
 
 
 	/*
