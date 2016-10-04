@@ -17,6 +17,7 @@
 void test1_setup(void);
 void test2_setup(void);
 void test3_setup(void);
+void delay_setup(void);
 
 /* MAAP packet encoding/decoding */
 #define MAAP_RESERVED 0
@@ -110,10 +111,10 @@ int pack_maap(maap_packet_t *packet, uint8_t *stream) {
   stream += 2;
   *stream = (packet->CD << 7) | (packet->subtype & 0x7f);
   stream++;
-  *stream = (packet->SV << 7) | ((packet->version & 0x07) << 4) | 
+  *stream = (packet->SV << 7) | ((packet->version & 0x07) << 4) |
     (packet->message_type & 0x0f);
   stream++;
-  *(uint16_t *)stream = htobe16(((packet->status & 0x001f) << 11) | 
+  *(uint16_t *)stream = htobe16(((packet->status & 0x001f) << 11) |
                                 (packet->MAAP_data_length & 0x07ff));
   stream += 2;
   *(uint64_t *)stream = htobe64(packet->stream_id);
@@ -139,26 +140,26 @@ struct maap_test_state {
   uint64_t hwaddr;
 };
 
-struct maap_test_state test_state = {NULL, 0, 0};
+struct maap_test_state test_state = {NULL, 0, 0, 0};
 
 int get_raw_sock(int ethertype) {
   int rawsock;
-	
+
   if((rawsock = socket(PF_PACKET, SOCK_RAW, htons(ethertype))) == -1) {
     perror("Error creating raw sock: ");
     exit(-1);
   }
-	
+
   return rawsock;
 }
 
 int bind_sock(char *device, int rawsock, int protocol) {
   struct sockaddr_ll sll;
   struct ifreq ifr;
-	
+
   bzero(&sll, sizeof(sll));
   bzero(&ifr, sizeof(ifr));
-	
+
   /* First, get the interface index */
   strncpy((char *)ifr.ifr_name, device, IFNAMSIZ);
   if((ioctl(rawsock, SIOCGIFINDEX, &ifr)) == -1)    {
@@ -183,10 +184,10 @@ int bind_sock(char *device, int rawsock, int protocol) {
 
   if((bind(rawsock, (struct sockaddr*)&sll, sizeof(sll))) == -1) {
     perror("Error binding raw socket to interface\n");
-    exit(-1);	
+    exit(-1);
   }
-	
-  return 1;			
+
+  return 1;
 }
 
 int send_packet(int rawsock, maap_packet_t *mp) {
@@ -196,7 +197,7 @@ int send_packet(int rawsock, maap_packet_t *mp) {
   mp->SA = test_state.hwaddr;
 
   pack_maap(mp, pkt);
-  if((sent = write(rawsock, pkt, 60)) != 60) {		
+  if((sent = write(rawsock, pkt, 60)) != 60) {
     return 0;
   }
   return 1;
@@ -210,10 +211,15 @@ int main(int argc, char *argv[]) {
   bpf_u_int32 mask;
   bpf_u_int32 net;
 
-  dev = pcap_lookupdev(errbuf);
-  if (dev == NULL) {
-    fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
-    return 2;
+  if (argc < 2) {
+    dev = pcap_lookupdev(errbuf);
+    if (dev == NULL) {
+      fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
+      fprintf(stderr, "Try specifying the device you want: %s <device>\n", argv[0]);
+      return 2;
+    }
+  } else {
+    dev = argv[1];
   }
 
   if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1) {
@@ -245,14 +251,18 @@ int main(int argc, char *argv[]) {
   test_state.rawsock = get_raw_sock(0x22F0);
   bind_sock(dev, test_state.rawsock, 0x22F0);
 
-  test3_setup();
+  test1_setup();
 
   pcap_loop(handle, -1, parse_packet, NULL);
+
+  return 0;
 }
 
 void parse_packet(u_char *args, const struct pcap_pkthdr *header, 
 		  const u_char *packet) {
   maap_packet_t mp;
+
+  (void)args; (void)header;
 
   unpack_maap(&mp, (uint8_t *)packet);
 
@@ -266,7 +276,7 @@ void parse_packet(u_char *args, const struct pcap_pkthdr *header,
   if (test_state.pkt_handler) {
     test_state.pkt_handler(&mp);
   }
-  
+
   return;
 }
 
@@ -274,11 +284,12 @@ void parse_packet(u_char *args, const struct pcap_pkthdr *header,
  * Test functions
  *************************************************************************/
 
-/* Wait for a probe, send a defense response, see if next probe is for a 
+/* Wait for a probe, send a defense response, see if next probe is for a
    different range */
 
 #define WAITING_FOR_1ST_PROBE 0
 #define WAITING_FOR_2ND_PROBE 1
+#define WAITING_FOR_3RD_PROBE 2
 
 int test1_handler(maap_packet_t *mp) {
   static uint64_t start;
@@ -320,14 +331,52 @@ int test1_handler(maap_packet_t *mp) {
 
     /* Make sure we got a probe in response */
     if (mp->message_type != MAAP_PROBE) {
-      fprintf(stderr, "Test 1: FAIL - Got a non-probe packet, type %d.\n", 
+      fprintf(stderr, "Test 1: FAIL - Got a non-probe packet, type %d.\n",
               mp->message_type);
       exit(2);
     }
 
     printf("Received a probe from %012llx for %d addresses starting at %012llx\n",
-	   (long long unsigned int)mp->SA, mp->requested_count, 
+	   (long long unsigned int)mp->SA, mp->requested_count,
 	   (long long unsigned int)mp->requested_start_address);
+
+    /* See if the address range has changed */
+    if (mp->requested_start_address == start) {
+      /* They may have sent before we did; give them one more try */
+      mp->DA = mp->SA;
+      mp->SA = 0;
+      mp->message_type = MAAP_DEFEND;
+      mp->start_address = start;
+      mp->count = count;
+      send_packet(test_state.rawsock, mp);
+      printf("Sent another defend packet\n");
+
+      /* Update testing state */
+      test_state.state = WAITING_FOR_3RD_PROBE;
+
+    } else {
+
+      /* Success! */
+      printf("Test 1: PASS\n");
+
+      test2_setup();
+
+    }
+
+    break;
+
+  case WAITING_FOR_3RD_PROBE:
+
+    /* Make sure we got a probe in response */
+    if (mp->message_type != MAAP_PROBE) {
+      fprintf(stderr, "Test 1: FAIL - Got a non-probe packet, type %d.\n",
+              mp->message_type);
+      exit(2);
+    }
+
+    printf("Received a probe from %012llx for %d addresses starting at %012llx\n",
+           (long long unsigned int)mp->SA, mp->requested_count,
+           (long long unsigned int)mp->requested_start_address);
 
     /* Make sure the address range has changed */
     if (mp->requested_start_address == start) {
@@ -337,11 +386,13 @@ int test1_handler(maap_packet_t *mp) {
 
     /* Success! */
     printf("Test 1: PASS\n");
-    
+
     test2_setup();
 
     break;
   }
+
+  return 0;
 }
 
 void test1_setup(void) {
@@ -372,7 +423,7 @@ int test2_handler(maap_packet_t *mp) {
       break;
     }
     printf("Received an announce from %012llx for %d addresses starting at %012llx\n",
-	   (long long unsigned int)mp->SA, mp->requested_count, 
+	   (long long unsigned int)mp->SA, mp->requested_count,
 	   (long long unsigned int)mp->requested_start_address);
 
     /* Store the range from the ANNOUNCE so we can check the defense of this
@@ -392,7 +443,7 @@ int test2_handler(maap_packet_t *mp) {
 
   case WAITING_FOR_DEFEND:
     if (mp->message_type != MAAP_DEFEND) {
-      fprintf(stderr, "Test 2: FAIL - Got a non-defend packet, type %d.\n", 
+      fprintf(stderr, "Test 2: FAIL - Got a non-defend packet, type %d.\n",
               mp->message_type);
       exit(2);
     }
@@ -405,7 +456,7 @@ int test2_handler(maap_packet_t *mp) {
     }
     if (mp->requested_count != count) {
       fprintf(stderr, "Test 2: FAIL - Requested count wasn't filled out with the value from the probe.\n");
-      fprintf(stderr, "Requested count: %d  Probe count: %d\n", 
+      fprintf(stderr, "Requested count: %d  Probe count: %d\n",
               mp->requested_count, count);
       exit(2);
     }
@@ -421,15 +472,17 @@ int test2_handler(maap_packet_t *mp) {
       fprintf(stderr, "Defend count: %d  Conflicting count: %d\n", mp->count, count);
       exit(2);
     }
-    
+
     /* Success! */
     printf("Test 2: PASS\n");
-    
+
     test3_setup();
 
     break;
-   
+
   }
+
+  return 0;
 }
 
 void test2_setup(void) {
@@ -458,7 +511,7 @@ int test3_handler(maap_packet_t *mp) {
       break;
     }
     printf("Received an announce from %012llx for %d addresses starting at %012llx\n",
-	   (long long unsigned int)mp->SA, mp->requested_count, 
+	   (long long unsigned int)mp->SA, mp->requested_count,
 	   (long long unsigned int)mp->requested_start_address);
 
     /* Store the range from the ANNOUNCE so we can check the defense of this
@@ -480,34 +533,34 @@ int test3_handler(maap_packet_t *mp) {
 
   case WAITING_FOR_DEFEND:
     if (mp->message_type != MAAP_DEFEND) {
-      fprintf(stderr, "test 3: FAIL - Got a non-defend packet, type %d.\n", 
+      fprintf(stderr, "test 3: FAIL - Got a non-defend packet, type %d.\n",
               mp->message_type);
-      return;
+      exit(2);
     }
     if (mp->requested_start_address != start) {
       fprintf(stderr, "test 3: FAIL - Requested start address wasn't filled out with the value from the probe.\n");
       fprintf(stderr, "Req start address: %012llx  Probe address: %012llx\n",
               (unsigned long long)mp->requested_start_address,
               (unsigned long long)start);
-      return;
+      exit(2);
     }
     if (mp->requested_count != count) {
       fprintf(stderr, "test 3: FAIL - Requested count wasn't filled out with the value from the probe.\n");
-      fprintf(stderr, "Requested count: %d  Probe count: %d\n", 
+      fprintf(stderr, "Requested count: %d  Probe count: %d\n",
               mp->requested_count, count);
-      return;
+      exit(2);
     }
     if (mp->start_address != start) {
       fprintf(stderr, "test 3: FAIL - Start address wasn't filled out with the first conflicting address from the probe.\n");
       fprintf(stderr, "Start address: %012llx  Conflicting address: %012llx\n",
               (unsigned long long)mp->start_address,
               (unsigned long long)start);
-      return;
+      exit(2);
     }
     if (mp->count != count) {
       fprintf(stderr, "test 3: FAIL - Count wasn't filled out with the number of addresses conflicting with the probe.\n");
       fprintf(stderr, "Defend count: %d  Conflicting count: %d\n", mp->count, count);
-      return;
+      exit(2);
     }
 
     /* Send out the same announce again */
@@ -522,13 +575,13 @@ int test3_handler(maap_packet_t *mp) {
   case WAITING_FOR_PROBE:
     /* Make sure we got a probe in response */
     if (mp->message_type != MAAP_PROBE) {
-      fprintf(stderr, "Test 3: FAIL - Got a non-probe packet, type %d.\n", 
+      fprintf(stderr, "Test 3: FAIL - Got a non-probe packet, type %d.\n",
               mp->message_type);
-      return;
+      exit(2);
     }
 
     printf("Received a probe from %012llx for %d addresses starting at %012llx\n",
-	   (long long unsigned int)mp->SA, mp->requested_count, 
+	   (long long unsigned int)mp->SA, mp->requested_count,
 	   (long long unsigned int)mp->requested_start_address);
 
     /* Make sure the address range has changed */
@@ -540,20 +593,35 @@ int test3_handler(maap_packet_t *mp) {
     /* Success! */
     printf("Test 3: PASS\n");
 
-	printf("Waiting 5 min for next test....");
-	sleep(300);
-
-    test3_setup();
+    delay_setup();
 
     break;
-   
+
   }
+
+  return 0;
 }
 
 void test3_setup(void) {
   test_state.state = WAITING_FOR_ANNOUNCE;
   test_state.pkt_handler = test3_handler;
-  printf("Starting test 3: yielding a reservation after 2 announces\n");
+  printf("Starting Test 3: yielding a reservation after 2 announces\n");
   printf("Waiting for an announce packet...\n");
 }
 
+int delay_handler(maap_packet_t *mp) {
+  if (mp->message_type == MAAP_ANNOUNCE) {
+    test_state.state += 1;
+    if (test_state.state == 10) {
+      printf("Received 10 Announce messages.\n");
+      test3_setup();
+    }
+  }
+  return 0;
+}
+
+void delay_setup(void) {
+  test_state.state = 0;
+  test_state.pkt_handler = delay_handler;
+  printf("Waiting for ~5min (10 Announces)\n");
+}
