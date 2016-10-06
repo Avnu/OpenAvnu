@@ -11,8 +11,11 @@
 /* Linux-specific header files */
 #include <linux/if_ether.h>
 
-/* Uncomment the DEBUG_TIMER_MSG define to display debug messages. */
+/* Uncomment the DEBUG_TIMER_MSG define to display timer debug messages. */
 /* #define DEBUG_TIMER_MSG */
+
+/* Uncomment the DEBUG_NEGOTIATE_MSG define to display negotiation debug messages. */
+/* #define DEBUG_NEGOTIATE_MSG */
 
 
 static int get_count(Maap_Client *mc, Range *range) {
@@ -204,14 +207,14 @@ int rand_ms(int variation) {
 
 int schedule_timer(Maap_Client *mc, Range *range) {
   Range *rp;
-  uint64_t ns;
+  unsigned long long int ns;
   Time ts;
 
   if (range->state == MAAP_STATE_PROBING) {
     ns = MAAP_PROBE_INTERVAL_BASE + rand_ms(MAAP_PROBE_INTERVAL_VARIATION);
     ns = ns * 1000000;
 #ifdef DEBUG_TIMER_MSG
-    printf("Scheduling probe timer for %" PRIu64 " ns from now\n", ns);
+    printf("Scheduling probe timer for %llu ns from now\n", ns);
 #endif
     Time_setFromNanos(&ts, ns);
 #ifdef DEBUG_TIMER_MSG
@@ -233,7 +236,7 @@ int schedule_timer(Maap_Client *mc, Range *range) {
     ns = MAAP_ANNOUNCE_INTERVAL_BASE + rand_ms(MAAP_ANNOUNCE_INTERVAL_VARIATION);
     ns = ns * 1000000;
 #ifdef DEBUG_TIMER_MSG
-    printf("Scheduling defend timer for %" PRIu64 " ns from now\n", ns);
+    printf("Scheduling defend timer for %llu ns from now\n", ns);
 #endif
     Time_setFromNanos(&ts, (uint64_t)ns);
     Time_setFromMonotonicTimer(&range->next_act_time);
@@ -309,13 +312,15 @@ int maap_reserve_range(Maap_Client *mc, uint16_t length) {
   range->next_timer = NULL;
 
   assign_interval(mc, range, length);
-  printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, range), get_end_address(mc, range));
   send_probe(mc, range);
   range->counter--;
   schedule_timer(mc, range);
   start_timer(mc);
 
   printf("Requested address range, id %d\n", id);
+#ifdef DEBUG_NEGOTIATE_MSG
+  printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, range), get_end_address(mc, range));
+#endif
 
   return id;
 }
@@ -378,7 +383,7 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
   incoming_base = p.requested_start_address;
   incoming_max = p.requested_start_address + p.requested_count - 1;
 
-#if 0
+#ifdef DEBUG_NEGOTIATE_MSG
   if (p.message_type == MAAP_PROBE) { printf("Received PROBE for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
   if (p.message_type == MAAP_DEFEND) { printf("Received DEFEND for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
   if (p.message_type == MAAP_ANNOUNCE) { printf("Received ANNOUNCE for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
@@ -395,23 +400,23 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
   if (iv != NULL) {
     range = iv->data;
     if (range->state == MAAP_STATE_PROBING) {
-      printf("Found a conflicting preexisting range, look for a new one\n");
-      printf("    Response of 0x%012llx-0x%012llx overlaps our\n",
-    		 incoming_base, incoming_max);
-      printf("    request of 0x%012llx-0x%012llx\n",
-    		 get_start_address(mc, range), get_end_address(mc, range));
       /* Find an alternate interval, remove old interval,
          and restart probe counter */
       assign_interval(mc, range, iv->high - iv->low + 1);
+#ifdef DEBUG_NEGOTIATE_MSG
+      printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, range), get_end_address(mc, range));
+#endif
       iv = remove_interval(&mc->ranges, iv);
       free_interval(iv);
       range->counter = MAAP_PROBE_RETRANSMITS;
     } else if (range->state == MAAP_STATE_DEFENDING) {
       printf("Someone is messing with our range!\n");
+#ifdef DEBUG_NEGOTIATE_MSG
       printf("    Request of 0x%012llx-0x%012llx inside our\n",
     		 incoming_base, incoming_max);
       printf("    range of 0x%012llx-0x%012llx\n",
     		 get_start_address(mc, range), get_end_address(mc, range));
+#endif
       if (p.message_type == MAAP_PROBE) {
         printf("DEFEND!\n");
         send_defend(mc, range, p.requested_start_address, p.requested_count,
@@ -515,7 +520,7 @@ int maap_handle_timer(Maap_Client *mc) {
 
 int64_t maap_get_delay_to_next_timer(Maap_Client *mc)
 {
-	int64_t timeRemaining;
+	long long int timeRemaining;
 
 	if (!(mc->timer) || !(mc->timer_queue))
 	{
@@ -529,7 +534,7 @@ int64_t maap_get_delay_to_next_timer(Maap_Client *mc)
 		timeRemaining = Time_remaining(mc->timer);
 	}
 #ifdef DEBUG_TIMER_MSG
-	printf("Next delay:  %" PRId64 " ns\n\n", timeRemaining);
+	printf("Next delay:  %lld ns\n\n", timeRemaining);
 #endif
 	return timeRemaining;
 }
