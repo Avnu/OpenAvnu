@@ -30,6 +30,15 @@
 
 ****************************************************************************/
 
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <netdb.h>
+
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 
@@ -39,17 +48,14 @@
 
 #include <netinet/in.h>
 
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <arpa/inet.h>
 
 #include "maap.h"
 #include "maap_packet.h"
 #include "maap_parse.h"
 
+#define MAX_CLIENT_CONNECTIONS 32
+#define DEFAULT_PORT           "15364"
 
 #define VERSION_STR	"0.1"
 
@@ -58,25 +64,41 @@ static const char *version_str =
 	"Copyright (c) 2014-2015, VAYAVYA LABS PVT LTD\n"
 	"Copyright (c) 2016, Harman International Industries Inc.\n";
 
-void usage(void)
+static void usage(void)
 {
 	fprintf(stderr,
 		"\n"
-		"usage: maap_daemon [-d] -i interface-name"
+		"usage: maap_daemon [-d] -i interface-name [-p port_num]"
 		"\n"
 		"options:\n"
 		"	-d  run daemon in the background\n"
 		"	-i  specify interface to monitor\n"
+		"	-p  specify the control port to listen to (default " DEFAULT_PORT ")\n"
 		"\n" "%s" "\n", version_str);
 	exit(1);
 }
 
+/* get sockaddr, IPv4 or IPv6 */
+static void *get_in_addr(struct sockaddr *sa)
+{
+    if (sa->sa_family == AF_INET) {
+        return &(((struct sockaddr_in*)sa)->sin_addr);
+    }
+
+    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+
 int main(int argc, char *argv[])
 {
+	Maap_Client mc;
+
 	int c;
 	int daemonize = 0;
-	int ret;
 	char *iface = NULL;
+	char *listenport = NULL;
+	int ret;
+
 	int socketfd;
 	struct ifreq ifbuffer;
 	uint8_t dest_mac[ETH_ALEN] = MAAP_DEST_MAC;
@@ -84,21 +106,34 @@ int main(int argc, char *argv[])
 	int ifindex;
 	struct sockaddr_ll sockaddr;
 	struct packet_mreq mreq;
-	Maap_Client mc;
+
+	int listener;
+	struct addrinfo hints, *ai, *p;
+	int yes=1;
+
+	int newfd;
+	socklen_t addrlen;
+	struct sockaddr_storage remoteaddr;
+    char remoteIP[INET6_ADDRSTRLEN];
+    int clientfd[MAX_CLIENT_CONNECTIONS];
+    int i, nextclientindex;
+
+	fd_set master, read_fds;
+	int fdmax;
+
 	void *packet_data;
 	int64_t waittime;
 	struct timeval tv;
-	fd_set read_fds;
-	int fdmax;
 	char recvbuffer[1600];
 	int recvbytes;
 	Maap_Cmd recvcmd;
+
 
 	/*
 	 *  Parse the arguments
 	 */
 
-	while ((c = getopt(argc, argv, "hdi:")) >= 0)
+	while ((c = getopt(argc, argv, "hdi:p:")) >= 0)
 	{
 		switch (c)
 		{
@@ -109,10 +144,19 @@ int main(int argc, char *argv[])
 		case 'i':
 			if (iface)
 			{
-				printf("only one interface per daemon is supported\n");
+				printf("Only one interface per daemon is supported\n");
 				usage();
 			}
 			iface = strdup(optarg);
+			break;
+
+		case 'p':
+			if (listenport)
+			{
+				printf("Only one port per daemon is supported\n");
+				usage();
+			}
+			listenport = strdup(optarg);
 			break;
 
 		case 'h':
@@ -138,6 +182,12 @@ int main(int argc, char *argv[])
 			printf("Error: Failed to daemonize\n");
 			return -1;
 		}
+	}
+
+	if (listenport == NULL)
+	{
+		/* Use the default port. */
+		listenport = strdup(DEFAULT_PORT);
 	}
 
 
@@ -201,10 +251,73 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+	FD_ZERO(&read_fds);
+	FD_ZERO(&master);
+	FD_SET(STDIN_FILENO, &master);
+	FD_SET(socketfd, &master);
+	fdmax = socketfd;
+
 
 	/*
 	 * Initialize the Maap_Client data structure.
 	 */
+
+	/* get us a localhost socket and bind it */
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	if ((ret = getaddrinfo("localhost", listenport, &hints, &ai)) != 0) {
+		fprintf(stderr, "selectserver: %s\n", gai_strerror(ret));
+		exit(1);
+	}
+
+	for(p = ai; p != NULL; p = p->ai_next) {
+		listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+		if (listener < 0) {
+			continue;
+		}
+
+		/* Lose the pesky "address already in use" error message */
+		setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
+			close(listener);
+			continue;
+		}
+
+		break;
+	}
+
+	/* If we got here, it means we didn't get bound */
+	if (p == NULL) {
+		fprintf(stderr, "selectserver: failed to bind\n");
+		exit(2);
+	}
+
+	freeaddrinfo(ai);
+
+	if (listen(listener, 10) == -1) {
+		perror("listen");
+		exit(3);
+	}
+
+	/* Add the listener to the master set */
+	FD_SET(listener, &master);
+
+	/* Keep track of the biggest file descriptor */
+	if (listener > fdmax) {
+		fdmax = listener;
+	}
+
+	for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) { clientfd[i] = -1; }
+	nextclientindex = 0;
+
+
+	/*
+	 * Initialize the Maap_Client data structure.
+	 */
+
 	memset(&mc, 0, sizeof(mc));
 	mc.dest_mac = convert_mac_address(dest_mac);
 	mc.src_mac = convert_mac_address(src_mac);
@@ -252,10 +365,7 @@ int main(int argc, char *argv[])
 		}
 
 		/* Wait for something to happen. */
-		FD_ZERO(&read_fds);
-		FD_SET(STDIN_FILENO, &read_fds);
-		FD_SET(socketfd, &read_fds);
-		fdmax = socketfd;
+		read_fds = master;
 		ret = select(fdmax+1, &read_fds, NULL, NULL, &tv);
 		if (ret < 0)
 		{
@@ -287,11 +397,60 @@ int main(int argc, char *argv[])
 			}
 		}
 
+		/* Accept any new connections. */
+		if (FD_ISSET(listener, &read_fds)) {
+			addrlen = sizeof remoteaddr;
+			newfd = accept(listener,
+				(struct sockaddr *)&remoteaddr,
+				&addrlen);
+
+			if (newfd == -1) {
+				perror("accept");
+			} else {
+				printf("selectserver: new connection from %s on "
+					"socket %d\n",
+					inet_ntop(remoteaddr.ss_family,
+						get_in_addr((struct sockaddr*)&remoteaddr),
+						remoteIP, INET6_ADDRSTRLEN),
+					newfd);
+
+				/* Add the socket to our array of connected sockets. */
+				if (clientfd[nextclientindex] != -1)
+				{
+					/* Find the next available index. */
+					for (i = (nextclientindex + 1) % MAX_CLIENT_CONNECTIONS; i != nextclientindex; i = (i + 1) % MAX_CLIENT_CONNECTIONS)
+					{
+						if (clientfd[nextclientindex] == -1)
+						{
+							/* Found an empty array slot. */
+							break;
+						}
+					}
+					if (i == nextclientindex)
+					{
+						/* No more client slots available.  Connection rejected. */
+						printf("Out of client connection slots.  Connection rejected.\n");
+						close(newfd);
+						newfd = -1;
+					}
+				}
+
+				if (newfd != -1)
+				{
+					clientfd[nextclientindex] = newfd;
+					FD_SET(newfd, &master); /* add to master set */
+					if (newfd > fdmax) {    /* keep track of the max */
+						fdmax = newfd;
+					}
+				}
+			}
+		}
+
 		/* Handle any commands received via stdin. */
 		if (FD_ISSET(STDIN_FILENO, &read_fds))
 		{
 			recvbytes = read(STDIN_FILENO, recvbuffer, sizeof(recvbuffer) - 1);
-			if (recvbytes < 0)
+			if (recvbytes <= 0)
 			{
 				printf("Error %d reading from stdin (%s)\n", errno, strerror(errno));
 			}
@@ -308,11 +467,59 @@ int main(int argc, char *argv[])
 			}
 		}
 
+        /* Run through the existing connections looking for data to read. */
+		for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i)
+		{
+			if (clientfd[i] != -1 && FD_ISSET(clientfd[i], &read_fds))
+			{
+				recvbytes = recv(clientfd[i], recvbuffer, sizeof(recvbuffer), 0);
+				if (recvbytes < 0)
+				{
+					printf("Error %d reading from socket %d (%s).  Connection closed.\n", errno, clientfd[i], strerror(errno));
+					close(clientfd[i]);
+					FD_CLR(clientfd[i], &master); /* remove from master set */
+					clientfd[i] = -1;
+					nextclientindex = i; /* We know this slot will be empty. */
+				}
+				else if (recvbytes == 0)
+				{
+					printf("Socket %d closed\n", clientfd[i]);
+					close(clientfd[i]);
+					FD_CLR(clientfd[i], &master); /* remove from master set */
+					clientfd[i] = -1;
+					nextclientindex = i; /* We know this slot will be empty. */
+				}
+				else
+				{
+					recvbuffer[recvbytes] = '\0';
+
+					/* Process the data (may be binary or text.) */
+					memset(&recvcmd, 0, sizeof(recvcmd));
+					if (parse_write(&mc, recvbuffer)) {
+						/* Received a command to exit. */
+						break;
+					}
+				}
+			}
+		}
+
 	}
 
 	close(socketfd);
+	close(listener);
+
+	/** Close any connected sockets. */
+	for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
+		if (clientfd[i] != -1) {
+			close(clientfd[i]);
+			clientfd[i] = -1;
+		}
+	}
 
 	maap_deinit_client(&mc);
+
+	free(iface);
+	free(listenport);
 
 	return 0;
 }
