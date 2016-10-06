@@ -271,6 +271,14 @@ int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
 
   range_max = mc->range_len - 1;
 
+  /** @todo Return an error if range_max is too large, or no blocks of addresses the requested size are available.
+   * (The current code can get into an infinite loop.) */
+
+  /** @todo Use the saved MAAP_ANNOUNCE message ranges to search for addresses likely to be available.
+   *  Old announced ranges (e.g. older than 2 minutes) can be deleted if there are no ranges available.
+   *  We can also select new address blocks adjacent to our existing address blocks, which will fill the available address space more efficiently.
+   *  While this doesn't strictly adhere to the 1722 MAAP specification, it is defensible (as the initial block was random). */
+
   while (rv == INTERVAL_OVERLAP) {
     iv = alloc_interval(random() % mc->range_len, len);
     if (iv->high > range_max) {
@@ -394,6 +402,8 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
     printf("0x%012llx < 0x%012llx || 0x%012llx < 0x%012llx\n", incoming_max, own_base, own_max, incoming_base);
     return 0;
   }
+
+  /** @todo If this is a MAAP_ANNOUNCE message, save the announced range and time received for later reference. */
 
   start = (uint64_t)p.requested_start_address - mc->address_base;
   iv = search_interval(mc->ranges, start, p.requested_count);
