@@ -5,10 +5,9 @@
 
 #include "platform.h"
 
-#define MAAP_RESERVED   0
-#define MAAP_PROBE      1
-#define MAAP_DEFEND     2
-#define MAAP_ANNOUNCE   3
+#define MAAP_PROBE      1 /* MAAP Probe MAC address(es) PDU - Defined in IEEE 1722-2011 Table B.1 */
+#define MAAP_DEFEND     2 /* MAAP Defend address(es) response PDU - Defined in IEEE 1722-2011 Table B.1 */
+#define MAAP_ANNOUNCE   3 /* MAAP Announce MAC address(es) acquired PDU - Defined in IEEE 1722-2011 Table B.1 */
 
 typedef struct maap_packet {
   uint64_t DA;

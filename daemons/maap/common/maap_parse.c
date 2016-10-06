@@ -29,7 +29,7 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
     if (strncmp(argv[0], "init", 4) == 0) {
       if (argc == 1) {
         cmd->kind = MAAP_INIT;
-        cmd->param.range_info = MAAP_DEST_64 | MAAP_RANGE_SIZE_64;
+        cmd->param.range_info = MAAP_DYNAMIC_POOL_BASE | (((uint64_t)MAAP_DYNAMIC_POOL_SIZE) << 48);
         set_cmd = 1;
       } else if (argc == 3) {
         cmd->kind = MAAP_INIT;
@@ -56,7 +56,7 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
   {
     printf("input usage:\n");
     printf("    init [<range_base> <range_size>]\n");
-    printf("        If not specified, range_base=0x%llx, range_size=0x%04x\n", MAAP_DEST_64, MAAP_RANGE_SIZE);
+    printf("        If not specified, range_base=0x%llx, range_size=0x%04x\n", MAAP_DYNAMIC_POOL_BASE, MAAP_DYNAMIC_POOL_SIZE);
     printf("    reserve <addr_size>\n");
     printf("    release <id>\n");
     printf("    exit\n\n");
