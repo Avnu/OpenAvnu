@@ -140,7 +140,6 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 
 	/*TODO: Add intervals below to a config interface*/
 	log_mean_sync_interval = initialLogSyncInterval;
-	_accelerated_sync_count = portInit->accelerated_sync_count;
 	log_mean_announce_interval = 0;
 	log_min_mean_pdelay_req_interval = initialLogPdelayReqInterval;
 
@@ -204,6 +203,14 @@ void IEEE1588Port::timestamper_init(void)
 			_hw_timestamper = NULL;
 			return;
 		}
+	}
+}
+
+void IEEE1588Port::timestamper_reset(void)
+{
+	if( _hw_timestamper != NULL ) {
+		_hw_timestamper->init_phy_delay(this->link_delay);
+		_hw_timestamper->HWTimestamper_reset();
 	}
 }
 
@@ -515,10 +522,6 @@ void IEEE1588Port::processEvent(Event e)
 			Event e3 = NULL_EVENT;
 			Event e4 = NULL_EVENT;
 
-			if( port_state != PTP_MASTER ) {
-				_accelerated_sync_count = -1;
-			}
-
 			if (!automotive_profile) {
 				if (port_state != PTP_SLAVE && port_state != PTP_MASTER) {
 					GPTP_LOG_STATUS("Starting PDelay");
@@ -582,7 +585,7 @@ void IEEE1588Port::processEvent(Event e)
 				// Send an initial signalling message
 				PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
 				if (sigMsg) {
-					sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
+					sigMsg->setintervals(PTPMessageSignalling::sigMsgInterval_NoSend, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
 					sigMsg->sendPort(this, NULL);
 					delete sigMsg;
 				}
@@ -617,11 +620,15 @@ void IEEE1588Port::processEvent(Event e)
 					}
 					if (EBest == NULL) {
 						EBest = ports[j]->calculateERBest();
-					} else {
+					} else if (ports[j]->calculateERBest()) {
 						if (ports[j]->calculateERBest()->isBetterThan(EBest)) {
 							EBest = ports[j]->calculateERBest();
 						}
 					}
+				}
+
+				if (EBest == NULL) {
+					break;
 				}
 
 				/* Check if we've changed */
@@ -732,7 +739,7 @@ void IEEE1588Port::processEvent(Event e)
 				// Send an initial signaling message
 				PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
 				if (sigMsg) {
-					sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
+					sigMsg->setintervals(PTPMessageSignalling::sigMsgInterval_NoSend, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoSend);
 					sigMsg->sendPort(this, NULL);
 					delete sigMsg;
 				}
@@ -760,7 +767,7 @@ void IEEE1588Port::processEvent(Event e)
 				linkUpCount++;
 			}
 		}
-		this->timestamper_init();
+		this->timestamper_reset();
 		break;
 
 	case LINKDOWN:
@@ -895,7 +902,7 @@ void IEEE1588Port::processEvent(Event e)
 
 			getTxLock();
 			pdelay_req->sendPort(this, NULL);
-			GPTP_LOG_DEBUG("Sent PDelay Request");
+			GPTP_LOG_DEBUG("*** Sent PDelay Request message");
 
 			OSTimer *timer = timer_factory->createTimer();
 
@@ -919,6 +926,10 @@ void IEEE1588Port::processEvent(Event e)
 
 			if (ts_good == GPTP_EC_SUCCESS) {
 				pdelay_req->setTimestamp(req_timestamp);
+				GPTP_LOG_DEBUG(
+					"PDelay Request message, Timestamp %u (sec) %u (ns), seqID %u",
+					req_timestamp.seconds_ls, req_timestamp.nanoseconds,
+					pdelay_req->getSequenceId());
 			} else {
 			  Timestamp failed = INVALID_TIMESTAMP;
 			  pdelay_req->setTimestamp(failed);
@@ -933,17 +944,6 @@ void IEEE1588Port::processEvent(Event e)
 					"Error (TX) timestamping PDelay request, error=%d\t%s",
 					ts_good, msg);
 			}
-#ifdef DEBUG
-			if (ts_good == GPTP_EC_SUCCESS) {
-				GPTP_LOG_DEBUG
-				    ("Successful PDelay Req timestamp, %u,%u",
-				     req_timestamp.seconds_ls,
-				     req_timestamp.nanoseconds);
-			} else {
-				GPTP_LOG_DEBUG
-				    ("*** Unsuccessful PDelay Req timestamp");
-			}
-#endif
 
 			{
 				long long timeout;
@@ -957,6 +957,9 @@ void IEEE1588Port::processEvent(Event e)
 					timeout : EVENT_TIMER_GRANULARITY;
 				clock->addEventTimerLocked
 					(this, PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES, timeout );
+				GPTP_LOG_DEBUG("Schedule PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES, "
+					"PDelay interval %d, wait_time %lld, timeout %lld",
+					getPDelayInterval(), wait_time, timeout);
 
 				interval =
 					((long long)
@@ -1096,40 +1099,16 @@ void IEEE1588Port::processEvent(Event e)
 			   system_time, local_system_freq_offset, sync_count,
 			   pdelay_count, port_state, asCapable );
 
-			if (!automotive_profile) {
-				/* If accelerated_sync is non-zero then start 16 ms sync
-				   timer, subtract 1, for last one start PDelay also */
-				if( _accelerated_sync_count > 0 ) {
-					clock->addEventTimerLocked
-					  ( this, SYNC_INTERVAL_TIMEOUT_EXPIRES, 8000000 );
-					    --_accelerated_sync_count;
-				} else {
-					syncDone();
-					if( _accelerated_sync_count == 0 ) {
-						--_accelerated_sync_count;
-					}
-					wait_time *= 1000; // to ns
-					wait_time =
-					  ((long long)
-					     (pow((double)2,getSyncInterval())*1000000000.0)) -
-					    wait_time;
-					wait_time = wait_time > EVENT_TIMER_GRANULARITY ? wait_time :
-					            EVENT_TIMER_GRANULARITY;
-					startSyncIntervalTimer(wait_time);
-				}
-			}
-			else {
-				// Automotive Profile
-				syncDone();
+			syncDone();
 
-				wait_time = ((long long) (pow((double)2, getSyncInterval()) * 1000000000.0));
-				wait_time = wait_time > EVENT_TIMER_GRANULARITY ? wait_time : EVENT_TIMER_GRANULARITY;
-				startSyncIntervalTimer(wait_time);
-			}
+			wait_time = ((long long) (pow((double)2, getSyncInterval()) * 1000000000.0));
+			wait_time = wait_time > EVENT_TIMER_GRANULARITY ? wait_time : EVENT_TIMER_GRANULARITY;
+			startSyncIntervalTimer(wait_time);
 
 		}
 		break;
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
+		GPTP_LOG_DEBUG("ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES occured");
 		if (asCapable) {
 			// Send an announce message
 			PTPMessageAnnounce *annc = new PTPMessageAnnounce(this);
@@ -1142,7 +1121,7 @@ void IEEE1588Port::processEvent(Event e)
 			annc->sendPort(this, NULL);
 			delete annc;
 		}
-		startAnnounceIntervalTimer(pow((double)2, getAnnounceInterval()) * 1000000000.0);
+		startAnnounceIntervalTimer((uint64_t)(pow((double)2, getAnnounceInterval()) * 1000000000.0));
 		break;
 	case FAULT_DETECTED:
 		GPTP_LOG_ERROR("Received FAULT_DETECTED event");
@@ -1151,6 +1130,7 @@ void IEEE1588Port::processEvent(Event e)
 		}
 		break;
 	case PDELAY_DEFERRED_PROCESSING:
+		GPTP_LOG_DEBUG("PDELAY_DEFERRED_PROCESSING occured");
 		pdelay_rx_lock->lock();
 		if (last_pdelay_resp_fwup == NULL) {
 			GPTP_LOG_ERROR("PDelay Response Followup is NULL!");
@@ -1202,7 +1182,10 @@ void IEEE1588Port::processEvent(Event e)
 				// Send operational signalling message
 					PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
 					if (sigMsg) {
-						sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoChange);
+						if (automotive_profile)
+							sigMsg->setintervals(PTPMessageSignalling::sigMsgInterval_NoChange, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoChange);
+						else 
+							sigMsg->setintervals(log_min_mean_pdelay_req_interval, log_mean_sync_interval, PTPMessageSignalling::sigMsgInterval_NoChange);
 						sigMsg->sendPort(this, NULL);
 						delete sigMsg;
 					}

@@ -219,9 +219,6 @@ typedef struct {
 	/* forceSlave Forces port to be slave  */
 	bool forceSlave;
 
-	/* accelerated_sync_count If non-zero, then start 16ms sync timer */
-	int accelerated_sync_count;
-
 	/* timestamper Hardware timestamper instance */
 	HWTimestamper * timestamper;
 
@@ -319,7 +316,6 @@ class IEEE1588Port {
 	char log_min_mean_delay_req_interval;
 	char log_min_mean_pdelay_req_interval;
 	bool burst_enabled;
-	int _accelerated_sync_count;
 	static const int64_t ONE_WAY_DELAY_DEFAULT = 3600000000000;
 	static const int64_t INVALID_LINKDELAY = 3600000000000;
 	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
@@ -620,7 +616,6 @@ class IEEE1588Port {
 	 * @param  clock IEEE1588Clock instance
 	 * @param  index Interface index
 	 * @param  forceSlave Forces port to be slave
-	 * @param  accelerated_sync_count If non-zero, then start 16ms sync timer
 	 * @param  timestamper Hardware timestamper instance
 	 * @param  offset  Initial clock offset
 	 * @param  net_label Network label
@@ -631,7 +626,7 @@ class IEEE1588Port {
 	 */
 	IEEE1588Port
 	(IEEE1588Clock * clock, uint16_t index,
-	 bool forceSlave, int accelerated_sync_count,
+	 bool forceSlave,
 	 HWTimestamper * timestamper,
 	 int32_t offset, InterfaceLabel * net_label,
 	 OSConditionFactory * condition_factory,
@@ -794,7 +789,7 @@ class IEEE1588Port {
 
 	/**
 	 * @brief  Start sync interval timer
-	 * @param  waitTime time interval
+	 * @param  waitTime time interval in nanoseconds
 	 * @return none
 	 */
 	void startSyncIntervalTimer(long long unsigned int waitTime);
@@ -1137,6 +1132,12 @@ class IEEE1588Port {
 	 * @brief Initializes the hwtimestamper
 	 */
 	void timestamper_init(void);
+
+	/**
+	 * @brief Resets the hwtimestamper
+	 */
+	void timestamper_reset(void);
+
 
 	/**
 	 * @brief  Gets RX timestamp based on port identity

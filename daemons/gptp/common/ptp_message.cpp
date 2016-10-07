@@ -157,7 +157,7 @@ PTPMessageCommon *buildPTPMessage
 	switch (messageType) {
 	case SYNC_MESSAGE:
 
-		GPTP_LOG_DEBUG("*** Received Sync message\n" );
+		GPTP_LOG_DEBUG("*** Received Sync message" );
 		GPTP_LOG_VERBOSE("Sync RX timestamp = %hu,%u,%u", timestamp.seconds_ms, timestamp.seconds_ls, timestamp.nanoseconds );
 
 		// Be sure buffer is the correction size
@@ -279,7 +279,7 @@ PTPMessageCommon *buildPTPMessage
 		break;
 	case PATH_DELAY_RESP_MESSAGE:
 
-		GPTP_LOG_DEBUG("*** Received PDelay Response message, %u, %u, %u",
+		GPTP_LOG_DEBUG("*** Received PDelay Response message, Timestamp %u (sec) %u (ns), seqID %u",
 			   timestamp.seconds_ls, timestamp.nanoseconds,
 			   sequenceId);
 
@@ -407,6 +407,9 @@ PTPMessageCommon *buildPTPMessage
 		}
 		break;
 	case ANNOUNCE_MESSAGE:
+
+		GPTP_LOG_VERBOSE("*** Received Announce message");
+
 		{
 			PTPMessageAnnounce *annc = new PTPMessageAnnounce();
 			annc->messageType = messageType;
@@ -933,7 +936,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	FrequencyRatio local_clock_adjustment;
 	FrequencyRatio local_system_freq_offset;
 	FrequencyRatio master_local_freq_offset;
-	int correction;
+	int64_t correction;
 	int32_t scaledLastGmFreqChange = 0;
 	scaledNs scaledLastGmPhaseChange;
 
@@ -989,13 +992,12 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	}
 
 	master_local_freq_offset  =  tlv.getRateOffset();
-	master_local_freq_offset /= 2ULL << 41;
+	master_local_freq_offset /= 1ULL << 41;
 	master_local_freq_offset += 1.0;
 	master_local_freq_offset /= port->getPeerRateOffset();
 
-	correctionField = (uint64_t)
-		((correctionField >> 16)/master_local_freq_offset);
-	correction = (int) (delay + correctionField);
+	correctionField /= 1 << 16;
+	correction = (int64_t)((delay * master_local_freq_offset) + correctionField );
 
 	if( correction > 0 )
 	  TIMESTAMP_ADD_NS( preciseOriginTimestamp, correction );
@@ -1040,8 +1042,13 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	port->getClock()->getFUPStatus()->setScaledLastGmFreqChange( scaledLastGmFreqChange );
 	port->getClock()->getFUPStatus()->setScaledLastGmPhaseChange( scaledLastGmPhaseChange );
 
-	if( port->getPortState() != PTP_MASTER ) {
+	if( port->getPortState() == PTP_SLAVE )
+	{
+		/* The sync_count counts the number of sync messages received
+		   that influence the time on the device. Since adjustments are only
+		   made in the PTP_SLAVE state, increment it here */
 		port->incSyncCount();
+
 		/* Do not call calcLocalSystemClockRateDifference it updates state
 		   global to the clock object and if we are master then the network
 		   is transitioning to us not being master but the master process
@@ -1143,7 +1150,7 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	port->getTxLock();
 	resp->sendPort(port, sourcePortIdentity);
 
-	GPTP_LOG_DEBUG("Sent path delay response");
+	GPTP_LOG_DEBUG("*** Sent PDelay Response message");
 
 	GPTP_LOG_VERBOSE("Start TS Read");
 	ts_good = port->getTxTimestamp
@@ -1206,7 +1213,7 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	resp_fwup->setCorrectionField(0);
 	resp_fwup->sendPort(port, sourcePortIdentity);
 
-	GPTP_LOG_DEBUG("Sent path delay response fwup");
+	GPTP_LOG_DEBUG("*** Sent PDelay Response FollowUp message");
 
 	delete resp;
 	delete resp_fwup;
@@ -1721,7 +1728,7 @@ void PTPMessagePathDelayRespFollowUp::setRequestingPortIdentity
 	messageType = SIGNALLING_MESSAGE;
 	sequenceId = port->getNextSignalSequenceId();
 
-	targetPortIdentify = 0xff;
+	targetPortIdentify = (int8_t)0xff;
 
 	control = MESSAGE_OTHER;
 

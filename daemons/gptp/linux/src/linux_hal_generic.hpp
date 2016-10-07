@@ -62,6 +62,9 @@ private:
 	bool cross_stamp_good;
 	std::list<Timestamp> rxTimestampList;
 	LinuxNetworkInterfaceList iface_list;
+#ifdef PTP_HW_CROSSTSTAMP
+	bool precise_timestamp_enabled;
+#endif
 
 	TicketingLock *net_lock;
 
@@ -98,6 +101,12 @@ public:
 	 */
 	virtual bool HWTimestamper_init
 	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
+
+	/**
+	 * @brief  Reset the Hardware timestamp interface
+	 * @return void
+	 */
+	virtual void HWTimestamper_reset();
 
 	/**
 	 * @brief  Inserts a new timestamp to the beginning of the

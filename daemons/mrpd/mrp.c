@@ -665,7 +665,6 @@ int mrp_applicant_fsm(struct mrp_database *mrp_db,
 			optional = 1;
 			tx = 1;
 			sndmsg = MRP_SND_IN;
-			mrp_state = MRP_VO_STATE;
 			break;
 		default:
 			break;

@@ -297,11 +297,8 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 		}
 	}
 	else if (MATCH(name, "ifname")) {
-		if_info_t ifinfo;
-		if (openavbCheckInterface(value, &ifinfo)) {
-			strncpy(pCfg->ifname, value, IFNAMSIZ - 1);
-			valOK = TRUE;
-		}
+		strncpy(pCfg->ifname, value, IFNAMSIZ - 1);
+		valOK = TRUE;
 	}
 	else if (MATCH(name, "vlan_id")) {
 		errno = 0;
@@ -405,6 +402,13 @@ EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char
 	parseIniData.pNVCfg = pNVCfg;
 
 	int result = ini_parse(fileName, openavbTLCfgCallback, &parseIniData);
+	if (result == 0) {
+		if_info_t ifinfo;
+		if (!openavbCheckInterface(&parseIniData.pCfg->ifname, &ifinfo)) {
+			AVB_LOGF_ERROR("Invalid value: name=%s, value=%s", "ifname", parseIniData.pCfg->ifname);
+			return FALSE;
+		}
+	}
 	if (result < 0) {
 		AVB_LOGF_ERROR("Couldn't parse INI file: %s", fileName);
 		return FALSE;

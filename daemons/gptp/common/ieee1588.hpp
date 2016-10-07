@@ -478,6 +478,13 @@ public:
 		{ return true; }
 
 	/**
+	 * @brief Reset the hardware timestamp unit
+	 * @return void
+	 */
+	virtual void HWTimestamper_reset(void) {
+	}
+
+	/**
 	 * @brief  This method is called before the object is de-allocated.
 	 * @return void
 	 */
