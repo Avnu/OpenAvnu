@@ -84,32 +84,32 @@ static int send_defend(Maap_Client *mc, Range *range, uint64_t start,
   return send_packet(mc, &p);
 }
 
-static int inform_acquired(Maap_Client *mc, Range *range) {
+static int inform_acquired(Maap_Client *mc, void *sender, Range *range) {
   Maap_Notify note;
   printf("Address range acquired: 0x%012llx-0x%012llx (Size %d)\n",
          get_start_address(mc, range),
          get_end_address(mc, range),
          get_count(mc, range));
 
-  note.kind = MAAP_ACQUIRED;
+  note.kind = MAAP_NOTIFY_ACQUIRED;
   note.id = range->id;
   note.start = get_start_address(mc, range);
   note.count = get_count(mc, range);
 
-  add_notify(mc, &note);
+  add_notify(mc, sender, &note);
   return 0;
 }
 
-static int inform_yielded(Maap_Client *mc, Range *range) {
+static int inform_yielded(Maap_Client *mc, void *sender, Range *range) {
   Maap_Notify note;
   printf("Address range yielded\n");
 
-  note.kind = MAAP_YIELDED;
+  note.kind = MAAP_NOTIFY_YIELDED;
   note.id = range->id;
   note.start = get_start_address(mc, range);
   note.count = get_count(mc, range);
 
-  add_notify(mc, &note);
+  add_notify(mc, sender, &note);
   return 0;
 }
 
@@ -122,9 +122,10 @@ static void start_timer(Maap_Client *mc) {
   mc->timer_running = 1;
 }
 
-void add_notify(Maap_Client *mc, Maap_Notify *mn) {
+void add_notify(Maap_Client *mc, const void *sender, const Maap_Notify *mn) {
   Maap_Notify_List *tmp, *li = calloc(1, sizeof (Maap_Notify_List));
   memcpy(&li->notify, mn, sizeof (Maap_Notify));
+  li->sender = sender;
 
   if (mc->notifies == NULL) {
     mc->notifies = li;
@@ -137,7 +138,7 @@ void add_notify(Maap_Client *mc, Maap_Notify *mn) {
   }
 }
 
-int get_notify(Maap_Client *mc, Maap_Notify *mn) {
+int get_notify(Maap_Client *mc, void *sender, Maap_Notify *mn) {
   Maap_Notify_List *tmp;
 
   if (mc->notifies) {
@@ -150,9 +151,20 @@ int get_notify(Maap_Client *mc, Maap_Notify *mn) {
   return 0;
 }
 
-int maap_init_client(Maap_Client *mc, uint64_t range_info) {
+int maap_init_client(Maap_Client *mc, const void *sender, uint64_t range_address_base, uint32_t range_len) {
+  Maap_Notify note;
+
   if (mc->initialized) {
     printf("MAAP already initialized\n");
+
+    /* Let the sender know the range that was already specified. */
+    memset(&note, 0, sizeof(note));
+    note.kind = MAAP_NOTIFY_INIT;
+    note.id = -1; /* N/A */
+    note.start = mc->address_base;
+    note.count = mc->range_len;
+    add_notify(mc, sender, &note);
+
     return -1;
   }
 
@@ -169,11 +181,8 @@ int maap_init_client(Maap_Client *mc, uint64_t range_info) {
     return -1;
   }
 
-  mc->address_base = range_info & MAAP_BASE_MASK;
-  /* Consider 0 to be 0x10000, since 0 doesn't make sense and 0x10000 is
-     the maximum number of values that can be stored in 16 bits */
-  mc->range_len = (range_info & MAAP_RANGE_MASK) >> (ETH_ALEN * 8);
-  if (mc->range_len == 0) { mc->range_len = 0x10000; }
+  mc->address_base = range_address_base;
+  mc->range_len = range_len;
   mc->ranges = NULL;
   mc->timer_queue = NULL;
   mc->maxid = 0;
@@ -183,20 +192,36 @@ int maap_init_client(Maap_Client *mc, uint64_t range_info) {
   mc->initialized = 1;
 
   printf("MAAP initialized, start: 0x%012llx, max: 0x%04x\n",
-         (unsigned long long)range_info & MAAP_BASE_MASK,
-         (unsigned int)((range_info & MAAP_RANGE_MASK) >> (ETH_ALEN * 8)) - 1);
+         (unsigned long long) mc->address_base,
+         (unsigned int) mc->range_len);
+
+  /* Let the sender know the range is now specified. */
+  memset(&note, 0, sizeof(note));
+  note.kind = MAAP_NOTIFY_INIT;
+  note.id = -1; /* N/A */
+  note.start = mc->address_base;
+  note.count = mc->range_len;
+  add_notify(mc, sender, &note);
+
   return 0;
 }
 
 void maap_deinit_client(Maap_Client *mc) {
   if (mc->initialized) {
     if (mc->timer_queue) {
-	  Time_delTimer(mc->timer);
-	  Net_delNet(mc->net);
+      /** @todo Free reservation memory */
     }
 
-    mc->timer = NULL;
-    mc->net = NULL;
+    if (mc->timer) {
+      Time_delTimer(mc->timer);
+      mc->timer = NULL;
+    }
+
+    if (mc->net) {
+      Net_delNet(mc->net);
+      mc->net = NULL;
+    }
+
     mc->initialized = 0;
   }
 }
@@ -297,7 +322,7 @@ int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
   return 0;
 }
 
-int maap_reserve_range(Maap_Client *mc, uint16_t length) {
+int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
   int id;
   Range *range;
 
@@ -333,7 +358,7 @@ int maap_reserve_range(Maap_Client *mc, uint16_t length) {
   return id;
 }
 
-int maap_release_range(Maap_Client *mc, int id) {
+int maap_release_range(Maap_Client *mc, const void *sender, int id) {
   Interval *iv;
   Range *range;
 
@@ -360,7 +385,7 @@ int maap_release_range(Maap_Client *mc, int id) {
   return -1;
 }
 
-int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
+int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   MAAP_Packet p;
   Interval *iv;
   uint32_t start;
@@ -440,7 +465,7 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
           range->counter = 1;
         } else {
           printf("Yield vs. ANNOUNCE\n");
-          inform_yielded(mc, range);
+          inform_yielded(mc, NULL /** @todo Need the socket handle */, range);
           iv = remove_interval(&mc->ranges, iv);
           free_interval(iv);
           /* memory will be freed the next time its timer elapses */
@@ -461,7 +486,7 @@ int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len) {
 
 int handle_probe_timer(Maap_Client *mc, Range *range) {
   if (range->counter == 0) {
-    inform_acquired(mc, range);
+    inform_acquired(mc, NULL /** @todo Need the socket handle */, range);
     range->state = MAAP_STATE_DEFENDING;
     send_announce(mc, range);
     schedule_timer(mc, range);

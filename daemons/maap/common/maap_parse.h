@@ -24,10 +24,11 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd);
  * Parse the incoming binary or text data, and perform the specified command, if any.
  *
  * @param mc Pointer to the Maap_Client to use
+ * @param sender Sender information to track the requesting application
  * @param buf Binary or text data to parse
  *
  * @return 1 if the exit command was received, 0 otherwise.
  */
-int parse_write(Maap_Client *mc, char *buf);
+int parse_write(Maap_Client *mc, const void *sender, char *buf);
 
 #endif /* COMMON_MAAP_PARSE_H_ */

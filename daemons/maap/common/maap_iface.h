@@ -10,32 +10,32 @@
  */
 
 typedef enum {
-  MAAP_INVALID = 0,
-  MAAP_INIT,
-  MAAP_RESERVE,
-  MAAP_RELEASE,
-  MAAP_EXIT,
+  MAAP_CMD_INVALID = 0,
+  MAAP_CMD_INIT,
+  MAAP_CMD_RESERVE,
+  MAAP_CMD_RELEASE,
+  MAAP_CMD_EXIT,
 } Maap_Cmd_Tag;
 
 typedef struct {
   Maap_Cmd_Tag kind;
-  union {
-    uint64_t range_info;
-    uint16_t length;
-    int id;
-  } param;
+  int32_t  id;
+  uint64_t start;
+  uint32_t count;
 } Maap_Cmd;
 
+
 typedef enum {
-  MAAP_ACQUIRED,
-  MAAP_YIELDED,
+  MAAP_NOTIFY_INIT,
+  MAAP_NOTIFY_ACQUIRED,
+  MAAP_NOTIFY_YIELDED,
 } Maap_Notify_Tag;
 
 typedef struct {
   Maap_Notify_Tag kind;
-  int id;
+  int32_t  id;
   uint64_t start;
-  uint16_t count;
+  uint32_t count;
 } Maap_Notify;
 
 #endif

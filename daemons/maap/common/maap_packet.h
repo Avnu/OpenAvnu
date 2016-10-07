@@ -28,9 +28,9 @@ typedef struct maap_packet {
 } MAAP_Packet;
 
 void init_packet(MAAP_Packet *packet, uint64_t dest_mac, uint64_t src_mac);
-int pack_maap(MAAP_Packet *packet, uint8_t *stream);
-int unpack_maap(MAAP_Packet *packet, uint8_t *stream);
+int pack_maap(const MAAP_Packet *packet, uint8_t *stream);
+int unpack_maap(MAAP_Packet *packet, const uint8_t *stream);
 
-uint64_t convert_mac_address(uint8_t macaddr[]);
+uint64_t convert_mac_address(const uint8_t macaddr[]);
 
 #endif

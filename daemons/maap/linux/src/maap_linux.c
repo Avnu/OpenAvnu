@@ -489,7 +489,7 @@ int main(int argc, char *argv[])
 
 				/* Process the command data (may be binary or text). */
 				memset(&recvcmd, 0, sizeof(recvcmd));
-				if (parse_write(&mc, recvbuffer))
+				if (parse_write(&mc, (void *)(uintptr_t) -1, recvbuffer))
 				{
 					/* Received a command to exit. */
 					exit_received = 1;
@@ -525,7 +525,7 @@ int main(int argc, char *argv[])
 
 					/* Process the command data (may be binary or text). */
 					memset(&recvcmd, 0, sizeof(recvcmd));
-					if (parse_write(&mc, recvbuffer))
+					if (parse_write(&mc, (void *)(uintptr_t) clientfd[i], recvbuffer))
 					{
 						/* Received a command to exit. */
 						exit_received = 1;
@@ -675,10 +675,10 @@ static int act_as_client(const char *listenport)
 
 				/* Determine the command requested (may be binary or text). */
 				switch (bufcmd->kind) {
-				case MAAP_INIT:
-				case MAAP_RESERVE:
-				case MAAP_RELEASE:
-				case MAAP_EXIT:
+				case MAAP_CMD_INIT:
+				case MAAP_CMD_RESERVE:
+				case MAAP_CMD_RELEASE:
+				case MAAP_CMD_EXIT:
 					memcpy(&recvcmd, bufcmd, sizeof(Maap_Cmd));
 					rv = 1;
 					break;
