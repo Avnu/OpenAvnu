@@ -77,6 +77,7 @@ int parse_write(Maap_Client *mc, char *buf) {
   case MAAP_INIT:
   case MAAP_RESERVE:
   case MAAP_RELEASE:
+  case MAAP_EXIT:
     memcpy(&cmd, bufcmd, sizeof (Maap_Cmd));
     rv = 1;
     break;

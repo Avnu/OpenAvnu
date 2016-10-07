@@ -59,6 +59,10 @@
 
 #define VERSION_STR	"0.1"
 
+static int act_as_client(const char *listenport);
+static void process_response(const char *pData, int nDataLen);
+
+
 static const char *version_str =
 	"maap_daemon v" VERSION_STR "\n"
 	"Copyright (c) 2014-2015, VAYAVYA LABS PVT LTD\n"
@@ -68,12 +72,14 @@ static void usage(void)
 {
 	fprintf(stderr,
 		"\n"
-		"usage: maap_daemon [-d] -i interface-name [-p port_num]"
+		"usage: maap_daemon [-c | [-d] -i interface-name] [-p port_num]"
 		"\n"
 		"options:\n"
-		"	-d  run daemon in the background\n"
-		"	-i  specify interface to monitor\n"
-		"	-p  specify the control port to listen to (default " DEFAULT_PORT ")\n"
+		"\t-c  Run as a client (sends commands to the daemon)\n"
+		"\t-d  Run daemon in the background\n"
+		"\t-i  Specify daemon interface to monitor\n"
+		"\t-p  Specify the control port to connect to (client) or listen to (daemon).\n"
+		"\t    The default port is " DEFAULT_PORT ".\n"
 		"\n" "%s" "\n", version_str);
 	exit(1);
 }
@@ -94,7 +100,7 @@ int main(int argc, char *argv[])
 	Maap_Client mc;
 
 	int c;
-	int daemonize = 0;
+	int as_client = 0, daemonize = 0;
 	char *iface = NULL;
 	char *listenport = NULL;
 	int ret;
@@ -127,16 +133,21 @@ int main(int argc, char *argv[])
 	char recvbuffer[1600];
 	int recvbytes;
 	Maap_Cmd recvcmd;
+	int exit_received = 0;
 
 
 	/*
 	 *  Parse the arguments
 	 */
 
-	while ((c = getopt(argc, argv, "hdi:p:")) >= 0)
+	while ((c = getopt(argc, argv, "hcdi:p:")) >= 0)
 	{
 		switch (c)
 		{
+		case 'c':
+			as_client = 1;
+			break;
+
 		case 'd':
 			daemonize = 1;
 			break;
@@ -170,9 +181,20 @@ int main(int argc, char *argv[])
 		usage();
 	}
 
-	if (iface == NULL)
+	if (as_client && daemonize)
 	{
-		fprintf(stderr, "A network interface is required\n");
+		fprintf(stderr, "Cannot run as both a client and a daemon\n");
+		usage();
+	}
+
+	if (!as_client && iface == NULL)
+	{
+		fprintf(stderr, "A network interface is required as a daemon\n");
+		usage();
+	}
+	if (as_client && iface != NULL)
+	{
+		fprintf(stderr, "A network interface is not supported as a client\n");
 		usage();
 	}
 
@@ -190,12 +212,20 @@ int main(int argc, char *argv[])
 		listenport = strdup(DEFAULT_PORT);
 	}
 
+	if (as_client)
+	{
+		/* Run as a client instead of a server. */
+		ret = act_as_client(listenport);
+		free(listenport);
+		return ret;
+	}
+
 
 	/*
 	 * Initialize the networking support.
 	 */
 
-	if ((socketfd = socket(PF_PACKET, SOCK_RAW, htons(MAAP_TYPE))) < 0 )
+	if ((socketfd = socket(PF_PACKET, SOCK_RAW, htons(MAAP_TYPE))) == -1 )
 	{
 		fprintf(stderr, "Error: could not open socket %d\n",socketfd);
 		return -1;
@@ -267,14 +297,14 @@ int main(int argc, char *argv[])
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
-	if ((ret = getaddrinfo("localhost", listenport, &hints, &ai)) != 0) {
+	if ((ret = getaddrinfo(NULL, listenport, &hints, &ai)) != 0) {
 		fprintf(stderr, "getaddrinfo failure %s\n", gai_strerror(ret));
 		return -1;
 	}
 
 	for(p = ai; p != NULL; p = p->ai_next) {
 		listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if (listener < 0) {
+		if (listener == -1) {
 			continue;
 		}
 
@@ -289,13 +319,13 @@ int main(int argc, char *argv[])
 		break;
 	}
 
+	freeaddrinfo(ai);
+
 	/* If we got here, it means we didn't get bound */
 	if (p == NULL) {
 		fprintf(stderr, "Socket failed to bind error %d (%s)\n", errno, strerror(errno));
 		return -1;
 	}
-
-	freeaddrinfo(ai);
 
 	if (listen(listener, 10) < 0) {
 		fprintf(stderr, "Socket listen error %d (%s)\n", errno, strerror(errno));
@@ -331,12 +361,11 @@ int main(int argc, char *argv[])
 	srand((unsigned int)mc.src_mac + (unsigned int)time(NULL));
 
 
-
 	/*
 	 * Main event loop
 	 */
 
-	while (1)
+	while (!exit_received)
 	{
 		/* Send any queued packets. */
 		while (mc.net != NULL && (packet_data = Net_getNextQueuedPacket(mc.net)) != NULL)
@@ -458,11 +487,12 @@ int main(int argc, char *argv[])
 			{
 				recvbuffer[recvbytes] = '\0';
 
-				/* Process the data (may be binary or text.) */
+				/* Process the command data (may be binary or text). */
 				memset(&recvcmd, 0, sizeof(recvcmd));
-				if (parse_write(&mc, recvbuffer)) {
+				if (parse_write(&mc, recvbuffer))
+				{
 					/* Received a command to exit. */
-					break;
+					exit_received = 1;
 				}
 			}
 		}
@@ -493,11 +523,12 @@ int main(int argc, char *argv[])
 				{
 					recvbuffer[recvbytes] = '\0';
 
-					/* Process the data (may be binary or text.) */
+					/* Process the command data (may be binary or text). */
 					memset(&recvcmd, 0, sizeof(recvcmd));
-					if (parse_write(&mc, recvbuffer)) {
+					if (parse_write(&mc, recvbuffer))
+					{
 						/* Received a command to exit. */
-						break;
+						exit_received = 1;
 					}
 				}
 			}
@@ -521,5 +552,163 @@ int main(int argc, char *argv[])
 	free(iface);
 	free(listenport);
 
-	return 0;
+	return (exit_received ? 0 : -1);
+}
+
+
+/* Local function to handle client side of network command & control. */
+static int act_as_client(const char *listenport)
+{
+	int socketfd;
+	struct addrinfo hints, *ai, *p;
+	int ret;
+
+	fd_set master, read_fds;
+	int fdmax;
+
+	char recvbuffer[200];
+	int recvbytes;
+	Maap_Cmd recvcmd;
+	int exit_received = 0;
+
+	/* Create a localhost socket. */
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = 0;
+	if ((ret = getaddrinfo("localhost", listenport, &hints, &ai)) != 0) {
+		fprintf(stderr, "getaddrinfo failure %s\n", gai_strerror(ret));
+		return -1;
+	}
+
+	for(p = ai; p != NULL; p = p->ai_next) {
+		socketfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+		if (socketfd != -1) {
+			break;
+		}
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "Socket creation error %d (%s)\n", errno, strerror(errno));
+		freeaddrinfo(ai);
+		return -1;
+	}
+
+	/* Connect to the MAAP daemon. */
+	if (connect(socketfd, p->ai_addr, p->ai_addrlen) < 0)
+	{
+		fprintf(stderr, "Unable to connect to the daemon, error %d (%s)\n", errno, strerror(errno));
+		freeaddrinfo(ai);
+		close(socketfd);
+		return -1;
+	}
+
+	freeaddrinfo(ai);
+
+	if (fcntl(socketfd, F_SETFL, O_NONBLOCK) < 0)
+	{
+		fprintf(stderr, "Error: could not set the socket to non-blocking\n");
+		close(socketfd);
+		return -1;
+	}
+
+	FD_ZERO(&read_fds);
+	FD_ZERO(&master);
+	FD_SET(STDIN_FILENO, &master);
+	FD_SET(socketfd, &master);
+	fdmax = socketfd;
+
+
+	/*
+	 * Main event loop
+	 */
+
+	while (!exit_received)
+	{
+		/* Wait for something to happen. */
+		read_fds = master;
+		ret = select(fdmax+1, &read_fds, NULL, NULL, NULL);
+		if (ret <= 0)
+		{
+			fprintf(stderr, "select() error %d (%s)\n", errno, strerror(errno));
+			break;
+		}
+
+		/* Handle any responses received. */
+		if (FD_ISSET(socketfd, &read_fds))
+		{
+			while ((recvbytes = recv(socketfd, recvbuffer, sizeof(recvbuffer) - 1, 0)) > 0)
+			{
+				recvbuffer[recvbytes] = '\0';
+
+				/* Process the response data (will be binary). */
+				process_response(recvbuffer, recvbytes);
+			}
+			if (recvbytes == 0)
+			{
+				/* The MAAP daemon closed the connection.  Assume it shut down, and we should too. */
+				printf("MAAP daemon exited.  Closing application.\n");
+				exit_received = 1;
+			}
+			if (recvbytes < 0 && errno != EWOULDBLOCK)
+			{
+				/* Something went wrong.  Abort! */
+				fprintf(stderr, "Error %d reading from network socket (%s)\n", errno, strerror(errno));
+				break;
+			}
+		}
+
+		/* Handle any commands received via stdin. */
+		if (FD_ISSET(STDIN_FILENO, &read_fds))
+		{
+			recvbytes = read(STDIN_FILENO, recvbuffer, sizeof(recvbuffer) - 1);
+			if (recvbytes <= 0)
+			{
+				fprintf(stderr, "Error %d reading from stdin (%s)\n", errno, strerror(errno));
+			}
+			else
+			{
+				Maap_Cmd *bufcmd = (Maap_Cmd *) recvbuffer;
+				int rv = 0;
+
+				recvbuffer[recvbytes] = '\0';
+
+				/* Determine the command requested (may be binary or text). */
+				switch (bufcmd->kind) {
+				case MAAP_INIT:
+				case MAAP_RESERVE:
+				case MAAP_RELEASE:
+				case MAAP_EXIT:
+					memcpy(&recvcmd, bufcmd, sizeof(Maap_Cmd));
+					rv = 1;
+					break;
+				default:
+					memset(&recvcmd, 0, sizeof(Maap_Cmd));
+					rv = parse_text_cmd(recvbuffer, &recvcmd);
+					break;
+				}
+
+				/* If the command is valid, Send it to the MAAP daemon. */
+				if (rv)
+				{
+					if (send(socketfd, (char *) &recvcmd, sizeof(Maap_Cmd), 0) < 0)
+					{
+						/* Something went wrong.  Abort! */
+						fprintf(stderr, "Error %d writing to network socket (%s)\n", errno, strerror(errno));
+						break;
+					}
+				}
+			}
+		}
+
+	}
+
+	close(socketfd);
+
+	return (exit_received ? 0 : -1);
+}
+
+
+static void process_response(const char *pData, int nDataLen)
+{
 }
