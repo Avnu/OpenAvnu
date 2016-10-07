@@ -26,26 +26,34 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
 
   if (argc >= 1 && argc <= 3)
   {
+    /* Give all parameters default values. */
+    cmd->kind = MAAP_CMD_INVALID;
+    cmd->id = -1; /* N/A */
+    cmd->start = 0; /* N/A */
+    cmd->count = 0; /* N/A */
+
     if (strncmp(argv[0], "init", 4) == 0) {
       if (argc == 1) {
-        cmd->kind = MAAP_INIT;
-        cmd->param.range_info = MAAP_DYNAMIC_POOL_BASE | (((uint64_t)MAAP_DYNAMIC_POOL_SIZE) << 48);
+        cmd->kind = MAAP_CMD_INIT;
+        cmd->start = MAAP_DYNAMIC_POOL_BASE;
+        cmd->count = MAAP_DYNAMIC_POOL_SIZE;
         set_cmd = 1;
       } else if (argc == 3) {
-        cmd->kind = MAAP_INIT;
-        cmd->param.range_info = strtoull(argv[1], NULL, 16) | (strtoull(argv[2], NULL, 16) << 48);
+        cmd->kind = MAAP_CMD_INIT;
+        cmd->start = strtoull(argv[1], NULL, 16);
+        cmd->count = strtoul(argv[2], NULL, 0);
         set_cmd = 1;
       }
     } else if (strncmp(argv[0], "reserve", 7) == 0 && argc == 2) {
-      cmd->kind = MAAP_RESERVE;
-      cmd->param.length = (uint16_t)strtoul(argv[1], NULL, 0);
+      cmd->kind = MAAP_CMD_RESERVE;
+      cmd->count = strtoul(argv[1], NULL, 0);
       set_cmd = 1;
     } else if (strncmp(argv[0], "release", 7) == 0 && argc == 2) {
-      cmd->kind = MAAP_RELEASE;
-      cmd->param.id = (int)strtoul(argv[1], NULL, 0);
+      cmd->kind = MAAP_CMD_RELEASE;
+      cmd->id = (int)strtoul(argv[1], NULL, 0);
       set_cmd = 1;
     } else if (strncmp(argv[0], "exit", 4) == 0 && argc == 1) {
-      cmd->kind = MAAP_EXIT;
+      cmd->kind = MAAP_CMD_EXIT;
       set_cmd = 1;
     } else {
       printf("Invalid command type\n");
@@ -66,7 +74,7 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
   return 1;
 }
 
-int parse_write(Maap_Client *mc, char *buf) {
+int parse_write(Maap_Client *mc, const void *sender, char *buf) {
   Maap_Cmd *bufcmd, cmd;
   int rv = 0;
   int retVal = 0;
@@ -74,10 +82,10 @@ int parse_write(Maap_Client *mc, char *buf) {
   bufcmd = (Maap_Cmd *)buf;
 
   switch (bufcmd->kind) {
-  case MAAP_INIT:
-  case MAAP_RESERVE:
-  case MAAP_RELEASE:
-  case MAAP_EXIT:
+  case MAAP_CMD_INIT:
+  case MAAP_CMD_RESERVE:
+  case MAAP_CMD_RELEASE:
+  case MAAP_CMD_EXIT:
     memcpy(&cmd, bufcmd, sizeof (Maap_Cmd));
     rv = 1;
     break;
@@ -89,19 +97,20 @@ int parse_write(Maap_Client *mc, char *buf) {
 
   if (rv) {
     switch(cmd.kind) {
-    case MAAP_INIT:
-      printf("Got cmd maap_init_client, range_info: 0x%016llx\n", (unsigned long long)cmd.param.range_info);
-      rv = maap_init_client(mc, cmd.param.range_info);
+    case MAAP_CMD_INIT:
+      printf("Got cmd maap_init_client, range_base: 0x%016llx, range_size: 0x%04x\n",
+             (unsigned long long)cmd.start, cmd.count);
+      rv = maap_init_client(mc, sender, cmd.start, cmd.count);
       break;
-    case MAAP_RESERVE:
-      printf("Got cmd maap_reserve_range, length: %u\n", (unsigned)cmd.param.length);
-      rv = maap_reserve_range(mc, cmd.param.length);
+    case MAAP_CMD_RESERVE:
+      printf("Got cmd maap_reserve_range, length: %u\n", (unsigned) cmd.count);
+      rv = maap_reserve_range(mc, sender, cmd.count);
       break;
-    case MAAP_RELEASE:
-      printf("Got cmd maap_release_range, id: %d\n", cmd.param.id);
-      rv = maap_release_range(mc, cmd.param.id);
+    case MAAP_CMD_RELEASE:
+      printf("Got cmd maap_release_range, id: %d\n", (int) cmd.id);
+      rv = maap_release_range(mc, sender, cmd.id);
       break;
-    case MAAP_EXIT:
+    case MAAP_CMD_EXIT:
       printf("Got cmd maap_exit\n");
       retVal = 1; /* Indicate that we should exit. */
       break;

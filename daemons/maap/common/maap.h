@@ -32,12 +32,11 @@
 #define MAAP_TYPE 0x22F0 /**< AVTP Ethertype - Defined in IEEE 1722-2011 Table 5.1 */
 #define MAAP_SUBTYPE 0xFE /**< AVTP MAAP subtype - Defined in IEEE 1722-2011 Table 5.2 */
 #define MAAP_PKT_SIZE 42
-#define MAAP_RANGE_MASK 0xFFFF000000000000LL
-#define MAAP_BASE_MASK  0x0000FFFFFFFFFFFFLL
 
 typedef struct maap_notify_list Maap_Notify_List;
 struct maap_notify_list {
   Maap_Notify notify;
+  const void *sender;
   Maap_Notify_List *next;
 };
 
@@ -66,13 +65,13 @@ typedef struct {
   int initialized;
 } Maap_Client;
 
-int maap_init_client(Maap_Client *mc, uint64_t range_info);
+int maap_init_client(Maap_Client *mc, const void *sender, uint64_t range_address_base, uint32_t range_len);
 void maap_deinit_client(Maap_Client *mc);
 
-int maap_reserve_range(Maap_Client *mc, uint16_t length);
-int maap_release_range(Maap_Client *mc, int id);
+int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length);
+int maap_release_range(Maap_Client *mc, const void *sender, int id);
 
-int maap_handle_packet(Maap_Client *mc, uint8_t *stream, int len);
+int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len);
 int maap_handle_timer(Maap_Client *mc);
 
 /**
@@ -84,7 +83,7 @@ int maap_handle_timer(Maap_Client *mc);
  */
 int64_t maap_get_delay_to_next_timer(Maap_Client *mc);
 
-void add_notify(Maap_Client *mc, Maap_Notify *mn);
-int get_notify(Maap_Client *mc, Maap_Notify *mn);
+void add_notify(Maap_Client *mc, const void *sender, const Maap_Notify *mn);
+int get_notify(Maap_Client *mc, void *sender, Maap_Notify *mn);
 
 #endif

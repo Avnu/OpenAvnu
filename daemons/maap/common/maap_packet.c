@@ -3,7 +3,7 @@
 #include "maap.h"
 #include "maap_packet.h"
 
-int unpack_maap(MAAP_Packet *packet, uint8_t *stream) {
+int unpack_maap(MAAP_Packet *packet, const uint8_t *stream) {
   uint64_t tmp64;
   uint16_t tmp16;
   uint8_t tmp8;
@@ -63,7 +63,7 @@ int unpack_maap(MAAP_Packet *packet, uint8_t *stream) {
   return 0;
 }
 
-int pack_maap(MAAP_Packet *packet, uint8_t *stream) {
+int pack_maap(const MAAP_Packet *packet, uint8_t *stream) {
   uint64_t tmp64;
   uint16_t tmp16;
   uint8_t tmp8;
@@ -141,7 +141,7 @@ void init_packet(MAAP_Packet *packet, uint64_t dest_mac, uint64_t src_mac) {
   packet->count = 0;
 }
 
-uint64_t convert_mac_address(uint8_t macaddr[])
+uint64_t convert_mac_address(const uint8_t macaddr[])
 {
   uint64_t retVal;
 
