@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 		case 'i':
 			if (iface)
 			{
-				printf("Only one interface per daemon is supported\n");
+				fprintf(stderr, "Only one interface per daemon is supported\n");
 				usage();
 			}
 			iface = strdup(optarg);
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 		case 'p':
 			if (listenport)
 			{
-				printf("Only one port per daemon is supported\n");
+				fprintf(stderr, "Only one port per daemon is supported\n");
 				usage();
 			}
 			listenport = strdup(optarg);
@@ -172,14 +172,14 @@ int main(int argc, char *argv[])
 
 	if (iface == NULL)
 	{
-		printf("A network interface is required\n");
+		fprintf(stderr, "A network interface is required\n");
 		usage();
 	}
 
 	if (daemonize) {
 		ret = daemon(1, 0);
 		if (ret) {
-			printf("Error: Failed to daemonize\n");
+			fprintf(stderr, "Error: Failed to daemonize\n");
 			return -1;
 		}
 	}
@@ -197,13 +197,13 @@ int main(int argc, char *argv[])
 
 	if ((socketfd = socket(PF_PACKET, SOCK_RAW, htons(MAAP_TYPE))) < 0 )
 	{
-		printf("Error: could not open socket %d\n",socketfd);
+		fprintf(stderr, "Error: could not open socket %d\n",socketfd);
 		return -1;
 	}
 
 	if (fcntl(socketfd, F_SETFL, O_NONBLOCK) < 0)
 	{
-		printf("Error: could not set the socket to non-blocking\n");
+		fprintf(stderr, "Error: could not set the socket to non-blocking\n");
 		return -1;
 	}
 
@@ -211,7 +211,7 @@ int main(int argc, char *argv[])
 	strncpy(ifbuffer.ifr_name, iface, IFNAMSIZ);
 	if (ioctl(socketfd, SIOCGIFINDEX, &ifbuffer) < 0)
 	{
-		printf("Error: could not get interface index\n");
+		fprintf(stderr, "Error: could not get interface index\n");
 		close(socketfd);
 		return -1;
 	}
@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
 
 	ifindex = ifbuffer.ifr_ifindex;
 	if (ioctl(socketfd, SIOCGIFHWADDR, &ifbuffer) < 0) {
-		printf("Error: could not get interface address\n");
+		fprintf(stderr, "Error: could not get interface address\n");
 		close(socketfd);
 		return -1;
 	}
@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
 	memcpy(sockaddr.sll_addr, dest_mac, ETH_ALEN);
 
 	if (bind(socketfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr))) {
-		printf("Error: could not bind datagram socket\n");
+		fprintf(stderr, "Error: could not bind datagram socket\n");
 		return -1;
 	}
 
@@ -247,7 +247,7 @@ int main(int argc, char *argv[])
 
 	if (setsockopt(socketfd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq,
 		sizeof(mreq)) < 0) {
-		printf("setsockopt PACKET_ADD_MEMBERSHIP failed\n");
+		fprintf(stderr, "setsockopt PACKET_ADD_MEMBERSHIP failed\n");
 		return -1;
 	}
 
@@ -268,8 +268,8 @@ int main(int argc, char *argv[])
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 	if ((ret = getaddrinfo("localhost", listenport, &hints, &ai)) != 0) {
-		fprintf(stderr, "selectserver: %s\n", gai_strerror(ret));
-		exit(1);
+		fprintf(stderr, "getaddrinfo failure %s\n", gai_strerror(ret));
+		return -1;
 	}
 
 	for(p = ai; p != NULL; p = p->ai_next) {
@@ -291,14 +291,14 @@ int main(int argc, char *argv[])
 
 	/* If we got here, it means we didn't get bound */
 	if (p == NULL) {
-		fprintf(stderr, "selectserver: failed to bind\n");
-		exit(2);
+		fprintf(stderr, "Socket failed to bind error %d (%s)\n", errno, strerror(errno));
+		return -1;
 	}
 
 	freeaddrinfo(ai);
 
-	if (listen(listener, 10) == -1) {
-		perror("listen");
+	if (listen(listener, 10) < 0) {
+		fprintf(stderr, "Socket listen error %d (%s)\n", errno, strerror(errno));
 		exit(3);
 	}
 
@@ -344,7 +344,8 @@ int main(int argc, char *argv[])
 			if (send(socketfd, packet_data, MAAP_NET_BUFFER_SIZE, 0) < 0)
 			{
 				/* Something went wrong.  Abort! */
-				printf("Error %d writing to network socket (%s)\n", errno, strerror(errno));
+				fprintf(stderr, "Error %d writing to network socket (%s)\n", errno, strerror(errno));
+				Net_freeQueuedPacket(mc.net, packet_data);
 				break;
 			}
 			Net_freeQueuedPacket(mc.net, packet_data);
@@ -369,7 +370,7 @@ int main(int argc, char *argv[])
 		ret = select(fdmax+1, &read_fds, NULL, NULL, &tv);
 		if (ret < 0)
 		{
-			printf("select() error %d (%s)\n", errno, strerror(errno));
+			fprintf(stderr, "select() error %d (%s)\n", errno, strerror(errno));
 			break;
 		}
 		if (ret == 0)
@@ -392,7 +393,7 @@ int main(int argc, char *argv[])
 			if (recvbytes < 0 && errno != EWOULDBLOCK)
 			{
 				/* Something went wrong.  Abort! */
-				printf("Error %d reading from network socket (%s)\n", errno, strerror(errno));
+				fprintf(stderr, "Error %d reading from network socket (%s)\n", errno, strerror(errno));
 				break;
 			}
 		}
@@ -405,10 +406,9 @@ int main(int argc, char *argv[])
 				&addrlen);
 
 			if (newfd == -1) {
-				perror("accept");
+				fprintf(stderr, "Error %d accepting connection (%s)\n", errno, strerror(errno));
 			} else {
-				printf("selectserver: new connection from %s on "
-					"socket %d\n",
+				printf("New connection from %s on socket %d\n",
 					inet_ntop(remoteaddr.ss_family,
 						get_in_addr((struct sockaddr*)&remoteaddr),
 						remoteIP, INET6_ADDRSTRLEN),
@@ -429,7 +429,7 @@ int main(int argc, char *argv[])
 					if (i == nextclientindex)
 					{
 						/* No more client slots available.  Connection rejected. */
-						printf("Out of client connection slots.  Connection rejected.\n");
+						fprintf(stderr, "Out of client connection slots.  Connection rejected.\n");
 						close(newfd);
 						newfd = -1;
 					}
@@ -452,7 +452,7 @@ int main(int argc, char *argv[])
 			recvbytes = read(STDIN_FILENO, recvbuffer, sizeof(recvbuffer) - 1);
 			if (recvbytes <= 0)
 			{
-				printf("Error %d reading from stdin (%s)\n", errno, strerror(errno));
+				fprintf(stderr, "Error %d reading from stdin (%s)\n", errno, strerror(errno));
 			}
 			else
 			{
@@ -475,7 +475,7 @@ int main(int argc, char *argv[])
 				recvbytes = recv(clientfd[i], recvbuffer, sizeof(recvbuffer), 0);
 				if (recvbytes < 0)
 				{
-					printf("Error %d reading from socket %d (%s).  Connection closed.\n", errno, clientfd[i], strerror(errno));
+					fprintf(stderr, "Error %d reading from socket %d (%s).  Connection closed.\n", errno, clientfd[i], strerror(errno));
 					close(clientfd[i]);
 					FD_CLR(clientfd[i], &master); /* remove from master set */
 					clientfd[i] = -1;
