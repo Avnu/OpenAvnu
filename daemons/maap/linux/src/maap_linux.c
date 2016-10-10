@@ -389,10 +389,21 @@ int main(int argc, char *argv[])
 			if ((int) notifysocket != -1)
 			{
 				/* Send the notification information to the client. */
-				if (send((int) notifysocket, &recvnotify, sizeof(recvnotify), 0) < 0)
+				for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i)
 				{
-					/* Something went wrong. Assume the socket will be closed below. */
-					fprintf(stderr, "Error %d writing to client socket %d (%s)\n", errno, (int) notifysocket, strerror(errno));
+					if (clientfd[i] == (int) notifysocket)
+					{
+						if (send((int) notifysocket, &recvnotify, sizeof(recvnotify), 0) < 0)
+						{
+							/* Something went wrong. Assume the socket will be closed below. */
+							fprintf(stderr, "Error %d writing to client socket %d (%s)\n", errno, (int) notifysocket, strerror(errno));
+						}
+						break;
+					}
+				}
+				if (i >= MAX_CLIENT_CONNECTIONS)
+				{
+					printf("Notification for client socket %d, but that socket no longer exists\n", (int) notifysocket);
 				}
 			}
 		}
