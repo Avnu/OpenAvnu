@@ -128,7 +128,7 @@ void init_packet(MAAP_Packet *packet, uint64_t dest_mac, uint64_t src_mac) {
   packet->SA = src_mac;
   packet->Ethertype = MAAP_TYPE;
   packet->CD = 1;
-  packet->subtype = 0x7e;
+  packet->subtype = MAAP_SUBTYPE;
   packet->SV = 0;
   packet->version = 1;
   packet->message_type = 0;
