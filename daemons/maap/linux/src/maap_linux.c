@@ -86,11 +86,11 @@ static void usage(void)
 /* get sockaddr, IPv4 or IPv6 */
 static void *get_in_addr(struct sockaddr *sa)
 {
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
+	if (sa->sa_family == AF_INET) {
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
 
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
 
@@ -119,9 +119,9 @@ int main(int argc, char *argv[])
 	int newfd;
 	socklen_t addrlen;
 	struct sockaddr_storage remoteaddr;
-    char remoteIP[INET6_ADDRSTRLEN];
-    int clientfd[MAX_CLIENT_CONNECTIONS];
-    int i, nextclientindex;
+	char remoteIP[INET6_ADDRSTRLEN];
+	int clientfd[MAX_CLIENT_CONNECTIONS];
+	int i, nextclientindex;
 
 	fd_set master, read_fds;
 	int fdmax;
@@ -515,7 +515,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-        /* Run through the existing connections looking for data to read. */
+		/* Run through the existing connections looking for data to read. */
 		for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i)
 		{
 			if (clientfd[i] != -1 && FD_ISSET(clientfd[i], &read_fds))
