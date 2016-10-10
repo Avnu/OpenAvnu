@@ -59,6 +59,8 @@
 
 #define VERSION_STR	"0.1"
 
+static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], uint8_t dest_mac[ETH_ALEN]);
+static int get_listener_socket(const char *listenport);
 static int act_as_client(const char *listenport);
 
 
@@ -105,21 +107,11 @@ int main(int argc, char *argv[])
 	int ret;
 
 	int socketfd;
-	struct ifreq ifbuffer;
 	uint8_t dest_mac[ETH_ALEN] = MAAP_DEST_MAC;
 	uint8_t src_mac[ETH_ALEN];
-	int ifindex;
-	struct sockaddr_ll sockaddr;
-	struct packet_mreq mreq;
 
 	int listener;
-	struct addrinfo hints, *ai, *p;
-	int yes=1;
 
-	int newfd;
-	socklen_t addrlen;
-	struct sockaddr_storage remoteaddr;
-	char remoteIP[INET6_ADDRSTRLEN];
 	int clientfd[MAX_CLIENT_CONNECTIONS];
 	int i, nextclientindex;
 
@@ -226,61 +218,13 @@ int main(int argc, char *argv[])
 	 * Initialize the networking support.
 	 */
 
-	if ((socketfd = socket(PF_PACKET, SOCK_RAW, htons(MAAP_TYPE))) == -1 )
-	{
-		fprintf(stderr, "Error: could not open socket %d\n",socketfd);
+	socketfd = init_maap_networking(iface, src_mac, dest_mac);
+	if (socketfd == -1) {
 		return -1;
 	}
 
-	if (fcntl(socketfd, F_SETFL, O_NONBLOCK) < 0)
-	{
-		fprintf(stderr, "Error: could not set the socket to non-blocking\n");
-		return -1;
-	}
-
-	memset(&ifbuffer, 0x00, sizeof(ifbuffer));
-	strncpy(ifbuffer.ifr_name, iface, IFNAMSIZ);
-	if (ioctl(socketfd, SIOCGIFINDEX, &ifbuffer) < 0)
-	{
-		fprintf(stderr, "Error: could not get interface index\n");
-		close(socketfd);
-		return -1;
-	}
 	free(iface);
 	iface = NULL;
-
-	ifindex = ifbuffer.ifr_ifindex;
-	if (ioctl(socketfd, SIOCGIFHWADDR, &ifbuffer) < 0) {
-		fprintf(stderr, "Error: could not get interface address\n");
-		close(socketfd);
-		return -1;
-	}
-
-	memcpy(src_mac, ifbuffer.ifr_hwaddr.sa_data, ETH_ALEN);
-
-	memset(&sockaddr, 0, sizeof(sockaddr));
-	sockaddr.sll_family = AF_PACKET;
-	sockaddr.sll_ifindex = ifindex;
-	sockaddr.sll_halen = ETH_ALEN;
-	memcpy(sockaddr.sll_addr, dest_mac, ETH_ALEN);
-
-	if (bind(socketfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr))) {
-		fprintf(stderr, "Error: could not bind datagram socket\n");
-		return -1;
-	}
-
-	/* filter multicast address */
-	memset(&mreq, 0, sizeof(mreq));
-	mreq.mr_ifindex = ifindex;
-	mreq.mr_type = PACKET_MR_MULTICAST;
-	mreq.mr_alen = 6;
-	memcpy(mreq.mr_address, dest_mac, mreq.mr_alen);
-
-	if (setsockopt(socketfd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq,
-		sizeof(mreq)) < 0) {
-		fprintf(stderr, "setsockopt PACKET_ADD_MEMBERSHIP failed\n");
-		return -1;
-	}
 
 	FD_ZERO(&read_fds);
 	FD_ZERO(&master);
@@ -290,48 +234,17 @@ int main(int argc, char *argv[])
 
 
 	/*
-	 * Initialize the Maap_Client data structure.
+	 * Initialize the client connection listen socket.
 	 */
 
-	/* get us a localhost socket and bind it */
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
-	if ((ret = getaddrinfo(NULL, listenport, &hints, &ai)) != 0) {
-		fprintf(stderr, "getaddrinfo failure %s\n", gai_strerror(ret));
+	listener = get_listener_socket(listenport);
+	if (listener == -1) {
+		close(socketfd);
 		return -1;
 	}
 
-	for(p = ai; p != NULL; p = p->ai_next) {
-		listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if (listener == -1) {
-			continue;
-		}
-
-		/* Lose the pesky "address already in use" error message */
-		setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-
-		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
-			close(listener);
-			continue;
-		}
-
-		break;
-	}
-
-	freeaddrinfo(ai);
-
-	/* If we got here, it means we didn't get bound */
-	if (p == NULL) {
-		fprintf(stderr, "Socket failed to bind error %d (%s)\n", errno, strerror(errno));
-		return -1;
-	}
-
-	if (listen(listener, 10) < 0) {
-		fprintf(stderr, "Socket listen error %d (%s)\n", errno, strerror(errno));
-		exit(3);
-	}
+	free(listenport);
+	listenport = NULL;
 
 	/* Add the listener to the master set */
 	FD_SET(listener, &master);
@@ -457,6 +370,11 @@ int main(int argc, char *argv[])
 
 		/* Accept any new connections. */
 		if (FD_ISSET(listener, &read_fds)) {
+			int newfd;
+			socklen_t addrlen;
+			struct sockaddr_storage remoteaddr;
+			char remoteIP[INET6_ADDRSTRLEN];
+
 			addrlen = sizeof remoteaddr;
 			newfd = accept(listener,
 				(struct sockaddr *)&remoteaddr,
@@ -568,7 +486,7 @@ int main(int argc, char *argv[])
 	close(socketfd);
 	close(listener);
 
-	/** Close any connected sockets. */
+	/* Close any connected sockets. */
 	for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
 		if (clientfd[i] != -1) {
 			close(clientfd[i]);
@@ -578,10 +496,130 @@ int main(int argc, char *argv[])
 
 	maap_deinit_client(&mc);
 
-	free(iface);
-	free(listenport);
-
 	return (exit_received ? 0 : -1);
+}
+
+/* Initializes the MAAP raw socket support, and returns a socket handle for that socket. */
+static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], uint8_t dest_mac[ETH_ALEN])
+{
+	int socketfd;
+	struct ifreq ifbuffer;
+	int ifindex;
+	struct sockaddr_ll sockaddr;
+	struct packet_mreq mreq;
+
+	if ((socketfd = socket(PF_PACKET, SOCK_RAW, htons(MAAP_TYPE))) == -1 )
+	{
+		fprintf(stderr, "Error: could not open socket %d\n",socketfd);
+		return -1;
+	}
+
+	if (fcntl(socketfd, F_SETFL, O_NONBLOCK) < 0)
+	{
+		fprintf(stderr, "Error: could not set the socket to non-blocking\n");
+		close(socketfd);
+		return -1;
+	}
+
+	memset(&ifbuffer, 0x00, sizeof(ifbuffer));
+	strncpy(ifbuffer.ifr_name, iface, IFNAMSIZ);
+	if (ioctl(socketfd, SIOCGIFINDEX, &ifbuffer) < 0)
+	{
+		fprintf(stderr, "Error: could not get interface index\n");
+		close(socketfd);
+		return -1;
+	}
+
+	ifindex = ifbuffer.ifr_ifindex;
+	if (ioctl(socketfd, SIOCGIFHWADDR, &ifbuffer) < 0) {
+		fprintf(stderr, "Error: could not get interface address\n");
+		close(socketfd);
+		return -1;
+	}
+
+	memcpy(src_mac, ifbuffer.ifr_hwaddr.sa_data, ETH_ALEN);
+
+	memset(&sockaddr, 0, sizeof(sockaddr));
+	sockaddr.sll_family = AF_PACKET;
+	sockaddr.sll_ifindex = ifindex;
+	sockaddr.sll_halen = ETH_ALEN;
+	memcpy(sockaddr.sll_addr, dest_mac, ETH_ALEN);
+
+	if (bind(socketfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr))) {
+		fprintf(stderr, "Error: could not bind datagram socket\n");
+		close(socketfd);
+		return -1;
+	}
+
+	/* filter multicast address */
+	memset(&mreq, 0, sizeof(mreq));
+	mreq.mr_ifindex = ifindex;
+	mreq.mr_type = PACKET_MR_MULTICAST;
+	mreq.mr_alen = 6;
+	memcpy(mreq.mr_address, dest_mac, mreq.mr_alen);
+
+	if (setsockopt(socketfd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq,
+		sizeof(mreq)) < 0) {
+		fprintf(stderr, "setsockopt PACKET_ADD_MEMBERSHIP failed\n");
+		close(socketfd);
+		return -1;
+	}
+
+	return socketfd;
+}
+
+/* Initializes the listener socket, and returns a socket handle for that socket. */
+static int get_listener_socket(const char *listenport)
+{
+	int listener;
+	struct addrinfo hints, *ai, *p;
+	int yes=1;
+	int ret;
+
+	/* Get us a localhost socket and bind it */
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	if ((ret = getaddrinfo(NULL, listenport, &hints, &ai)) != 0) {
+		fprintf(stderr, "getaddrinfo failure %s\n", gai_strerror(ret));
+		return -1;
+	}
+
+	for(p = ai; p != NULL; p = p->ai_next) {
+		listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+		if (listener == -1) {
+			continue;
+		}
+
+		/* Lose the pesky "address already in use" error message */
+		setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
+			freeaddrinfo(ai);
+			close(listener);
+			continue;
+		}
+
+		break;
+	}
+
+	freeaddrinfo(ai);
+
+	/* If we got here, it means we didn't get bound */
+	if (p == NULL) {
+		fprintf(stderr, "Socket failed to bind error %d (%s)\n", errno, strerror(errno));
+		close(listener);
+		return -1;
+	}
+
+	if (listen(listener, 10) < 0) {
+		fprintf(stderr, "Socket listen error %d (%s)\n", errno, strerror(errno));
+		close(listener);
+		return -1;
+	}
+
+	return listener;
 }
 
 
