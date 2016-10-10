@@ -194,7 +194,7 @@ int get_notify(Maap_Client *mc, const void **sender, Maap_Notify *mn) {
 
   if (mc->notifies) {
     tmp = mc->notifies;
-    memcpy(mn, &(tmp->notify), sizeof (Maap_Notify));
+    if (mn) { memcpy(mn, &(tmp->notify), sizeof (Maap_Notify)); }
     if (sender) { *sender = tmp->sender; }
     mc->notifies = tmp->next;
     free(tmp);
@@ -348,8 +348,14 @@ int maap_init_client(Maap_Client *mc, const void *sender, uint64_t range_address
 
 void maap_deinit_client(Maap_Client *mc) {
   if (mc->initialized) {
+    if (mc->ranges) {
+      /** @todo Free reservation memory */
+      mc->ranges = NULL;
+    }
+
     if (mc->timer_queue) {
       /** @todo Free reservation memory */
+      mc->timer_queue = NULL;
     }
 
     if (mc->timer) {
@@ -361,6 +367,8 @@ void maap_deinit_client(Maap_Client *mc) {
       Net_delNet(mc->net);
       mc->net = NULL;
     }
+
+    while (get_notify(mc, NULL, NULL)) { /* Do nothing with the result */ }
 
     mc->initialized = 0;
   }
@@ -624,9 +632,9 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
       printf("Someone is messing with our range!\n");
 #ifdef DEBUG_NEGOTIATE_MSG
       printf("    Request of 0x%012llx-0x%012llx inside our\n",
-    		 incoming_base, incoming_max);
+             incoming_base, incoming_max);
       printf("    range of 0x%012llx-0x%012llx\n",
-    		 get_start_address(mc, range), get_end_address(mc, range));
+             get_start_address(mc, range), get_end_address(mc, range));
 #endif
       if (p.message_type == MAAP_PROBE) {
         printf("DEFEND!\n");
