@@ -628,6 +628,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 			msrp_print_debug_info(event, attrib);
 #endif
+		} else {
+			/* free this attrib if we are not interested */
+			free(rattrib);
 		}
 
 		break;
