@@ -60,7 +60,6 @@
 #define VERSION_STR	"0.1"
 
 static int act_as_client(const char *listenport);
-static void process_response(const char *pData, int nDataLen);
 
 
 static const char *version_str =
@@ -133,6 +132,8 @@ int main(int argc, char *argv[])
 	char recvbuffer[1600];
 	int recvbytes;
 	Maap_Cmd recvcmd;
+	Maap_Notify recvnotify;
+	uintptr_t notifysocket;
 	int exit_received = 0;
 
 
@@ -380,6 +381,22 @@ int main(int argc, char *argv[])
 			Net_freeQueuedPacket(mc.net, packet_data);
 		}
 
+		/* Process any notifications. */
+		while (get_notify(&mc, (void *)&notifysocket, &recvnotify) > 0)
+		{
+			print_notify(&recvnotify);
+
+			if ((int) notifysocket != -1)
+			{
+				/* Send the notification information to the client. */
+				if (send((int) notifysocket, &recvnotify, sizeof(recvnotify), 0) < 0)
+				{
+					/* Something went wrong. Assume the socket will be closed below. */
+					fprintf(stderr, "Error %d writing to client socket %d (%s)\n", errno, (int) notifysocket, strerror(errno));
+				}
+			}
+		}
+
 		/* Determine how long to wait. */
 		waittime = maap_get_delay_to_next_timer(&mc);
 		if (waittime > 0)
@@ -467,6 +484,7 @@ int main(int argc, char *argv[])
 				if (newfd != -1)
 				{
 					clientfd[nextclientindex] = newfd;
+					nextclientindex = (nextclientindex + 1) % MAX_CLIENT_CONNECTIONS; /* Next slot used for the next try. */
 					FD_SET(newfd, &master); /* add to master set */
 					if (newfd > fdmax) {    /* keep track of the max */
 						fdmax = newfd;
@@ -489,7 +507,7 @@ int main(int argc, char *argv[])
 
 				/* Process the command data (may be binary or text). */
 				memset(&recvcmd, 0, sizeof(recvcmd));
-				if (parse_write(&mc, (void *)(uintptr_t) -1, recvbuffer))
+				if (parse_write(&mc, (const void *)(uintptr_t) -1, recvbuffer))
 				{
 					/* Received a command to exit. */
 					exit_received = 1;
@@ -525,7 +543,7 @@ int main(int argc, char *argv[])
 
 					/* Process the command data (may be binary or text). */
 					memset(&recvcmd, 0, sizeof(recvcmd));
-					if (parse_write(&mc, (void *)(uintptr_t) clientfd[i], recvbuffer))
+					if (parse_write(&mc, (const void *)(uintptr_t) clientfd[i], recvbuffer))
 					{
 						/* Received a command to exit. */
 						exit_received = 1;
@@ -642,7 +660,14 @@ static int act_as_client(const char *listenport)
 				recvbuffer[recvbytes] = '\0';
 
 				/* Process the response data (will be binary). */
-				process_response(recvbuffer, recvbytes);
+				if (recvbytes == sizeof(Maap_Notify))
+				{
+					print_notify((Maap_Notify *) recvbuffer);
+				}
+				else
+				{
+					fprintf(stderr, "Received unexpected response of size %d\n", recvbytes);
+				}
 			}
 			if (recvbytes == 0)
 			{
@@ -706,9 +731,4 @@ static int act_as_client(const char *listenport)
 	close(socketfd);
 
 	return (exit_received ? 0 : -1);
-}
-
-
-static void process_response(const char *pData, int nDataLen)
-{
 }

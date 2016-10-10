@@ -47,6 +47,7 @@ struct range {
   int counter;
   Time next_act_time;
   Interval *interval;
+  const void *sender;
   Range *next_timer;
 };
 
@@ -83,7 +84,32 @@ int maap_handle_timer(Maap_Client *mc);
  */
 int64_t maap_get_delay_to_next_timer(Maap_Client *mc);
 
+
+/**
+ * Add a notification to the end of the notifications queue.
+ *
+ * @param mc Pointer to the Maap_Client to use
+ * @param sender Sender information pointer used to track the entity requesting the command
+ * @param mn Maap_Notify structure with the notification information to use
+ */
 void add_notify(Maap_Client *mc, const void *sender, const Maap_Notify *mn);
-int get_notify(Maap_Client *mc, void *sender, Maap_Notify *mn);
+
+/**
+ * Get the next notification from the notifications queue.
+ *
+ * @param mc Pointer to the Maap_Client to use
+ * @param sender Pointer to empty sender information pointer to receive the entity requesting the command
+ * @param mn Empty Maap_Notify structure to fill with the notification information
+ *
+ * @return 1 if a notification was returned, 0 if there are no more queued notifications.
+ */
+int get_notify(Maap_Client *mc, const void **sender, Maap_Notify *mn);
+
+/**
+ * Output the text equivalent of the notification information to stdout.
+ *
+ * @param mn Pointer to the notification information structure.
+ */
+void print_notify(Maap_Notify *mn);
 
 #endif
