@@ -12,6 +12,10 @@
 #include "maap.h"
 #include "maap_parse.h"
 
+/* Uncomment the DEBUG_CMD_MSG define to display command debug messages. */
+/* #define DEBUG_CMD_MSG */
+
+
 int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
   char *argv[5];
   int argc = 0;
@@ -98,20 +102,28 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf) {
   if (rv) {
     switch(cmd.kind) {
     case MAAP_CMD_INIT:
+#ifdef DEBUG_CMD_MSG
       printf("Got cmd maap_init_client, range_base: 0x%016llx, range_size: 0x%04x\n",
              (unsigned long long)cmd.start, cmd.count);
+#endif
       rv = maap_init_client(mc, sender, cmd.start, cmd.count);
       break;
     case MAAP_CMD_RESERVE:
+#ifdef DEBUG_CMD_MSG
       printf("Got cmd maap_reserve_range, length: %u\n", (unsigned) cmd.count);
+#endif
       rv = maap_reserve_range(mc, sender, cmd.count);
       break;
     case MAAP_CMD_RELEASE:
+#ifdef DEBUG_CMD_MSG
       printf("Got cmd maap_release_range, id: %d\n", (int) cmd.id);
+#endif
       rv = maap_release_range(mc, sender, cmd.id);
       break;
     case MAAP_CMD_EXIT:
+#ifdef DEBUG_CMD_MSG
       printf("Got cmd maap_exit\n");
+#endif
       retVal = 1; /* Indicate that we should exit. */
       break;
     default:
