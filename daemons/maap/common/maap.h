@@ -30,7 +30,7 @@
 #define MAAP_DYNAMIC_POOL_SIZE 0xFE00 /**< MAAP dynamic allocation pool size - Defined in IEEE 1722-2011 Table B.4 */
 
 #define MAAP_TYPE 0x22F0 /**< AVTP Ethertype - Defined in IEEE 1722-2011 Table 5.1 */
-#define MAAP_SUBTYPE 0xFE /**< AVTP MAAP subtype - Defined in IEEE 1722-2011 Table 5.2 */
+#define MAAP_SUBTYPE 0x7E /**< AVTP MAAP subtype - Defined in IEEE 1722-2011 Table 5.2 */
 #define MAAP_PKT_SIZE 42
 
 typedef struct maap_notify_list Maap_Notify_List;
