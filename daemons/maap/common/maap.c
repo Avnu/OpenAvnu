@@ -125,11 +125,23 @@ static int inform_not_acquired(Maap_Client *mc, const void *sender, int range_si
   return 0;
 }
 
-
 static int inform_released(Maap_Client *mc, const void *sender, int id, Range *range, Maap_Notify_Error result) {
   Maap_Notify note;
 
   note.kind = MAAP_NOTIFY_RELEASED;
+  note.id = id;
+  note.start = (range ? get_start_address(mc, range) : 0);
+  note.count = (range ? get_count(mc, range) : 0);
+  note.result = result;
+
+  add_notify(mc, sender, &note);
+  return 0;
+}
+
+static int inform_status(Maap_Client *mc, const void *sender, int id, Range *range, Maap_Notify_Error result) {
+  Maap_Notify note;
+
+  note.kind = MAAP_NOTIFY_STATUS;
   note.id = id;
   note.start = (range ? get_start_address(mc, range) : 0);
   note.count = (range ? get_count(mc, range) : 0);
@@ -259,6 +271,18 @@ void print_notify(Maap_Notify *mn)
              mn->count);
     } else {
       printf("Address range %d not released\n",
+             mn->id);
+    }
+    break;
+  case MAAP_NOTIFY_STATUS:
+    if (mn->result == MAAP_NOTIFY_ERROR_NONE) {
+      printf("ID %d is address range 0x%012llx-0x%012llx (Size %d)\n",
+             mn->id,
+             (unsigned long long) mn->start,
+	         (unsigned long long) mn->start + mn->count - 1,
+             mn->count);
+    } else {
+      printf("ID %d is not valid\n",
              mn->id);
     }
     break;
@@ -512,6 +536,30 @@ int maap_release_range(Maap_Client *mc, const void *sender, int id) {
   inform_released(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID);
   return -1;
 }
+
+void maap_range_status(Maap_Client *mc, const void *sender, int id)
+{
+  Range *range;
+
+  if (!mc->initialized) {
+    printf("Status not allowed, as MAAP not initialized\n");
+    inform_status(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION);
+    return;
+  }
+
+  range = mc->timer_queue;
+  while (range) {
+    if (range->id == id && range->state != MAAP_STATE_RELEASED) {
+      inform_status(mc, sender, id, range, MAAP_NOTIFY_ERROR_NONE);
+      return;
+    }
+    range = range->next_timer;
+  }
+
+  printf("Range id %d does not exist\n", id);
+  inform_status(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID);
+}
+
 
 int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   MAAP_Packet p;

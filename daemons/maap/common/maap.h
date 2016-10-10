@@ -71,6 +71,7 @@ void maap_deinit_client(Maap_Client *mc);
 
 int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length);
 int maap_release_range(Maap_Client *mc, const void *sender, int id);
+void maap_range_status(Maap_Client *mc, const void *sender, int id);
 
 int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len);
 int maap_handle_timer(Maap_Client *mc);
