@@ -55,16 +55,16 @@ void dump_maap_packet(MAAP_Packet *packet) {
   printf("SV: %d\n", packet->SV);
   printf("version: %d\n", packet->version);
   printf("message_type: %d\n", packet->message_type);
-  printf("status: %d\n", packet->status);
-  printf("MAAP_data_length: %d\n", packet->MAAP_data_length);
+  printf("maap_version: %d\n", packet->maap_version);
+  printf("maap_data_length: %d\n", packet->maap_data_length);
   printf("stream_id: 0x%016llx\n", 
          (unsigned long long int)packet->stream_id);
   printf("requested_start_address: 0x%012llx\n", 
          (unsigned long long int)packet->requested_start_address);
   printf("requested_count: %d\n", packet->requested_count);
-  printf("start_address: 0x%012llx\n", 
-         (unsigned long long int)packet->start_address);
-  printf("count: %d\n", packet->count);
+  printf("conflict_start_address: 0x%012llx\n",
+         (unsigned long long int)packet->conflict_start_address);
+  printf("conflict_count: %d\n", packet->conflict_count);
 }
 
 int cmp_maap_packets(MAAP_Packet *a, MAAP_Packet *b) {
@@ -76,13 +76,13 @@ int cmp_maap_packets(MAAP_Packet *a, MAAP_Packet *b) {
           a->SV == b->SV &&
           a->version == b->version &&
           a->message_type == b->message_type &&
-          a->status == b->status &&
-          a->MAAP_data_length && b->MAAP_data_length &&
+          a->maap_version == b->maap_version &&
+          a->maap_data_length && b->maap_data_length &&
           a->stream_id == b->stream_id &&
           a->requested_start_address == b->requested_start_address &&
           a->requested_count == b->requested_count &&
-          a->start_address == b->start_address &&
-          a->count == b->count);
+          a->conflict_start_address == b->conflict_start_address &&
+          a->conflict_count == b->conflict_count);
 }
  
 int main(void) {
