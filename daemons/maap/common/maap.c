@@ -80,8 +80,8 @@ static int send_defend(Maap_Client *mc, Range *range, uint64_t start,
   p.message_type = MAAP_DEFEND;
   p.requested_start_address = start;
   p.requested_count = count;
-  p.start_address = get_start_address(mc, range);
-  p.count = get_count(mc, range);
+  p.conflict_start_address = get_start_address(mc, range);
+  p.conflict_count = get_count(mc, range);
 
   return send_packet(mc, &p);
 }
@@ -589,6 +589,18 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   }
 
   /* printf("Unpacked packet\n"); */
+
+  if (p.Ethertype != MAAP_TYPE ||
+      p.CD != 1 || p.subtype != MAAP_SUBTYPE ||
+      p.maap_data_length != 16 )
+  {
+    /* This is not a MAAP packet.  Ignore it. */
+  }
+
+  if (p.version != 0) {
+    fprintf(stderr, "AVTP version %u not supported\n", p.version);
+    return 0;
+  }
 
   if (p.message_type < MAAP_PROBE || p.message_type > MAAP_ANNOUNCE) {
     fprintf(stderr, "Maap packet message type %u not recognized\n", p.message_type);
