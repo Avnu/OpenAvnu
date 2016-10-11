@@ -353,8 +353,8 @@ int main(int argc, char *argv[])
 		/* Handle any packets received. */
 		if (FD_ISSET(socketfd, &read_fds))
 		{
-			struct sockaddr_ll ll_addr;
-			socklen_t addr_len;
+			struct sockaddr_ll ll_addr = {0};
+			socklen_t addr_len = 0;
 
 			while ((recvbytes = recvfrom(socketfd, recvbuffer, sizeof(recvbuffer), MSG_DONTWAIT, (struct sockaddr*)&ll_addr, &addr_len)) > 0)
 			{
@@ -596,7 +596,6 @@ static int get_listener_socket(const char *listenport)
 		setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 
 		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
-			freeaddrinfo(ai);
 			close(listener);
 			continue;
 		}
