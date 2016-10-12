@@ -169,8 +169,6 @@ static void start_timer(Maap_Client *mc) {
   if (mc->timer_queue) {
     Time_setTimer(mc->timer, &mc->timer_queue->next_act_time);
   }
-
-  mc->timer_running = 1;
 }
 
 void add_notify(Maap_Client *mc, const void *sender, const Maap_Notify *mn) {
@@ -309,12 +307,10 @@ int maap_init_client(Maap_Client *mc, const void *sender, uint64_t range_address
   if (mc->initialized) {
     /* If the desired values are the same as the initialized values, pretend the command succeeded.
      * Otherwise, let the sender know the range that was already specified and cannot change. */
-    inform_initialized(mc, sender,
-      (range_address_base == mc->address_base && range_len == mc->range_len ?
-        MAAP_NOTIFY_ERROR_NONE :
-        MAAP_NOTIFY_ERROR_ALREADY_INITIALIZED));
+    int matches = (range_address_base == mc->address_base && range_len == mc->range_len);
+    inform_initialized(mc, sender, (matches ? MAAP_NOTIFY_ERROR_NONE : MAAP_NOTIFY_ERROR_ALREADY_INITIALIZED));
 
-    return -1;
+    return (matches ? 0 : -1);
   }
 
   mc->timer = Time_newTimer();
@@ -335,7 +331,6 @@ int maap_init_client(Maap_Client *mc, const void *sender, uint64_t range_address
   mc->ranges = NULL;
   mc->timer_queue = NULL;
   mc->maxid = 0;
-  mc->timer_running = 0;
   mc->notifies = NULL;
 
   mc->initialized = 1;
@@ -352,11 +347,7 @@ void maap_deinit_client(Maap_Client *mc) {
       /** @todo Free reservation memory */
       mc->ranges = NULL;
     }
-
-    if (mc->timer_queue) {
-      /** @todo Free reservation memory */
-      mc->timer_queue = NULL;
-    }
+    mc->timer_queue = NULL;
 
     if (mc->timer) {
       Time_delTimer(mc->timer);
@@ -486,7 +477,7 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
     return -1;
   }
 
-  id = mc->maxid++;
+  id = ++(mc->maxid);
   range->id = id;
   range->state = MAAP_STATE_PROBING;
   range->counter = MAAP_PROBE_RETRANSMITS;
@@ -577,34 +568,35 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   int rv;
   unsigned long long int own_base, own_max, incoming_base, incoming_max;
 
-  /* printf("RECEIVED MAAP PACKET LEN %d\n", len); */
   if (len < MAAP_PKT_SIZE) {
-    fprintf(stderr, "Truncated MAAP packet received, discarding\n");
-    return 0;
+    fprintf(stderr, "Truncated MAAP packet of length %d received, discarding\n", len);
+    return -1;
   }
   rv = unpack_maap(&p, stream);
   if (rv != 0) {
     fprintf(stderr, "Error unpacking the MAAP packet\n");
-    return rv;
+    return -1;
   }
-
-  /* printf("Unpacked packet\n"); */
 
   if (p.Ethertype != MAAP_TYPE ||
       p.CD != 1 || p.subtype != MAAP_SUBTYPE ||
       p.maap_data_length != 16 )
   {
     /* This is not a MAAP packet.  Ignore it. */
+#ifdef DEBUG_NEGOTIATE_MSG
+    printf("Ignoring non-MAAP packet of length %d\n", len);
+#endif
+    return -1;
   }
 
   if (p.version != 0) {
     fprintf(stderr, "AVTP version %u not supported\n", p.version);
-    return 0;
+    return -1;
   }
 
   if (p.message_type < MAAP_PROBE || p.message_type > MAAP_ANNOUNCE) {
     fprintf(stderr, "Maap packet message type %u not recognized\n", p.message_type);
-    return 0;
+    return -1;
   }
 
   own_base = mc->address_base;
@@ -672,7 +664,6 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
         /* Don't know what to do with a DEFEND, so ignore it.  They'll
            send another ANNOUNCE anyway.  We could yield here if we wanted
            to be nice */
-        ;
       }
     }
   }
@@ -713,8 +704,6 @@ int maap_handle_timer(Maap_Client *mc) {
   Time_dump(&currenttime);
   printf("\n");
 #endif
-
-  mc->timer_running = 0;
 
   while ((range = mc->timer_queue) && Time_passed(&currenttime, &range->next_act_time)) {
 #ifdef DEBUG_TIMER_MSG
