@@ -10,7 +10,7 @@ Interval *alloc_interval(uint32_t start, uint32_t count) {
   i = calloc(1, sizeof (Interval));
   if (i) {
     i->low = start;
-    i->high = i->max = start + count - 1;
+    i->high = start + count - 1;
   }
   return i;
 }
@@ -49,18 +49,12 @@ int insert_interval(Interval **root, Interval *node) {
       }
     }
   }
-  current = node;
-  while (current->parent) {
-    if (current->max > current->parent->max) {
-      current->parent->max = current->max;
-    }
-    current = current->parent;
-  }
+
   return INTERVAL_SUCCESS;
 }
 
 Interval *remove_interval(Interval **root, Interval *node) {
-  Interval *snip, *child, *current;
+  Interval *snip, *child;
 
   /* If the node to remove does not have two children, we will snip it,
      otherwise we will swap it with its successor and snip that one */
@@ -98,27 +92,9 @@ Interval *remove_interval(Interval **root, Interval *node) {
   if (snip != node) {
     node->low = snip->low;
     node->high = snip->high;
-    node->max = snip->max;
     node->data = snip->data;
   }
 
-  /* If the snipped node was not the root, propagate the max value back up the
-     tree */
-  if (snip->parent) {
-    current = snip->parent;
-    if (current->left_child && current->left_child->max > current->max) {
-      current->max = current->left_child->max;
-    }
-    if (current->right_child && current->right_child->max > current->max) {
-      current->max = current->right_child->max;
-    }
-    while (current->parent) {
-      if (current->max > current->parent->max) {
-        current->parent->max = current->max;
-      }
-      current = current->parent;
-    }
-  }
   return snip;
 }
 
@@ -187,7 +163,7 @@ Interval *search_interval(Interval *root, uint32_t start, uint32_t count) {
   current = root;
 
   while (current && !check_overlap(current, &i)) {
-    if (current->left_child && current->left_child->max >= i.low) {
+    if (current->low > i.low) {
       current = current->left_child;
     } else {
       current = current->right_child;

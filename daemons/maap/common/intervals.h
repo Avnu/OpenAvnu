@@ -1,10 +1,7 @@
-#ifndef INTERVALS_H
-#define INTERVALS_H
-
-#include <stdint.h>
-
 /**
- * Augmented Binary Search Tree for Intervals
+ * @file
+ *
+ * @brief Augmented Binary Search Tree for Intervals
  *
  * This library will keep track of non-overlapping intervals in the uint32 range
  *
@@ -18,6 +15,11 @@
  * address of this pointer will be passed to the insert and remove operations,
  * which will update the pointer if the root node of the tree changes.
  */
+
+#ifndef INTERVALS_H
+#define INTERVALS_H
+
+#include <stdint.h>
 
 /* Return values for insert_interval */
 
@@ -41,14 +43,16 @@ typedef struct interval_node Interval;
  */
 typedef void (*Visitor)(Interval *);
 
+/**
+ * Structure for each node of the interval tree
+ */
 struct interval_node {
-  uint32_t low;
-  uint32_t high;
-  uint32_t max;
-  void *data;
-  Interval *parent;
-  Interval *left_child;
-  Interval *right_child;
+  uint32_t low;          /**< Low value of this interval */
+  uint32_t high;         /**< High value of this interval */
+  void *data;            /**< Pointer to the data associated with this interval */
+  Interval *parent;      /**< Pointer to the parent of the current tree, or NULL if this is the root node */
+  Interval *left_child;  /**< Pointer to a subtree with smaller intervals, or NULL if none */
+  Interval *right_child; /**< Pointer to a subtree with larger intervals, or NULL if none */
 };
 
 /**
@@ -87,7 +91,7 @@ int insert_interval(Interval **root, Interval *node);
 /**
  * Remove an Interval from the set of tracked Intervals.
  *
- * @WARNING: Because the actual node removed from the tree might not be the same
+ * @note Because the actual node removed from the tree might not be the same
  * as the one passed in, the return value MUST be stored and used to free the
  * Interval that was removed from the set.
  *
