@@ -563,17 +563,10 @@ static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin, int freq)
 		tssdp &= ~AUX1_TS_SDP_EN;
 
 	tssdp &= ~ts_sdp_sel_clr[pin];
-	if (freq) {
-		if (chan == 1)
-			tssdp |= ts_sdp_sel_fc1[pin];
-		else
-			tssdp |= ts_sdp_sel_fc0[pin];
-	} else {
-		if (chan == 1)
-			tssdp |= ts_sdp_sel_tt1[pin];
-		else
-			tssdp |= ts_sdp_sel_tt0[pin];
-	}
+	if (freq)
+		tssdp |= (chan == 1) ? ts_sdp_sel_fc1[pin] : ts_sdp_sel_fc0[pin];
+	else
+		tssdp |= (chan == 1) ? ts_sdp_sel_tt1[pin] : ts_sdp_sel_tt0[pin];
 	tssdp |= ts_sdp_en[pin];
 
 	E1000_WRITE_REG(hw, E1000_TSSDP, tssdp);
