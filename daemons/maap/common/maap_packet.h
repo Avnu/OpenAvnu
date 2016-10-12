@@ -1,10 +1,3 @@
-#ifndef MAAP_PACKET_H
-#define MAAP_PACKET_H
-
-#include <stdint.h>
-
-#include "platform.h"
-
 /**
  * @file
  *
@@ -13,6 +6,12 @@
  * These functions convert a binary stream of bytes into a #MAAP_Packet structure, or vice versa.
  */
 
+#ifndef MAAP_PACKET_H
+#define MAAP_PACKET_H
+
+#include <stdint.h>
+
+#include "platform.h"
 
 #define MAAP_PROBE      1 /**< MAAP Probe MAC address(es) PDU - Defined in IEEE 1722-2011 Table B.1 */
 #define MAAP_DEFEND     2 /**< MAAP Defend address(es) response PDU - Defined in IEEE 1722-2011 Table B.1 */

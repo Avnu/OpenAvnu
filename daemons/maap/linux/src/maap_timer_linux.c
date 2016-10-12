@@ -40,7 +40,7 @@ void Time_delTimer(Timer *timer)
   free(timer);
 }
 
-void Time_setTimer(Timer *timer, Time *t)
+void Time_setTimer(Timer *timer, const Time *t)
 {
   struct itimerspec tspec;
   tspec.it_value.tv_sec = t->tv_sec;
@@ -65,7 +65,7 @@ int64_t Time_remaining(Timer *timer)
 }
 
 
-void Time_add(Time *a, Time *b)
+void Time_add(Time *a, const Time *b)
 {
   a->tv_sec = a->tv_sec + b->tv_sec;
   a->tv_nsec = a->tv_nsec + b->tv_nsec;
@@ -75,7 +75,7 @@ void Time_add(Time *a, Time *b)
   }
 }
 
-int  Time_cmp(Time *a, Time *b)
+int  Time_cmp(const Time *a, const Time *b)
 {
   if (a->tv_sec < b->tv_sec) {
     return -1;
@@ -92,7 +92,7 @@ int  Time_cmp(Time *a, Time *b)
   return 0;
 }
 
-int  Time_passed(Time *current, Time *target)
+int  Time_passed(const Time *current, const Time *target)
 {
   if (current->tv_sec < target->tv_sec) {
     return 0;
@@ -114,7 +114,7 @@ void Time_setFromMonotonicTimer(Time *t)
   clock_gettime(CLOCK_MONOTONIC, t);
 }
 
-void Time_dump(Time *t)
+void Time_dump(const Time *t)
 {
   printf("tv_sec: %lu tv_nsec: %lu", (unsigned long)t->tv_sec, (unsigned long)t->tv_nsec);
 }
