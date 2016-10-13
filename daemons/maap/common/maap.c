@@ -217,7 +217,7 @@ void print_notify(Maap_Notify *mn)
     printf("Error:  MAAP is already initialized, so the values cannot be changed.\n");
     break;
   case MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE:
-    printf("Error:  The MAAP reservation is not available.\n");
+    printf("Error:  The MAAP reservation is not available.  Try again with a smaller address block size.\n");
     break;
   case MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID:
     printf("Error:  The MAAP reservation ID is not valid, so cannot be released.\n");
@@ -428,9 +428,9 @@ int schedule_timer(Maap_Client *mc, Range *range) {
   return 0;
 }
 
-int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
+static int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
   Interval *iv;
-  int rv = INTERVAL_OVERLAP;
+  int i, rv = INTERVAL_OVERLAP;
   uint32_t range_max;
 
   range_max = mc->range_len - 1;
@@ -443,7 +443,7 @@ int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
    *  We can also select new address blocks adjacent to our existing address blocks, which will fill the available address space more efficiently.
    *  While this doesn't strictly adhere to the 1722 MAAP specification, it is defensible (as the initial block was random). */
 
-  while (rv == INTERVAL_OVERLAP) {
+  for (i = 0; i < 1000 && rv == INTERVAL_OVERLAP; ++i) {
     iv = alloc_interval(random() % mc->range_len, len);
     if (iv->high > range_max) {
       rv = INTERVAL_OVERLAP;
@@ -453,6 +453,10 @@ int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
     if (rv == INTERVAL_OVERLAP) {
       free_interval(iv);
     }
+  }
+  if (i >= 1000) {
+    /* There don't appear to be any options! */
+    return -1;
   }
 
   iv->data = range;
@@ -471,6 +475,12 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
     return -1;
   }
 
+  if (length > 0xFFFF || length > mc->range_len) {
+    /* Range size cannot be more than 16 bits in size, due to the MAAP packet format */
+    inform_not_acquired(mc, sender, length, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+    return -1;
+  }
+
   range = malloc(sizeof (Range));
   if (range == NULL) {
     inform_not_acquired(mc, sender, length, MAAP_NOTIFY_ERROR_OUT_OF_MEMORY);
@@ -486,7 +496,14 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
   range->sender = sender;
   range->next_timer = NULL;
 
-  assign_interval(mc, range, length);
+  if (assign_interval(mc, range, length) < 0)
+  {
+    /* Cannot find any available intervals of the requested size. */
+    inform_not_acquired(mc, sender, length, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+    free(range);
+    return -1;
+  }
+
   send_probe(mc, range);
   range->counter--;
   schedule_timer(mc, range);
@@ -606,7 +623,13 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 
 #ifdef DEBUG_NEGOTIATE_MSG
   if (p.message_type == MAAP_PROBE) { printf("Received PROBE for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
-  if (p.message_type == MAAP_DEFEND) { printf("Received DEFEND for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
+  if (p.message_type == MAAP_DEFEND) {
+    printf("Received DEFEND for range 0x%012llx-0x%012llx (Size %u),\n"
+           "conflicting with range 0x%012llx-0x%012llx (Size %u)\n",
+           incoming_base, incoming_max, p.requested_count,
+           (unsigned long long) p.conflict_start_address,
+           (unsigned long long) p.conflict_start_address + p.conflict_count - 1,
+           p.conflict_count); }
   if (p.message_type == MAAP_ANNOUNCE) { printf("Received ANNOUNCE for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
 #endif
 
@@ -625,7 +648,16 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
     if (range->state == MAAP_STATE_PROBING) {
       /* Find an alternate interval, remove old interval,
          and restart probe counter */
-      assign_interval(mc, range, iv->high - iv->low + 1);
+      int range_size = iv->high - iv->low + 1;
+      if (assign_interval(mc, range, range_size) < 0) {
+        /* No interval is available, so stop probing and report an error. */
+        printf("Unable to find an available address block to probe\n");
+        inform_not_acquired(mc, range->sender, range_size, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+        iv = remove_interval(&mc->ranges, iv);
+        free_interval(iv);
+        /* memory will be freed the next time its timer elapses */
+        range->state = MAAP_STATE_RELEASED;
+      }
 #ifdef DEBUG_NEGOTIATE_MSG
       printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, range), get_end_address(mc, range));
 #endif
