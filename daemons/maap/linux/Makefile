@@ -1,41 +1,49 @@
-BUILD_DIR=.
 COMMON_DIR=../common
 LINUX_DIR=src
 TEST_DIR=../test
+
+OPT=-O2
 CFLAGS=$(OPT) -Wall
-EXTRA_FLAGS=-I$(COMMON_DIR) 
-FLAGS=-lpthread -lpcap -lrt
+CPPFLAGS=-I$(COMMON_DIR)
 CC?=gcc
 
-all: maap_daemon maap_test test_intervals test_maap_packet_packing
+VPATH=$(LINUX_DIR) $(COMMON_DIR) $(TEST_DIR)
 
-# common/maap_protocol.c, common/maap_protocol.h, and src/maap_linux.c are current OpenAVB files.
-# test/endian.h is licensed using the GNU Lesser General Public License version 2.1
+BINARIES=maap_daemon maap_test test_intervals test_maap_packet_packing
 
-maap_daemon_legacy: $(LINUX_DIR)/maap_linux_legacy.c
-	$(CC) -o $(BUILD_DIR)/maap_daemon_legacy $(COMMON_DIR)/maap_protocol.c src/maap_linux_legacy.c $(CFLAGS) $(FLAGS) $(EXTRA_FLAGS)
+.PHONY: all clean
 
-maap_daemon: $(LINUX_DIR)/maap_linux.c $(LINUX_DIR)/maap_net_linux.c $(LINUX_DIR)/maap_timer_linux.c \
-		$(COMMON_DIR)/intervals.c $(COMMON_DIR)/maap.c $(COMMON_DIR)/maap_packet.c $(COMMON_DIR)/maap_parse.c
-	$(CC) -o $(BUILD_DIR)/maap_daemon \
-		$(LINUX_DIR)/maap_linux.c $(LINUX_DIR)/maap_net_linux.c $(LINUX_DIR)/maap_timer_linux.c \
-		$(COMMON_DIR)/intervals.c $(COMMON_DIR)/maap.c $(COMMON_DIR)/maap_packet.c $(COMMON_DIR)/maap_parse.c \
-		$(CFLAGS) $(FLAGS) $(EXTRA_FLAGS)
+all: $(BINARIES)
 
+# Header dependencies
 
-maap_test: $(TEST_DIR)/maap_test.c
-	$(CC) -o $(BUILD_DIR)/maap_test $(TEST_DIR)/maap_test.c $(CFLAGS) $(FLAGS) $(EXTRA_FLAGS)
+intervals.o: intervals.h
 
-test_intervals: $(TEST_DIR)/test_intervals.c
-	$(CC) -o $(BUILD_DIR)/test_intervals $(TEST_DIR)/test_intervals.c $(COMMON_DIR)/intervals.c $(CFLAGS) $(FLAGS) $(EXTRA_FLAGS)
+maap.o: maap.h intervals.h maap_iface.h maap_timer.h maap_net.h platform.h maap_packet.h
+maap_packet.o: maap.h intervals.h maap_iface.h maap_timer.h maap_net.h platform.h maap_packet.h
+maap_parse.o: maap.h intervals.h maap_iface.h maap_timer.h maap_net.h platform.h maap_parse.h
 
-test_maap_packet_packing: $(TEST_DIR)/test_maap_packet_packing.c
-	$(CC) -o $(BUILD_DIR)/test_maap_packet_packing $(TEST_DIR)/test_maap_packet_packing.c $(COMMON_DIR)/maap_packet.c $(CFLAGS) $(FLAGS) $(EXTRA_FLAGS)
+maap_daemon.o: maap.h intervals.h maap_iface.h maap_timer.h maap_net.h platform.h maap_parse.h maap_packet.h
+maap_net_linux.o: maap_net.h
+maap_timer_linux.o: maap_timer.h platform.h
 
+test_intervals.o: intervals.h
+
+test_maap_packet_packing.o: maap_packet.h platform.h
+
+# Binary targets
+
+maap_daemon: LDLIBS = -lrt
+maap_daemon: maap_net_linux.o maap_timer_linux.o intervals.o maap.o maap_packet.o maap_parse.o
+
+maap_test: LDLIBS = -lpcap
+
+test_intervals: intervals.o
+
+test_maap_packet_packing: maap_packet.o
+
+# Utility targets
 
 clean:
-	rm -rf $(BUILD_DIR)/maap_daemon_legacy
-	rm -rf $(BUILD_DIR)/maap_daemon
-	rm -rf $(BUILD_DIR)/maap_test
-	rm -rf $(BUILD_DIR)/test_intervals
-	rm -rf $(BUILD_DIR)/test_maap_packet_packing
+	rm -f *.o
+	rm -f $(BINARIES)

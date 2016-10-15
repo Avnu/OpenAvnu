@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <linux/if_packet.h>
 #include <net/if.h>
-#include "endian.h"
+#include <endian.h>
 
 /* Test function forward declarations */
 void test1_setup(void);
