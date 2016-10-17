@@ -112,7 +112,7 @@ void Time_setFromMonotonicTimer(Time *t)
 {
   /* Use a hard-wired value. */
   static unsigned long long s_basetime = 0;
-  s_basetime += 1000000LL; /* The next time should be greater than the last time. */
+  s_basetime += 100000000LL; /* The next time should be 0.1 seconds greater than the last time. */
   t->sec = (unsigned long) (s_basetime / 1000000000LL);
   t->nsec = (unsigned long) (s_basetime % 1000000000LL);
 }
