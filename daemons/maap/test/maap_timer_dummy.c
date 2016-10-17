@@ -1,70 +1,102 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
 
+#include "platform.h"
+
+struct testtime {
+  unsigned long sec;
+  unsigned long nsec;
+};
+
+/* Use our local time structure rather than the OS-specific one. */
+#undef OS_TIME_TYPE
+#define OS_TIME_TYPE struct testtime
+
 #include "maap_timer.h"
+
 
 struct maap_timer {
   int timer_id;
+  struct testtime expires;
 };
 
-#include <stdio.h>
 
 Timer *Time_newTimer(void)
 {
-  return malloc(sizeof (Timer));
+  static int s_new_timer_id = 0;
+
+  Timer *newTimer = malloc(sizeof (Timer));
+  if (newTimer) {
+    newTimer->timer_id = ++s_new_timer_id;
+    newTimer->expires.sec = newTimer->expires.nsec = 0;
+  }
+  return newTimer;
 }
 
 void Time_delTimer(Timer *timer)
 {
   assert(timer);
+  assert(timer->timer_id);
   free(timer);
 }
 
-void Time_setTimer(Timer *timer, Time *t)
+void Time_setTimer(Timer *timer, const Time *t)
 {
-  (void)timer; (void)t;
+  assert(timer);
+  assert(timer->timer_id);
+  assert(t);
+  timer->expires.sec = t->sec;
+  timer->expires.nsec = t->nsec;
 }
 
 int64_t Time_remaining(Timer *timer)
 {
-  (void)timer;
-  return 1;
+  Time timeCurrent;
+  int64_t timeRemaining;
+
+  assert(timer);
+  assert(timer->timer_id);
+  assert(timer->expires.sec || timer->expires.nsec);
+  Time_setFromMonotonicTimer(&timeCurrent);
+  timeRemaining = ((long) timer->expires.sec - (long) timeCurrent.sec) * 1000000000LL + ((long) timer->expires.nsec - (long) timeCurrent.nsec);
+  return (timeRemaining > 0LL ? timeRemaining : 0LL);
 }
 
-void Time_add(Time *a, Time *b)
+void Time_add(Time *a, const Time *b)
 {
-  a->tv_sec = a->tv_sec + b->tv_sec;
-  a->tv_usec = a->tv_usec + b->tv_usec;
-  if (a->tv_usec > 1000000) {
-    a->tv_sec++;
-    a->tv_usec = a->tv_usec - 1000000;
+  a->sec = a->sec + b->sec;
+  a->nsec = a->nsec + b->nsec;
+  if (a->nsec > 1000000000) {
+    a->sec++;
+    a->nsec = a->nsec - 1000000000;
   }
 }
 
-int  Time_cmp(Time *a, Time *b)
+int  Time_cmp(const Time *a, const Time *b)
 {
-  if (a->tv_sec < b->tv_sec) {
+  if (a->sec < b->sec) {
     return -1;
   }
-  if (a->tv_sec > b->tv_sec) {
+  if (a->sec > b->sec) {
     return 1;
   }
-  if (a->tv_usec < b->tv_usec) {
+  if (a->nsec < b->nsec) {
     return -1;
   }
-  if (a->tv_usec > b->tv_usec) {
+  if (a->nsec > b->nsec) {
     return 1;
   }
   return 0;
 }
 
-int  Time_passed(Time *current, Time *target)
+int  Time_passed(const Time *current, const Time *target)
 {
-  if (current->tv_sec < target->tv_sec) {
+  if (current->sec < target->sec) {
     return 0;
   }
-  if (current->tv_sec == target->tv_sec && current->tv_usec < target->tv_usec) {
+  if (current->sec == target->sec && current->nsec < target->nsec) {
     return 0;
   }
   return 1;
@@ -72,16 +104,20 @@ int  Time_passed(Time *current, Time *target)
 
 void Time_setFromNanos(Time *t, uint64_t nsec)
 {
-  t->tv_sec = nsec / 1000000000LL;
-  t->tv_usec = (nsec - t->tv_sec * 1000000000LL) / 1000;
+  t->sec = (unsigned long) (nsec / 1000000000LL);
+  t->nsec = (unsigned long) (nsec % 1000000000LL);
 }
 
 void Time_setFromMonotonicTimer(Time *t)
 {
-  gettimeofday(t, NULL);
+  /* Use a hard-wired value. */
+  static unsigned long long s_basetime = 0;
+  s_basetime += 1000000LL; /* The next time should be greater than the last time. */
+  t->sec = (unsigned long) (s_basetime / 1000000000LL);
+  t->nsec = (unsigned long) (s_basetime % 1000000000LL);
 }
 
-void Time_dump(Time *t)
+void Time_dump(const Time *t)
 {
-  printf("tv_sec: %lu tv_usec: %lu", (unsigned long)t->tv_sec, (unsigned long)t->tv_usec);
+  printf("sec: %lu nsec: %lu", t->sec, t->nsec);
 }
