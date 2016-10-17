@@ -22,7 +22,7 @@ typedef struct {
   uint64_t DA;                      /**< Destination Address */
   uint64_t SA;                      /**< Source Address */
   uint16_t Ethertype;               /**< AVTB Ethertype (i.e. @p MAAP_TYPE) */
-  uint8_t CD;                       /**< Control/Data Indicator */
+  uint8_t CD;                       /**< Control/Data Indicator.  Always 1 for MAAP. */
   uint16_t subtype;                 /**< AVTP Subtype (i.e. @p MAAP_SUBTYPE) */
   uint8_t SV;                       /**< 1 if stream_id is valid, 0 otherwise.  Always 0 for MAAP. */
   uint8_t version;                  /**< AVTP Version.  Always 0 for MAAP */
