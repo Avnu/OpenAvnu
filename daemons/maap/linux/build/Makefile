@@ -1,6 +1,6 @@
-COMMON_DIR=../common
-LINUX_DIR=src
-TEST_DIR=../test
+COMMON_DIR=../../common
+LINUX_DIR=../src
+TEST_DIR=../../test
 
 OPT=-O2
 CFLAGS=$(OPT) -Wall
