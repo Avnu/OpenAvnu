@@ -9,7 +9,7 @@ CC?=gcc
 
 VPATH=$(LINUX_DIR) $(COMMON_DIR) $(TEST_DIR)
 
-BINARIES=maap_daemon maap_test test_intervals test_maap_packet_packing
+BINARIES=maap_daemon maap_test test_intervals
 
 .PHONY: all clean
 
@@ -29,8 +29,6 @@ maap_timer_linux.o: maap_timer.h platform.h
 
 test_intervals.o: intervals.h
 
-test_maap_packet_packing.o: maap_packet.h platform.h
-
 # Binary targets
 
 maap_daemon: LDLIBS = -lrt
@@ -39,8 +37,6 @@ maap_daemon: maap_net_linux.o maap_timer_linux.o intervals.o maap.o maap_packet.
 maap_test: LDLIBS = -lpcap
 
 test_intervals: intervals.o
-
-test_maap_packet_packing: maap_packet.o
 
 # Utility targets
 
