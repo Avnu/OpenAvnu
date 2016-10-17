@@ -17,20 +17,24 @@ struct maap_net {
   Buffer_State state;
 };
 
+/* Instance to use for testing. */
+static Net s_net;
+
 Net *Net_newNet(void)
 {
-  return calloc(1, sizeof (Net));
+  s_net.state = BUFFER_FREE;
+  return &s_net;
 }
 
 void Net_delNet(Net *net)
 {
-  assert(net);
-  free(net);
+  assert(net == &s_net);
+  assert(net->state == BUFFER_FREE);
 }
 
 void *Net_getPacketBuffer(Net *net)
 {
-  assert(net);
+  assert(net == &s_net);
   assert(net->state == BUFFER_FREE);
   net->state = BUFFER_SUPPLIED;
   return (void*)net->net_buffer;
@@ -38,7 +42,7 @@ void *Net_getPacketBuffer(Net *net)
 
 int Net_queuePacket(Net *net, void *buffer)
 {
-  assert(net);
+  assert(net == &s_net);
   assert(buffer == net->net_buffer);
   assert(net->state == BUFFER_SUPPLIED);
   net->state = BUFFER_QUEUED;
@@ -47,7 +51,7 @@ int Net_queuePacket(Net *net, void *buffer)
 
 void *Net_getNextQueuedPacket(Net *net)
 {
-  assert(net);
+  assert(net == &s_net);
   if (net->state == BUFFER_QUEUED) {
     net->state = BUFFER_SENDING;
     return net->net_buffer;
@@ -58,7 +62,7 @@ void *Net_getNextQueuedPacket(Net *net)
 
 int Net_freeQueuedPacket(Net *net, void *buffer)
 {
-  assert(net);
+  assert(net == &s_net);
   assert(buffer == net->net_buffer);
   assert(net->state == BUFFER_SENDING);
   net->state = BUFFER_FREE;
