@@ -433,6 +433,7 @@ static int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
   int i, rv = INTERVAL_OVERLAP;
   uint32_t range_max;
 
+  if (len > mc->range_len) { return -1; }
   range_max = mc->range_len - 1;
 
   /** @todo Use the saved MAAP_ANNOUNCE message ranges to search for addresses likely to be available.
@@ -441,12 +442,9 @@ static int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
    *  While this doesn't strictly adhere to the 1722 MAAP specification, it is defensible (as the initial block was random). */
 
   for (i = 0; i < 1000 && rv == INTERVAL_OVERLAP; ++i) {
-    iv = alloc_interval(random() % mc->range_len, len);
-    if (iv->high > range_max) {
-      rv = INTERVAL_OVERLAP;
-    } else {
-      rv = insert_interval(&mc->ranges, iv);
-    }
+    iv = alloc_interval(random() % (mc->range_len + 1 - len), len);
+    assert(iv->high <= range_max);
+    rv = insert_interval(&mc->ranges, iv);
     if (rv == INTERVAL_OVERLAP) {
       free_interval(iv);
     }
