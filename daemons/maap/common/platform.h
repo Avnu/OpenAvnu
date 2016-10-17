@@ -6,7 +6,7 @@
 #include <endian.h>
 #include <time.h>
 
-typedef struct timespec OS_TIME_TYPE;
+#define OS_TIME_TYPE struct timespec
 
 #elif defined(__APPLE__)
 
