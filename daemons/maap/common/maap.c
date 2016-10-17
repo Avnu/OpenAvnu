@@ -435,9 +435,6 @@ static int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
 
   range_max = mc->range_len - 1;
 
-  /** @todo Return an error if range_max is too large, or no blocks of addresses the requested size are available.
-   * (The current code can get into an infinite loop.) */
-
   /** @todo Use the saved MAAP_ANNOUNCE message ranges to search for addresses likely to be available.
    *  Old announced ranges (e.g. older than 2 minutes) can be deleted if there are no ranges available.
    *  We can also select new address blocks adjacent to our existing address blocks, which will fill the available address space more efficiently.
