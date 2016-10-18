@@ -3,7 +3,8 @@ OPT = -O2 -g
 CFLAGS = $(OPT) -Wall -Wextra -Wno-parentheses
 IGBDIR = ../../lib/igb
 INCFLAGS = -I../../daemons/mrpd -I../common -I../../daemons/common -I$(IGBDIR)
-LDLIBS = -lpcap -lsndfile -pthread -lpci
+# GLIBC versions starting with 2.17 don't need -lrt anymore
+LDLIBS = -lpcap -lsndfile -pthread -lpci -lrt
 
 all: simple_rx
 

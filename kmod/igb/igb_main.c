@@ -2686,7 +2686,6 @@ static int igb_probe(struct pci_dev *pdev,
 	adapter->msg_enable = (1 << debug) - 1;
 
 	/* AVB specific */
-	adapter->userpages = NULL;
 	adapter->uring_tx_init = 0;
 	adapter->uring_rx_init = 0;
 	mutex_init(&adapter->lock);
@@ -6050,6 +6049,81 @@ void igb_update_stats(struct igb_adapter *adapter)
 	}
 }
 
+static void igb_tsync_interrupt(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct ptp_clock_event event;
+	struct timespec64 ts;
+	u32 ack = 0, tsauxc, sec, nsec, tsicr = E1000_READ_REG(hw, E1000_TSICR);
+
+	if (tsicr & TSINTR_SYS_WRAP) {
+		event.type = PTP_CLOCK_PPS;
+		if (adapter->ptp_caps.pps)
+			ptp_clock_event(adapter->ptp_clock, &event);
+		else
+			dev_err(&adapter->pdev->dev, "unexpected SYS WRAP");
+		ack |= TSINTR_SYS_WRAP;
+	}
+
+	if (tsicr & E1000_TSICR_TXTS) {
+		/* retrieve hardware timestamp */
+		schedule_work(&adapter->ptp_tx_work);
+		ack |= E1000_TSICR_TXTS;
+	}
+
+	if (tsicr & TSINTR_TT0) {
+		spin_lock(&adapter->tmreg_lock);
+		ts = timespec64_add(adapter->perout[0].start,
+				    adapter->perout[0].period);
+		/* u32 conversion of tv_sec is safe until y2106 */
+		E1000_WRITE_REG(hw, E1000_TRGTTIML0, ts.tv_nsec);
+		E1000_WRITE_REG(hw, E1000_TRGTTIMH0, (u32)ts.tv_sec);
+		tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+		tsauxc |= TSAUXC_EN_TT0;
+		E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+		adapter->perout[0].start = ts;
+		spin_unlock(&adapter->tmreg_lock);
+		ack |= TSINTR_TT0;
+	}
+
+	if (tsicr & TSINTR_TT1) {
+		spin_lock(&adapter->tmreg_lock);
+		ts = timespec64_add(adapter->perout[1].start,
+				    adapter->perout[1].period);
+		E1000_WRITE_REG(hw, E1000_TRGTTIML1, ts.tv_nsec);
+		E1000_WRITE_REG(hw, E1000_TRGTTIMH1, (u32)ts.tv_sec);
+		tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+		tsauxc |= TSAUXC_EN_TT1;
+		E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+		adapter->perout[1].start = ts;
+		spin_unlock(&adapter->tmreg_lock);
+		ack |= TSINTR_TT1;
+	}
+
+	if (tsicr & TSINTR_AUTT0) {
+		nsec = E1000_READ_REG(hw, E1000_AUXSTMPL0);
+		sec  = E1000_READ_REG(hw, E1000_AUXSTMPH0);
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = 0;
+		event.timestamp = sec * 1000000000ULL + nsec;
+		ptp_clock_event(adapter->ptp_clock, &event);
+		ack |= TSINTR_AUTT0;
+	}
+
+	if (tsicr & TSINTR_AUTT1) {
+		nsec = E1000_READ_REG(hw, E1000_AUXSTMPL1);
+		sec  = E1000_READ_REG(hw, E1000_AUXSTMPH1);
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = 1;
+		event.timestamp = sec * 1000000000ULL + nsec;
+		ptp_clock_event(adapter->ptp_clock, &event);
+		ack |= TSINTR_AUTT1;
+	}
+
+	/* acknowledge the interrupts */
+	E1000_WRITE_REG(hw, E1000_TSICR, ack);
+}
+
 static irqreturn_t igb_msix_other(int irq, void *data)
 {
 	struct igb_adapter *adapter = data;
@@ -6082,16 +6156,8 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 	}
 
 #ifdef HAVE_PTP_1588_CLOCK
-	if (icr & E1000_ICR_TS) {
-		u32 tsicr = E1000_READ_REG(hw, E1000_TSICR);
-
-		if (tsicr & E1000_TSICR_TXTS) {
-			/* acknowledge the interrupt */
-			E1000_WRITE_REG(hw, E1000_TSICR, E1000_TSICR_TXTS);
-			/* retrieve hardware timestamp */
-			schedule_work(&adapter->ptp_tx_work);
-		}
-	}
+	if (icr & E1000_ICR_TS)
+		igb_tsync_interrupt(adapter);
 #endif /* HAVE_PTP_1588_CLOCK */
 
 	/* Check for MDD event */
@@ -7000,16 +7066,8 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 	}
 
 #ifdef HAVE_PTP_1588_CLOCK
-	if (icr & E1000_ICR_TS) {
-		u32 tsicr = E1000_READ_REG(hw, E1000_TSICR);
-
-		if (tsicr & E1000_TSICR_TXTS) {
-			/* acknowledge the interrupt */
-			E1000_WRITE_REG(hw, E1000_TSICR, E1000_TSICR_TXTS);
-			/* retrieve hardware timestamp */
-			schedule_work(&adapter->ptp_tx_work);
-		}
-	}
+	if (icr & E1000_ICR_TS)
+		igb_tsync_interrupt(adapter);
 #endif /* HAVE_PTP_1588_CLOCK */
 
 	napi_schedule(&q_vector->napi);
@@ -7056,16 +7114,8 @@ static irqreturn_t igb_intr(int irq, void *data)
 	}
 
 #ifdef HAVE_PTP_1588_CLOCK
-	if (icr & E1000_ICR_TS) {
-		u32 tsicr = E1000_READ_REG(hw, E1000_TSICR);
-
-		if (tsicr & E1000_TSICR_TXTS) {
-			/* acknowledge the interrupt */
-			E1000_WRITE_REG(hw, E1000_TSICR, E1000_TSICR_TXTS);
-			/* retrieve hardware timestamp */
-			schedule_work(&adapter->ptp_tx_work);
-		}
-	}
+	if (icr & E1000_ICR_TS)
+		igb_tsync_interrupt(adapter);
 #endif /* HAVE_PTP_1588_CLOCK */
 
 	napi_schedule(&q_vector->napi);
@@ -10137,6 +10187,7 @@ static struct igb_adapter *igb_lookup(char *id)
 
 static int igb_bind(struct file *file, void __user *argp)
 {
+	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_bind_cmd req;
 	int err = 0;
@@ -10146,13 +10197,18 @@ static int igb_bind(struct file *file, void __user *argp)
 
 	printk("bind to iface %s\n", req.iface);
 
+	if (igb_priv == NULL) {
+		printk("cannot find private data!\n");
+		return -ENOENT;
+	}
+
 	adapter = igb_lookup(req.iface);
 	if (adapter == NULL) {
 		printk("lookup failed to iface %s\n", req.iface);
 		return -ENOENT;
 	}
 
-	file->private_data = adapter;
+	igb_priv->adapter = adapter;
 
 	req.mmap_size = 0;
 	req.mmap_size = pci_resource_len(adapter->pdev, 0);
@@ -10166,30 +10222,41 @@ static int igb_bind(struct file *file, void __user *argp)
 	return 0;
 
 failed:
-	file->private_data = NULL;
+	igb_priv->adapter = NULL;
 	return err;
 }
 
 static int igb_unbind(struct file *file)
 {
 	struct igb_adapter *adapter;
+	struct igb_private_data *igb_priv = file->private_data;
 
-	adapter = file->private_data;
+	if (igb_priv == NULL) {
+		printk("cannot find private data!\n");
+		return -ENOENT;
+	}
 
+	adapter = igb_priv->adapter;
 	if (adapter == NULL)
 		return -EBADFD;
 
-	file->private_data = NULL;
+	igb_priv->adapter = NULL;
 	return 0;
 }
 
 static long igb_getspeed(struct file *file, void __user *arg)
 {
+	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_link_cmd req;
 	u32	link;
 
-	adapter = file->private_data;
+	if (igb_priv == NULL) {
+		printk("cannot find private data!\n");
+		return -ENOENT;
+	}
+
+	adapter = igb_priv->adapter;
 	if (adapter == NULL) {
 		printk("map to unbound device!\n");
 		return -ENOENT;
@@ -10213,16 +10280,118 @@ static long igb_getspeed(struct file *file, void __user *arg)
 	return 0;
 }
 
-static long igb_mapbuf(struct file *file, void __user *arg, int ring)
+static long igb_mapbuf_user(struct file *file, void __user *arg, int ring)
 {
+	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_buf_cmd req;
 	int err = 0;
+	struct page *page;
+	dma_addr_t page_dma;
+	struct igb_user_page *userpage;
+
+	if (igb_priv == NULL) {
+		printk("cannot find private data!\n");
+		return -ENOENT;
+	}
+
+	adapter = igb_priv->adapter;
+	if (adapter == NULL) {
+		printk("map to unbound device!\n");
+		return -ENOENT;
+	}
 
 	if (copy_from_user(&req, arg, sizeof(req)))
 		return -EFAULT;
 
-	adapter = file->private_data;
+	userpage = vzalloc(sizeof(struct igb_user_page));
+	if (unlikely(!userpage)) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	mutex_lock(&adapter->lock);
+	if (igb_priv->userpages == NULL) {
+		igb_priv->userpages = userpage;
+	} else {
+		userpage->next = igb_priv->userpages;
+		igb_priv->userpages->prev = userpage;
+		igb_priv->userpages = userpage;
+	}
+
+#if defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL)
+#if defined(CONFIG_ZONE_DMA32)
+	page = alloc_page(GFP_ATOMIC | __GFP_COLD | GFP_DMA32);
+#else /* defined(CONFIG_ZONE_DMA32) */
+	page = alloc_page(GFP_ATOMIC | __GFP_COLD | GFP_DMA);
+#endif /* defined(CONFIG_ZONE_DMA32) */
+#else /* defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL) */
+	page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+#endif /* defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL) */
+	if (unlikely(!page)) {
+		err = -ENOMEM;
+		goto page_failed;
+	}
+
+	page_dma = dma_map_page(pci_dev_to_dev(adapter->pdev), page,
+			0, PAGE_SIZE, DMA_FROM_DEVICE);
+
+	if (dma_mapping_error(pci_dev_to_dev(adapter->pdev), page_dma)) {
+		err = -ENOMEM;
+		goto map_failed;
+	}
+
+	igb_priv->userpages->page = page;
+	igb_priv->userpages->page_dma = page_dma;
+
+	req.physaddr = page_dma;
+	req.mmap_size = PAGE_SIZE;
+	mutex_unlock(&adapter->lock);
+
+	if (copy_to_user(arg, &req, sizeof(req))) {
+		printk("copyout to user failed\n");
+		err = -EFAULT;
+		mutex_lock(&adapter->lock);
+		goto copy_failed;
+	}
+
+	return 0;
+
+copy_failed:
+	dma_unmap_page(pci_dev_to_dev(adapter->pdev),
+			userpage->page_dma, PAGE_SIZE,
+			DMA_FROM_DEVICE);
+map_failed:
+	put_page(userpage->page);
+page_failed:
+	if (userpage->prev)
+		userpage->prev->next = userpage->next;
+	if (userpage->next)
+		userpage->next->prev = userpage->prev;
+	if (userpage == igb_priv->userpages)
+		igb_priv->userpages = userpage->next;
+	vfree(userpage);
+	mutex_unlock(&adapter->lock);
+failed:
+	return err;
+}
+
+static long igb_mapbuf(struct file *file, void __user *arg, int ring)
+{
+	struct igb_private_data *igb_priv = file->private_data;
+	struct igb_adapter *adapter;
+	struct igb_buf_cmd req;
+	int err = 0;
+
+	if (igb_priv == NULL) {
+		printk("cannot find private data!\n");
+		return -ENOENT;
+	}
+
+	if (copy_from_user(&req, arg, sizeof(req)))
+		return -EFAULT;
+
+	adapter = igb_priv->adapter;
 	if (adapter == NULL) {
 		printk("map to unbound device!\n");
 		return -ENOENT;
@@ -10235,15 +10404,19 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 			return -EINVAL;
 		}
 
+		mutex_lock(&adapter->lock);
 		if (adapter->uring_tx_init & (1 << req.queue)) {
+			mutex_unlock(&adapter->lock);
 			printk("mapring:queue in use (%d)\n", req.queue);
 			return -EBUSY;
 		}
 
 		adapter->uring_tx_init |= (1 << req.queue);
+		igb_priv->uring_tx_init |= (1 << req.queue);
 
 		req.physaddr = adapter->tx_ring[req.queue]->dma;
 		req.mmap_size = adapter->tx_ring[req.queue]->size;
+		mutex_unlock(&adapter->lock);
 	} else if (ring == IGB_MAP_RX_RING) {
 		if (req.queue >= 3) {
 			printk("mapring:invalid queue specified(%d)\n",
@@ -10251,66 +10424,22 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 			return -EINVAL;
 		}
 
+		mutex_lock(&adapter->lock);
 		if (adapter->uring_rx_init & (1 << req.queue)) {
+			mutex_unlock(&adapter->lock);
 			printk("mapring:queue in use (%d)\n", req.queue);
 			return -EBUSY;
 		}
 
 		adapter->uring_rx_init |= (1 << req.queue);
+		igb_priv->uring_rx_init |= (1 << req.queue);
 
 		req.physaddr = adapter->rx_ring[req.queue]->dma;
 		req.mmap_size = adapter->rx_ring[req.queue]->size;
-	} else {
-		struct page *page;
-		dma_addr_t page_dma;
-		struct igb_user_page *userpage;
-
-		userpage = vzalloc(sizeof(struct igb_user_page));
-		if (unlikely(!userpage)) {
-			err = -ENOMEM;
-			goto failed;
-		}
-
-		mutex_lock(&adapter->lock);
-		if (adapter->userpages == NULL) {
-			adapter->userpages = userpage;
-		} else {
-			userpage->next = adapter->userpages;
-			adapter->userpages->prev = userpage;
-			adapter->userpages = userpage;
-		}
-
-#if defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL)
-#if defined(CONFIG_ZONE_DMA32)
-		page = alloc_page(GFP_ATOMIC | __GFP_COLD | GFP_DMA32);
-#else /* defined(CONFIG_ZONE_DMA32) */
-		page = alloc_page(GFP_ATOMIC | __GFP_COLD | GFP_DMA);
-#endif /* defined(CONFIG_ZONE_DMA32) */
-#else /* defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL) */
-		page = alloc_page(GFP_ATOMIC | __GFP_COLD);
-#endif /* defined(CONFIG_IGB_SUPPORT_32BIT_IOCTL) */
-		if (unlikely(!page)) {
-			err = -ENOMEM;
-			mutex_unlock(&adapter->lock);
-			goto failed;
-		}
-
-		page_dma = dma_map_page(pci_dev_to_dev(adapter->pdev), page,
-					0, PAGE_SIZE, DMA_FROM_DEVICE);
-
-		if (dma_mapping_error(pci_dev_to_dev(adapter->pdev), page_dma)) {
-			put_page(page);
-			err = -ENOMEM;
-			mutex_unlock(&adapter->lock);
-			goto failed;;
-		}
-
-		adapter->userpages->page = page;
-		adapter->userpages->page_dma = page_dma;
-
-		req.physaddr = page_dma;
-		req.mmap_size = PAGE_SIZE;
 		mutex_unlock(&adapter->lock);
+	} else {
+		printk("mapring: invalid ioctl %d\n", _IOC_NR(ring));
+		return -EINVAL;
 	}
 
 	if (copy_to_user(arg, &req, sizeof(req))) {
@@ -10328,13 +10457,19 @@ failed:
 static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 {
 	int err = 0;
+	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_buf_cmd req;
+
+	if (igb_priv == NULL) {
+		printk("cannot find private data!\n");
+		return -ENOENT;
+	}
 
 	if (copy_from_user(&req, arg, sizeof(req)))
 		return -EFAULT;
 
-	adapter = file->private_data;
+	adapter = igb_priv->adapter;
 	if (adapter == NULL) {
 		printk("map to unbound device!\n");
 		return -ENOENT;
@@ -10345,25 +10480,43 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		if (req.queue >= 3)
 			return -EINVAL;
 
-		if (0 == (adapter->uring_tx_init & (1 << req.queue)))
+		mutex_lock(&adapter->lock);
+		if (0 == (igb_priv->uring_tx_init & (1 << req.queue))) {
+			mutex_unlock(&adapter->lock);
 			return -EINVAL;
+		} else {
+			if (0 == (adapter->uring_tx_init & (1 << req.queue))) {
+				printk("Warning: invalid tx ring buffer state!\n");
+			}
+		}
 
 		adapter->uring_tx_init &= ~(1 << req.queue);
+		igb_priv->uring_tx_init &= ~(1 << req.queue);
+		mutex_unlock(&adapter->lock);
 	} else if (ring == IGB_UNMAP_RX_RING) {
 		/* its easy to figure out what to free on the rings ... */
 		if (req.queue >= 3)
 			return -EINVAL;
 
-		if (0 == (adapter->uring_rx_init & (1 << req.queue)))
+		mutex_lock(&adapter->lock);
+		if (0 == (igb_priv->uring_rx_init & (1 << req.queue))) {
+			mutex_unlock(&adapter->lock);
 			return -EINVAL;
+		} else {
+			if (0 == (adapter->uring_rx_init & (1 << req.queue))) {
+				printk("Warning: invalid rx ring buffer state!\n");
+			}
+		}
 
 		adapter->uring_rx_init &= ~(1 << req.queue);
+		igb_priv->uring_rx_init &= ~(1 << req.queue);
+		mutex_unlock(&adapter->lock);
 	} else {
 		/* have to find the corresponding page to free */
-		struct igb_user_page *userpage; 
+		struct igb_user_page *userpage;
 
 		mutex_lock(&adapter->lock);
-		userpage = adapter->userpages;
+		userpage = igb_priv->userpages;
 
 		while (userpage != NULL) {
 			if (req.physaddr == userpage->page_dma)
@@ -10390,8 +10543,8 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		if (userpage->next)
 			userpage->next->prev = userpage->prev;
 
-		if (userpage == adapter->userpages)
-			adapter->userpages = userpage->next;
+		if (userpage == igb_priv->userpages)
+			igb_priv->userpages = userpage->next;
 
 		vfree(userpage);
 		mutex_unlock(&adapter->lock);
@@ -10414,8 +10567,10 @@ static long igb_ioctl_file(struct file *file, unsigned int cmd,
 		break;
 	case IGB_MAP_TX_RING:
 	case IGB_MAP_RX_RING:
-	case IGB_MAPBUF:
 		err = igb_mapbuf(file, argp, cmd);
+		break;
+	case IGB_MAPBUF:
+		err = igb_mapbuf_user(file, argp, cmd);
 		break;
 	case IGB_UNMAP_TX_RING:
 	case IGB_UNMAP_RX_RING:
@@ -10435,37 +10590,67 @@ static long igb_ioctl_file(struct file *file, unsigned int cmd,
 
 static int igb_open_file(struct inode *inode, struct file *file)
 {
-	file->private_data = NULL;
-	return 0;
+       struct igb_private_data *igb_priv = NULL;
+       int ret = 0;
+
+       igb_priv = kzalloc(sizeof(struct igb_private_data), GFP_KERNEL);
+       if (igb_priv == NULL) {
+               ret = -ENOMEM;
+               goto out;
+       }
+       igb_priv->uring_tx_init = 0;
+       igb_priv->uring_rx_init = 0;
+       igb_priv->userpages = NULL;
+       igb_priv->adapter = NULL;
+out:
+       file->private_data = igb_priv;
+       return ret;
 }
 
 static int igb_close_file(struct inode *inode, struct file *file)
 {
-	struct igb_adapter *adapter = file->private_data;
-	int err;
+	struct igb_private_data *igb_priv = file->private_data;
+	struct igb_adapter *adapter = NULL;
+	int err = 0;
 	int i;
 	struct igb_user_page *userpage;
 
+	if (igb_priv == NULL) {
+		printk("cannot find private data!\n");
+		return -ENOENT;
+	}
+
+	adapter = igb_priv->adapter;
 	if (adapter == NULL)
-		return 0;
-
-	/* free up any rings and user-mapped pages */
-	for (i = 0; i < 3; i++) {
-		if (adapter->uring_tx_init & (1 << i)) {
-			igb_free_tx_resources(adapter->tx_ring[i]);
-			adapter->uring_tx_init &= ~(1 << i);
-		}
-	}
-
-	for (i = 0; i < 3; i++) {
-		if (adapter->uring_rx_init & (1 << i)) {
-			igb_free_rx_resources(adapter->rx_ring[i]);
-			adapter->uring_rx_init &= ~(1 << i);
-		}
-	}
+		goto out;
 
 	mutex_lock(&adapter->lock);
-	userpage = adapter->userpages;
+	/* free up any rings and user-mapped pages */
+	for (i = 0; i < 3; i++) {
+		if (igb_priv->uring_tx_init & (1 << i)) {
+			if (adapter->uring_tx_init & (1 << i)) {
+				igb_free_tx_resources(adapter->tx_ring[i]);
+			} else {
+				printk("Warning: invalid tx ring buffer state!\n");
+			}
+			adapter->uring_tx_init &= ~(1 << i);
+			igb_priv->uring_tx_init &= ~(1 << i);
+		}
+	}
+
+	for (i = 0; i < 3; i++) {
+		if (igb_priv->uring_rx_init & (1 << i)) {
+			if (adapter->uring_rx_init & (1 << i)) {
+				igb_free_rx_resources(adapter->rx_ring[i]);
+			} else {
+				printk("Warning: invalid rx ring buffer state!\n");
+			}
+			adapter->uring_rx_init &= ~(1 << i);
+			igb_priv->uring_rx_init &= ~(1 << i);
+		}
+	}
+
+	userpage = igb_priv->userpages;
 
 	while (userpage != NULL) {
 		dma_unmap_page(pci_dev_to_dev(adapter->pdev),
@@ -10482,15 +10667,18 @@ static int igb_close_file(struct inode *inode, struct file *file)
 		if (userpage->next)
 			userpage->next->prev = userpage->prev;
 
-		if (userpage == adapter->userpages)
-			adapter->userpages = userpage->next;
+		if (userpage == igb_priv->userpages)
+			igb_priv->userpages = userpage->next;
 
 		vfree(userpage);
-		userpage = adapter->userpages;
+		userpage = igb_priv->userpages;
 	}
 	mutex_unlock(&adapter->lock);
 
 	err = igb_unbind(file);
+out:
+	file->private_data = NULL;
+	kfree(igb_priv);
 	return err;
 }
 
@@ -10509,11 +10697,18 @@ static int igb_vm_fault(struct vm_area_struct *area, struct vm_fault *fdata)
 
 static int igb_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct igb_adapter *adapter = file->private_data;
+	struct igb_private_data *igb_priv = file->private_data;
+	struct igb_adapter *adapter = NULL;
 	unsigned long size  = vma->vm_end - vma->vm_start;
 	dma_addr_t pgoff = vma->vm_pgoff;
 	dma_addr_t physaddr;
 
+	if (igb_priv == NULL) {
+		printk("cannot find private data!\n");
+		return -ENOENT;
+	}
+
+	adapter = igb_priv->adapter;
 	if (adapter == NULL)
 		return -ENODEV;
 

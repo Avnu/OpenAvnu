@@ -514,6 +514,9 @@ struct hwmon_buff {
 	unsigned int n_hwmon;
 	};
 #endif /* IGB_HWMON */
+#define IGB_N_EXTTS	2
+#define IGB_N_PEROUT	2
+#define IGB_N_SDP	4
 #ifdef ETHTOOL_GRXFHINDIR
 #define IGB_RETA_SIZE	128
 #endif /* ETHTOOL_GRXFHINDIR */
@@ -575,7 +578,6 @@ struct igb_adapter {
 	/* OS defined structs */
 	struct pci_dev *pdev;
 	/* user-dma specific variables */
-	struct igb_user_page	*userpages;
 	u32	uring_tx_init;
 	u32	uring_rx_init;
 #ifndef HAVE_NETDEV_STATS_IN_NETDEV
@@ -660,6 +662,14 @@ struct igb_adapter {
 	struct timecounter tc;
 	u32 tx_hwtstamp_timeouts;
 	u32 rx_hwtstamp_cleared;
+
+#ifdef HAVE_PTP_1588_CLOCK_PINS
+	struct ptp_pin_desc sdp_config[IGB_N_SDP];
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
+	struct {
+		struct timespec64 start;
+		struct timespec64 period;
+	} perout[IGB_N_PEROUT];
 #endif /* HAVE_PTP_1588_CLOCK */
 
 #ifdef HAVE_I2C_SUPPORT
@@ -893,6 +903,15 @@ struct igb_link_cmd {
 	u32		up;
 	u32		speed;
 	u32		duplex;
+};
+
+struct igb_private_data {
+	struct igb_adapter *adapter;
+	/* user-dma specific variable for buffer */
+	struct igb_user_page *userpages;
+	/* user-dma specific variable for TX and RX */
+	u32	uring_tx_init;
+	u32	uring_rx_init;
 };
 
 #endif /* _IGB_H_ */
