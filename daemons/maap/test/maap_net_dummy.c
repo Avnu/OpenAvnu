@@ -6,7 +6,8 @@
 #include "maap_net.h"
 
 typedef enum {
-  BUFFER_FREE = 0,
+  BUFFER_NOT_INITIALIZED = 0,
+  BUFFER_FREE,
   BUFFER_SUPPLIED,
   BUFFER_QUEUED,
   BUFFER_SENDING,
@@ -18,10 +19,11 @@ struct maap_net {
 };
 
 /* Instance to use for testing. */
-static Net s_net;
+static Net s_net = {{0}, BUFFER_NOT_INITIALIZED};
 
 Net *Net_newNet(void)
 {
+  assert(s_net.state == BUFFER_NOT_INITIALIZED);
   s_net.state = BUFFER_FREE;
   return &s_net;
 }
@@ -30,6 +32,7 @@ void Net_delNet(Net *net)
 {
   assert(net == &s_net);
   assert(net->state == BUFFER_FREE);
+  s_net.state = BUFFER_NOT_INITIALIZED;
 }
 
 void *Net_getPacketBuffer(Net *net)
