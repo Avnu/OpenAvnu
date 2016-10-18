@@ -1349,6 +1349,7 @@ void mvrp_reset(void)
 		sattrib = sattrib->next;
 		free(free_sattrib);
 	}
+	mrp_client_remove_all(&MVRP_db->mrp_db.clients);
 	free(MVRP_db);
 }
 

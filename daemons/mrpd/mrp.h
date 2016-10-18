@@ -214,6 +214,7 @@ struct mrp_database {
 int mrp_client_count(client_t * list);
 int mrp_client_add(client_t ** list, struct sockaddr_in *newclient);
 int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient);
+int mrp_client_remove_all(client_t ** list);
 
 int mrp_init(void);
 char *mrp_event_string(int e);

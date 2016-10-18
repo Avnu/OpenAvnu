@@ -3902,6 +3902,7 @@ void msrp_reset(void)
 		free(free_sattrib);
    	}
 	eui64set_free(&MSRP_db->interesting_stream_ids);
+	mrp_client_remove_all(&MSRP_db->mrp_db.clients);
 	free(MSRP_db);
 }
 
