@@ -31,6 +31,7 @@ int main(void) {
   rv = insert_interval(&set, inter);
   if (rv != INTERVAL_SUCCESS) {
     printf("Insert of [%d,%d] failed unexpectedly\n", inter->low, inter->high);
+    return 1; /* Error */
   } else {
     printf("Inserted [%d,%d]\n", inter->low, inter->high);
   }
@@ -38,6 +39,7 @@ int main(void) {
   rv = insert_interval(&set, inter);
   if (rv != INTERVAL_OVERLAP) {
     printf("Insert of [%d,%d] should have failed, but didn't\n", inter->low, inter->high);
+    return 1; /* Error */
   } else {
     printf("Repeat insert of [%d,%d] failed, so the test passed\n", inter->low, inter->high);
   }
@@ -94,13 +96,25 @@ int main(void) {
   prev = NULL;
   while (inter) {
     i++;
-    if (prev && prev->high >= inter->low) { printf("Overlapping or out-of-order interval detected\n"); }
-    if (search_interval(set, inter->low, 1) != inter) { printf("Search for interval [%d,%d] failed\n", inter->low, inter->high); }
+    if (prev && prev->high >= inter->low) {
+      printf("Overlapping or out-of-order interval detected\n");
+      return 1; /* Error */
+    }
+    if (search_interval(set, inter->low, 1) != inter) {
+      printf("Search for interval [%d,%d] failed\n", inter->low, inter->high);
+      return 1; /* Error */
+    }
     prev = inter;
     inter = next_interval(inter);
   }
-  if (i != count) { printf("Error:  Found %d intervals during next_interval interation\n", i); }
-  if (prev != maximum_interval(set)) { printf("Error:  next_interval iteration didn't end at maximum_interval\n"); }
+  if (i != count) {
+    printf("Error:  Found %d intervals during next_interval interation\n", i);
+    return 1; /* Error */
+  }
+  if (prev != maximum_interval(set)) {
+    printf("Error:  next_interval iteration didn't end at maximum_interval\n");
+    return 1; /* Error */
+  }
 
   /* Test previous_interval and search_interval */
   i = 0;
@@ -109,13 +123,25 @@ int main(void) {
   prev = NULL;
   while (inter) {
     i++;
-    if (prev && prev->low <= inter->high) { printf("Overlapping or out-of-order interval detected\n"); }
-    if (search_interval(set, inter->high, 1) != inter) { printf("Search for interval [%d,%d] failed\n", inter->low, inter->high); }
+    if (prev && prev->low <= inter->high) {
+      printf("Overlapping or out-of-order interval detected\n");
+      return 1; /* Error */
+    }
+    if (search_interval(set, inter->high, 1) != inter) {
+      printf("Search for interval [%d,%d] failed\n", inter->low, inter->high);
+      return 1; /* Error */
+    }
     prev = inter;
     inter = prev_interval(inter);
   }
-  if (i != count) { printf("Error:  Found %d intervals during next_interval interation\n", i); }
-  if (prev != minimum_interval(set)) { printf("Error:  prev_interval iteration didn't end at minimum_interval\n"); }
+  if (i != count) {
+    printf("Error:  Found %d intervals during next_interval interation\n", i);
+    return 1; /* Error */
+  }
+  if (prev != minimum_interval(set)) {
+    printf("Error:  prev_interval iteration didn't end at minimum_interval\n");
+    return 1; /* Error */
+  }
 
   inter = minimum_interval(set);
   printf("\nMinimum Interval:  [%d,%d]\n", inter->low, inter->high);
@@ -132,5 +158,5 @@ int main(void) {
     free_interval(inter);
   }
 
-  return 0;
+  return (total == INTERVALS_TO_ADD ? 0 : 1);
 }
