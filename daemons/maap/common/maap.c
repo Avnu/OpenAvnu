@@ -73,15 +73,23 @@ static int send_announce(Maap_Client *mc, Range *range) {
 static int send_defend(Maap_Client *mc, Range *range, uint64_t start,
                        uint16_t count, uint64_t destination) {
   MAAP_Packet p;
+  uint64_t conflict_start, conflict_end;
 
   init_packet(&p, mc->dest_mac, mc->src_mac);
+
+  /* Determine the range of addresses where the conflict occurred
+   * (the union of the requested and allocated ranges). */
+  conflict_start = get_start_address(mc, range);
+  if (conflict_start < start) { conflict_start = start; }
+  conflict_end = get_end_address(mc, range);
+  if (conflict_end > start + count - 1) { conflict_end = start + count - 1; }
 
   p.DA = destination;
   p.message_type = MAAP_DEFEND;
   p.requested_start_address = start;
   p.requested_count = count;
-  p.conflict_start_address = get_start_address(mc, range);
-  p.conflict_count = get_count(mc, range);
+  p.conflict_start_address = conflict_start;
+  p.conflict_count = (uint16_t)(conflict_end - conflict_start + 1);
 
   return send_packet(mc, &p);
 }

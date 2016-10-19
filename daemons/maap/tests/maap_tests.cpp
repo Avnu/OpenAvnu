@@ -379,7 +379,7 @@ TEST(maap_group, Defend)
 	CHECK(packet_contents.requested_start_address == probe_packet.requested_start_address);
 	CHECK(packet_contents.requested_count == probe_packet.requested_count);
 	CHECK(packet_contents.conflict_start_address == range_reserved_start);
-	CHECK(packet_contents.conflict_count == range_reserved_count);
+	CHECK(packet_contents.conflict_count == 1); /* Only one address conflicts */
 	Net_freeQueuedPacket(mc.net, packet_data);
 
 
@@ -397,8 +397,8 @@ TEST(maap_group, Defend)
 	CHECK(packet_contents.message_type == MAAP_DEFEND);
 	CHECK(packet_contents.requested_start_address == probe_packet.requested_start_address);
 	CHECK(packet_contents.requested_count == probe_packet.requested_count);
-	CHECK(packet_contents.conflict_start_address == range_reserved_start);
-	CHECK(packet_contents.conflict_count == range_reserved_count);
+	CHECK(packet_contents.conflict_start_address == probe_packet.requested_start_address);
+	CHECK(packet_contents.conflict_count == 1); /* Only one address conflicts */
 	Net_freeQueuedPacket(mc.net, packet_data);
 
 
@@ -421,7 +421,7 @@ TEST(maap_group, Defend)
 	/* Fake an announce request that conflicts with the start of our range. */
 	init_packet(&probe_packet, 0x91E0F000FF00, 0x776655443322);
 	probe_packet.message_type = MAAP_ANNOUNCE;
-	probe_packet.requested_start_address = range_reserved_start - 4; /* Use the start of our range. */
+	probe_packet.requested_start_address = range_reserved_start - 2; /* Overlap the start of our range. */
 	probe_packet.requested_count = 5;
 	LONGS_EQUAL(0, pack_maap(&probe_packet, probe_buffer));
 	maap_handle_packet(&mc, probe_buffer, MAAP_NET_BUFFER_SIZE);
@@ -435,7 +435,7 @@ TEST(maap_group, Defend)
 	CHECK(packet_contents.requested_start_address == probe_packet.requested_start_address);
 	CHECK(packet_contents.requested_count == probe_packet.requested_count);
 	CHECK(packet_contents.conflict_start_address == range_reserved_start);
-	CHECK(packet_contents.conflict_count == range_reserved_count);
+	CHECK(packet_contents.conflict_count == 3); /* Only 3 addresses conflict */
 	Net_freeQueuedPacket(mc.net, packet_data);
 
 	/* Fake a second announce request that conflicts with the start of our range.
