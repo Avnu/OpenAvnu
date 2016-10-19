@@ -145,7 +145,7 @@ TEST(maap_group, Reserve_Release)
 	/* Handle any packets generated during the activity.
 	 * Stop once we are notified of a result. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1);
-	LONGS_EQUAL(3, probe_packets_detected);
+	LONGS_EQUAL(4, probe_packets_detected);
 	LONGS_EQUAL(1, announce_packets_detected);
 
 	/* Verify that the notification indicated a successful reservation. */
@@ -200,7 +200,7 @@ TEST(maap_group, Reserve_Release)
 	/* Handle any packets generated during the activity.
 	 * Stop once we are notified of a result. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1);
-	LONGS_EQUAL(3, probe_packets_detected);
+	LONGS_EQUAL(4, probe_packets_detected);
 	LONGS_EQUAL(1, announce_packets_detected);
 
 	/* Verify that the notification indicated a successful reservation. */
@@ -267,7 +267,7 @@ TEST(maap_group, Retry_On_Defend)
 
 	/* Allow this attempt to succeed. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1);
-	LONGS_EQUAL(3, probe_packets_detected);
+	LONGS_EQUAL(4, probe_packets_detected);
 	LONGS_EQUAL(1, announce_packets_detected);
 
 	/* Verify that the notification indicated a successful reservation. */
@@ -322,7 +322,7 @@ TEST(maap_group, Defend)
 	id = maap_reserve_range(&mc, &sender2_in, 10);
 	CHECK(id > 0);
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1);
-	LONGS_EQUAL(3, probe_packets_detected);
+	LONGS_EQUAL(4, probe_packets_detected);
 	LONGS_EQUAL(1, announce_packets_detected);
 	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
 	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
@@ -334,7 +334,7 @@ TEST(maap_group, Defend)
 
 
 	/* Wait a while to see if an Announce is sent. */
-	for (countdown = 1000; countdown > 0 && (packet_data = Net_getNextQueuedPacket(mc.net)) == NULL; --countdown)
+	for (countdown = 10000; countdown > 0 && (packet_data = Net_getNextQueuedPacket(mc.net)) == NULL; --countdown)
 	{
 		/* Let some time pass.... */
 		LONGS_EQUAL(0, maap_handle_timer(&mc));
@@ -473,7 +473,7 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 	memset(p_mn, 0, sizeof(Maap_Notify));
 	*p_probe_packets_detected = 0;
 	*p_announce_packets_detected = 0;
-	for (countdown = 100; countdown > 0 && !get_notify(p_mc, p_sender_out, p_mn); --countdown)
+	for (countdown = 1000; countdown > 0 && !get_notify(p_mc, p_sender_out, p_mn); --countdown)
 	{
 		/** @todo Verify that maap_get_delay_to_next_timer() returns an appropriate time delay. */
 		LONGS_EQUAL(0, maap_handle_timer(p_mc));
@@ -482,10 +482,11 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 		{
 			/** @todo Add more verification that the packet to send is a proper packet. */
 			LONGS_EQUAL(0, unpack_maap(&packet_contents, (const uint8_t *) packet_data));
+			Net_freeQueuedPacket(p_mc->net, packet_data);
 			CHECK(packet_contents.message_type >= MAAP_PROBE && packet_contents.message_type <= MAAP_ANNOUNCE);
 			if (packet_contents.message_type == MAAP_PROBE)
 			{
-				CHECK(*p_probe_packets_detected < 3);
+				CHECK(*p_probe_packets_detected < 4);
 				LONGS_EQUAL(0, *p_announce_packets_detected);
 				(*p_probe_packets_detected)++;
 				/* printf("Probe packet sent (%d)\n", *p_probe_packets_detected); */
@@ -507,13 +508,12 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 					/* printf("Defend packet received\n"); */
 
 					/* Stop the loop at this point so the caller can see what happens next. */
-					Net_freeQueuedPacket(p_mc->net, packet_data);
 					break;
 				}
 			}
 			else if (packet_contents.message_type == MAAP_ANNOUNCE)
 			{
-				LONGS_EQUAL(3, *p_probe_packets_detected);
+				LONGS_EQUAL(4, *p_probe_packets_detected);
 				LONGS_EQUAL(0, *p_announce_packets_detected);
 				(*p_announce_packets_detected)++;
 				/* printf("Announce packet sent (%d)\n", *p_announce_packets_detected); */
@@ -523,7 +523,6 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 				/* Unexpected MAAP_DEFEND packet. */
 				CHECK(0);
 			}
-			Net_freeQueuedPacket(p_mc->net, packet_data);
 		}
 	}
 	CHECK(countdown > 0);

@@ -500,7 +500,6 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
   }
 
   send_probe(mc, range);
-  range->counter--;
   schedule_timer(mc, range);
   start_timer(mc);
 
@@ -659,6 +658,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
       iv = remove_interval(&mc->ranges, iv);
       free_interval(iv);
       range->counter = MAAP_PROBE_RETRANSMITS;
+      send_probe(mc, range);
     } else if (range->state == MAAP_STATE_DEFENDING) {
       printf("Someone is messing with our range!\n");
 #ifdef DEBUG_NEGOTIATE_MSG
