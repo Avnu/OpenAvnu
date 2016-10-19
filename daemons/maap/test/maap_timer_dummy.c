@@ -112,12 +112,12 @@ void Time_setFromMonotonicTimer(Time *t)
 {
   /* Use a hard-wired value. */
   static unsigned long long s_basetime = 0;
-  s_basetime += 100000000LL; /* The next time will be 0.1 seconds greater than the last time used. */
+  s_basetime += 10000000LL; /* The next time will be 0.01 seconds greater than the last time used. */
   t->sec = (unsigned long) (s_basetime / 1000000000LL);
   t->nsec = (unsigned long) (s_basetime % 1000000000LL);
 }
 
 void Time_dump(const Time *t)
 {
-  printf("sec: %lu nsec: %lu", t->sec, t->nsec);
+  printf("sec: %lu nsec: %09lu", t->sec, t->nsec);
 }

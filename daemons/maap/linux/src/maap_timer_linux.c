@@ -116,5 +116,5 @@ void Time_setFromMonotonicTimer(Time *t)
 
 void Time_dump(const Time *t)
 {
-  printf("tv_sec: %lu tv_nsec: %lu", (unsigned long)t->tv_sec, (unsigned long)t->tv_nsec);
+  printf("tv_sec: %lu tv_nsec: %09lu", (unsigned long)t->tv_sec, (unsigned long)t->tv_nsec);
 }
