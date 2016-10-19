@@ -10,10 +10,11 @@ int last_high = 0;
 int total = 0;
 
 void print_node(Interval *node) {
-  fprintf(stdout, "[%d,%d] ", node->low, node->high);
+  printf("[%d,%d] ", node->low, node->high);
   if (node->low <= last_high ||
       node->high < node->low) {
-    fprintf(stderr, "\nERROR: <%d,%d>\n", node->low, node->high);
+    fprintf(stderr, "\nError:  <%d,%d>\n", node->low, node->high);
+    exit(1);
   }
   last_high = node->high;
   total++;
@@ -30,7 +31,7 @@ int main(void) {
   inter = alloc_interval(1, 10);
   rv = insert_interval(&set, inter);
   if (rv != INTERVAL_SUCCESS) {
-    printf("Insert of [%d,%d] failed unexpectedly\n", inter->low, inter->high);
+    fprintf(stderr, "Error:  Insert of [%d,%d] failed unexpectedly\n", inter->low, inter->high);
     return 1; /* Error */
   } else {
     printf("Inserted [%d,%d]\n", inter->low, inter->high);
@@ -38,7 +39,7 @@ int main(void) {
   inter = alloc_interval(1, 10);
   rv = insert_interval(&set, inter);
   if (rv != INTERVAL_OVERLAP) {
-    printf("Insert of [%d,%d] should have failed, but didn't\n", inter->low, inter->high);
+    fprintf(stderr, "Error:  Insert of [%d,%d] should have failed, but didn't\n", inter->low, inter->high);
     return 1; /* Error */
   } else {
     printf("Repeat insert of [%d,%d] failed, so the test passed\n", inter->low, inter->high);
@@ -97,22 +98,22 @@ int main(void) {
   while (inter) {
     i++;
     if (prev && prev->high >= inter->low) {
-      printf("Overlapping or out-of-order interval detected\n");
+      fprintf(stderr, "Error:  Overlapping or out-of-order interval detected\n");
       return 1; /* Error */
     }
     if (search_interval(set, inter->low, 1) != inter) {
-      printf("Search for interval [%d,%d] failed\n", inter->low, inter->high);
+      fprintf(stderr, "Error:  Search for interval [%d,%d] failed\n", inter->low, inter->high);
       return 1; /* Error */
     }
     prev = inter;
     inter = next_interval(inter);
   }
   if (i != count) {
-    printf("Error:  Found %d intervals during next_interval interation\n", i);
+    fprintf(stderr, "Error:  Found %d intervals during next_interval interation\n", i);
     return 1; /* Error */
   }
   if (prev != maximum_interval(set)) {
-    printf("Error:  next_interval iteration didn't end at maximum_interval\n");
+    fprintf(stderr, "Error:  next_interval iteration didn't end at maximum_interval\n");
     return 1; /* Error */
   }
 
@@ -124,22 +125,22 @@ int main(void) {
   while (inter) {
     i++;
     if (prev && prev->low <= inter->high) {
-      printf("Overlapping or out-of-order interval detected\n");
+      fprintf(stderr, "Error:  Overlapping or out-of-order interval detected\n");
       return 1; /* Error */
     }
     if (search_interval(set, inter->high, 1) != inter) {
-      printf("Search for interval [%d,%d] failed\n", inter->low, inter->high);
+      fprintf(stderr, "Error:  Search for interval [%d,%d] failed\n", inter->low, inter->high);
       return 1; /* Error */
     }
     prev = inter;
     inter = prev_interval(inter);
   }
   if (i != count) {
-    printf("Error:  Found %d intervals during next_interval interation\n", i);
+    fprintf(stderr, "Error:  Found %d intervals during next_interval interation\n", i);
     return 1; /* Error */
   }
   if (prev != minimum_interval(set)) {
-    printf("Error:  prev_interval iteration didn't end at minimum_interval\n");
+    fprintf(stderr, "Error:  prev_interval iteration didn't end at minimum_interval\n");
     return 1; /* Error */
   }
 
@@ -150,13 +151,18 @@ int main(void) {
 
   printf("\nFinal set:\n");
   traverse_interval(set, print_node);
-  printf("\n");
-  fprintf(stderr, "\nTotal members: %d\n", total);
+  printf("\n\nTotal members: %d\n\n", total);
+
+  if (total != INTERVALS_TO_ADD) {
+    fprintf(stderr, "Error:  Had %d intervals, rather an the expected %d\n", total, INTERVALS_TO_ADD);
+    return 1; /* Error */
+  }
 
   while (set) {
     inter = remove_interval(&set, set);
     free_interval(inter);
   }
 
-  return (total == INTERVALS_TO_ADD ? 0 : 1);
+  fprintf(stderr, "Tests passed.\n");
+  return 0;
 }
