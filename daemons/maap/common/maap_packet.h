@@ -78,4 +78,16 @@ int unpack_maap(MAAP_Packet *packet, const uint8_t *stream);
  */
 uint64_t convert_mac_address(const uint8_t macaddr[]);
 
+/**
+ * Compare two MAC addresses, starting with the least-significant bytes, to determine if the local address is numerically lower.
+ *
+ * @note This is equivalent to the compare_MAC function in IEEE 1722-2011 B3.6.4
+ *
+ * @param local_mac The MAC Address for the local network interface of the computer running this application
+ * @param remote_mac The source MAC Address in a MAAP packet that was received
+ *
+ * @return 1 if the local_mac is less than then remote_mac, 0 otherwise
+ */
+int compare_mac_addresses(uint64_t local_mac, uint64_t remote_mac);
+
 #endif
