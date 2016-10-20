@@ -531,7 +531,7 @@ int maap_release_range(Maap_Client *mc, const void *sender, int id) {
 
   range = mc->timer_queue;
   while (range) {
-    if (range->id == id && range->state != MAAP_STATE_RELEASED) {
+    if (range->id == id && range->state == MAAP_STATE_DEFENDING) {
       inform_released(mc, sender, id, range, MAAP_NOTIFY_ERROR_NONE);
       if (sender != range->sender)
       {
