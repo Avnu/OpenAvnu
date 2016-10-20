@@ -150,3 +150,40 @@ TEST(maap_packet_group, Convert)
 	unsigned long long result = convert_mac_address(testaddr);
 	CHECK(result == 0x123456789abcLL);
 }
+
+TEST(maap_packet_group, Compare_MAC)
+{
+	uint64_t local_mac, remote_mac;
+
+	local_mac =  0xffffffffff01;
+	remote_mac = 0x000000000002;
+	LONGS_EQUAL(1, compare_mac_addresses(local_mac, remote_mac));
+
+	local_mac =  0x000000000002;
+	remote_mac = 0xffffffffff01;
+	LONGS_EQUAL(0, compare_mac_addresses(local_mac, remote_mac));
+
+	local_mac =  0x000000000000;
+	remote_mac = 0xffffffffffff;
+	LONGS_EQUAL(1, compare_mac_addresses(local_mac, remote_mac));
+
+	local_mac =  0xffffffffffff;
+	remote_mac = 0x000000000000;
+	LONGS_EQUAL(0, compare_mac_addresses(local_mac, remote_mac));
+
+	local_mac =  0x112233445566;
+	remote_mac = 0x112277445566;
+	LONGS_EQUAL(1, compare_mac_addresses(local_mac, remote_mac));
+
+	local_mac =  0x112233445566;
+	remote_mac = 0x112200445566;
+	LONGS_EQUAL(0, compare_mac_addresses(local_mac, remote_mac));
+
+	local_mac =  0x102233445566;
+	remote_mac = 0x112233445566;
+	LONGS_EQUAL(1, compare_mac_addresses(local_mac, remote_mac));
+
+	local_mac =  0x112233445566;
+	remote_mac = 0x102233445566;
+	LONGS_EQUAL(0, compare_mac_addresses(local_mac, remote_mac));
+}

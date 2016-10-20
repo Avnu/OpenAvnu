@@ -149,3 +149,27 @@ uint64_t convert_mac_address(const uint8_t macaddr[])
   retVal = BE64TOH(*(uint64_t *)macaddr) >> 16;
   return retVal;
 }
+
+int compare_mac_addresses(uint64_t local_mac, uint64_t remote_mac)
+{
+  int i;
+  uint8_t local_byte, remote_byte;
+
+  for (i = 0; i < 8; ++i)
+  {
+    /* Test the next least-significant byte. */
+    local_byte = (uint8_t)(local_mac & 0xFF);
+    remote_byte = (uint8_t)(remote_mac & 0xFF);
+
+    /* See if we have a difference. */
+    if (local_byte < remote_byte) return 1;
+    if (local_byte > remote_byte) return 0;
+
+    /* Try the next lowest-byte in the next iteration. */
+    local_mac = local_mac >> 8;
+    remote_mac = remote_mac >> 8;
+  }
+
+  /* We should never get here! */
+  return 0;
+}
