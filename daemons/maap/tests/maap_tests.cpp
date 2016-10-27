@@ -8,6 +8,13 @@ extern "C" {
 #include "maap.h"
 #include "maap_packet.h"
 
+#define TEST_DEST_ADDR 0x91E0F000FF00
+#define TEST_SRC_ADDR  0x123456789abc
+
+#define TEST_REMOTE_ADDR_LOWER  0x777777777777 /* Remote address that we should defer to */
+#define TEST_REMOTE_ADDR_HIGHER 0x1111111111ee /* Remote address that we should ignore */
+
+
 static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 	const void **p_sender_out,
 	int *p_probe_packets_detected, int *p_announce_packets_detected,
@@ -27,8 +34,6 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 
 TEST(maap_group, Init)
 {
-	const uint8_t dest_mac[6] = MAAP_DEST_MAC;
-	const uint8_t src_mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc};
 	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE + 0x1000;
 	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE - 0x800;
 	Maap_Client mc;
@@ -38,8 +43,8 @@ TEST(maap_group, Init)
 
 	/* Initialize the Maap_Client structure */
 	memset(&mc, 0, sizeof(Maap_Client));
-	mc.dest_mac = convert_mac_address(dest_mac);
-	mc.src_mac = convert_mac_address(src_mac);
+	mc.dest_mac = TEST_DEST_ADDR;
+	mc.src_mac = TEST_SRC_ADDR;
 
 	/* Test the maap_init_client() function */
 	LONGS_EQUAL(0, maap_init_client(&mc, &sender1_in, range_base_addr, range_size));
@@ -113,8 +118,6 @@ TEST(maap_group, Init)
 
 TEST(maap_group, Reserve_Release)
 {
-	const uint8_t dest_mac[6] = MAAP_DEST_MAC;
-	const uint8_t src_mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc};
 	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
 	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE;
 	Maap_Client mc;
@@ -126,8 +129,8 @@ TEST(maap_group, Reserve_Release)
 
 	/* Initialize the Maap_Client structure */
 	memset(&mc, 0, sizeof(Maap_Client));
-	mc.dest_mac = convert_mac_address(dest_mac);
-	mc.src_mac = convert_mac_address(src_mac);
+	mc.dest_mac = TEST_DEST_ADDR;
+	mc.src_mac = TEST_SRC_ADDR;
 
 	/* Initialize the range */
 	/* We should receive exactly one notification of the initialization. */
@@ -220,8 +223,6 @@ TEST(maap_group, Reserve_Release)
 
 TEST(maap_group, Retry_On_Defend)
 {
-	const uint8_t dest_mac[6] = MAAP_DEST_MAC;
-	const uint8_t src_mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc};
 	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
 	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE;
 	Maap_Client mc;
@@ -233,8 +234,8 @@ TEST(maap_group, Retry_On_Defend)
 
 	/* Initialize the Maap_Client structure */
 	memset(&mc, 0, sizeof(Maap_Client));
-	mc.dest_mac = convert_mac_address(dest_mac);
-	mc.src_mac = convert_mac_address(src_mac);
+	mc.dest_mac = TEST_DEST_ADDR;
+	mc.src_mac = TEST_SRC_ADDR;
 
 	/* Initialize the range */
 	/* We should receive exactly one notification of the initialization. */
@@ -287,8 +288,6 @@ TEST(maap_group, Retry_On_Defend)
 
 TEST(maap_group, Defend)
 {
-	const uint8_t dest_mac[6] = MAAP_DEST_MAC;
-	const uint8_t src_mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc};
 	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
 	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE;
 	Maap_Client mc;
@@ -307,8 +306,8 @@ TEST(maap_group, Defend)
 
 	/* Initialize the Maap_Client structure */
 	memset(&mc, 0, sizeof(Maap_Client));
-	mc.dest_mac = convert_mac_address(dest_mac);
-	mc.src_mac = convert_mac_address(src_mac);
+	mc.dest_mac = TEST_DEST_ADDR;
+	mc.src_mac = TEST_SRC_ADDR;
 
 	/* Initialize the range */
 	/* We should receive exactly one notification of the initialization. */
@@ -363,7 +362,7 @@ TEST(maap_group, Defend)
 
 
 	/* Fake a probe request that conflicts with the start of our range. */
-	init_packet(&probe_packet, 0x91E0F000FF00, 0x776655443322);
+	init_packet(&probe_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_HIGHER);
 	probe_packet.message_type = MAAP_PROBE;
 	probe_packet.requested_start_address = range_reserved_start - 4; /* Use the start of our range. */
 	probe_packet.requested_count = 5;
@@ -419,27 +418,11 @@ TEST(maap_group, Defend)
 
 
 	/* Fake an announce request that conflicts with the start of our range. */
-	init_packet(&probe_packet, 0x91E0F000FF00, 0x776655443322);
+	init_packet(&probe_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
 	probe_packet.message_type = MAAP_ANNOUNCE;
 	probe_packet.requested_start_address = range_reserved_start - 2; /* Overlap the start of our range. */
 	probe_packet.requested_count = 5;
 	LONGS_EQUAL(0, pack_maap(&probe_packet, probe_buffer));
-	maap_handle_packet(&mc, probe_buffer, MAAP_NET_BUFFER_SIZE);
-
-	/* Verify that we defended our range. */
-	LONGS_EQUAL(0, maap_handle_timer(&mc));
-	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
-	CHECK((packet_data = Net_getNextQueuedPacket(mc.net)) != NULL);
-	LONGS_EQUAL(0, unpack_maap(&packet_contents, (const uint8_t *) packet_data));
-	CHECK(packet_contents.message_type == MAAP_DEFEND);
-	CHECK(packet_contents.requested_start_address == probe_packet.requested_start_address);
-	CHECK(packet_contents.requested_count == probe_packet.requested_count);
-	CHECK(packet_contents.conflict_start_address == range_reserved_start);
-	CHECK(packet_contents.conflict_count == 3); /* Only 3 addresses conflict */
-	Net_freeQueuedPacket(mc.net, packet_data);
-
-	/* Fake a second announce request that conflicts with the start of our range.
-	 * We can re-use the same buffer from our last announce message. */
 	maap_handle_packet(&mc, probe_buffer, MAAP_NET_BUFFER_SIZE);
 
 	/* Verify that we yielded our range, and did not defend it. */
@@ -497,7 +480,7 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 					uint8_t defend_buffer[MAAP_NET_BUFFER_SIZE];
 
 					/* Send a defend packet in response to the probe packet. */
-					init_packet(&defend_packet, 0x91E0F000FF00, 0x776655443322);
+					init_packet(&defend_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_HIGHER);
 					defend_packet.message_type = MAAP_DEFEND;
 					defend_packet.requested_start_address = packet_contents.requested_start_address;
 					defend_packet.requested_count = packet_contents.requested_count;
