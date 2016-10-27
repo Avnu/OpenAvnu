@@ -96,13 +96,17 @@ int main(void) {
 	int search_base = random() % 0xfffff;
 	int search_size = random() % 2048 + 1;
     inter = search_interval(set, search_base, search_size);
-    if (inter && !(inter->low <= search_base + search_size -1 && search_base <= inter->high)) {
+    if (inter && !interval_check_overlap(inter, search_base, search_size)) {
       fprintf(stderr, "Error:  Search compare failure\n");
       return 1; /* Error */
     }
     if (inter && (prev = prev_interval(inter)) != NULL) {
       if (prev->high >= search_base) {
         fprintf(stderr, "Error:  Search lowest item failure\n");
+        return 1; /* Error */
+      }
+      if (interval_check_overlap(prev, search_base, search_size)) {
+        fprintf(stderr, "Error:  interval_check_overlap compare failure\n");
         return 1; /* Error */
       }
     }
