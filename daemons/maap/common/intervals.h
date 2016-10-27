@@ -56,6 +56,19 @@ struct interval_node {
 };
 
 /**
+ * Determine if the interval overlaps with the supplied integers
+ *
+ * @param inter Interval to test
+ * @param start The first integer to test
+ * @param count The number of integers to test
+ *
+ * @return TRUE if the interval overlaps the supplied integers, FALSE otherwise
+ */
+#define interval_check_overlap(inter, start, count) \
+        (((inter)->low <= (start) + (count) - 1) && ((start) <= (inter)->high))
+
+
+/**
  * Allocates, initializes, and returns a pointer to an Interval.
  *
  * @param start The first integer in the interval
