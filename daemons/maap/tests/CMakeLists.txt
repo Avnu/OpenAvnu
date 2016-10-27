@@ -9,8 +9,8 @@ add_definitions(-DMRP_CPPUTEST)
 
 include_directories( . "${CMAKE_CURRENT_LIST_DIR}/../common/" ${CPPUTEST_DIR}/include )
 file(GLOB CPPUTEST_SRC *.cpp)
-file(GLOB MAAP_SRC ${SRC_DIR}/intervals.c ${SRC_DIR}/maap.c ${SRC_DIR}/maap_packet.c ${SRC_DIR}/maap_parse.c)
-file(GLOB MAAP_TEST_SRC ${TEST_DIR}/maap_net_dummy.c ${TEST_DIR}/maap_timer_dummy.c)
+file(GLOB MAAP_SRC ${SRC_DIR}/intervals.c ${SRC_DIR}/maap.c ${SRC_DIR}/maap_net.c ${SRC_DIR}/maap_packet.c ${SRC_DIR}/maap_parse.c)
+file(GLOB MAAP_TEST_SRC ${TEST_DIR}/maap_timer_dummy.c)
 
 if(APPLE)
   include_directories( include ${SRC_DIR} ${CPPUTEST_DIR}/include/Platforms/Gcc )
