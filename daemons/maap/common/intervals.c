@@ -155,7 +155,7 @@ Interval *prev_interval(Interval *node) {
 }
 
 Interval *search_interval(Interval *root, uint32_t start, uint32_t count) {
-  Interval *current;
+  Interval *current, *test;
   Interval i;
 
   i.low = start;
@@ -167,6 +167,14 @@ Interval *search_interval(Interval *root, uint32_t start, uint32_t count) {
       current = current->left_child;
     } else {
       current = current->right_child;
+    }
+  }
+
+  /* Make sure we really are returning the first (lowest) matching interval. */
+  if (current) {
+    for (test = prev_interval(current); test != NULL && check_overlap(test, &i); test = prev_interval(test)) {
+      /* We found a lower interval that also matches the search parameters. */
+      current = test;
     }
   }
 
