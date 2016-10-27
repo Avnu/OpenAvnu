@@ -5,6 +5,7 @@
 
 #define INTERVALS_TO_ADD 1000
 #define INTERVALS_TO_REPLACE 100000
+#define INTERVALS_TO_SEARCH 10000
 
 int last_high = 0;
 int total = 0;
@@ -90,6 +91,24 @@ int main(void) {
     }
   }
 
+  /* Test that searches always return the first match */
+  for (i = 0; i < INTERVALS_TO_SEARCH; i++) {
+	int search_base = random() % 0xfffff;
+	int search_size = random() % 2048 + 1;
+    inter = search_interval(set, search_base, search_size);
+    if (inter && !(inter->low <= search_base + search_size -1 && search_base <= inter->high)) {
+      fprintf(stderr, "Error:  Search compare failure\n");
+      return 1; /* Error */
+    }
+    if (inter && (prev = prev_interval(inter)) != NULL) {
+      if (prev->high >= search_base) {
+        fprintf(stderr, "Error:  Search lowest item failure\n");
+        return 1; /* Error */
+      }
+    }
+  }
+  printf("\n" "search_interval testing passed\n");
+
   /* Test next_interval and search_interval */
   i = 0;
   count = INTERVALS_TO_ADD;
@@ -116,6 +135,7 @@ int main(void) {
     fprintf(stderr, "Error:  next_interval iteration didn't end at maximum_interval\n");
     return 1; /* Error */
   }
+  printf("\n" "next_interval testing passed\n");
 
   /* Test previous_interval and search_interval */
   i = 0;
@@ -143,6 +163,7 @@ int main(void) {
     fprintf(stderr, "Error:  prev_interval iteration didn't end at minimum_interval\n");
     return 1; /* Error */
   }
+  printf("\n" "previous_interval testing passed\n");
 
   inter = minimum_interval(set);
   printf("\nMinimum Interval:  [%d,%d]\n", inter->low, inter->high);
