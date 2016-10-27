@@ -5,6 +5,7 @@ set (ComDir "./common")
 set (ComSource
   "${ComDir}/intervals.c"
   "${ComDir}/maap.c"
+  "${ComDir}/maap_net.c"
   "${ComDir}/maap_packet.c"
   "${ComDir}/maap_parse.c"
 )
@@ -14,7 +15,6 @@ if(UNIX)
   set (OsDir "./linux/src")
   set (OsSource
     "${OsDir}/maap_daemon.c"
-    "${OsDir}/maap_net_linux.c"
     "${OsDir}/maap_timer_linux.c"
   )
   include_directories( ${OsDir} )
