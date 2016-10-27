@@ -636,70 +636,73 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 #endif
 
   if (incoming_max < own_base || own_max < incoming_base) {
+#ifdef DEBUG_NEGOTIATE_MSG
     printf("Packet refers to a range outside of our concern\n");
     printf("\t0x%012llx < 0x%012llx || 0x%012llx < 0x%012llx\n", incoming_max, own_base, own_max, incoming_base);
+#endif
     return 0;
   }
 
   /** @todo If this is a MAAP_ANNOUNCE message, save the announced range and time received for later reference. */
 
   start = (uint64_t)p.requested_start_address - mc->address_base;
-  iv = search_interval(mc->ranges, start, p.requested_count);
-  if (iv != NULL) {
+  for (iv = search_interval(mc->ranges, start, p.requested_count); iv != NULL && interval_check_overlap(iv, start, p.requested_count); iv = next_interval(iv)) {
     range = iv->data;
     if (range->state == MAAP_STATE_PROBING) {
-      /* Find an alternate interval, remove old interval,
-         and restart probe counter */
-      int range_size = iv->high - iv->low + 1;
-      if (assign_interval(mc, range, range_size) < 0) {
-        /* No interval is available, so stop probing and report an error. */
-        printf("Unable to find an available address block to probe\n");
-        inform_not_acquired(mc, range->sender, range_size, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+
+      if (p.message_type == MAAP_PROBE && compare_mac_addresses(mc->src_mac, p.SA)) {
+        /* We won with the lower MAC Address.  Do nothing. */
+#ifdef DEBUG_NEGOTIATE_MSG
+        printf("Ignoring conflicting probe request\n");
+#endif
+      } else {
+        /* Find an alternate interval, remove old interval,
+           and restart probe counter */
+        int range_size = iv->high - iv->low + 1;
+        if (assign_interval(mc, range, range_size) < 0) {
+          /* No interval is available, so stop probing and report an error. */
+          printf("Unable to find an available address block to probe\n");
+          inform_not_acquired(mc, range->sender, range_size, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+          iv = remove_interval(&mc->ranges, iv);
+          free_interval(iv);
+          /* memory will be freed the next time its timer elapses */
+          range->state = MAAP_STATE_RELEASED;
+        }
+#ifdef DEBUG_NEGOTIATE_MSG
+        printf("Selected new address range 0x%012llx-0x%012llx\n",
+               get_start_address(mc, range), get_end_address(mc, range));
+#endif
         iv = remove_interval(&mc->ranges, iv);
         free_interval(iv);
-        /* memory will be freed the next time its timer elapses */
-        range->state = MAAP_STATE_RELEASED;
+        range->counter = MAAP_PROBE_RETRANSMITS;
+        send_probe(mc, range);
       }
-#ifdef DEBUG_NEGOTIATE_MSG
-      printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, range), get_end_address(mc, range));
-#endif
-      iv = remove_interval(&mc->ranges, iv);
-      free_interval(iv);
-      range->counter = MAAP_PROBE_RETRANSMITS;
-      send_probe(mc, range);
+
     } else if (range->state == MAAP_STATE_DEFENDING) {
-      printf("Someone is messing with our range!\n");
+
+      printf("Conflict detected with our range (id %d)!\n", range->id);
 #ifdef DEBUG_NEGOTIATE_MSG
       printf("    Request of 0x%012llx-0x%012llx inside our\n",
              incoming_base, incoming_max);
       printf("    range of 0x%012llx-0x%012llx\n",
              get_start_address(mc, range), get_end_address(mc, range));
 #endif
+
       if (p.message_type == MAAP_PROBE) {
         printf("DEFEND!\n");
-        send_defend(mc, range, p.requested_start_address, p.requested_count,
-                    p.SA);
-      } else if (p.message_type == MAAP_ANNOUNCE) {
-        /* We may only defend vs. an ANNOUNCE once */
-        if (range->counter == 0) {
-          printf("Defend vs. ANNOUNCE\n");
-          send_defend(mc, range, p.requested_start_address, p.requested_count,
-                      p.SA);
-          range->counter = 1;
-        } else {
-          printf("Yield vs. ANNOUNCE\n");
-          inform_yielded(mc, range, MAAP_NOTIFY_ERROR_NONE);
-          iv = remove_interval(&mc->ranges, iv);
-          free_interval(iv);
-          /* memory will be freed the next time its timer elapses */
-          range->state = MAAP_STATE_RELEASED;
-        }
+        send_defend(mc, range, p.requested_start_address, p.requested_count, p.SA);
+      } else if (compare_mac_addresses(mc->src_mac, p.SA)) {
+        /* We won with the lower MAC Address.  Do nothing. */
+        printf("IGNORE\n");
       } else {
-        printf("Got a DEFEND vs. a range we own\n");
-        /* Don't know what to do with a DEFEND, so ignore it.  They'll
-           send another ANNOUNCE anyway.  We could yield here if we wanted
-           to be nice */
+        printf("YIELD\n");
+        inform_yielded(mc, range, MAAP_NOTIFY_ERROR_NONE);
+        iv = remove_interval(&mc->ranges, iv);
+        free_interval(iv);
+        /* memory will be freed the next time its timer elapses */
+        range->state = MAAP_STATE_RELEASED;
       }
+
     }
   }
 
