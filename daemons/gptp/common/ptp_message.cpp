@@ -157,7 +157,7 @@ PTPMessageCommon *buildPTPMessage
 	switch (messageType) {
 	case SYNC_MESSAGE:
 
-		GPTP_LOG_DEBUG("*** Received Sync message\n" );
+		GPTP_LOG_DEBUG("*** Received Sync message" );
 		GPTP_LOG_VERBOSE("Sync RX timestamp = %hu,%u,%u", timestamp.seconds_ms, timestamp.seconds_ls, timestamp.nanoseconds );
 
 		// Be sure buffer is the correction size
@@ -279,7 +279,7 @@ PTPMessageCommon *buildPTPMessage
 		break;
 	case PATH_DELAY_RESP_MESSAGE:
 
-		GPTP_LOG_DEBUG("*** Received PDelay Response message, %u, %u, %u",
+		GPTP_LOG_DEBUG("*** Received PDelay Response message, Timestamp %u (sec) %u (ns), seqID %u",
 			   timestamp.seconds_ls, timestamp.nanoseconds,
 			   sequenceId);
 
@@ -1150,7 +1150,7 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	port->getTxLock();
 	resp->sendPort(port, sourcePortIdentity);
 
-	GPTP_LOG_DEBUG("Sent path delay response");
+	GPTP_LOG_DEBUG("*** Sent PDelay Response message");
 
 	GPTP_LOG_VERBOSE("Start TS Read");
 	ts_good = port->getTxTimestamp
@@ -1213,7 +1213,7 @@ void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
 	resp_fwup->setCorrectionField(0);
 	resp_fwup->sendPort(port, sourcePortIdentity);
 
-	GPTP_LOG_DEBUG("Sent path delay response fwup");
+	GPTP_LOG_DEBUG("*** Sent PDelay Response FollowUp message");
 
 	delete resp;
 	delete resp_fwup;
@@ -1728,7 +1728,7 @@ void PTPMessagePathDelayRespFollowUp::setRequestingPortIdentity
 	messageType = SIGNALLING_MESSAGE;
 	sequenceId = port->getNextSignalSequenceId();
 
-	targetPortIdentify = 0xff;
+	targetPortIdentify = (int8_t)0xff;
 
 	control = MESSAGE_OTHER;
 

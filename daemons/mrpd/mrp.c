@@ -335,6 +335,21 @@ int mrp_client_delete(client_t ** list, struct sockaddr_in *newclient)
 	return 0;
 }
 
+int mrp_client_remove_all(client_t ** list)
+{
+	client_t *client_item = *list;
+	client_t *client_next;
+
+	while (NULL != client_item) {
+		client_next = client_item->next;
+		free(client_item);
+		client_item = client_next;
+	}
+	*list = NULL;
+	return 0;
+}
+
+
 int mrp_jointimer_start(struct mrp_database *mrp_db)
 {
 	int ret = 0;

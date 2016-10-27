@@ -187,7 +187,7 @@ int msrp_recv_msg(void);
  * \param attrib_type The attribute type to count.
  * \return The number of attributes of type attrib_type in the MSRP database.
  */
-int msrp_count_type(int attrib_type);
+int msrp_count_type(uint32_t attrib_type);
 
 /**
  * Return the number of interesting talker stream ids recorded in the

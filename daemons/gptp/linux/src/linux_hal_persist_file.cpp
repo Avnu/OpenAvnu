@@ -123,7 +123,10 @@ public:
 
 		bool result = false;
 		if (memoryDataLength > storedDataLength) {
-			ftruncate(persistFD, memoryDataLength);
+			int ret = ftruncate(persistFD, memoryDataLength);
+			if (ret != 0) {
+				printf("Failed to extend stored data length from %ld to %ld, %s\n", storedDataLength, memoryDataLength, strerror(errno));
+			}
 			if (restoredata != ((void *)-1)) {
 				restoredata = mremap(restoredata, storedDataLength, memoryDataLength, MREMAP_MAYMOVE);
 			}

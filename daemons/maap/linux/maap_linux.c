@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 	}
 
 	pthread_mutex_init(&(lock), NULL);
-	seed = src_mac[6] + time(NULL);
+	seed = src_mac[5] + time(NULL);
 	srand(seed);
 
 	maap_Info = (maap_info_t *)calloc(1,sizeof(maap_info_t));

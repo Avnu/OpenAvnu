@@ -269,6 +269,13 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	return true;
 }
 
+void LinuxTimestamperGeneric::HWTimestamper_reset()
+{
+	if( !resetFrequencyAdjustment() ) {
+		GPTP_LOG_ERROR( "Failed to reset (zero) frequency adjustment" );
+	}
+}
+
 int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 ( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
   unsigned &clock_value, bool last ) {
@@ -448,7 +455,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 	{
 		unsigned i;
 		struct ptp_clock_time *pct;
-		struct ptp_clock_time *system_time_l, *device_time_l;
+		struct ptp_clock_time *system_time_l = NULL, *device_time_l = NULL;
 		int64_t interval = LLONG_MAX;
 		struct ptp_sys_offset offset;
 
@@ -468,8 +475,10 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 			}
 		}
 
-		*device_time = pctTimestamp( device_time_l );
-		*system_time = pctTimestamp( system_time_l );
+		if (device_time_l)
+			*device_time = pctTimestamp( device_time_l );
+		if (system_time_l)
+			*system_time = pctTimestamp( system_time_l );
 	}
 
 	return true;

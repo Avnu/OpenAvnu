@@ -30,7 +30,7 @@
 
 ALTERNATE_LINUX_INCPATH=$(HOME)/header/include/
 
-CFLAGS_G = -Wall -std=c++0x -g -I. -I../../common -I../src \
+CFLAGS_G = -Wall -g -I. -I../../common -I../src \
 	-I$(ALTERNATE_LINUX_INCPATH)
 
 # Check to see if PTP cross-timestamping is supported in hardware/driver
@@ -46,7 +46,7 @@ ifeq ($(HAS_PRECISE_TIME),0)
        CFLAGS_G += -DPTP_HW_CROSSTSTAMP
 endif
 
-CPPFLAGS_G = $(CFLAGS_G) -Wnon-virtual-dtor
+CPPFLAGS_G = $(CFLAGS_G) -std=c++0x -Wnon-virtual-dtor
 
 LDFLAGS_G = -lpthread -lrt
 

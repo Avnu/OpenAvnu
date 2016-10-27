@@ -124,7 +124,7 @@ void msrp_print_debug_info(int evt, const struct msrp_attribute *attrib)
 }
 #endif
 
-int msrp_count_type(int attrib_type)
+int msrp_count_type(uint32_t attrib_type)
 {
 	int count = 0;
 	struct msrp_attribute *attrib;
@@ -628,6 +628,9 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 #if LOG_MSRP
 			msrp_print_debug_info(event, attrib);
 #endif
+		} else {
+			/* free this attrib if we are not interested */
+			free(rattrib);
 		}
 
 		break;
@@ -3899,6 +3902,7 @@ void msrp_reset(void)
 		free(free_sattrib);
    	}
 	eui64set_free(&MSRP_db->interesting_stream_ids);
+	mrp_client_remove_all(&MSRP_db->mrp_db.clients);
 	free(MSRP_db);
 }
 
