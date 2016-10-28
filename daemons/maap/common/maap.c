@@ -27,11 +27,9 @@ static unsigned long long int get_start_address(Maap_Client *mc, Range *range) {
   return mc->address_base + range->interval->low;
 }
 
-#ifdef DEBUG_NEGOTIATE_MSG
 static unsigned long long int get_end_address(Maap_Client *mc, Range *range) {
   return mc->address_base + range->interval->high;
 }
-#endif
 
 static int send_packet(Maap_Client *mc, MAAP_Packet *p) {
   uint8_t *pbuf = NULL;
