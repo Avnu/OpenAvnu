@@ -665,15 +665,16 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
           free_interval(iv);
           /* memory will be freed the next time its timer elapses */
           range->state = MAAP_STATE_RELEASED;
-        }
+        } else {
 #ifdef DEBUG_NEGOTIATE_MSG
-        printf("Selected new address range 0x%012llx-0x%012llx\n",
-               get_start_address(mc, range), get_end_address(mc, range));
+          printf("Selected new address range 0x%012llx-0x%012llx\n",
+                 get_start_address(mc, range), get_end_address(mc, range));
 #endif
-        iv = remove_interval(&mc->ranges, iv);
-        free_interval(iv);
-        range->counter = MAAP_PROBE_RETRANSMITS;
-        send_probe(mc, range);
+          iv = remove_interval(&mc->ranges, iv);
+          free_interval(iv);
+          range->counter = MAAP_PROBE_RETRANSMITS;
+          send_probe(mc, range);
+        }
       }
 
     } else if (range->state == MAAP_STATE_DEFENDING) {
