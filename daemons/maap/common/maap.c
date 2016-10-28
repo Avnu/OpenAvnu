@@ -259,7 +259,7 @@ void print_notify(Maap_Notify *mn)
       printf("Address range %d acquired:  0x%012llx-0x%012llx (Size %d)\n",
              mn->id,
              (unsigned long long) mn->start,
-	         (unsigned long long) mn->start + mn->count - 1,
+             (unsigned long long) mn->start + mn->count - 1,
              mn->count);
     } else {
       printf("Address range of size %d not acquired\n",
@@ -271,7 +271,7 @@ void print_notify(Maap_Notify *mn)
       printf("Address range %d released:  0x%012llx-0x%012llx (Size %d)\n",
              mn->id,
              (unsigned long long) mn->start,
-	         (unsigned long long) mn->start + mn->count - 1,
+             (unsigned long long) mn->start + mn->count - 1,
              mn->count);
     } else {
       printf("Address range %d not released\n",
@@ -283,7 +283,7 @@ void print_notify(Maap_Notify *mn)
       printf("ID %d is address range 0x%012llx-0x%012llx (Size %d)\n",
              mn->id,
              (unsigned long long) mn->start,
-	         (unsigned long long) mn->start + mn->count - 1,
+             (unsigned long long) mn->start + mn->count - 1,
              mn->count);
     } else {
       printf("ID %d is not valid\n",
