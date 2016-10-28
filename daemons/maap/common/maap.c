@@ -481,7 +481,7 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
     return -1;
   }
 
-  range = malloc(sizeof (Range));
+  range = malloc(sizeof(Range));
   if (range == NULL) {
     inform_not_acquired(mc, sender, length, MAAP_NOTIFY_ERROR_OUT_OF_MEMORY);
     return -1;
@@ -491,6 +491,7 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
   range->id = id;
   range->state = MAAP_STATE_PROBING;
   range->counter = MAAP_PROBE_RETRANSMITS;
+  range->overlapping = 0;
   Time_setFromMonotonicTimer(&range->next_act_time);
   range->interval = NULL;
   range->sender = sender;
@@ -642,9 +643,25 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 
   /** @todo If this is a MAAP_ANNOUNCE message, save the announced range and time received for later reference. */
 
+  /* Flag all the range items that overlap with the incoming packet. */
   start = (uint64_t)p.requested_start_address - mc->address_base;
   for (iv = search_interval(mc->ranges, start, p.requested_count); iv != NULL && interval_check_overlap(iv, start, p.requested_count); iv = next_interval(iv)) {
     range = iv->data;
+    range->overlapping = 1;
+  }
+
+  while (1) {
+    /* Find the first item that is still flagged. */
+    for (iv = minimum_interval(mc->ranges); iv != NULL; iv = next_interval(iv)) {
+      range = iv->data;
+      if (range->overlapping) { break; }
+    }
+    if (!iv) {
+      /* We reached the end of the list. */
+      break;
+    }
+    range->overlapping = 0;
+
     if (range->state == MAAP_STATE_PROBING) {
 
       if (p.message_type == MAAP_PROBE && compare_mac_addresses(mc->src_mac, p.SA)) {
@@ -711,6 +728,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
           new_range->id = range->id;
           new_range->state = MAAP_STATE_PROBING;
           new_range->counter = MAAP_PROBE_RETRANSMITS;
+          new_range->overlapping = 0;
           Time_setFromMonotonicTimer(&new_range->next_act_time);
           new_range->interval = NULL;
           new_range->sender = range->sender;
@@ -728,7 +746,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 
             printf("Requested replacement address range, id %d\n", new_range->id);
 #ifdef DEBUG_NEGOTIATE_MSG
-            printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, new_range), get_end_address(mc, new_range));
+            printf("Selected replacement address range 0x%012llx-0x%012llx\n", get_start_address(mc, new_range), get_end_address(mc, new_range));
 #endif
             inform_yielded(mc, range, MAAP_NOTIFY_ERROR_NONE);
           }
