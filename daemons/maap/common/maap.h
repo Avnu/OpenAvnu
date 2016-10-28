@@ -61,7 +61,8 @@ typedef struct range Range;
 struct range {
   int id;             /**< Unique identifier for this range */
   Maap_State state;   /**< State of this range */
-  int counter;        /**< Counter used to limit the number of probes or defends for this range */
+  int counter;        /**< Counter used to limit the number of probes for this range */
+  int overlapping;    /**< Temporary flag used to keep track of ranges that require overlap processing */
   Time next_act_time; /**< Next time to perform an action for this range */
   Interval *interval; /**< Interval information for the range */
   const void *sender; /**< Sender information pointer for the entity that requested the range */

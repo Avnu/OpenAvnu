@@ -630,6 +630,207 @@ TEST(maap_group, Defending_vs_Probes_and_Announces)
 	maap_deinit_client(&mc);
 }
 
+TEST(maap_group, Multiple_Conflicts_Announce)
+{
+	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
+	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE;
+	Maap_Client mc;
+	Maap_Notify mn;
+	const int sender1_in = 1, sender2_in = 2, sender3_in = 3;
+	const void *sender_out;
+	int id[3];
+	int probe_packets_detected, announce_packets_detected;
+	uint64_t conflict_start, conflict_end;
+	MAAP_Packet announce_packet;
+	uint8_t announce_buffer[MAAP_NET_BUFFER_SIZE];
+	int countdown;
+	void *packet_data;
+	MAAP_Packet packet_contents;
+
+	/* Initialize the Maap_Client structure */
+	memset(&mc, 0, sizeof(Maap_Client));
+	mc.dest_mac = TEST_DEST_ADDR;
+	mc.src_mac = TEST_SRC_ADDR;
+
+	/* Initialize the range */
+	/* We should receive exactly one notification of the initialization. */
+	LONGS_EQUAL(0, maap_init_client(&mc, &sender1_in, range_base_addr, range_size));
+	sender_out = NULL;
+	memset(&mn, 0, sizeof(Maap_Notify));
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+
+	/*
+	 * Reserve 3 address ranges
+	 */
+
+	/* Reserve an address range */
+	id[0] = maap_reserve_range(&mc, &sender1_in, 1);
+	CHECK(id[0] > 0);
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
+	LONGS_EQUAL(4, probe_packets_detected);
+	LONGS_EQUAL(1, announce_packets_detected);
+	CHECK(sender_out == &sender1_in);
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(id[0], mn.id);
+	CHECK(mn.start >= range_base_addr);
+	CHECK(mn.start + mn.count - 1 <= range_base_addr + range_size - 1);
+	LONGS_EQUAL(1, mn.count);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+	conflict_start = mn.start;
+	conflict_end = mn.start;
+
+	/* Reserve another address range */
+	id[1] = maap_reserve_range(&mc, &sender2_in, 2);
+	CHECK(id[1] > 0);
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
+	LONGS_EQUAL(4, probe_packets_detected);
+	LONGS_EQUAL(1, announce_packets_detected);
+	CHECK(sender_out == &sender2_in);
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(id[1], mn.id);
+	CHECK(mn.start >= range_base_addr);
+	CHECK(mn.start + mn.count - 1 <= range_base_addr + range_size - 1);
+	LONGS_EQUAL(2, mn.count);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+	if (conflict_start > mn.start) { conflict_start = mn.start; }
+	if (conflict_end < mn.start) { conflict_end = mn.start; }
+
+	/* Reserve yet another address range */
+	id[2] = maap_reserve_range(&mc, &sender3_in, 3);
+	CHECK(id[2] > 0);
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
+	LONGS_EQUAL(4, probe_packets_detected);
+	LONGS_EQUAL(1, announce_packets_detected);
+	CHECK(sender_out == &sender3_in);
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(id[2], mn.id);
+	CHECK(mn.start >= range_base_addr);
+	CHECK(mn.start + mn.count - 1 <= range_base_addr + range_size - 1);
+	LONGS_EQUAL(3, mn.count);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+	if (conflict_start > mn.start) { conflict_start = mn.start; }
+	if (conflict_end < mn.start) { conflict_end = mn.start; }
+
+
+	/*
+	 * Verify that an Announce conflicting with all 3 reservations from a higher address is ignored.
+	 */
+
+	/* Send an announce packet that conflicts with all the ranges. */
+	init_packet(&announce_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_HIGHER);
+	announce_packet.message_type = MAAP_ANNOUNCE;
+	announce_packet.requested_start_address = conflict_start;
+	announce_packet.requested_count = conflict_end - conflict_start + 1;
+	LONGS_EQUAL(0, pack_maap(&announce_packet, announce_buffer));
+	maap_handle_packet(&mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
+
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+	/* Verify that the status of the first range is valid. */
+	maap_range_status(&mc, &sender1_in, id[0]);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	CHECK(sender_out == &sender1_in);
+	LONGS_EQUAL(MAAP_NOTIFY_STATUS, mn.kind);
+	LONGS_EQUAL(id[0], mn.id);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
+	/* Verify that the status of the second range is valid. */
+	maap_range_status(&mc, &sender2_in, id[1]);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	CHECK(sender_out == &sender2_in);
+	LONGS_EQUAL(MAAP_NOTIFY_STATUS, mn.kind);
+	LONGS_EQUAL(id[1], mn.id);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
+	/* Verify that the status of the first range is valid. */
+	maap_range_status(&mc, &sender3_in, id[2]);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	CHECK(sender_out == &sender3_in);
+	LONGS_EQUAL(MAAP_NOTIFY_STATUS, mn.kind);
+	LONGS_EQUAL(id[2], mn.id);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
+
+	/*
+	 * Verify that an Announce conflicting with all 3 reservations from a lower address results in new addresses.
+	 */
+
+	/* Send an announce packet that conflicts with all the ranges. */
+	init_packet(&announce_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
+	announce_packet.message_type = MAAP_ANNOUNCE;
+	announce_packet.requested_start_address = conflict_start;
+	announce_packet.requested_count = conflict_end - conflict_start + 1;
+	LONGS_EQUAL(0, pack_maap(&announce_packet, announce_buffer));
+	maap_handle_packet(&mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
+
+	/* Wait for 12 probes and 3 announcements. */
+	probe_packets_detected = 0;
+	announce_packets_detected = 0;
+	for (countdown = 1000; countdown > 0 && announce_packets_detected < 3; --countdown)
+	{
+		LONGS_EQUAL(0, maap_handle_timer(&mc));
+
+		if ((packet_data = Net_getNextQueuedPacket(mc.net)) != NULL)
+		{
+			LONGS_EQUAL(0, unpack_maap(&packet_contents, (const uint8_t *) packet_data));
+			Net_freeQueuedPacket(mc.net, packet_data);
+			CHECK(packet_contents.message_type >= MAAP_PROBE && packet_contents.message_type <= MAAP_ANNOUNCE);
+			if (packet_contents.message_type == MAAP_PROBE)
+			{
+				(probe_packets_detected)++;
+				CHECK(probe_packets_detected <= 12);
+				CHECK(announce_packets_detected < probe_packets_detected / 4 + 1);
+			}
+			else if (packet_contents.message_type == MAAP_ANNOUNCE)
+			{
+				(announce_packets_detected)++;
+				CHECK(probe_packets_detected > 9);
+				CHECK(announce_packets_detected <= 3);
+			}
+			else
+			{
+				/* Unexpected MAAP_DEFEND packet. */
+				CHECK(0);
+			}
+		}
+	}
+	CHECK(countdown > 0);
+	CHECK(NULL == Net_getNextQueuedPacket(mc.net));
+
+	/* We should have 3 yield notifications, and 3 announce notifications. */
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_YIELDED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_YIELDED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_YIELDED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+
+	/* We are done with the Maap_Client structure */
+	maap_deinit_client(&mc);
+}
+
 
 static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 	const void **p_sender_out,
@@ -690,7 +891,7 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 					MAAP_Packet announce_packet;
 					uint8_t announce_buffer[MAAP_NET_BUFFER_SIZE];
 
-					/* Send a announce packet in response to the probe packet. */
+					/* Send an announce packet in response to the probe packet. */
 					init_packet(&announce_packet, TEST_DEST_ADDR, remote_addr);
 					announce_packet.message_type = MAAP_ANNOUNCE;
 					announce_packet.requested_start_address = packet_contents.requested_start_address;
