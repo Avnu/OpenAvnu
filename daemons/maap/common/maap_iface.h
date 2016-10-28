@@ -51,7 +51,7 @@ typedef enum {
   MAAP_NOTIFY_ERROR_NONE = 0,                /**< Command was successful */
   MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION, /**< MAAP is not initialized, so the command cannot be performed */
   MAAP_NOTIFY_ERROR_ALREADY_INITIALIZED,     /**< MAAP is already initialized, so the values cannot be changed */
-  MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE,   /**< The MAAP reservation is not available.
+  MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE,   /**< The MAAP reservation is not available, or yield cannot allocate a replacement block.
                                                 * Try again with a smaller address block size. */
   MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID,      /**< The MAAP reservation ID is not valid, so cannot be released */
   MAAP_NOTIFY_ERROR_OUT_OF_MEMORY,           /**< The MAAP application is out of memory */

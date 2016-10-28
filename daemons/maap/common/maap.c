@@ -223,7 +223,7 @@ void print_notify(Maap_Notify *mn)
     printf("Error:  MAAP is already initialized, so the values cannot be changed.\n");
     break;
   case MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE:
-    printf("Error:  The MAAP reservation is not available.  Try again with a smaller address block size.\n");
+    printf("Error:  The MAAP reservation is not available, or yield cannot allocate a\n" "replacement block.  Try again with a smaller address block size.\n");
     break;
   case MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID:
     printf("Error:  The MAAP reservation ID is not valid, so cannot be released.\n");
@@ -291,14 +291,13 @@ void print_notify(Maap_Notify *mn)
     }
     break;
   case MAAP_NOTIFY_YIELDED:
-    if (mn->result == MAAP_NOTIFY_ERROR_NONE) {
-      printf("Address range %d yielded:  0x%012llx-0x%012llx (Size %d)\n",
-             mn->id,
-             (unsigned long long) mn->start,
-	         (unsigned long long) mn->start + mn->count - 1,
-             mn->count);
-    } else {
-      printf("Unexpected yield error\n");
+    printf("Address range %d yielded:  0x%012llx-0x%012llx (Size %d)\n",
+           mn->id,
+           (unsigned long long) mn->start,
+           (unsigned long long) mn->start + mn->count - 1,
+           mn->count);
+    if (mn->result != MAAP_NOTIFY_ERROR_NONE) {
+      printf("A new address range will not be allocated\n");
     }
     break;
   default:
@@ -565,7 +564,7 @@ void maap_range_status(Maap_Client *mc, const void *sender, int id)
 
   range = mc->timer_queue;
   while (range) {
-    if (range->id == id && range->state != MAAP_STATE_RELEASED) {
+    if (range->id == id && range->state == MAAP_STATE_DEFENDING) {
       inform_status(mc, sender, id, range, MAAP_NOTIFY_ERROR_NONE);
       return;
     }
@@ -694,8 +693,48 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
         /* We won with the lower MAC Address.  Do nothing. */
         printf("IGNORE\n");
       } else {
+        Range *new_range;
+        int range_size = iv->high - iv->low + 1;
+
         printf("YIELD\n");
-        inform_yielded(mc, range, MAAP_NOTIFY_ERROR_NONE);
+
+        /* Start a new reservation request for the owner of the yielded reservation.
+         * Use the same ID as the yielded range, so the owner can easily track it.
+         *
+         * Note:  Because our previous range is still in our range list,
+         * the new range selected will not overlap it.
+         */
+        new_range = malloc(sizeof(Range));
+        if (new_range == NULL) {
+          inform_yielded(mc, range, MAAP_NOTIFY_ERROR_OUT_OF_MEMORY);
+        } else {
+          new_range->id = range->id;
+          new_range->state = MAAP_STATE_PROBING;
+          new_range->counter = MAAP_PROBE_RETRANSMITS;
+          Time_setFromMonotonicTimer(&new_range->next_act_time);
+          new_range->interval = NULL;
+          new_range->sender = range->sender;
+          new_range->next_timer = NULL;
+          if (assign_interval(mc, new_range, range_size) < 0)
+          {
+            /* Cannot find any available intervals of the requested size. */
+            inform_yielded(mc, range, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+            free(new_range);
+          } else {
+            /* Send a probe for the replacement address range to try. */
+            send_probe(mc, new_range);
+            schedule_timer(mc, new_range);
+            start_timer(mc);
+
+            printf("Requested replacement address range, id %d\n", new_range->id);
+#ifdef DEBUG_NEGOTIATE_MSG
+            printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, new_range), get_end_address(mc, new_range));
+#endif
+            inform_yielded(mc, range, MAAP_NOTIFY_ERROR_NONE);
+          }
+        }
+
+        /* We are done with the old range. */
         iv = remove_interval(&mc->ranges, iv);
         free_interval(iv);
         /* memory will be freed the next time its timer elapses */
