@@ -279,6 +279,27 @@ TEST(maap_group, Reserve_Release)
 	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 
+	/* Save the results for use later. */
+	range_reserved_start = mn.start;
+	range_reserved_count = mn.count;
+
+
+	/* Release the reservation. */
+	maap_release_range(&mc, &sender3_in, id);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	CHECK(sender_out == &sender3_in);
+	LONGS_EQUAL(MAAP_NOTIFY_RELEASED, mn.kind);
+	LONGS_EQUAL(id, mn.id);
+	LONGS_EQUAL(range_reserved_start, mn.start);
+	LONGS_EQUAL(range_reserved_count, mn.count);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+	CHECK(Net_getNextQueuedPacket(mc.net) == NULL);
+
+	/* Verify that no additional announce packets are sent. */
+	Time_increaseNanos((MAAP_ANNOUNCE_INTERVAL_BASE + MAAP_ANNOUNCE_INTERVAL_VARIATION) * 1000000ull);
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+	CHECK(Net_getNextQueuedPacket(mc.net) == NULL);
 
 	/* We are done with the Maap_Client structure */
 	maap_deinit_client(&mc);
@@ -329,7 +350,7 @@ TEST(maap_group, Probing_vs_Probes)
 	/* We should not have a notification yet. */
 	CHECK(sender_out == NULL);
 
-	/* Fake a Probe packet we should ignore to after the second probe. */
+	/* Fake a Probe packet we should ignore after the second probe. */
 	/* This attempt should succeed. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, 2, -1, -1, TEST_REMOTE_ADDR_HIGHER, 0);
 	LONGS_EQUAL(4, probe_packets_detected);
@@ -480,7 +501,7 @@ TEST(maap_group, Probing_vs_Defends)
 	maap_deinit_client(&mc);
 }
 
-TEST(maap_group, Defending_vs_Probes_and_Announces)
+TEST(maap_group, Defending_vs_Probes)
 {
 	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
 	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE;
@@ -592,13 +613,98 @@ TEST(maap_group, Defending_vs_Probes_and_Announces)
 	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
 
 
-	/* Fake an announce request that conflicts with the start of our range. */
-	init_packet(&probe_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
-	probe_packet.message_type = MAAP_ANNOUNCE;
-	probe_packet.requested_start_address = range_reserved_start - 2; /* Overlap the start of our range. */
-	probe_packet.requested_count = 5;
-	LONGS_EQUAL(0, pack_maap(&probe_packet, probe_buffer));
-	maap_handle_packet(&mc, probe_buffer, MAAP_NET_BUFFER_SIZE);
+	/* We are done with the Maap_Client structure */
+	maap_deinit_client(&mc);
+}
+
+TEST(maap_group, Defending_vs_Announces)
+{
+	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
+	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE;
+	Maap_Client mc;
+	Maap_Notify mn;
+	const int sender1_in = 1, sender2_in = 2, sender3_in = 3;
+	const void *sender_out;
+	int id;
+	uint64_t range_reserved_start;
+	uint32_t range_reserved_count;
+	int probe_packets_detected, announce_packets_detected;
+	void *packet_data = NULL;
+	MAAP_Packet packet_contents;
+	MAAP_Packet announce_packet;
+	uint8_t announce_buffer[MAAP_NET_BUFFER_SIZE];
+
+	/* Initialize the Maap_Client structure */
+	memset(&mc, 0, sizeof(Maap_Client));
+	mc.dest_mac = TEST_DEST_ADDR;
+	mc.src_mac = TEST_SRC_ADDR;
+
+	/* Initialize the range */
+	/* We should receive exactly one notification of the initialization. */
+	LONGS_EQUAL(0, maap_init_client(&mc, &sender1_in, range_base_addr, range_size));
+	sender_out = NULL;
+	memset(&mn, 0, sizeof(Maap_Notify));
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+	/* Reserve a block of addresses. */
+	id = maap_reserve_range(&mc, &sender2_in, 10);
+	CHECK(id > 0);
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
+	LONGS_EQUAL(4, probe_packets_detected);
+	LONGS_EQUAL(1, announce_packets_detected);
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(id, mn.id);
+
+	/* Save the results for use later. */
+	range_reserved_start = mn.start;
+	range_reserved_count = mn.count;
+
+
+	/* Try some announcements adjacent to, but not overlapping, our range. */
+	init_packet(&announce_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
+	announce_packet.message_type = MAAP_ANNOUNCE;
+	announce_packet.requested_start_address = range_reserved_start - 5; /* Before the start of our range. */
+	announce_packet.requested_count = 5;
+	LONGS_EQUAL(0, pack_maap(&announce_packet, announce_buffer));
+	maap_handle_packet(&mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
+	announce_packet.requested_start_address = range_reserved_start + range_reserved_count; /* After the end of our range. */
+	announce_packet.requested_count = 5;
+	LONGS_EQUAL(0, pack_maap(&announce_packet, announce_buffer));
+	maap_handle_packet(&mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
+
+	/* Try an announcement that overlaps our range, but from an address we should ignore. */
+	init_packet(&announce_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_HIGHER);
+	announce_packet.message_type = MAAP_ANNOUNCE;
+	announce_packet.requested_start_address = range_reserved_start - 2; /* Overlap the start of our range. */
+	announce_packet.requested_count = 5;
+	LONGS_EQUAL(0, pack_maap(&announce_packet, announce_buffer));
+	maap_handle_packet(&mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
+
+	/* Verify that we didn't react. */
+	LONGS_EQUAL(0, maap_handle_timer(&mc));
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+	CHECK((packet_data = Net_getNextQueuedPacket(mc.net)) == NULL);
+
+	/* Verify that the status of the range is still valid. */
+	maap_range_status(&mc, &sender3_in, id);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	CHECK(sender_out == &sender3_in);
+	LONGS_EQUAL(MAAP_NOTIFY_STATUS, mn.kind);
+	LONGS_EQUAL(id, mn.id);
+	LONGS_EQUAL(range_reserved_start, mn.start);
+	LONGS_EQUAL(range_reserved_count, mn.count);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
+
+	/* Fake an announcement that conflicts with the start of our range. */
+	init_packet(&announce_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
+	announce_packet.message_type = MAAP_ANNOUNCE;
+	announce_packet.requested_start_address = range_reserved_start - 2; /* Overlap the start of our range. */
+	announce_packet.requested_count = 5;
+	LONGS_EQUAL(0, pack_maap(&announce_packet, announce_buffer));
+	maap_handle_packet(&mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
 
 	/* Verify that we yielded our range, and did not defend it. */
 	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
@@ -620,6 +726,199 @@ TEST(maap_group, Defending_vs_Probes_and_Announces)
 
 	/* Verify that the new range doesn't overlap the old range. */
 	CHECK(mn.start + mn.count - 1 < range_reserved_start || range_reserved_start + range_reserved_count - 1 < mn.start);
+
+	/* We are done with the Maap_Client structure */
+	maap_deinit_client(&mc);
+}
+
+TEST(maap_group, Defending_vs_Defends)
+{
+	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
+	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE;
+	Maap_Client mc;
+	Maap_Notify mn;
+	const int sender1_in = 1, sender2_in = 2, sender3_in = 3;
+	const void *sender_out;
+	int id;
+	uint64_t range_reserved_start;
+	uint32_t range_reserved_count;
+	int probe_packets_detected, announce_packets_detected;
+	void *packet_data = NULL;
+	MAAP_Packet packet_contents;
+	MAAP_Packet defend_packet;
+	uint8_t defend_buffer[MAAP_NET_BUFFER_SIZE];
+
+	/* Initialize the Maap_Client structure */
+	memset(&mc, 0, sizeof(Maap_Client));
+	mc.dest_mac = TEST_DEST_ADDR;
+	mc.src_mac = TEST_SRC_ADDR;
+
+	/* Initialize the range */
+	/* We should receive exactly one notification of the initialization. */
+	LONGS_EQUAL(0, maap_init_client(&mc, &sender1_in, range_base_addr, range_size));
+	sender_out = NULL;
+	memset(&mn, 0, sizeof(Maap_Notify));
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+	/* Reserve a block of addresses. */
+	id = maap_reserve_range(&mc, &sender2_in, 10);
+	CHECK(id > 0);
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
+	LONGS_EQUAL(4, probe_packets_detected);
+	LONGS_EQUAL(1, announce_packets_detected);
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(id, mn.id);
+
+	/* Save the results for use later. */
+	range_reserved_start = mn.start;
+	range_reserved_count = mn.count;
+
+
+	/* Try some defends adjacent to, but not overlapping, our range. */
+	init_packet(&defend_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
+	defend_packet.message_type = MAAP_DEFEND;
+	defend_packet.requested_start_address = range_reserved_start - 5; /* Before the start of our range. */
+	defend_packet.requested_count = 5;
+	LONGS_EQUAL(0, pack_maap(&defend_packet, defend_buffer));
+	maap_handle_packet(&mc, defend_buffer, MAAP_NET_BUFFER_SIZE);
+	defend_packet.requested_start_address = range_reserved_start + range_reserved_count; /* After the end of our range. */
+	defend_packet.requested_count = 5;
+	LONGS_EQUAL(0, pack_maap(&defend_packet, defend_buffer));
+	maap_handle_packet(&mc, defend_buffer, MAAP_NET_BUFFER_SIZE);
+
+	/* Try a defend that overlaps our range, but from an address we should ignore. */
+	init_packet(&defend_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_HIGHER);
+	defend_packet.message_type = MAAP_DEFEND;
+	defend_packet.requested_start_address = range_reserved_start - 2; /* Overlap the start of our range. */
+	defend_packet.requested_count = 5;
+	LONGS_EQUAL(0, pack_maap(&defend_packet, defend_buffer));
+	maap_handle_packet(&mc, defend_buffer, MAAP_NET_BUFFER_SIZE);
+
+	/* Verify that we didn't react. */
+	LONGS_EQUAL(0, maap_handle_timer(&mc));
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+	CHECK((packet_data = Net_getNextQueuedPacket(mc.net)) == NULL);
+
+	/* Verify that the status of the range is still valid. */
+	maap_range_status(&mc, &sender3_in, id);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	CHECK(sender_out == &sender3_in);
+	LONGS_EQUAL(MAAP_NOTIFY_STATUS, mn.kind);
+	LONGS_EQUAL(id, mn.id);
+	LONGS_EQUAL(range_reserved_start, mn.start);
+	LONGS_EQUAL(range_reserved_count, mn.count);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
+
+	/* Fake a defend that conflicts with the start of our range. */
+	init_packet(&defend_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
+	defend_packet.message_type = MAAP_DEFEND;
+	defend_packet.requested_start_address = range_reserved_start - 2; /* Overlap the start of our range. */
+	defend_packet.requested_count = 5;
+	LONGS_EQUAL(0, pack_maap(&defend_packet, defend_buffer));
+	maap_handle_packet(&mc, defend_buffer, MAAP_NET_BUFFER_SIZE);
+
+	/* Verify that we yielded our range, and did not defend it. */
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	CHECK(sender_out == &sender2_in);
+	LONGS_EQUAL(MAAP_NOTIFY_YIELDED, mn.kind);
+	LONGS_EQUAL(id, mn.id);
+	LONGS_EQUAL(range_reserved_start, mn.start);
+	LONGS_EQUAL(range_reserved_count, mn.count);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
+	/* Verify that we requested a different range to replace the yielded one. */
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
+	LONGS_EQUAL(4, probe_packets_detected);
+	LONGS_EQUAL(1, announce_packets_detected);
+	CHECK(sender_out == &sender2_in);
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(id, mn.id); /* The ID should not have changed */
+
+	/* Verify that the new range doesn't overlap the old range. */
+	CHECK(mn.start + mn.count - 1 < range_reserved_start || range_reserved_start + range_reserved_count - 1 < mn.start);
+
+	/* We are done with the Maap_Client structure */
+	maap_deinit_client(&mc);
+}
+
+TEST(maap_group, Ignore_Versioning)
+{
+	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
+	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE;
+	Maap_Client mc;
+	Maap_Notify mn;
+	const int sender1_in = 1, sender2_in = 2, sender3_in = 3;
+	const void *sender_out;
+	int id;
+	uint64_t range_reserved_start;
+	uint32_t range_reserved_count;
+	int probe_packets_detected, announce_packets_detected;
+	MAAP_Packet custom_packet;
+	uint8_t custom_buffer[MAAP_NET_BUFFER_SIZE];
+
+	/* Initialize the Maap_Client structure */
+	memset(&mc, 0, sizeof(Maap_Client));
+	mc.dest_mac = TEST_DEST_ADDR;
+	mc.src_mac = TEST_SRC_ADDR;
+
+	/* Initialize the range */
+	/* We should receive exactly one notification of the initialization. */
+	LONGS_EQUAL(0, maap_init_client(&mc, &sender1_in, range_base_addr, range_size));
+	sender_out = NULL;
+	memset(&mn, 0, sizeof(Maap_Notify));
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+	/* Reserve a block of addresses. */
+	id = maap_reserve_range(&mc, &sender2_in, 10);
+	CHECK(id > 0);
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
+	LONGS_EQUAL(4, probe_packets_detected);
+	LONGS_EQUAL(1, announce_packets_detected);
+
+	/* Verify that the notification indicated a successful reservation. */
+	CHECK(sender_out == &sender2_in);
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(id, mn.id);
+	CHECK(mn.start >= range_base_addr);
+	CHECK(mn.start + mn.count - 1 <= range_base_addr + range_size - 1);
+	LONGS_EQUAL(10, mn.count);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+	/* Save the results for use later. */
+	range_reserved_start = mn.start;
+	range_reserved_count = mn.count;
+
+
+	/* Send an unknown PDU with a greater maap_version value that overlaps our reservation. */
+	init_packet(&custom_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
+	custom_packet.maap_version++;
+	custom_packet.message_type = 4; /* Not a valid message type. */
+	custom_packet.requested_start_address = range_base_addr;
+	custom_packet.requested_count = range_size;
+	LONGS_EQUAL(0, pack_maap(&custom_packet, custom_buffer));
+	maap_handle_packet(&mc, custom_buffer, MAAP_NET_BUFFER_SIZE);
+
+	/* Verify that nothing happened. */
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+	CHECK(Net_getNextQueuedPacket(mc.net) == NULL);
+
+	/* Verify the status of our existing reservation */
+	maap_range_status(&mc, &sender3_in, id);
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	CHECK(sender_out == &sender3_in);
+	LONGS_EQUAL(MAAP_NOTIFY_STATUS, mn.kind);
+	LONGS_EQUAL(id, mn.id);
+	LONGS_EQUAL(range_reserved_start, mn.start);
+	LONGS_EQUAL(range_reserved_count, mn.count);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
 
 	/* We are done with the Maap_Client structure */
 	maap_deinit_client(&mc);
