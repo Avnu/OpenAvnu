@@ -53,6 +53,16 @@ static int send_probe(Maap_Client *mc, Range *range) {
   p.requested_start_address = get_start_address(mc, range);
   p.requested_count = get_count(mc, range);
 
+#ifdef DEBUG_NEGOTIATE_MSG
+  {
+    Time t;
+    printf("Sending probe at ");
+    Time_setFromMonotonicTimer(&t);
+    Time_dump(&t);
+    printf("\n");
+  }
+#endif
+
   return send_packet(mc, &p);
 }
 
@@ -64,6 +74,16 @@ static int send_announce(Maap_Client *mc, Range *range) {
   p.message_type = MAAP_ANNOUNCE;
   p.requested_start_address = get_start_address(mc, range);
   p.requested_count = get_count(mc, range);
+
+#ifdef DEBUG_NEGOTIATE_MSG
+  {
+    Time t;
+    printf("Sending announce at ");
+    Time_setFromMonotonicTimer(&t);
+    Time_dump(&t);
+    printf("\n");
+  }
+#endif
 
   return send_packet(mc, &p);
 }
@@ -88,6 +108,16 @@ static int send_defend(Maap_Client *mc, Range *range, uint64_t start,
   p.requested_count = count;
   p.conflict_start_address = conflict_start;
   p.conflict_count = (uint16_t)(conflict_end - conflict_start + 1);
+
+#ifdef DEBUG_NEGOTIATE_MSG
+  {
+    Time t;
+    printf("Sending defend at ");
+    Time_setFromMonotonicTimer(&t);
+    Time_dump(&t);
+    printf("\n");
+  }
+#endif
 
   return send_packet(mc, &p);
 }
@@ -505,14 +535,14 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
     return -1;
   }
 
-  send_probe(mc, range);
-  schedule_timer(mc, range);
-  start_timer(mc);
-
   printf("Requested address range, id %d\n", id);
 #ifdef DEBUG_NEGOTIATE_MSG
   printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, range), get_end_address(mc, range));
 #endif
+
+  send_probe(mc, range);
+  schedule_timer(mc, range);
+  start_timer(mc);
 
   return id;
 }
@@ -742,15 +772,16 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
             inform_yielded(mc, range, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
             free(new_range);
           } else {
+            printf("Requested replacement address range, id %d\n", new_range->id);
+#ifdef DEBUG_NEGOTIATE_MSG
+            printf("Selected replacement address range 0x%012llx-0x%012llx\n", get_start_address(mc, new_range), get_end_address(mc, new_range));
+#endif
+
             /* Send a probe for the replacement address range to try. */
             send_probe(mc, new_range);
             schedule_timer(mc, new_range);
             start_timer(mc);
 
-            printf("Requested replacement address range, id %d\n", new_range->id);
-#ifdef DEBUG_NEGOTIATE_MSG
-            printf("Selected replacement address range 0x%012llx-0x%012llx\n", get_start_address(mc, new_range), get_end_address(mc, new_range));
-#endif
             inform_yielded(mc, range, MAAP_NOTIFY_ERROR_NONE);
           }
         }
