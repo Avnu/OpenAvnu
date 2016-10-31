@@ -773,6 +773,7 @@ WARN_LOGFILE           =
 
 INPUT                  = ../common \
                          ../linux/src \
+                         ../test \
                          ../doc/mainpage.dox
 
 # This tag can be used to specify the character encoding of the source files

@@ -22,6 +22,8 @@ struct maap_timer {
   struct testtime expires;
 };
 
+static unsigned long long s_basetime = 1000000000LL;
+
 
 Timer *Time_newTimer(void)
 {
@@ -111,8 +113,6 @@ void Time_setFromNanos(Time *t, uint64_t nsec)
 void Time_setFromMonotonicTimer(Time *t)
 {
   /* Use a hard-wired value. */
-  static unsigned long long s_basetime = 0;
-  s_basetime += 10000000LL; /* The next time will be 0.01 seconds greater than the last time used. */
   t->sec = (unsigned long) (s_basetime / 1000000000LL);
   t->nsec = (unsigned long) (s_basetime % 1000000000LL);
 }
@@ -120,4 +120,11 @@ void Time_setFromMonotonicTimer(Time *t)
 void Time_dump(const Time *t)
 {
   printf("sec: %lu nsec: %09lu", t->sec, t->nsec);
+}
+
+
+/* Special function used for testing only. */
+void Time_increaseNanos(uint64_t nsec)
+{
+  s_basetime += nsec;
 }
