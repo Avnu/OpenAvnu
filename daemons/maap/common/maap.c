@@ -378,11 +378,17 @@ int maap_init_client(Maap_Client *mc, const void *sender, uint64_t range_address
 
 void maap_deinit_client(Maap_Client *mc) {
   if (mc->initialized) {
-    if (mc->ranges) {
-      /** @todo Free reservation memory */
-      mc->ranges = NULL;
+    while (mc->timer_queue) {
+      Range * pDel = mc->timer_queue;
+      mc->timer_queue = mc->timer_queue->next_timer;
+      if (pDel->state == MAAP_STATE_RELEASED) { free(pDel); }
     }
-    mc->timer_queue = NULL;
+
+    while (mc->ranges) {
+      Interval *inter = remove_interval(&(mc->ranges), mc->ranges);
+      if (inter && inter->data) { free(inter->data); }
+      free_interval(inter);
+    }
 
     if (mc->timer) {
       Time_delTimer(mc->timer);
