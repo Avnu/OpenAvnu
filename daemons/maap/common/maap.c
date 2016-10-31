@@ -582,7 +582,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   Interval *iv;
   uint32_t start;
   Range *range;
-  int rv;
+  int rv, num_overlaps;
   unsigned long long int own_base, own_max, incoming_base, incoming_max;
 
   if (len < MAAP_PKT_SIZE) {
@@ -644,20 +644,23 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   /** @todo If this is a MAAP_ANNOUNCE message, save the announced range and time received for later reference. */
 
   /* Flag all the range items that overlap with the incoming packet. */
+  num_overlaps = 0;
   start = (uint64_t)p.requested_start_address - mc->address_base;
   for (iv = search_interval(mc->ranges, start, p.requested_count); iv != NULL && interval_check_overlap(iv, start, p.requested_count); iv = next_interval(iv)) {
     range = iv->data;
     range->overlapping = 1;
+    num_overlaps++;
   }
 
-  while (1) {
+  while (num_overlaps-- > 0) {
     /* Find the first item that is still flagged. */
-    for (iv = minimum_interval(mc->ranges); iv != NULL; iv = next_interval(iv)) {
+    for (iv = search_interval(mc->ranges, start, p.requested_count); iv != NULL; iv = next_interval(iv)) {
       range = iv->data;
       if (range->overlapping) { break; }
     }
     if (!iv) {
       /* We reached the end of the list. */
+      assert(0); /* We should never get here! */
       break;
     }
     range->overlapping = 0;
