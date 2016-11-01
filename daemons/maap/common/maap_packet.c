@@ -155,7 +155,7 @@ int compare_mac_addresses(uint64_t local_mac, uint64_t remote_mac)
   int i;
   uint8_t local_byte, remote_byte;
 
-  for (i = 0; i < 8; ++i)
+  for (i = 0; i < 6; ++i)
   {
     /* Test the next least-significant byte. */
     local_byte = (uint8_t)(local_mac & 0xFF);
@@ -170,6 +170,7 @@ int compare_mac_addresses(uint64_t local_mac, uint64_t remote_mac)
     remote_mac = remote_mac >> 8;
   }
 
-  /* We should never get here! */
-  return 0;
+  /* Assume that our own packet was somehow reflected back at us.
+   * Return 1 to ignore this packet. */
+  return 1;
 }
