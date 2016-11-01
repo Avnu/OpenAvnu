@@ -207,6 +207,30 @@ static void start_timer(Maap_Client *mc) {
   }
 }
 
+static Interval *remove_range_interval(Interval **root, Interval *node) {
+  Range *old_range = node->data;
+  Interval *free_inter, *test_inter;
+
+  /* Remove and free the interval from the set of intervals.
+   * Note that the interval freed may not be the same one supplied. */
+  assert(!old_range || old_range->interval == node);
+  free_inter = remove_interval(root, node);
+  assert(free_inter->data == old_range);
+  free_interval(free_inter);
+
+  /* Make sure the remaining ranges point to the intervals that hold them.
+   * This is necessary as the Range object may have moved to a different node. */
+  for (test_inter = minimum_interval(*root); test_inter != NULL; test_inter = next_interval(test_inter)) {
+    Range *range = test_inter->data;
+    assert(range);
+    assert(range != old_range);
+    if (range->interval != test_inter) {
+      range->interval = test_inter;
+    }
+  }
+}
+
+
 void add_notify(Maap_Client *mc, const void *sender, const Maap_Notify *mn) {
   Maap_Notify_List *tmp, *li = calloc(1, sizeof (Maap_Notify_List));
   memcpy(&li->notify, mn, sizeof (Maap_Notify));
@@ -385,9 +409,9 @@ void maap_deinit_client(Maap_Client *mc) {
     }
 
     while (mc->ranges) {
-      Interval *inter = remove_interval(&(mc->ranges), mc->ranges);
-      if (inter && inter->data) { free(inter->data); }
-      free_interval(inter);
+      Range *range = mc->ranges->data;
+      remove_range_interval(&mc->ranges, mc->ranges);
+      if (range) { free(range); }
     }
 
     if (mc->timer) {
@@ -574,8 +598,7 @@ int maap_release_range(Maap_Client *mc, const void *sender, int id) {
       }
 
       iv = range->interval;
-      iv = remove_interval(&mc->ranges, iv);
-      free_interval(iv);
+      remove_range_interval(&mc->ranges, iv);
       /* memory for range will be freed the next time its timer elapses */
       range->state = MAAP_STATE_RELEASED;
 
@@ -611,7 +634,6 @@ void maap_range_status(Maap_Client *mc, const void *sender, int id)
   printf("Range id %d does not exist\n", id);
   inform_status(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID);
 }
-
 
 int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   MAAP_Packet p;
@@ -712,12 +734,12 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
         /* Find an alternate interval, remove old interval,
            and restart probe counter */
         int range_size = iv->high - iv->low + 1;
+        iv->data = NULL; /* Range is moving to a new interval */
         if (assign_interval(mc, range, range_size) < 0) {
           /* No interval is available, so stop probing and report an error. */
           printf("Unable to find an available address block to probe\n");
           inform_not_acquired(mc, range->sender, range_size, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
-          iv = remove_interval(&mc->ranges, iv);
-          free_interval(iv);
+          remove_range_interval(&mc->ranges, iv);
           /* memory will be freed the next time its timer elapses */
           range->state = MAAP_STATE_RELEASED;
         } else {
@@ -725,8 +747,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
           printf("Selected new address range 0x%012llx-0x%012llx\n",
                  get_start_address(mc, range), get_end_address(mc, range));
 #endif
-          iv = remove_interval(&mc->ranges, iv);
-          free_interval(iv);
+          remove_range_interval(&mc->ranges, iv);
           range->counter = MAAP_PROBE_RETRANSMITS;
           send_probe(mc, range);
         }
@@ -736,7 +757,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 
       printf("Conflict detected with our range (id %d)!\n", range->id);
 #ifdef DEBUG_NEGOTIATE_MSG
-      printf("    Request of 0x%012llx-0x%012llx inside our\n",
+      printf("    Request of 0x%012llx-0x%012llx conflicts with our\n",
              incoming_base, incoming_max);
       printf("    range of 0x%012llx-0x%012llx\n",
              get_start_address(mc, range), get_end_address(mc, range));
@@ -793,8 +814,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
         }
 
         /* We are done with the old range. */
-        iv = remove_interval(&mc->ranges, iv);
-        free_interval(iv);
+        remove_range_interval(&mc->ranges, iv);
         /* memory will be freed the next time its timer elapses */
         range->state = MAAP_STATE_RELEASED;
       }
