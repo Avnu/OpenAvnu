@@ -90,9 +90,11 @@ Interval *remove_interval(Interval **root, Interval *node) {
   /* Swap the contents of the node passed in to remove with the one chosen to be
      snipped */
   if (snip != node) {
+    void *old_data = node->data;
     node->low = snip->low;
     node->high = snip->high;
     node->data = snip->data;
+    snip->data = old_data;
   }
 
   return snip;
