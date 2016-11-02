@@ -93,6 +93,14 @@ if (NOT DEFINED AVB_FEATURE_ENDPOINT)
   set ( AVB_FEATURE_ENDPOINT 0 )
 endif ()
 
+# Default launchtime feature
+if (NOT DEFINED IGB_LAUNCHTIME_ENABLED)
+  set ( IGB_LAUNCHTIME_ENABLED 0 )
+else ()
+  MESSAGE ( "-- IGB launch time enabled" )
+endif ()
+set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DIGB_LAUNCHTIME_ENABLED=${IGB_LAUNCHTIME_ENABLED}" )
+
 
 # Export feature flags for sub-builds
 if (AVB_FEATURE_FQTSS)
@@ -205,6 +213,7 @@ include_directories(
 		${AVB_OSAL_DIR}/endpoint
 		${AVB_OSAL_DIR}/fqtss/qmgr
 		${AVB_SRC_DIR}/../common
+		${AVB_SRC_DIR}/mcs
 		)
 
 # Need include and link directories for GLIB
@@ -220,6 +229,7 @@ add_subdirectory ( mediaq )
 add_subdirectory ( inih )
 add_subdirectory ( rawsock ) 
 add_subdirectory ( qmgr ) 
+add_subdirectory ( mcs )
 if (AVB_FEATURE_ENDPOINT)
 	add_subdirectory ( endpoint )
 	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal_endpoint.c )
@@ -247,7 +257,7 @@ if ( AVB_FEATURE_PCAP )
 endif ()
 
 add_library ( avbTl ${SRC_FILES} )
-target_link_libraries ( avbTl dl )
+target_link_libraries ( avbTl dl m )
 
 install ( TARGETS avbTl ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
 

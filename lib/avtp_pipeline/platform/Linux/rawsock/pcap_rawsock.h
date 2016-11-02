@@ -46,7 +46,7 @@ void pcapRawsockClose(void *pvRawsock);
 
 U8 *pcapRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len);
 
-bool pcapRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len);
+bool pcapRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec);
 
 U8 *pcapRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, unsigned int *len);
 

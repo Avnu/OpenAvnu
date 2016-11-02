@@ -170,6 +170,28 @@ typedef void (*openavb_intf_gen_end_cb_t)(media_q_t *pMediaQ);
  */
 typedef unsigned int (*openavb_intf_get_src_bitrate_t)(media_q_t *pMediaQ);
 
+/** Enable fixed timestamping in interface.
+ *
+ * Everytime interface needs to set media_q_item_t.pAvtpTime it calls openavbAvtpTimeSetToWallTime() to set.
+ *
+ * When fixed timestamping is enabled, interface only calls openavbAvtpTimeSetToWallTime() once
+ * for first media_q_item, then for next items it just adds fixed delay calculated
+ * from transmitInterval and batchFactor.
+ *
+ * If transmitInterval = 8000 and batchFactor = 1 then 125 us will be added.
+ * If batchFactor is 4, 4 items will have the same AVTP time set and
+ * then 125 * 4 = 500 us will be added to timestamp.
+ *
+ * \param pMediaQ A pointer to media queue for this stream
+ * \param enable true to enable, false to disable
+ * \param transmitInterval The transmit interval (in frames per second)
+ * \param batchFactor Number of intervals to handle at once
+ *
+ * \note  This callback is optional, does not need to be implemented in the
+ * interface module.
+ */
+typedef void (*openavb_intf_enable_fixed_timestamp)(media_q_t *pMediaQ, bool enable, U32 transmitInterval, U32 batchFactor);
+
 /** Interface callbacks structure.
  */
 typedef struct {
@@ -197,6 +219,8 @@ typedef struct {
 	void *						intf_host_cb_list;
 	/// Source bit rate callback.
 	openavb_intf_get_src_bitrate_t  intf_get_src_bitrate_cb;
+	/// Enable fixed timestamp callback
+	openavb_intf_enable_fixed_timestamp intf_enable_fixed_timestamp;
 } openavb_intf_cb_t;
 
 /** Main initialization entry point into the interface module.
