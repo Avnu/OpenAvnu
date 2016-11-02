@@ -26,8 +26,7 @@ static MAAP_Packet test_packet = {
 	0x010203040506,
 	0x060504030201,
 	0x1234,
-	1,
-	0x7e,
+	0xfe,
 	0,
 	1,
 	1,
@@ -44,13 +43,12 @@ static MAAP_Packet initialized_packet = {
 	0x020304050607,
 	0x070605040302,
 	0x22F0, /* Ethertype */
-	1, /* CD */
-	0x7E, /* subtype */
+	0xFE, /* subtype */
 	0, /* SV */
 	0, /* version */
 	0, /* message_type */
 	1, /* maap_version */
-	16, /* maap_data_length */
+	16, /* control_data_length */
 	0, /* stream_id */
 	0, /* requested_start_address */
 	0, /* requested_count */
@@ -73,13 +71,12 @@ static void cmp_maap_packets(MAAP_Packet *a, MAAP_Packet *b) {
 	CHECK(a->DA == b->DA);
 	CHECK(a->SA == b->SA);
 	CHECK(a->Ethertype == b->Ethertype);
-	CHECK(a->CD == b->CD);
 	CHECK(a->subtype == b->subtype);
 	CHECK(a->SV == b->SV);
 	CHECK(a->version == b->version);
 	CHECK(a->message_type == b->message_type);
 	CHECK(a->maap_version == b->maap_version);
-	CHECK(a->maap_data_length && b->maap_data_length);
+	CHECK(a->control_data_length && b->control_data_length);
 	CHECK(a->stream_id == b->stream_id);
 	CHECK(a->requested_start_address == b->requested_start_address);
 	CHECK(a->requested_count == b->requested_count);
@@ -91,13 +88,12 @@ static void dump_maap_packet(MAAP_Packet *packet) {
 	printf("DA: %012llx\n", (unsigned long long int)packet->DA);
 	printf("SA: %012llx\n", (unsigned long long int)packet->SA);
 	printf("Ethertype: %04x\n", packet->Ethertype);
-	printf("CD: %d\n", packet->CD);
 	printf("subtype: %d\n", packet->subtype);
 	printf("SV: %d\n", packet->SV);
 	printf("version: %d\n", packet->version);
 	printf("message_type: %d\n", packet->message_type);
 	printf("maap_version: %d\n", packet->maap_version);
-	printf("maap_data_length: %d\n", packet->maap_data_length);
+	printf("control_data_length: %d\n", packet->control_data_length);
 	printf("stream_id: 0x%016llx\n",
 	       (unsigned long long int)packet->stream_id);
 	printf("requested_start_address: 0x%012llx\n",

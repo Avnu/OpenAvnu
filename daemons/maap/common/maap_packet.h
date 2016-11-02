@@ -13,22 +13,21 @@
 
 #include "platform.h"
 
-#define MAAP_PROBE      1 /**< MAAP Probe MAC address(es) PDU - Defined in IEEE 1722-2011 Table B.1 */
-#define MAAP_DEFEND     2 /**< MAAP Defend address(es) response PDU - Defined in IEEE 1722-2011 Table B.1 */
-#define MAAP_ANNOUNCE   3 /**< MAAP Announce MAC address(es) acquired PDU - Defined in IEEE 1722-2011 Table B.1 */
+#define MAAP_PROBE      1 /**< MAAP Probe MAC address(es) PDU - Defined in IEEE 1722-2016 Table B.1 */
+#define MAAP_DEFEND     2 /**< MAAP Defend address(es) response PDU - Defined in IEEE 1722-2016 Table B.1 */
+#define MAAP_ANNOUNCE   3 /**< MAAP Announce MAC address(es) acquired PDU - Defined in IEEE 1722-2016 Table B.1 */
 
-/** MAAP Packet contents - Defined in IEEE 1722-2011 B.2 */
+/** MAAP Packet contents - Defined in IEEE 1722-2016 Figure B.1 */
 typedef struct {
   uint64_t DA;                      /**< Destination Address */
   uint64_t SA;                      /**< Source Address */
   uint16_t Ethertype;               /**< AVTB Ethertype (i.e. @p MAAP_TYPE) */
-  uint8_t CD;                       /**< Control/Data Indicator.  Always 1 for MAAP. */
   uint16_t subtype;                 /**< AVTP Subtype (i.e. @p MAAP_SUBTYPE) */
   uint8_t SV;                       /**< 1 if stream_id is valid, 0 otherwise.  Always 0 for MAAP. */
   uint8_t version;                  /**< AVTP Version.  Always 0 for MAAP */
   uint8_t message_type;             /**< MAAP message type (MAAP_PROBE, MAAP_DEFEND, or MAAP_ANNOUNCE) */
   uint8_t maap_version;             /**< MAAP Version.  Currently 1 for MAAP. */
-  uint16_t maap_data_length;        /**< MAAP Data Length in Bytes.  Always 16 for MAAP. */
+  uint16_t control_data_length;     /**< Control Data Length in Bytes.  Always 16 for MAAP. */
   uint64_t stream_id;               /**< MAAP stream_id.  Always 0 for MAAP. */
   uint64_t requested_start_address; /**< Starting address for a MAAP_PROBE or MAAP_ANNOUNCE.
                                        * For a MAAP_DEFEND, the same address as the MAAP_PROBE or MAAP_ANNOUNCE that initiated the defend. */
@@ -81,7 +80,7 @@ uint64_t convert_mac_address(const uint8_t macaddr[]);
 /**
  * Compare two MAC addresses, starting with the least-significant bytes, to determine if the local address is numerically lower.
  *
- * @note This is equivalent to the compare_MAC function in IEEE 1722-2011 B3.6.4
+ * @note This is equivalent to the compare_MAC function in IEEE 1722-2016 B3.6.4
  *
  * @param local_mac The MAC Address for the local network interface of the computer running this application
  * @param remote_mac The source MAC Address in a MAAP packet that was received

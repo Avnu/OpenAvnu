@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 
 	/*
 	 * Seed the random number generator.
-	 * This seeding is defined in IEEE 1722-2011 B.3.6.1.
+	 * This seeding is defined in IEEE 1722-2016 B.3.6.1.
 	 */
 
 	srand((unsigned int)mc.src_mac + (unsigned int)time(NULL));

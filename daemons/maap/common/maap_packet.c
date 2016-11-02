@@ -23,12 +23,11 @@ int unpack_maap(MAAP_Packet *packet, const uint8_t *stream) {
   packet->Ethertype = BE16TOH(tmp16);
   stream += 2;
 
-  memcpy(&tmp8, stream, 1);
-  packet->CD = (tmp8 & 0x80) >> 7;
-  packet->subtype = tmp8 & 0x7f;
+  tmp8 = *stream;
+  packet->subtype = tmp8;
   stream++;
 
-  memcpy(&tmp8, stream, 1);
+  tmp8 = *stream;
   packet->SV = (tmp8 & 0x80) >> 7;
   packet->version = (tmp8 & 0x70) >> 4;
   packet->message_type = tmp8 & 0x0f;
@@ -38,7 +37,7 @@ int unpack_maap(MAAP_Packet *packet, const uint8_t *stream) {
   packet->maap_version = (tmp8 & 0xf8) >> 3;
 
   memcpy(&tmp16, stream, 2);
-  packet->maap_data_length = BE16TOH(tmp16) & 0x07ff;
+  packet->control_data_length = BE16TOH(tmp16) & 0x07ff;
   stream += 2;
 
   memcpy(&tmp64, stream, 8);
@@ -83,17 +82,17 @@ int pack_maap(const MAAP_Packet *packet, uint8_t *stream) {
   memcpy(stream, &tmp16, 2);
   stream += 2;
 
-  tmp8 = (packet->CD << 7) | (packet->subtype & 0x7f);
-  memcpy(stream, &tmp8, 1);
+  tmp8 = packet->subtype;
+  *stream = tmp8;
   stream++;
 
   tmp8 = (packet->SV << 7) | ((packet->version & 0x07) << 4) |
     (packet->message_type & 0x0f);
-  memcpy(stream, &tmp8, 1);
+  *stream = tmp8;
   stream++;
 
   tmp16 = HTOBE16(((packet->maap_version & 0x001f) << 11) |
-		  (packet->maap_data_length & 0x07ff));
+		  (packet->control_data_length & 0x07ff));
   memcpy(stream, &tmp16, 2);
   stream += 2;
 
@@ -127,14 +126,13 @@ void init_packet(MAAP_Packet *packet, uint64_t dest_mac, uint64_t src_mac) {
   packet->DA = dest_mac;
   packet->SA = src_mac;
   packet->Ethertype = MAAP_TYPE;
-  packet->CD = 1; /* CD is 1 - Defined in IEEE 1722-2011 B.2.1 */
   packet->subtype = MAAP_SUBTYPE;
-  packet->SV = 0; /* SV is 0 - Defined in IEEE 1722-2011 B.2.3 */
-  packet->version = 0;  /* AVTP version is 0 - Defined in IEEE 1722-2011 5.2.4 */
+  packet->SV = 0; /* SV is 0 - Defined in IEEE 1722-2016 Table F.23 */
+  packet->version = 0;  /* AVTP version is 0 - Defined in IEEE 1722-2016 4.4.3.4 */
   packet->message_type = 0;
-  packet->maap_version = 1; /* MAAP version is 1 - Defined in IEEE 1722-2011 B.2.6 */
-  packet->maap_data_length = 16; /* MAAP data length is 16 - Defined in IEEE 1722-2011 B.2.7 */
-  packet->stream_id = 0; /* MAAP stream_id is 0 - Defined in IEEE 1722-2011 B.2.8 */
+  packet->maap_version = 1; /* MAAP version is 1 - Defined in IEEE 1722-2016 B.2.3.1 */
+  packet->control_data_length = 16; /* Control data length is 16 - Defined in IEEE 1722-2016 B.2.1 */
+  packet->stream_id = 0; /* MAAP stream_id is 0 - Defined in IEEE 1722-2016 B.2.4 */
   packet->requested_start_address = 0;
   packet->requested_count = 0;
   packet->conflict_start_address = 0;
