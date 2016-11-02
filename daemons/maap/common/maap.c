@@ -654,8 +654,8 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   }
 
   if (p.Ethertype != MAAP_TYPE ||
-      p.CD != 1 || p.subtype != MAAP_SUBTYPE ||
-      p.maap_data_length != 16 )
+      p.subtype != MAAP_SUBTYPE ||
+      p.control_data_length != 16 )
   {
     /* This is not a MAAP packet.  Ignore it. */
 #ifdef DEBUG_NEGOTIATE_MSG

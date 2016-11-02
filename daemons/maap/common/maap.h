@@ -17,21 +17,21 @@
 #include "maap_timer.h"
 #include "maap_net.h"
 
-#define MAAP_PROBE_RETRANSMITS                  3 /**< Number of allowed probes - This value is defined in IEEE 1722-2011 Table B.3 */
+#define MAAP_PROBE_RETRANSMITS                  3 /**< Number of allowed probes - This value is defined in IEEE 1722-2016 Table B.8 */
 
 /* Times are in milliseconds */
-#define MAAP_PROBE_INTERVAL_BASE                500    /**< Probe interval minimum time in milliseconds - This value is defined in IEEE 1722-2011 Table B.3 */
-#define MAAP_PROBE_INTERVAL_VARIATION           100    /**< Probe interval additional time in milliseconds - This value is defined in IEEE 1722-2011 Table B.3 */
-#define MAAP_ANNOUNCE_INTERVAL_BASE             30000  /**< Announce interval minimum time in milliseconds - This value is defined in IEEE 1722-2011 Table B.3 */
-#define MAAP_ANNOUNCE_INTERVAL_VARIATION        2000   /**< Announce interval additional time in milliseconds - This value is defined in IEEE 1722-2011 Table B.3 */
+#define MAAP_PROBE_INTERVAL_BASE                500    /**< Probe interval minimum time in milliseconds - This value is defined in IEEE 1722-2016 Table B.8 */
+#define MAAP_PROBE_INTERVAL_VARIATION           100    /**< Probe interval additional time in milliseconds - This value is defined in IEEE 1722-2016 Table B.8 */
+#define MAAP_ANNOUNCE_INTERVAL_BASE             30000  /**< Announce interval minimum time in milliseconds - This value is defined in IEEE 1722-2016 Table B.8 */
+#define MAAP_ANNOUNCE_INTERVAL_VARIATION        2000   /**< Announce interval additional time in milliseconds - This value is defined in IEEE 1722-2016 Table B.8 */
 
-#define MAAP_DEST_MAC {0x91, 0xE0, 0xF0, 0x00, 0xFF, 0x00} /**< MAAP multicast Address - Defined in IEEE 1722-2011 Table B.5 */
+#define MAAP_DEST_MAC {0x91, 0xE0, 0xF0, 0x00, 0xFF, 0x00} /**< MAAP multicast Address - Defined in IEEE 1722-2016 Table B.10 */
 
-#define MAAP_DYNAMIC_POOL_BASE 0x91E0F0000000LL /**< MAAP dynamic allocation pool base address - Defined in IEEE 1722-2011 Table B.4 */
-#define MAAP_DYNAMIC_POOL_SIZE 0xFE00 /**< MAAP dynamic allocation pool size - Defined in IEEE 1722-2011 Table B.4 */
+#define MAAP_DYNAMIC_POOL_BASE 0x91E0F0000000LL /**< MAAP dynamic allocation pool base address - Defined in IEEE 1722-2016 Table B.9 */
+#define MAAP_DYNAMIC_POOL_SIZE 0xFE00 /**< MAAP dynamic allocation pool size - Defined in IEEE 1722-2016 Table B.9 */
 
-#define MAAP_TYPE 0x22F0  /**< AVTP Ethertype - Defined in IEEE 1722-2011 Table 5.1 */
-#define MAAP_SUBTYPE 0x7E /**< AVTP MAAP subtype - Defined in IEEE 1722-2011 Table 5.2 */
+#define MAAP_TYPE 0x22F0  /**< AVTP Ethertype - Defined in IEEE 1722-2016 Table 5 */
+#define MAAP_SUBTYPE 0xFE /**< AVTP MAAP subtype - Defined in IEEE 1722-2016 Table 6 */
 #define MAAP_PKT_SIZE 42  /**< Number of bytes for a raw MAAP Ethernet packet */
 
 /** MAAP Range States */

@@ -29,13 +29,12 @@ typedef struct maap_packet {
   uint64_t DA;
   uint64_t SA;
   uint16_t Ethertype;
-  uint8_t CD;
   uint16_t subtype;
   uint8_t SV;
   uint8_t version;
   uint8_t message_type;
   uint8_t status;
-  uint16_t MAAP_data_length;
+  uint16_t control_data_length;
   uint64_t stream_id;
   uint64_t requested_start_address;
   uint16_t requested_count;
@@ -58,13 +57,12 @@ void dump_packed_packet(maap_packet_t *packet) {
   printf("DA: %012llx\n", (unsigned long long)packet->DA);
   printf("SA: %012llx\n", (unsigned long long)packet->SA);
   printf("Ethertype: 0x%04x\n", packet->Ethertype);
-  printf("CD: %d\n", packet->CD);
   printf("subtype: 0x%02x\n", packet->subtype);
   printf("SV: %d\n", packet->SV);
   printf("version: %d\n", packet->version);
   printf("message_type: %d\n", packet->message_type);
   printf("status: %d\n", packet->status);
-  printf("MAAP_data_length: %d\n", packet->MAAP_data_length);
+  printf("control_data_length: %d\n", packet->control_data_length);
   printf("stream_id: %016llx\n", (unsigned long long)packet->stream_id);
   printf("requested_start_address: %012llx\n", (unsigned long long)packet->requested_start_address);
   printf("requested_count: %d\n", packet->requested_count);
@@ -80,15 +78,14 @@ int unpack_maap(maap_packet_t *packet, uint8_t *stream) {
   stream += 6;
   packet->Ethertype = be16toh(*(uint16_t *)stream);
   stream += 2;
-  packet->CD = (*stream & 0x80) >> 7;
-  packet->subtype = *stream & 0x7f;
+  packet->subtype = *stream;
   stream++;
   packet->SV = (*stream & 0x80) >> 7;
   packet->version = (*stream & 0x70) >> 4;
   packet->message_type = *stream & 0x0f;
   stream++;
   packet->status = (*stream & 0xf8) >> 3;
-  packet->MAAP_data_length = be16toh(*(uint16_t *)stream) & 0x07ff;
+  packet->control_data_length = be16toh(*(uint16_t *)stream) & 0x07ff;
   stream += 2;
   packet->stream_id = be64toh(*(uint64_t *)stream);
   stream += 8;
@@ -109,13 +106,13 @@ int pack_maap(maap_packet_t *packet, uint8_t *stream) {
   stream += 6;
   *(uint16_t *)stream = htobe16(packet->Ethertype);
   stream += 2;
-  *stream = (packet->CD << 7) | (packet->subtype & 0x7f);
+  *stream = packet->subtype;
   stream++;
   *stream = (packet->SV << 7) | ((packet->version & 0x07) << 4) |
     (packet->message_type & 0x0f);
   stream++;
   *(uint16_t *)stream = htobe16(((packet->status & 0x001f) << 11) |
-                                (packet->MAAP_data_length & 0x07ff));
+                                (packet->control_data_length & 0x07ff));
   stream += 2;
   *(uint64_t *)stream = htobe64(packet->stream_id);
   stream += 8;
