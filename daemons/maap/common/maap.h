@@ -111,7 +111,9 @@ void maap_deinit_client(Maap_Client *mc);
  * Reserve a block of addresses, in support of a MAAP_CMD_RESERVE command.
  *
  * @note This call starts the reservation process.
- * A MAAP_NOTIFY_ACQUIRED notification will be sent when the process is complete.
+ * One or more MAAP_NOTIFY_ACQUIRING notifications may be sent during the process.
+ * A MAAP_NOTIFY_ACQUIRED notification will be sent when the process is complete
+ * (either succeeded or failed).
  *
  * @param mc Pointer to the Maap_Client structure to use
  * @param sender Sender information pointer used to track the entity requesting the command
