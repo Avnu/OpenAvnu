@@ -135,6 +135,19 @@ static int inform_initialized(Maap_Client *mc, const void *sender, Maap_Notify_E
   return 0;
 }
 
+static int inform_acquiring(Maap_Client *mc, Range *range) {
+  Maap_Notify note;
+
+  note.kind = MAAP_NOTIFY_ACQUIRING;
+  note.id = range->id;
+  note.start = get_start_address(mc, range);
+  note.count = get_count(mc, range);
+  note.result = MAAP_NOTIFY_ERROR_NONE;
+
+  add_notify(mc, range->sender, &note);
+  return 0;
+}
+
 static int inform_acquired(Maap_Client *mc, Range *range, Maap_Notify_Error result) {
   Maap_Notify note;
 
@@ -148,11 +161,11 @@ static int inform_acquired(Maap_Client *mc, Range *range, Maap_Notify_Error resu
   return 0;
 }
 
-static int inform_not_acquired(Maap_Client *mc, const void *sender, int range_size, Maap_Notify_Error result) {
+static int inform_not_acquired(Maap_Client *mc, const void *sender, int id, int range_size, Maap_Notify_Error result) {
   Maap_Notify note;
 
   note.kind = MAAP_NOTIFY_ACQUIRED;
-  note.id = -1;
+  note.id = id;
   note.start = 0;
   note.count = range_size;
   note.result = result;
@@ -280,7 +293,7 @@ void print_notify(Maap_Notify *mn)
     printf("Error:  The MAAP reservation is not available, or yield cannot allocate a\n" "replacement block.  Try again with a smaller address block size.\n");
     break;
   case MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID:
-    printf("Error:  The MAAP reservation ID is not valid, so cannot be released.\n");
+    printf("Error:  The MAAP reservation ID is not valid, so cannot be released or report\n" "its status.\n");
     break;
   case MAAP_NOTIFY_ERROR_OUT_OF_MEMORY:
     printf("Error:  The MAAP application is out of memory.\n");
@@ -308,6 +321,17 @@ void print_notify(Maap_Notify *mn)
                (unsigned int) mn->count);
     }
     break;
+  case MAAP_NOTIFY_ACQUIRING:
+    if (mn->result == MAAP_NOTIFY_ERROR_NONE) {
+      printf("Address range %d querying:  0x%012llx-0x%012llx (Size %d)\n",
+             mn->id,
+             (unsigned long long) mn->start,
+             (unsigned long long) mn->start + mn->count - 1,
+             mn->count);
+    } else {
+      printf("Unknown address range %d acquisition error\n", mn->id);
+    }
+    break;
   case MAAP_NOTIFY_ACQUIRED:
     if (mn->result == MAAP_NOTIFY_ERROR_NONE) {
       printf("Address range %d acquired:  0x%012llx-0x%012llx (Size %d)\n",
@@ -315,6 +339,9 @@ void print_notify(Maap_Notify *mn)
              (unsigned long long) mn->start,
              (unsigned long long) mn->start + mn->count - 1,
              mn->count);
+    } else if (mn->id != -1) {
+      printf("Address range %d of size %d not acquired\n",
+             mn->id, mn->count);
     } else {
       printf("Address range of size %d not acquired\n",
              mn->count);
@@ -531,19 +558,19 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
 
   if (!mc->initialized) {
     printf("Reserve not allowed, as MAAP not initialized\n");
-    inform_not_acquired(mc, sender, length, MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION);
+    inform_not_acquired(mc, sender, -1, length, MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION);
     return -1;
   }
 
   if (length > 0xFFFF || length > mc->range_len) {
     /* Range size cannot be more than 16 bits in size, due to the MAAP packet format */
-    inform_not_acquired(mc, sender, length, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+    inform_not_acquired(mc, sender, -1, length, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
     return -1;
   }
 
   range = malloc(sizeof(Range));
   if (range == NULL) {
-    inform_not_acquired(mc, sender, length, MAAP_NOTIFY_ERROR_OUT_OF_MEMORY);
+    inform_not_acquired(mc, sender, -1, length, MAAP_NOTIFY_ERROR_OUT_OF_MEMORY);
     return -1;
   }
 
@@ -560,15 +587,16 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
   if (assign_interval(mc, range, length) < 0)
   {
     /* Cannot find any available intervals of the requested size. */
-    inform_not_acquired(mc, sender, length, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+    inform_not_acquired(mc, sender, -1, length, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
     free(range);
     return -1;
   }
 
-  printf("Requested address range, id %d\n", id);
 #ifdef DEBUG_NEGOTIATE_MSG
+  printf("Requested address range, id %d\n", id);
   printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, range), get_end_address(mc, range));
 #endif
+  inform_acquiring(mc, range);
 
   send_probe(mc, range);
   schedule_timer(mc, range);
@@ -589,7 +617,7 @@ int maap_release_range(Maap_Client *mc, const void *sender, int id) {
 
   range = mc->timer_queue;
   while (range) {
-    if (range->id == id && range->state == MAAP_STATE_DEFENDING) {
+    if (range->id == id && range->state != MAAP_STATE_RELEASED) {
       inform_released(mc, sender, id, range, MAAP_NOTIFY_ERROR_NONE);
       if (sender != range->sender)
       {
@@ -738,7 +766,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
         if (assign_interval(mc, range, range_size) < 0) {
           /* No interval is available, so stop probing and report an error. */
           printf("Unable to find an available address block to probe\n");
-          inform_not_acquired(mc, range->sender, range_size, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+          inform_not_acquired(mc, range->sender, range->id, range_size, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
           remove_range_interval(&mc->ranges, iv);
           /* memory will be freed the next time its timer elapses */
           range->state = MAAP_STATE_RELEASED;
@@ -747,6 +775,8 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
           printf("Selected new address range 0x%012llx-0x%012llx\n",
                  get_start_address(mc, range), get_end_address(mc, range));
 #endif
+          inform_acquiring(mc, range);
+
           remove_range_interval(&mc->ranges, iv);
           range->counter = MAAP_PROBE_RETRANSMITS;
           send_probe(mc, range);
@@ -799,10 +829,11 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
             inform_yielded(mc, range, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
             free(new_range);
           } else {
-            printf("Requested replacement address range, id %d\n", new_range->id);
 #ifdef DEBUG_NEGOTIATE_MSG
+            printf("Requested replacement address range, id %d\n", new_range->id);
             printf("Selected replacement address range 0x%012llx-0x%012llx\n", get_start_address(mc, new_range), get_end_address(mc, new_range));
 #endif
+            inform_acquiring(mc, range);
 
             /* Send a probe for the replacement address range to try. */
             send_probe(mc, new_range);

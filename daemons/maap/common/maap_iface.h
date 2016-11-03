@@ -40,7 +40,8 @@ typedef struct {
 typedef enum {
   MAAP_NOTIFY_INVALID = 0,
   MAAP_NOTIFY_INITIALIZED, /**< Notification sent in response to a #MAAP_CMD_INIT command */
-  MAAP_NOTIFY_ACQUIRED,    /**< Notification sent in response to a #MAAP_CMD_RESERVE command */
+  MAAP_NOTIFY_ACQUIRING,   /**< Notification sent in response to a #MAAP_CMD_RESERVE command indicating that the reservation is in progress */
+  MAAP_NOTIFY_ACQUIRED,    /**< Notification sent in response to a #MAAP_CMD_RESERVE command indicating that the reservation is complete (either succeeded or failed) */
   MAAP_NOTIFY_RELEASED,    /**< Notification sent in response to a #MAAP_CMD_RELEASE command */
   MAAP_NOTIFY_STATUS,      /**< Notification sent in response to a #MAAP_CMD_STATUS command */
   MAAP_NOTIFY_YIELDED,     /**< Notification that an address block was yielded to another device on the network */
@@ -53,7 +54,7 @@ typedef enum {
   MAAP_NOTIFY_ERROR_ALREADY_INITIALIZED,     /**< MAAP is already initialized, so the values cannot be changed */
   MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE,   /**< The MAAP reservation is not available, or yield cannot allocate a replacement block.
                                                 * Try again with a smaller address block size. */
-  MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID,      /**< The MAAP reservation ID is not valid, so cannot be released */
+  MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID,      /**< The MAAP reservation ID is not valid, so cannot be released or report its status */
   MAAP_NOTIFY_ERROR_OUT_OF_MEMORY,           /**< The MAAP application is out of memory */
   MAAP_NOTIFY_ERROR_INTERNAL,                /**< The MAAP application experienced an internal error */
 } Maap_Notify_Error;
@@ -65,12 +66,12 @@ typedef enum {
  */
 typedef struct {
   Maap_Notify_Tag kind;     /**< Type of notification being returned */
-  int32_t  id;              /**< ID assigned for #MAAP_NOTIFY_ACQUIRED, or used for #MAAP_NOTIFY_RELEASED,
+  int32_t  id;              /**< ID assigned for #MAAP_NOTIFY_ACQUIRING and #MAAP_NOTIFY_ACQUIRED, or used for #MAAP_NOTIFY_RELEASED,
                              * #MAAP_NOTIFY_STATUS, or #MAAP_NOTIFY_YIELDED */
-  uint64_t start;           /**< Address range start for #MAAP_NOTIFY_INITIALIZED, or address block start for #MAAP_NOTIFY_ACQUIRED,
-                             * #MAAP_NOTIFY_RELEASED, #MAAP_NOTIFY_STATUS, or #MAAP_NOTIFY_YIELDED */
-  uint32_t count;           /**< Address range size for #MAAP_NOTIFY_INITIALIZED, or address block size for #MAAP_NOTIFY_ACQUIRED,
-                             * #MAAP_NOTIFY_RELEASED, #MAAP_NOTIFY_STATUS, or #MAAP_NOTIFY_YIELDED */
+  uint64_t start;           /**< Address range start for #MAAP_NOTIFY_INITIALIZED, or address block start for #MAAP_NOTIFY_ACQUIRING,
+                             * #MAAP_NOTIFY_ACQUIRED, #MAAP_NOTIFY_RELEASED, #MAAP_NOTIFY_STATUS, or #MAAP_NOTIFY_YIELDED */
+  uint32_t count;           /**< Address range size for #MAAP_NOTIFY_INITIALIZED, or address block size for #MAAP_NOTIFY_ACQUIRING,
+                             * #MAAP_NOTIFY_ACQUIRED, #MAAP_NOTIFY_RELEASED, #MAAP_NOTIFY_STATUS, or #MAAP_NOTIFY_YIELDED */
   Maap_Notify_Error result; /**< #MAAP_NOTIFY_ERROR_NONE if the command succeeded, or another value if an error occurred */
 } Maap_Notify;
 

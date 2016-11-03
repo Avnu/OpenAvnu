@@ -151,6 +151,12 @@ TEST(maap_group, Reserve_Release)
 	id = maap_reserve_range(&mc, &sender2_in, range_size - 4);
 	CHECK(id > 0);
 
+	/* Verify that we get an acquiring notification. */
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	CHECK(sender_out == &sender2_in);
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
 	/* Verify that the reservation does not yet have a status */
 	maap_range_status(&mc, &sender1_in, id);
 	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
@@ -341,6 +347,10 @@ TEST(maap_group, Probing_vs_Probes)
 	/* We should not have a notification yet. */
 	CHECK(sender_out == NULL);
 
+	/* Handle the Acquiring message. */
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
+
 	/* Fake a Probe packet we must defer to after the third probe. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, 3, -1, -1, TEST_REMOTE_ADDR_LOWER, 1);
 	LONGS_EQUAL(3, probe_packets_detected);
@@ -348,6 +358,10 @@ TEST(maap_group, Probing_vs_Probes)
 
 	/* We should not have a notification yet. */
 	CHECK(sender_out == NULL);
+
+	/* Handle the Acquiring message. */
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
 
 	/* Fake a Probe packet we should ignore after the second probe. */
 	/* This attempt should succeed. */
@@ -407,6 +421,10 @@ TEST(maap_group, Probing_vs_Announces)
 	/* We should not have a notification yet. */
 	CHECK(sender_out == NULL);
 
+	/* Handle the Acquiring message. */
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
+
 	/* Fake an Announce packet after the third probe. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, 3, -1, TEST_REMOTE_ADDR_LOWER, 1);
 	LONGS_EQUAL(3, probe_packets_detected);
@@ -414,6 +432,10 @@ TEST(maap_group, Probing_vs_Announces)
 
 	/* We should not have a notification yet. */
 	CHECK(sender_out == NULL);
+
+	/* Handle the Acquiring message. */
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
 
 	/* Allow this attempt to succeed. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
@@ -472,6 +494,10 @@ TEST(maap_group, Probing_vs_Defends)
 	/* We should not have a notification yet. */
 	CHECK(sender_out == NULL);
 
+	/* Handle the Acquiring message. */
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
+
 	/* Fake a Defend packet after the third probe. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, 3, TEST_REMOTE_ADDR_HIGHER, 1);
 	LONGS_EQUAL(3, probe_packets_detected);
@@ -479,6 +505,10 @@ TEST(maap_group, Probing_vs_Defends)
 
 	/* We should not have a notification yet. */
 	CHECK(sender_out == NULL);
+
+	/* Handle the Acquiring message. */
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
 
 	/* Allow this attempt to succeed. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
@@ -708,6 +738,11 @@ TEST(maap_group, Defending_vs_Announces)
 	/* Verify that we yielded our range, and did not defend it. */
 	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
 	CHECK(sender_out == &sender2_in);
+	if (mn.kind == MAAP_NOTIFY_ACQUIRING) {
+		/* Skip over the acquiring notification. */
+		LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+		CHECK(sender_out == &sender2_in);
+	}
 	LONGS_EQUAL(MAAP_NOTIFY_YIELDED, mn.kind);
 	LONGS_EQUAL(id, mn.id);
 	LONGS_EQUAL(range_reserved_start, mn.start);
@@ -822,6 +857,11 @@ TEST(maap_group, Defending_vs_Defends)
 	/* Verify that we yielded our range, and did not defend it. */
 	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
 	CHECK(sender_out == &sender2_in);
+	if (mn.kind == MAAP_NOTIFY_ACQUIRING) {
+		/* Skip over the acquiring notification. */
+		LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+		CHECK(sender_out == &sender2_in);
+	}
 	LONGS_EQUAL(MAAP_NOTIFY_YIELDED, mn.kind);
 	LONGS_EQUAL(id, mn.id);
 	LONGS_EQUAL(range_reserved_start, mn.start);
@@ -1060,11 +1100,19 @@ TEST(maap_group, Multiple_Conflicts_Defend)
 	/* We should have a yield notification and announce notification for each reservation. */
 	for (i = 0; i < num_reservations; ++i) {
 		LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+		while (mn.kind == MAAP_NOTIFY_ACQUIRING) {
+			/* Ignore any acquiring messages. */
+			LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+		}
 		LONGS_EQUAL(MAAP_NOTIFY_YIELDED, mn.kind);
 		LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
 	}
 	for (i = 0; i < num_reservations; ++i) {
 		LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+		while (mn.kind == MAAP_NOTIFY_ACQUIRING) {
+			/* Ignore any acquiring messages. */
+			LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+		}
 		LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
 		LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
 	}
@@ -1085,6 +1133,7 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 	int countdown;
 	void *packet_data;
 	MAAP_Packet packet_contents;
+	int acquiring_notification = 0;
 
 	/* Handle any packets generated during the activity.
 	 * Stop once we are notified of a result. */
@@ -1178,8 +1227,16 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 		}
 
 		if (get_notify(p_mc, p_sender_out, p_mn)) {
-			/* We received a notification.  Stop processing so it can be evaluated by the caller. */
-			break;
+			if (p_mn->kind == MAAP_NOTIFY_ACQUIRING) {
+				/* This is a MAAP_NOTIFY_ACQUIRING notification.  We can ignore this once early on. */
+				CHECK(!acquiring_notification);
+				CHECK(*p_probe_packets_detected <= 1);
+				acquiring_notification++;
+				*p_sender_out = NULL;
+			} else {
+				/* We received a notification.  Stop processing so it can be evaluated by the caller. */
+				break;
+			}
 		}
 
 		/* Verify that maap_get_delay_to_next_timer() returns an appropriate time delay. */
