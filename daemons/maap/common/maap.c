@@ -216,7 +216,6 @@ static int inform_yielded(Maap_Client *mc, Range *range, int result) {
 static void start_timer(Maap_Client *mc) {
 
   if (mc->timer_queue) {
-
     Time_setTimer(mc->timer, &mc->timer_queue->next_act_time);
   }
 }
@@ -246,7 +245,6 @@ static Interval *remove_range_interval(Interval **root, Interval *node) {
 
 
 void add_notify(Maap_Client *mc, const void *sender, const Maap_Notify *mn) {
-  /** @todo Include some preallocated instances (such as in maap_net.c) to reduce the number of mallocs and frees */
   Maap_Notify_List *tmp, *li = calloc(1, sizeof (Maap_Notify_List));
   memcpy(&li->notify, mn, sizeof (Maap_Notify));
   li->sender = sender;
@@ -475,7 +473,8 @@ int schedule_timer(Maap_Client *mc, Range *range) {
 
 #ifdef DEBUG_TIMER_MSG
   printf("schedule_timer called at:  ");
-  Time_dump(&range->next_act_time);
+  Time_setFromMonotonicTimer(&ts);
+  Time_dump(&ts);
   printf("\n");
 #endif
 
@@ -489,9 +488,9 @@ int schedule_timer(Maap_Client *mc, Range *range) {
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
 #ifdef DEBUG_TIMER_MSG
-    printf("\nExpiration time is:  ");
+    printf("Expiration time is:  ");
     Time_dump(&range->next_act_time);
-    printf("\n\n");
+    printf("\n");
 #endif
   } else if (range->state == MAAP_STATE_DEFENDING) {
     ns = MAAP_ANNOUNCE_INTERVAL_BASE + rand_ms(MAAP_ANNOUNCE_INTERVAL_VARIATION);
@@ -503,9 +502,9 @@ int schedule_timer(Maap_Client *mc, Range *range) {
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
 #ifdef DEBUG_TIMER_MSG
-    printf("\nExpiration time is:  ");
+    printf("Expiration time is:  ");
     Time_dump(&range->next_act_time);
-    printf("\n\n");
+    printf("\n");
 #endif
   }
 
@@ -518,8 +517,8 @@ int schedule_timer(Maap_Client *mc, Range *range) {
     prev_rp = mc->timer_queue;
     rp = prev_rp->next_timer;
     while (rp && rp != range) {
-    	prev_rp = rp;
-    	rp = rp->next_timer;
+      prev_rp = rp;
+      rp = rp->next_timer;
     }
     if (rp) {
       /* Range was found.  Remove it. */
