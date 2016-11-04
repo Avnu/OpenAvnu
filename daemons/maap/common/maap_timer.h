@@ -67,7 +67,7 @@ void Time_add(Time *a, const Time *b);
  * @param b Time "b" to compare.
  *
  * @return The "a" time in nanoseconds subtracted from the "b" time in nanoseconds.
- * If "b" is greater than "a", the returned value will be negative.
+ * If "a" is greater than "b", the returned value will be negative.
  */
 int64_t Time_diff(const Time *a, const Time *b);
 
