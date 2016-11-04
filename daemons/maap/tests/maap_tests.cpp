@@ -20,7 +20,7 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 	const void **p_sender_out,
 	int *p_probe_packets_detected, int *p_announce_packets_detected,
 	int send_probe /* = -1 */, int send_announce /* = -1 */, int send_defend /* = -1 */,
-	uint64_t remote_addr, int stop_after_send);
+	uint64_t remote_addr, int stop_after_probe);
 
 
 } TEST_GROUP(maap_group)
@@ -352,7 +352,7 @@ TEST(maap_group, Probing_vs_Probes)
 	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
 
 	/* Fake a Probe packet we must defer to after the third probe. */
-	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, 3, -1, -1, TEST_REMOTE_ADDR_LOWER, 1);
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, 3, -1, -1, TEST_REMOTE_ADDR_LOWER, 3);
 	LONGS_EQUAL(3, probe_packets_detected);
 	LONGS_EQUAL(0, announce_packets_detected);
 
@@ -426,7 +426,7 @@ TEST(maap_group, Probing_vs_Announces)
 	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
 
 	/* Fake an Announce packet after the third probe. */
-	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, 3, -1, TEST_REMOTE_ADDR_LOWER, 1);
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, 3, -1, TEST_REMOTE_ADDR_LOWER, 3);
 	LONGS_EQUAL(3, probe_packets_detected);
 	LONGS_EQUAL(0, announce_packets_detected);
 
@@ -499,7 +499,7 @@ TEST(maap_group, Probing_vs_Defends)
 	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRING, mn.kind);
 
 	/* Fake a Defend packet after the third probe. */
-	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, 3, TEST_REMOTE_ADDR_HIGHER, 1);
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, 3, TEST_REMOTE_ADDR_HIGHER, 3);
 	LONGS_EQUAL(3, probe_packets_detected);
 	LONGS_EQUAL(0, announce_packets_detected);
 
@@ -884,6 +884,158 @@ TEST(maap_group, Defending_vs_Defends)
 	maap_deinit_client(&mc);
 }
 
+TEST(maap_group, Verify_Timing)
+{
+	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
+	const uint32_t range_size = MAAP_DYNAMIC_POOL_SIZE;
+	Maap_Client mc;
+	Maap_Notify mn;
+	const int sender_in = 1;
+	const void *sender_out;
+	int id;
+	int probe_packets_detected, announce_packets_detected;
+	MAAP_Packet announce_packet;
+	uint8_t announce_buffer[MAAP_NET_BUFFER_SIZE];
+	void *packet_data;
+	MAAP_Packet packet_contents;
+	Time previous_time, current_time;
+
+	/* Initialize the Maap_Client structure */
+	memset(&mc, 0, sizeof(Maap_Client));
+	mc.dest_mac = TEST_DEST_ADDR;
+	mc.src_mac = TEST_SRC_ADDR;
+
+	/* Initialize the range */
+	/* We should receive exactly one notification of the initialization. */
+	LONGS_EQUAL(0, maap_init_client(&mc, &sender_in, range_base_addr, range_size));
+	sender_out = NULL;
+	memset(&mn, 0, sizeof(Maap_Notify));
+	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+
+	/* Reserve a block of addresses. */
+	id = maap_reserve_range(&mc, &sender_in, 10);
+	CHECK(id > 0);
+
+	/* Verify the timing between Probes when interrupted. */
+	for (int i = 0; i < 100; ++i)
+	{
+		/* Wait for three probes to be sent.
+		 * Probe timing will be tested by verify_sent_packets. */
+		verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 3);
+		LONGS_EQUAL(3, probe_packets_detected);
+		LONGS_EQUAL(0, announce_packets_detected);
+		LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+		/* Wait up to 500 ms */
+		Time_increaseNanos((random() % MAAP_PROBE_INTERVAL_BASE) * 1000000LL);
+
+		/* Send an announce that conflicts with the current reservation. */
+		init_packet(&announce_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
+		announce_packet.message_type = MAAP_ANNOUNCE;
+		announce_packet.requested_start_address = mn.start;
+		announce_packet.requested_count = mn.count;
+		LONGS_EQUAL(0, pack_maap(&announce_packet, announce_buffer));
+		maap_handle_packet(&mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
+	}
+
+
+	/* Verify the timing between Probes when reservation is successful. */
+	for (int i = 0; i < 100; ++i)
+	{
+		/* Wait for the previous attempt to succeed.
+		 * Probe timing will be tested by verify_sent_packets. */
+		verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
+		LONGS_EQUAL(4, probe_packets_detected);
+		LONGS_EQUAL(1, announce_packets_detected);
+
+		/* Verify that the notification indicated a successful reservation. */
+		LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+		LONGS_EQUAL(id, mn.id);
+		CHECK(mn.start >= range_base_addr);
+		CHECK(mn.start + mn.count - 1 <= range_base_addr + range_size - 1);
+		LONGS_EQUAL(10, mn.count);
+		LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+		LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+		/* Wait up to 30000 ms */
+		Time_increaseNanos((random() % MAAP_ANNOUNCE_INTERVAL_BASE) * 1000000LL);
+
+		/* Send an announce that conflicts with the current reservation. */
+		init_packet(&announce_packet, TEST_DEST_ADDR, TEST_REMOTE_ADDR_LOWER);
+		announce_packet.message_type = MAAP_ANNOUNCE;
+		announce_packet.requested_start_address = mn.start;
+		announce_packet.requested_count = mn.count;
+		LONGS_EQUAL(0, pack_maap(&announce_packet, announce_buffer));
+		maap_handle_packet(&mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
+
+		/* Verify that we yielded our range, and did not defend it. */
+		LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+		if (mn.kind == MAAP_NOTIFY_ACQUIRING) {
+			/* Skip over the acquiring notification. */
+			LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
+		}
+		LONGS_EQUAL(MAAP_NOTIFY_YIELDED, mn.kind);
+		LONGS_EQUAL(id, mn.id);
+		LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	}
+
+
+	/* Wait for the reservation to succeed. */
+	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
+	LONGS_EQUAL(4, probe_packets_detected);
+	LONGS_EQUAL(1, announce_packets_detected);
+	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
+	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+
+	/* Record the time of the announcement. */
+	Time_setFromMonotonicTimer(&previous_time);
+
+	/* Verify the timing between Announcements */
+	for (int i = 0; i < 100; ++i)
+	{
+		/* Wait for the next announcement. */
+		Time_increaseNanos(maap_get_delay_to_next_timer(&mc));
+		LONGS_EQUAL(0, maap_handle_timer(&mc));
+		LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+		packet_data = Net_getNextQueuedPacket(mc.net);
+		for (int j = 0; j < 100 && packet_data == NULL; ++j) {
+			/* Timer expiration could be to free a reservation.  Keep waiting. */
+			Time_increaseNanos(maap_get_delay_to_next_timer(&mc));
+			LONGS_EQUAL(0, maap_handle_timer(&mc));
+			LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
+			packet_data = Net_getNextQueuedPacket(mc.net);
+		}
+		CHECK(packet_data != NULL);
+		LONGS_EQUAL(0, unpack_maap(&packet_contents, (const uint8_t *) packet_data));
+		Net_freeQueuedPacket(mc.net, packet_data);
+		CHECK(packet_contents.message_type == MAAP_ANNOUNCE);
+
+		/* Get the current time. */
+		Time_setFromMonotonicTimer(&current_time);
+
+		/* Determine the minimum time from the last announce. */
+		Time time_min;
+		Time_setFromNanos(&time_min, MAAP_ANNOUNCE_INTERVAL_BASE * 1000000LL);
+		Time_add(&time_min, &previous_time);
+		CHECK(Time_cmp(&time_min, &current_time) <= 0);
+
+		/* Determine the maximum time from the last announce. */
+		Time time_max;
+		Time_setFromNanos(&time_max, (MAAP_ANNOUNCE_INTERVAL_BASE + MAAP_ANNOUNCE_INTERVAL_VARIATION) * 1000000LL);
+		Time_add(&time_max, &previous_time);
+		CHECK(Time_cmp(&current_time, &time_max) <= 0);
+
+		/* Save the current time for the next comparison. */
+		Time_setFromMonotonicTimer(&previous_time);
+	}
+
+	/* We are done with the Maap_Client structure */
+	maap_deinit_client(&mc);
+}
+
 TEST(maap_group, Ignore_Versioning)
 {
 	const uint64_t range_base_addr = MAAP_DYNAMIC_POOL_BASE;
@@ -1128,11 +1280,12 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 	const void **p_sender_out,
 	int *p_probe_packets_detected, int *p_announce_packets_detected,
 	int send_probe /* = -1 */, int send_announce /* = -1 */, int send_defend /* = -1 */,
-	uint64_t remote_addr, int stop_after_send)
+	uint64_t remote_addr, int stop_after_probe)
 {
 	int countdown;
 	void *packet_data;
 	MAAP_Packet packet_contents;
+	Time probe_time[4];
 	int acquiring_notification = 0;
 
 	/* Handle any packets generated during the activity.
@@ -1153,6 +1306,24 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 			{
 				CHECK(*p_probe_packets_detected < 4);
 				LONGS_EQUAL(0, *p_announce_packets_detected);
+
+				/* Save and test the timing between probes. */
+				Time_setFromMonotonicTimer(&(probe_time[*p_probe_packets_detected]));
+				if (*p_probe_packets_detected > 0) {
+
+					/* Determine the minimum time from the last probe. */
+					Time time_min;
+					Time_setFromNanos(&time_min, MAAP_PROBE_INTERVAL_BASE * 1000000LL);
+					Time_add(&time_min, &probe_time[*p_probe_packets_detected - 1]);
+					CHECK(Time_cmp(&time_min, &(probe_time[*p_probe_packets_detected])) <= 0);
+
+					/* Determine the maximum time from the last probe. */
+					Time time_max;
+					Time_setFromNanos(&time_max, (MAAP_PROBE_INTERVAL_BASE + MAAP_PROBE_INTERVAL_VARIATION) * 1000000LL);
+					Time_add(&time_max, &probe_time[*p_probe_packets_detected - 1]);
+					CHECK(Time_cmp(&(probe_time[*p_probe_packets_detected]), &time_max) <= 0);
+				}
+
 				(*p_probe_packets_detected)++;
 				/* printf("Probe packet sent (%d)\n", *p_probe_packets_detected); */
 
@@ -1169,9 +1340,6 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 					LONGS_EQUAL(0, pack_maap(&probe_packet, probe_buffer));
 					maap_handle_packet(p_mc, probe_buffer, MAAP_NET_BUFFER_SIZE);
 					/* printf("Probe packet received\n"); */
-
-					/* If requested, stop the processing at this point so the caller can see what happens next. */
-					if (stop_after_send) { return; }
 				}
 
 				if (*p_probe_packets_detected == send_announce)
@@ -1187,9 +1355,6 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 					LONGS_EQUAL(0, pack_maap(&announce_packet, announce_buffer));
 					maap_handle_packet(p_mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
 					/* printf("Announce packet received\n"); */
-
-					/* If requested, stop the processing at this point so the caller can see what happens next. */
-					if (stop_after_send) { return; }
 				}
 
 				if (*p_probe_packets_detected == send_defend)
@@ -1207,10 +1372,10 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 					LONGS_EQUAL(0, pack_maap(&defend_packet, defend_buffer));
 					maap_handle_packet(p_mc, defend_buffer, MAAP_NET_BUFFER_SIZE);
 					/* printf("Defend packet received\n"); */
-
-					/* If requested, stop the processing at this point so the caller can see what happens next. */
-					if (stop_after_send) { return; }
 				}
+
+				/* If requested, stop the processing at this point so the caller can see what happens next. */
+				if (*p_probe_packets_detected == stop_after_probe) { return; }
 			}
 			else if (packet_contents.message_type == MAAP_ANNOUNCE)
 			{
@@ -1239,11 +1404,8 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 			}
 		}
 
-		/* Verify that maap_get_delay_to_next_timer() returns an appropriate time delay. */
-		int64_t next_delay = maap_get_delay_to_next_timer(p_mc);
-		CHECK(next_delay >= MAAP_PROBE_INTERVAL_BASE * 1000000ull);
-		CHECK(next_delay <= (MAAP_PROBE_INTERVAL_BASE + MAAP_PROBE_INTERVAL_VARIATION) * 1000000ull);
-		Time_increaseNanos(next_delay);
+		/* Wait for the next event. */
+		Time_increaseNanos(maap_get_delay_to_next_timer(p_mc));
 		LONGS_EQUAL(0, maap_handle_timer(p_mc));
 	}
 	CHECK(countdown > 0);

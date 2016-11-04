@@ -216,6 +216,7 @@ static int inform_yielded(Maap_Client *mc, Range *range, int result) {
 static void start_timer(Maap_Client *mc) {
 
   if (mc->timer_queue) {
+
     Time_setTimer(mc->timer, &mc->timer_queue->next_act_time);
   }
 }
@@ -245,6 +246,7 @@ static Interval *remove_range_interval(Interval **root, Interval *node) {
 
 
 void add_notify(Maap_Client *mc, const void *sender, const Maap_Notify *mn) {
+  /** @todo Include some preallocated instances (such as in maap_net.c) to reduce the number of mallocs and frees */
   Maap_Notify_List *tmp, *li = calloc(1, sizeof (Maap_Notify_List));
   memcpy(&li->notify, mn, sizeof (Maap_Notify));
   li->sender = sender;
@@ -458,13 +460,24 @@ void maap_deinit_client(Maap_Client *mc) {
 }
 
 int rand_ms(int variation) {
-  return random() % variation;
+  /* Return a value greater than 0 and less than the variation value.
+   * This gives us a small amount of leniency -- just in case.  */
+  return random() % (variation - 1) + 1;
 }
 
 int schedule_timer(Maap_Client *mc, Range *range) {
-  Range *rp;
+  Range *rp, *prev_rp;
   unsigned long long int ns;
   Time ts;
+
+  assert(mc);
+  assert(range);
+
+#ifdef DEBUG_TIMER_MSG
+  printf("schedule_timer called at:  ");
+  Time_dump(&range->next_act_time);
+  printf("\n");
+#endif
 
   if (range->state == MAAP_STATE_PROBING) {
     ns = MAAP_PROBE_INTERVAL_BASE + rand_ms(MAAP_PROBE_INTERVAL_VARIATION);
@@ -473,15 +486,7 @@ int schedule_timer(Maap_Client *mc, Range *range) {
     printf("Scheduling probe timer for %llu ns from now\n", ns);
 #endif
     Time_setFromNanos(&ts, ns);
-#ifdef DEBUG_TIMER_MSG
-    printf("Which is a timespec of:  ");
-    Time_dump(&ts);
-#endif
     Time_setFromMonotonicTimer(&range->next_act_time);
-#ifdef DEBUG_TIMER_MSG
-    printf("\nCurrent time is:  ");
-    Time_dump(&range->next_act_time);
-#endif
     Time_add(&range->next_act_time, &ts);
 #ifdef DEBUG_TIMER_MSG
     printf("\nExpiration time is:  ");
@@ -498,11 +503,32 @@ int schedule_timer(Maap_Client *mc, Range *range) {
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
 #ifdef DEBUG_TIMER_MSG
+    printf("\nExpiration time is:  ");
     Time_dump(&range->next_act_time);
     printf("\n\n");
 #endif
   }
 
+  /* Remove the range from the timer queue, if it is already in it. */
+  if (mc->timer_queue == range) {
+    /* Range was at the front of the queue. */
+    mc->timer_queue = range->next_timer;
+  } else if (mc->timer_queue) {
+    /* Search the rest of the queue. */
+    prev_rp = mc->timer_queue;
+    rp = prev_rp->next_timer;
+    while (rp && rp != range) {
+    	prev_rp = rp;
+    	rp = rp->next_timer;
+    }
+    if (rp) {
+      /* Range was found.  Remove it. */
+      prev_rp->next_timer = rp->next_timer;
+      rp->next_timer = NULL;
+    }
+  }
+
+  /* Add the range to the timer queue. */
   if (mc->timer_queue == NULL ||
       Time_cmp(&range->next_act_time, &mc->timer_queue->next_act_time) < 0) {
     range->next_timer = mc->timer_queue;
@@ -516,6 +542,23 @@ int schedule_timer(Maap_Client *mc, Range *range) {
     range->next_timer = rp->next_timer;
     rp->next_timer = range;
   }
+
+#ifdef DEBUG_TIMER_MSG
+  /* Perform a sanity test on the timer queue. */
+  {
+    Range *test = mc->timer_queue;
+    int i;
+    for (i = 0; test && i < 100000; ++i) {
+      assert(test->next_timer != test);
+      assert(test->next_timer == NULL || Time_cmp(&test->next_act_time, &test->next_timer->next_act_time) <= 0);
+      test = test->next_timer;
+    }
+    if (test) {
+      fprintf(stderr, "Timer infinite loop detected!\n");
+      assert(0);
+    }
+  }
+#endif
 
   return 0;
 }
@@ -779,7 +822,9 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 
           remove_range_interval(&mc->ranges, iv);
           range->counter = MAAP_PROBE_RETRANSMITS;
+
           send_probe(mc, range);
+          schedule_timer(mc, range);
         }
       }
 
@@ -838,7 +883,6 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
             /* Send a probe for the replacement address range to try. */
             send_probe(mc, new_range);
             schedule_timer(mc, new_range);
-            start_timer(mc);
 
             inform_yielded(mc, range, MAAP_NOTIFY_ERROR_NONE);
           }
@@ -852,6 +896,8 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 
     }
   }
+
+  start_timer(mc);
 
   return 0;
 }
@@ -885,7 +931,7 @@ int maap_handle_timer(Maap_Client *mc) {
   /* Get the current time. */
   Time_setFromMonotonicTimer(&currenttime);
 #ifdef DEBUG_TIMER_MSG
-  printf("Current time is:  ");
+  printf("maap_handle_timer called at:  ");
   Time_dump(&currenttime);
   printf("\n");
 #endif
@@ -939,7 +985,7 @@ int64_t maap_get_delay_to_next_timer(Maap_Client *mc)
 		timeRemaining = Time_remaining(mc->timer);
 	}
 #ifdef DEBUG_TIMER_MSG
-	printf("Next delay:  %lld ns\n\n", timeRemaining);
+	printf("\nTime_remaining:  %lld ns\n\n", timeRemaining);
 #endif
 	return timeRemaining;
 }
