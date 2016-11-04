@@ -61,6 +61,17 @@ int64_t Time_remaining(Timer *timer);
 void Time_add(Time *a, const Time *b);
 
 /**
+ * Returns the difference between the two times in nanoseconds.
+ *
+ * @param a Time "a" to compare.
+ * @param b Time "b" to compare.
+ *
+ * @return The "a" time in nanoseconds subtracted from the "b" time in nanoseconds.
+ * If "b" is greater than "a", the returned value will be negative.
+ */
+int64_t Time_diff(const Time *a, const Time *b);
+
+/**
  * Compare two different time values.
  *
  * @param a First time to compare

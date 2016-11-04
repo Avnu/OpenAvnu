@@ -61,7 +61,7 @@ int64_t Time_remaining(Timer *timer)
 		return -1;
 	}
 
-	return (curr_value.it_value.tv_sec * 1000000000L + curr_value.it_value.tv_nsec);
+	return ((int64_t) curr_value.it_value.tv_sec * 1000000000LL + (int64_t) curr_value.it_value.tv_nsec);
 }
 
 
@@ -73,6 +73,13 @@ void Time_add(Time *a, const Time *b)
     a->tv_sec++;
     a->tv_nsec = a->tv_nsec - 1000000000L;
   }
+}
+
+int64_t Time_diff(const Time *a, const Time *b)
+{
+  int64_t a_ns = (int64_t) a->tv_sec * 1000000000LL + (int64_t) a->tv_nsec;
+  int64_t b_ns = (int64_t) b->tv_sec * 1000000000LL + (int64_t) b->tv_nsec;
+  return b_ns - a_ns;
 }
 
 int  Time_cmp(const Time *a, const Time *b)

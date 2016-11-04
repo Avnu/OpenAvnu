@@ -62,7 +62,7 @@ int64_t Time_remaining(Timer *timer)
   assert(timer->timer_id);
   assert(timer->expires.sec || timer->expires.nsec);
   Time_setFromMonotonicTimer(&timeCurrent);
-  timeRemaining = ((long) timer->expires.sec - (long) timeCurrent.sec) * 1000000000LL + ((long) timer->expires.nsec - (long) timeCurrent.nsec);
+  timeRemaining = ((int64_t) timer->expires.sec - (int64_t) timeCurrent.sec) * 1000000000LL + ((int64_t) timer->expires.nsec - (int64_t) timeCurrent.nsec);
   return (timeRemaining > 0LL ? timeRemaining : 0LL);
 }
 
@@ -70,10 +70,17 @@ void Time_add(Time *a, const Time *b)
 {
   a->sec = a->sec + b->sec;
   a->nsec = a->nsec + b->nsec;
-  if (a->nsec > 1000000000) {
+  if (a->nsec > 1000000000L) {
     a->sec++;
-    a->nsec = a->nsec - 1000000000;
+    a->nsec = a->nsec - 1000000000L;
   }
+}
+
+int64_t Time_diff(const Time *a, const Time *b)
+{
+  int64_t a_ns = (int64_t) a->sec * 1000000000LL + (int64_t) a->nsec;
+  int64_t b_ns = (int64_t) b->sec * 1000000000LL + (int64_t) b->nsec;
+  return b_ns - a_ns;
 }
 
 int  Time_cmp(const Time *a, const Time *b)
@@ -126,5 +133,6 @@ void Time_dump(const Time *t)
 /* Special function used for testing only. */
 void Time_increaseNanos(uint64_t nsec)
 {
+  assert(nsec < 60LL * 1000000000LL);
   s_basetime += nsec;
 }
