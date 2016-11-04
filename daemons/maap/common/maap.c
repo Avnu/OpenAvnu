@@ -458,8 +458,8 @@ void maap_deinit_client(Maap_Client *mc) {
 }
 
 int rand_ms(int variation) {
-  /* Return a value greater than 0 and less than the variation value.
-   * This gives us a small amount of leniency -- just in case.  */
+  /* Return a value between 1 and variation-1, inclusive.
+   * This is to adhere to IEEE 1722-2016 B.3.4.1 and B.3.4.2. */
   return random() % (variation - 1) + 1;
 }
 
