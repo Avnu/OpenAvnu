@@ -169,7 +169,7 @@ void LinuxNetworkInterface::clear_reenable_rx_queue() {
 	}
 }
 
-static void x_readEvent(int sockint, IEEE1588Port *pPort)
+static void x_readEvent(int sockint, IEEE1588Port *pPort, int ifindex)
 {
 	int status;
 	char buf[4096];
@@ -204,11 +204,13 @@ static void x_readEvent(int sockint, IEEE1588Port *pPort)
 
 		if (msgHdr->nlmsg_type == RTM_NEWLINK) {
 			ifi = (struct ifinfomsg *)NLMSG_DATA(msgHdr);
-			if ((ifi->ifi_flags & IFF_RUNNING)) {
-				pPort->processEvent(LINKUP);
-			}
-			else {
-				pPort->processEvent(LINKDOWN);
+			if (ifi->ifi_index == ifindex) {
+				if ((ifi->ifi_flags & IFF_RUNNING)) {
+					pPort->processEvent(LINKUP);
+				}
+				else {
+					pPort->processEvent(LINKDOWN);
+				}
 			}
 		}
 	}
@@ -249,7 +251,7 @@ void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 		if (retval == -1)
 			; // Error on select. We will ignore and keep going
 		else if (retval) {
-			x_readEvent(netLinkSocket, pPort);
+			x_readEvent(netLinkSocket, pPort, ifindex);
 		}
 		else {
 			; // Would be timeout but Won't happen because we wait forever
