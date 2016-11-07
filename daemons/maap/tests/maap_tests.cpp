@@ -1285,7 +1285,7 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 	int countdown;
 	void *packet_data;
 	MAAP_Packet packet_contents;
-	Time probe_time[4];
+	Time probe_time[4], announce_time;
 	int acquiring_notification = 0;
 
 	/* Handle any packets generated during the activity.
@@ -1383,6 +1383,21 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 				LONGS_EQUAL(0, *p_announce_packets_detected);
 				(*p_announce_packets_detected)++;
 				/* printf("Announce packet sent (%d)\n", *p_announce_packets_detected); */
+
+				/* Save and test the timing between the last probe and the announce. */
+				Time_setFromMonotonicTimer(&announce_time);
+
+				/* Determine the minimum time from the last probe. */
+				Time time_min;
+				Time_setFromNanos(&time_min, MAAP_PROBE_INTERVAL_BASE * 1000000LL);
+				Time_add(&time_min, &probe_time[*p_probe_packets_detected - 1]);
+				CHECK(Time_cmp(&time_min, &announce_time) <= 0);
+
+				/* Determine the maximum time from the last probe. */
+				Time time_max;
+				Time_setFromNanos(&time_max, (MAAP_PROBE_INTERVAL_BASE + MAAP_PROBE_INTERVAL_VARIATION) * 1000000LL);
+				Time_add(&time_max, &probe_time[*p_probe_packets_detected - 1]);
+				CHECK(Time_cmp(&announce_time, &time_max) <= 0);
 			}
 			else
 			{
