@@ -117,11 +117,13 @@ void maap_deinit_client(Maap_Client *mc);
  *
  * @param mc Pointer to the Maap_Client structure to use
  * @param sender Sender information pointer used to track the entity requesting the command
+ * @param attempt_base The base address to be attempted first, or 0 if no preference.
+ *        If the preferred address is not available, another random address will be attempted instead.
  * @param length Number of addresses in the block to reserve (1 to 65535)
  *
  * @return The identifier value if the request was started successfully, -1 otherwise.
  */
-int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length);
+int maap_reserve_range(Maap_Client *mc, const void *sender, uint64_t attempt_base, uint32_t length);
 
 /**
  * Release a reserved block of addresses, in support of a MAAP_CMD_RELEASE command.

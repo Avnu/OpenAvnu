@@ -48,10 +48,17 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
         cmd->count = strtoul(argv[2], NULL, 0);
         set_cmd = 1;
       }
-    } else if (strncmp(argv[0], "reserve", 7) == 0 && argc == 2) {
-      cmd->kind = MAAP_CMD_RESERVE;
-      cmd->count = strtoul(argv[1], NULL, 0);
-      set_cmd = 1;
+    } else if (strncmp(argv[0], "reserve", 7) == 0) {
+      if (argc == 2) {
+        cmd->kind = MAAP_CMD_RESERVE;
+        cmd->count = strtoul(argv[1], NULL, 0);
+        set_cmd = 1;
+      } else if (argc == 3) {
+        cmd->kind = MAAP_CMD_RESERVE;
+        cmd->start = strtoull(argv[1], NULL, 16);
+        cmd->count = strtoul(argv[2], NULL, 0);
+        set_cmd = 1;
+      }
     } else if (strncmp(argv[0], "release", 7) == 0 && argc == 2) {
       cmd->kind = MAAP_CMD_RELEASE;
       cmd->id = (int)strtoul(argv[1], NULL, 0);
@@ -71,9 +78,12 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
   if (!set_cmd)
   {
     printf("input usage:\n");
-    printf("    init [<range_base> <range_size>] - Initialize the MAAP daemon to recognize the specified range of addresses\n");
-    printf("        If not specified, range_base=0x%llx, range_size=0x%04x\n", MAAP_DYNAMIC_POOL_BASE, MAAP_DYNAMIC_POOL_SIZE);
-    printf("    reserve <addr_size> - Reserve a range of addresses of size <addr_size> in the initialized range\n");
+    printf("    init [<range_base> <range_size>] - Initialize the MAAP daemon to recognize\n"
+           "        the specified range of addresses.  If not specified, it uses\n"
+           "        range_base=0x%llx, range_size=0x%04x.\n", MAAP_DYNAMIC_POOL_BASE, MAAP_DYNAMIC_POOL_SIZE);
+    printf("    reserve [<addr_base>] <addr_size> - Reserve a range of addresses of size\n"
+           "        <addr_size> in the initialized range.  If <addr_base> is specified,\n"
+           "        that address base will be attempted first.\n");
     printf("    release <id> - Release the range of addresses with identifier ID\n");
     printf("    status <id> - Get the range of addresses associated with identifier ID\n");
     printf("    exit - Shutdown the MAAP daemon\n\n");
@@ -116,9 +126,14 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf) {
       break;
     case MAAP_CMD_RESERVE:
 #ifdef DEBUG_CMD_MSG
-      printf("Got cmd MAAP_CMD_RESERVE, length: %u\n", (unsigned) cmd.count);
+      if (cmd.start != 0) {
+        printf("Got cmd MAAP_CMD_RESERVE, start: 0x%016llx, length: %u\n",
+               (unsigned long long)cmd.start, (unsigned) cmd.count);
+      } else {
+        printf("Got cmd MAAP_CMD_RESERVE, length: %u\n", (unsigned) cmd.count);
+      }
 #endif
-      rv = maap_reserve_range(mc, sender, cmd.count);
+      rv = maap_reserve_range(mc, sender, cmd.start, cmd.count);
       break;
     case MAAP_CMD_RELEASE:
 #ifdef DEBUG_CMD_MSG

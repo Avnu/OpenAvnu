@@ -562,13 +562,25 @@ int schedule_timer(Maap_Client *mc, Range *range) {
   return 0;
 }
 
-static int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
+static int assign_interval(Maap_Client *mc, Range *range, uint64_t attempt_base, uint16_t len) {
   Interval *iv;
   int i, rv = INTERVAL_OVERLAP;
   uint32_t range_max;
 
   if (len > mc->range_len) { return -1; }
   range_max = mc->range_len - 1;
+
+  /* If we were supplied with a base address to attempt, try that first. */
+  if (attempt_base >= mc->address_base &&
+      attempt_base + len - 1 <= mc->address_base + mc->range_len - 1)
+  {
+    iv = alloc_interval(attempt_base - mc->address_base, len);
+    assert(iv->high <= range_max);
+    rv = insert_interval(&mc->ranges, iv);
+    if (rv == INTERVAL_OVERLAP) {
+      free_interval(iv);
+    }
+  }
 
   /** @todo Use the saved MAAP_ANNOUNCE message ranges to search for addresses likely to be available.
    *  Old announced ranges (e.g. older than 2 minutes) can be deleted if there are no ranges available.
@@ -594,7 +606,7 @@ static int assign_interval(Maap_Client *mc, Range *range, uint16_t len) {
   return 0;
 }
 
-int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
+int maap_reserve_range(Maap_Client *mc, const void *sender, uint64_t attempt_base, uint32_t length) {
   int id;
   Range *range;
 
@@ -626,7 +638,7 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
   range->sender = sender;
   range->next_timer = NULL;
 
-  if (assign_interval(mc, range, length) < 0)
+  if (assign_interval(mc, range, attempt_base, length) < 0)
   {
     /* Cannot find any available intervals of the requested size. */
     inform_not_acquired(mc, sender, -1, length, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
@@ -805,7 +817,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
            and restart probe counter */
         int range_size = iv->high - iv->low + 1;
         iv->data = NULL; /* Range is moving to a new interval */
-        if (assign_interval(mc, range, range_size) < 0) {
+        if (assign_interval(mc, range, 0, range_size) < 0) {
           /* No interval is available, so stop probing and report an error. */
           printf("Unable to find an available address block to probe\n");
           inform_not_acquired(mc, range->sender, range->id, range_size, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
@@ -867,7 +879,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
           new_range->interval = NULL;
           new_range->sender = range->sender;
           new_range->next_timer = NULL;
-          if (assign_interval(mc, new_range, range_size) < 0)
+          if (assign_interval(mc, new_range, 0, range_size) < 0)
           {
             /* Cannot find any available intervals of the requested size. */
             inform_yielded(mc, range, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
