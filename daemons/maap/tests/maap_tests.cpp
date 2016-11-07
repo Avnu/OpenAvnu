@@ -148,7 +148,7 @@ TEST(maap_group, Reserve_Release)
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 
 	/* Reserve most of the range of addresses */
-	id = maap_reserve_range(&mc, &sender2_in, range_size - 4);
+	id = maap_reserve_range(&mc, &sender2_in, 0, range_size - 4);
 	CHECK(id > 0);
 
 	/* Verify that we get an acquiring notification. */
@@ -211,7 +211,7 @@ TEST(maap_group, Reserve_Release)
 
 
 	/* Try another reasonable reservation.  It should fail, as there is not enough space available. */
-	LONGS_EQUAL(-1, maap_reserve_range(&mc, &sender3_in, 10));
+	LONGS_EQUAL(-1, maap_reserve_range(&mc, &sender3_in, 0, 10));
 
 	/* We should receive exactly one notification of the reservation error. */
 	sender_out = NULL;
@@ -265,8 +265,8 @@ TEST(maap_group, Reserve_Release)
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 
 
-	/* Try our reasonable reservation again. */
-	id = maap_reserve_range(&mc, &sender3_in, 10);
+	/* Try our reasonable reservation again.  Supply a preferred address. */
+	id = maap_reserve_range(&mc, &sender3_in, range_base_addr + 100, 10);
 	CHECK(id > 0);
 
 	/* Handle any packets generated during the activity.
@@ -275,12 +275,11 @@ TEST(maap_group, Reserve_Release)
 	LONGS_EQUAL(4, probe_packets_detected);
 	LONGS_EQUAL(1, announce_packets_detected);
 
-	/* Verify that the notification indicated a successful reservation. */
+	/* Verify that the notification indicated a successful reservation at the preferred address. */
 	CHECK(sender_out == &sender3_in);
 	LONGS_EQUAL(MAAP_NOTIFY_ACQUIRED, mn.kind);
 	LONGS_EQUAL(id, mn.id);
-	CHECK(mn.start >= range_base_addr);
-	CHECK(mn.start + mn.count - 1 <= range_base_addr + range_size - 1);
+	LONGS_EQUAL(range_base_addr + 100, mn.start);
 	LONGS_EQUAL(10, mn.count);
 	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
@@ -336,7 +335,7 @@ TEST(maap_group, Probing_vs_Probes)
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 
 	/* Try to reserve a block of addresses. */
-	id = maap_reserve_range(&mc, &sender2_in, 10);
+	id = maap_reserve_range(&mc, &sender2_in, 0, 10);
 	CHECK(id > 0);
 
 	/* Fake a Probe packet we must defer to after the first probe. */
@@ -410,7 +409,7 @@ TEST(maap_group, Probing_vs_Announces)
 
 
 	/* Try to reserve a block of addresses. */
-	id = maap_reserve_range(&mc, &sender2_in, 10);
+	id = maap_reserve_range(&mc, &sender2_in, 0, 10);
 	CHECK(id > 0);
 
 	/* Fake an Announce packet after the first probe. */
@@ -483,7 +482,7 @@ TEST(maap_group, Probing_vs_Defends)
 
 
 	/* Try to reserve a block of addresses. */
-	id = maap_reserve_range(&mc, &sender2_in, 10);
+	id = maap_reserve_range(&mc, &sender2_in, 0, 10);
 	CHECK(id > 0);
 
 	/* Fake a Defend packet after the first probe. */
@@ -561,7 +560,7 @@ TEST(maap_group, Defending_vs_Probes)
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 
 	/* Reserve a block of addresses. */
-	id = maap_reserve_range(&mc, &sender2_in, 10);
+	id = maap_reserve_range(&mc, &sender2_in, 0, 10);
 	CHECK(id > 0);
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
 	LONGS_EQUAL(4, probe_packets_detected);
@@ -677,7 +676,7 @@ TEST(maap_group, Defending_vs_Announces)
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 
 	/* Reserve a block of addresses. */
-	id = maap_reserve_range(&mc, &sender2_in, 10);
+	id = maap_reserve_range(&mc, &sender2_in, 0, 10);
 	CHECK(id > 0);
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
 	LONGS_EQUAL(4, probe_packets_detected);
@@ -796,7 +795,7 @@ TEST(maap_group, Defending_vs_Defends)
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 
 	/* Reserve a block of addresses. */
-	id = maap_reserve_range(&mc, &sender2_in, 10);
+	id = maap_reserve_range(&mc, &sender2_in, 0, 10);
 	CHECK(id > 0);
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
 	LONGS_EQUAL(4, probe_packets_detected);
@@ -915,7 +914,7 @@ TEST(maap_group, Verify_Timing)
 
 
 	/* Reserve a block of addresses. */
-	id = maap_reserve_range(&mc, &sender_in, 10);
+	id = maap_reserve_range(&mc, &sender_in, 0, 10);
 	CHECK(id > 0);
 
 	/* Verify the timing between Probes when interrupted. */
@@ -1065,7 +1064,7 @@ TEST(maap_group, Ignore_Versioning)
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 
 	/* Reserve a block of addresses. */
-	id = maap_reserve_range(&mc, &sender2_in, 10);
+	id = maap_reserve_range(&mc, &sender2_in, 0, 10);
 	CHECK(id > 0);
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
 	LONGS_EQUAL(4, probe_packets_detected);
@@ -1154,7 +1153,7 @@ TEST(maap_group, Multiple_Conflicts_Defend)
 
 	for (i = 0; i < num_reservations; ++i) {
 		/* Reserve an address range */
-		id[i] = maap_reserve_range(&mc, &sender_in[i], 1);
+		id[i] = maap_reserve_range(&mc, &sender_in[i], 0, 1);
 		CHECK(id[i] > 0);
 		verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
 		LONGS_EQUAL(4, probe_packets_detected);
