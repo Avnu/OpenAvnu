@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
 	if (daemonize) {
 		ret = daemon(1, 0);
 		if (ret) {
-			fprintf(stderr, "Error: Failed to daemonize\n");
+			fprintf(stderr, "Error:  Failed to daemonize\n");
 			return -1;
 		}
 	}
@@ -279,6 +279,7 @@ int main(int argc, char *argv[])
 	 * Main event loop
 	 */
 
+	printf("Daemon started\n");
 	while (!exit_received)
 	{
 		/* Send any queued packets. */
@@ -340,7 +341,7 @@ int main(int argc, char *argv[])
 		ret = select(fdmax+1, &read_fds, NULL, NULL, &tv);
 		if (ret < 0)
 		{
-			fprintf(stderr, "select() error %d (%s)\n", errno, strerror(errno));
+			fprintf(stderr, "Error:  select() error %d (%s)\n", errno, strerror(errno));
 			break;
 		}
 		if (ret == 0)
@@ -510,13 +511,13 @@ static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], ui
 
 	if ((socketfd = socket(PF_PACKET, SOCK_RAW, htons(MAAP_TYPE))) == -1 )
 	{
-		fprintf(stderr, "Error: could not open socket %d\n",socketfd);
+		fprintf(stderr, "Error:  Could not open socket %d (Are you running as an administrator?)\n",socketfd);
 		return -1;
 	}
 
 	if (fcntl(socketfd, F_SETFL, O_NONBLOCK) < 0)
 	{
-		fprintf(stderr, "Error: could not set the socket to non-blocking\n");
+		fprintf(stderr, "Error:  Could not set the socket to non-blocking\n");
 		close(socketfd);
 		return -1;
 	}
@@ -525,14 +526,14 @@ static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], ui
 	strncpy(ifbuffer.ifr_name, iface, IFNAMSIZ);
 	if (ioctl(socketfd, SIOCGIFINDEX, &ifbuffer) < 0)
 	{
-		fprintf(stderr, "Error: could not get interface index\n");
+		fprintf(stderr, "Error:  Could not get interface index\n");
 		close(socketfd);
 		return -1;
 	}
 
 	ifindex = ifbuffer.ifr_ifindex;
 	if (ioctl(socketfd, SIOCGIFHWADDR, &ifbuffer) < 0) {
-		fprintf(stderr, "Error: could not get interface address\n");
+		fprintf(stderr, "Error:  Could not get interface address\n");
 		close(socketfd);
 		return -1;
 	}
@@ -546,7 +547,7 @@ static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], ui
 	memcpy(sockaddr.sll_addr, dest_mac, ETH_ALEN);
 
 	if (bind(socketfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr))) {
-		fprintf(stderr, "Error: could not bind datagram socket\n");
+		fprintf(stderr, "Error:  Could not bind datagram socket\n");
 		close(socketfd);
 		return -1;
 	}
@@ -560,7 +561,7 @@ static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], ui
 
 	if (setsockopt(socketfd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq,
 		sizeof(mreq)) < 0) {
-		fprintf(stderr, "setsockopt PACKET_ADD_MEMBERSHIP failed\n");
+		fprintf(stderr, "Error:  setsockopt PACKET_ADD_MEMBERSHIP failed\n");
 		close(socketfd);
 		return -1;
 	}
@@ -582,7 +583,7 @@ static int get_listener_socket(const char *listenport)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 	if ((ret = getaddrinfo(NULL, listenport, &hints, &ai)) != 0) {
-		fprintf(stderr, "getaddrinfo failure %s\n", gai_strerror(ret));
+		fprintf(stderr, "Error:  getaddrinfo failure %s\n", gai_strerror(ret));
 		return -1;
 	}
 
@@ -607,13 +608,13 @@ static int get_listener_socket(const char *listenport)
 
 	/* If we got here, it means we didn't get bound */
 	if (p == NULL) {
-		fprintf(stderr, "Socket failed to bind error %d (%s)\n", errno, strerror(errno));
+		fprintf(stderr, "Error:  Socket failed to bind error %d (%s)\n", errno, strerror(errno));
 		close(listener);
 		return -1;
 	}
 
 	if (listen(listener, 10) < 0) {
-		fprintf(stderr, "Socket listen error %d (%s)\n", errno, strerror(errno));
+		fprintf(stderr, "Error:  Socket listen error %d (%s)\n", errno, strerror(errno));
 		close(listener);
 		return -1;
 	}
@@ -643,7 +644,7 @@ static int act_as_client(const char *listenport)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = 0;
 	if ((ret = getaddrinfo("localhost", listenport, &hints, &ai)) != 0) {
-		fprintf(stderr, "getaddrinfo failure %s\n", gai_strerror(ret));
+		fprintf(stderr, "Error:  getaddrinfo failure %s\n", gai_strerror(ret));
 		return -1;
 	}
 
@@ -655,7 +656,7 @@ static int act_as_client(const char *listenport)
 	}
 
 	if (p == NULL) {
-		fprintf(stderr, "Socket creation error %d (%s)\n", errno, strerror(errno));
+		fprintf(stderr, "Error:  Socket creation error %d (%s)\n", errno, strerror(errno));
 		freeaddrinfo(ai);
 		return -1;
 	}
@@ -663,7 +664,7 @@ static int act_as_client(const char *listenport)
 	/* Connect to the MAAP daemon. */
 	if (connect(socketfd, p->ai_addr, p->ai_addrlen) < 0)
 	{
-		fprintf(stderr, "Unable to connect to the daemon, error %d (%s)\n", errno, strerror(errno));
+		fprintf(stderr, "Error:  Unable to connect to the daemon, error %d (%s)\n", errno, strerror(errno));
 		freeaddrinfo(ai);
 		close(socketfd);
 		return -1;
@@ -673,7 +674,7 @@ static int act_as_client(const char *listenport)
 
 	if (fcntl(socketfd, F_SETFL, O_NONBLOCK) < 0)
 	{
-		fprintf(stderr, "Error: could not set the socket to non-blocking\n");
+		fprintf(stderr, "Error:  Could not set the socket to non-blocking\n");
 		close(socketfd);
 		return -1;
 	}
@@ -689,6 +690,7 @@ static int act_as_client(const char *listenport)
 	 * Main event loop
 	 */
 
+	printf("Client started\n");
 	while (!exit_received)
 	{
 		/* Wait for something to happen. */
@@ -696,7 +698,7 @@ static int act_as_client(const char *listenport)
 		ret = select(fdmax+1, &read_fds, NULL, NULL, NULL);
 		if (ret <= 0)
 		{
-			fprintf(stderr, "select() error %d (%s)\n", errno, strerror(errno));
+			fprintf(stderr, "Error:  select() error %d (%s)\n", errno, strerror(errno));
 			break;
 		}
 
@@ -714,7 +716,7 @@ static int act_as_client(const char *listenport)
 				}
 				else
 				{
-					fprintf(stderr, "Received unexpected response of size %d\n", recvbytes);
+					fprintf(stderr, "Warning:  Received unexpected response of size %d\n", recvbytes);
 				}
 			}
 			if (recvbytes == 0)
