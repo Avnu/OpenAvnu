@@ -640,9 +640,9 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint32_t length) {
 #endif
   inform_acquiring(mc, range);
 
-  send_probe(mc, range);
   schedule_timer(mc, range);
   start_timer(mc);
+  send_probe(mc, range);
 
   return id;
 }
@@ -822,8 +822,8 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
           remove_range_interval(&mc->ranges, iv);
           range->counter = MAAP_PROBE_RETRANSMITS;
 
-          send_probe(mc, range);
           schedule_timer(mc, range);
+          send_probe(mc, range);
         }
       }
 
@@ -880,8 +880,8 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
             inform_acquiring(mc, range);
 
             /* Send a probe for the replacement address range to try. */
-            send_probe(mc, new_range);
             schedule_timer(mc, new_range);
+            send_probe(mc, new_range);
 
             inform_yielded(mc, range, MAAP_NOTIFY_ERROR_NONE);
           }
@@ -905,20 +905,20 @@ int handle_probe_timer(Maap_Client *mc, Range *range) {
   if (range->counter == 0) {
     inform_acquired(mc, range, MAAP_NOTIFY_ERROR_NONE);
     range->state = MAAP_STATE_DEFENDING;
-    send_announce(mc, range);
     schedule_timer(mc, range);
+    send_announce(mc, range);
   } else {
-    send_probe(mc, range);
     range->counter--;
     schedule_timer(mc, range);
+    send_probe(mc, range);
   }
 
   return 0;
 }
 
 int handle_defend_timer(Maap_Client *mc, Range *range) {
-  send_announce(mc, range);
   schedule_timer(mc, range);
+  send_announce(mc, range);
 
   return 0;
 }
