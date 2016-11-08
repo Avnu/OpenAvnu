@@ -48,6 +48,12 @@ endif
 
 DRIVER_NAME=igb_avb
 
+####I2C enablement####
+ifeq ($(I2C_ENABLED), 1)
+$(info CFLAGS_EXTRA += -DI2C_ENABLED)
+CFLAGS_EXTRA += -DI2C_ENABLED
+endif
+
 ###########################################################################
 # Environment tests
 

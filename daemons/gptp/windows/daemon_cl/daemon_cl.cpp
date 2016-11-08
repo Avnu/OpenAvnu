@@ -84,7 +84,6 @@ int _tmain(int argc, _TCHAR* argv[])
 	portInit.clock = NULL;
 	portInit.index = 1;
 	portInit.forceSlave = false;
-	portInit.accelerated_sync_count = 0;
 	portInit.timestamper = NULL;
 	portInit.offset = 0;
 	portInit.net_label = NULL;

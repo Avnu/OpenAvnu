@@ -88,7 +88,7 @@ U8* ringRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len);
 bool ringRawsockRelTxFrame(void *pvRawsock, U8 *pBuffer);
 
 // Release a TX frame, and mark it as ready to send
-bool ringRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len);
+bool ringRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec);
 
 // Send all packets that are ready (i.e. tell kernel to send them)
 int ringRawsockSend(void *pvRawsock);

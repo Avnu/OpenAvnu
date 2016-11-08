@@ -64,7 +64,9 @@ static s32  e1000_set_d0_lplu_state_82575(struct e1000_hw *hw,
 static s32  e1000_setup_copper_link_82575(struct e1000_hw *hw);
 static s32  e1000_setup_serdes_link_82575(struct e1000_hw *hw);
 static s32  e1000_get_media_type_82575(struct e1000_hw *hw);
+#ifdef I2C_ENABLED
 static s32  e1000_set_sfp_media_type_82575(struct e1000_hw *hw);
+#endif
 static s32  e1000_valid_led_default_82575(struct e1000_hw *hw, u16 *data);
 static s32  e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw,
 					    u32 offset, u16 data);
@@ -1797,7 +1799,13 @@ static s32 e1000_get_media_type_82575(struct e1000_hw *hw)
 		/* fall through for I2C based SGMII */
 	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
 		/* read media type from SFP EEPROM */
+#ifdef I2C_ENABLED
+		printk(KERN_INFO "igb_avb I2C enabled - set_sfp_media_type_82575() called");
 		ret_val = e1000_set_sfp_media_type_82575(hw);
+#else
+		printk(KERN_INFO "igb_avb I2C disabled - set_sfp_media_type_82575() not necessary");
+		hw->phy.media_type = e1000_media_type_unknown;
+#endif
 		if ((ret_val != E1000_SUCCESS) ||
 		    (hw->phy.media_type == e1000_media_type_unknown)) {
 			/*
@@ -1841,6 +1849,7 @@ static s32 e1000_get_media_type_82575(struct e1000_hw *hw)
  *  The media type is chosen based on SFP module.
  *  compatibility flags retrieved from SFP ID EEPROM.
  **/
+#ifdef I2C_ENABLED
 static s32 e1000_set_sfp_media_type_82575(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_ERR_CONFIG;
@@ -1902,7 +1911,7 @@ out:
 	E1000_WRITE_REG(hw, E1000_CTRL_EXT, ctrl_ext);
 	return ret_val;
 }
-
+#endif
 /**
  *  e1000_valid_led_default_82575 - Verify a valid default LED config
  *  @hw: pointer to the HW structure
