@@ -583,9 +583,7 @@ static int assign_interval(Maap_Client *mc, Range *range, uint64_t attempt_base,
   }
 
   /** @todo Use the saved MAAP_ANNOUNCE message ranges to search for addresses likely to be available.
-   *  Old announced ranges (e.g. older than 2 minutes) can be deleted if there are no ranges available.
-   *  We can also select new address blocks adjacent to our existing address blocks, which will fill the available address space more efficiently.
-   *  While this doesn't strictly adhere to the 1722 MAAP specification, it is defensible (as the initial block was random). */
+   *  Old announced ranges (e.g. older than 1.75 minutes) can be deleted if there are no ranges available. */
 
   for (i = 0; i < 1000 && rv == INTERVAL_OVERLAP; ++i) {
     iv = alloc_interval(random() % (mc->range_len + 1 - len), len);
