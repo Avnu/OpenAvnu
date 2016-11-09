@@ -38,10 +38,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace_pub.h"
 #include "openavb_avtp_time_pub.h"
 #include "openavb_mediaq_pub.h"
-
-// TODO_OPENAVB : Is this needed?
-//#include "openavb_avdecc_pub.h"
-
 #include "openavb_map_pub.h"
 #include "openavb_map_uncmp_audio_pub.h"
 
