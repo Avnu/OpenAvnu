@@ -191,6 +191,11 @@ include_directories(
 		${AVB_OSAL_DIR}/avtp
 		${AVB_OSAL_DIR}/tl
 		${AVB_SRC_DIR}/avtp 
+		${AVB_SRC_DIR}/avdecc
+		${AVB_SRC_DIR}/acmp
+		${AVB_SRC_DIR}/adp
+		${AVB_SRC_DIR}/aecp
+		${AVB_SRC_DIR}/aem
 		${AVB_SRC_DIR}/endpoint
 		${AVB_SRC_DIR}/srp
 		${AVB_SRC_DIR}/maap
@@ -223,6 +228,11 @@ link_directories(${GLIB_PKG_LIBRARY_DIRS})
 # AVB Core Library
 SET ( SRC_FILES "" )
 add_subdirectory ( avtp )
+add_subdirectory ( avdecc )
+add_subdirectory ( acmp )
+add_subdirectory ( adp )
+add_subdirectory ( aecp )
+add_subdirectory ( aem )
 add_subdirectory ( tl )
 add_subdirectory ( util )
 add_subdirectory ( mediaq )

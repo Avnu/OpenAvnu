@@ -135,7 +135,7 @@ Linux reference implementation.
 @image latex fig1.png "AVB Components" width=15cm
 
 As shown above the AVTP component of AVB is present in the application task.
-The libopenavbAVBStack library gets initialized and loaded via the APIs exposed and
+The AVB stack library gets initialized and loaded via the APIs exposed and
 documented here. This static library implements that AVTP functionality as well
 as controlling talker and listener initialization and life cycle. The PTP task
 initialization is handled during stack initialization.
