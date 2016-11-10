@@ -72,6 +72,7 @@ static const char *version_str =
 static void usage(void)
 {
 	fprintf(stderr,
+		"\n" "%s"
 		"\n"
 		"usage: maap_daemon [-c | [-d] -i interface-name] [-p port_num]"
 		"\n"
@@ -79,9 +80,10 @@ static void usage(void)
 		"\t-c  Run as a client (sends commands to the daemon)\n"
 		"\t-d  Run daemon in the background\n"
 		"\t-i  Specify daemon interface to monitor\n"
-		"\t-p  Specify the control port to connect to (client) or listen to (daemon).\n"
-		"\t    The default port is " DEFAULT_PORT ".\n"
-		"\n" "%s" "\n", version_str);
+		"\t-p  Specify the control port to connect to (client) or\n"
+		"\t    listen to (daemon).  The default port is " DEFAULT_PORT ".\n"
+		"\n",
+		version_str);
 	exit(1);
 }
 
