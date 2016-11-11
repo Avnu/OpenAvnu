@@ -43,6 +43,7 @@
 #else
 #include "linux_hal_generic.hpp"
 #endif
+
 #include "linux_hal_persist_file.hpp"
 #include <ctype.h>
 #include <inttypes.h>
@@ -98,8 +99,6 @@ static IEEE1588Port *pPort = NULL;
 
 int main(int argc, char **argv)
 {
-	GPTP_LOG_INFO("gPTP starting");
-
 	IEEE1588PortInit_t portInit;
 
 	sigset_t set;
@@ -125,6 +124,23 @@ int main(int argc, char **argv)
 
 	GPTPPersist *pGPTPPersist = NULL;
 
+	// Block SIGUSR1
+	{
+		sigset_t block;
+		sigemptyset( &block );
+		sigaddset( &block, SIGUSR1 );
+		if( pthread_sigmask( SIG_BLOCK, &block, NULL ) != 0 ) {
+			fprintf( stderr, "Failed to block SIGUSR1\n" );
+			return -1;
+		}
+	}
+
+	GPTP_LOG_REGISTER();
+	GPTP_LOG_INFO("gPTP starting");
+
+	int phy_delay[4]={0,0,0,0};
+	bool input_delay=false;
+
 	portInit.clock = NULL;
 	portInit.index = 0;
 	portInit.forceSlave = false;
@@ -142,20 +158,6 @@ int main(int argc, char **argv)
 	portInit.thread_factory = NULL;
 	portInit.timer_factory = NULL;
 	portInit.lock_factory = NULL;
-
-	// Block SIGUSR1
-	{
-		sigset_t block;
-		sigemptyset( &block );
-		sigaddset( &block, SIGUSR1 );
-		if( pthread_sigmask( SIG_BLOCK, &block, NULL ) != 0 ) {
-			fprintf( stderr, "Failed to block SIGUSR1\n" );
-			return -1;
-		}
-	}
-
-	int phy_delay[4]={0,0,0,0};
-	bool input_delay=false;
 
 	LinuxNetworkInterfaceFactory *default_factory =
 		new LinuxNetworkInterfaceFactory;
@@ -216,6 +218,7 @@ int main(int argc, char **argv)
 			}
 			else if( strcmp(argv[i] + 1,  "H") == 0 ) {
 				print_usage( argv[0] );
+				GPTP_LOG_UNREGISTER();
 				return 0;
 			}
 			else if( strcmp(argv[i] + 1,  "R") == 0 ) {
@@ -242,6 +245,7 @@ int main(int argc, char **argv)
 					{
 						printf("Too many values\n");
 						print_usage( argv[0] );
+						GPTP_LOG_UNREGISTER();
 						return 0;
 					}
 					phy_delay[delay_count]=atoi(cli_inp_delay);
@@ -252,6 +256,7 @@ int main(int argc, char **argv)
 				{
 					printf("All four delay values must be specified\n");
 					print_usage( argv[0] );
+					GPTP_LOG_UNREGISTER();
 					return 0;
 				}
 			}
@@ -324,6 +329,7 @@ int main(int argc, char **argv)
 	sigaddset(&set, SIGUSR2);
 	if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0) {
 		perror("pthread_sigmask()");
+		GPTP_LOG_UNREGISTER();
 		return -1;
 	}
 
@@ -394,6 +400,7 @@ int main(int argc, char **argv)
 
 	if (!pPort->init_port(phy_delay)) {
 		printf("failed to initialize port \n");
+		GPTP_LOG_UNREGISTER();
 		return -1;
 	}
 
@@ -446,6 +453,7 @@ int main(int argc, char **argv)
 
 		if (sigwait(&set, &sig) != 0) {
 			perror("sigwait()");
+			GPTP_LOG_UNREGISTER();
 			return -1;
 		}
 
@@ -478,6 +486,7 @@ int main(int argc, char **argv)
 
 	if( ipc ) delete ipc;
 
+	GPTP_LOG_UNREGISTER();
 	return 0;
 }
 
