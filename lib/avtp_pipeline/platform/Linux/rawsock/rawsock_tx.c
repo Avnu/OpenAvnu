@@ -191,7 +191,7 @@ int main(int argc, char* argv[])
 			txlen = hdrlen + 3;
 		}
 
-		openavbRawsockTxFrameReady(rs, pBuf, txlen);
+		openavbRawsockTxFrameReady(rs, pBuf, txlen, 0);
 
 		packetCnt++;
 

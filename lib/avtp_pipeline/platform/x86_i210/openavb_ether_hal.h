@@ -41,8 +41,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // how many pages to alloc for tx buffers (2 frames fit in one page)
 #define IGB_PAGES 20
 
-#define IGB_LAUNCHTIME_ENABLED 0
-
 device_t *igbAcquireDevice();
 
 void igbReleaseDevice(device_t *igb_dev);
