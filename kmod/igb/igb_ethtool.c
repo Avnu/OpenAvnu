@@ -1310,7 +1310,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	struct igb_ring *rx_ring = &adapter->test_rx_ring;
 	struct e1000_hw *hw = &adapter->hw;
 	int ret_val;
-	
+
 	/* Setup Tx descriptor ring and Tx buffers */
 	tx_ring->count = tx_size_ethtool;
 	printk(KERN_INFO "igb_avb ethtool::tx_ring->count = %d", tx_ring->count);
