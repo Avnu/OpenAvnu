@@ -64,7 +64,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #define SLEEP(sec)  							   sleep(sec)
 #define SLEEP_MSEC(mSec)						   usleep(mSec * 1000)
-#define SLEEP_NSEC(nSec)						   usleep(nSec)
+#define SLEEP_NSEC(nSec)						   usleep(nSec / 1000)
 #define SLEEP_UNTIL_NSEC(nSec)  				   xSleepUntilNSec(nSec)
 inline static void xSleepUntilNSec(U64 nSec)
 {
@@ -74,7 +74,17 @@ inline static void xSleepUntilNSec(U64 nSec)
 	clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &tmpTime, NULL);
 }
 
-
+#define SPIN_UNTIL_NSEC(nsec)					xSpinUntilNSec(nsec)
+inline static void xSpinUntilNSec(U64 nSec)
+{
+	do {
+		U64 spinNowNS;
+		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &spinNowNS);
+		if (spinNowNS > nSec)
+			break;
+	}
+	while (1);
+}
 
 #define RAND()  								   random()
 #define SRAND(seed) 							   srandom(seed)
@@ -117,6 +127,24 @@ thread##_type	thread##_ThreadData
 				(void*)thread_function_arg);																		\
 		} while (0);																								\
 		pthread_attr_destroy(&thread_attr);																			\
+	}
+
+#define THREAD_SET_RT_PRIORITY(threadhandle, priority) 													\
+	{																									\
+		struct sched_param param;																		\
+		param.__sched_priority = priority;																\
+		pthread_setschedparam(threadhandle##_ThreadData.pthread, SCHED_RR, &param);						\
+	}
+
+#define THREAD_PIN(threadhandle, affinity) 																		\
+	{																									\
+		cpu_set_t cpuset;																				\
+		int i1;																							\
+		CPU_ZERO(&cpuset);																				\
+		for (i1 = 0; i1 < 32; i1++) {																	\
+			if (affinity & (1 << i1)) CPU_SET(i1, &cpuset);																		\
+		}																								\
+		pthread_setaffinity_np(threadhandle##_ThreadData.pthread, sizeof(cpu_set_t), &cpuset);			\
 	}
 
 #define THREAD_CHECK_ERROR(threadhandle, message, error)										\

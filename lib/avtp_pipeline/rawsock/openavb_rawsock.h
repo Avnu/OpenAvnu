@@ -143,7 +143,8 @@ bool openavbRawsockRelTxFrame(void *rawsock, U8 *pBuffer);
 // Submit a frame and mark it "ready to send"
 bool openavbRawsockTxFrameReady(void *rawsock,	// rawsock handle
 							U8 *pFrame, 	// pointer to frame buffer
-							U32 len);		// length of frame to send
+							U32 len,	// length of frame to send
+							U64 timeNsec);	// launch time (in gPTP wall clock)
 
 // Send all packets that are marked "ready to send".
 // Returns count of bytes in sent frames - or < 0 for error.

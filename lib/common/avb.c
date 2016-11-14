@@ -217,6 +217,21 @@ bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local)
 	return true;
 }
 
+bool gptpmaster2local(const gPtpTimeData *td, const uint64_t master, uint64_t *local)
+{
+	int64_t delta_8021as;
+	int64_t delta_local;
+
+	if (!td || !local)
+		return false;
+
+	delta_8021as = master - td->local_time + td->ml_phoffset;
+	delta_local = delta_8021as / td->ml_freqoffset;
+	*local = td->local_time + delta_local;
+
+	return true;
+}
+
 /* setters & getters for seventeen22_header */
 void avb_set_1722_cd_indicator(seventeen22_header *h1722, uint64_t cd_indicator)
 {

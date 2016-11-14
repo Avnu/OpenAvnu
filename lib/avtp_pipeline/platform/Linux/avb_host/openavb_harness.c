@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 	registerStaticIntfModule(openavbIntfCtrlInitialize);
 	registerStaticIntfModule(openavbIntfLoggerInitialize);
 	registerStaticIntfModule(openavbIntfNullInitialize);
-	//registerStaticIntfModule(openavbIntfToneGenInitialize);
+	registerStaticIntfModule(openavbIntfToneGenInitialize);
 	registerStaticIntfModule(openavbIntfViewerInitialize);
 	registerStaticIntfModule(openavbIntfAlsaInitialize);
 	registerStaticIntfModule(openavbIntfMjpegGstInitialize);

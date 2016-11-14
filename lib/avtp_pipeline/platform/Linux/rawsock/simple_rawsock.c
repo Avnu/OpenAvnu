@@ -305,7 +305,7 @@ bool simpleRawsockTxSetHdr(void *pvRawsock, hdr_info_t *pHdr)
 }
 
 // Release a TX frame, and send it
-bool simpleRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
+bool simpleRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
 	simple_rawsock_t *rawsock = (simple_rawsock_t*)pvRawsock;
@@ -314,6 +314,10 @@ bool simpleRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
 		AVB_LOG_ERROR("Marking TX frame ready; invalid argument");
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 		return FALSE;
+	}
+
+	if (timeNsec) {
+		IF_LOG_INTERVAL(1000) AVB_LOG_WARNING("launch time is unsupported in simple_rawsock");
 	}
 
 	int flags = MSG_DONTWAIT;

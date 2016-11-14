@@ -117,10 +117,14 @@ U8 *pcapRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len)
 	return false;
 }
 
-bool pcapRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
+bool pcapRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec)
 {
 	pcap_rawsock_t *rawsock = (pcap_rawsock_t*)pvRawsock;
 	int ret = -1;
+
+	if (timeNsec) {
+		IF_LOG_INTERVAL(1000) AVB_LOG_WARNING("launch time is unsupported in pcap_rawsock");
+	}
 
 	if (rawsock) {
 		ret = pcap_sendpacket(rawsock->handle, pBuffer, len);
