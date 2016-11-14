@@ -41,9 +41,9 @@
 #include <linux/mdio.h>
 #endif
 
-static int tx_size_eth = 256;
-module_param(tx_size_eth, int, 0);
-MODULE_PARM_DESC(tx_size_eth, "Tx ring size passed in insmod parameter");
+static int tx_size_ethtool = 256; /*default value*/
+module_param(tx_size_ethtool, int, 0);
+MODULE_PARM_DESC(tx_size_ethtool, "Tx ring size passed in insmod parameter");
 
 
 #ifdef ETHTOOL_OPS_COMPAT
@@ -1312,8 +1312,8 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	int ret_val;
 	
 	/* Setup Tx descriptor ring and Tx buffers */
-	tx_ring->count = tx_size_eth;
-	printk(KERN_INFO "igb_avb tx_ring->count = %d", tx_ring->count);
+	tx_ring->count = tx_size_ethtool;
+	printk(KERN_INFO "igb_avb ethtool::tx_ring->count = %d", tx_ring->count);
 	tx_ring->dev = pci_dev_to_dev(adapter->pdev);
 	tx_ring->netdev = adapter->netdev;
 	tx_ring->reg_idx = adapter->vfs_allocated_count;

@@ -3242,7 +3242,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 
 	/* set default ring sizes */
 	adapter->tx_ring_count = tx_size;
-	printk(KERN_INFO "igb_avb adapter->tx_ring_size%d", tx_size);
+	printk(KERN_INFO "igb_avb adapter->tx_ring_size %d", tx_size);
 	adapter->rx_ring_count = IGB_DEFAULT_RXD;
 
 	/* set default work limits */
