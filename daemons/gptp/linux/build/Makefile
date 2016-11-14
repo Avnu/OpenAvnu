@@ -47,8 +47,7 @@ ifeq ($(HAS_PRECISE_TIME),0)
 endif
 
 CPPFLAGS_G = $(CFLAGS_G) -std=c++0x -Wnon-virtual-dtor
-
-LDFLAGS_G = -lpthread -lrt
+LDFLAGS_G = 
 
 COMMON_DIR = ../../common
 SRC_DIR = ../src
@@ -111,6 +110,15 @@ else
 		$(OBJ_DIR)/linux_hal_generic_adj.o
 	HEADER_FILES += $(SRC_DIR)/linux_hal_generic.hpp
 endif
+
+ifeq ($(GENIVI_DLT),1)
+	GENIVI_DLT_INCLUDE_PATH=/usr/local/include/dlt/
+	GENIVI_DLT_LIB_PATH=/usr/local/lib/x86_64-linux-gnu/static/
+	CFLAGS_G += -I$(GENIVI_DLT_INCLUDE_PATH) -DGENIVI_DLT
+	LDFLAGS_G += -ldlt -L$(GENIVI_DLT_LIB_PATH)
+endif
+
+LDFLAGS_G += -lpthread -lrt
 
 CFLAGS = $(CFLAGS_G)
 CPPFLAGS = $(CPPFLAGS_G)
