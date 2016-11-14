@@ -361,6 +361,10 @@ static int debug = NETIF_MSG_DRV | NETIF_MSG_PROBE;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none, ..., 16=all)");
 
+
+static int tx_size = 256; /*default value*/
+module_param(tx_size, int, 0);
+MODULE_PARM_DESC(tx_size, "Tx Ring size passed in insmod parameter");
 /**
  * igb_init_module - Driver Registration Routine
  *
@@ -2486,7 +2490,7 @@ static void igb_set_fw_version(struct igb_adapter *adapter)
 	struct e1000_fw_version fw;
 
 	e1000_get_fw_version(hw, &fw);
-
+	
 	switch (hw->mac.type) {
 	case e1000_i210:
 	case e1000_i211:
@@ -3237,7 +3241,8 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
 
 	/* set default ring sizes */
-	adapter->tx_ring_count = IGB_DEFAULT_TXD;
+	adapter->tx_ring_count = tx_size;
+	printk(KERN_INFO "igb_avb adapter->tx_ring_size%d", tx_size);
 	adapter->rx_ring_count = IGB_DEFAULT_RXD;
 
 	/* set default work limits */
@@ -4787,7 +4792,7 @@ static void igb_watchdog_task(struct work_struct *work)
 			default:
 				break;
 			}
-
+			
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
 
