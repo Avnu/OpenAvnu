@@ -177,7 +177,7 @@ bool pcapRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 addr[
 	struct bpf_program comp_filter_exp;
 	char filter_exp[30];
 
-	sprintf(filter_exp, "ether dst %x:%x:%x:%x:%x:%x", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+	sprintf(filter_exp, "ether dst %02x:%02x:%02x:%02x:%02x:%02x", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
 
 	AVB_LOGF_DEBUG("%s %d %s", __func__, (int)add_membership, filter_exp);
 
