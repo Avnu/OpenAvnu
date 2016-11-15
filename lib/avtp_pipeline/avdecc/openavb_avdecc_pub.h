@@ -52,11 +52,11 @@
 typedef struct {
 	bool bListener;
 	bool bTalker;
-	U8 ifname[32];
+	char ifname[32];
 	openavb_aem_descriptor_entity_t *pDescriptorEntity;
 } openavb_avdecc_cfg_t;
 
-// General initizlization for AVDECC. This must be called before any other AVDECC APIs including AEM APIs
+// General initialization for AVDECC. This must be called before any other AVDECC APIs including AEM APIs
 bool openavbAVDECCInitialize(openavb_avdecc_cfg_t *pAvdeccCfg);
 
 // Start the AVDECC protocols. 

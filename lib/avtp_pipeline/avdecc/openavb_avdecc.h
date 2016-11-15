@@ -32,7 +32,7 @@
 // No Data alignment precaution needed.
 
 // Octet based data 2 buffer macros
-#define OCT_D2BMEMCP(d, s) memcpy(d, s, sizeof(s)); d += sizeof(s);
+#define OCT_D2BMEMCP(d, s) {size_t data_size = sizeof(s); memcpy(d, s, data_size); d += data_size;} // Uses data_size variable to avoid compiler warnings
 #define OCT_D2BBUFCP(d, s, len) memcpy(d, s, len); d += len;
 #define OCT_D2BHTONB(d, s) *(U8 *)(d) = s; d += sizeof(s);
 #define OCT_D2BHTONS(d, s) *(U16 *)(d) = htons(s); d += sizeof(s);
@@ -45,7 +45,7 @@
 
 
 // Octet based buffer 2 data macros
-#define OCT_B2DMEMCP(d, s) memcpy(d, s, sizeof(d)); s += sizeof(d);
+#define OCT_B2DMEMCP(d, s) {size_t data_size = sizeof(d); memcpy(d, s, data_size); s += data_size;} // Uses data_size variable to avoid compiler warnings
 #define OCT_B2DBUFCP(d, s, len) memcpy(d, s, len); s += len;
 #define OCT_B2DNTOHB(d, s) d = *(U8 *)(s); s += sizeof(d);
 #define OCT_B2DNTOHS(d, s) d = ntohs(*(U16 *)(s)); s += sizeof(d);
@@ -60,7 +60,7 @@
 // Data alignment precaution needed.
 
 // Octet based data 2 buffer macros
-#define OCT_D2BMEMCP(d, s) memcpy(d, s, sizeof(s)); d += sizeof(s);
+#define OCT_D2BMEMCP(d, s) {size_t data_size = sizeof(s); memcpy(d, s, data_size); d += data_size;} // Uses data_size variable to avoid compiler warnings
 
 #define OCT_D2BBUFCP(d, s, len) memcpy(d, s, len); d += len;
 
@@ -125,7 +125,7 @@ d += inc;										\
 
 
 // Octet based buffer 2 data macros
-#define OCT_B2DMEMCP(d, s) memcpy(d, s, sizeof(d)); s += sizeof(d);
+#define OCT_B2DMEMCP(d, s) {size_t data_size = sizeof(d); memcpy(d, s, data_size); s += data_size;} // Uses data_size variable to avoid compiler warnings
 
 #define OCT_B2DBUFCP(d, s, len) memcpy(d, s, len); s += len;
 
