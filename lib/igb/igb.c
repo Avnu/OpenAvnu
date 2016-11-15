@@ -128,7 +128,7 @@ int igb_probe(device_t *dev)
 int igb_attach(char *dev_path, device_t *pdev)
 {
 	struct adapter *adapter;
-	struct igb_bind_cmd	bind;
+	struct igb_bind_cmd	bind = {0};
 	int error = 0;
 
 	if (pdev == NULL)
@@ -636,7 +636,7 @@ int igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *dma)
 {
 	struct adapter *adapter;
 	int error = 0;
-	struct igb_buf_cmd ubuf;
+	struct igb_buf_cmd ubuf = {0};
 
 	if (dev == NULL)
 		return -EINVAL;
@@ -719,7 +719,7 @@ err:
  **********************************************************************/
 static int igb_allocate_queues(struct adapter *adapter)
 {
-	struct igb_buf_cmd ubuf;
+	struct igb_buf_cmd ubuf = {0};
 	int dev = adapter->ldev;
 	int i, error = 0;
 
