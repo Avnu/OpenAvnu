@@ -31,7 +31,7 @@ MUTEX_HANDLE(openavbAemMutex);
 #define AEM_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAemMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
 #define AEM_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(openavbAemMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
 
-static openavb_avdecc_entity_model_t *pAemEntityModel;
+static openavb_avdecc_entity_model_t *pAemEntityModel = NULL;
 
 ////////////////////////////////
 // Private (internal) functions

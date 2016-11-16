@@ -858,7 +858,7 @@ static void igb_initialize_transmit_units(struct adapter *adapter)
 static void igb_free_transmit_structures(struct adapter *adapter)
 {
 	int i;
-	struct igb_buf_cmd ubuf;
+	struct igb_buf_cmd ubuf = {0};
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		if (adapter->tx_rings[i].tx_base)

@@ -434,7 +434,7 @@ int mrp_disconnect(void)
 	msgbuf = malloc(1500);
 	if (NULL == msgbuf)
 		return -1;
-	memset(msgbuf, 0, 64);
+	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "BYE");
 	mrp_okay = 0;
 	rc = send_mrp_msg(msgbuf, 1500);

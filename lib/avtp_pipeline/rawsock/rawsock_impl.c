@@ -186,6 +186,8 @@ int baseRawsockRxParseHdr(void *pvRawsock, U8 *pBuffer, hdr_info_t *pInfo)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
 
+	memset(pInfo, 0, sizeof(hdr_info_t));
+
 	eth_hdr_t *eth_hdr = (eth_hdr_t*)pBuffer;
 	pInfo->dhost = eth_hdr->dhost;
 	pInfo->shost = eth_hdr->shost;

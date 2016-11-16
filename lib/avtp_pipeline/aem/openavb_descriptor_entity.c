@@ -27,7 +27,6 @@
 
 #include "openavb_rawsock.h"
 #include "openavb_aem.h"
-#include "openavb_descriptor_entity.h"
 
 
 ////////////////////////////////
@@ -43,7 +42,7 @@ openavbRC openavbAemDescriptorEntityToBuf(void *pVoidDescriptor, U16 bufLength, 
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
-	if (bufLength < OPENAVB_DESCRIPTOR_ENTITY_BASE_LENGTH) {
+	if (bufLength < sizeof(openavb_aem_descriptor_entity_t)) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_BUFFER_TOO_SMALL), AVB_TRACE_AEM);
 	}
 
@@ -90,7 +89,7 @@ openavbRC openavbAemDescriptorEntityFromBuf(void *pVoidDescriptor, U16 bufLength
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
-	if (bufLength < OPENAVB_DESCRIPTOR_ENTITY_BASE_LENGTH) {
+	if (bufLength < sizeof(openavb_aem_descriptor_entity_t)) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_BUFFER_TOO_SMALL), AVB_TRACE_AEM);
 	}
 
@@ -133,14 +132,14 @@ extern DLL_EXPORT openavb_aem_descriptor_entity_t *openavbAemDescriptorEntityNew
 
 	openavb_aem_descriptor_entity_t *pDescriptor;
 
-	pDescriptor = malloc(OPENAVB_DESCRIPTOR_ENTITY_BASE_LENGTH);
+	pDescriptor = malloc(sizeof(openavb_aem_descriptor_entity_t));
 
 	if (!pDescriptor) {
 		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_OUT_OF_MEMORY));
 		AVB_TRACE_EXIT(AVB_TRACE_AEM);
 		return NULL;
 	}
-	memset(pDescriptor, 0, OPENAVB_DESCRIPTOR_ENTITY_BASE_LENGTH);
+	memset(pDescriptor, 0, sizeof(openavb_aem_descriptor_entity_t));
 
 	pDescriptor->descriptorPvtPtr = malloc(sizeof(*pDescriptor->descriptorPvtPtr));
 	if (!pDescriptor->descriptorPvtPtr) {
@@ -148,8 +147,9 @@ extern DLL_EXPORT openavb_aem_descriptor_entity_t *openavbAemDescriptorEntityNew
 		pDescriptor = NULL;
 		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_OUT_OF_MEMORY));
 		AVB_TRACE_EXIT(AVB_TRACE_AEM);
-		return FALSE;
+		return NULL;
 	}
+	memset(pDescriptor->descriptorPvtPtr, 0, sizeof(*pDescriptor->descriptorPvtPtr));
 
 	pDescriptor->descriptorPvtPtr->size = sizeof(openavb_aem_descriptor_entity_t);
 	pDescriptor->descriptorPvtPtr->bTopLevel = TRUE;
