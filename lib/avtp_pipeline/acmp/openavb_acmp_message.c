@@ -113,8 +113,6 @@ bool openavbAcmpOpenSocket(const char* ifname)
 	}
 
 	AVB_LOG_ERROR("Invalid socket");
-	if (rxSock) { openavbRawsockClose(rxSock); }
-	if (txSock) { openavbRawsockClose(txSock); }
 	openavbAcmpCloseSocket();
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);

@@ -125,8 +125,6 @@ bool openavbAdpOpenSocket(const char* ifname)
 	}
 
 	AVB_LOG_ERROR("Invalid socket");
-	if (rxSock) { openavbRawsockClose(rxSock); }
-	if (txSock) { openavbRawsockClose(txSock); }
 	openavbAdpCloseSocket();
 
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
@@ -335,9 +333,11 @@ openavbRC openavbAdpMessageHandlerStart()
 		if (errResult) {
 			AVB_RC_TRACE_RET(OPENAVB_AVDECC_FAILURE, AVB_TRACE_ADP);
 		}
+
+		AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_ADP);
 	}
 
-	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_ADP);
+	AVB_RC_TRACE_RET(OPENAVB_AVDECC_FAILURE, AVB_TRACE_ADP);
 }
 
 void openavbAdpMessageHandlerStop()

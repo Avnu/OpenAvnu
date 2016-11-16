@@ -85,7 +85,7 @@ void openavbAecpCloseSocket()
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 }
 
-int openavbAecpOpenSocket(const char* ifname)
+bool openavbAecpOpenSocket(const char* ifname)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 
@@ -93,8 +93,7 @@ int openavbAecpOpenSocket(const char* ifname)
 	txSock = openavbRawsockOpen(ifname, FALSE, TRUE, ETHERTYPE_AVTP, AECP_FRAME_LEN, AECP_NUM_BUFFERS);
 	if (!rxSock || !txSock) {
 		AVB_LOG_ERROR("Socket not available");
-		if (rxSock) { openavbRawsockClose(rxSock); }
-		if (txSock) { openavbRawsockClose(txSock); }
+		openavbAecpCloseSocket();
 		AVB_TRACE_EXIT(AVB_TRACE_AECP);
 		return FALSE;
 	}
@@ -902,7 +901,7 @@ openavbRC openavbAecpMessageHandlerStart()
 
 	bRunning = TRUE;
 
-	if (openavbAecpOpenSocket((const char *)gAvdeccCfg.ifname) != INVALID_SOCKET) {
+	if (openavbAecpOpenSocket((const char *)gAvdeccCfg.ifname)) {
 
 		// Start the RX thread
 		bool errResult;
