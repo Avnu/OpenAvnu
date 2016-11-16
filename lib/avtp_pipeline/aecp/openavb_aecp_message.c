@@ -89,24 +89,31 @@ int openavbAecpOpenSocket(const char* ifname)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 
-	int ret = INVALID_SOCKET;
-
 	rxSock = openavbRawsockOpen(ifname, TRUE, FALSE, ETHERTYPE_AVTP, AECP_FRAME_LEN, AECP_NUM_BUFFERS);
 	txSock = openavbRawsockOpen(ifname, FALSE, TRUE, ETHERTYPE_AVTP, AECP_FRAME_LEN, AECP_NUM_BUFFERS);
+	if (!rxSock || !txSock) {
+		AVB_LOG_ERROR("Socket not available");
+		if (rxSock) { openavbRawsockClose(rxSock); }
+		if (txSock) { openavbRawsockClose(txSock); }
+		AVB_TRACE_EXIT(AVB_TRACE_AECP);
+		return FALSE;
+	}
 
 	// Setup RX socket
-	if (rxSock) {
-		openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_AECP_AVTP_SUBTYPE | 0x80);
-		ret = openavbRawsockGetSocket(rxSock);
-		if (ret == INVALID_SOCKET) {
-			AVB_LOG_ERROR("Invalid socket");
-			openavbAecpCloseSocket();
-			return FALSE;
-		}	
+	if (!openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_AECP_AVTP_SUBTYPE | 0x80)) {
+		AVB_LOG_ERROR("Invalid RX socket");
+		openavbAecpCloseSocket();
+		AVB_TRACE_EXIT(AVB_TRACE_AECP);
+		return FALSE;
 	}
 
 	// Setup TX socket
-	if (txSock && openavbRawsockGetAddr(txSock, ADDR_PTR(&intfAddr))) {
+	if (!openavbRawsockGetAddr(txSock, ADDR_PTR(&intfAddr))) {
+		AVB_LOG_ERROR("Invalid TX socket");
+		openavbAecpCloseSocket();
+		AVB_TRACE_EXIT(AVB_TRACE_AECP);
+		return FALSE;
+	} else {
 		memset(&txHdr, 0, sizeof(hdr_info_t));
 		txHdr.shost = ADDR_PTR(&intfAddr);
 		// txHdr.dhost;								// Set at tx time.
@@ -115,7 +122,9 @@ int openavbAecpOpenSocket(const char* ifname)
 		txHdr.vlan_pcp = SR_CLASS_A_DEFAULT_PRIORITY;
 		txHdr.vlan_vid = SR_CLASS_A_DEFAULT_VID;
 		if (!openavbRawsockTxSetHdr(txSock, &txHdr)) {			// Will be set again at tx time.
+			AVB_LOG_ERROR("TX socket Header Failure");
 			openavbAecpCloseSocket();
+			AVB_TRACE_EXIT(AVB_TRACE_AECP);
 			return FALSE;
 		}
 	}

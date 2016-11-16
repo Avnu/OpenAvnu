@@ -35,16 +35,16 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_log.h"
 
 void baseRawsockSetRxSignalMode(void *rawsock, bool rxSignalMode) {}
-int baseRawsockGetSocket(void *rawsock) { return -1; }
-U8 *baseRawsockGetRxFrame(void *rawsock, U32 usecTimeout, U32 *offset, U32 *len) { return NULL; }
+int baseRawsockGetSocket(void *rawsock) { AVB_LOG_ERROR("baseRawsockGetSocket called"); return -1; }
+U8 *baseRawsockGetRxFrame(void *rawsock, U32 usecTimeout, U32 *offset, U32 *len) { AVB_LOG_ERROR("baseRawsockGetRxFrame called"); return NULL; }
 bool baseRawsockRelRxFrame(void *rawsock, U8 *pFrame) { return false; }
 bool baseRawsockRxMulticast(void *rawsock, bool add_membership, const U8 buf[]) { return false; }
 bool baseRawsockRxAVTPSubtype(void *rawsock, U8 subtype) { return false; }
 bool baseRawsockTxSetMark(void *rawsock, int prio) { return false; }
-U8 *baseRawsockGetTxFrame(void *rawsock, bool blocking, U32 *size) { return NULL; }
+U8 *baseRawsockGetTxFrame(void *rawsock, bool blocking, U32 *size) { AVB_LOG_ERROR("baseRawsockGetTxFrame called"); return NULL; }
 bool baseRawsockRelTxFrame(void *rawsock, U8 *pBuffer) { return false; }
-bool baseRawsockTxFrameReady(void *rawsock, U8 *pFrame, U32 len, U64 timeNsec) { return false; }
-int baseRawsockSend(void *rawsock) { return -1; }
+bool baseRawsockTxFrameReady(void *rawsock, U8 *pFrame, U32 len, U64 timeNsec) { AVB_LOG_ERROR("baseRawsockTxFrameReady called"); return false; }
+int baseRawsockSend(void *rawsock) { AVB_LOG_ERROR("baseRawsockSend called"); return -1; }
 int baseRawsockTxBufLevel(void *rawsock) { return -1; }
 int baseRawsockRxBufLevel(void *rawsock) { return -1; }
 unsigned long baseRawsockGetTXOutOfBuffers(void *pvRawsock) { return 0; }
@@ -195,9 +195,13 @@ int baseRawsockRxParseHdr(void *pvRawsock, U8 *pBuffer, hdr_info_t *pInfo)
 	int hdrLen = sizeof(eth_hdr_t);
 
 	if (pInfo->ethertype == ETHERTYPE_8021Q) {
+		U16 vlan_bits = ntohs(*(U16*)(pBuffer + hdrLen));
 		pInfo->vlan = TRUE;
-		// TODO extract vlan_vid and vlan_pcp
-		hdrLen += 4;
+		pInfo->vlan_vid = vlan_bits & 0x0FFF;
+		pInfo->vlan_pcp = (vlan_bits >> 13) & 0x0007;
+		hdrLen += 2;
+		pInfo->ethertype =  ntohs(*(U16 *)(pBuffer + hdrLen));
+		hdrLen += 2;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);

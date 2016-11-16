@@ -96,12 +96,11 @@ void openavbAdpCloseSocket()
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 }
 
-int openavbAdpOpenSocket(const char* ifname)
+bool openavbAdpOpenSocket(const char* ifname)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
 
 	hdr_info_t hdr;
-	int ret = INVALID_SOCKET;
 
 	rxSock = openavbRawsockOpen(ifname, TRUE, FALSE, ETHERTYPE_AVTP, ADP_FRAME_LEN, ADP_NUM_BUFFERS);
 	txSock = openavbRawsockOpen(ifname, FALSE, TRUE, ETHERTYPE_AVTP, ADP_FRAME_LEN, ADP_NUM_BUFFERS);
@@ -112,8 +111,6 @@ int openavbAdpOpenSocket(const char* ifname)
 		&& openavbRawsockRxMulticast(rxSock, TRUE, ADDR_PTR(&adpAddr))
 		&& openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_ADP_AVTP_SUBTYPE | 0x80))
 	{
-		ret = openavbRawsockGetSocket(rxSock);
-
 		memset(&hdr, 0, sizeof(hdr_info_t));
 		hdr.shost = ADDR_PTR(&intfAddr);
 		hdr.dhost = ADDR_PTR(&adpAddr);
@@ -122,15 +119,18 @@ int openavbAdpOpenSocket(const char* ifname)
 		hdr.vlan_pcp = SR_CLASS_A_DEFAULT_PRIORITY;
 		hdr.vlan_vid = SR_CLASS_A_DEFAULT_VID;
 		openavbRawsockTxSetHdr(txSock, &hdr);
+
+		AVB_TRACE_EXIT(AVB_TRACE_ADP);
+		return true;
 	}
 
-	if (ret == INVALID_SOCKET) {
-		AVB_LOG_ERROR("Invalid socket");
-		openavbAdpCloseSocket();
-	}	
+	AVB_LOG_ERROR("Invalid socket");
+	if (rxSock) { openavbRawsockClose(rxSock); }
+	if (txSock) { openavbRawsockClose(txSock); }
+	openavbAdpCloseSocket();
 
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
-	return ret;
+	return false;
 }
 
 static void openavbAdpMessageRxFrameParse(U8* payload, hdr_info_t *hdr)
@@ -326,7 +326,7 @@ openavbRC openavbAdpMessageHandlerStart()
 
 	bRunning = TRUE;
 
-	if (openavbAdpOpenSocket((const char *)gAvdeccCfg.ifname) != INVALID_SOCKET) {
+	if (openavbAdpOpenSocket((const char *)gAvdeccCfg.ifname)) {
 
 		// Start the RX thread
 		bool errResult;

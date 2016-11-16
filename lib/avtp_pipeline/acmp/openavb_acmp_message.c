@@ -86,12 +86,11 @@ void openavbAcmpCloseSocket()
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
-int openavbAcmpOpenSocket(const char* ifname)
+bool openavbAcmpOpenSocket(const char* ifname)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
 	hdr_info_t hdr;
-	int ret = INVALID_SOCKET;
 
 	rxSock = openavbRawsockOpen(ifname, TRUE, FALSE, ETHERTYPE_AVTP, ACMP_FRAME_LEN, ACMP_NUM_RX_BUFFERS);
 	txSock = openavbRawsockOpen(ifname, FALSE, TRUE, ETHERTYPE_AVTP, ACMP_FRAME_LEN, ACMP_NUM_TX_BUFFERS);
@@ -102,23 +101,24 @@ int openavbAcmpOpenSocket(const char* ifname)
 		&& openavbRawsockRxMulticast(rxSock, TRUE, ADDR_PTR(&acmpAddr))
 		&& openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_ACMP_AVTP_SUBTYPE | 0x80))
 	{
-		ret = openavbRawsockGetSocket(rxSock);
-
 		memset(&hdr, 0, sizeof(hdr_info_t));
 		hdr.shost = ADDR_PTR(&intfAddr);
 		hdr.dhost = ADDR_PTR(&acmpAddr);
 		hdr.ethertype = ETHERTYPE_AVTP;
 		hdr.vlan = FALSE;
 		openavbRawsockTxSetHdr(txSock, &hdr);
+
+		AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+		return true;
 	}
 
-	if (ret == INVALID_SOCKET) {
-		AVB_LOG_ERROR("Invalid socket");
-		openavbAcmpCloseSocket();
-	}	
+	AVB_LOG_ERROR("Invalid socket");
+	if (rxSock) { openavbRawsockClose(rxSock); }
+	if (txSock) { openavbRawsockClose(txSock); }
+	openavbAcmpCloseSocket();
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
-	return ret;
+	return false;
 }
 
 static void openavbAcmpMessageRxFrameParse(U8* payload, hdr_info_t *hdr)
@@ -336,7 +336,7 @@ openavbRC openavbAcmpMessageHandlerStart()
 
 	bRunning = TRUE;
 
-	if (openavbAcmpOpenSocket((const char *)gAvdeccCfg.ifname) != INVALID_SOCKET) {
+	if (openavbAcmpOpenSocket((const char *)gAvdeccCfg.ifname)) {
 
 		// Start the RX thread
 		bool errResult;
