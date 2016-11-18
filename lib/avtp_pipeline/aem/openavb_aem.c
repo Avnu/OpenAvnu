@@ -270,6 +270,8 @@ extern DLL_EXPORT U16 openavbAemGetConfigIdx()
 
 	// This function does NOT check for errors but at a minimum avoid a crash.
 	if (!pAemEntityModel || !pAemEntityModel->pDescriptorEntity) {
+		AVB_RC_LOG(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_ENTITY_MODEL_MISSING);
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
 		return 0;
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
