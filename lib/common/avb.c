@@ -555,7 +555,7 @@ void avb_initialize_h1722_to_defaults(seventeen22_header *h1722)
 	avb_set_1722_sid_valid(h1722, 0x0);
 	avb_set_1722_reset(h1722, 0x0);
 	avb_set_1722_version(h1722, 0x0);
-	avb_set_1722_sid_valid(h1722, 0x0);
+	avb_set_1722_seq_number(h1722, 0x0);
 	avb_set_1722_timestamp_uncertain(h1722, 0x0);
 	avb_set_1722_reserved1(h1722, 0x0);
 	avb_set_1722_timestamp(h1722, 0x0);
