@@ -86,6 +86,7 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_INITIALIZE:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_INITIALIZE");
 
 					openavbAdpSMAdvertiseInterfaceVars.lastLinkIsUp = FALSE;
 					openavbAdpSMAdvertiseInterfaceVars.doAdvertise = FALSE;			// Per 1722.1 What's next notes
@@ -100,6 +101,7 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_WAITING:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_WAITING");
 
 					// openavbAdpSMAdvertiseInterfaceVars.rcvdDiscover = FALSE;		// Per 1722.1 What's next notes. Note: setting this elsewhere otherwise incorrect behavior.
 					// openavbAdpSMGlobalVars.entityInfo.pdu.available_index++;		// Per 1722.1 What's next notes
@@ -131,6 +133,7 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_DEPARTING:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_DEPARTING");
 
 					openavbAdpSMAdvertiseInterface_txEntityDeparting();
 					bRunning = FALSE;
@@ -139,6 +142,7 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_ADVERTISE:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_ADVERTISE");
 
 					openavbAdpSMAdvertiseInterfaceVars.doAdvertise = FALSE;			// Per 1722.1 What's next notes
 					openavbAdpSMAdvertiseInterface_txEntityAvailable();
@@ -148,6 +152,7 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_RECEIVED_DISCOVER:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_RECEIVED_DISCOVER");
 
 					ADP_LOCK();
 					openavbAdpSMAdvertiseInterfaceVars.rcvdDiscover = FALSE;		// Not per spec but is needed.
@@ -162,6 +167,7 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_UPDATE_GM:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_UPDATE_GM");
 
 					openavbAdpSMAdvertiseEntitySet_needsAdvertise(TRUE);
 					state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_WAITING;
@@ -170,6 +176,7 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_LINK_STATE_CHANGE:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_LINK_STATE_CHANGE");
 
 					openavbAdpSMAdvertiseInterfaceVars.lastLinkIsUp = openavbAdpSMAdvertiseInterfaceVars.linkIsUp;
 					if (openavbAdpSMAdvertiseInterfaceVars.linkIsUp) {
@@ -179,6 +186,7 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 				}
 				break;
 			default:
+				AVB_LOG_ERROR("State:  Unexpected!");
 				bRunning = FALSE;	// Unexpected
 				break;
 		}
