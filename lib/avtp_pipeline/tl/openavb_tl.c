@@ -156,41 +156,39 @@ static bool checkIntfCallbacks(openavb_tl_cfg_t *pCfg)
 	bool validCfg = TRUE;
 
 	if (!pCfg->intf_cb.intf_cfg_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_cfg'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_cfg'.");
 		// validCfg = FALSE;
 	}
 	if ((pCfg->role == AVB_ROLE_TALKER) && !pCfg->intf_cb.intf_tx_init_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_tx_init'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_tx_init'.");
 		// validCfg = FALSE;
 	}
 	if ((pCfg->role == AVB_ROLE_TALKER) && !pCfg->intf_cb.intf_tx_cb) {
-		AVB_LOG_ERROR("INI file doesn't specify inferface callback for '_tx'.");
+		AVB_LOG_ERROR("INI file doesn't specify interface callback for '_tx'.");
 		validCfg = FALSE;
 	}
 	if ((pCfg->role == AVB_ROLE_LISTENER) && !pCfg->intf_cb.intf_rx_init_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_rx_init'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_rx_init'.");
 		// validCfg = FALSE;
 	}
 	if ((pCfg->role == AVB_ROLE_LISTENER) && !pCfg->intf_cb.intf_rx_cb) {
-		AVB_LOG_ERROR("INI file doesn't specify inferface callback for '_rx'.");
+		AVB_LOG_ERROR("INI file doesn't specify interface callback for '_rx'.");
 		validCfg = FALSE;
 	}
 	if (!pCfg->intf_cb.intf_end_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_end'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_end'.");
 		// validCfg = FALSE;
 	}
 	if (!pCfg->intf_cb.intf_gen_init_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_gen_init'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_gen_init'.");
 		// validCfg = FALSE;
 	}
 	if (!pCfg->intf_cb.intf_gen_end_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_gen_end'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_gen_end'.");
 		// validCfg = FALSE;
 	}
 	if (!pCfg->intf_cb.intf_avdecc_init_cb) {
-		// Optional callback
-		// CORE_TODO: AVDECC not formally supported yet.
-		// AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_avdecc_init'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_avdecc_init'.");
 		// validCfg = FALSE;
 	}
 
@@ -242,9 +240,7 @@ static bool checkMapCallbacks(openavb_tl_cfg_t *pCfg)
 		// validCfg = FALSE;
 	}
 	if (!pCfg->map_cb.map_avdecc_init_cb) {
-		// Optional callback
-		// CORE_TODO: AVDECC not formally supported yet.
-		// AVB_LOG_WARNING("INI doesn't specify mapping callback for '_avdecc_init'.");
+		AVB_LOG_WARNING("INI doesn't specify mapping callback for '_avdecc_init'.");
 		// validCfg = FALSE;
 	}
 
