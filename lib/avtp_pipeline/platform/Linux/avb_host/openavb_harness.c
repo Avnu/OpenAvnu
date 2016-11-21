@@ -150,6 +150,7 @@ void openavbTlHarnessMenu()
 		" t            Stop all streams\n"
 		" l            List streams\n"
 		" 0-99         Toggle the state of the numbered stream\n"
+		" c N NAME VAL Change config option for stream N\n"
 		" m            Display this menu\n"
 		" z            Stats\n"
 		" x            Exit\n"
@@ -402,7 +403,7 @@ int main(int argc, char *argv[])
 
 		openavbTlHarnessMenu();
 		while (bRunning) {
-			char buf[16];
+			char buf[512];
 			printf("> ");
 			if (fgets(buf, sizeof(buf), stdin) == NULL) {
 				openavbTlHarnessMenu();
@@ -448,10 +449,25 @@ int main(int argc, char *argv[])
 						}
 					}
 					break;
+				case 'c':
+					{
+						int i1;
+						char name[512];
+						char value[512];
+						if (sscanf(&buf[1], "%d %s %s", &i1, name, value) == 3 && i1 < tlCount) {
+							openavb_tl_cfg_name_value_t NVCfg = {{name}, {value}, 1};
+							openavbTlChangeConfig(tlHandleList[i1], &NVCfg);
+						} else {
+							openavbTlHarnessMenu();
+						}
+
+					}
+					break;
 				case 'm':
 					// Display menu
 					openavbTlHarnessMenu();
 					break;
+
 				case 'z':
 					// Stats
 					{

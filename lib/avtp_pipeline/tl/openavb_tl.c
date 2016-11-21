@@ -400,6 +400,42 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }
 
+void openavbTlChangeConfig(tl_handle_t handle, openavb_tl_cfg_name_value_t *pNVCfg)
+{
+	tl_state_t *pTLState = (tl_state_t *)handle;
+
+	if (!pTLState) {
+		AVB_LOG_ERROR("Invalid handle.");
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		return;
+	}
+
+	openavb_tl_cfg_t *pCfg = &pTLState->cfg;
+
+	int i;
+	for (i = 0; i < pNVCfg->nLibCfgItems; i++) {
+		if (MATCH_LEFT(pNVCfg->libCfgNames[i], "intf_nv_", 8)) {
+			if (pCfg->intf_cb.intf_cfg_cb) {
+				pCfg->intf_cb.intf_cfg_cb(pTLState->pMediaQ, pNVCfg->libCfgNames[i], pNVCfg->libCfgValues[i]);
+			}
+			else {
+				AVB_LOGF_ERROR("No interface module cfg function; ignoring %s", pNVCfg->libCfgNames[i]);
+			}
+		}
+		else if (MATCH_LEFT(pNVCfg->libCfgNames[i], "map_nv_", 7)) {
+			if (pCfg->map_cb.map_cfg_cb) {
+				pCfg->map_cb.map_cfg_cb(pTLState->pMediaQ, pNVCfg->libCfgNames[i], pNVCfg->libCfgValues[i]);
+			}
+			else {
+				AVB_LOGF_ERROR("No mapping module cfg function; ignoring %s", pNVCfg->libCfgNames[i]);
+			}
+		}
+		else {
+			AVB_LOG_ERROR("Only intf_nv_ and map_nv_ names are supported");
+		}
+	}
+}
+
 EXTERN_DLL_EXPORT bool openavbTLConfigure(tl_handle_t handle, openavb_tl_cfg_t *pCfgIn, openavb_tl_cfg_name_value_t *pNVCfg)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
@@ -463,28 +499,7 @@ EXTERN_DLL_EXPORT bool openavbTLConfigure(tl_handle_t handle, openavb_tl_cfg_t *
 	}
 
 	// Submit configuration values to mapping and interface modules
-	int i;
-	for (i = 0; i < pNVCfg->nLibCfgItems; i++) {
-		if (MATCH_LEFT(pNVCfg->libCfgNames[i], "intf_nv_", 8)) {
-			if (pCfg->intf_cb.intf_cfg_cb) {
-				pCfg->intf_cb.intf_cfg_cb(pTLState->pMediaQ, pNVCfg->libCfgNames[i], pNVCfg->libCfgValues[i]);
-			}
-			else {
-				AVB_LOGF_ERROR("No interface module cfg function; ignoring %s", pNVCfg->libCfgNames[i]);
-			}
-		}
-		else if (MATCH_LEFT(pNVCfg->libCfgNames[i], "map_nv_", 7)) {
-			if (pCfg->map_cb.map_cfg_cb) {
-				pCfg->map_cb.map_cfg_cb(pTLState->pMediaQ, pNVCfg->libCfgNames[i], pNVCfg->libCfgValues[i]);
-			}
-			else {
-				AVB_LOGF_ERROR("No mapping module cfg function; ignoring %s", pNVCfg->libCfgNames[i]);
-			}
-		}
-		else {
-			assert(0);
-		}
-	} // for loop ends
+	openavbTlChangeConfig(pTLState, pNVCfg); // for loop ends
 
 	pTLState->cfg.map_cb.map_gen_init_cb(pTLState->pMediaQ);
 	pTLState->cfg.intf_cb.intf_gen_init_cb(pTLState->pMediaQ);

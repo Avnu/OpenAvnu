@@ -239,6 +239,9 @@ tl_handle_t openavbTLOpen(void);
  */
 void openavbTLInitCfg(openavb_tl_cfg_t *pCfg);
 
+
+void openavbTlChangeConfig(tl_handle_t handle, openavb_tl_cfg_name_value_t *pNVCfg);
+
 /** Configure the talker / listener.
  *
  * Configures talker/listener with configuration values from configuration
