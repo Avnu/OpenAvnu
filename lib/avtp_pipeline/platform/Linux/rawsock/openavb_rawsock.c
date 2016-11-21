@@ -74,6 +74,12 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 
 	const char* ifname = ifname_uri;
 	char proto[IF_NAMESIZE] = "igb";
+
+	/* Default to "simple" for transmission-only sockets. */
+	if (tx_mode && !rx_mode) {
+		strcpy(proto, "simple");
+	}
+
 	char *colon = strchr(ifname_uri, ':');
 	if (colon) {
 		ifname = colon + 1;

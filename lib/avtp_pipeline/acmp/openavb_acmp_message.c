@@ -136,7 +136,7 @@ static void openavbAcmpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 
 #if 0
 	AVB_LOGF_DEBUG("openavbAcmpMessageRxFrameParse packet data (length %d):", payload_len);
-	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, payload, 64, 16);
+	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, payload, payload_len, 16);
 #endif
 
 	U8 *pSrc = payload;
@@ -230,10 +230,7 @@ static void openavbAcmpMessageRxFrameReceive(U32 timeoutUsec)
 
 		offset = openavbRawsockRxParseHdr(rxSock, pBuf, &hdrInfo);
 		{
-			/* this MACRO is not defined for this file, there use to be a platform
-			 * dependency, this was defined for ti814x, but really be #ifndef UBUNTU
-			 * This should be removed */
-#ifdef RX_WITH_VLAN_TAG
+#ifndef UBUNTU
 			if (hdrInfo.ethertype == ETHERTYPE_8021Q) {
 				// Oh!  Need to look past the VLAN tag
 				U16 vlan_bits = ntohs(*(U16 *)(pFrame + offset));

@@ -102,7 +102,12 @@ bool openavbAdpOpenSocket(const char* ifname)
 
 	hdr_info_t hdr;
 
+#ifndef UBUNTU
+	// This is the normal case for most of our supported platforms
+	rxSock = openavbRawsockOpen(ifname, TRUE, FALSE, ETHERTYPE_8021Q, ADP_FRAME_LEN, ADP_NUM_BUFFERS);
+#else
 	rxSock = openavbRawsockOpen(ifname, TRUE, FALSE, ETHERTYPE_AVTP, ADP_FRAME_LEN, ADP_NUM_BUFFERS);
+#endif
 	txSock = openavbRawsockOpen(ifname, FALSE, TRUE, ETHERTYPE_AVTP, ADP_FRAME_LEN, ADP_NUM_BUFFERS);
 
 	if (txSock && rxSock
@@ -118,9 +123,11 @@ bool openavbAdpOpenSocket(const char* ifname)
 		hdr.shost = ADDR_PTR(&intfAddr);
 		hdr.dhost = ADDR_PTR(&adpAddr);
 		hdr.ethertype = ETHERTYPE_AVTP;
+#if (SR_CLASS_A_DEFAULT_PRIORITY) || (SR_CLASS_A_DEFAULT_VID)
 		hdr.vlan = TRUE;
 		hdr.vlan_pcp = SR_CLASS_A_DEFAULT_PRIORITY;
 		hdr.vlan_vid = SR_CLASS_A_DEFAULT_VID;
+#endif
 		if (!openavbRawsockTxSetHdr(txSock, &hdr)) {
 			AVB_LOG_ERROR("TX socket Header Failure");
 			openavbAdpCloseSocket();
@@ -210,10 +217,7 @@ static void openavbAdpMessageRxFrameReceive(U32 timeoutUsec)
 
 		offset = openavbRawsockRxParseHdr(rxSock, pBuf, &hdrInfo);
 		{
-			/* this MACRO is not defined for this file, there use to be a platform
-			 * dependency, this was defined for ti814x, but really be #ifndef UBUNTU
-			 * This should be removed */
-#ifdef RX_WITH_VLAN_TAG
+#ifndef UBUNTU
 			if (hdrInfo.ethertype == ETHERTYPE_8021Q) {
 				// Oh!  Need to look past the VLAN tag
 				U16 vlan_bits = ntohs(*(U16 *)(pFrame + offset));

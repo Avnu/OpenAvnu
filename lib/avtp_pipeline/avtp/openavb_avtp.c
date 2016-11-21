@@ -365,7 +365,7 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			}
 		}
 
-		// If we got data from the mapping module, notifiy the raw sockets.
+		// If we got data from the mapping module, notify the raw sockets.
 		if (txCBResult != TX_CB_RET_PACKET_NOT_READY) {
 
 			if (pStream->tsEval) {
