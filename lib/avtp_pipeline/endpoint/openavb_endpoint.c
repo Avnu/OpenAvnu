@@ -59,6 +59,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_avtp.h"
 #include "openavb_qmgr.h"
 #include "openavb_maap.h"
+#include "openavb_avdecc.h"
 
 #define	AVB_LOG_COMPONENT	"Endpoint"
 #include "openavb_pub.h"
@@ -72,6 +73,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 clientStream_t* 				x_streamList;
 // true until we are signalled to stop
 bool endpointRunning = TRUE;
+bool avdeccRunning = TRUE;
 // data from our configuation file
 openavb_endpoint_cfg_t 	x_cfg;
 
@@ -500,13 +502,15 @@ int avbEndpointLoop(void)
 
 		if (openavbEndpointServerOpen()) {
 
+			retVal = 0;
+
 			while (endpointRunning) {
 				openavbEptSrvrService();
 			}
 
 			openavbEndpointServerClose();
 		}
-				
+
 		if(!x_cfg.noSrp) {
 			// Shutdown SRP
 			openavbSrpShutdown();
@@ -515,13 +519,98 @@ int avbEndpointLoop(void)
 		openavbMaapFinalize();
 		openavbQmgrFinalize();
 
-		retVal = 0;
-	
 	} while (0);
 
 	if (!x_cfg.bypassAsCapableCheck && (stopPTP() < 0)) {
 		AVB_LOG_WARNING("Failed to execute PTP stop command: killall -s SIGINT openavb_gptp");
 	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+	return retVal;
+}
+
+
+static bool startAvdeccSupport()
+{
+	openavb_avdecc_cfg_t avdecc_cfg = {0};
+	openavbRC rc;
+	bool succeeded = false;
+
+	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
+
+	/* Initialize the structure. */
+	avdecc_cfg.bListener = 1; // TODO:  BDT_DEBUG What should this be?
+	avdecc_cfg.bTalker = 1; // TODO:  BDT_DEBUG What should this be?
+	strncpy(avdecc_cfg.ifname, x_cfg.ifname, sizeof(avdecc_cfg.ifname));
+	avdecc_cfg.ifname[sizeof(avdecc_cfg.ifname) - 1] = '\0';
+	avdecc_cfg.pDescriptorEntity = openavbAemDescriptorEntityNew();
+
+	do {
+		if (!avdecc_cfg.pDescriptorEntity) {
+			AVB_LOG_ERROR("Failed to allocate an AVDECC descriptor");
+			break;
+		}
+
+		if (!openavbAemDescriptorEntitySet_entity_id(avdecc_cfg.pDescriptorEntity, NULL, x_cfg.ifmac, x_cfg.avdeccId)) {
+			AVB_LOG_ERROR("Failed to set the AVDECC descriptor");
+			break;
+		}
+
+		rc = openavbAVDECCInitialize(&avdecc_cfg);
+		if (IS_OPENAVB_FAILURE(rc)) {
+			AVB_LOG_ERROR("Failed to initialize AVDECC");
+			openavbAVDECCCleanup();
+			break;
+		}
+
+		AVB_LOG_DEBUG("AVDECC Initialized");
+
+		if (!openavbAVDECCStart()) {
+			AVB_LOG_ERROR("Failed to start AVDECC");
+			openavbAVDECCStop();
+			openavbAVDECCCleanup();
+			break;
+		}
+
+		AVB_LOG_INFO("AVDECC Started");
+		succeeded = true;
+	} while(0);
+
+	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+	return succeeded;
+}
+
+int avbAvdeccLoop(void)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
+
+	int retVal = -1;
+	bool avdeccEnabled = false;
+
+	do {
+
+		// Initialize and Start AVDECC
+		if(x_cfg.noAvdecc) {
+			AVB_LOG_INFO("AVDECC not enabled");
+		} else {
+			avdeccEnabled = true;
+			if (!startAvdeccSupport()) {
+				AVB_LOG_ERROR("AVDECC not available");
+				avdeccEnabled = false; // Don't shutdown below.
+			}
+		}
+
+		while (avdeccEnabled && avdeccRunning) {
+			SLEEP(1);
+		}
+
+		if(avdeccEnabled) {
+			// Stop and Shutdown AVDECC
+			openavbAVDECCStop();
+			openavbAVDECCCleanup();
+		}
+
+	} while (0);
 
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return retVal;

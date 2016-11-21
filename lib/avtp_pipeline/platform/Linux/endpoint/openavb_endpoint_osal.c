@@ -51,6 +51,10 @@ extern bool endpointRunning;
 static pthread_t endpointServerHandle;
 static void* endpointServerThread(void *arg);
 
+extern bool avdeccRunning;
+static pthread_t avdeccServerHandle;
+static void* avdeccServerThread(void *arg);
+
 inline int startPTP(void)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
@@ -109,11 +113,25 @@ bool startEndpoint(int mode, int ifindex, const char* ifname, unsigned mtu, unsi
 	x_cfg.link_kbit = link_kbit;
 	x_cfg.nsr_kbit = nsr_kbit;
 
+	openavbReadConfig(DEFAULT_INI_FILE, &x_cfg);
+
 	endpointRunning = TRUE;
 	int err = pthread_create(&endpointServerHandle, NULL, endpointServerThread, NULL);
 	if (err) {
 		AVB_LOGF_ERROR("Failed to start endpoint thread: %s", strerror(err));
 		goto error;
+	}
+
+	if (x_cfg.noAvdecc) {
+		AVB_LOG_INFO("AVDECC not enabled");
+	} else {
+		/* Run AVDECC in its own thread. */
+		avdeccRunning = TRUE;
+		err = pthread_create(&avdeccServerHandle, NULL, avdeccServerThread, NULL);
+		if (err) {
+			AVB_LOGF_ERROR("Failed to start AVDECC thread: %s", strerror(err));
+			goto error;
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
@@ -131,6 +149,9 @@ void stopEndpoint()
 	endpointRunning = FALSE;
 	pthread_join(endpointServerHandle, NULL);
 
+	avdeccRunning = FALSE;
+	pthread_join(avdeccServerHandle, NULL);
+
 	openavbUnconfigure(&x_cfg);
 
 	AVB_LOG_INFO("Shutting down");
@@ -147,6 +168,25 @@ static void* endpointServerThread(void *arg)
 		if (err) {
 			AVB_LOG_ERROR("Make sure that mrpd daemon is started.");
 			SLEEP(1);
+		}
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+	return NULL;
+}
+
+static void* avdeccServerThread(void *arg)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
+
+	/* Allow the endpoint support to start before starting the AVDECC support. */
+	SLEEP(2);
+
+	while (avdeccRunning) {
+		int err = avbAvdeccLoop();
+		if (err && avdeccRunning) {
+			AVB_LOG_ERROR("AVDECC support disabled");
+			avdeccRunning = false;
 		}
 	}
 

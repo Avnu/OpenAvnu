@@ -55,6 +55,8 @@ bool openavbEptClntService(int h, int timeout);
 void openavbEptSrvrService(void);
 int avbEndpointLoop(void);
 
+int avbAvdeccLoop(void);
+
 
 typedef enum {
 	// client messages

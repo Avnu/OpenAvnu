@@ -55,6 +55,8 @@ typedef struct {
 	unsigned	fqtss_mode;
 	bool        noSrp;
 	bool        bypassAsCapableCheck;
+	bool        noAvdecc;
+	unsigned	avdeccId;
 } openavb_endpoint_cfg_t;
 
 int openavbReadConfig(const char *inifile, openavb_endpoint_cfg_t *pCfg);

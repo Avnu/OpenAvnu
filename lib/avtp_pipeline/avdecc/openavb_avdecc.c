@@ -63,7 +63,14 @@ void openavbAVDECCStopAdp()
 bool openavbAVDECCStartCmp()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
-	openavbAcmpStart();
+
+	openavbRC rc = openavbAcmpStart();
+	if (IS_OPENAVB_FAILURE(rc)) {
+		openavbAcmpStop();
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;
 }

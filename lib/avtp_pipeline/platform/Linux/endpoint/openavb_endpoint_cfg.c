@@ -190,6 +190,7 @@ int openavbReadConfig(const char *ini_file, openavb_endpoint_cfg_t *pCfg)
 	// defaults - most are handled by setting everything to 0
 	memset(pCfg, 0, sizeof(openavb_endpoint_cfg_t));
 	pCfg->fqtss_mode = -1;
+	pCfg->avdeccId = 0xBD; // TODO:  BDT_DEBUG What is a good default?
 
 	int result = ini_parse(ini_file, cfgCallback, pCfg);
 	if (result < 0) {
