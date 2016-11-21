@@ -98,15 +98,23 @@ bool openavbAcmpOpenSocket(const char* ifname)
 	if (txSock && rxSock
 		&& openavbRawsockGetAddr(txSock, ADDR_PTR(&intfAddr))
 		&& ether_aton_r(ACMP_PROTOCOL_ADDR, &acmpAddr)
-		&& openavbRawsockRxMulticast(rxSock, TRUE, ADDR_PTR(&acmpAddr))
-		&& openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_ACMP_AVTP_SUBTYPE | 0x80))
+		&& openavbRawsockRxMulticast(rxSock, TRUE, ADDR_PTR(&acmpAddr)))
 	{
+		if (!openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_ACMP_AVTP_SUBTYPE | 0x80)) {
+			AVB_LOG_DEBUG("RX AVTP Subtype not supported");
+		}
+
 		memset(&hdr, 0, sizeof(hdr_info_t));
 		hdr.shost = ADDR_PTR(&intfAddr);
 		hdr.dhost = ADDR_PTR(&acmpAddr);
 		hdr.ethertype = ETHERTYPE_AVTP;
 		hdr.vlan = FALSE;
-		openavbRawsockTxSetHdr(txSock, &hdr);
+		if (!openavbRawsockTxSetHdr(txSock, &hdr)) {
+			AVB_LOG_ERROR("TX socket Header Failure");
+			openavbAcmpCloseSocket();
+			AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+			return FALSE;
+		}
 
 		AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 		return true;
@@ -119,12 +127,17 @@ bool openavbAcmpOpenSocket(const char* ifname)
 	return false;
 }
 
-static void openavbAcmpMessageRxFrameParse(U8* payload, hdr_info_t *hdr)
+static void openavbAcmpMessageRxFrameParse(U8* payload, int payload_len, hdr_info_t *hdr)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
 	openavb_acmp_control_header_t acmpHeader;
 	openavb_acmp_ACMPCommandResponse_t acmpCommandResponse;
+
+#if 0
+	AVB_LOGF_DEBUG("openavbAcmpMessageRxFrameParse packet data (length %d):", payload_len);
+	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, payload, 64, 16);
+#endif
 
 	U8 *pSrc = payload;
 	{
@@ -238,7 +251,7 @@ static void openavbAcmpMessageRxFrameReceive(U32 timeoutUsec)
 			if (hdrInfo.ethertype == ETHERTYPE_AVTP) {
 				// parse the PDU only for ACMP messages
 				if (*(pFrame + offset) == (0x80 | OPENAVB_ACMP_AVTP_SUBTYPE)) {
-					openavbAcmpMessageRxFrameParse(pFrame + offset, &hdrInfo);
+					openavbAcmpMessageRxFrameParse(pFrame + offset, len - offset, &hdrInfo);
 				}
 			}
 			else {
@@ -319,10 +332,12 @@ void* openavbAcmpMessageRxThreadFn(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
+	AVB_LOG_DEBUG("ACMP Thread Started");
 	while (bRunning) {
 		// Try to get and process an ACMP. 
 		openavbAcmpMessageRxFrameReceive(MICROSECONDS_PER_SECOND);
 	}
+	AVB_LOG_DEBUG("ACMP Thread Done");
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 	return NULL;

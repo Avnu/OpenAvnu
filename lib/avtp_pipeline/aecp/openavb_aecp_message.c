@@ -36,6 +36,9 @@
 
 #define INVALID_SOCKET (-1)
 
+// AECP Multicast address
+#define AECP_PROTOCOL_ADDR "91:E0:F0:01:00:00"
+
 // AVDECC_TODO: Turn off VLAN
 
 // message length
@@ -58,7 +61,7 @@ extern MUTEX_HANDLE(openavbAecpMutex);
 static void *rxSock = NULL;
 static void *txSock = NULL;
 static struct ether_addr intfAddr;
-static hdr_info_t txHdr;
+static struct ether_addr aecpAddr;
 
 extern openavb_aecp_sm_global_vars_t openavbAecpSMGlobalVars;
 
@@ -89,52 +92,53 @@ bool openavbAecpOpenSocket(const char* ifname)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 
+	hdr_info_t hdr;
+
 	rxSock = openavbRawsockOpen(ifname, TRUE, FALSE, ETHERTYPE_AVTP, AECP_FRAME_LEN, AECP_NUM_BUFFERS);
 	txSock = openavbRawsockOpen(ifname, FALSE, TRUE, ETHERTYPE_AVTP, AECP_FRAME_LEN, AECP_NUM_BUFFERS);
-	if (!rxSock || !txSock) {
-		AVB_LOG_ERROR("Socket not available");
-		openavbAecpCloseSocket();
-		AVB_TRACE_EXIT(AVB_TRACE_AECP);
-		return FALSE;
-	}
 
-	// Setup RX socket
-	if (!openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_AECP_AVTP_SUBTYPE | 0x80)) {
-		AVB_LOG_ERROR("Invalid RX socket");
-		openavbAecpCloseSocket();
-		AVB_TRACE_EXIT(AVB_TRACE_AECP);
-		return FALSE;
-	}
+	if (txSock && rxSock
+		&& openavbRawsockGetAddr(txSock, ADDR_PTR(&intfAddr))
+		&& ether_aton_r(AECP_PROTOCOL_ADDR, &aecpAddr)
+		&& openavbRawsockRxMulticast(rxSock, TRUE, ADDR_PTR(&aecpAddr)))
+	{
+		if (!openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_AECP_AVTP_SUBTYPE | 0x80)) {
+			AVB_LOG_DEBUG("RX AVTP Subtype not supported");
+		}
 
-	// Setup TX socket
-	if (!openavbRawsockGetAddr(txSock, ADDR_PTR(&intfAddr))) {
-		AVB_LOG_ERROR("Invalid TX socket");
-		openavbAecpCloseSocket();
-		AVB_TRACE_EXIT(AVB_TRACE_AECP);
-		return FALSE;
-	} else {
-		memset(&txHdr, 0, sizeof(hdr_info_t));
-		txHdr.shost = ADDR_PTR(&intfAddr);
+		memset(&hdr, 0, sizeof(hdr_info_t));
+		hdr.shost = ADDR_PTR(&intfAddr);
 		// txHdr.dhost;								// Set at tx time.
-		txHdr.ethertype = ETHERTYPE_AVTP;
-		txHdr.vlan = TRUE;
-		txHdr.vlan_pcp = SR_CLASS_A_DEFAULT_PRIORITY;
-		txHdr.vlan_vid = SR_CLASS_A_DEFAULT_VID;
-		if (!openavbRawsockTxSetHdr(txSock, &txHdr)) {			// Will be set again at tx time.
+		hdr.ethertype = ETHERTYPE_AVTP;
+		hdr.vlan = TRUE;
+		hdr.vlan_pcp = SR_CLASS_A_DEFAULT_PRIORITY;
+		hdr.vlan_vid = SR_CLASS_A_DEFAULT_VID;
+		if (!openavbRawsockTxSetHdr(txSock, &hdr)) {
 			AVB_LOG_ERROR("TX socket Header Failure");
 			openavbAecpCloseSocket();
 			AVB_TRACE_EXIT(AVB_TRACE_AECP);
 			return FALSE;
 		}
+
+		AVB_TRACE_EXIT(AVB_TRACE_AECP);
+		return true;
 	}
+
+	AVB_LOG_ERROR("Invalid socket");
+	openavbAecpCloseSocket();
 
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 	return TRUE;
 }
 
-static void openavbAecpMessageRxFrameParse(U8* payload, hdr_info_t *hdr)
+static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_info_t *hdr)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
+
+#if 0
+	AVB_LOGF_DEBUG("openavbAecpMessageRxFrameParse packet data (length %d):", payload_len);
+	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, payload, 64, 16);
+#endif
 
 	// Save the source address
 	memcpy(openavbAecpCommandResponse.host, hdr->shost, ETH_ALEN);
@@ -507,7 +511,7 @@ static void openavbAecpMessageRxFrameReceive(U32 timeoutUsec)
 			if (hdrInfo.ethertype == ETHERTYPE_AVTP) {
 				// parse the PDU only for AECP messages
 				if (*(pFrame + offset) == (0x80 | OPENAVB_AECP_AVTP_SUBTYPE)) {
-					openavbAecpMessageRxFrameParse(pFrame + offset, &hdrInfo);
+					openavbAecpMessageRxFrameParse(pFrame + offset, len - offset, &hdrInfo);
 				}
 			}
 			else {
@@ -886,10 +890,12 @@ void* openavbAecpMessageRxThreadFn(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 
+	AVB_LOG_DEBUG("AECP Thread Started");
 	while (bRunning) {
 		// Try to get and process an ADP discovery message. 
 		openavbAecpMessageRxFrameReceive(MICROSECONDS_PER_SECOND);
 	}
+	AVB_LOG_DEBUG("AECP Thread Done");
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 	return NULL;

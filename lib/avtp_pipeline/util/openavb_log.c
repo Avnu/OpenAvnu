@@ -392,3 +392,49 @@ extern void DLL_EXPORT avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, c
 	}
 }
 
+extern void DLL_EXPORT avbLogBuffer(
+	int level,
+	const U8 *pData,
+	int dataLen,
+	int lineLen,
+	const char *company,
+	const char *component,
+	const char *path,
+	int line)
+{
+	char szDataLine[ 400 ];
+	char *pszOut;
+	int i, j;
+
+	if (level > AVB_LOG_LEVEL) { return; }
+
+	for (i = 0; i < dataLen; i += lineLen) {
+		/* Create the hexadecimal output for the buffer. */
+		pszOut = szDataLine;
+		*pszOut++ = '\t';
+		for (j = i; j < i + lineLen; ++j) {
+			if (j < dataLen) {
+				sprintf(pszOut, "%02x ", pData[j]);
+			} else {
+				strcpy(pszOut, "   ");
+			}
+			pszOut += 3;
+		}
+
+		*pszOut++ = ' ';
+		*pszOut++ = ' ';
+
+		/* Append the ASCII equivalent of each character. */
+		for (j = i; j < dataLen && j < i + lineLen; ++j) {
+			if (pData[j] >= 0x20 && pData[j] < 0x7f) {
+				*pszOut++ = (char) pData[j];
+			} else {
+				*pszOut++ = '.';
+			}
+		}
+
+		/* Display this line of text. */
+		*pszOut = '\0';
+		avbLogFn(level, "BUFFER", company, component, path, line, "%s", szDataLine);
+	}
+}

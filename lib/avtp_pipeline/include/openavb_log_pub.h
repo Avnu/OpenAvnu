@@ -188,6 +188,16 @@ void avbLogFn(
 
 void avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, char *pFormat, log_rt_datatype_t dataType, void *pVar);
 
+void avbLogBuffer(
+	int level,
+	const U8 *pData,
+	int dataLen,
+	int lineLen,
+	const char *company,
+	const char *component,
+	const char *path,
+	int line);
+
 
 #define avbLogFn2(level, tag, company, component, path, line, fmt, ...) \
     ({\
@@ -216,6 +226,7 @@ void avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, char *pFormat, log_
 #define AVB_LOGRT_STATUS(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT(AVB_LOG_LEVEL_STATUS, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define AVB_LOGRT_DEBUG(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT(AVB_LOG_LEVEL_DEBUG, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define AVB_LOGRT_VERBOSE(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT(AVB_LOG_LEVEL_VERBOSE, BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)   avbLogBuffer(LEVEL, DATA, DATALEN, LINELINE, AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__)
 #else
 #define AVB_LOGF_DEV(LEVEL, FMT, ...)
 #define AVB_LOGF_ERROR(FMT, ...)
@@ -237,6 +248,7 @@ void avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, char *pFormat, log_
 #define AVB_LOGRT_STATUS(BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define AVB_LOGRT_DEBUG(BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define AVB_LOGRT_VERBOSE(BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)
 #endif	// AVB_LOG_ON
 
 // Get a queued log message. Intended to be used with the OPENAVB_LOG_PULL_MODE option. 

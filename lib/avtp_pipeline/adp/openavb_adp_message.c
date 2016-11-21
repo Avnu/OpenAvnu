@@ -108,9 +108,12 @@ bool openavbAdpOpenSocket(const char* ifname)
 	if (txSock && rxSock
 		&& openavbRawsockGetAddr(txSock, ADDR_PTR(&intfAddr))
 		&& ether_aton_r(ADP_PROTOCOL_ADDR, &adpAddr)
-		&& openavbRawsockRxMulticast(rxSock, TRUE, ADDR_PTR(&adpAddr))
-		&& openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_ADP_AVTP_SUBTYPE | 0x80))
+		&& openavbRawsockRxMulticast(rxSock, TRUE, ADDR_PTR(&adpAddr)))
 	{
+		if (!openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_ADP_AVTP_SUBTYPE | 0x80)) {
+			AVB_LOG_DEBUG("RX AVTP Subtype not supported");
+		}
+
 		memset(&hdr, 0, sizeof(hdr_info_t));
 		hdr.shost = ADDR_PTR(&intfAddr);
 		hdr.dhost = ADDR_PTR(&adpAddr);
@@ -118,7 +121,12 @@ bool openavbAdpOpenSocket(const char* ifname)
 		hdr.vlan = TRUE;
 		hdr.vlan_pcp = SR_CLASS_A_DEFAULT_PRIORITY;
 		hdr.vlan_vid = SR_CLASS_A_DEFAULT_VID;
-		openavbRawsockTxSetHdr(txSock, &hdr);
+		if (!openavbRawsockTxSetHdr(txSock, &hdr)) {
+			AVB_LOG_ERROR("TX socket Header Failure");
+			openavbAdpCloseSocket();
+			AVB_TRACE_EXIT(AVB_TRACE_ADP);
+			return FALSE;
+		}
 
 		AVB_TRACE_EXIT(AVB_TRACE_ADP);
 		return true;
@@ -131,12 +139,17 @@ bool openavbAdpOpenSocket(const char* ifname)
 	return false;
 }
 
-static void openavbAdpMessageRxFrameParse(U8* payload, hdr_info_t *hdr)
+static void openavbAdpMessageRxFrameParse(U8* payload, int payload_len, hdr_info_t *hdr)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
 
 	openavb_adp_control_header_t adpHeader;
 	openavb_adp_data_unit_t adpPdu;
+
+#if 0
+	AVB_LOGF_DEBUG("openavbAdpMessageRxFrameParse packet data (length %d):", payload_len);
+	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, payload, payload_len, 16);
+#endif
 
 	U8 *pSrc = payload;
 	{
@@ -218,7 +231,7 @@ static void openavbAdpMessageRxFrameReceive(U32 timeoutUsec)
 			if (hdrInfo.ethertype == ETHERTYPE_AVTP) {
 				// parse the PDU only for ADP messages
 				if (*(pFrame + offset) == (0x80 | OPENAVB_ADP_AVTP_SUBTYPE)) {
-					openavbAdpMessageRxFrameParse(pFrame + offset, &hdrInfo);
+					openavbAdpMessageRxFrameParse(pFrame + offset, len - offset, &hdrInfo);
 				}
 			}
 			else {
@@ -309,10 +322,12 @@ void* openavbAdpMessageRxThreadFn(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
 
+	AVB_LOG_DEBUG("ADP Thread Started");
 	while (bRunning) {
 		// Try to get and process an ADP discovery message. 
 		openavbAdpMessageRxFrameReceive(MICROSECONDS_PER_SECOND);
 	}
+	AVB_LOG_DEBUG("ADP Thread Done");
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 	return NULL;
