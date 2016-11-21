@@ -499,7 +499,7 @@ int main(int argc, char *argv[])
 	// Close the streams
 	for (i1 = 0; i1 < tlCount; i1++) {
 		if (tlHandleList[i1]) {
-			printf("Stopping: %s\n", tlIniList[i1]);
+			printf("Closing: %s\n", tlIniList[i1]);
 
 			openavbTLClose(tlHandleList[i1]);
 
