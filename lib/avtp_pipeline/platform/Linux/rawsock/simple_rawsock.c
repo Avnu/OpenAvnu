@@ -201,6 +201,7 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 	cb->txSetMark = simpleRawsockTxSetMark;
 	cb->txSetHdr = simpleRawsockTxSetHdr;
 	cb->txFrameReady = simpleRawsockTxFrameReady;
+	cb->send = simpleRawsockSend;
 	cb->getRxFrame = simpleRawsockGetRxFrame;
 	cb->rxMulticast = simpleRawsockRxMulticast;
 	cb->getSocket = simpleRawsockGetSocket;
@@ -325,6 +326,17 @@ bool simpleRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 	return TRUE;
+}
+
+// Send all packets that are ready (i.e. tell kernel to send them)
+int simpleRawsockSend(void *pvRawsock)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
+
+	// simpleRawsock sends frames in simpleRawsockTxFrameReady
+
+	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
+	return 1;
 }
 
 // Get a RX frame

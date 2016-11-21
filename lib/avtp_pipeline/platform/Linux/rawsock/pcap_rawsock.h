@@ -48,6 +48,8 @@ U8 *pcapRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len);
 
 bool pcapRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec);
 
+int pcapRawsockSend(void *pvRawsock);
+
 U8 *pcapRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, unsigned int *len);
 
 bool pcapRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 addr[ETH_ALEN]);

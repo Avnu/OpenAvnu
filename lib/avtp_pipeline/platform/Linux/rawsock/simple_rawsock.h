@@ -70,6 +70,9 @@ bool simpleRawsockTxSetHdr(void *pvRawsock, hdr_info_t *pHdr);
 // Release a TX frame, and mark it as ready to send
 bool simpleRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec);
 
+// Send all packets that are ready (i.e. tell kernel to send them)
+int simpleRawsockSend(void *pvRawsock);
+
 // Get a RX frame
 U8* simpleRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, unsigned int *len);
 

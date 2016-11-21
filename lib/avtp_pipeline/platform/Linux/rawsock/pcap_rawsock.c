@@ -87,6 +87,7 @@ void *pcapRawsockOpen(pcap_rawsock_t* rawsock, const char *ifname, bool rx_mode,
 	cb->close = pcapRawsockClose;
 	cb->getTxFrame = pcapRawsockGetTxFrame;
 	cb->txFrameReady = pcapRawsockTxFrameReady;
+	cb->send = pcapRawsockSend;
 	cb->getRxFrame = pcapRawsockGetRxFrame;
 	cb->rxMulticast = pcapRawsockRxMulticast;
 
@@ -134,6 +135,14 @@ bool pcapRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64
 
 	}
 	return ret == 0;
+}
+
+// Send all packets that are ready (i.e. tell kernel to send them)
+int pcapRawsockSend(void *pvRawsock)
+{
+	// pcapRawsock sends frames in pcapRawsockTxFrameReady
+
+	return 1;
 }
 
 U8 *pcapRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, unsigned int *len)
