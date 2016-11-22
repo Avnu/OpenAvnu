@@ -183,20 +183,22 @@ extern DLL_EXPORT bool openavbAemDescriptorEntitySet_entity_id(openavb_aem_descr
 			AVB_TRACE_EXIT(AVB_TRACE_AEM);
 			return FALSE;
 		}
-		memcpy(pDescriptor->entity_id + 2, macAddrBuffer.ether_addr_octet, sizeof(macAddrBuffer.ether_addr_octet));
+		memcpy(pDescriptor->entity_id, macAddrBuffer.ether_addr_octet, 3);
+		memcpy(pDescriptor->entity_id + 3 + 2, macAddrBuffer.ether_addr_octet + 3, 3);
 	}
 	else if (nMacAddr) {
 		// If a network mac address is passed in use it.
-		memcpy(pDescriptor->entity_id + 2, nMacAddr, sizeof(pDescriptor->entity_id));
+		memcpy(pDescriptor->entity_id, nMacAddr, 3);
+		memcpy(pDescriptor->entity_id + 3 + 2, nMacAddr + 3, 3);
 	}
 	else {
 		// If no mac address is passed in obtain it from the stack.
-		memcpy(pDescriptor->entity_id + 2, openavbAVDECCMacAddr.ether_addr_octet, sizeof(openavbAVDECCMacAddr));
+		memcpy(pDescriptor->entity_id, openavbAVDECCMacAddr.ether_addr_octet, 3);
+		memcpy(pDescriptor->entity_id + 3 + 2, openavbAVDECCMacAddr.ether_addr_octet + 3, 3);
 	}
 
-//	*(U16 *)(pDescriptor->entity_id) = htons(id);
 	U16 tmpU16 = htons(id);
-	memcpy(pDescriptor->entity_id, &tmpU16, sizeof(tmpU16));
+	memcpy(pDescriptor->entity_id + 3, &tmpU16, sizeof(tmpU16));
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return TRUE;
