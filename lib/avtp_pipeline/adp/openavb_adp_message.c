@@ -96,7 +96,7 @@ void openavbAdpCloseSocket()
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 }
 
-bool openavbAdpOpenSocket(const char* ifname)
+bool openavbAdpOpenSocket(const char* ifname, U16 vlanID, U8 vlanPCP)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
 
@@ -123,11 +123,12 @@ bool openavbAdpOpenSocket(const char* ifname)
 		hdr.shost = ADDR_PTR(&intfAddr);
 		hdr.dhost = ADDR_PTR(&adpAddr);
 		hdr.ethertype = ETHERTYPE_AVTP;
-#if (SR_CLASS_A_DEFAULT_PRIORITY) || (SR_CLASS_A_DEFAULT_VID)
-		hdr.vlan = TRUE;
-		hdr.vlan_pcp = SR_CLASS_A_DEFAULT_PRIORITY;
-		hdr.vlan_vid = SR_CLASS_A_DEFAULT_VID;
-#endif
+		if (vlanID != 0 || vlanPCP != 0) {
+			hdr.vlan = TRUE;
+			hdr.vlan_pcp = vlanPCP;
+			hdr.vlan_vid = vlanID;
+			AVB_LOGF_DEBUG("VLAN pcp=%d vid=%d", hdr.vlan_pcp, hdr.vlan_vid);
+		}
 		if (!openavbRawsockTxSetHdr(txSock, &hdr)) {
 			AVB_LOG_ERROR("TX socket Header Failure");
 			openavbAdpCloseSocket();
@@ -257,6 +258,7 @@ void openavbAdpMessageTxFrame(U8 msgType, U8 *destAddr)
 
 	U8 *pBuf;
 	U32 size;
+	unsigned int hdrlen = 0;
 
 	pBuf = openavbRawsockGetTxFrame(txSock, TRUE, &size);
 
@@ -275,13 +277,13 @@ void openavbAdpMessageTxFrame(U8 msgType, U8 *destAddr)
 	}
 
 	memset(pBuf, 0, ADP_FRAME_LEN);
-	openavbRawsockTxFillHdr(txSock, pBuf, NULL);
+	openavbRawsockTxFillHdr(txSock, pBuf, &hdrlen);
 
 	if (destAddr)
 		memcpy(pBuf, destAddr, ETH_ALEN);
 
 	ADP_LOCK();
-	U8 *pDst = pBuf + ETH_HDR_LEN_VLAN;
+	U8 *pDst = pBuf + hdrlen;
 	{
 		// AVTP Control Header
 		openavb_adp_control_header_t *pSrc = &openavbAdpSMGlobalVars.entityInfo.header;
@@ -316,7 +318,12 @@ void openavbAdpMessageTxFrame(U8 msgType, U8 *destAddr)
 	}
 	ADP_UNLOCK();
 
-	openavbRawsockTxFrameReady(txSock, pBuf, ADP_FRAME_LEN, 0);
+#if 0
+ 	AVB_LOGF_DEBUG("openavbAdpMessageTxFrame packet data (length %d):", hdrlen + AVTP_HDR_LEN + ADP_DATA_LEN);
+ 	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, pBuf, hdrlen + AVTP_HDR_LEN + ADP_DATA_LEN, 16);
+ #endif
+
+	openavbRawsockTxFrameReady(txSock, pBuf, hdrlen + AVTP_HDR_LEN + ADP_DATA_LEN, 0);
 	openavbRawsockSend(txSock);
 
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
@@ -343,7 +350,7 @@ openavbRC openavbAdpMessageHandlerStart()
 
 	bRunning = TRUE;
 
-	if (openavbAdpOpenSocket((const char *)gAvdeccCfg.ifname)) {
+	if (openavbAdpOpenSocket((const char *)gAvdeccCfg.ifname, gAvdeccCfg.vlanID, gAvdeccCfg.vlanPCP)) {
 
 		// Start the RX thread
 		bool errResult;

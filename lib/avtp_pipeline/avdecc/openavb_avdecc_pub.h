@@ -53,6 +53,8 @@ typedef struct {
 	bool bListener;
 	bool bTalker;
 	char ifname[32];
+	U16  vlanID;
+	U8   vlanPCP;
 	openavb_aem_descriptor_entity_t *pDescriptorEntity;
 } openavb_avdecc_cfg_t;
 

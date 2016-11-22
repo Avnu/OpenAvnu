@@ -543,6 +543,8 @@ static bool startAvdeccSupport()
 	avdecc_cfg.bTalker = 1; // TODO:  BDT_DEBUG What should this be?
 	strncpy(avdecc_cfg.ifname, x_cfg.ifname, sizeof(avdecc_cfg.ifname));
 	avdecc_cfg.ifname[sizeof(avdecc_cfg.ifname) - 1] = '\0';
+	//avdecc_cfg.vlanID = SR_CLASS_A_DEFAULT_VID;
+	//avdecc_cfg.vlanPCP = SR_CLASS_A_DEFAULT_PRIORITY;
 	avdecc_cfg.pDescriptorEntity = openavbAemDescriptorEntityNew();
 
 	do {

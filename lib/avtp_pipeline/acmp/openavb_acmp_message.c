@@ -43,7 +43,7 @@
 // message length
 #define AVTP_HDR_LEN 12
 #define ACMP_DATA_LEN 44
-#define ACMP_FRAME_LEN (ETH_HDR_LEN + AVTP_HDR_LEN + ACMP_DATA_LEN)
+#define ACMP_FRAME_LEN (ETH_HDR_LEN_VLAN + AVTP_HDR_LEN + ACMP_DATA_LEN)
 
 // number of buffers
 #define ACMP_NUM_TX_BUFFERS 2
@@ -86,7 +86,7 @@ void openavbAcmpCloseSocket()
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
-bool openavbAcmpOpenSocket(const char* ifname)
+bool openavbAcmpOpenSocket(const char* ifname, U16 vlanID, U8 vlanPCP)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
@@ -108,7 +108,12 @@ bool openavbAcmpOpenSocket(const char* ifname)
 		hdr.shost = ADDR_PTR(&intfAddr);
 		hdr.dhost = ADDR_PTR(&acmpAddr);
 		hdr.ethertype = ETHERTYPE_AVTP;
-		hdr.vlan = FALSE;
+		if (vlanID != 0 || vlanPCP != 0) {
+			hdr.vlan = TRUE;
+			hdr.vlan_pcp = vlanPCP;
+			hdr.vlan_vid = vlanID;
+			AVB_LOGF_DEBUG("VLAN pcp=%d vid=%d", hdr.vlan_pcp, hdr.vlan_vid);
+		}
 		if (!openavbRawsockTxSetHdr(txSock, &hdr)) {
 			AVB_LOG_ERROR("TX socket Header Failure");
 			openavbAcmpCloseSocket();
@@ -269,6 +274,7 @@ void openavbAcmpMessageTxFrame(U8 messageType, openavb_acmp_ACMPCommandResponse_
 
 	U8 *pBuf;
 	U32 size;
+	unsigned int hdrlen = 0;
 
 	pBuf = openavbRawsockGetTxFrame(txSock, TRUE, &size);
 
@@ -287,10 +293,10 @@ void openavbAcmpMessageTxFrame(U8 messageType, openavb_acmp_ACMPCommandResponse_
 	}
 
 	memset(pBuf, 0, ACMP_FRAME_LEN);
-	openavbRawsockTxFillHdr(txSock, pBuf, NULL);
+	openavbRawsockTxFillHdr(txSock, pBuf, &hdrlen);
 
 	ACMP_LOCK();
-	U8 *pDst = pBuf + ETH_HDR_LEN;
+	U8 *pDst = pBuf + hdrlen;
 	{
 		openavb_acmp_control_header_t *pSrc1 = &openavbAcmpSMGlobalVars.controlHeader;
 		openavb_acmp_ACMPCommandResponse_t *pSrc2 = pACMPCommandResponse;
@@ -319,7 +325,12 @@ void openavbAcmpMessageTxFrame(U8 messageType, openavb_acmp_ACMPCommandResponse_
 	}
 	ACMP_UNLOCK();
 
-	openavbRawsockTxFrameReady(txSock, pBuf, ACMP_FRAME_LEN, 0);
+#if 0
+ 	AVB_LOGF_DEBUG("openavbAcmpMessageTxFrame packet data (length %d):", hdrlen + AVTP_HDR_LEN + ACMP_DATA_LEN);
+ 	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, pBuf, hdrlen + AVTP_HDR_LEN + ACMP_DATA_LEN, 16);
+ #endif
+
+	openavbRawsockTxFrameReady(txSock, pBuf, hdrlen + AVTP_HDR_LEN + ACMP_DATA_LEN, 0);
 	openavbRawsockSend(txSock);
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
@@ -346,7 +357,7 @@ openavbRC openavbAcmpMessageHandlerStart()
 
 	bRunning = TRUE;
 
-	if (openavbAcmpOpenSocket((const char *)gAvdeccCfg.ifname)) {
+	if (openavbAcmpOpenSocket((const char *)gAvdeccCfg.ifname, gAvdeccCfg.vlanID, gAvdeccCfg.vlanPCP)) {
 
 		// Start the RX thread
 		bool errResult;
