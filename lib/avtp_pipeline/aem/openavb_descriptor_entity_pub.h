@@ -58,5 +58,16 @@ openavb_aem_descriptor_entity_t *openavbAemDescriptorEntityNew(void);
 // Set the Entity ID using the common approach of mac address and an ID. Either pass in aMacAddr (ascii) or nMacAddr (network)
 bool openavbAemDescriptorEntitySet_entity_id(openavb_aem_descriptor_entity_t *pDescriptor, char *aMacAddr, U8 *nMacAddr, U16 id);
 
+// Set the Entity Model ID.  Pass in a pointer to an array of 8 bytes of arbitrary data.
+bool openavbAemDescriptorEntitySet_entity_model_id(openavb_aem_descriptor_entity_t *pDescriptor, U8 pData[8]);
+
+// Set the Entity Capabilities.  Use the OPENAVB_ADP_ENTITY_CAPABILITIES_... flags from adp/openavb_adp_pub.h.
+bool openavbAemDescriptorEntitySet_entity_capabilities(openavb_aem_descriptor_entity_t *pDescriptor, U32 capabilities);
+
+// Set the Talker Capabilities.  Use the OPENAVB_ADP_TALKER_CAPABILITIES_... flags from adp/openavb_adp_pub.h.
+bool openavbAemDescriptorEntitySet_talker_capabilities(openavb_aem_descriptor_entity_t *pDescriptor, U16 num_sources, U16 capabilities);
+
+// Set the Listener Capabilities.  Use the OPENAVB_ADP_LISTENER_CAPABILITIES_... flags from adp/openavb_adp_pub.h.
+bool openavbAemDescriptorEntitySet_listener_capabilities(openavb_aem_descriptor_entity_t *pDescriptor, U16 num_sinks, U16 capabilities);
 
 #endif // OPENAVB_DESCRIPTOR_ENTITY_PUB_H

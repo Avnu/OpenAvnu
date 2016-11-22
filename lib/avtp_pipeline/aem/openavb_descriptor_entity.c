@@ -204,4 +204,68 @@ extern DLL_EXPORT bool openavbAemDescriptorEntitySet_entity_id(openavb_aem_descr
 	return TRUE;
 }
 
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_entity_model_id(openavb_aem_descriptor_entity_t *pDescriptor, U8 pData[8])
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
 
+	if (!pDescriptor || !pData) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	memcpy(pDescriptor->entity_model_id, pData, 8);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_entity_capabilities(openavb_aem_descriptor_entity_t *pDescriptor, U32 capabilities)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	pDescriptor->entity_capabilities = capabilities;
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_talker_capabilities(openavb_aem_descriptor_entity_t *pDescriptor, U16 num_sources, U16 capabilities)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	pDescriptor->talker_stream_sources = num_sources;
+	pDescriptor->talker_capabilities = capabilities;
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_listener_capabilities(openavb_aem_descriptor_entity_t *pDescriptor, U16 num_sinks, U16 capabilities)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	pDescriptor->listener_stream_sinks = num_sinks;
+	pDescriptor->listener_capabilities = capabilities;
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}

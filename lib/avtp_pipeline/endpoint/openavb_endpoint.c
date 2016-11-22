@@ -556,6 +556,31 @@ static bool startAvdeccSupport()
 			break;
 		}
 
+		// TEST DATA!
+		// TODO:  BDT_DEBUG Fill this in with something accurate!
+		U8 nModelId[8] = {0, 0, 0, 0, 0, 0xbd, 0x77, 0xa1};
+		openavbAemDescriptorEntitySet_entity_model_id(avdecc_cfg.pDescriptorEntity, nModelId);
+
+		// TEST DATA!
+		// TODO:  BDT_DEBUG Fill this in with something accurate!
+		openavbAemDescriptorEntitySet_entity_capabilities(avdecc_cfg.pDescriptorEntity,
+			OPENAVB_ADP_ENTITY_CAPABILITIES_EFU_MODE |
+			OPENAVB_ADP_ENTITY_CAPABILITIES_ADDRESS_ACCESS_SUPPORTED |
+			OPENAVB_ADP_ENTITY_CAPABILITIES_AEM_SUPPORTED |
+			OPENAVB_ADP_ENTITY_CAPABILITIES_CLASS_A_SUPPORTED |
+			OPENAVB_ADP_ENTITY_CAPABILITIES_GPTP_SUPPORTED);
+		if (avdecc_cfg.bTalker) {
+			openavbAemDescriptorEntitySet_talker_capabilities(avdecc_cfg.pDescriptorEntity, 1,
+				OPENAVB_ADP_TALKER_CAPABILITIES_IMPLEMENTED |
+				OPENAVB_ADP_TALKER_CAPABILITIES_AUDIO_SOURCE |
+				OPENAVB_ADP_TALKER_CAPABILITIES_MEDIA_CLOCK_SOURCE);
+		}
+		if (avdecc_cfg.bListener) {
+			openavbAemDescriptorEntitySet_listener_capabilities(avdecc_cfg.pDescriptorEntity, 1,
+				OPENAVB_ADP_LISTENER_CAPABILITIES_IMPLEMENTED |
+				OPENAVB_ADP_LISTENER_CAPABILITIES_AUDIO_SINK);
+		}
+
 		rc = openavbAVDECCInitialize(&avdecc_cfg);
 		if (IS_OPENAVB_FAILURE(rc)) {
 			AVB_LOG_ERROR("Failed to initialize AVDECC");
