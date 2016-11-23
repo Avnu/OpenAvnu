@@ -69,6 +69,7 @@ void openavbAdpSMAdvertiseEntityStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_INITIALIZE:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_INITIALIZE");
 
 					ADP_LOCK();
 					openavbAdpSMGlobalVars.entityInfo.pdu.available_index = 0;
@@ -80,14 +81,16 @@ void openavbAdpSMAdvertiseEntityStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_ADVERTISE:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_ADVERTISE");
 
 					openavbAdpSMAdvertiseEntity_sendAvailable();
 					ADP_LOCK();
-					// Slightly deviates from the spec in that reannounceTimerTimeout is a delay time rather than a absolute time.
-					openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout = openavbAdpSMGlobalVars.entityInfo.header.valid_time / 4;
-					if (openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout < 1) {
-						openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout = 1;
+					CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout);
+					U32 advDelayUsec = openavbAdpSMGlobalVars.entityInfo.header.valid_time / 2 * MICROSECONDS_PER_SECOND;
+					if (advDelayUsec < MICROSECONDS_PER_SECOND) {
+						advDelayUsec = MICROSECONDS_PER_SECOND;
 					}
+					openavbTimeTimespecAddUsec(&openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout, advDelayUsec);
 					openavbAdpSMAdvertiseEntityVars.needsAdvertise = FALSE;
 					ADP_UNLOCK();
 					state = OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_WAITING;
@@ -96,42 +99,42 @@ void openavbAdpSMAdvertiseEntityStateMachine()
 			case OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_WAITING:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_WAITING");
 
 					ADP_LOCK();
 					openavbAdpSMAdvertiseInterfaceSet_rcvdDiscover(FALSE);
 					openavbAdpSMGlobalVars.entityInfo.pdu.available_index++;
 					ADP_UNLOCK();
 
-					// Wait for timeout or semaphore
-					struct timespec timeout;
-					CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &timeout);
-					timeout.tv_sec += openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout;
-
 					// Wait for change in state
 					while (state == OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_WAITING && bRunning) {
-						U32 timeoutMSec = 0;
+						U32 timeoutMSec;
 						struct timespec now;
 						CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &now);
-						timeoutMSec = openavbTimeUntilMSec(&now, &timeout);
-						SEM_ERR_T(err);
-						SEM_TIMEDWAIT(openavbAdpSMAdvertiseEntitySemaphore, timeoutMSec, err);
+						timeoutMSec = openavbTimeUntilMSec(&now, &openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout);
 
-						if (!SEM_IS_ERR_NONE(err)) {
-							if (SEM_IS_ERR_TIMEOUT(err)) {
+						if (timeoutMSec == 0) {
+							/* No need to wait. */
+							state = OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_ADVERTISE;
+						}
+						else {
+							SEM_ERR_T(err);
+							SEM_TIMEDWAIT(openavbAdpSMAdvertiseEntitySemaphore, timeoutMSec, err);
+							if (!SEM_IS_ERR_NONE(err) && !SEM_IS_ERR_TIMEOUT(err)) { AVB_LOGF_WARNING("Semaphore error %d", err); }
+
+							if (openavbAdpSMAdvertiseEntityVars.doTerminate) {
+								bRunning = FALSE;
+							} else if (SEM_IS_ERR_TIMEOUT(err) ||
+								openavbAdpSMAdvertiseEntityVars.needsAdvertise) {
 								state = OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_ADVERTISE;
 							}
-						}
-						else if (openavbAdpSMAdvertiseEntityVars.doTerminate) {
-							bRunning = FALSE;
-						}
-						else if (openavbAdpSMAdvertiseEntityVars.needsAdvertise) {
-							state = OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_ADVERTISE;
 						}
 					}
 				}
 				break;
 
 			default:
+				AVB_LOG_ERROR("State:  Unexpected!");
 				bRunning = FALSE;	// Unexpected
 				break;
 		}
@@ -154,6 +157,11 @@ void openavbAdpSMAdvertiseEntityStart()
 	SEM_ERR_T(err);
 	SEM_INIT(openavbAdpSMAdvertiseEntitySemaphore, 1, err);
 	SEM_LOG_ERR(err);
+
+	ADP_LOCK();
+	openavbAdpSMAdvertiseEntityVars.needsAdvertise = FALSE;
+	openavbAdpSMAdvertiseEntityVars.doTerminate = FALSE;
+	ADP_UNLOCK();
 
 	// Start the Advertise Entity State Machine
 	bool errResult;

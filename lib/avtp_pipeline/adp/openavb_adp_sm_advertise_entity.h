@@ -27,7 +27,7 @@
 
 // State machine vars IEEE Std 1722.1-2013 clause 6.2.4.1
 typedef struct {
-	U32 reannounceTimerTimeout;
+	struct timespec reannounceTimerTimeout;
 	bool needsAdvertise;
 	bool doTerminate;
 } openavb_adp_sm_advertise_entity_vars_t;

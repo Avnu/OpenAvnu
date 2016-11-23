@@ -88,9 +88,9 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
 					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_INITIALIZE");
 
+					ADP_LOCK();
 					openavbAdpSMAdvertiseInterfaceVars.lastLinkIsUp = FALSE;
 					openavbAdpSMAdvertiseInterfaceVars.doAdvertise = FALSE;			// Per 1722.1 What's next notes
-					ADP_LOCK();
 					memcpy(openavbAdpSMAdvertiseInterfaceVars.advertisedGrandmasterID,
 						openavbAdpSMGlobalVars.entityInfo.pdu.gptp_grandmaster_id,
 						sizeof(openavbAdpSMGlobalVars.entityInfo.pdu.gptp_grandmaster_id));
@@ -110,23 +110,22 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 					while (state == OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_WAITING && bRunning) {
 						SEM_ERR_T(err);
 						SEM_WAIT(openavbAdpSMAdvertiseInterfaceSemaphore, err);
+						if (!SEM_IS_ERR_NONE(err)) { AVB_LOGF_WARNING("Semaphore error %d", err); }
 
-						if (SEM_IS_ERR_NONE(err)) {
-							ADP_LOCK();
-							if (openavbAdpSMAdvertiseInterfaceVars.doTerminate)
-								state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_DEPARTING;
-							else if (openavbAdpSMAdvertiseInterfaceVars.doAdvertise)
-								state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_ADVERTISE;
-							else if (openavbAdpSMAdvertiseInterfaceVars.rcvdDiscover)
-								state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_RECEIVED_DISCOVER;
-							else if (memcmp(openavbAdpSMAdvertiseInterfaceVars.advertisedGrandmasterID,
-								openavbAdpSMGlobalVars.entityInfo.pdu.gptp_grandmaster_id,
-								sizeof(openavbAdpSMGlobalVars.entityInfo.pdu.gptp_grandmaster_id)))
-								state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_UPDATE_GM;
-							else if (openavbAdpSMAdvertiseInterfaceVars.lastLinkIsUp != openavbAdpSMAdvertiseInterfaceVars.linkIsUp)
-								state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_LINK_STATE_CHANGE;
-							ADP_UNLOCK();
-						}
+						ADP_LOCK();
+						if (openavbAdpSMAdvertiseInterfaceVars.doTerminate)
+							state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_DEPARTING;
+						else if (openavbAdpSMAdvertiseInterfaceVars.doAdvertise)
+							state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_ADVERTISE;
+						else if (openavbAdpSMAdvertiseInterfaceVars.rcvdDiscover)
+							state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_RECEIVED_DISCOVER;
+						else if (memcmp(openavbAdpSMAdvertiseInterfaceVars.advertisedGrandmasterID,
+							openavbAdpSMGlobalVars.entityInfo.pdu.gptp_grandmaster_id,
+							sizeof(openavbAdpSMGlobalVars.entityInfo.pdu.gptp_grandmaster_id)))
+							state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_UPDATE_GM;
+						else if (openavbAdpSMAdvertiseInterfaceVars.lastLinkIsUp != openavbAdpSMAdvertiseInterfaceVars.linkIsUp)
+							state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_LINK_STATE_CHANGE;
+						ADP_UNLOCK();
 					}
 				}
 				break;
@@ -144,7 +143,9 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 					AVB_TRACE_LINE(AVB_TRACE_ADP);
 					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_ADVERTISE");
 
+					ADP_LOCK();
 					openavbAdpSMAdvertiseInterfaceVars.doAdvertise = FALSE;			// Per 1722.1 What's next notes
+					ADP_UNLOCK();
 					openavbAdpSMAdvertiseInterface_txEntityAvailable();
 					state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_WAITING;
 				}
@@ -210,6 +211,10 @@ void openavbAdpSMAdvertiseInterfaceStart()
 	SEM_ERR_T(err);
 	SEM_INIT(openavbAdpSMAdvertiseInterfaceSemaphore, 1, err);
 	SEM_LOG_ERR(err);
+
+	ADP_LOCK();
+	memset(&openavbAdpSMAdvertiseInterfaceVars, 0, sizeof(openavbAdpSMAdvertiseInterfaceVars));
+	ADP_UNLOCK();
 
 	// Start the Advertise Entity State Machine
 	bool errResult;
