@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/stat.h>
 #include <unistd.h>
 
-
+#include <gptp_log.hpp>
 #include "linux_hal_persist_file.hpp"
 
 class LinuxGPTPPersistFile : public GPTPPersist {
@@ -63,7 +63,7 @@ public:
 
 		persistFD = open(persistID, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 		if (persistFD == -1) {
-			printf("Failed to open restore file\n");
+			GPTP_LOG_ERROR("Failed to open restore file\n");
 			return false;
 		}
 		return true;
@@ -84,14 +84,14 @@ public:
 			// MMAP file
 			struct stat stat0;
 			if (fstat(persistFD, &stat0) == -1) {
-				printf("Failed to stat restore file, %s\n", strerror(errno));
+				GPTP_LOG_ERROR("Failed to stat restore file, %s\n", strerror(errno));
 				storedDataLength = 0;
 			}
 			else {
 				storedDataLength = stat0.st_size;
 				if (storedDataLength != 0) {
 					if ((restoredata = mmap(NULL, storedDataLength, PROT_READ | PROT_WRITE, MAP_SHARED, persistFD, 0)) == ((void *)-1)) {
-						printf("Failed to mmap restore file, %s\n", strerror(errno));
+						GPTP_LOG_ERROR("Failed to mmap restore file, %s\n", strerror(errno));
 					}
 					else {
 						*bufSize = storedDataLength;
@@ -118,14 +118,14 @@ public:
 	bool triggerWriteStorage(void)
 	{
 		if (!writeCB) {
-			printf("Persistent write callback not registered\n");
+			GPTP_LOG_ERROR("Persistent write callback not registered\n");
 		}
 
 		bool result = false;
 		if (memoryDataLength > storedDataLength) {
 			int ret = ftruncate(persistFD, memoryDataLength);
 			if (ret != 0) {
-				printf("Failed to extend stored data length from %ld to %ld, %s\n", storedDataLength, memoryDataLength, strerror(errno));
+				GPTP_LOG_ERROR("Failed to extend stored data length from %ld to %ld, %s\n", storedDataLength, memoryDataLength, strerror(errno));
 			}
 			if (restoredata != ((void *)-1)) {
 				restoredata = mremap(restoredata, storedDataLength, memoryDataLength, MREMAP_MAYMOVE);

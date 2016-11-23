@@ -71,7 +71,7 @@ net_result LinuxNetworkInterface::nrecv
 	struct timeval timeout = { 0, 16000 }; // 16 ms
 
 	if( !net_lock.lock( &got_net_lock )) {
-		fprintf( stderr, "A Failed to lock mutex\n" );
+		GPTP_LOG_ERROR("A Failed to lock mutex\n" );
 		return net_fatal;
 	}
 	if( !got_net_lock ) {
@@ -118,7 +118,7 @@ net_result LinuxNetworkInterface::nrecv
 	err = recvmsg( sd_event, &msg, 0 );
 	if( err < 0 ) {
 		if( errno == ENOMSG ) {
-			fprintf( stderr, "Got ENOMSG: %s:%d\n", __FILE__, __LINE__ );
+			GPTP_LOG_ERROR("Got ENOMSG: %s:%d\n", __FILE__, __LINE__ );
 			ret = net_trfail;
 			goto done;
 		}
@@ -154,7 +154,7 @@ net_result LinuxNetworkInterface::nrecv
 
  done:
 	if( !net_lock.unlock()) {
-		fprintf( stderr, "A Failed to unlock, %d\n", err );
+		GPTP_LOG_ERROR("A Failed to unlock, %d\n", err );
 		return net_fatal;
 	}
 
@@ -168,13 +168,13 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	struct ifreq ifr;
 
 	if(( ifname = dynamic_cast<InterfaceName *>(iface_label)) == NULL ) {
-		fprintf( stderr, "findPTPIndex requires InterfaceName\n" );
+		GPTP_LOG_ERROR("findPTPIndex requires InterfaceName\n" );
 		return -1;
 	}
 
 	sd = socket( AF_UNIX, SOCK_DGRAM, 0 );
 	if( sd < 0 ) {
-		fprintf( stderr, "findPTPIndex: failed to open socket\n" );
+		GPTP_LOG_ERROR("findPTPIndex: failed to open socket\n" );
 		return -1;
 	}
 
@@ -185,7 +185,7 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	ifr.ifr_data = (char *) &info;
 
 	if( ioctl( sd, SIOCETHTOOL, &ifr ) < 0 ) {
-		fprintf( stderr, "findPTPIndex: ioctl(SIOETHTOOL) failed\n" );
+		GPTP_LOG_ERROR("findPTPIndex: ioctl(SIOETHTOOL) failed\n" );
 		return -1;
 	}
 
@@ -232,17 +232,17 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	// Determine the correct PTP clock interface
 	phc_index = findPhcIndex( iface_label );
 	if( phc_index < 0 ) {
-		fprintf( stderr, "Failed to find PTP device index\n" );
+		GPTP_LOG_ERROR("Failed to find PTP device index\n" );
 		return false;
 	}
 
 	snprintf
 		( ptp_device+PTP_DEVICE_IDX_OFFS,
 		  sizeof(ptp_device)-PTP_DEVICE_IDX_OFFS, "%d", phc_index );
-	fprintf( stderr, "Using clock device: %s\n", ptp_device );
+	GPTP_LOG_ERROR("Using clock device: %s\n", ptp_device );
 	phc_fd = open( ptp_device, O_RDWR );
 	if( phc_fd == -1 || (_private->clockid = FD_TO_CLOCKID(phc_fd)) == -1 ) {
-		fprintf( stderr, "Failed to open PTP clock device\n" );
+		GPTP_LOG_ERROR("Failed to open PTP clock device\n" );
 		return false;
 	}
 
@@ -341,7 +341,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	}
 
 	if( ret != 0 ) {
-		fprintf( stderr, "Received a error message, but didn't find a valid timestamp\n" );
+		GPTP_LOG_ERROR("Received a error message, but didn't find a valid timestamp\n" );
 	}
 
  done:

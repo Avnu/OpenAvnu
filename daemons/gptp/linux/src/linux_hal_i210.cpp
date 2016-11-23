@@ -78,10 +78,10 @@ pci_connect( device_t *igb_dev )
 		if (err) {
 			continue;
 		}
-		printf("attaching to %s\n", devpath);
+		GPTP_LOG_INFO("attaching to %s\n", devpath);
 		err = igb_attach(devpath, igb_dev);
 		if (err) {
-			printf("attach failed! (%s)\n", strerror(err));
+			GPTP_LOG_ERROR("attach failed! (%s)\n", strerror(err));
 			continue;
 		}
 		/*igb_attach_tx missing here ???*/
