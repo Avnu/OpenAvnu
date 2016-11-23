@@ -236,7 +236,9 @@ static void openavbAdpMessageRxFrameReceive(U32 timeoutUsec)
 			if (hdrInfo.ethertype == ETHERTYPE_AVTP) {
 				// parse the PDU only for ADP messages
 				if (*(pFrame + offset) == (0x80 | OPENAVB_ADP_AVTP_SUBTYPE)) {
-					openavbAdpMessageRxFrameParse(pFrame + offset, len - offset, &hdrInfo);
+					if (memcmp(hdrInfo.shost, ADDR_PTR(&intfAddr), 6) != 0) { // Not from us!
+						openavbAdpMessageRxFrameParse(pFrame + offset, len - offset, &hdrInfo);
+					}
 				}
 			}
 			else {
