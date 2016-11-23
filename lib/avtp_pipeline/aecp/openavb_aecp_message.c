@@ -36,11 +36,6 @@
 
 #define INVALID_SOCKET (-1)
 
-// AECP Multicast address
-#define AECP_PROTOCOL_ADDR "91:E0:F0:01:00:00"
-
-// AVDECC_TODO: Turn off VLAN
-
 // message length
 #define AVTP_HDR_LEN 12
 #define AECP_DATA_LEN 1480		// AVDECC_TODO - Need to figure out a valid length
@@ -61,7 +56,6 @@ extern MUTEX_HANDLE(openavbAecpMutex);
 static void *rxSock = NULL;
 static void *txSock = NULL;
 static struct ether_addr intfAddr;
-static struct ether_addr aecpAddr;
 
 extern openavb_aecp_sm_global_vars_t openavbAecpSMGlobalVars;
 
@@ -104,8 +98,7 @@ bool openavbAecpOpenSocket(const char* ifname, U16 vlanID, U8 vlanPCP)
 
 	if (txSock && rxSock
 		&& openavbRawsockGetAddr(txSock, ADDR_PTR(&intfAddr))
-		&& ether_aton_r(AECP_PROTOCOL_ADDR, &aecpAddr)
-		&& openavbRawsockRxMulticast(rxSock, TRUE, ADDR_PTR(&aecpAddr)))
+		&& openavbRawsockRxMulticast(rxSock, TRUE, ADDR_PTR(&intfAddr))) // Only accept packets sent directly to this interface
 	{
 		if (!openavbRawsockRxAVTPSubtype(rxSock, OPENAVB_AECP_AVTP_SUBTYPE | 0x80)) {
 			AVB_LOG_DEBUG("RX AVTP Subtype not supported");
@@ -113,7 +106,7 @@ bool openavbAecpOpenSocket(const char* ifname, U16 vlanID, U8 vlanPCP)
 
 		memset(&hdr, 0, sizeof(hdr_info_t));
 		hdr.shost = ADDR_PTR(&intfAddr);
-		hdr.dhost = ADDR_PTR(&aecpAddr);
+		// hdr.dhost; // Set at tx time.
 		hdr.ethertype = ETHERTYPE_AVTP;
 		if (vlanID != 0 || vlanPCP != 0) {
 			hdr.vlan = TRUE;
