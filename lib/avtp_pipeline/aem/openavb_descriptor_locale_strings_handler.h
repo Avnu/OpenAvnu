@@ -2,7 +2,7 @@
  ******************************************************************
  * COPYRIGHT � Symphony Teleca
  *----------------------------------------------------------------*
- * MODULE : AEM - AVDECC Strings Descriptor
+ * MODULE : AEM - AVDECC Locale Descriptor
  *
  * PROGRAMMER : Ken Carlino (Triple Play Integration)
  * DATE :       18-Dec-2013
@@ -10,7 +10,7 @@
  *
  *----------------------------------------------------------------*
  *
- * MODULE SUMMARY : Interface for the Strings Desciptor
+ * MODULE SUMMARY : Interface for the Locale Desciptor
  *
  *----------------------------------------------------------------*
  *
@@ -19,11 +19,9 @@
  ******************************************************************
  */
 
-#ifndef OPENAVB_DESCRIPTOR_STRINGS_H
-#define OPENAVB_DESCRIPTOR_STRINGS_H 1
+#ifndef OPENAVB_DESCRIPTOR_LOCALE_STRINGS_HANDLER_H
+#define OPENAVB_DESCRIPTOR_LOCALE_STRINGS_HANDLER_H 1
 
-#include "openavb_descriptor_strings_pub.h"
+#include "openavb_descriptor_locale_strings_handler_pub.h"
 
-#define OPENAVB_DESCRIPTOR_STRINGS_BASE_LENGTH (sizeof(openavb_aem_descriptor_strings_t) - sizeof(openavb_descriptor_pvt_ptr_t))
-
-#endif // OPENAVB_DESCRIPTOR_STRINGS_H
+#endif // OPENAVB_DESCRIPTOR_LOCALE_STRINGS_HANDLER_H

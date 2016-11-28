@@ -70,4 +70,7 @@ bool openavbAemDescriptorEntitySet_talker_capabilities(openavb_aem_descriptor_en
 // Set the Listener Capabilities.  Use the OPENAVB_ADP_LISTENER_CAPABILITIES_... flags from adp/openavb_adp_pub.h.
 bool openavbAemDescriptorEntitySet_listener_capabilities(openavb_aem_descriptor_entity_t *pDescriptor, U16 num_sinks, U16 capabilities);
 
+// Set the Entity Name.
+bool openavbAemDescriptorEntitySet_entity_name(openavb_aem_descriptor_entity_t *pDescriptor, char *aName);
+
 #endif // OPENAVB_DESCRIPTOR_ENTITY_PUB_H

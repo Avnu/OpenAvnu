@@ -39,4 +39,14 @@ typedef struct {
 
 openavb_aem_descriptor_locale_t *openavbAemDescriptorLocaleNew(void);
 
+// Specify the locale identifier for the descriptor.
+bool openavbAemDescriptorLocaleSet_locale_identifier(openavb_aem_descriptor_locale_t *pDescriptor, const char *aLocaleIdentifier);
+
+// Specify the number of strings descriptors in this locale.
+// The same number should be specified for all locales.
+bool openavbAemDescriptorLocaleSet_number_of_strings(openavb_aem_descriptor_locale_t *pDescriptor, U16 uNumberOfStrings);
+
+// Specify the descriptor index of the first strings descriptor for this locale.
+bool openavbAemDescriptorLocaleSet_base_strings(openavb_aem_descriptor_locale_t *pDescriptor, U16 uBaseStrings);
+
 #endif // OPENAVB_DESCRIPTOR_LOCALE_PUB_H

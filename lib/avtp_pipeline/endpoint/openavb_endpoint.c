@@ -60,6 +60,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_qmgr.h"
 #include "openavb_maap.h"
 #include "openavb_avdecc.h"
+#include "openavb_descriptor_locale_strings_handler_pub.h"
 
 #define	AVB_LOG_COMPONENT	"Endpoint"
 #include "openavb_pub.h"
@@ -533,6 +534,7 @@ int avbEndpointLoop(void)
 static bool startAvdeccSupport()
 {
 	openavb_avdecc_cfg_t avdecc_cfg = {0};
+	openavb_aem_descriptor_locale_strings_handler_t * pAemDescriptorLocaleStringsHandler = NULL;
 	openavbRC rc;
 	bool succeeded = false;
 
@@ -582,6 +584,18 @@ static bool startAvdeccSupport()
 				OPENAVB_ADP_LISTENER_CAPABILITIES_IMPLEMENTED |
 				OPENAVB_ADP_LISTENER_CAPABILITIES_AUDIO_SINK);
 		}
+		openavbAemDescriptorEntitySet_entity_name(avdecc_cfg.pDescriptorEntity,
+			"Harman Test Device");
+
+		// TEST DATA!
+		// TODO:  BDT_DEBUG Fill this in with something accurate!
+		pAemDescriptorLocaleStringsHandler = openavbAemDescriptorLocaleStringsHandlerNew();
+		if (pAemDescriptorLocaleStringsHandler) {
+			openavbAemDescriptorLocaleStringsHandlerSet_local_string(
+				pAemDescriptorLocaleStringsHandler, "en-US", "Test Vendor Name", 0);
+			openavbAemDescriptorLocaleStringsHandlerSet_local_string(
+				pAemDescriptorLocaleStringsHandler, "en-US", "Test Model Name", 1);
+		}
 
 		rc = openavbAVDECCInitialize(&avdecc_cfg);
 		if (IS_OPENAVB_FAILURE(rc)) {
@@ -602,6 +616,9 @@ static bool startAvdeccSupport()
 		AVB_LOG_INFO("AVDECC Started");
 		succeeded = true;
 	} while(0);
+
+	openavbAemDescriptorLocaleStringsHandlerFree(pAemDescriptorLocaleStringsHandler);
+	pAemDescriptorLocaleStringsHandler = NULL;
 
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return succeeded;

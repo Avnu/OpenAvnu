@@ -275,3 +275,20 @@ extern DLL_EXPORT bool openavbAemDescriptorEntitySet_listener_capabilities(opena
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return TRUE;
 }
+
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_entity_name(openavb_aem_descriptor_entity_t *pDescriptor, char *aName)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor || !aName) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	memset(pDescriptor->entity_name, 0, OPENAVB_AEM_STRLEN_MAX);
+	strncpy((char *) pDescriptor->entity_name, aName, OPENAVB_AEM_STRLEN_MAX);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}

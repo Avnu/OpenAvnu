@@ -91,7 +91,7 @@ openavbRC openavbAemDescriptorLocaleFromBuf(void *pVoidDescriptor, U16 bufLength
 ////////////////////////////////
 // Public functions
 ////////////////////////////////
-extern DLL_EXPORT openavb_aem_descriptor_locale_t *openavbAemDescriptorLocaleNew()
+extern DLL_EXPORT openavb_aem_descriptor_locale_t *openavbAemDescriptorLocaleNew(void)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
 
@@ -126,3 +126,51 @@ extern DLL_EXPORT openavb_aem_descriptor_locale_t *openavbAemDescriptorLocaleNew
 	return pDescriptor;
 }
 
+extern DLL_EXPORT bool openavbAemDescriptorLocaleSet_locale_identifier(openavb_aem_descriptor_locale_t *pDescriptor, const char *aLocaleIdentifier)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor || !aLocaleIdentifier) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	memset(pDescriptor->locale_identifier, 0, OPENAVB_AEM_STRLEN_MAX);
+	strncpy((char *) pDescriptor->locale_identifier, aLocaleIdentifier, OPENAVB_AEM_STRLEN_MAX);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorLocaleSet_number_of_strings(openavb_aem_descriptor_locale_t *pDescriptor, U16 uNumberOfStrings)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	pDescriptor->number_of_strings = uNumberOfStrings;
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorLocaleSet_base_strings(openavb_aem_descriptor_locale_t *pDescriptor, U16 uBaseStrings)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	pDescriptor->base_strings = uBaseStrings;
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}

@@ -15,6 +15,7 @@ SET (SRC_FILES ${SRC_FILES}
 	${AVB_SRC_DIR}/aem/openavb_descriptor_audio_map.c
 	${AVB_SRC_DIR}/aem/openavb_descriptor_control.c
 	${AVB_SRC_DIR}/aem/openavb_descriptor_clock_domain.c
+	${AVB_SRC_DIR}/aem/openavb_descriptor_locale_strings_handler.c
 	PARENT_SCOPE
 )
 

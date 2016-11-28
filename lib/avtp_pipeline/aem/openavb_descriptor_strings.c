@@ -53,13 +53,8 @@ openavbRC openavbAemDescriptorStringsToBuf(void *pVoidDescriptor, U16 bufLength,
 
 	OCT_D2BHTONS(pDst, pSrc->descriptor_type);
 	OCT_D2BHTONS(pDst, pSrc->descriptor_index);
-	OCT_D2BMEMCP(pDst, pSrc->string_0);
-	OCT_D2BMEMCP(pDst, pSrc->string_1);
-	OCT_D2BMEMCP(pDst, pSrc->string_2);
-	OCT_D2BMEMCP(pDst, pSrc->string_3);
-	OCT_D2BMEMCP(pDst, pSrc->string_4);
-	OCT_D2BMEMCP(pDst, pSrc->string_5);
-	OCT_D2BMEMCP(pDst, pSrc->string_6);
+	memcpy(pDst, pSrc->string, sizeof(pSrc->string));
+	pDst += sizeof(pSrc->string);
 	*descriptorSize = pDst - pBuf;
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
@@ -84,13 +79,8 @@ openavbRC openavbAemDescriptorStringsFromBuf(void *pVoidDescriptor, U16 bufLengt
 
 	OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 	OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
-	OCT_B2DMEMCP(pDst->string_0, pSrc);
-	OCT_B2DMEMCP(pDst->string_1, pSrc);
-	OCT_B2DMEMCP(pDst->string_2, pSrc);
-	OCT_B2DMEMCP(pDst->string_3, pSrc);
-	OCT_B2DMEMCP(pDst->string_4, pSrc);
-	OCT_B2DMEMCP(pDst->string_5, pSrc);
-	OCT_B2DMEMCP(pDst->string_6, pSrc);
+	memcpy(pDst->string, pSrc, sizeof(pDst->string));
+	pSrc += sizeof(pDst->string);
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
 }
@@ -133,3 +123,85 @@ extern DLL_EXPORT openavb_aem_descriptor_strings_t *openavbAemDescriptorStringsN
 	return pDescriptor;
 }
 
+extern DLL_EXPORT const char * openavbAemDescriptorStringsGet_string(openavb_aem_descriptor_strings_t *pDescriptor, U8 index)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor || index >= OPENAVB_AEM_NUM_DESCRIPTOR_STRINGS) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return NULL;
+	}
+
+	const char *ret = (const char *) (pDescriptor->string[index]);
+	if (*ret == '\0') {
+		/* The string is empty. */
+		ret = NULL;
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return ret;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorStringsSet_string(openavb_aem_descriptor_strings_t *pDescriptor, const char *pString, U8 index)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor || !pString || index >= OPENAVB_AEM_NUM_DESCRIPTOR_STRINGS) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	memset(pDescriptor->string[index], 0, OPENAVB_AEM_STRLEN_MAX);
+	strncpy((char *) (pDescriptor->string[index]), pString, OPENAVB_AEM_STRLEN_MAX);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT U16 openavbAemDescriptorStringsGet_number_of_strings(openavb_aem_descriptor_strings_t *pDescriptor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+	int nFirst, nLast;
+
+	if (!pDescriptor) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return 0;
+	}
+
+	for (nFirst = 0; nFirst < OPENAVB_AEM_NUM_DESCRIPTOR_STRINGS; ++nFirst) {
+		if (pDescriptor->string[nFirst][0] != '\0') { break; }
+	}
+	if (nFirst >= OPENAVB_AEM_NUM_DESCRIPTOR_STRINGS) {
+		// There are no strings!
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return 0;
+	}
+	for (nLast = OPENAVB_AEM_NUM_DESCRIPTOR_STRINGS - 1; nLast > nFirst; --nLast) {
+		if (pDescriptor->string[nLast][0] != '\0') { break; }
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return (nLast - nFirst + 1);
+}
+
+extern DLL_EXPORT U16 openavbAemDescriptorStringsGet_base_strings(openavb_aem_descriptor_strings_t *pDescriptor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+	int nFirst;
+
+	if (!pDescriptor) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return 0;
+	}
+
+	for (nFirst = 0; nFirst < OPENAVB_AEM_NUM_DESCRIPTOR_STRINGS; ++nFirst) {
+		if (pDescriptor->string[nFirst][0] != '\0') { return nFirst; }
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return 0;
+}
