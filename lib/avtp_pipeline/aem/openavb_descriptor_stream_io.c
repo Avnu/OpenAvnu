@@ -364,6 +364,10 @@ extern DLL_EXPORT openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStream
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT;
 	pDescriptor->formats_offset = OPENAVB_DESCRIPTOR_STREAM_IO_BASE_LENGTH;
 
+	// Default to no localized strings.
+	pDescriptor->localized_description.offset = 0x1fff;
+	pDescriptor->localized_description.index = 0x07;
+
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;
 }
@@ -399,6 +403,10 @@ extern DLL_EXPORT openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStream
 
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT;
 	pDescriptor->formats_offset = OPENAVB_DESCRIPTOR_STREAM_IO_BASE_LENGTH;
+
+	// Default to no localized strings.
+	pDescriptor->localized_description.offset = 0x1fff;
+	pDescriptor->localized_description.index = 0x07;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;

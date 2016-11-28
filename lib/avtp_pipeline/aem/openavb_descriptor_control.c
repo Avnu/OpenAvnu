@@ -448,6 +448,10 @@ extern DLL_EXPORT openavb_aem_descriptor_control_t *openavbAemDescriptorControlN
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_CONTROL;
 	pDescriptor->values_offset = OPENAVB_DESCRIPTOR_CONTROL_BASE_LENGTH;
 
+	// Default to no localized strings.
+	pDescriptor->localized_description.offset = 0x1fff;
+	pDescriptor->localized_description.index = 0x07;
+
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;
 }
