@@ -30,7 +30,7 @@ typedef struct openavb_descriptor_pvt *openavb_descriptor_pvt_ptr_t;
 // Before calling any Entity Model functions the AVDECC function openavbAVDECCInitialize() must be called with the Entity Descriptor.
 // The Entity Descriptor is the root of all descriptors and must exist to do most things in AVDECC.
 
-// Gets the current configuration descriptor index for the Entity Model. Error checking is not performed on this fucntion.
+// Gets the current configuration descriptor index for the Entity Model. Error checking is not performed on this function.
 U16 openavbAemGetConfigIdx(void);
 
 // Adds descriptors to the Entity Model. The Configuration Descriptor must be added first.
