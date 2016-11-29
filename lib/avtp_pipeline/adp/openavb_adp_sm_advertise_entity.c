@@ -147,6 +147,7 @@ void openavbAdpSMAdvertiseEntityStateMachine()
 void* openavbAdpSMAdvertiseEntityThreadFn(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
+	SLEEP_MSEC(1); // Wait for the advertise interface thread to start first.
 	openavbAdpSMAdvertiseEntityStateMachine();
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 	return NULL;
