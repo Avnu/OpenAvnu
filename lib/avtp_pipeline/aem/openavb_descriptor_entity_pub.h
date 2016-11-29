@@ -73,4 +73,10 @@ bool openavbAemDescriptorEntitySet_listener_capabilities(openavb_aem_descriptor_
 // Set the Entity Name.
 bool openavbAemDescriptorEntitySet_entity_name(openavb_aem_descriptor_entity_t *pDescriptor, char *aName);
 
+// Set the Vendor Name.
+bool openavbAemDescriptorEntitySet_vendor_name(openavb_aem_descriptor_entity_t *pDescriptor, U16 nOffset, U8 nIndex);
+
+// Set the Model Name.
+bool openavbAemDescriptorEntitySet_model_name(openavb_aem_descriptor_entity_t *pDescriptor, U16 nOffset, U8 nIndex);
+
 #endif // OPENAVB_DESCRIPTOR_ENTITY_PUB_H

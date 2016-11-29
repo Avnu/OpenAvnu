@@ -560,6 +560,24 @@ static bool startAvdeccSupport()
 			break;
 		}
 
+		rc = openavbAVDECCInitialize(&avdecc_cfg);
+		if (IS_OPENAVB_FAILURE(rc)) {
+			AVB_LOG_ERROR("Failed to initialize AVDECC");
+			openavbAVDECCCleanup();
+			break;
+		}
+
+		// Add a configuration.
+		openavb_aem_descriptor_configuration_t *pConfiguration = openavbAemDescriptorConfigurationNew();
+		U16 nConfigIdx = 0;
+		if (!openavbAemAddDescriptor(pConfiguration, 0, &nConfigIdx)) {
+			AVB_LOG_ERROR("Error adding AVDECC configuration");
+			openavbAVDECCStop();
+			openavbAVDECCCleanup();
+			break;
+		}
+
+
 		// TEST DATA!
 		// TODO:  BDT_DEBUG Fill this in with something accurate!
 		U8 nModelId[8] = {0, 0, 0, 0, 0, 0xbd, 0x77, 0xa1};
@@ -589,20 +607,22 @@ static bool startAvdeccSupport()
 
 		// TEST DATA!
 		// TODO:  BDT_DEBUG Fill this in with something accurate!
-		pAemDescriptorLocaleStringsHandler = openavbAemDescriptorLocaleStringsHandlerNew();
+		pAemDescriptorLocaleStringsHandler = openavbAemDescriptorLocaleStringsHandlerNew(nConfigIdx);
 		if (pAemDescriptorLocaleStringsHandler) {
+			#define LOCALE_STRING_VENDOR_NAME_INDEX 0
+			#define LOCALE_STRING_MODEL_NAME_INDEX  1
+
+			// Add the strings to the locale strings hander.
 			openavbAemDescriptorLocaleStringsHandlerSet_local_string(
-				pAemDescriptorLocaleStringsHandler, "en-US", "Test Vendor Name", 0);
+				pAemDescriptorLocaleStringsHandler, "en-US", "Test Vendor Name", LOCALE_STRING_VENDOR_NAME_INDEX);
 			openavbAemDescriptorLocaleStringsHandlerSet_local_string(
-				pAemDescriptorLocaleStringsHandler, "en-US", "Test Model Name", 1);
+				pAemDescriptorLocaleStringsHandler, "en-US", "Test Model Name", LOCALE_STRING_MODEL_NAME_INDEX);
+
+			// Have the descriptor entity reference the locale strings.
+			openavbAemDescriptorEntitySet_vendor_name(avdecc_cfg.pDescriptorEntity, 0, LOCALE_STRING_VENDOR_NAME_INDEX);
+			openavbAemDescriptorEntitySet_model_name(avdecc_cfg.pDescriptorEntity, 0, LOCALE_STRING_MODEL_NAME_INDEX);
 		}
 
-		rc = openavbAVDECCInitialize(&avdecc_cfg);
-		if (IS_OPENAVB_FAILURE(rc)) {
-			AVB_LOG_ERROR("Failed to initialize AVDECC");
-			openavbAVDECCCleanup();
-			break;
-		}
 
 		AVB_LOG_DEBUG("AVDECC Initialized");
 

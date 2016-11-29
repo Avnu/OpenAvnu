@@ -136,8 +136,7 @@ extern DLL_EXPORT bool openavbAemDescriptorLocaleSet_locale_identifier(openavb_a
 		return FALSE;
 	}
 
-	memset(pDescriptor->locale_identifier, 0, OPENAVB_AEM_STRLEN_MAX);
-	strncpy((char *) pDescriptor->locale_identifier, aLocaleIdentifier, OPENAVB_AEM_STRLEN_MAX);
+	openavbAemSetString(pDescriptor->locale_identifier, aLocaleIdentifier);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return TRUE;

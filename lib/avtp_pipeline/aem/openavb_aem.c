@@ -359,6 +359,8 @@ extern DLL_EXPORT bool openavbAemSetString(U8 *pMem, const char *pString)
 		U32 len = strlen(pString);
 		if (len > OPENAVB_AEM_STRLEN_MAX) {
 			len = OPENAVB_AEM_STRLEN_MAX;
+		} else if (len < OPENAVB_AEM_STRLEN_MAX) {
+			memset(pMem + len, 0, OPENAVB_AEM_STRLEN_MAX - len);
 		}
 		memcpy(pMem, pString, len);		// Per 1722.1 it is allowable that the AEM string may not be null terminated.
 		AVB_TRACE_EXIT(AVB_TRACE_AEM);

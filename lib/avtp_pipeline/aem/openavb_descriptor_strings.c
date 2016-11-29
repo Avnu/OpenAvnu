@@ -153,8 +153,7 @@ extern DLL_EXPORT bool openavbAemDescriptorStringsSet_string(openavb_aem_descrip
 		return FALSE;
 	}
 
-	memset(pDescriptor->string[index], 0, OPENAVB_AEM_STRLEN_MAX);
-	strncpy((char *) (pDescriptor->string[index]), pString, OPENAVB_AEM_STRLEN_MAX);
+	openavbAemSetString(pDescriptor->string[index], pString);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return TRUE;
@@ -190,7 +189,6 @@ extern DLL_EXPORT U16 openavbAemDescriptorStringsGet_number_of_strings(openavb_a
 extern DLL_EXPORT U16 openavbAemDescriptorStringsGet_base_strings(openavb_aem_descriptor_strings_t *pDescriptor)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
-	int nFirst;
 
 	if (!pDescriptor) {
 		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
@@ -198,10 +196,7 @@ extern DLL_EXPORT U16 openavbAemDescriptorStringsGet_base_strings(openavb_aem_de
 		return 0;
 	}
 
-	for (nFirst = 0; nFirst < OPENAVB_AEM_NUM_DESCRIPTOR_STRINGS; ++nFirst) {
-		if (pDescriptor->string[nFirst][0] != '\0') { return nFirst; }
-	}
-
+	U16 ret = pDescriptor->descriptor_index;
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
-	return 0;
+	return ret;
 }

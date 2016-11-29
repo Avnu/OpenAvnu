@@ -286,8 +286,41 @@ extern DLL_EXPORT bool openavbAemDescriptorEntitySet_entity_name(openavb_aem_des
 		return FALSE;
 	}
 
-	memset(pDescriptor->entity_name, 0, OPENAVB_AEM_STRLEN_MAX);
-	strncpy((char *) pDescriptor->entity_name, aName, OPENAVB_AEM_STRLEN_MAX);
+	openavbAemSetString(pDescriptor->entity_name, aName);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_vendor_name(openavb_aem_descriptor_entity_t *pDescriptor, U16 nOffset, U8 nIndex)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	pDescriptor->vendor_name_string.offset = nOffset;
+	pDescriptor->vendor_name_string.index = nIndex;
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_model_name(openavb_aem_descriptor_entity_t *pDescriptor, U16 nOffset, U8 nIndex)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	pDescriptor->model_name_string.offset = nOffset;
+	pDescriptor->model_name_string.index = nIndex;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return TRUE;

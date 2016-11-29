@@ -22,11 +22,13 @@ typedef struct openavb_aem_descriptor_locale_strings_handler_group openavb_aem_d
 
 // Grouping that holds a locale, and the strings for that locale.
 typedef struct {
+	U16 nConfigIdx; // Index for the configuration
 	openavb_aem_descriptor_locale_strings_handler_group_t *pFirstGroup;
 } openavb_aem_descriptor_locale_strings_handler_t;
 
 
-openavb_aem_descriptor_locale_strings_handler_t *openavbAemDescriptorLocaleStringsHandlerNew(void);
+// Argument is the index for the configuration that the locale strings should be associated with.
+openavb_aem_descriptor_locale_strings_handler_t *openavbAemDescriptorLocaleStringsHandlerNew(U16 nConfigIdx);
 
 void openavbAemDescriptorLocaleStringsHandlerFree(
 	openavb_aem_descriptor_locale_strings_handler_t *pDescriptor);

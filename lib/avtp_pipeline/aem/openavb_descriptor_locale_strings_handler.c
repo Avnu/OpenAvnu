@@ -19,7 +19,7 @@
 // Public functions
 ////////////////////////////////
 
-extern DLL_EXPORT openavb_aem_descriptor_locale_strings_handler_t *openavbAemDescriptorLocaleStringsHandlerNew(void)
+extern DLL_EXPORT openavb_aem_descriptor_locale_strings_handler_t *openavbAemDescriptorLocaleStringsHandlerNew(U16 nConfigIdx)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
 
@@ -34,6 +34,8 @@ extern DLL_EXPORT openavb_aem_descriptor_locale_strings_handler_t *openavbAemDes
 	}
 	memset(pDescriptor, 0, sizeof(*pDescriptor));
 
+	pDescriptor->nConfigIdx = nConfigIdx;
+
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;
 }
@@ -47,8 +49,8 @@ extern DLL_EXPORT void openavbAemDescriptorLocaleStringsHandlerFree(
 		while (pDescriptor->pFirstGroup) {
 			openavb_aem_descriptor_locale_strings_handler_group_t *pDel = pDescriptor->pFirstGroup;
 			pDescriptor->pFirstGroup = pDel->pNext;
-			free(pDel->pLocale);
-			free(pDel->pStrings);
+			free(pDel->pLocale); // TODO BDT_DEBUG Will this be freed elsewhere?
+			free(pDel->pStrings); // TODO BDT_DEBUG Will this be freed elsewhere?
 			free(pDel);
 		}
 		free(pDescriptor);
@@ -103,6 +105,15 @@ extern DLL_EXPORT openavb_aem_descriptor_locale_strings_handler_group_t * openav
 		// Add the new group to the start of the linked list.
 		pNew->pNext = pDescriptor->pFirstGroup;
 		pDescriptor->pFirstGroup = pNew;
+
+		// Add the items to the configuration.
+		U16 nResultIdx;
+		if (!openavbAemAddDescriptor(pNew->pLocale, openavbAemGetConfigIdx(), &nResultIdx)) {
+			AVB_LOG_ERROR("Locale Strings Add Descriptor Failure");
+		}
+		if (!openavbAemAddDescriptor(pNew->pStrings, openavbAemGetConfigIdx(), &nResultIdx)) {
+			AVB_LOG_ERROR("Locale Strings Add Descriptor Failure");
+		}
 
 		AVB_TRACE_EXIT(AVB_TRACE_AEM);
 		return pNew;
