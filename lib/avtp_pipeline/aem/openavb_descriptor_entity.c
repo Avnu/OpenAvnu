@@ -160,10 +160,10 @@ extern DLL_EXPORT openavb_aem_descriptor_entity_t *openavbAemDescriptorEntityNew
 	pDescriptor->descriptor_index = 0;
 
 	// Default to no localized strings.
-	pDescriptor->vendor_name_string.offset = 0x1fff;
-	pDescriptor->vendor_name_string.index = 0x07;
-	pDescriptor->model_name_string.offset = 0x1fff;
-	pDescriptor->model_name_string.index = 0x07;
+	pDescriptor->vendor_name_string.offset = OPENAVB_AEM_NO_STRING_OFFSET;
+	pDescriptor->vendor_name_string.index = OPENAVB_AEM_NO_STRING_INDEX;
+	pDescriptor->model_name_string.offset = OPENAVB_AEM_NO_STRING_OFFSET;
+	pDescriptor->model_name_string.index = OPENAVB_AEM_NO_STRING_INDEX;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;

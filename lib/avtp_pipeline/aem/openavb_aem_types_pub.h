@@ -735,6 +735,10 @@ typedef struct {
 #define OPENAVB_AEM_CONTROL_VALUE_TYPE_CONTROL_VENDOR (0x3ffe)
 #define OPENAVB_AEM_CONTROL_VALUE_TYPE_EXPANSION (0x3fff)
 
+// Localized String default values IEEE Std 1722.1-2013 clause 7.3.6
+#define OPENAVB_AEM_NO_STRING_OFFSET (0x1fff)
+#define OPENAVB_AEM_NO_STRING_INDEX (7)
+
 // Localized String Reference IEEE Std 1722.1-2013 clause 7.3.6
 typedef struct {
 	U16 offset;

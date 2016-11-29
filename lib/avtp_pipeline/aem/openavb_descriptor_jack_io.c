@@ -130,8 +130,8 @@ extern DLL_EXPORT openavb_aem_descriptor_jack_io_t *openavbAemDescriptorJackInpu
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_JACK_INPUT;
 
 	// Default to no localized strings.
-	pDescriptor->localized_description.offset = 0x1fff;
-	pDescriptor->localized_description.index = 0x07;
+	pDescriptor->localized_description.offset = OPENAVB_AEM_NO_STRING_OFFSET;
+	pDescriptor->localized_description.index = OPENAVB_AEM_NO_STRING_INDEX;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;
@@ -169,8 +169,8 @@ extern DLL_EXPORT openavb_aem_descriptor_jack_io_t *openavbAemDescriptorJackOutp
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_JACK_OUTPUT;
 
 	// Default to no localized strings.
-	pDescriptor->localized_description.offset = 0x1fff;
-	pDescriptor->localized_description.index = 0x07;
+	pDescriptor->localized_description.offset = OPENAVB_AEM_NO_STRING_OFFSET;
+	pDescriptor->localized_description.index = OPENAVB_AEM_NO_STRING_INDEX;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;
