@@ -71,7 +71,7 @@ net_result LinuxNetworkInterface::nrecv
 	struct timeval timeout = { 0, 16000 }; // 16 ms
 
 	if( !net_lock.lock( &got_net_lock )) {
-		GPTP_LOG_ERROR("A Failed to lock mutex\n" );
+		GPTP_LOG_ERROR("A Failed to lock mutex");
 		return net_fatal;
 	}
 	if( !got_net_lock ) {
@@ -88,11 +88,11 @@ net_result LinuxNetworkInterface::nrecv
 	} else if( err == -1 ) {
 		if( err == EINTR ) {
 			// Caught signal
-			GPTP_LOG_ERROR( "select() recv signal" );
+			GPTP_LOG_ERROR("select() recv signal");
 			ret = net_trfail;
 			goto done;
 		} else {
-			GPTP_LOG_ERROR( "select() failed" );
+			GPTP_LOG_ERROR("select() failed");
 			ret = net_fatal;
 			goto done;
     }
@@ -118,11 +118,11 @@ net_result LinuxNetworkInterface::nrecv
 	err = recvmsg( sd_event, &msg, 0 );
 	if( err < 0 ) {
 		if( errno == ENOMSG ) {
-			GPTP_LOG_ERROR("Got ENOMSG: %s:%d\n", __FILE__, __LINE__ );
+			GPTP_LOG_ERROR("Got ENOMSG: %s:%d", __FILE__, __LINE__);
 			ret = net_trfail;
 			goto done;
 		}
-		GPTP_LOG_ERROR( "recvmsg() failed: %s", strerror(errno) );
+		GPTP_LOG_ERROR("recvmsg() failed: %s", strerror(errno));
 		ret = net_fatal;
 		goto done;
 	}
@@ -154,7 +154,7 @@ net_result LinuxNetworkInterface::nrecv
 
  done:
 	if( !net_lock.unlock()) {
-		GPTP_LOG_ERROR("A Failed to unlock, %d\n", err );
+		GPTP_LOG_ERROR("A Failed to unlock, %d", err);
 		return net_fatal;
 	}
 
@@ -168,13 +168,13 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	struct ifreq ifr;
 
 	if(( ifname = dynamic_cast<InterfaceName *>(iface_label)) == NULL ) {
-		GPTP_LOG_ERROR("findPTPIndex requires InterfaceName\n" );
+		GPTP_LOG_ERROR("findPTPIndex requires InterfaceName");
 		return -1;
 	}
 
 	sd = socket( AF_UNIX, SOCK_DGRAM, 0 );
 	if( sd < 0 ) {
-		GPTP_LOG_ERROR("findPTPIndex: failed to open socket\n" );
+		GPTP_LOG_ERROR("findPTPIndex: failed to open socket");
 		return -1;
 	}
 
@@ -185,7 +185,7 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	ifr.ifr_data = (char *) &info;
 
 	if( ioctl( sd, SIOCETHTOOL, &ifr ) < 0 ) {
-		GPTP_LOG_ERROR("findPTPIndex: ioctl(SIOETHTOOL) failed\n" );
+		GPTP_LOG_ERROR("findPTPIndex: ioctl(SIOETHTOOL) failed");
 		return -1;
 	}
 
@@ -211,7 +211,7 @@ LinuxTimestamperGeneric::LinuxTimestamperGeneric() {
 
 bool LinuxTimestamperGeneric::Adjust( void *tmx ) {
 	if( syscall(__NR_clock_adjtime, _private->clockid, tmx ) != 0 ) {
-		GPTP_LOG_ERROR( "Failed to adjust PTP clock rate" );
+		GPTP_LOG_ERROR("Failed to adjust PTP clock rate");
 		return false;
 	}
 	return true;
@@ -232,17 +232,17 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	// Determine the correct PTP clock interface
 	phc_index = findPhcIndex( iface_label );
 	if( phc_index < 0 ) {
-		GPTP_LOG_ERROR("Failed to find PTP device index\n" );
+		GPTP_LOG_ERROR("Failed to find PTP device index");
 		return false;
 	}
 
 	snprintf
 		( ptp_device+PTP_DEVICE_IDX_OFFS,
 		  sizeof(ptp_device)-PTP_DEVICE_IDX_OFFS, "%d", phc_index );
-	GPTP_LOG_ERROR("Using clock device: %s\n", ptp_device );
+	GPTP_LOG_ERROR("Using clock device: %s", ptp_device);
 	phc_fd = open( ptp_device, O_RDWR );
 	if( phc_fd == -1 || (_private->clockid = FD_TO_CLOCKID(phc_fd)) == -1 ) {
-		GPTP_LOG_ERROR("Failed to open PTP clock device\n" );
+		GPTP_LOG_ERROR("Failed to open PTP clock device");
 		return false;
 	}
 
@@ -250,14 +250,14 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	// Query PTP stack for availability of HW cross-timestamp
 	if( ioctl( phc_fd, PTP_CLOCK_GETCAPS, &ptp_capability ) == -1 )
 	{
-		GPTP_LOG_ERROR( "Failed to query PTP clock capabilities" );
+		GPTP_LOG_ERROR("Failed to query PTP clock capabilities");
 		return false;
 	}
 	precise_timestamp_enabled = ptp_capability.cross_timestamping;
 #endif
 
 	if( !resetFrequencyAdjustment() ) {
-		GPTP_LOG_ERROR( "Failed to reset (zero) frequency adjustment" );
+		GPTP_LOG_ERROR("Failed to reset (zero) frequency adjustment");
 		return false;
 	}
 
@@ -272,7 +272,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 void LinuxTimestamperGeneric::HWTimestamper_reset()
 {
 	if( !resetFrequencyAdjustment() ) {
-		GPTP_LOG_ERROR( "Failed to reset (zero) frequency adjustment" );
+		GPTP_LOG_ERROR("Failed to reset (zero) frequency adjustment");
 	}
 }
 
@@ -341,7 +341,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	}
 
 	if( ret != 0 ) {
-		GPTP_LOG_ERROR("Received a error message, but didn't find a valid timestamp\n" );
+		GPTP_LOG_ERROR("Received a error message, but didn't find a valid timestamp");
 	}
 
  done:
@@ -366,7 +366,7 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 	err = ioctl( sd, SIOCGIFNAME, &device );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR
-			( "Failed to get interface name: %s", strerror( errno ));
+			("Failed to get interface name: %s", strerror(errno));
 		return false;
 	}
 
@@ -377,7 +377,7 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 	err = ioctl( sd, SIOCSHWTSTAMP, &device );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR
-			( "Failed to configure timestamping: %s", strerror( errno ));
+			("Failed to configure timestamping: %s", strerror(errno));
 		return false;
 	}
 
@@ -390,8 +390,8 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 		  sizeof(timestamp_flags) );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR
-			( "Failed to configure timestamping on socket: %s",
-			  strerror( errno ));
+			("Failed to configure timestamping on socket: %s",
+			  strerror(errno));
 		return false;
 	}
 

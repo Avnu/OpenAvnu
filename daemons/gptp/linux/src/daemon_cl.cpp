@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 		sigemptyset( &block );
 		sigaddset( &block, SIGUSR1 );
 		if( pthread_sigmask( SIG_BLOCK, &block, NULL ) != 0 ) {
-			GPTP_LOG_ERROR("Failed to block SIGUSR1\n" );
+			GPTP_LOG_ERROR("Failed to block SIGUSR1");
 			return -1;
 		}
 	}
@@ -310,7 +310,7 @@ int main(int argc, char **argv)
 	if( pGPTPPersist ) {
 		uint32_t bufSize = 0;
 		if (!pGPTPPersist->readStorage(&restoredata, &bufSize))
-			GPTP_LOG_ERROR( "Failed to stat restore file\n");
+			GPTP_LOG_ERROR("Failed to stat restore file");
 		restoredatalength = bufSize;
 		restoredatacount = restoredatalength;
 		restoredataptr = (char *)restoredata;
@@ -363,19 +363,19 @@ int main(int argc, char **argv)
 		GptpIniParser iniParser(config_file_path);
 
 		if (iniParser.parserError() < 0) {
-			GPTP_LOG_ERROR("Cant parse ini file. Aborting file reading.\n");
+			GPTP_LOG_ERROR("Cant parse ini file. Aborting file reading.");
 		}
 		else
 		{
-			GPTP_LOG_INFO("priority1 = %d\n", iniParser.getPriority1());
-			GPTP_LOG_INFO("announceReceiptTimeout: %d\n", iniParser.getAnnounceReceiptTimeout());
-			GPTP_LOG_INFO("syncReceiptTimeout: %d\n", iniParser.getSyncReceiptTimeout());
-			GPTP_LOG_INFO("phy_delay_gb_tx: %d\n", iniParser.getPhyDelayGbTx());
-			GPTP_LOG_INFO("phy_delay_gb_rx: %d\n", iniParser.getPhyDelayGbRx());
-			GPTP_LOG_INFO("phy_delay_mb_tx: %d\n", iniParser.getPhyDelayMbTx());
-			GPTP_LOG_INFO("phy_delay_mb_rx: %d\n", iniParser.getPhyDelayMbRx());
-			GPTP_LOG_INFO("neighborPropDelayThresh: %ld\n", iniParser.getNeighborPropDelayThresh());
-			GPTP_LOG_INFO("syncReceiptThreshold: %d\n", iniParser.getSyncReceiptThresh());
+			GPTP_LOG_INFO("priority1 = %d", iniParser.getPriority1());
+			GPTP_LOG_INFO("announceReceiptTimeout: %d", iniParser.getAnnounceReceiptTimeout());
+			GPTP_LOG_INFO("syncReceiptTimeout: %d", iniParser.getSyncReceiptTimeout());
+			GPTP_LOG_INFO("phy_delay_gb_tx: %d", iniParser.getPhyDelayGbTx());
+			GPTP_LOG_INFO("phy_delay_gb_rx: %d", iniParser.getPhyDelayGbRx());
+			GPTP_LOG_INFO("phy_delay_mb_tx: %d", iniParser.getPhyDelayMbTx());
+			GPTP_LOG_INFO("phy_delay_mb_rx: %d", iniParser.getPhyDelayMbRx());
+			GPTP_LOG_INFO("neighborPropDelayThresh: %ld", iniParser.getNeighborPropDelayThresh());
+			GPTP_LOG_INFO("syncReceiptThreshold: %d", iniParser.getSyncReceiptThresh());
 
 			/* If using config file, set the neighborPropDelayThresh.
 			 * Otherwise it will use its default value (800ns) */
@@ -399,7 +399,7 @@ int main(int argc, char **argv)
 	}
 
 	if (!pPort->init_port(phy_delay)) {
-		GPTP_LOG_ERROR("failed to initialize port \n");
+		GPTP_LOG_ERROR("failed to initialize port");
 		GPTP_LOG_UNREGISTER();
 		return -1;
 	}
@@ -430,7 +430,7 @@ int main(int argc, char **argv)
 	// Start PPS if requested
 	if( pps ) {
 		if( !timestamper->HWTimestamper_PPS_start()) {
-			GPTP_LOG_ERROR( "Failed to start pulse per second I/O\n" );
+			GPTP_LOG_ERROR("Failed to start pulse per second I/O");
 		}
 	}
 
@@ -471,7 +471,7 @@ int main(int argc, char **argv)
 		}
 	} while (sig == SIGHUP || sig == SIGUSR2);
 
-	GPTP_LOG_ERROR("Exiting on %d\n", sig);
+	GPTP_LOG_ERROR("Exiting on %d", sig);
 
 	if (pGPTPPersist) {
 		pGPTPPersist->closeStorage();
@@ -480,7 +480,7 @@ int main(int argc, char **argv)
 	// Stop PPS if previously started
 	if( pps ) {
 		if( !timestamper->HWTimestamper_PPS_stop()) {
-			GPTP_LOG_ERROR( "Failed to stop pulse per second I/O\n" );
+			GPTP_LOG_ERROR("Failed to stop pulse per second I/O");
 		}
 	}
 
@@ -496,7 +496,7 @@ void gPTPPersistWriteCB(char *bufPtr, uint32_t bufSize)
 	off_t restoredatacount = restoredatalength;
 	char *restoredataptr = NULL;
 
-	GPTP_LOG_INFO("Signal received to write restore data\n");
+	GPTP_LOG_INFO("Signal received to write restore data");
 
 	restoredataptr = (char *)bufPtr;
 	pClock->serializeState(restoredataptr, &restoredatacount);
