@@ -2,15 +2,15 @@
  ******************************************************************
  * COPYRIGHT � Symphony Teleca
  *----------------------------------------------------------------*
- * MODULE : AEM - AVDECC Strings Descriptor
+ * MODULE : AEM - AVDECC Entity Model : Entity Descriptor
  *
  * PROGRAMMER : Ken Carlino (Triple Play Integration)
- * DATE :       18-Dec-2013
+ * DATE :       20-Nov-2013
  * VERSION :    1.0
  *
  *----------------------------------------------------------------*
  *
- * MODULE SUMMARY : Interface for the Strings Desciptor
+ * MODULE SUMMARY : Interface for the Entity Desciptor
  *
  *----------------------------------------------------------------*
  *
@@ -19,11 +19,11 @@
  ******************************************************************
  */
 
-#ifndef OPENAVB_DESCRIPTOR_STRINGS_H
-#define OPENAVB_DESCRIPTOR_STRINGS_H 1
+#ifndef OPENAVB_DESCRIPTOR_ENTITY_H
+#define OPENAVB_DESCRIPTOR_ENTITY_H 1
 
-#include "openavb_descriptor_strings_pub.h"
+#include "openavb_descriptor_entity_pub.h"
 
-#define OPENAVB_DESCRIPTOR_STRINGS_BASE_LENGTH 452
+#define OPENAVB_DESCRIPTOR_ENTITY_BASE_LENGTH 312
 
-#endif // OPENAVB_DESCRIPTOR_STRINGS_H
+#endif // OPENAVB_DESCRIPTOR_ENTITY_H

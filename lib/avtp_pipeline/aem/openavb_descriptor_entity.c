@@ -27,6 +27,7 @@
 
 #include "openavb_rawsock.h"
 #include "openavb_aem.h"
+#include "openavb_descriptor_entity.h"
 
 
 ////////////////////////////////
@@ -42,7 +43,7 @@ openavbRC openavbAemDescriptorEntityToBuf(void *pVoidDescriptor, U16 bufLength, 
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
-	if (bufLength < sizeof(openavb_aem_descriptor_entity_t)) {
+	if (bufLength < OPENAVB_DESCRIPTOR_ENTITY_BASE_LENGTH) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_BUFFER_TOO_SMALL), AVB_TRACE_AEM);
 	}
 
@@ -89,7 +90,7 @@ openavbRC openavbAemDescriptorEntityFromBuf(void *pVoidDescriptor, U16 bufLength
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
-	if (bufLength < sizeof(openavb_aem_descriptor_entity_t)) {
+	if (bufLength < OPENAVB_DESCRIPTOR_ENTITY_BASE_LENGTH) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_BUFFER_TOO_SMALL), AVB_TRACE_AEM);
 	}
 
@@ -132,7 +133,7 @@ extern DLL_EXPORT openavb_aem_descriptor_entity_t *openavbAemDescriptorEntityNew
 
 	openavb_aem_descriptor_entity_t *pDescriptor;
 
-	pDescriptor = malloc(sizeof(openavb_aem_descriptor_entity_t));
+	pDescriptor = malloc(sizeof(*pDescriptor));
 
 	if (!pDescriptor) {
 		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_OUT_OF_MEMORY));

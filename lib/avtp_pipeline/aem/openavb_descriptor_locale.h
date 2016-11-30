@@ -24,6 +24,6 @@
 
 #include "openavb_descriptor_locale_pub.h"
 
-#define OPENAVB_DESCRIPTOR_LOCALE_BASE_LENGTH (sizeof(openavb_aem_descriptor_locale_t) - sizeof(openavb_descriptor_pvt_ptr_t))
+#define OPENAVB_DESCRIPTOR_LOCALE_BASE_LENGTH 72
 
 #endif // OPENAVB_DESCRIPTOR_LOCALE_H
