@@ -41,6 +41,11 @@ endif
 # PTP is required for AVB support
 CFLAGS_EXTRA += -DIGB_PTP
 
+# Add 32 bit ioctl support
+ifeq ($(32BIT_IOCTL_SUPPORT),y)
+CFLAGS_EXTRA += -DSUPPORT_32BIT_IOCTL
+endif
+
 # Use IGB_PTP compile flag to enable IEEE-1588 PTP (documented in README)
 ifeq ($(filter %IGB_PTP,$(CFLAGS_EXTRA)),-DIGB_PTP)
   CFILES += igb_ptp.c
