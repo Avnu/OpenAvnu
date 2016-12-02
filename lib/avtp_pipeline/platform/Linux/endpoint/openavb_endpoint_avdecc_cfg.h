@@ -41,8 +41,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_types.h"
 #include "openavb_avdecc_pub.h"
 
-//#define DEFAULT_AVDECC_INI_FILE "avdecc.ini"
-#define DEFAULT_AVDECC_INI_FILE "avdecc_test.ini"
+#define DEFAULT_AVDECC_INI_FILE "avdecc.ini"
 
 int openavbReadAvdeccConfig(const char *inifile, openavb_avdecc_cfg_t *pCfg);
 void openavbAvdeccUnconfigure(openavb_avdecc_cfg_t *pCfg);
