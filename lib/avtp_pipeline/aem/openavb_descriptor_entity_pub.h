@@ -79,4 +79,13 @@ bool openavbAemDescriptorEntitySet_vendor_name(openavb_aem_descriptor_entity_t *
 // Set the Model Name.
 bool openavbAemDescriptorEntitySet_model_name(openavb_aem_descriptor_entity_t *pDescriptor, U16 nOffset, U8 nIndex);
 
+// Set the Firmware Version.
+bool openavbAemDescriptorEntitySet_firmware_version(openavb_aem_descriptor_entity_t *pDescriptor, char *aFirmwareVersion);
+
+// Set the Group Name.
+bool openavbAemDescriptorEntitySet_group_name(openavb_aem_descriptor_entity_t *pDescriptor, char *aGroupName);
+
+// Set the Serial Number.
+bool openavbAemDescriptorEntitySet_serial_number(openavb_aem_descriptor_entity_t *pDescriptor, char *aSerialNumber);
+
 #endif // OPENAVB_DESCRIPTOR_ENTITY_PUB_H

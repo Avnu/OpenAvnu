@@ -1,16 +1,16 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2016, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,15 +21,15 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /*
-* MODULE SUMMARY : Reads the .ini file for an endpoint
+* MODULE SUMMARY : Reads the AVDECC .ini file for an endpoint
 */
 
 #include <unistd.h>
@@ -38,12 +38,13 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <errno.h>
 #include <ctype.h>
 #include "openavb_endpoint.h"
-#include "openavb_endpoint_cfg.h"
+//#include "openavb_endpoint_cfg.h"
+#include "openavb_endpoint_avdecc_cfg.h"
 #include "openavb_trace.h"
 #include "openavb_rawsock.h"
 #include "ini.h"
 
-#define	AVB_LOG_COMPONENT	"Endpoint"
+#define	AVB_LOG_COMPONENT	"AVDECC_Endpoint"
 #include "openavb_log.h"
 
 // macro to make matching names easier
@@ -65,36 +66,19 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return 0;
 	}
-	
-	openavb_endpoint_cfg_t *pCfg = (openavb_endpoint_cfg_t*)user;
-	
+
+	openavb_avdecc_cfg_t *pCfg = (openavb_avdecc_cfg_t*)user;
+
 	AVB_LOGF_DEBUG("name=[%s] value=[%s]", name, value);
 
 	bool valOK = FALSE;
 	char *pEnd;
 
-	if (MATCH(section, "network"))
+	if (MATCH(section, "enable"))
 	{
-		if (MATCH(name, "ifname"))
-		{
-			if_info_t ifinfo;
-			if (openavbCheckInterface(value, &ifinfo)) {
-				strncpy(pCfg->ifname, value, IFNAMSIZ - 1);
-				memcpy(pCfg->ifmac, &ifinfo.mac, ETH_ALEN);
-				pCfg->ifindex = ifinfo.index;
-				pCfg->mtu = ifinfo.mtu;
-				valOK = TRUE;
-			}
-		}
-		else if (MATCH(name, "link_kbit")) {
+		if (MATCH(name, "useAvdecc")) {
 			errno = 0;
-			pCfg->link_kbit = strtoul(value, &pEnd, 10);
-			if (*pEnd == '\0' && errno == 0)
-				valOK = TRUE;
-		}
-		else if (MATCH(name, "nsr_kbit")) {
-			errno = 0;
-			pCfg->nsr_kbit = strtoul(value, &pEnd, 10);
+			pCfg->useAvdecc = (strtoul(value, &pEnd, 10) != 0);
 			if (*pEnd == '\0' && errno == 0)
 				valOK = TRUE;
 		}
@@ -105,10 +89,71 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 			return 0;
 		}
 	}
-	else if (MATCH(section, "ptp"))
+	else if (MATCH(section, "vlan"))
 	{
-		if (MATCH(name, "start_options")) {
-			pCfg->ptp_start_opts = strdup(value);
+		if (MATCH(name, "vlanID")) {
+			errno = 0;
+			pCfg->vlanID = strtoul(value, &pEnd, 10);
+			if (*pEnd == '\0' && errno == 0)
+				valOK = TRUE;
+		}
+		else if (MATCH(name, "vlanPCP")) {
+			errno = 0;
+			pCfg->vlanPCP = strtoul(value, &pEnd, 10);
+			if (*pEnd == '\0' && errno == 0)
+				valOK = TRUE;
+		}
+		else {
+			// unmatched item, fail
+			AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
+			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+			return 0;
+		}
+	}
+	else if (MATCH(section, "descriptor_entity"))
+	{
+		if (MATCH(name, "avdeccId")) {
+			errno = 0;
+			pCfg->avdeccId = strtoul(value, &pEnd, 0);
+			if (*pEnd == '\0' && errno == 0)
+				valOK = TRUE;
+		}
+		else if (MATCH(name, "entity_model_id")) {
+			errno = 0;
+			U64 nTemp = strtoull(value, &pEnd, 0);
+			if (*pEnd == '\0' && errno == 0) {
+				valOK = TRUE;
+				for (int i = 7; i >= 0; --i) {
+					pCfg->entity_model_id[i] = (U8) (nTemp & 0xFF);
+					nTemp = (nTemp >> 8);
+				}
+				AVB_LOGF_DEBUG("entity_model_id = %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+					pCfg->entity_model_id[0], pCfg->entity_model_id[1], pCfg->entity_model_id[2], pCfg->entity_model_id[3],
+					pCfg->entity_model_id[4], pCfg->entity_model_id[5], pCfg->entity_model_id[6], pCfg->entity_model_id[7]);
+			}
+		}
+		else if (MATCH(name, "entity_name"))
+		{
+			strncpy(pCfg->entity_name, value, sizeof(pCfg->entity_name));
+				// String does not need to be 0-terminated.
+			valOK = TRUE;
+		}
+		else if (MATCH(name, "firmware_version"))
+		{
+			strncpy(pCfg->firmware_version, value, sizeof(pCfg->firmware_version));
+				// String does not need to be 0-terminated.
+			valOK = TRUE;
+		}
+		else if (MATCH(name, "group_name"))
+		{
+			strncpy(pCfg->group_name, value, sizeof(pCfg->group_name));
+				// String does not need to be 0-terminated.
+			valOK = TRUE;
+		}
+		else if (MATCH(name, "serial_number"))
+		{
+			strncpy(pCfg->serial_number, value, sizeof(pCfg->serial_number));
+				// String does not need to be 0-terminated.
 			valOK = TRUE;
 		}
 		else {
@@ -118,44 +163,25 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 			return 0;
 		}
 	}
-	else if (MATCH(section, "fqtss"))
+	else if (MATCH(section, "localization"))
 	{
-		if (MATCH(name, "mode")) {
-			errno = 0;
-			pCfg->fqtss_mode = strtoul(value, &pEnd, 10);
-			if (*pEnd == '\0' && errno == 0)
-				valOK = TRUE;
+		if (MATCH(name, "locale_identifier"))
+		{
+			strncpy(pCfg->locale_identifier, value, sizeof(pCfg->locale_identifier));
+				// String does not need to be 0-terminated.
+			valOK = TRUE;
 		}
-		else {
-			// unmatched item, fail
-			AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
-			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
-			return 0;
+		else if (MATCH(name, "vendor_name"))
+		{
+			strncpy(pCfg->vendor_name, value, sizeof(pCfg->vendor_name));
+				// String does not need to be 0-terminated.
+			valOK = TRUE;
 		}
-	}
-	else if (MATCH(section, "srp"))
-	{
-		if (MATCH(name, "preconfigured")) {
-			errno = 0;
-			unsigned temp = strtoul(value, &pEnd, 10);
-			if (*pEnd == '\0' && errno == 0) {
-				valOK = TRUE;
-				if (temp == 1)
-					pCfg->noSrp = TRUE;
-				else
-					pCfg->noSrp = FALSE;
-			}
-		}
-		else if (MATCH(name, "gptp_asCapable_not_required")) {
-			errno = 0;
-			unsigned temp = strtoul(value, &pEnd, 10);
-			if (*pEnd == '\0' && errno == 0) {
-				valOK = TRUE;
-				if (temp == 1)
-					pCfg->bypassAsCapableCheck = TRUE;
-				else
-					pCfg->bypassAsCapableCheck = FALSE;
-			}
+		else if (MATCH(name, "model_name"))
+		{
+			strncpy(pCfg->model_name, value, sizeof(pCfg->model_name));
+				// String does not need to be 0-terminated.
+			valOK = TRUE;
 		}
 		else {
 			// unmatched item, fail
@@ -183,13 +209,15 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 
 // Parse ini file, and create config data
 //
-int openavbReadConfig(const char *ini_file, openavb_endpoint_cfg_t *pCfg)
+int openavbReadAvdeccConfig(const char *ini_file, openavb_avdecc_cfg_t *pCfg)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 
 	// defaults - most are handled by setting everything to 0
-	memset(pCfg, 0, sizeof(openavb_endpoint_cfg_t));
-	pCfg->fqtss_mode = -1;
+	memset(pCfg, 0, sizeof(openavb_avdecc_cfg_t));
+	pCfg->bListener = 1; // TODO:  BDT_DEBUG What should this be?
+	pCfg->bTalker = 1; // TODO:  BDT_DEBUG What should this be?
+	pCfg->avdeccId = 0xfffe;
 
 	int result = ini_parse(ini_file, cfgCallback, pCfg);
 	if (result < 0) {
@@ -209,16 +237,9 @@ int openavbReadConfig(const char *ini_file, openavb_endpoint_cfg_t *pCfg)
 
 // Clean up any configuration-related stuff
 //
-void openavbUnconfigure(openavb_endpoint_cfg_t *pCfg)
+void openavbAvdeccUnconfigure(openavb_avdecc_cfg_t *pCfg)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
-
-	if (pCfg) {
-		if (pCfg->ptp_start_opts) {
-			free(pCfg->ptp_start_opts);
-			pCfg->ptp_start_opts = NULL;
-		}
-	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 }

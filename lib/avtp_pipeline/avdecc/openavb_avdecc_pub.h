@@ -39,6 +39,7 @@
 #include "openavb_descriptor_audio_cluster_pub.h"
 #include "openavb_descriptor_audio_map_pub.h"
 #include "openavb_descriptor_clock_domain_pub.h"
+#include "openavb_descriptor_locale_strings_handler_pub.h"
 
 // Discovery protocol public includes
 #include "openavb_adp_pub.h"
@@ -49,17 +50,43 @@
 // Enumeration and control public includes
 #include "openavb_aecp_pub.h"
 
+// Indexes for localized strings.
+// (These are defined for internal use, and can be changed as needed.)
+#define LOCALE_STRING_VENDOR_NAME_INDEX 0
+#define LOCALE_STRING_MODEL_NAME_INDEX  1
+
 typedef struct {
-	bool bListener;
-	bool bTalker;
-	char ifname[32];
-	U16  vlanID;
-	U8   vlanPCP;
+	bool useAvdecc;
+
+	// Values filled in from the openavbAVDECCInitialize() arguments
+	char ifname[IFNAMSIZ];
+	U8 ifmac[ETH_ALEN];
+
+	bool bListener; // TODO:  BDT_DEBUG Should this be determined by the configurations?
+	bool bTalker; // TODO:  BDT_DEBUG Should this be determined by the configurations?
+
+	U16 vlanID;
+	U8 vlanPCP;
+
+	// Information to add to the descriptor.
+	unsigned avdeccId;
+	U8 entity_model_id[8];
+	char entity_name[OPENAVB_AEM_STRLEN_MAX];
+	char firmware_version[OPENAVB_AEM_STRLEN_MAX];
+	char group_name[OPENAVB_AEM_STRLEN_MAX];
+	char serial_number[OPENAVB_AEM_STRLEN_MAX];
+
+	// Localization strings.
+	char locale_identifier[OPENAVB_AEM_STRLEN_MAX];
+	char vendor_name[OPENAVB_AEM_STRLEN_MAX];
+	char model_name[OPENAVB_AEM_STRLEN_MAX];
+
 	openavb_aem_descriptor_entity_t *pDescriptorEntity;
+	openavb_aem_descriptor_locale_strings_handler_t *pAemDescriptorLocaleStringsHandler;
 } openavb_avdecc_cfg_t;
 
 // General initialization for AVDECC. This must be called before any other AVDECC APIs including AEM APIs
-bool openavbAVDECCInitialize(openavb_avdecc_cfg_t *pAvdeccCfg);
+bool openavbAVDECCInitialize(const char *ifname, U8 *ifmac);
 
 // Start the AVDECC protocols. 
 bool openavbAVDECCStart(void);

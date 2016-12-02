@@ -19,7 +19,7 @@
 // Public functions
 ////////////////////////////////
 
-extern DLL_EXPORT openavb_aem_descriptor_locale_strings_handler_t *openavbAemDescriptorLocaleStringsHandlerNew(U16 nConfigIdx)
+extern DLL_EXPORT openavb_aem_descriptor_locale_strings_handler_t *openavbAemDescriptorLocaleStringsHandlerNew()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
 
@@ -33,8 +33,6 @@ extern DLL_EXPORT openavb_aem_descriptor_locale_strings_handler_t *openavbAemDes
 		return NULL;
 	}
 	memset(pDescriptor, 0, sizeof(*pDescriptor));
-
-	pDescriptor->nConfigIdx = nConfigIdx;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;
@@ -106,15 +104,6 @@ extern DLL_EXPORT openavb_aem_descriptor_locale_strings_handler_group_t * openav
 		pNew->pNext = pDescriptor->pFirstGroup;
 		pDescriptor->pFirstGroup = pNew;
 
-		// Add the items to the configuration.
-		U16 nResultIdx;
-		if (!openavbAemAddDescriptor(pNew->pLocale, openavbAemGetConfigIdx(), &nResultIdx)) {
-			AVB_LOG_ERROR("Locale Strings Add Descriptor Failure");
-		}
-		if (!openavbAemAddDescriptor(pNew->pStrings, openavbAemGetConfigIdx(), &nResultIdx)) {
-			AVB_LOG_ERROR("Locale Strings Add Descriptor Failure");
-		}
-
 		AVB_TRACE_EXIT(AVB_TRACE_AEM);
 		return pNew;
 	}
@@ -179,4 +168,27 @@ extern DLL_EXPORT bool openavbAemDescriptorLocaleStringsHandlerSet_local_string(
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return ret;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorLocaleStringsHandlerAddToConfiguration(
+	openavb_aem_descriptor_locale_strings_handler_t *pDescriptor, U16 nConfigIdx)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	// Add the items to the configuration.
+	openavb_aem_descriptor_locale_strings_handler_group_t *pCurrent = pDescriptor->pFirstGroup;
+	while (pCurrent) {
+		U16 nResultIdx;
+		if (!openavbAemAddDescriptor(pCurrent->pLocale, nConfigIdx, &nResultIdx)) {
+			AVB_LOG_ERROR("Locale Add Descriptor Failure");
+		}
+		if (!openavbAemAddDescriptor(pCurrent->pStrings, nConfigIdx, &nResultIdx)) {
+			AVB_LOG_ERROR("Strings Add Descriptor Failure");
+		}
+
+		pCurrent = pCurrent->pNext;
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return false;
 }

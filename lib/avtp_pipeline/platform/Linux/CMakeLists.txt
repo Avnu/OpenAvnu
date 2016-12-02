@@ -349,6 +349,7 @@ install ( TARGETS rawsock_tx RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
 
 # Copy additional installation files
 install ( FILES ${AVB_SRC_DIR}/endpoint/endpoint.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
+install ( FILES ${AVB_SRC_DIR}/avdecc/avdecc.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
 install ( PROGRAMS ${AVB_SRC_DIR}/endpoint/shutdown_openavb_endpoint.sh DESTINATION ${AVB_INSTALL_BIN_DIR} )
 
 

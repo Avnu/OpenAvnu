@@ -34,6 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace.h"
 #include "openavb_endpoint.h"
 #include "openavb_endpoint_cfg.h"
+#include "openavb_endpoint_avdecc_cfg.h"
 #include "openavb_srp.h"
 #include "openavb_maap.h"
 #include "mrp_client.h"
@@ -47,6 +48,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 // the following are from openavb_endpoint.c
 extern openavb_endpoint_cfg_t 	x_cfg;
+extern openavb_avdecc_cfg_t gAvdeccCfg;
 extern bool endpointRunning;
 static pthread_t endpointServerHandle;
 static void* endpointServerThread(void *arg);
@@ -115,6 +117,9 @@ bool startEndpoint(int mode, int ifindex, const char* ifname, unsigned mtu, unsi
 
 	openavbReadConfig(DEFAULT_INI_FILE, &x_cfg);
 
+	// Get the AVDECC configuration
+	openavbReadAvdeccConfig(DEFAULT_AVDECC_INI_FILE, &gAvdeccCfg);
+
 	endpointRunning = TRUE;
 	int err = pthread_create(&endpointServerHandle, NULL, endpointServerThread, NULL);
 	if (err) {
@@ -122,7 +127,7 @@ bool startEndpoint(int mode, int ifindex, const char* ifname, unsigned mtu, unsi
 		goto error;
 	}
 
-	if (x_cfg.noAvdecc) {
+	if (!gAvdeccCfg.useAvdecc) {
 		AVB_LOG_INFO("AVDECC not enabled");
 	} else {
 		/* Run AVDECC in its own thread. */

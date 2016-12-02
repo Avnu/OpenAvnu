@@ -326,3 +326,51 @@ extern DLL_EXPORT bool openavbAemDescriptorEntitySet_model_name(openavb_aem_desc
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return TRUE;
 }
+
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_firmware_version(openavb_aem_descriptor_entity_t *pDescriptor, char *aFirmwareVersion)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor || !aFirmwareVersion) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	openavbAemSetString(pDescriptor->firmware_version, aFirmwareVersion);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_group_name(openavb_aem_descriptor_entity_t *pDescriptor, char *aGroupName)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor || !aGroupName) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	openavbAemSetString(pDescriptor->group_name, aGroupName);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}
+
+extern DLL_EXPORT bool openavbAemDescriptorEntitySet_serial_number(openavb_aem_descriptor_entity_t *pDescriptor, char *aSerialNumber)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	if (!pDescriptor || !aSerialNumber) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AEM);
+		return FALSE;
+	}
+
+	openavbAemSetString(pDescriptor->serial_number, aSerialNumber);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AEM);
+	return TRUE;
+}

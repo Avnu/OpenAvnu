@@ -33,7 +33,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 * It includes the SRP and QMgr libraries which handle SRP reservations
 * and TX queuing.
 *
-* The actual AVTP talker/listener work is done in a separate processs.
+* The actual AVTP talker/listener work is done in a separate process.
 * The aim of using separate processes is to (1) reduce the
 * complexity in the central process; and (2) to allow multiple types
 * of children for different AVTP encapsulations and data sources.
@@ -56,11 +56,11 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace.h"
 #include "openavb_endpoint.h"
 #include "openavb_endpoint_cfg.h"
+#include "openavb_endpoint_avdecc_cfg.h"
 #include "openavb_avtp.h"
 #include "openavb_qmgr.h"
 #include "openavb_maap.h"
 #include "openavb_avdecc.h"
-#include "openavb_descriptor_locale_strings_handler_pub.h"
 
 #define	AVB_LOG_COMPONENT	"Endpoint"
 #include "openavb_pub.h"
@@ -75,8 +75,9 @@ clientStream_t* 				x_streamList;
 // true until we are signalled to stop
 bool endpointRunning = TRUE;
 bool avdeccRunning = TRUE;
-// data from our configuation file
+// data from our configuration files
 openavb_endpoint_cfg_t 	x_cfg;
+openavb_avdecc_cfg_t gAvdeccCfg;
 
 /*************************************************************
  * Functions to manage our list of streams.
@@ -400,7 +401,7 @@ openavbRC strmRegCb(void *pv,
  *
  * A better way to handle this would require SRP and the
  * talkers/listeners to look at destination addresses (in addition
- * to StreamID and talker/listner declaration) and explicitly handle
+ * to StreamID and talker/listener declaration) and explicitly handle
  * destination address changes.
  */
 static void maapRestartCallback(void* handle, struct ether_addr *addr)
@@ -452,7 +453,7 @@ int avbEndpointLoop(void)
 	do {
 
 		if (!x_cfg.bypassAsCapableCheck && (startPTP() < 0)) {
-			// make sure ptp, a seperate process, starts and is using the same interface as endpoint
+			// make sure ptp, a separate process, starts and is using the same interface as endpoint
 			AVB_LOG_ERROR("PTP failed to start - Exiting");
 			break;
 		} else if(x_cfg.bypassAsCapableCheck) {
@@ -460,7 +461,7 @@ int avbEndpointLoop(void)
 			AVB_LOG_WARNING("Configuration 'gptp_asCapable_not_required = 1' is set.");
 			AVB_LOG_WARNING("This configuration bypasses the requirement for gPTP");
 			AVB_LOG_WARNING("and openavb_gptp is not started automatically.");
-			AVB_LOG_WARNING("An appropriate ptp MUST be started seperately.");
+			AVB_LOG_WARNING("An appropriate ptp MUST be started separately.");
 			AVB_LOG_WARNING("Any network which does not use ptp to synchronize time");
 			AVB_LOG_WARNING("on each and every network device is NOT an AVB network.");
 			AVB_LOG_WARNING("Such a network WILL NOT FUNCTION PROPERLY.");
@@ -533,34 +534,13 @@ int avbEndpointLoop(void)
 
 static bool startAvdeccSupport()
 {
-	openavb_avdecc_cfg_t avdecc_cfg = {0};
-	openavb_aem_descriptor_locale_strings_handler_t * pAemDescriptorLocaleStringsHandler = NULL;
 	openavbRC rc;
 	bool succeeded = false;
 
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 
-	/* Initialize the structure. */
-	avdecc_cfg.bListener = 1; // TODO:  BDT_DEBUG What should this be?
-	avdecc_cfg.bTalker = 1; // TODO:  BDT_DEBUG What should this be?
-	strncpy(avdecc_cfg.ifname, x_cfg.ifname, sizeof(avdecc_cfg.ifname));
-	avdecc_cfg.ifname[sizeof(avdecc_cfg.ifname) - 1] = '\0';
-	//avdecc_cfg.vlanID = SR_CLASS_A_DEFAULT_VID;
-	//avdecc_cfg.vlanPCP = SR_CLASS_A_DEFAULT_PRIORITY;
-	avdecc_cfg.pDescriptorEntity = openavbAemDescriptorEntityNew();
-
 	do {
-		if (!avdecc_cfg.pDescriptorEntity) {
-			AVB_LOG_ERROR("Failed to allocate an AVDECC descriptor");
-			break;
-		}
-
-		if (!openavbAemDescriptorEntitySet_entity_id(avdecc_cfg.pDescriptorEntity, NULL, x_cfg.ifmac, x_cfg.avdeccId)) {
-			AVB_LOG_ERROR("Failed to set the AVDECC descriptor");
-			break;
-		}
-
-		rc = openavbAVDECCInitialize(&avdecc_cfg);
+		rc = openavbAVDECCInitialize(x_cfg.ifname, x_cfg.ifmac);
 		if (IS_OPENAVB_FAILURE(rc)) {
 			AVB_LOG_ERROR("Failed to initialize AVDECC");
 			openavbAVDECCCleanup();
@@ -568,6 +548,7 @@ static bool startAvdeccSupport()
 		}
 
 		// Add a configuration.
+		// TODO:  BDT_DEBUG How do we handle multiple .INI files?  A configuration for each one?
 		openavb_aem_descriptor_configuration_t *pConfiguration = openavbAemDescriptorConfigurationNew();
 		U16 nConfigIdx = 0;
 		if (!openavbAemAddDescriptor(pConfiguration, 0, &nConfigIdx)) {
@@ -577,52 +558,8 @@ static bool startAvdeccSupport()
 			break;
 		}
 
-
-		// TEST DATA!
-		// TODO:  BDT_DEBUG Fill this in with something accurate!
-		U8 nModelId[8] = {0, 0, 0, 0, 0, 0xbd, 0x77, 0xa1};
-		openavbAemDescriptorEntitySet_entity_model_id(avdecc_cfg.pDescriptorEntity, nModelId);
-
-		// TEST DATA!
-		// TODO:  BDT_DEBUG Fill this in with something accurate!
-		openavbAemDescriptorEntitySet_entity_capabilities(avdecc_cfg.pDescriptorEntity,
-			OPENAVB_ADP_ENTITY_CAPABILITIES_EFU_MODE |
-			OPENAVB_ADP_ENTITY_CAPABILITIES_ADDRESS_ACCESS_SUPPORTED |
-			OPENAVB_ADP_ENTITY_CAPABILITIES_AEM_SUPPORTED |
-			OPENAVB_ADP_ENTITY_CAPABILITIES_CLASS_A_SUPPORTED |
-			OPENAVB_ADP_ENTITY_CAPABILITIES_GPTP_SUPPORTED);
-		if (avdecc_cfg.bTalker) {
-			openavbAemDescriptorEntitySet_talker_capabilities(avdecc_cfg.pDescriptorEntity, 1,
-				OPENAVB_ADP_TALKER_CAPABILITIES_IMPLEMENTED |
-				OPENAVB_ADP_TALKER_CAPABILITIES_AUDIO_SOURCE |
-				OPENAVB_ADP_TALKER_CAPABILITIES_MEDIA_CLOCK_SOURCE);
-		}
-		if (avdecc_cfg.bListener) {
-			openavbAemDescriptorEntitySet_listener_capabilities(avdecc_cfg.pDescriptorEntity, 1,
-				OPENAVB_ADP_LISTENER_CAPABILITIES_IMPLEMENTED |
-				OPENAVB_ADP_LISTENER_CAPABILITIES_AUDIO_SINK);
-		}
-		openavbAemDescriptorEntitySet_entity_name(avdecc_cfg.pDescriptorEntity,
-			"Harman Test Device");
-
-		// TEST DATA!
-		// TODO:  BDT_DEBUG Fill this in with something accurate!
-		pAemDescriptorLocaleStringsHandler = openavbAemDescriptorLocaleStringsHandlerNew(nConfigIdx);
-		if (pAemDescriptorLocaleStringsHandler) {
-			#define LOCALE_STRING_VENDOR_NAME_INDEX 0
-			#define LOCALE_STRING_MODEL_NAME_INDEX  1
-
-			// Add the strings to the locale strings hander.
-			openavbAemDescriptorLocaleStringsHandlerSet_local_string(
-				pAemDescriptorLocaleStringsHandler, "en-US", "Test Vendor Name", LOCALE_STRING_VENDOR_NAME_INDEX);
-			openavbAemDescriptorLocaleStringsHandlerSet_local_string(
-				pAemDescriptorLocaleStringsHandler, "en-US", "Test Model Name", LOCALE_STRING_MODEL_NAME_INDEX);
-
-			// Have the descriptor entity reference the locale strings.
-			openavbAemDescriptorEntitySet_vendor_name(avdecc_cfg.pDescriptorEntity, 0, LOCALE_STRING_VENDOR_NAME_INDEX);
-			openavbAemDescriptorEntitySet_model_name(avdecc_cfg.pDescriptorEntity, 0, LOCALE_STRING_MODEL_NAME_INDEX);
-		}
-
+		// Add the localized strings to the configuration.
+		openavbAemDescriptorLocaleStringsHandlerAddToConfiguration(gAvdeccCfg.pAemDescriptorLocaleStringsHandler, nConfigIdx);
 
 		AVB_LOG_DEBUG("AVDECC Initialized");
 
@@ -636,9 +573,6 @@ static bool startAvdeccSupport()
 		AVB_LOG_INFO("AVDECC Started");
 		succeeded = true;
 	} while(0);
-
-	openavbAemDescriptorLocaleStringsHandlerFree(pAemDescriptorLocaleStringsHandler);
-	pAemDescriptorLocaleStringsHandler = NULL;
 
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return succeeded;
@@ -654,7 +588,7 @@ int avbAvdeccLoop(void)
 	do {
 
 		// Initialize and Start AVDECC
-		if(x_cfg.noAvdecc) {
+		if(!gAvdeccCfg.useAvdecc) {
 			AVB_LOG_INFO("AVDECC not enabled");
 		} else {
 			avdeccEnabled = true;
