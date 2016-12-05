@@ -26,7 +26,6 @@ typedef struct {
 } openavb_aem_descriptor_locale_strings_handler_t;
 
 
-// Argument is the index for the configuration that the locale strings should be associated with.
 openavb_aem_descriptor_locale_strings_handler_t *openavbAemDescriptorLocaleStringsHandlerNew(void);
 
 void openavbAemDescriptorLocaleStringsHandlerFree(
