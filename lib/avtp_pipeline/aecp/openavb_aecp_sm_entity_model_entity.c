@@ -833,6 +833,7 @@ void openavbAecpSMEntityModelEntityStateMachine()
 	while (bRunning) {
 		switch (state) {
 			case OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING:
+				AVB_LOG_DEBUG("State:  OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING");
 				openavbAecpSMEntityModelEntityVars.rcvdAEMCommand = FALSE;
 				openavbAecpSMEntityModelEntityVars.doUnsolicited = FALSE;
 
@@ -857,11 +858,13 @@ void openavbAecpSMEntityModelEntityStateMachine()
 				break;
 
 			case OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_UNSOLICITED_RESPONSE:
+				AVB_LOG_DEBUG("State:  OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_UNSOLICITED_RESPONSE");
 
 				state = OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING;
 				break;
 
 			case OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_RECEIVED_COMMAND:
+				AVB_LOG_DEBUG("State:  OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_RECEIVED_COMMAND");
 				{
 					AECP_SM_LOCK();
 					if (openavbAecpSMEntityModelEntityVars.rcvdCommand.entityModelPdu.command_type == OPENAVB_AEM_COMMAND_CODE_ACQUIRE_ENTITY) {
@@ -885,6 +888,7 @@ void openavbAecpSMEntityModelEntityStateMachine()
 				break;
 	
 			default:
+				AVB_LOG_DEBUG("State:  Unknown");
 				bRunning = FALSE;	// Unexpected
 				break;
 
