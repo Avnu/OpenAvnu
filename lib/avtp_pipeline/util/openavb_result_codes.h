@@ -169,7 +169,7 @@ enum openavbAVDECCResultCodes {
 	OPENAVBAVDECC_RC_PARSING_MAC_ADDRESS		= 0x0004, // Parsing Mac Address
 	OPENAVBAVDECC_RC_UNKNOWN_DESCRIPTOR			= 0x0005, // Unknown descriptor
 	OPENAVBAVDECC_RC_STALE_DATA					= 0x0006, // Stale data
-};                                  		
+};
 
 
 #define OPENAVB_PTP_SUCCESS			(OPENAVB_SUCCESS | OPENAVB_MODULE_GPTP)
