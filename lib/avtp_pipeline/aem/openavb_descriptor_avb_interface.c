@@ -29,6 +29,8 @@
 #include "openavb_aem.h"
 #include "openavb_descriptor_avb_interface.h"
 
+extern openavb_avdecc_cfg_t gAvdeccCfg;
+
 
 ////////////////////////////////
 // Private (internal) functions
@@ -125,6 +127,14 @@ openavbRC openavbAemDescriptorAvbInterfaceUpdate(void *pVoidDescriptor)
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
+	// Make the Clock Identity the same as the Entity Id.
+	// Just use the first entity descriptor from the first configuration, as they should all be the same.
+	openavb_aem_descriptor_entity_t *pEntityDescriptor =
+		(openavb_aem_descriptor_entity_t *) openavbAemGetDescriptor(0, OPENAVB_AEM_DESCRIPTOR_ENTITY, 0);
+	if (pEntityDescriptor) {
+		memcpy(pDescriptor->clock_identity, pEntityDescriptor->entity_id, sizeof(pDescriptor->clock_identity));
+	}
+
 	// AVDECC_TODO - Any updates needed?
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
@@ -163,9 +173,16 @@ extern DLL_EXPORT openavb_aem_descriptor_avb_interface_t *openavbAemDescriptorAv
 	pDescriptor->descriptorPvtPtr->fromBuf = openavbAemDescriptorAvbInterfaceFromBuf;
 	pDescriptor->descriptorPvtPtr->update = openavbAemDescriptorAvbInterfaceUpdate;
 
-	memcpy(pDescriptor->mac_address, openavbAVDECCMacAddr.ether_addr_octet, sizeof(openavbAVDECCMacAddr));
+	strncpy((char *) pDescriptor->object_name, gAvdeccCfg.ifname, sizeof(pDescriptor->object_name));
+	memcpy(pDescriptor->mac_address, gAvdeccCfg.ifmac, sizeof(pDescriptor->mac_address));
 
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_AVB_INTERFACE;
+
+	// Default to supporting all the interfaces.
+	pDescriptor->interface_flags =
+		OPENAVB_AEM_INTERFACE_TYPE_GPTP_GRANDMASTER_SUPPORTED |
+		OPENAVB_AEM_INTERFACE_TYPE_GPTP_SUPPORTED |
+		OPENAVB_AEM_INTERFACE_TYPE_SRP_SUPPORTED;
 
 	// Default to no localized strings.
 	pDescriptor->localized_description.offset = OPENAVB_AEM_NO_STRING_OFFSET;

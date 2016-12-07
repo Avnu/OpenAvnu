@@ -34,9 +34,6 @@
 
 extern openavb_avdecc_cfg_t gAvdeccCfg;
 
-// The MAC address that will be used by AVDECC
-struct ether_addr openavbAVDECCMacAddr;
-
 bool openavbAVDECCStartAdp()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
@@ -107,7 +104,7 @@ void openavbAVDECCFindMacAddr(void)
 {
 	// Open a rawsock may be the easiest cross platform way to get the MAC address.
 	void *txSock = openavbRawsockOpen(gAvdeccCfg.ifname, FALSE, TRUE, ETHERTYPE_AVTP, 100, 1);
-	if (txSock && openavbRawsockGetAddr(txSock, ADDR_PTR(&openavbAVDECCMacAddr))) {
+	if (txSock && openavbRawsockGetAddr(txSock, gAvdeccCfg.ifmac)) {
 		openavbRawsockClose(txSock);
 		txSock = NULL;
 	}

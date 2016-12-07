@@ -561,6 +561,11 @@ static bool startAvdeccSupport()
 		// Add the localized strings to the configuration.
 		openavbAemDescriptorLocaleStringsHandlerAddToConfiguration(gAvdeccCfg.pAemDescriptorLocaleStringsHandler, nConfigIdx);
 
+		// Add the supported descriptors.
+		// TODO:  BDT_DEBUG Add other descriptors as needed.
+		U16 nResultIdx;
+		openavbAemAddDescriptor(openavbAemDescriptorAvbInterfaceNew(), openavbAemGetConfigIdx(), &nResultIdx);
+
 		AVB_LOG_DEBUG("AVDECC Initialized");
 
 		if (!openavbAVDECCStart()) {

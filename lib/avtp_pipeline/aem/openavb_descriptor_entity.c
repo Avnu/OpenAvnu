@@ -29,6 +29,8 @@
 #include "openavb_aem.h"
 #include "openavb_descriptor_entity.h"
 
+extern openavb_avdecc_cfg_t gAvdeccCfg;
+
 
 ////////////////////////////////
 // Private (internal) functions
@@ -215,8 +217,8 @@ extern DLL_EXPORT bool openavbAemDescriptorEntitySet_entity_id(openavb_aem_descr
 	}
 	else {
 		// If no mac address is passed in obtain it from the stack.
-		memcpy(pDescriptor->entity_id, openavbAVDECCMacAddr.ether_addr_octet, 3);
-		memcpy(pDescriptor->entity_id + 3 + 2, openavbAVDECCMacAddr.ether_addr_octet + 3, 3);
+		memcpy(pDescriptor->entity_id, gAvdeccCfg.ifmac, 3);
+		memcpy(pDescriptor->entity_id + 3 + 2, gAvdeccCfg.ifmac + 3, 3);
 	}
 
 	U16 tmpU16 = htons(id);

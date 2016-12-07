@@ -32,7 +32,7 @@ typedef struct {
 
 	U16 descriptor_type;											// Set internally
 	U16 descriptor_index;											// Set internally
-	U8 object_name[OPENAVB_AEM_STRLEN_MAX];
+	U8 object_name[OPENAVB_AEM_STRLEN_MAX];							// Set internally
 	openavb_aem_string_ref_t localized_description;
 	U8 mac_address[6];												// Set internally
 	U16 interface_flags;

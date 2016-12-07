@@ -189,6 +189,4 @@ s += inc;										\
 
 #endif 
 
-extern struct ether_addr openavbAVDECCMacAddr;
-
 #endif // OPENAVB_AVDECC_H

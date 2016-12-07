@@ -332,7 +332,7 @@ extern DLL_EXPORT bool openavbAemAddDescriptor(void *pDescriptor, U16 configIdx,
 			*pResultIdx = openavbArrayGetIdx(elem);
 			pDescriptorCommon->descriptor_index = *pResultIdx;
 			if (pDescriptorCommon->descriptorPvtPtr->bTopLevel) {
-				if (IS_OPENAVB_FAILURE(openavbAemAddDescriptorToConfiguration(pDescriptorCommon->descriptor_type, configIdx))) {
+				if (IS_OPENAVB_SUCCESS(openavbAemAddDescriptorToConfiguration(pDescriptorCommon->descriptor_type, configIdx))) {
 					AVB_TRACE_EXIT(AVB_TRACE_AEM);
 					return TRUE;
 				}
