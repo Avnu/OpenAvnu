@@ -329,6 +329,21 @@ openavbRC openavbAemDescriptorStreamIOFromBuf(void *pVoidDescriptor, U16 bufLeng
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
 }
 
+openavbRC openavbAemDescriptorStreamIOUpdate(void *pVoidDescriptor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	openavb_aem_descriptor_stream_io_t *pDescriptor = pVoidDescriptor;
+
+	if (!pDescriptor) {
+		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
+	}
+
+	// AVDECC_TODO - Any updates needed?
+
+	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
+}
+
 ////////////////////////////////
 // Public functions
 ////////////////////////////////
@@ -360,6 +375,7 @@ extern DLL_EXPORT openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStream
 	pDescriptor->descriptorPvtPtr->bTopLevel = TRUE;
 	pDescriptor->descriptorPvtPtr->toBuf = openavbAemDescriptorStreamIOToBuf;
 	pDescriptor->descriptorPvtPtr->fromBuf = openavbAemDescriptorStreamIOFromBuf;
+	pDescriptor->descriptorPvtPtr->update = openavbAemDescriptorStreamIOUpdate;
 
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT;
 	pDescriptor->formats_offset = OPENAVB_DESCRIPTOR_STREAM_IO_BASE_LENGTH;
@@ -400,6 +416,7 @@ extern DLL_EXPORT openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStream
 	pDescriptor->descriptorPvtPtr->bTopLevel = TRUE;
 	pDescriptor->descriptorPvtPtr->toBuf = openavbAemDescriptorStreamIOToBuf;
 	pDescriptor->descriptorPvtPtr->fromBuf = openavbAemDescriptorStreamIOFromBuf;
+	pDescriptor->descriptorPvtPtr->update = openavbAemDescriptorStreamIOUpdate;
 
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT;
 	pDescriptor->formats_offset = OPENAVB_DESCRIPTOR_STREAM_IO_BASE_LENGTH;

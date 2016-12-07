@@ -213,11 +213,16 @@ openavbRC openavbAemSerializeDescriptor(U16 configIdx, U16 descriptorType, U16 d
 	void *pDescriptor = openavbAemFindDescriptor(configIdx, descriptorType, descriptorIdx);
 	if (pDescriptor) {
 		openavb_aem_descriptor_common_t *pDescriptorCommon = pDescriptor;
-		pDescriptorCommon->descriptorPvtPtr->toBuf(pDescriptor, bufSize, pBuf, descriptorSize);
+		if (IS_OPENAVB_FAILURE(pDescriptorCommon->descriptorPvtPtr->update(pDescriptor))) {
+			AVB_RC_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_STALE_DATA), AVB_TRACE_AEM);
+		}
+		if (IS_OPENAVB_FAILURE(pDescriptorCommon->descriptorPvtPtr->toBuf(pDescriptor, bufSize, pBuf, descriptorSize))) {
+			AVB_RC_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_GENERIC), AVB_TRACE_AEM);
+		}
 		AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
 	}
 
-	AVB_RC_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_NOT_IMPLEMENTED), AVB_TRACE_AEM);
+	AVB_RC_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_UNKNOWN_DESCRIPTOR), AVB_TRACE_AEM);
 }
 
 bool openavbAemAddDescriptorConfiguration(openavb_aem_descriptor_configuration_t *pDescriptor, U16 *pResultIdx)

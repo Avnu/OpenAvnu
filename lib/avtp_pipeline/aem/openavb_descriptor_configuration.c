@@ -108,6 +108,21 @@ openavbRC openavbAemDescriptorConfigurationFromBuf(void *pVoidDescriptor, U16 bu
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
 }
 
+openavbRC openavbAemDescriptorConfigurationUpdate(void *pVoidDescriptor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	openavb_aem_descriptor_configuration_t *pDescriptor = pVoidDescriptor;
+
+	if (!pDescriptor) {
+		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
+	}
+
+	// AVDECC_TODO - Any updates needed?
+
+	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
+}
+
 ////////////////////////////////
 // Public functions
 ////////////////////////////////
@@ -139,6 +154,7 @@ extern DLL_EXPORT openavb_aem_descriptor_configuration_t *openavbAemDescriptorCo
 	pDescriptor->descriptorPvtPtr->bTopLevel = TRUE;
 	pDescriptor->descriptorPvtPtr->toBuf = openavbAemDescriptorConfigurationToBuf;
 	pDescriptor->descriptorPvtPtr->fromBuf = openavbAemDescriptorConfigurationFromBuf;
+	pDescriptor->descriptorPvtPtr->update = openavbAemDescriptorConfigurationUpdate;
 
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_CONFIGURATION;
 	pDescriptor->descriptor_counts_offset = OPENAVB_DESCRIPTOR_CONFIGURATION_BASE_LENGTH;

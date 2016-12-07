@@ -30,12 +30,14 @@
 
 typedef openavbRC (*openavb_aem_descriptor_to_buf_t)(void *pVoidDescriptor, U16 bufLength, U8 *pBuf, U16 *descriptorSize);
 typedef openavbRC (*openavb_aem_descriptor_from_buf_t)(void *pVoidDescriptor, U16 bufLength, U8 *pBuf);
+typedef openavbRC (*openavb_aem_descriptor_update_t)(void *pVoidDescriptor);
 
 struct openavb_descriptor_pvt {
 	U32 size;
 	bool bTopLevel;
 	openavb_aem_descriptor_to_buf_t toBuf;
 	openavb_aem_descriptor_from_buf_t fromBuf;
+	openavb_aem_descriptor_update_t update;
 };
 
 // Every descriptor must begin with these same members. The structure isn't embedded to make hosting applications cleaner.

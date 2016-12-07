@@ -163,6 +163,7 @@ char *openavbUtilRCCodeToString(openavbRC rc)
 			case OPENAVBAVDECC_RC_INVALID_CONFIG_IDX:		return "Referenced an invalid configuration descriptor index";
 			case OPENAVBAVDECC_RC_PARSING_MAC_ADDRESS:		return "Parsing Mac Address";
 			case OPENAVBAVDECC_RC_UNKNOWN_DESCRIPTOR:		return "Unknown descriptor";
+			case OPENAVBAVDECC_RC_STALE_DATA:				return "Stale data";
 			// No Default
 
 		}

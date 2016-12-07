@@ -95,6 +95,21 @@ openavbRC openavbAemDescriptorJackIOFromBuf(void *pVoidDescriptor, U16 bufLength
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
 }
 
+openavbRC openavbAemDescriptorJackIOUpdate(void *pVoidDescriptor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
+
+	openavb_aem_descriptor_jack_io_t *pDescriptor = pVoidDescriptor;
+
+	if (!pDescriptor) {
+		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
+	}
+
+	// AVDECC_TODO - Any updates needed?
+
+	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
+}
+
 ////////////////////////////////
 // Public functions
 ////////////////////////////////
@@ -126,6 +141,7 @@ extern DLL_EXPORT openavb_aem_descriptor_jack_io_t *openavbAemDescriptorJackInpu
 	pDescriptor->descriptorPvtPtr->bTopLevel = TRUE;
 	pDescriptor->descriptorPvtPtr->toBuf = openavbAemDescriptorJackIOToBuf;
 	pDescriptor->descriptorPvtPtr->fromBuf = openavbAemDescriptorJackIOFromBuf;
+	pDescriptor->descriptorPvtPtr->update = openavbAemDescriptorJackIOUpdate;
 
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_JACK_INPUT;
 
@@ -165,6 +181,7 @@ extern DLL_EXPORT openavb_aem_descriptor_jack_io_t *openavbAemDescriptorJackOutp
 	pDescriptor->descriptorPvtPtr->bTopLevel = TRUE;
 	pDescriptor->descriptorPvtPtr->toBuf = openavbAemDescriptorJackIOToBuf;
 	pDescriptor->descriptorPvtPtr->fromBuf = openavbAemDescriptorJackIOFromBuf;
+	pDescriptor->descriptorPvtPtr->update = openavbAemDescriptorJackIOUpdate;
 
 	pDescriptor->descriptor_type = OPENAVB_AEM_DESCRIPTOR_JACK_OUTPUT;
 
