@@ -199,8 +199,6 @@ openavbRC openavbAemSerializeDescriptor(U16 configIdx, U16 descriptorType, U16 d
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
 
-	openavbRC retCode = OPENAVB_AVDECC_SUCCESS;
-
 	// Make sure Entity Model is created
 	if (!openavbAemCheckModel(FALSE)) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_ENTITY_MODEL_MISSING), AVB_TRACE_AEM);
@@ -216,9 +214,10 @@ openavbRC openavbAemSerializeDescriptor(U16 configIdx, U16 descriptorType, U16 d
 	if (pDescriptor) {
 		openavb_aem_descriptor_common_t *pDescriptorCommon = pDescriptor;
 		pDescriptorCommon->descriptorPvtPtr->toBuf(pDescriptor, bufSize, pBuf, descriptorSize);
+		AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
 	}
 
-	AVB_RC_TRACE_RET(retCode, AVB_TRACE_AEM);
+	AVB_RC_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_NOT_IMPLEMENTED), AVB_TRACE_AEM);
 }
 
 bool openavbAemAddDescriptorConfiguration(openavb_aem_descriptor_configuration_t *pDescriptor, U16 *pResultIdx)

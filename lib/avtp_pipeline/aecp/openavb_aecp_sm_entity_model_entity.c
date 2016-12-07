@@ -198,11 +198,22 @@ void processCommand()
 			{
 				openavb_aecp_command_data_read_descriptor_t *pCmd = &pCommand->entityModelPdu.command_data.readDescriptorCmd;
 				openavb_aecp_response_data_read_descriptor_t *pRsp = &pCommand->entityModelPdu.command_data.readDescriptorRsp;
+				U16 configuration_index = pCmd->configuration_index;
+				U16 descriptor_type = pCmd->descriptor_type;
+				U16 descriptor_index = pCmd->descriptor_index;
 
-				openavbRC rc = openavbAemSerializeDescriptor(pCmd->configuration_index, pCmd->descriptor_type, pCmd->descriptor_index,
+				openavbRC rc = openavbAemSerializeDescriptor(configuration_index, descriptor_type, descriptor_index,
 					sizeof(pRsp->descriptor_data), pRsp->descriptor_data, &pRsp->descriptor_length);
 				if (IS_OPENAVB_FAILURE(rc)) {
+					U8 *pDst = pRsp->descriptor_data;
+
+					// Send a basic response back to the controller.
 					pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
+					pRsp->configuration_index = configuration_index;
+					pRsp->reserved = 0;
+					OCT_D2BHTONS(pDst, descriptor_type);
+					OCT_D2BHTONS(pDst, descriptor_index);
+					pRsp->descriptor_length = pDst - pRsp->descriptor_data;
 				}
 				else {
 					pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
