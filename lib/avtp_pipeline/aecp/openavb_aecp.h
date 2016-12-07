@@ -259,7 +259,7 @@ typedef struct {
 } openavb_aecp_response_data_get_control_t;
 
 
-// START_STREAMING command and repsonse IEEE Std 1722.1-2013 clause 7.4.35
+// START_STREAMING command and response IEEE Std 1722.1-2013 clause 7.4.35
 typedef struct {
 	U16 descriptor_type;
 	U16 descriptor_index;

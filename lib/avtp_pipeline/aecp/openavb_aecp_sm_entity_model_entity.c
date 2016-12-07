@@ -179,7 +179,7 @@ void processCommand()
 	// Set message type as response
 	pCommand->headers.message_type = OPENAVB_AECP_MESSAGE_TYPE_AEM_RESPONSE;
 
-	// Set to Not Implemented. Will be overriden by commands that are implemented.
+	// Set to Not Implemented. Will be overridden by commands that are implemented.
 	pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_IMPLEMENTED;
 
 	switch (openavbAecpSMEntityModelEntityVars.rcvdCommand.entityModelPdu.command_type) {
