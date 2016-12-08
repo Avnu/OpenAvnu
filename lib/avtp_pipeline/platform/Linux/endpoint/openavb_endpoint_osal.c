@@ -337,6 +337,12 @@ openavbRC openavbSrpInitialize(strmAttachCb_t attachCb, strmRegCb_t registerCb,
 		goto error;
 	}
 
+	err = mrp_join_vlan();
+	if (err) {
+		AVB_LOG_DEBUG("mrp_join_vlan failed");
+		goto error;
+	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_SRP_PUBLIC);
 	return OPENAVB_SRP_SUCCESS;
 
