@@ -379,9 +379,11 @@ public:
 #define INVALID_TIMESTAMP (Timestamp( 0xC0000000, 0, 0 ))	/*!< Defines an invalid timestamp using a Timestamp instance and a fixed value*/
 #define PDELAY_PENDING_TIMESTAMP (Timestamp( 0xC0000001, 0, 0 ))	/*!< PDelay is pending timestamp */
 
-#define TIMESTAMP_TO_NS(ts) (((static_cast<long long int>((ts).seconds_ms) \
-			       << sizeof((ts).seconds_ls)*8) + \
-			      (ts).seconds_ls)*1000000000LL + (ts).nanoseconds)		/*!< Converts timestamp value into nanoseconds value*/
+static inline uint64_t TIMESTAMP_TO_NS(Timestamp &ts)
+{
+	return (((static_cast<long long int>(ts.seconds_ms) << sizeof(ts.seconds_ls)*8) +
+			      ts.seconds_ls)*1000000000LL + ts.nanoseconds)	;	/*!< Converts timestamp value into nanoseconds value*/
+}
 
 /**
  * @brief  Swaps out byte-a-byte a 64 bit value

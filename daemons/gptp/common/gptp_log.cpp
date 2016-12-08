@@ -33,7 +33,27 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // MS VC++ 2013 has C++11 but not C11 support, use this to get millisecond resolution
 #include <chrono>
 
-void gptpLog(const char *tag, const char *path, int line, const char *fmt, ...)
+#ifdef GENIVI_DLT
+DLT_DECLARE_CONTEXT(dlt_con_gptp);
+#endif
+
+void gptplogRegister(void)
+{
+#ifdef GENIVI_DLT
+	DLT_REGISTER_APP("GPTP","OpenAVB gPTP");
+	DLT_REGISTER_CONTEXT(dlt_con_gptp, "GNRL", "General Context");
+#endif
+}
+
+void gptplogUnregister(void)
+{
+#ifdef GENIVI_DLT
+	DLT_UNREGISTER_CONTEXT(dlt_con_gptp);
+	DLT_UNREGISTER_APP();
+#endif
+}
+
+void gptpLog(GPTP_LOG_LEVEL level, const char *tag, const char *path, int line, const char *fmt, ...)
 {
 	char msg[1024];
 
@@ -41,6 +61,7 @@ void gptpLog(const char *tag, const char *path, int line, const char *fmt, ...)
 	va_start(args, fmt);
 	vsprintf(msg, fmt, args);
 
+#ifndef GENIVI_DLT
 	std::chrono::system_clock::time_point cNow = std::chrono::system_clock::now();
 	time_t tNow = std::chrono::system_clock::to_time_t(cNow);
 	struct tm tmNow;
@@ -56,5 +77,37 @@ void gptpLog(const char *tag, const char *path, int line, const char *fmt, ...)
 		fprintf(stderr, "%s: GPTP [%2.2d:%2.2d:%2.2d:%3.3ld] %s\n",
 			   tag, tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec, millis, msg);
 	}
+#else
+	DltLogLevelType dlt_level; 
+
+	switch (level) {
+	case GPTP_LOG_LVL_CRITICAL:
+		dlt_level = DLT_LOG_FATAL;
+		break;
+	case GPTP_LOG_LVL_ERROR:
+		dlt_level = DLT_LOG_ERROR;
+		break;
+	case GPTP_LOG_LVL_EXCEPTION:
+	case GPTP_LOG_LVL_WARNING:
+		dlt_level = DLT_LOG_WARN;
+		break;
+	case GPTP_LOG_LVL_INFO:
+	case GPTP_LOG_LVL_STATUS:
+		dlt_level = DLT_LOG_INFO;
+		break;
+	case GPTP_LOG_LVL_DEBUG:
+		dlt_level = DLT_LOG_DEBUG;
+		break;
+	case GPTP_LOG_LVL_VERBOSE:
+		dlt_level = DLT_LOG_VERBOSE;
+		break;
+	default:
+		dlt_level = DLT_LOG_INFO;
+		break;
+	}
+
+	DLT_LOG(dlt_con_gptp, dlt_level, DLT_STRING(msg));
+#endif
+
 }
 
