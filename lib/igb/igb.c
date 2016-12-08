@@ -1837,7 +1837,10 @@ struct timespec timespec_addns(struct timespec *a, unsigned long addns)
 	return *a;
 }
 
-#define TS2NS(ts) (((ts).tv_sec*1000000000)+(ts).tv_nsec)
+static inline u_int32_t TS2NS(struct timespec ts)
+{
+    return ((ts.tv_sec*1000000000)+ts.tv_nsec);
+}
 
 int igb_gettime(device_t *dev, clockid_t clk_id, u_int64_t *curtime,
 		struct timespec *system_time)
