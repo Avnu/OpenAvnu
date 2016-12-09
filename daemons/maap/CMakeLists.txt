@@ -8,6 +8,7 @@ set (ComSource
   "${ComDir}/maap_net.c"
   "${ComDir}/maap_packet.c"
   "${ComDir}/maap_parse.c"
+  "${ComDir}/maap_log_queue.c"
 )
 include_directories( ${ComDir} )
 
@@ -15,11 +16,12 @@ if(UNIX)
   set (OsDir "./linux/src")
   set (OsSource
     "${OsDir}/maap_daemon.c"
+    "${OsDir}/maap_log_linux.c"
     "${OsDir}/maap_timer_linux.c"
   )
   include_directories( ${OsDir} )
   add_executable(maap_daemon ${ComSource} ${OsSource})
-  target_link_libraries(maap_daemon rt)
+  target_link_libraries(maap_daemon rt pthread)
 endif()
 
 add_subdirectory("test")
