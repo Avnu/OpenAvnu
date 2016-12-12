@@ -39,8 +39,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <net/if.h>
 #include <dlfcn.h>
 
-#include "maap_log.h"
-
 // Uncomment to use manual data alignment adjustments. Not needed for Linux
 //#define DATA_ALIGNMENT_ADJUSTMENT	1
 
