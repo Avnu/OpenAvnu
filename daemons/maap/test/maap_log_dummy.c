@@ -69,7 +69,7 @@ void maapLogFn(
 	va_list args;
 	va_start(args, fmt);
 
-	if (level > MAAP_LOG_LEVEL_STATUS) { return; }
+	if (strcmp(tag, "DEBUG") == 0 || strcmp(tag, "VERBOSE") == 0) { return; }
 
 	/* Save the supplied tag for use later. */
 	strncpy(s_lastLogTag, tag, sizeof(s_lastLogTag));
@@ -97,39 +97,5 @@ void maapLogBuffer(
 	const char *path,
 	int line)
 {
-	char szDataLine[ 400 ];
-	char *pszOut;
-	int i, j;
-
-	if (level > MAAP_LOG_LEVEL_STATUS) { return; }
-
-	for (i = 0; i < dataLen; i += lineLen) {
-		/* Create the hexadecimal output for the buffer. */
-		pszOut = szDataLine;
-		*pszOut++ = '\t';
-		for (j = i; j < i + lineLen; ++j) {
-			if (j < dataLen) {
-				sprintf(pszOut, "%02x ", pData[j]);
-			} else {
-				strcpy(pszOut, "   ");
-			}
-			pszOut += 3;
-		}
-
-		*pszOut++ = ' ';
-		*pszOut++ = ' ';
-
-		/* Append the ASCII equivalent of each character. */
-		for (j = i; j < dataLen && j < i + lineLen; ++j) {
-			if (pData[j] >= 0x20 && pData[j] < 0x7f) {
-				*pszOut++ = (char) pData[j];
-			} else {
-				*pszOut++ = '.';
-			}
-		}
-
-		/* Display this line of text. */
-		*pszOut = '\0';
-		maapLogFn(level, "BUFFER", company, component, path, line, "%s", szDataLine);
-	}
+	/* Don't do anything with this. */
 }
