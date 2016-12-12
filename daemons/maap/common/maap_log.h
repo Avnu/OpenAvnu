@@ -120,6 +120,8 @@ static const int MAAP_LOG_THREAD_INFO = FALSE;
 #define MAAP_LOG_OUTPUT_FD stderr
 //#define MAAP_LOG_OUTPUT_FD stdout
 
+#define MAAP_LOG_STDOUT_CONSOLE_WIDTH 80
+
 static const int MAAP_LOG_EXTRA_NEWLINE = TRUE;
 
 // When MAAP_LOG_FROM_THREAD the message output will be output from a separate thread/task

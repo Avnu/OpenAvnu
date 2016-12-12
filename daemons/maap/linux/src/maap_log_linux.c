@@ -30,8 +30,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "platform.h"
 #include "maap_log_queue.h"
-#include "maap_log.h"
 #include "maap_helper_linux.h"
+
+#define MAAP_LOG_COMPONENT "Log"
+#include "maap_log.h"
 
 typedef struct {
 	uint8_t msg[LOG_QUEUE_MSG_SIZE];

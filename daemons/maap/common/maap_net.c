@@ -6,11 +6,14 @@
 
 #include "maap_net.h"
 
+#define MAAP_LOG_COMPONENT "Net"
+#include "maap_log.h"
+
 /* Number of preallocated buffers to use. */
 #define NUM_BUFFERS 4
 
 /* Uncomment the DEBUG_NET_MSG define to display debug messages. */
-/* #define DEBUG_NET_MSG */
+#define DEBUG_NET_MSG
 
 
 typedef enum {
@@ -68,7 +71,7 @@ void *Net_getPacketBuffer(Net *net)
 		{
 			net->net_buffer[buffer_index].state = BUFFER_SUPPLIED;
 #ifdef DEBUG_NET_MSG
-			printf("Allocated buffer %d\n", buffer_index);
+			MAAP_LOGF_DEBUG("Allocated buffer %d", buffer_index);
 #endif
 			return (void *)(net->net_buffer[buffer_index].buffer);
 		}
@@ -88,7 +91,7 @@ void *Net_getPacketBuffer(Net *net)
 
 		pNew->state = BUFFER_SUPPLIED;
 #ifdef DEBUG_NET_MSG
-		printf("Allocated buffer 0x%llx\n", (long long int)(uintptr_t) pNew);
+		MAAP_LOGF_DEBUG("Allocated buffer 0x%llx", (long long int)(uintptr_t) pNew);
 #endif
 		return (void *)(pNew->buffer);
 	}
@@ -113,7 +116,7 @@ int Net_queuePacket(Net *net, void *buffer)
 			assert(net->net_buffer[buffer_index].state == BUFFER_SUPPLIED);
 			net->net_buffer[buffer_index].state = BUFFER_QUEUED;
 #ifdef DEBUG_NET_MSG
-			printf("Queuing buffer %d\n", buffer_index);
+			MAAP_LOGF_DEBUG("Queuing buffer %d", buffer_index);
 #endif
 			return 0;
 		}
@@ -128,7 +131,7 @@ int Net_queuePacket(Net *net, void *buffer)
 			assert(pTest->state == BUFFER_SUPPLIED);
 			pTest->state = BUFFER_QUEUED;
 #ifdef DEBUG_NET_MSG
-			printf("Queuing buffer 0x%llx\n", (long long int)(uintptr_t) pTest);
+			MAAP_LOGF_DEBUG("Queuing buffer 0x%llx", (long long int)(uintptr_t) pTest);
 #endif
 			return 0;
 		}
@@ -152,7 +155,8 @@ void *Net_getNextQueuedPacket(Net *net)
 		{
 			net->net_buffer[buffer_index].state = BUFFER_SENDING;
 #ifdef DEBUG_NET_MSG
-			printf("Buffer %d pulled from queue\n\n", buffer_index);
+			MAAP_LOGF_DEBUG("Buffer %d pulled from queue", buffer_index);
+			MAAP_LOG_DEBUG(""); /* Blank line */
 #endif
 			return (void *)(net->net_buffer[buffer_index].buffer);
 		}
@@ -165,7 +169,8 @@ void *Net_getNextQueuedPacket(Net *net)
 		{
 			pTest->state = BUFFER_SENDING;
 #ifdef DEBUG_NET_MSG
-			printf("Buffer 0x%llx pulled from queue\n\n", (long long int)(uintptr_t) pTest);
+			MAAP_LOGF_DEBUG("Buffer 0x%llx pulled from queue", (long long int)(uintptr_t) pTest);
+			MAAP_LOG_DEBUG(""); /* Blank line */
 #endif
 			return (void *)(pTest->buffer);
 		}
@@ -191,7 +196,7 @@ int Net_freeQueuedPacket(Net *net, void *buffer)
 			assert(net->net_buffer[buffer_index].state == BUFFER_SENDING);
 			net->net_buffer[buffer_index].state = BUFFER_FREE;
 #ifdef DEBUG_NET_MSG
-			printf("Freed buffer %d\n", buffer_index);
+			MAAP_LOGF_DEBUG("Freed buffer %d", buffer_index);
 #endif
 			return 0;
 		}
@@ -206,7 +211,7 @@ int Net_freeQueuedPacket(Net *net, void *buffer)
 			assert(pTest->state == BUFFER_SENDING);
 			pTest->state = BUFFER_FREE;
 #ifdef DEBUG_NET_MSG
-			printf("Freed buffer 0x%llx\n", (long long int)(uintptr_t) pTest);
+			MAAP_LOGF_DEBUG("Freed buffer 0x%llx", (long long int)(uintptr_t) pTest);
 #endif
 
 			/* Free the buffer. */

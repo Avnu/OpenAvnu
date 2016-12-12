@@ -124,9 +124,11 @@ void Time_setFromMonotonicTimer(Time *t)
   t->nsec = (unsigned long) (s_basetime % 1000000000LL);
 }
 
-void Time_dump(const Time *t)
+const char * Time_dump(const Time *t)
 {
-  printf("sec: %lu nsec: %09lu", t->sec, t->nsec);
+  static char buffer[40];
+  sprintf(buffer, "%lu sec, %09lu nsec", t->sec, t->nsec);
+  return buffer;
 }
 
 

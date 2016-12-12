@@ -3,6 +3,9 @@
 #include "maap.h"
 #include "maap_packet.h"
 
+#define MAAP_LOG_COMPONENT "Packet"
+#include "maap_log.h"
+
 int unpack_maap(MAAP_Packet *packet, const uint8_t *stream) {
   uint64_t tmp64;
   uint16_t tmp16;

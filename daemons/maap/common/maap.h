@@ -206,7 +206,8 @@ int get_notify(Maap_Client *mc, const void **sender, Maap_Notify *mn);
  * Output the text equivalent of the notification information to stdout.
  *
  * @param mn Pointer to the notification information structure.
+ * @param outputType One or more of the #Maap_Output_Type flag values.
  */
-void print_notify(Maap_Notify *mn);
+void print_notify(Maap_Notify *mn, Maap_Output_Type outputType);
 
 #endif
