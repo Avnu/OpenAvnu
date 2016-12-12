@@ -7,6 +7,7 @@ extern "C" {
 
 #include "maap.h"
 #include "maap_packet.h"
+#include "../test/maap_log_dummy.h"
 #include "../test/maap_timer_dummy.h"
 
 #define TEST_DEST_ADDR 0x91E0F000FF00
@@ -594,6 +595,10 @@ TEST(maap_group, Defending_vs_Probes)
 	CHECK(packet_contents.conflict_count == 1); /* Only one address conflicts */
 	Net_freeQueuedPacket(mc.net, packet_data);
 
+	/* Verify the logging. */
+	CHECK(strcmp(Logging_getLastTag(), "INFO") == 0);
+	CHECK(strcmp(Logging_getLastMessage(), "DEFEND!") == 0);
+
 
 	/* Fake a probe request that conflicts with the end of our range. */
 	probe_packet.requested_start_address = range_reserved_start + range_reserved_count - 1; /* Use the end of our range. */
@@ -612,6 +617,10 @@ TEST(maap_group, Defending_vs_Probes)
 	CHECK(packet_contents.conflict_start_address == probe_packet.requested_start_address);
 	CHECK(packet_contents.conflict_count == 1); /* Only one address conflicts */
 	Net_freeQueuedPacket(mc.net, packet_data);
+
+	/* Verify the logging. */
+	CHECK(strcmp(Logging_getLastTag(), "INFO") == 0);
+	CHECK(strcmp(Logging_getLastMessage(), "DEFEND!") == 0);
 
 
 	/* Try some probe requests adjacent to, but not overlapping, our range. */
@@ -715,6 +724,10 @@ TEST(maap_group, Defending_vs_Announces)
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 	CHECK((packet_data = Net_getNextQueuedPacket(mc.net)) == NULL);
 
+	/* Verify the logging. */
+	CHECK(strcmp(Logging_getLastTag(), "INFO") == 0);
+	CHECK(strcmp(Logging_getLastMessage(), "IGNORE") == 0);
+
 	/* Verify that the status of the range is still valid. */
 	maap_range_status(&mc, &sender3_in, id);
 	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
@@ -747,6 +760,10 @@ TEST(maap_group, Defending_vs_Announces)
 	LONGS_EQUAL(range_reserved_start, mn.start);
 	LONGS_EQUAL(range_reserved_count, mn.count);
 	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
+	/* Verify the logging. */
+	CHECK(strcmp(Logging_getLastTag(), "INFO") == 0);
+	CHECK(strcmp(Logging_getLastMessage(), "YIELD") == 0);
 
 	/* Verify that we requested a different range to replace the yielded one. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
@@ -834,6 +851,10 @@ TEST(maap_group, Defending_vs_Defends)
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 	CHECK((packet_data = Net_getNextQueuedPacket(mc.net)) == NULL);
 
+	/* Verify the logging. */
+	CHECK(strcmp(Logging_getLastTag(), "INFO") == 0);
+	CHECK(strcmp(Logging_getLastMessage(), "IGNORE") == 0);
+
 	/* Verify that the status of the range is still valid. */
 	maap_range_status(&mc, &sender3_in, id);
 	LONGS_EQUAL(1, get_notify(&mc, &sender_out, &mn));
@@ -866,6 +887,10 @@ TEST(maap_group, Defending_vs_Defends)
 	LONGS_EQUAL(range_reserved_start, mn.start);
 	LONGS_EQUAL(range_reserved_count, mn.count);
 	LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
+	/* Verify the logging. */
+	CHECK(strcmp(Logging_getLastTag(), "INFO") == 0);
+	CHECK(strcmp(Logging_getLastMessage(), "YIELD") == 0);
 
 	/* Verify that we requested a different range to replace the yielded one. */
 	verify_sent_packets(&mc, &mn, &sender_out, &probe_packets_detected, &announce_packets_detected, -1, -1, -1, 0, 0);
@@ -978,6 +1003,10 @@ TEST(maap_group, Verify_Timing)
 		LONGS_EQUAL(MAAP_NOTIFY_YIELDED, mn.kind);
 		LONGS_EQUAL(id, mn.id);
 		LONGS_EQUAL(MAAP_NOTIFY_ERROR_NONE, mn.result);
+
+		/* Verify the logging. */
+		CHECK(strcmp(Logging_getLastTag(), "INFO") == 0);
+		CHECK(strcmp(Logging_getLastMessage(), "YIELD") == 0);
 	}
 
 
@@ -1097,6 +1126,14 @@ TEST(maap_group, Ignore_Versioning)
 	/* Verify that nothing happened. */
 	LONGS_EQUAL(0, get_notify(&mc, &sender_out, &mn));
 	CHECK(Net_getNextQueuedPacket(mc.net) == NULL);
+
+	/* Verify the logging. */
+	CHECK(strcmp(Logging_getLastTag(), "ERROR") == 0);
+	CHECK(strcmp(Logging_getLastMessage(), "MAAP packet message type 4 not recognized") == 0);
+
+	/* Verify that the logging is cleared after testing. */
+	CHECK(strcmp(Logging_getLastTag(), "") == 0);
+	CHECK(strcmp(Logging_getLastMessage(), "") == 0);
 
 	/* Verify the status of our existing reservation */
 	maap_range_status(&mc, &sender3_in, id);

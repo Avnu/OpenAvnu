@@ -34,17 +34,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAAP_LOG_COMPONENT "Log"
 #include "maap_log.h"
 
-static char s_lastLogTag[50];
+static char s_lastLogTag[LOG_MSG_LEN];
 static char s_lastLogMessage[LOG_MSG_LEN];
 
 const char * Logging_getLastTag(void)
 {
-	return s_lastLogTag;
+	static char returnLogTag[LOG_MSG_LEN];
+
+	/* Copy the current value. */
+	strncpy(returnLogTag, s_lastLogTag, sizeof(returnLogTag));
+	returnLogTag[sizeof(returnLogTag) - 1] = '\0';
+
+	/* Clear the current value, so it isn't returned again. */
+	s_lastLogTag[0] = '\0';
+
+	return returnLogTag;
 }
 
 const char * Logging_getLastMessage(void)
 {
-	return s_lastLogMessage;
+	static char returnLogMessage[LOG_MSG_LEN];
+
+	/* Copy the current value. */
+	strncpy(returnLogMessage, s_lastLogMessage, sizeof(returnLogMessage));
+	returnLogMessage[sizeof(returnLogMessage) - 1] = '\0';
+
+	/* Clear the current value, so it isn't returned again. */
+	s_lastLogMessage[0] = '\0';
+
+	return returnLogMessage;
 }
 
 
