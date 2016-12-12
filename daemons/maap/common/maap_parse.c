@@ -161,7 +161,7 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf, Maap_Output_Type
         MAAP_LOG_ERROR("Unrecognized input to parse_write");
       }
       if ((outputType & MAAP_OUTPUT_USER_FRIENDLY)) {
-        printf("Error parsing in parse_write\n");
+        printf("Unrecognized input to parse_write\n");
       }
       rv = 0;
       break;
