@@ -28,9 +28,10 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd);
  * @param mc Pointer to the Maap_Client structure to use
  * @param sender Sender information pointer used to track the entity requesting the command
  * @param buf Binary or text data to parse
+ * @param outputType One or more of the #Maap_Output_Type flag values.
  *
  * @return 1 if the exit command was received, 0 otherwise.
  */
-int parse_write(Maap_Client *mc, const void *sender, char *buf);
+int parse_write(Maap_Client *mc, const void *sender, char *buf, Maap_Output_Type outputType);
 
 #endif /* MAAP_PARSE_H_ */

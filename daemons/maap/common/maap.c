@@ -6,16 +6,20 @@
 #include <errno.h>
 #include <time.h>
 #include <string.h>
+#include <ctype.h>
 #include <assert.h>
 
 /* Linux-specific header files */
 #include <linux/if_ether.h>
 
+#define MAAP_LOG_COMPONENT "Main"
+#include "maap_log.h"
+
 /* Uncomment the DEBUG_TIMER_MSG define to display timer debug messages. */
-/* #define DEBUG_TIMER_MSG */
+#define DEBUG_TIMER_MSG
 
 /* Uncomment the DEBUG_NEGOTIATE_MSG define to display negotiation debug messages. */
-/* #define DEBUG_NEGOTIATE_MSG */
+#define DEBUG_NEGOTIATE_MSG
 
 
 static int get_count(Maap_Client *mc, Range *range) {
@@ -54,12 +58,10 @@ static int send_probe(Maap_Client *mc, Range *range) {
   p.requested_count = get_count(mc, range);
 
 #ifdef DEBUG_NEGOTIATE_MSG
-  {
+  if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
     Time t;
-    printf("Sending probe at ");
     Time_setFromMonotonicTimer(&t);
-    Time_dump(&t);
-    printf("\n");
+    MAAP_LOGF_DEBUG("Sending probe at %s", Time_dump(&t));
   }
 #endif
 
@@ -76,12 +78,10 @@ static int send_announce(Maap_Client *mc, Range *range) {
   p.requested_count = get_count(mc, range);
 
 #ifdef DEBUG_NEGOTIATE_MSG
-  {
+  if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
     Time t;
-    printf("Sending announce at ");
     Time_setFromMonotonicTimer(&t);
-    Time_dump(&t);
-    printf("\n");
+    MAAP_LOGF_DEBUG("Sending announce at %s", Time_dump(&t));
   }
 #endif
 
@@ -110,12 +110,10 @@ static int send_defend(Maap_Client *mc, Range *range, uint64_t start,
   p.conflict_count = (uint16_t)(conflict_end - conflict_start + 1);
 
 #ifdef DEBUG_NEGOTIATE_MSG
-  {
+  if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
     Time t;
-    printf("Sending defend at ");
     Time_setFromMonotonicTimer(&t);
-    Time_dump(&t);
-    printf("\n");
+    MAAP_LOGF_DEBUG("Sending defend at %s", Time_dump(&t));
   }
 #endif
 
@@ -274,8 +272,80 @@ int get_notify(Maap_Client *mc, const void **sender, Maap_Notify *mn) {
   return 0;
 }
 
-void print_notify(Maap_Notify *mn)
+static void log_print_notify_result(Maap_Output_Type outputType, int logLevel, const char *szOutput)
 {
+	if ((outputType & MAAP_OUTPUT_LOGGING)) {
+		switch (logLevel) {
+		case MAAP_LOG_LEVEL_ERROR:
+			MAAP_LOG_ERROR(szOutput);
+			break;
+		case MAAP_LOG_LEVEL_WARNING:
+			MAAP_LOG_WARNING(szOutput);
+			break;
+		case MAAP_LOG_LEVEL_INFO:
+			MAAP_LOG_INFO(szOutput);
+			break;
+		case MAAP_LOG_LEVEL_STATUS:
+			MAAP_LOG_STATUS(szOutput);
+			break;
+		case MAAP_LOG_LEVEL_DEBUG:
+			MAAP_LOG_DEBUG(szOutput);
+			break;
+		case MAAP_LOG_LEVEL_VERBOSE:
+			MAAP_LOG_VERBOSE(szOutput);
+			break;
+		}
+	}
+
+	if ((outputType & MAAP_OUTPUT_USER_FRIENDLY)) {
+		int i, nLastSpace;
+		int nInitial = -1;
+
+		/* Break the string up into one-line chunks.
+		 * Note that tabs and newlines are not handled correctly. */
+		while (*szOutput) {
+			if (nInitial < 0) {
+				if (logLevel == MAAP_LOG_LEVEL_ERROR) {
+					printf("Error:  ");
+					nInitial = strlen("Error:  ");
+				} else if (logLevel == MAAP_LOG_LEVEL_WARNING) {
+					printf("Warning:  ");
+					nInitial = strlen("Warning:  ");
+				} else {
+					nInitial = 0;
+				}
+			} else {
+				/* We already accounted for the initial text. */
+				nInitial = 0;
+			}
+
+			nLastSpace = -1;
+			for (i = 0; (i < MAAP_LOG_STDOUT_CONSOLE_WIDTH - nInitial || nLastSpace <= 0) && szOutput[i]; ++i) {
+				if (isspace(szOutput[i])) { nLastSpace = i; }
+			}
+			if (szOutput[i] == '\0') {
+				/* Print the remainder of the string. */
+				puts(szOutput);
+				break;
+			}
+
+			/* Print the string up to the last space. */
+			for (i = 0; i < nLastSpace; ++i) {
+				putc(*szOutput, stdout);
+				szOutput++;
+			}
+			putc('\n', stdout);
+
+			/* Go to the start of the next word in the string. */
+			while (isspace(*szOutput)) { szOutput++; }
+		}
+	}
+}
+
+void print_notify(Maap_Notify *mn, Maap_Output_Type outputType)
+{
+  char szOutput[300];
+
   assert(mn);
 
   switch (mn->result)
@@ -284,25 +354,32 @@ void print_notify(Maap_Notify *mn)
     /* No error.  Don't display anything. */
     break;
   case MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION:
-    printf("Error:  MAAP is not initialized, so the command cannot be performed.\n");
+    log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+      "MAAP is not initialized, so the command cannot be performed.");
     break;
   case MAAP_NOTIFY_ERROR_ALREADY_INITIALIZED:
-    printf("Error:  MAAP is already initialized, so the values cannot be changed.\n");
+    log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+      "MAAP is already initialized, so the values cannot be changed.");
     break;
   case MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE:
-    printf("Error:  The MAAP reservation is not available, or yield cannot allocate a\n" "replacement block.  Try again with a smaller address block size.\n");
+    log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+      "The MAAP reservation is not available, or yield cannot allocate a replacement block.  Try again with a smaller address block size.");
     break;
   case MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID:
-    printf("Error:  The MAAP reservation ID is not valid, so cannot be released or report\n" "its status.\n");
+    log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+      "The MAAP reservation ID is not valid, so cannot be released or report its status.");
     break;
   case MAAP_NOTIFY_ERROR_OUT_OF_MEMORY:
-    printf("Error:  The MAAP application is out of memory.\n");
+    log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+      "The MAAP application is out of memory.");
     break;
   case MAAP_NOTIFY_ERROR_INTERNAL:
-    printf("Error:  The MAAP application experienced an internal error.\n");
+    log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+      "The MAAP application experienced an internal error.");
     break;
   default:
-    printf("Error:  The MAAP application returned an unknown error %d.\n", mn->result);
+    sprintf(szOutput, "The MAAP application returned an unknown error %d.", mn->result);
+    log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
     break;
   }
 
@@ -310,79 +387,93 @@ void print_notify(Maap_Notify *mn)
   {
   case MAAP_NOTIFY_INITIALIZED:
     if (mn->result == MAAP_NOTIFY_ERROR_NONE) {
-      printf("MAAP initialized:  0x%012llx-0x%012llx (Size: %d)\n",
+      sprintf(szOutput, "MAAP initialized:  0x%012llx-0x%012llx (Size: %d)",
              (unsigned long long) mn->start,
              (unsigned long long) mn->start + mn->count - 1,
              (unsigned int) mn->count);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
     } else {
-        printf("MAAP previously initialized:  0x%012llx-0x%012llx (Size: %d)\n",
-               (unsigned long long) mn->start,
-               (unsigned long long) mn->start + mn->count - 1,
-               (unsigned int) mn->count);
+      sprintf(szOutput, "MAAP previously initialized to 0x%012llx-0x%012llx (Size: %d)",
+             (unsigned long long) mn->start,
+             (unsigned long long) mn->start + mn->count - 1,
+             (unsigned int) mn->count);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
     }
     break;
   case MAAP_NOTIFY_ACQUIRING:
     if (mn->result == MAAP_NOTIFY_ERROR_NONE) {
-      printf("Address range %d querying:  0x%012llx-0x%012llx (Size %d)\n",
+      sprintf(szOutput, "Address range %d querying:  0x%012llx-0x%012llx (Size %d)",
              mn->id,
              (unsigned long long) mn->start,
              (unsigned long long) mn->start + mn->count - 1,
              mn->count);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
     } else {
-      printf("Unknown address range %d acquisition error\n", mn->id);
+      sprintf(szOutput, "Unknown address range %d acquisition error", mn->id);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
     }
     break;
   case MAAP_NOTIFY_ACQUIRED:
     if (mn->result == MAAP_NOTIFY_ERROR_NONE) {
-      printf("Address range %d acquired:  0x%012llx-0x%012llx (Size %d)\n",
+      sprintf(szOutput, "Address range %d acquired:  0x%012llx-0x%012llx (Size %d)",
              mn->id,
              (unsigned long long) mn->start,
              (unsigned long long) mn->start + mn->count - 1,
              mn->count);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
     } else if (mn->id != -1) {
-      printf("Address range %d of size %d not acquired\n",
+      sprintf(szOutput, "Address range %d of size %d not acquired",
              mn->id, mn->count);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
     } else {
-      printf("Address range of size %d not acquired\n",
+      sprintf(szOutput, "Address range of size %d not acquired",
              mn->count);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
     }
     break;
   case MAAP_NOTIFY_RELEASED:
     if (mn->result == MAAP_NOTIFY_ERROR_NONE) {
-      printf("Address range %d released:  0x%012llx-0x%012llx (Size %d)\n",
+      sprintf(szOutput, "Address range %d released:  0x%012llx-0x%012llx (Size %d)",
              mn->id,
              (unsigned long long) mn->start,
              (unsigned long long) mn->start + mn->count - 1,
              mn->count);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
     } else {
-      printf("Address range %d not released\n",
+      sprintf(szOutput, "Address range %d not released",
              mn->id);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
     }
     break;
   case MAAP_NOTIFY_STATUS:
     if (mn->result == MAAP_NOTIFY_ERROR_NONE) {
-      printf("ID %d is address range 0x%012llx-0x%012llx (Size %d)\n",
+      sprintf(szOutput, "ID %d is address range 0x%012llx-0x%012llx (Size %d)",
              mn->id,
              (unsigned long long) mn->start,
              (unsigned long long) mn->start + mn->count - 1,
              mn->count);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
     } else {
-      printf("ID %d is not valid\n",
+      sprintf(szOutput, "ID %d is not valid",
              mn->id);
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
     }
     break;
   case MAAP_NOTIFY_YIELDED:
-    printf("Address range %d yielded:  0x%012llx-0x%012llx (Size %d)\n",
+    sprintf(szOutput, "Address range %d yielded:  0x%012llx-0x%012llx (Size %d)",
            mn->id,
            (unsigned long long) mn->start,
            (unsigned long long) mn->start + mn->count - 1,
            mn->count);
+    log_print_notify_result(outputType, MAAP_LOG_LEVEL_WARNING, szOutput);
     if (mn->result != MAAP_NOTIFY_ERROR_NONE) {
-      printf("A new address range will not be allocated\n");
+      log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+        "A new address range will not be allocated");
     }
     break;
   default:
-    printf("Notification type %d not recognized\n", mn->kind);
+    sprintf(szOutput, "Notification type %d not recognized", mn->kind);
+    log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
     break;
   }
 }
@@ -401,13 +492,13 @@ int maap_init_client(Maap_Client *mc, const void *sender, uint64_t range_address
 
   mc->timer = Time_newTimer();
   if (!mc->timer) {
-    fprintf(stderr, "Failed to create Timer\n");
+    MAAP_LOG_ERROR("Failed to create Timer");
     return -1;
   }
 
   mc->net = Net_newNet();
   if (!mc->net) {
-    fprintf(stderr, "Failed to create Net\n");
+    MAAP_LOG_ERROR("Failed to create Net");
     Time_delTimer(mc->timer);
     return -1;
   }
@@ -472,39 +563,43 @@ int schedule_timer(Maap_Client *mc, Range *range) {
   assert(range);
 
 #ifdef DEBUG_TIMER_MSG
-  printf("schedule_timer called at:  ");
-  Time_setFromMonotonicTimer(&ts);
-  Time_dump(&ts);
-  printf("\n");
+  if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
+    Time_setFromMonotonicTimer(&ts);
+    MAAP_LOGF_DEBUG("schedule_timer called at:  %s", Time_dump(&ts));
+  }
 #endif
 
   if (range->state == MAAP_STATE_PROBING) {
     ns = MAAP_PROBE_INTERVAL_BASE + rand_ms(MAAP_PROBE_INTERVAL_VARIATION);
     ns = ns * 1000000;
 #ifdef DEBUG_TIMER_MSG
-    printf("Scheduling probe timer for %llu ns from now\n", ns);
+    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
+      MAAP_LOGF_DEBUG("Scheduling probe timer for %llu ns from now", ns);
+    }
 #endif
     Time_setFromNanos(&ts, ns);
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
 #ifdef DEBUG_TIMER_MSG
-    printf("Expiration time is:  ");
-    Time_dump(&range->next_act_time);
-    printf("\n");
+    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
+      MAAP_LOGF_DEBUG("Expiration time is:  %s", Time_dump(&range->next_act_time));
+    }
 #endif
   } else if (range->state == MAAP_STATE_DEFENDING) {
     ns = MAAP_ANNOUNCE_INTERVAL_BASE + rand_ms(MAAP_ANNOUNCE_INTERVAL_VARIATION);
     ns = ns * 1000000;
 #ifdef DEBUG_TIMER_MSG
-    printf("Scheduling defend timer for %llu ns from now\n", ns);
+    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
+      MAAP_LOGF_DEBUG("Scheduling defend timer for %llu ns from now", ns);
+    }
 #endif
     Time_setFromNanos(&ts, (uint64_t)ns);
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
 #ifdef DEBUG_TIMER_MSG
-    printf("Expiration time is:  ");
-    Time_dump(&range->next_act_time);
-    printf("\n");
+    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
+      MAAP_LOGF_DEBUG("Expiration time is:  %s", Time_dump(&range->next_act_time));
+    }
 #endif
   }
 
@@ -553,7 +648,7 @@ int schedule_timer(Maap_Client *mc, Range *range) {
       test = test->next_timer;
     }
     if (test) {
-      fprintf(stderr, "Timer infinite loop detected!\n");
+      MAAP_LOG_ERROR("Timer infinite loop detected!");
       assert(0);
     }
   }
@@ -609,7 +704,7 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint64_t attempt_bas
   Range *range;
 
   if (!mc->initialized) {
-    printf("Reserve not allowed, as MAAP not initialized\n");
+    MAAP_LOG_DEBUG("Reserve not allowed, as MAAP not initialized");
     inform_not_acquired(mc, sender, -1, length, MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION);
     return -1;
   }
@@ -645,8 +740,8 @@ int maap_reserve_range(Maap_Client *mc, const void *sender, uint64_t attempt_bas
   }
 
 #ifdef DEBUG_NEGOTIATE_MSG
-  printf("Requested address range, id %d\n", id);
-  printf("Selected address range 0x%012llx-0x%012llx\n", get_start_address(mc, range), get_end_address(mc, range));
+  MAAP_LOGF_DEBUG("Requested address range, id %d", id);
+  MAAP_LOGF_DEBUG("Selected address range 0x%012llx-0x%012llx", get_start_address(mc, range), get_end_address(mc, range));
 #endif
   inform_acquiring(mc, range);
 
@@ -662,7 +757,7 @@ int maap_release_range(Maap_Client *mc, const void *sender, int id) {
   Range *range;
 
   if (!mc->initialized) {
-    printf("Release not allowed, as MAAP not initialized\n");
+    MAAP_LOG_DEBUG("Release not allowed, as MAAP not initialized");
     inform_released(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION);
     return -1;
   }
@@ -687,7 +782,7 @@ int maap_release_range(Maap_Client *mc, const void *sender, int id) {
     range = range->next_timer;
   }
 
-  printf("Range id %d does not exist to release\n", id);
+  MAAP_LOGF_DEBUG("Range id %d does not exist to release", id);
   inform_released(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID);
   return -1;
 }
@@ -697,7 +792,7 @@ void maap_range_status(Maap_Client *mc, const void *sender, int id)
   Range *range;
 
   if (!mc->initialized) {
-    printf("Status not allowed, as MAAP not initialized\n");
+    MAAP_LOG_DEBUG("Status not allowed, as MAAP not initialized");
     inform_status(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION);
     return;
   }
@@ -711,7 +806,7 @@ void maap_range_status(Maap_Client *mc, const void *sender, int id)
     range = range->next_timer;
   }
 
-  printf("Range id %d does not exist\n", id);
+  MAAP_LOGF_DEBUG("Range id %d does not exist", id);
   inform_status(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID);
 }
 
@@ -724,12 +819,12 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   unsigned long long int own_base, own_max, incoming_base, incoming_max;
 
   if (len < MAAP_PKT_SIZE) {
-    fprintf(stderr, "Truncated MAAP packet of length %d received, discarding\n", len);
+    MAAP_LOGF_ERROR("Truncated MAAP packet of length %d received, discarding", len);
     return -1;
   }
   rv = unpack_maap(&p, stream);
   if (rv != 0) {
-    fprintf(stderr, "Error unpacking the MAAP packet\n");
+    MAAP_LOG_ERROR("Error unpacking the MAAP packet");
     return -1;
   }
 
@@ -739,18 +834,18 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   {
     /* This is not a MAAP packet.  Ignore it. */
 #ifdef DEBUG_NEGOTIATE_MSG
-    printf("Ignoring non-MAAP packet of length %d\n", len);
+    MAAP_LOGF_DEBUG("Ignoring non-MAAP packet of length %d", len);
 #endif
     return -1;
   }
 
   if (p.version != 0) {
-    fprintf(stderr, "AVTP version %u not supported\n", p.version);
+    MAAP_LOGF_ERROR("AVTP version %u not supported", p.version);
     return -1;
   }
 
   if (p.message_type < MAAP_PROBE || p.message_type > MAAP_ANNOUNCE) {
-    fprintf(stderr, "Maap packet message type %u not recognized\n", p.message_type);
+    MAAP_LOGF_ERROR("MAAP packet message type %u not recognized", p.message_type);
     return -1;
   }
 
@@ -760,21 +855,26 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
   incoming_max = p.requested_start_address + p.requested_count - 1;
 
 #ifdef DEBUG_NEGOTIATE_MSG
-  if (p.message_type == MAAP_PROBE) { printf("Received PROBE for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
+  if (p.message_type == MAAP_PROBE) {
+    MAAP_LOGF_DEBUG("Received PROBE for range 0x%012llx-0x%012llx (Size %u)", incoming_base, incoming_max, p.requested_count);
+  }
   if (p.message_type == MAAP_DEFEND) {
-    printf("Received DEFEND for range 0x%012llx-0x%012llx (Size %u),\n"
-           "conflicting with range 0x%012llx-0x%012llx (Size %u)\n",
-           incoming_base, incoming_max, p.requested_count,
-           (unsigned long long) p.conflict_start_address,
-           (unsigned long long) p.conflict_start_address + p.conflict_count - 1,
-           p.conflict_count); }
-  if (p.message_type == MAAP_ANNOUNCE) { printf("Received ANNOUNCE for range 0x%012llx-0x%012llx (Size %u)\n", incoming_base, incoming_max, p.requested_count); }
+    MAAP_LOGF_DEBUG("Received DEFEND for range 0x%012llx-0x%012llx (Size %u),",
+      incoming_base, incoming_max, p.requested_count);
+    MAAP_LOGF_DEBUG("conflicting with range 0x%012llx-0x%012llx (Size %u)",
+      (unsigned long long) p.conflict_start_address,
+      (unsigned long long) p.conflict_start_address + p.conflict_count - 1,
+      p.conflict_count);
+  }
+  if (p.message_type == MAAP_ANNOUNCE) {
+    MAAP_LOGF_DEBUG("Received ANNOUNCE for range 0x%012llx-0x%012llx (Size %u)", incoming_base, incoming_max, p.requested_count);
+  }
 #endif
 
   if (incoming_max < own_base || own_max < incoming_base) {
 #ifdef DEBUG_NEGOTIATE_MSG
-    printf("Packet refers to a range outside of our concern\n");
-    printf("\t0x%012llx < 0x%012llx || 0x%012llx < 0x%012llx\n", incoming_max, own_base, own_max, incoming_base);
+    MAAP_LOG_DEBUG("Packet refers to a range outside of our concern:");
+    MAAP_LOGF_DEBUG("    0x%012llx < 0x%012llx || 0x%012llx < 0x%012llx", incoming_max, own_base, own_max, incoming_base);
 #endif
     return 0;
   }
@@ -808,7 +908,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
       if (p.message_type == MAAP_PROBE && compare_mac_addresses(mc->src_mac, p.SA)) {
         /* We won with the lower MAC Address.  Do nothing. */
 #ifdef DEBUG_NEGOTIATE_MSG
-        printf("Ignoring conflicting probe request\n");
+        MAAP_LOG_DEBUG("Ignoring conflicting probe request");
 #endif
       } else {
         /* Find an alternate interval, remove old interval,
@@ -817,15 +917,15 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
         iv->data = NULL; /* Range is moving to a new interval */
         if (assign_interval(mc, range, 0, range_size) < 0) {
           /* No interval is available, so stop probing and report an error. */
-          printf("Unable to find an available address block to probe\n");
+          MAAP_LOG_WARNING("Unable to find an available address block to probe");
           inform_not_acquired(mc, range->sender, range->id, range_size, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
           remove_range_interval(&mc->ranges, iv);
           /* memory will be freed the next time its timer elapses */
           range->state = MAAP_STATE_RELEASED;
         } else {
 #ifdef DEBUG_NEGOTIATE_MSG
-          printf("Selected new address range 0x%012llx-0x%012llx\n",
-                 get_start_address(mc, range), get_end_address(mc, range));
+          MAAP_LOGF_DEBUG("Selected new address range 0x%012llx-0x%012llx",
+            get_start_address(mc, range), get_end_address(mc, range));
 #endif
           inform_acquiring(mc, range);
 
@@ -839,25 +939,24 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 
     } else if (range->state == MAAP_STATE_DEFENDING) {
 
-      printf("Conflict detected with our range (id %d)!\n", range->id);
+      MAAP_LOGF_INFO("Conflict detected with our range (id %d)!", range->id);
 #ifdef DEBUG_NEGOTIATE_MSG
-      printf("    Request of 0x%012llx-0x%012llx conflicts with our\n",
-             incoming_base, incoming_max);
-      printf("    range of 0x%012llx-0x%012llx\n",
-             get_start_address(mc, range), get_end_address(mc, range));
+      MAAP_LOGF_DEBUG("    Request of 0x%012llx-0x%012llx conflicts with our range of 0x%012llx-0x%012llx",
+        incoming_base, incoming_max,
+        get_start_address(mc, range), get_end_address(mc, range));
 #endif
 
       if (p.message_type == MAAP_PROBE) {
-        printf("DEFEND!\n");
+        MAAP_LOG_INFO("DEFEND!");
         send_defend(mc, range, p.requested_start_address, p.requested_count, p.SA);
       } else if (compare_mac_addresses(mc->src_mac, p.SA)) {
         /* We won with the lower MAC Address.  Do nothing. */
-        printf("IGNORE\n");
+        MAAP_LOG_INFO("IGNORE");
       } else {
         Range *new_range;
         int range_size = iv->high - iv->low + 1;
 
-        printf("YIELD\n");
+        MAAP_LOG_INFO("YIELD");
 
         /* Start a new reservation request for the owner of the yielded reservation.
          * Use the same ID as the yielded range, so the owner can easily track it.
@@ -884,8 +983,8 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
             free(new_range);
           } else {
 #ifdef DEBUG_NEGOTIATE_MSG
-            printf("Requested replacement address range, id %d\n", new_range->id);
-            printf("Selected replacement address range 0x%012llx-0x%012llx\n", get_start_address(mc, new_range), get_end_address(mc, new_range));
+            MAAP_LOGF_DEBUG("Requested replacement address range, id %d", new_range->id);
+            MAAP_LOGF_DEBUG("Selected replacement address range 0x%012llx-0x%012llx", get_start_address(mc, new_range), get_end_address(mc, new_range));
 #endif
             inform_acquiring(mc, range);
 
@@ -940,33 +1039,33 @@ int maap_handle_timer(Maap_Client *mc) {
   /* Get the current time. */
   Time_setFromMonotonicTimer(&currenttime);
 #ifdef DEBUG_TIMER_MSG
-  printf("maap_handle_timer called at:  ");
-  Time_dump(&currenttime);
-  printf("\n");
+  if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
+    MAAP_LOGF_DEBUG("maap_handle_timer called at:  %s", Time_dump(&currenttime));
+  }
 #endif
 
   while ((range = mc->timer_queue) && Time_passed(&currenttime, &range->next_act_time)) {
 #ifdef DEBUG_TIMER_MSG
-    printf("Due timer:  ");
-    Time_dump(&range->next_act_time);
-    printf("\n");
+    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
+      MAAP_LOGF_DEBUG("Due timer:  %s", Time_dump(&range->next_act_time));
+    }
 #endif
     mc->timer_queue = range->next_timer;
     range->next_timer = NULL;
 
     if (range->state == MAAP_STATE_PROBING) {
 #ifdef DEBUG_TIMER_MSG
-      printf("Handling probe timer\n");
+      MAAP_LOG_DEBUG("Handling probe timer");
 #endif
       handle_probe_timer(mc, range);
     } else if (range->state == MAAP_STATE_DEFENDING) {
 #ifdef DEBUG_TIMER_MSG
-      printf("Handling defend timer\n");
+      MAAP_LOG_DEBUG("Handling defend timer");
 #endif
       handle_defend_timer(mc, range);
     } else if (range->state == MAAP_STATE_RELEASED) {
 #ifdef DEBUG_TIMER_MSG
-      printf("Freeing released timer\n");
+      MAAP_LOG_DEBUG("Freeing released timer");
 #endif
       free(range);
     }
@@ -994,7 +1093,9 @@ int64_t maap_get_delay_to_next_timer(Maap_Client *mc)
 		timeRemaining = Time_remaining(mc->timer);
 	}
 #ifdef DEBUG_TIMER_MSG
-	printf("\nTime_remaining:  %lld ns\n\n", timeRemaining);
+	MAAP_LOG_DEBUG(""); /* Blank line */
+	MAAP_LOGF_DEBUG("Time_remaining:  %lld ns", timeRemaining);
+	MAAP_LOG_DEBUG(""); /* Blank line */
 #endif
 	return timeRemaining;
 }

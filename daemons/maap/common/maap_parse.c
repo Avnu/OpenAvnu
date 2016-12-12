@@ -12,8 +12,11 @@
 #include "maap.h"
 #include "maap_parse.h"
 
+#define MAAP_LOG_COMPONENT "Parse"
+#include "maap_log.h"
+
 /* Uncomment the DEBUG_CMD_MSG define to display command debug messages. */
-/* #define DEBUG_CMD_MSG */
+#define DEBUG_CMD_MSG
 
 
 int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
@@ -93,7 +96,7 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
   return 1;
 }
 
-int parse_write(Maap_Client *mc, const void *sender, char *buf) {
+int parse_write(Maap_Client *mc, const void *sender, char *buf, Maap_Output_Type outputType) {
   Maap_Cmd *bufcmd, cmd;
   int rv = 0;
   int retVal = 0;
@@ -119,7 +122,7 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf) {
     switch(cmd.kind) {
     case MAAP_CMD_INIT:
 #ifdef DEBUG_CMD_MSG
-      printf("Got cmd MAAP_CMD_INIT, range_base: 0x%016llx, range_size: 0x%04x\n",
+      MAAP_LOGF_DEBUG("Got cmd MAAP_CMD_INIT, range_base: 0x%016llx, range_size: 0x%04x",
              (unsigned long long)cmd.start, cmd.count);
 #endif
       rv = maap_init_client(mc, sender, cmd.start, cmd.count);
@@ -127,34 +130,39 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf) {
     case MAAP_CMD_RESERVE:
 #ifdef DEBUG_CMD_MSG
       if (cmd.start != 0) {
-        printf("Got cmd MAAP_CMD_RESERVE, start: 0x%016llx, length: %u\n",
+        MAAP_LOGF_DEBUG("Got cmd MAAP_CMD_RESERVE, start: 0x%016llx, length: %u",
                (unsigned long long)cmd.start, (unsigned) cmd.count);
       } else {
-        printf("Got cmd MAAP_CMD_RESERVE, length: %u\n", (unsigned) cmd.count);
+        MAAP_LOGF_DEBUG("Got cmd MAAP_CMD_RESERVE, length: %u", (unsigned) cmd.count);
       }
 #endif
       rv = maap_reserve_range(mc, sender, cmd.start, cmd.count);
       break;
     case MAAP_CMD_RELEASE:
 #ifdef DEBUG_CMD_MSG
-      printf("Got cmd MAAP_CMD_RELEASE, id: %d\n", (int) cmd.id);
+      MAAP_LOGF_DEBUG("Got cmd MAAP_CMD_RELEASE, id: %d", (int) cmd.id);
 #endif
       rv = maap_release_range(mc, sender, cmd.id);
       break;
     case MAAP_CMD_STATUS:
 #ifdef DEBUG_CMD_MSG
-      printf("Got cmd MAAP_CMD_STATUS, id: %d\n", (int) cmd.id);
+      MAAP_LOGF_DEBUG("Got cmd MAAP_CMD_STATUS, id: %d", (int) cmd.id);
 #endif
       maap_range_status(mc, sender, cmd.id);
       break;
     case MAAP_CMD_EXIT:
 #ifdef DEBUG_CMD_MSG
-      printf("Got cmd MAAP_CMD_EXIT\n");
+      MAAP_LOG_DEBUG("Got cmd MAAP_CMD_EXIT");
 #endif
       retVal = 1; /* Indicate that we should exit. */
       break;
     default:
-      printf("Error parsing in parse_write\n");
+      if ((outputType & MAAP_OUTPUT_LOGGING)) {
+        MAAP_LOG_ERROR("Unrecognized input to parse_write");
+      }
+      if ((outputType & MAAP_OUTPUT_USER_FRIENDLY)) {
+        printf("Error parsing in parse_write\n");
+      }
       rv = 0;
       break;
     }

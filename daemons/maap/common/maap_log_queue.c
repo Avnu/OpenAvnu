@@ -30,6 +30,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "maap_log_queue.h"
 
+#define MAAP_LOG_COMPONENT "Queue"
+#include "maap_log.h"
+
 #ifndef TRUE
 #define TRUE  1
 #endif

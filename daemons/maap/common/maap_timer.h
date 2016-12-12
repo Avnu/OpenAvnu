@@ -108,12 +108,14 @@ void Time_setFromNanos(Time *t, uint64_t nsec);
 void Time_setFromMonotonicTimer(Time *t);
 
 /**
- * Log the supplied time.
+ * Returns the string equivalent of the supplied time for debugging purposes.
+ * The string will remain valid until the next call to Time_dump().
+ * @note This function is not multithread safe.
  *
- * This function logs the supplied time using the system's logging method.
+ * @param t Pointer to the time to convert.
  *
- * @param t Pointer to the time to log.
+ * @return A string representing the supplied timer value.
  */
-void Time_dump(const Time *t);
+const char * Time_dump(const Time *t);
 
 #endif

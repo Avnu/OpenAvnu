@@ -1,5 +1,6 @@
 /*************************************************************************
   Copyright (c) 2015 VAYAVYA LABS PVT LTD - http://vayavyalabs.com/
+  Copyright (c) 2016 Harman International Industries, Incorporated
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -54,6 +55,9 @@
 #include "maap_packet.h"
 #include "maap_parse.h"
 
+#define MAAP_LOG_COMPONENT "Init"
+#include "maap_log.h"
+
 #define MAX_CLIENT_CONNECTIONS 32
 #define DEFAULT_PORT           "15364"
 
@@ -67,7 +71,7 @@ static int act_as_client(const char *listenport);
 static const char *version_str =
 	"maap_daemon v" VERSION_STR "\n"
 	"Copyright (c) 2014-2015, VAYAVYA LABS PVT LTD\n"
-	"Copyright (c) 2016, Harman International Industries Inc.\n";
+	"Copyright (c) 2016, Harman International Industries, Inc.\n";
 
 static void usage(void)
 {
@@ -217,11 +221,19 @@ int main(int argc, char *argv[])
 
 
 	/*
+	 * Initialize the logging support.
+	 */
+
+	maapLogInit();
+
+
+	/*
 	 * Initialize the networking support.
 	 */
 
 	socketfd = init_maap_networking(iface, src_mac, dest_mac);
 	if (socketfd == -1) {
+		maapLogExit();
 		return -1;
 	}
 
@@ -242,6 +254,7 @@ int main(int argc, char *argv[])
 	listener = get_listener_socket(listenport);
 	if (listener == -1) {
 		close(socketfd);
+		maapLogExit();
 		return -1;
 	}
 
@@ -290,7 +303,7 @@ int main(int argc, char *argv[])
 			if (send(socketfd, packet_data, MAAP_NET_BUFFER_SIZE, 0) < 0)
 			{
 				/* Something went wrong.  Abort! */
-				fprintf(stderr, "Error %d writing to network socket (%s)\n", errno, strerror(errno));
+				MAAP_LOGF_ERROR("Error %d writing to network socket (%s)", errno, strerror(errno));
 				Net_freeQueuedPacket(mc.net, packet_data);
 				break;
 			}
@@ -300,10 +313,13 @@ int main(int argc, char *argv[])
 		/* Process any notifications. */
 		while (get_notify(&mc, (void *)&notifysocket, &recvnotify) > 0)
 		{
-			print_notify(&recvnotify);
+			if ((int) notifysocket == -1) {
+				/* Just display the information for the user. */
+				print_notify(&recvnotify, MAAP_OUTPUT_USER_FRIENDLY);
+			} else {
+				/* Log the result. */
+				print_notify(&recvnotify, MAAP_OUTPUT_LOGGING);
 
-			if ((int) notifysocket != -1)
-			{
 				/* Send the notification information to the client. */
 				for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i)
 				{
@@ -312,14 +328,14 @@ int main(int argc, char *argv[])
 						if (send((int) notifysocket, &recvnotify, sizeof(recvnotify), 0) < 0)
 						{
 							/* Something went wrong. Assume the socket will be closed below. */
-							fprintf(stderr, "Error %d writing to client socket %d (%s)\n", errno, (int) notifysocket, strerror(errno));
+							MAAP_LOGF_ERROR("Error %d writing to client socket %d (%s)", errno, (int) notifysocket, strerror(errno));
 						}
 						break;
 					}
 				}
 				if (i >= MAX_CLIENT_CONNECTIONS)
 				{
-					printf("Notification for client socket %d, but that socket no longer exists\n", (int) notifysocket);
+					MAAP_LOGF_WARNING("Notification for client socket %d, but that socket no longer exists", (int) notifysocket);
 				}
 			}
 		}
@@ -343,7 +359,7 @@ int main(int argc, char *argv[])
 		ret = select(fdmax+1, &read_fds, NULL, NULL, &tv);
 		if (ret < 0)
 		{
-			fprintf(stderr, "Error:  select() error %d (%s)\n", errno, strerror(errno));
+			MAAP_LOGF_ERROR("select() error %d (%s)", errno, strerror(errno));
 			break;
 		}
 		if (ret == 0)
@@ -366,7 +382,7 @@ int main(int argc, char *argv[])
 			if (recvbytes < 0 && errno != EWOULDBLOCK)
 			{
 				/* Something went wrong.  Abort! */
-				fprintf(stderr, "Error %d reading from network socket (%s)\n", errno, strerror(errno));
+				MAAP_LOGF_ERROR("Error %d reading from network socket (%s)", errno, strerror(errno));
 				break;
 			}
 		}
@@ -384,9 +400,9 @@ int main(int argc, char *argv[])
 				&addrlen);
 
 			if (newfd == -1) {
-				fprintf(stderr, "Error %d accepting connection (%s)\n", errno, strerror(errno));
+				MAAP_LOGF_ERROR("Error %d accepting connection (%s)", errno, strerror(errno));
 			} else {
-				printf("New connection from %s on socket %d\n",
+				MAAP_LOGF_INFO("New connection from %s on socket %d",
 					inet_ntop(remoteaddr.ss_family,
 						get_in_addr((struct sockaddr*)&remoteaddr),
 						remoteIP, INET6_ADDRSTRLEN),
@@ -407,7 +423,7 @@ int main(int argc, char *argv[])
 					if (i == nextclientindex)
 					{
 						/* No more client slots available.  Connection rejected. */
-						fprintf(stderr, "Out of client connection slots.  Connection rejected.\n");
+						MAAP_LOG_ERROR("Out of client connection slots.  Connection rejected.");
 						close(newfd);
 						newfd = -1;
 					}
@@ -431,7 +447,7 @@ int main(int argc, char *argv[])
 			recvbytes = read(STDIN_FILENO, recvbuffer, sizeof(recvbuffer) - 1);
 			if (recvbytes <= 0)
 			{
-				fprintf(stderr, "Error %d reading from stdin (%s)\n", errno, strerror(errno));
+				MAAP_LOGF_ERROR("Error %d reading from stdin (%s)", errno, strerror(errno));
 			}
 			else
 			{
@@ -439,7 +455,7 @@ int main(int argc, char *argv[])
 
 				/* Process the command data (may be binary or text). */
 				memset(&recvcmd, 0, sizeof(recvcmd));
-				if (parse_write(&mc, (const void *)(uintptr_t) -1, recvbuffer))
+				if (parse_write(&mc, (const void *)(uintptr_t) -1, recvbuffer, MAAP_OUTPUT_USER_FRIENDLY))
 				{
 					/* Received a command to exit. */
 					exit_received = 1;
@@ -455,7 +471,7 @@ int main(int argc, char *argv[])
 				recvbytes = recv(clientfd[i], recvbuffer, sizeof(recvbuffer), 0);
 				if (recvbytes < 0)
 				{
-					fprintf(stderr, "Error %d reading from socket %d (%s).  Connection closed.\n", errno, clientfd[i], strerror(errno));
+					MAAP_LOGF_WARNING("Error %d reading from socket %d (%s).  Connection closed.", errno, clientfd[i], strerror(errno));
 					close(clientfd[i]);
 					FD_CLR(clientfd[i], &master); /* remove from master set */
 					clientfd[i] = -1;
@@ -463,7 +479,7 @@ int main(int argc, char *argv[])
 				}
 				else if (recvbytes == 0)
 				{
-					printf("Socket %d closed\n", clientfd[i]);
+					MAAP_LOGF_INFO("Socket %d closed", clientfd[i]);
 					close(clientfd[i]);
 					FD_CLR(clientfd[i], &master); /* remove from master set */
 					clientfd[i] = -1;
@@ -475,7 +491,7 @@ int main(int argc, char *argv[])
 
 					/* Process the command data (may be binary or text). */
 					memset(&recvcmd, 0, sizeof(recvcmd));
-					if (parse_write(&mc, (const void *)(uintptr_t) clientfd[i], recvbuffer))
+					if (parse_write(&mc, (const void *)(uintptr_t) clientfd[i], recvbuffer, MAAP_OUTPUT_LOGGING))
 					{
 						/* Received a command to exit. */
 						exit_received = 1;
@@ -499,6 +515,8 @@ int main(int argc, char *argv[])
 
 	maap_deinit_client(&mc);
 
+	maapLogExit();
+
 	return (exit_received ? 0 : -1);
 }
 
@@ -513,13 +531,13 @@ static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], ui
 
 	if ((socketfd = socket(PF_PACKET, SOCK_RAW, htons(MAAP_TYPE))) == -1 )
 	{
-		fprintf(stderr, "Error:  Could not open socket %d (Are you running as an administrator?)\n",socketfd);
+		MAAP_LOGF_ERROR("Could not open socket %d (Are you running as an administrator?)",socketfd);
 		return -1;
 	}
 
 	if (fcntl(socketfd, F_SETFL, O_NONBLOCK) < 0)
 	{
-		fprintf(stderr, "Error:  Could not set the socket to non-blocking\n");
+		MAAP_LOG_ERROR("Could not set the socket to non-blocking");
 		close(socketfd);
 		return -1;
 	}
@@ -528,14 +546,14 @@ static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], ui
 	strncpy(ifbuffer.ifr_name, iface, IFNAMSIZ);
 	if (ioctl(socketfd, SIOCGIFINDEX, &ifbuffer) < 0)
 	{
-		fprintf(stderr, "Error:  Could not get interface index\n");
+		MAAP_LOG_ERROR("Could not get interface index");
 		close(socketfd);
 		return -1;
 	}
 
 	ifindex = ifbuffer.ifr_ifindex;
 	if (ioctl(socketfd, SIOCGIFHWADDR, &ifbuffer) < 0) {
-		fprintf(stderr, "Error:  Could not get interface address\n");
+		MAAP_LOG_ERROR("Could not get interface address");
 		close(socketfd);
 		return -1;
 	}
@@ -549,7 +567,7 @@ static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], ui
 	memcpy(sockaddr.sll_addr, dest_mac, ETH_ALEN);
 
 	if (bind(socketfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr))) {
-		fprintf(stderr, "Error:  Could not bind datagram socket\n");
+		MAAP_LOG_ERROR("Could not bind datagram socket");
 		close(socketfd);
 		return -1;
 	}
@@ -563,7 +581,7 @@ static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], ui
 
 	if (setsockopt(socketfd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mreq,
 		sizeof(mreq)) < 0) {
-		fprintf(stderr, "Error:  setsockopt PACKET_ADD_MEMBERSHIP failed\n");
+		MAAP_LOG_ERROR("setsockopt PACKET_ADD_MEMBERSHIP failed");
 		close(socketfd);
 		return -1;
 	}
@@ -585,7 +603,7 @@ static int get_listener_socket(const char *listenport)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 	if ((ret = getaddrinfo(NULL, listenport, &hints, &ai)) != 0) {
-		fprintf(stderr, "Error:  getaddrinfo failure %s\n", gai_strerror(ret));
+		MAAP_LOGF_ERROR("getaddrinfo failure %s", gai_strerror(ret));
 		return -1;
 	}
 
@@ -610,13 +628,13 @@ static int get_listener_socket(const char *listenport)
 
 	/* If we got here, it means we didn't get bound */
 	if (p == NULL) {
-		fprintf(stderr, "Error:  Socket failed to bind error %d (%s)\n", errno, strerror(errno));
+		MAAP_LOGF_ERROR("Socket failed to bind error %d (%s)", errno, strerror(errno));
 		close(listener);
 		return -1;
 	}
 
 	if (listen(listener, 10) < 0) {
-		fprintf(stderr, "Error:  Socket listen error %d (%s)\n", errno, strerror(errno));
+		MAAP_LOGF_ERROR("Socket listen error %d (%s)", errno, strerror(errno));
 		close(listener);
 		return -1;
 	}
@@ -640,13 +658,21 @@ static int act_as_client(const char *listenport)
 	Maap_Cmd recvcmd;
 	int exit_received = 0;
 
+	/*
+	 * Initialize the logging support.
+	 */
+
+	maapLogInit();
+
+
 	/* Create a localhost socket. */
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = 0;
 	if ((ret = getaddrinfo("localhost", listenport, &hints, &ai)) != 0) {
-		fprintf(stderr, "Error:  getaddrinfo failure %s\n", gai_strerror(ret));
+		MAAP_LOGF_ERROR("getaddrinfo failure %s", gai_strerror(ret));
+		maapLogExit();
 		return -1;
 	}
 
@@ -658,17 +684,19 @@ static int act_as_client(const char *listenport)
 	}
 
 	if (p == NULL) {
-		fprintf(stderr, "Error:  Socket creation error %d (%s)\n", errno, strerror(errno));
+		MAAP_LOGF_ERROR("Socket creation error %d (%s)", errno, strerror(errno));
 		freeaddrinfo(ai);
+		maapLogExit();
 		return -1;
 	}
 
 	/* Connect to the MAAP daemon. */
 	if (connect(socketfd, p->ai_addr, p->ai_addrlen) < 0)
 	{
-		fprintf(stderr, "Error:  Unable to connect to the daemon, error %d (%s)\n", errno, strerror(errno));
+		MAAP_LOGF_ERROR("Unable to connect to the daemon, error %d (%s)", errno, strerror(errno));
 		freeaddrinfo(ai);
 		close(socketfd);
+		maapLogExit();
 		return -1;
 	}
 
@@ -676,8 +704,9 @@ static int act_as_client(const char *listenport)
 
 	if (fcntl(socketfd, F_SETFL, O_NONBLOCK) < 0)
 	{
-		fprintf(stderr, "Error:  Could not set the socket to non-blocking\n");
+		MAAP_LOG_ERROR("Could not set the socket to non-blocking");
 		close(socketfd);
+		maapLogExit();
 		return -1;
 	}
 
@@ -700,7 +729,7 @@ static int act_as_client(const char *listenport)
 		ret = select(fdmax+1, &read_fds, NULL, NULL, NULL);
 		if (ret <= 0)
 		{
-			fprintf(stderr, "Error:  select() error %d (%s)\n", errno, strerror(errno));
+			MAAP_LOGF_ERROR("select() error %d (%s)", errno, strerror(errno));
 			break;
 		}
 
@@ -714,23 +743,23 @@ static int act_as_client(const char *listenport)
 				/* Process the response data (will be binary). */
 				if (recvbytes == sizeof(Maap_Notify))
 				{
-					print_notify((Maap_Notify *) recvbuffer);
+					print_notify((Maap_Notify *) recvbuffer, MAAP_OUTPUT_USER_FRIENDLY);
 				}
 				else
 				{
-					fprintf(stderr, "Warning:  Received unexpected response of size %d\n", recvbytes);
+					MAAP_LOGF_WARNING("Received unexpected response of size %d", recvbytes);
 				}
 			}
 			if (recvbytes == 0)
 			{
 				/* The MAAP daemon closed the connection.  Assume it shut down, and we should too. */
-				printf("MAAP daemon exited.  Closing application.\n");
+				MAAP_LOG_INFO("MAAP daemon exited.  Closing application.");
 				exit_received = 1;
 			}
 			if (recvbytes < 0 && errno != EWOULDBLOCK)
 			{
 				/* Something went wrong.  Abort! */
-				fprintf(stderr, "Error %d reading from network socket (%s)\n", errno, strerror(errno));
+				MAAP_LOGF_ERROR("Error %d reading from network socket (%s)", errno, strerror(errno));
 				break;
 			}
 		}
@@ -741,7 +770,7 @@ static int act_as_client(const char *listenport)
 			recvbytes = read(STDIN_FILENO, recvbuffer, sizeof(recvbuffer) - 1);
 			if (recvbytes <= 0)
 			{
-				fprintf(stderr, "Error %d reading from stdin (%s)\n", errno, strerror(errno));
+				MAAP_LOGF_ERROR("Error %d reading from stdin (%s)", errno, strerror(errno));
 			}
 			else
 			{
@@ -772,7 +801,7 @@ static int act_as_client(const char *listenport)
 					if (send(socketfd, (char *) &recvcmd, sizeof(Maap_Cmd), 0) < 0)
 					{
 						/* Something went wrong.  Abort! */
-						fprintf(stderr, "Error %d writing to network socket (%s)\n", errno, strerror(errno));
+						MAAP_LOGF_ERROR("Error %d writing to network socket (%s)", errno, strerror(errno));
 						break;
 					}
 				}
@@ -782,6 +811,8 @@ static int act_as_client(const char *listenport)
 	}
 
 	close(socketfd);
+
+	maapLogExit();
 
 	return (exit_received ? 0 : -1);
 }

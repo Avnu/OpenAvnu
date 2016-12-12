@@ -75,4 +75,11 @@ typedef struct {
   Maap_Notify_Error result; /**< #MAAP_NOTIFY_ERROR_NONE if the command succeeded, or another value if an error occurred */
 } Maap_Notify;
 
+
+/** MAAP Output Type Desired Flags */
+typedef enum {
+  MAAP_OUTPUT_LOGGING = 0x01,       /**< Send the results to the logging engine */
+  MAAP_OUTPUT_USER_FRIENDLY = 0x02, /**< Send the results to stdout in user-friendly format */
+} Maap_Output_Type;
+
 #endif

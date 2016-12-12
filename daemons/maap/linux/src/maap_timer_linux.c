@@ -12,6 +12,9 @@ struct maap_timer {
 
 #include "maap_timer.h"
 
+#define MAAP_LOG_COMPONENT "Timer"
+#include "maap_log.h"
+
 
 Timer *Time_newTimer(void)
 {
@@ -57,7 +60,7 @@ int64_t Time_remaining(Timer *timer)
 	assert(timer);
 	if (timer_gettime(timer->timer_id, &curr_value) < 0)
 	{
-		printf("Error %d getting the timer time remaining (%s)\n", errno, strerror(errno));
+		MAAP_LOGF_ERROR("Error %d getting the timer time remaining (%s)", errno, strerror(errno));
 		return -1;
 	}
 
@@ -121,7 +124,9 @@ void Time_setFromMonotonicTimer(Time *t)
   clock_gettime(CLOCK_MONOTONIC, t);
 }
 
-void Time_dump(const Time *t)
+const char * Time_dump(const Time *t)
 {
-  printf("tv_sec: %lu tv_nsec: %09lu", (unsigned long)t->tv_sec, (unsigned long)t->tv_nsec);
+  static char buffer[40];
+  sprintf(buffer, "%lu sec, %09lu nsec", (unsigned long)t->tv_sec, (unsigned long)t->tv_nsec);
+  return buffer;
 }
