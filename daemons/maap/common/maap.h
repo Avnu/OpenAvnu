@@ -16,7 +16,6 @@
 #include "maap_iface.h"
 #include "maap_timer.h"
 #include "maap_net.h"
-#include "maap_log.h"
 
 #define MAAP_PROBE_RETRANSMITS                  3 /**< Number of allowed probes - This value is defined in IEEE 1722-2016 Table B.8 */
 
