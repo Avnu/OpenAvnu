@@ -573,33 +573,25 @@ int schedule_timer(Maap_Client *mc, Range *range) {
     ns = MAAP_PROBE_INTERVAL_BASE + rand_ms(MAAP_PROBE_INTERVAL_VARIATION);
     ns = ns * 1000000;
 #ifdef DEBUG_TIMER_MSG
-    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
-      MAAP_LOGF_DEBUG("Scheduling probe timer for %llu ns from now", ns);
-    }
+    MAAP_LOGF_DEBUG("Scheduling probe timer for %llu ns from now", ns);
 #endif
     Time_setFromNanos(&ts, ns);
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
 #ifdef DEBUG_TIMER_MSG
-    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
-      MAAP_LOGF_DEBUG("Expiration time is:  %s", Time_dump(&range->next_act_time));
-    }
+    MAAP_LOGF_DEBUG("Expiration time is:  %s", Time_dump(&range->next_act_time));
 #endif
   } else if (range->state == MAAP_STATE_DEFENDING) {
     ns = MAAP_ANNOUNCE_INTERVAL_BASE + rand_ms(MAAP_ANNOUNCE_INTERVAL_VARIATION);
     ns = ns * 1000000;
 #ifdef DEBUG_TIMER_MSG
-    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
-      MAAP_LOGF_DEBUG("Scheduling defend timer for %llu ns from now", ns);
-    }
+    MAAP_LOGF_DEBUG("Scheduling defend timer for %llu ns from now", ns);
 #endif
     Time_setFromNanos(&ts, (uint64_t)ns);
     Time_setFromMonotonicTimer(&range->next_act_time);
     Time_add(&range->next_act_time, &ts);
 #ifdef DEBUG_TIMER_MSG
-    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
-      MAAP_LOGF_DEBUG("Expiration time is:  %s", Time_dump(&range->next_act_time));
-    }
+    MAAP_LOGF_DEBUG("Expiration time is:  %s", Time_dump(&range->next_act_time));
 #endif
   }
 
@@ -1039,16 +1031,12 @@ int maap_handle_timer(Maap_Client *mc) {
   /* Get the current time. */
   Time_setFromMonotonicTimer(&currenttime);
 #ifdef DEBUG_TIMER_MSG
-  if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
-    MAAP_LOGF_DEBUG("maap_handle_timer called at:  %s", Time_dump(&currenttime));
-  }
+  MAAP_LOGF_DEBUG("maap_handle_timer called at:  %s", Time_dump(&currenttime));
 #endif
 
   while ((range = mc->timer_queue) && Time_passed(&currenttime, &range->next_act_time)) {
 #ifdef DEBUG_TIMER_MSG
-    if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL) {
-      MAAP_LOGF_DEBUG("Due timer:  %s", Time_dump(&range->next_act_time));
-    }
+    MAAP_LOGF_DEBUG("Due timer:  %s", Time_dump(&range->next_act_time));
 #endif
     mc->timer_queue = range->next_timer;
     range->next_timer = NULL;
