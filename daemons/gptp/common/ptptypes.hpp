@@ -36,7 +36,12 @@
 
 /**@file*/
 
+#if defined(__clang__) &&  defined(__x86_64__)
+// Clang/llvm has incompatible long double (fp128) for x86_64.
+typedef double FrequencyRatio; /*!< Frequency Ratio */
+#else
 typedef long double FrequencyRatio; /*!< Frequency Ratio */
+#endif
 
 #define ETHER_ADDR_OCTETS	6		/*!< Number of octets in a link layer address*/
 #define IP_ADDR_OCTETS		4		/*!< Number of octets in a ip address*/
