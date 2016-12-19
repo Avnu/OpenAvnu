@@ -62,6 +62,7 @@ openavbRC openavbAemCreate(openavb_aem_descriptor_entity_t *pDescriptorEntity)
 
 	pAemEntityModel->pDescriptorEntity = pDescriptorEntity;
 	pAemEntityModel->aemConfigurations = openavbArrayNewArray(sizeof(openavb_aem_configuration_t));
+	memset(pAemEntityModel->aemNonTopLevelDescriptorsArray, 0, sizeof(pAemEntityModel->aemNonTopLevelDescriptorsArray));
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
 }
@@ -152,6 +153,11 @@ openavb_array_t openavbAemGetDescriptorArray(U16 configIdx, U16 descriptorType)
 		if (pConfig) {
 			retDescriptors = pConfig->descriptorsArray[descriptorType];
 		}
+
+		// Search the alternate location for non-top-level descriptors.
+		if (!retDescriptors) {
+			retDescriptors = pAemEntityModel->aemNonTopLevelDescriptorsArray[descriptorType];
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
@@ -188,6 +194,14 @@ void *openavbAemFindDescriptor(U16 configIdx, U16 descriptorType, U16 descriptor
 
 		if (descriptors) {
 			retDescriptor = openavbArrayDataIdx(descriptors, descriptorIdx);
+		}
+
+		// Search the alternate location for non-top-level descriptors.
+		if (!retDescriptor) {
+			descriptors = pAemEntityModel->aemNonTopLevelDescriptorsArray[descriptorType];
+			if (descriptors) {
+				retDescriptor = openavbArrayDataIdx(descriptors, descriptorIdx);
+			}
 		}
 	}
 
@@ -315,15 +329,31 @@ extern DLL_EXPORT bool openavbAemAddDescriptor(void *pDescriptor, U16 configIdx,
 	}
 
 	openavb_array_t descriptors = NULL;
-	openavb_aem_configuration_t *pConfig = openavbArrayDataIdx(pAemEntityModel->aemConfigurations, configIdx);
-	if (pConfig) {
+	if (pDescriptorCommon->descriptorPvtPtr->bTopLevel) {
+		openavb_aem_configuration_t *pConfig = openavbArrayDataIdx(pAemEntityModel->aemConfigurations, configIdx);
+		if (!pConfig) {
+			AVB_RC_LOG(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT);
+			AVB_LOG_ERROR("openavbAemAddDescriptor:  Invalid configuration index %u, configIdx");
+			AVB_TRACE_EXIT(AVB_TRACE_AEM);
+			return FALSE;
+		}
 		descriptors = pConfig->descriptorsArray[pDescriptorCommon->descriptor_type];
-	}
 
-	if (!descriptors) {
-		// Create array for this type of descriptor in this configuration
-		descriptors = openavbArrayNewArray(pDescriptorCommon->descriptorPvtPtr->size);
-		pConfig->descriptorsArray[pDescriptorCommon->descriptor_type] = descriptors;
+		if (!descriptors) {
+			// Create array for this type of descriptor in this configuration
+			AVB_LOGF_DEBUG("Created description array for configuration %u, type %u", configIdx, pDescriptorCommon->descriptor_type);
+			descriptors = openavbArrayNewArray(pDescriptorCommon->descriptorPvtPtr->size);
+			pConfig->descriptorsArray[pDescriptorCommon->descriptor_type] = descriptors;
+		}
+	} else {
+		descriptors = pAemEntityModel->aemNonTopLevelDescriptorsArray[pDescriptorCommon->descriptor_type];
+
+		if (!descriptors) {
+			// Create array for this type of descriptor in this configuration
+			AVB_LOGF_DEBUG("Created non-top-level description array for type %u", pDescriptorCommon->descriptor_type);
+			descriptors = openavbArrayNewArray(pDescriptorCommon->descriptorPvtPtr->size);
+			pAemEntityModel->aemNonTopLevelDescriptorsArray[pDescriptorCommon->descriptor_type] = descriptors;
+		}
 	}
 
 	if (descriptors) {
@@ -331,11 +361,9 @@ extern DLL_EXPORT bool openavbAemAddDescriptor(void *pDescriptor, U16 configIdx,
 		if (elem) {
 			*pResultIdx = openavbArrayGetIdx(elem);
 			pDescriptorCommon->descriptor_index = *pResultIdx;
-			if (pDescriptorCommon->descriptorPvtPtr->bTopLevel) {
-				if (IS_OPENAVB_SUCCESS(openavbAemAddDescriptorToConfiguration(pDescriptorCommon->descriptor_type, configIdx))) {
-					AVB_TRACE_EXIT(AVB_TRACE_AEM);
-					return TRUE;
-				}
+			if (IS_OPENAVB_SUCCESS(openavbAemAddDescriptorToConfiguration(pDescriptorCommon->descriptor_type, configIdx))) {
+				AVB_TRACE_EXIT(AVB_TRACE_AEM);
+				return TRUE;
 			}
 		}
 	}

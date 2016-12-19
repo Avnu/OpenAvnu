@@ -34,7 +34,7 @@ typedef openavbRC (*openavb_aem_descriptor_update_t)(void *pVoidDescriptor);
 
 struct openavb_descriptor_pvt {
 	U32 size;
-	bool bTopLevel;
+	bool bTopLevel; // See IEEE Std 1722.1-2013 clause 7.2.2 for a list of top level descriptors.
 	openavb_aem_descriptor_to_buf_t toBuf;
 	openavb_aem_descriptor_from_buf_t fromBuf;
 	openavb_aem_descriptor_update_t update;
@@ -60,6 +60,7 @@ typedef struct {
 	U8 lockedControllerId[8];
 
 	openavb_array_t aemConfigurations;
+	openavb_array_t aemNonTopLevelDescriptorsArray[OPENAVB_AEM_DESCRIPTOR_COUNT];
 } openavb_avdecc_entity_model_t;
 
 

@@ -181,14 +181,18 @@ extern DLL_EXPORT bool openavbAemDescriptorLocaleStringsHandlerAddToConfiguratio
 		U16 nResultIdx;
 		if (!openavbAemAddDescriptor(pCurrent->pLocale, nConfigIdx, &nResultIdx)) {
 			AVB_LOG_ERROR("Locale Add Descriptor Failure");
+			AVB_TRACE_EXIT(AVB_TRACE_AEM);
+			return false;
 		}
 		if (!openavbAemAddDescriptor(pCurrent->pStrings, nConfigIdx, &nResultIdx)) {
 			AVB_LOG_ERROR("Strings Add Descriptor Failure");
+			AVB_TRACE_EXIT(AVB_TRACE_AEM);
+			return false;
 		}
 
 		pCurrent = pCurrent->pNext;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
-	return false;
+	return true;
 }
