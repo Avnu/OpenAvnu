@@ -95,7 +95,11 @@ void openavbAdpSMAdvertiseInterfaceStateMachine()
 						openavbAdpSMGlobalVars.entityInfo.pdu.gptp_grandmaster_id,
 						sizeof(openavbAdpSMGlobalVars.entityInfo.pdu.gptp_grandmaster_id));
 					ADP_UNLOCK();
-					state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_WAITING;
+
+					// This interface will send the first advertisement on startup.
+					// The advertise entity will be responsible for sending subsequent advertisements.
+					// This allows the advertise entity and advertise interface to startup without any inter-dependencies.
+					state = OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_ADVERTISE;
 				}
 				break;
 			case OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_WAITING:

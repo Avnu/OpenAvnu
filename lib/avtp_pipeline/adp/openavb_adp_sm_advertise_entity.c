@@ -34,6 +34,7 @@
 typedef enum {
 	OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_INITIALIZE,
 	OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_ADVERTISE,
+	OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_RESET_WAIT,
 	OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_WAITING,
 	OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_TERMINATE,
 } openavb_adp_sm_advertise_entity_state_t;
@@ -75,7 +76,10 @@ void openavbAdpSMAdvertiseEntityStateMachine()
 					openavbAdpSMGlobalVars.entityInfo.pdu.available_index = 0;
 					ADP_UNLOCK();
 
-					state = OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_ADVERTISE;
+					// The advertise interface will send the first advertisement on startup.
+					// This entity will be responsible for sending subsequent advertisements.
+					// This allows the advertise entity and advertise interface to startup without any inter-dependencies.
+					state = OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_RESET_WAIT;
 				}
 				break;
 			case OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_ADVERTISE:
@@ -85,6 +89,17 @@ void openavbAdpSMAdvertiseEntityStateMachine()
 
 					openavbAdpSMAdvertiseEntity_sendAvailable();
 					ADP_LOCK();
+					openavbAdpSMAdvertiseEntityVars.needsAdvertise = FALSE;
+					ADP_UNLOCK();
+					state = OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_RESET_WAIT;
+				}
+				break;
+			case OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_RESET_WAIT:
+				{
+					AVB_TRACE_LINE(AVB_TRACE_ADP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_RESET_WAIT");
+
+					ADP_LOCK();
 					CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout);
 					/* The advertisements should be sent at intervals of 1/4 valid_time, where valid_time is in 2-second units.
 					 * See IEEE Std 1722.1-2013 clauses 6.2.1.6 and 6.2.4. */
@@ -93,7 +108,6 @@ void openavbAdpSMAdvertiseEntityStateMachine()
 						advDelayUsec = MICROSECONDS_PER_SECOND;
 					}
 					openavbTimeTimespecAddUsec(&openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout, advDelayUsec);
-					openavbAdpSMAdvertiseEntityVars.needsAdvertise = FALSE;
 					ADP_UNLOCK();
 					state = OPENAVB_ADP_SM_ADVERTISE_ENTITY_STATE_WAITING;
 				}
@@ -147,7 +161,6 @@ void openavbAdpSMAdvertiseEntityStateMachine()
 void* openavbAdpSMAdvertiseEntityThreadFn(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
-	SLEEP_MSEC(1); // Wait for the advertise interface thread to start first.
 	openavbAdpSMAdvertiseEntityStateMachine();
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 	return NULL;
