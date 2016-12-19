@@ -534,37 +534,16 @@ int avbEndpointLoop(void)
 
 static bool startAvdeccSupport()
 {
-	openavbRC rc;
 	bool succeeded = false;
 
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 
 	do {
-		rc = openavbAVDECCInitialize(x_cfg.ifname, x_cfg.ifmac);
-		if (IS_OPENAVB_FAILURE(rc)) {
+		if (!openavbAVDECCInitialize(x_cfg.ifname, x_cfg.ifmac, x_streamList)) {
 			AVB_LOG_ERROR("Failed to initialize AVDECC");
 			openavbAVDECCCleanup();
 			break;
 		}
-
-		// Add a configuration.
-		// TODO:  BDT_DEBUG How do we handle multiple .INI files?  A configuration for each one?
-		openavb_aem_descriptor_configuration_t *pConfiguration = openavbAemDescriptorConfigurationNew();
-		U16 nConfigIdx = 0;
-		if (!openavbAemAddDescriptor(pConfiguration, 0, &nConfigIdx)) {
-			AVB_LOG_ERROR("Error adding AVDECC configuration");
-			openavbAVDECCStop();
-			openavbAVDECCCleanup();
-			break;
-		}
-
-		// Add the localized strings to the configuration.
-		openavbAemDescriptorLocaleStringsHandlerAddToConfiguration(gAvdeccCfg.pAemDescriptorLocaleStringsHandler, nConfigIdx);
-
-		// Add the supported descriptors.
-		// TODO:  BDT_DEBUG Add other descriptors as needed.
-		U16 nResultIdx;
-		openavbAemAddDescriptor(openavbAemDescriptorAvbInterfaceNew(), openavbAemGetConfigIdx(), &nResultIdx);
 
 		AVB_LOG_DEBUG("AVDECC Initialized");
 

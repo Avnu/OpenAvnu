@@ -62,8 +62,8 @@ typedef struct {
 	char ifname[IFNAMSIZ];
 	U8 ifmac[ETH_ALEN];
 
-	bool bListener; // TODO:  BDT_DEBUG Should this be determined by the configurations?
-	bool bTalker; // TODO:  BDT_DEBUG Should this be determined by the configurations?
+	bool bListener;
+	bool bTalker;
 
 	U16 vlanID;
 	U8 vlanPCP;
@@ -85,8 +85,12 @@ typedef struct {
 	openavb_aem_descriptor_locale_strings_handler_t *pAemDescriptorLocaleStringsHandler;
 } openavb_avdecc_cfg_t;
 
+// This is defined elsewhere (such as openavb_endpoint.h).
+typedef struct clientStream_t clientStream_t;
+
+
 // General initialization for AVDECC. This must be called before any other AVDECC APIs including AEM APIs
-bool openavbAVDECCInitialize(const char *ifname, U8 *ifmac);
+bool openavbAVDECCInitialize(const char *ifname, const U8 *ifmac, const clientStream_t *streamList);
 
 // Start the AVDECC protocols. 
 bool openavbAVDECCStart(void);

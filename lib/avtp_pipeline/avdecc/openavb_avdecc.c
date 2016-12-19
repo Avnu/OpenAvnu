@@ -30,6 +30,8 @@
 #include "openavb_acmp.h"
 #include "openavb_aecp.h"
 
+#include "openavb_endpoint.h"
+
 #define ADDR_PTR(A) (U8*)(&((A)->ether_addr_octet))
 
 extern openavb_avdecc_cfg_t gAvdeccCfg;
@@ -113,12 +115,12 @@ void openavbAVDECCFindMacAddr(void)
 ////////////////////////////////
 // Public functions
 ////////////////////////////////
-extern DLL_EXPORT bool openavbAVDECCInitialize(const char *ifname, U8 *ifmac)
+extern DLL_EXPORT bool openavbAVDECCInitialize(const char *ifname, const U8 *ifmac, const clientStream_t *streamList)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
 	// Check parameters
-	if (!ifname || !ifmac) {
+	if (!ifname || !ifmac || !streamList) {
 		AVB_RC_LOG(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_ENTITY_MODEL_MISSING);
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
@@ -149,27 +151,7 @@ extern DLL_EXPORT bool openavbAVDECCInitialize(const char *ifname, U8 *ifmac)
 		return FALSE;
 	}
 
-	// Fill in the descriptor capabilities.
-	// TODO:  Do we want to make these configurable?
-	openavbAemDescriptorEntitySet_entity_capabilities(gAvdeccCfg.pDescriptorEntity,
-		OPENAVB_ADP_ENTITY_CAPABILITIES_EFU_MODE |
-		OPENAVB_ADP_ENTITY_CAPABILITIES_ADDRESS_ACCESS_SUPPORTED |
-		OPENAVB_ADP_ENTITY_CAPABILITIES_AEM_SUPPORTED |
-		OPENAVB_ADP_ENTITY_CAPABILITIES_CLASS_A_SUPPORTED |
-		OPENAVB_ADP_ENTITY_CAPABILITIES_GPTP_SUPPORTED);
-	if (gAvdeccCfg.bTalker) {
-		openavbAemDescriptorEntitySet_talker_capabilities(gAvdeccCfg.pDescriptorEntity, 1,
-			OPENAVB_ADP_TALKER_CAPABILITIES_IMPLEMENTED |
-			OPENAVB_ADP_TALKER_CAPABILITIES_AUDIO_SOURCE |
-			OPENAVB_ADP_TALKER_CAPABILITIES_MEDIA_CLOCK_SOURCE);
-	}
-	if (gAvdeccCfg.bListener) {
-		openavbAemDescriptorEntitySet_listener_capabilities(gAvdeccCfg.pDescriptorEntity, 1,
-			OPENAVB_ADP_LISTENER_CAPABILITIES_IMPLEMENTED |
-			OPENAVB_ADP_LISTENER_CAPABILITIES_AUDIO_SINK);
-	}
-
-	// Copy the supplied non-localized strings to the newly-created descriptor.
+	// Copy the supplied non-localized strings to the descriptor.
 	openavbAemDescriptorEntitySet_entity_model_id(gAvdeccCfg.pDescriptorEntity, gAvdeccCfg.entity_model_id);
 	openavbAemDescriptorEntitySet_entity_name(gAvdeccCfg.pDescriptorEntity, gAvdeccCfg.entity_name);
 	openavbAemDescriptorEntitySet_firmware_version(gAvdeccCfg.pDescriptorEntity, gAvdeccCfg.firmware_version);
@@ -188,6 +170,83 @@ extern DLL_EXPORT bool openavbAVDECCInitialize(const char *ifname, U8 *ifmac)
 		// Have the descriptor entity reference the locale strings.
 		openavbAemDescriptorEntitySet_vendor_name(gAvdeccCfg.pDescriptorEntity, 0, LOCALE_STRING_VENDOR_NAME_INDEX);
 		openavbAemDescriptorEntitySet_model_name(gAvdeccCfg.pDescriptorEntity, 0, LOCALE_STRING_MODEL_NAME_INDEX);
+	}
+
+	// Add a configuration for each talker or listener stream.
+	const clientStream_t *current_stream = streamList;
+	while (current_stream != NULL) {
+		// Create a new configuration.
+		openavb_aem_descriptor_configuration_t *pConfiguration = openavbAemDescriptorConfigurationNew();
+		U16 nConfigIdx = 0;
+		if (!openavbAemAddDescriptor(pConfiguration, 0, &nConfigIdx)) {
+			AVB_LOG_ERROR("Error adding AVDECC configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+
+		// Add the localized strings to the configuration.
+		if (!openavbAemDescriptorLocaleStringsHandlerAddToConfiguration(gAvdeccCfg.pAemDescriptorLocaleStringsHandler, nConfigIdx)) {
+			AVB_LOG_ERROR("Error adding AVDECC locale strings to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+
+		// Add the descriptors needed for both talkers and listeners.
+		U16 nResultIdx;
+		if (!openavbAemAddDescriptor(openavbAemDescriptorAvbInterfaceNew(), openavbAemGetConfigIdx(), &nResultIdx)) {
+			AVB_LOG_ERROR("Error adding AVDECC AVB Interface to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+
+		// TODO:  AVDECC_TODO Add other descriptors as needed.
+
+		if (current_stream->role == clientTalker) {
+			gAvdeccCfg.bTalker = TRUE;
+
+			// TODO:  AVDECC_TODO Add other descriptors as needed.
+
+			AVB_LOG_DEBUG("AVDECC talker configuration added");
+		}
+		if (current_stream->role == clientListener) {
+			gAvdeccCfg.bListener = TRUE;
+
+			// TODO:  AVDECC_TODO Add other descriptors as needed.
+
+			AVB_LOG_DEBUG("AVDECC listener configuration added");
+		}
+
+		// Proceed to the next stream.
+		current_stream = current_stream->next;
+	}
+
+	if (!gAvdeccCfg.bTalker && !gAvdeccCfg.bListener) {
+		AVB_LOG_ERROR("No AVDECC Configurations -- Aborting");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+
+	// Fill in the descriptor capabilities.
+	// AVDECC_TODO:  Do we want to make the capabilities configurable?
+	openavbAemDescriptorEntitySet_entity_capabilities(gAvdeccCfg.pDescriptorEntity,
+		OPENAVB_ADP_ENTITY_CAPABILITIES_EFU_MODE |
+		OPENAVB_ADP_ENTITY_CAPABILITIES_ADDRESS_ACCESS_SUPPORTED |
+		OPENAVB_ADP_ENTITY_CAPABILITIES_AEM_SUPPORTED |
+		OPENAVB_ADP_ENTITY_CAPABILITIES_CLASS_A_SUPPORTED |
+		OPENAVB_ADP_ENTITY_CAPABILITIES_GPTP_SUPPORTED);
+
+	if (gAvdeccCfg.bTalker) {
+		// AVDECC_TODO:  Do we want to make the capabilities configurable?
+		openavbAemDescriptorEntitySet_talker_capabilities(gAvdeccCfg.pDescriptorEntity, 1,
+			OPENAVB_ADP_TALKER_CAPABILITIES_IMPLEMENTED |
+			OPENAVB_ADP_TALKER_CAPABILITIES_AUDIO_SOURCE |
+			OPENAVB_ADP_TALKER_CAPABILITIES_MEDIA_CLOCK_SOURCE);
+	}
+	if (gAvdeccCfg.bListener) {
+		// AVDECC_TODO:  Do we want to make the capabilities configurable?
+		openavbAemDescriptorEntitySet_listener_capabilities(gAvdeccCfg.pDescriptorEntity, 1,
+			OPENAVB_ADP_LISTENER_CAPABILITIES_IMPLEMENTED |
+			OPENAVB_ADP_LISTENER_CAPABILITIES_AUDIO_SINK);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);

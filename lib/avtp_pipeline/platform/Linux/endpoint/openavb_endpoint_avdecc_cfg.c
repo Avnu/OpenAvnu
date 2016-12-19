@@ -215,8 +215,6 @@ int openavbReadAvdeccConfig(const char *ini_file, openavb_avdecc_cfg_t *pCfg)
 
 	// defaults - most are handled by setting everything to 0
 	memset(pCfg, 0, sizeof(openavb_avdecc_cfg_t));
-	pCfg->bListener = 1; // TODO:  BDT_DEBUG What should this be?
-	pCfg->bTalker = 1; // TODO:  BDT_DEBUG What should this be?
 	pCfg->avdeccId = 0xfffe;
 
 	int result = ini_parse(ini_file, cfgCallback, pCfg);
