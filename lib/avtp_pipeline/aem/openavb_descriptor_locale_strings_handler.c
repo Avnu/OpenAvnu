@@ -175,19 +175,24 @@ extern DLL_EXPORT bool openavbAemDescriptorLocaleStringsHandlerAddToConfiguratio
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AEM);
 
-	// Add the items to the configuration.
 	openavb_aem_descriptor_locale_strings_handler_group_t *pCurrent = pDescriptor->pFirstGroup;
 	while (pCurrent) {
 		U16 nResultIdx;
+
+		// Add the locale to the configuration.
 		if (!openavbAemAddDescriptor(pCurrent->pLocale, nConfigIdx, &nResultIdx)) {
 			AVB_LOG_ERROR("Locale Add Descriptor Failure");
 			AVB_TRACE_EXIT(AVB_TRACE_AEM);
 			return false;
 		}
-		if (!openavbAemAddDescriptor(pCurrent->pStrings, nConfigIdx, &nResultIdx)) {
-			AVB_LOG_ERROR("Strings Add Descriptor Failure");
-			AVB_TRACE_EXIT(AVB_TRACE_AEM);
-			return false;
+
+		// Add the strings descriptor, if it hasn't already been added.
+		if (openavbAemGetDescriptorIndex(0xFFFF, pCurrent->pStrings) == AEM_INVALID_CONFIG_IDX) {
+			if (!openavbAemAddDescriptor(pCurrent->pStrings, 0xFFFF /* Not configuration-specific */, &nResultIdx)) {
+				AVB_LOG_ERROR("Strings Add Descriptor Failure");
+				AVB_TRACE_EXIT(AVB_TRACE_AEM);
+				return false;
+			}
 		}
 
 		pCurrent = pCurrent->pNext;
