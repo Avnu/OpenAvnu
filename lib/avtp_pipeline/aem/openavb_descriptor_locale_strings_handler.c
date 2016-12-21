@@ -187,8 +187,8 @@ extern DLL_EXPORT bool openavbAemDescriptorLocaleStringsHandlerAddToConfiguratio
 		}
 
 		// Add the strings descriptor, if it hasn't already been added.
-		if (openavbAemGetDescriptorIndex(0xFFFF, pCurrent->pStrings) == AEM_INVALID_CONFIG_IDX) {
-			if (!openavbAemAddDescriptor(pCurrent->pStrings, 0xFFFF /* Not configuration-specific */, &nResultIdx)) {
+		if (openavbAemGetDescriptorIndex(OPENAVB_AEM_DESCRIPTOR_INVALID, pCurrent->pStrings) == OPENAVB_AEM_DESCRIPTOR_INVALID) {
+			if (!openavbAemAddDescriptor(pCurrent->pStrings, OPENAVB_AEM_DESCRIPTOR_INVALID /* Not configuration-specific */, &nResultIdx)) {
 				AVB_LOG_ERROR("Strings Add Descriptor Failure");
 				AVB_TRACE_EXIT(AVB_TRACE_AEM);
 				return false;

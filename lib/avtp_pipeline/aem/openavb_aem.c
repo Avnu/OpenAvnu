@@ -96,7 +96,7 @@ openavbRC openavbAemAddDescriptorToConfiguration(U16 descriptorType, U16 configI
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_ENTITY_MODEL_MISSING), AVB_TRACE_AEM);
 	}
 
-	if (configIdx == AEM_INVALID_CONFIG_IDX) {
+	if (configIdx == OPENAVB_AEM_DESCRIPTOR_INVALID) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_INVALID_CONFIG_IDX), AVB_TRACE_AEM);
 	}
 	openavb_aem_configuration_t *pConfiguration = openavbArrayDataIdx(pAemEntityModel->aemConfigurations, configIdx);
@@ -152,7 +152,7 @@ openavb_array_t openavbAemGetDescriptorArray(U16 configIdx, U16 descriptorType)
 		// The configuration descriptor is a special descriptor and not return by this function. NULL will be returned.
 	}
 	else {
-		if (configIdx != AEM_INVALID_CONFIG_IDX) {
+		if (configIdx != OPENAVB_AEM_DESCRIPTOR_INVALID) {
 			openavb_aem_configuration_t *pConfig = openavbArrayDataIdx(pAemEntityModel->aemConfigurations, configIdx);
 			if (pConfig) {
 				retDescriptors = pConfig->descriptorsArray[descriptorType];
@@ -188,7 +188,7 @@ void *openavbAemFindDescriptor(U16 configIdx, U16 descriptorType, U16 descriptor
 		}
 	}
 	else if (descriptorType == OPENAVB_AEM_DESCRIPTOR_CONFIGURATION) {
-		if (configIdx != AEM_INVALID_CONFIG_IDX) {
+		if (configIdx != OPENAVB_AEM_DESCRIPTOR_INVALID) {
 			openavb_aem_configuration_t *pConfig = openavbArrayDataIdx(pAemEntityModel->aemConfigurations, configIdx);
 			if (pConfig &&
 					pConfig->pDescriptorConfiguration &&
@@ -199,7 +199,7 @@ void *openavbAemFindDescriptor(U16 configIdx, U16 descriptorType, U16 descriptor
 	}
 	else {
 		openavb_array_t descriptors = NULL;
-		if (configIdx != AEM_INVALID_CONFIG_IDX) {
+		if (configIdx != OPENAVB_AEM_DESCRIPTOR_INVALID) {
 			openavb_aem_configuration_t *pConfig = openavbArrayDataIdx(pAemEntityModel->aemConfigurations, configIdx);
 			if (pConfig) {
 				descriptors = pConfig->descriptorsArray[descriptorType];
@@ -406,13 +406,13 @@ extern DLL_EXPORT void *openavbAemGetDescriptor(U16 configIdx, U16 descriptorTyp
 	return retDescriptor;
 }
 
-U16 openavbAemGetDescriptorIndex(U16 configIdx, const void *pDescriptor)
+extern DLL_EXPORT U16 openavbAemGetDescriptorIndex(U16 configIdx, const void *pDescriptor)
 {
 	const openavb_aem_descriptor_common_t *pDescriptorCommon = pDescriptor;
 	U16 descriptorIdx = 0;
 	void * pTest;
 
-	if (!pDescriptorCommon) { return AEM_INVALID_CONFIG_IDX; }
+	if (!pDescriptorCommon) { return OPENAVB_AEM_DESCRIPTOR_INVALID; }
 
 	do {
 		pTest = openavbAemFindDescriptor(configIdx, pDescriptorCommon->descriptor_type, descriptorIdx);
@@ -420,7 +420,7 @@ U16 openavbAemGetDescriptorIndex(U16 configIdx, const void *pDescriptor)
 		descriptorIdx++;
 	} while (pTest != NULL);
 
-	return AEM_INVALID_CONFIG_IDX;
+	return OPENAVB_AEM_DESCRIPTOR_INVALID;
 }
 
 extern DLL_EXPORT bool openavbAemSetString(U8 *pMem, const char *pString)
