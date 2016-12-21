@@ -188,7 +188,7 @@ static bool checkIntfCallbacks(openavb_tl_cfg_t *pCfg)
 		// validCfg = FALSE;
 	}
 	if (!pCfg->intf_cb.intf_avdecc_init_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_avdecc_init'.");
+		//AVB_LOG_WARNING("INI file doesn't specify interface callback for '_avdecc_init'.");
 		// validCfg = FALSE;
 	}
 
@@ -240,7 +240,7 @@ static bool checkMapCallbacks(openavb_tl_cfg_t *pCfg)
 		// validCfg = FALSE;
 	}
 	if (!pCfg->map_cb.map_avdecc_init_cb) {
-		AVB_LOG_WARNING("INI doesn't specify mapping callback for '_avdecc_init'.");
+		//AVB_LOG_WARNING("INI doesn't specify mapping callback for '_avdecc_init'.");
 		// validCfg = FALSE;
 	}
 
