@@ -89,4 +89,6 @@ typedef struct {
 
 openavb_aem_descriptor_control_t *openavbAemDescriptorControlNew(void);
 
+bool openavbAemDescriptorDescriptorControlInitialize(openavb_aem_descriptor_control_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream);
+
 #endif // OPENAVB_DESCRIPTOR_CONTROL_PUB_H

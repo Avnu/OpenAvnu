@@ -237,3 +237,14 @@ extern DLL_EXPORT openavb_aem_descriptor_audio_unit_t *openavbAemDescriptorAudio
 	return pDescriptor;
 }
 
+extern DLL_EXPORT bool openavbAemDescriptorAudioUnitInitialize(openavb_aem_descriptor_audio_unit_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream)
+{
+	(void) nConfigIdx;
+	if (!pDescriptor || !stream) {
+		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
+	}
+
+	// AVDECC_TODO - Any updates needed?
+
+	return TRUE;
+}

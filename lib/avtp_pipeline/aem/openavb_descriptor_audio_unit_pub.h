@@ -77,4 +77,6 @@ typedef struct {
 
 openavb_aem_descriptor_audio_unit_t *openavbAemDescriptorAudioUnitNew(void);
 
+bool openavbAemDescriptorAudioUnitInitialize(openavb_aem_descriptor_audio_unit_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream);
+
 #endif // OPENAVB_DESCRIPTOR_AUDIO_UNIT_PUB_H

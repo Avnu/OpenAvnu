@@ -44,4 +44,6 @@ typedef struct {
 
 openavb_aem_descriptor_clock_domain_t *openavbAemDescriptorClockDomainNew(void);
 
+bool openavbAemDescriptorClockDomainInitialize(openavb_aem_descriptor_clock_domain_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream);
+
 #endif // OPENAVB_DESCRIPTOR_CLOCK_DOMAIN_PUB_H

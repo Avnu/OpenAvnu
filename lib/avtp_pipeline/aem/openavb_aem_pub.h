@@ -25,6 +25,9 @@
 #include "openavb_types_pub.h"
 #include "openavb_aem_types_pub.h"
 
+// This is defined elsewhere (such as openavb_endpoint.h).
+typedef struct clientStream_t clientStream_t;
+
 typedef struct openavb_descriptor_pvt *openavb_descriptor_pvt_ptr_t;
 
 // Before calling any Entity Model functions the AVDECC function openavbAVDECCInitialize() must be called with the Entity Descriptor.

@@ -61,4 +61,7 @@ typedef struct {
 openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStreamInputNew(void);
 openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStreamOutputNew(void);
 
+bool openavbAemDescriptorStreamInputInitialize(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream);
+bool openavbAemDescriptorStreamOutputInitialize(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream);
+
 #endif // OPENAVB_DESCRIPTOR_STREAM_IO_PUB_H

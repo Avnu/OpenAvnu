@@ -142,7 +142,7 @@ extern DLL_EXPORT openavb_aem_descriptor_external_port_io_t *openavbAemDescripto
 	}
 
 	pDescriptor->descriptorPvtPtr->size = sizeof(openavb_aem_descriptor_external_port_io_t);
-	pDescriptor->descriptorPvtPtr->bTopLevel = TRUE;
+	pDescriptor->descriptorPvtPtr->bTopLevel = FALSE;
 	pDescriptor->descriptorPvtPtr->toBuf = openavbAemDescriptorExternalPortIOToBuf;
 	pDescriptor->descriptorPvtPtr->fromBuf = openavbAemDescriptorExternalPortIOFromBuf;
 	pDescriptor->descriptorPvtPtr->update = openavbAemDescriptorExternalPortIOUpdate;
