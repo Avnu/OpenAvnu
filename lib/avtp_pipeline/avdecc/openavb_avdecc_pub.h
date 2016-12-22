@@ -64,6 +64,8 @@ typedef struct {
 
 	bool bListener;
 	bool bTalker;
+	bool bClassASupported;
+	bool bClassBSupported;
 
 	U16 vlanID;
 	U8 vlanPCP;
@@ -85,8 +87,21 @@ typedef struct {
 	openavb_aem_descriptor_locale_strings_handler_t *pAemDescriptorLocaleStringsHandler;
 } openavb_avdecc_cfg_t;
 
-// This is defined elsewhere (such as openavb_endpoint.h).
+// clientStream_t is defined in openavb_endpoint.h.
 typedef struct clientStream_t clientStream_t;
+
+typedef struct openavb_avdecc_configuration_cfg {
+	struct openavb_avdecc_configuration_cfg *next; // next link list pointer
+
+	// Pointer to the endpoint clientStream_t information.
+	const clientStream_t *stream;
+
+	// Friendly name
+	char friendly_name[OPENAVB_AEM_STRLEN_MAX];
+
+	// AVDECC_TODO:  Add additional information as needed.
+
+} openavb_avdecc_configuration_cfg_t;
 
 
 // General initialization for AVDECC. This must be called before any other AVDECC APIs including AEM APIs

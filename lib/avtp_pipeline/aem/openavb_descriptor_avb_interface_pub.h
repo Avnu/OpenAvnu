@@ -51,6 +51,6 @@ typedef struct {
 
 openavb_aem_descriptor_avb_interface_t *openavbAemDescriptorAvbInterfaceNew(void);
 
-bool openavbAemDescriptorAvbInterfaceInitialize(openavb_aem_descriptor_avb_interface_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream);
+bool openavbAemDescriptorAvbInterfaceInitialize(openavb_aem_descriptor_avb_interface_t *pDescriptor, U16 nConfigIdx, const openavb_avdecc_configuration_cfg_t *pConfig);
 
 #endif // OPENAVB_DESCRIPTOR_AVB_INTERFACE_PUB_H

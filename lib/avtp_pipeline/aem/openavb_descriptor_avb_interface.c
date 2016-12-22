@@ -192,10 +192,10 @@ extern DLL_EXPORT openavb_aem_descriptor_avb_interface_t *openavbAemDescriptorAv
 	return pDescriptor;
 }
 
-extern DLL_EXPORT bool openavbAemDescriptorAvbInterfaceInitialize(openavb_aem_descriptor_avb_interface_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream)
+extern DLL_EXPORT bool openavbAemDescriptorAvbInterfaceInitialize(openavb_aem_descriptor_avb_interface_t *pDescriptor, U16 nConfigIdx, const openavb_avdecc_configuration_cfg_t *pConfig)
 {
 	(void) nConfigIdx;
-	if (!pDescriptor || !stream) {
+	if (!pDescriptor || !pConfig) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 

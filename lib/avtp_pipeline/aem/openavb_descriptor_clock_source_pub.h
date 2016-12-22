@@ -43,6 +43,6 @@ typedef struct {
 
 openavb_aem_descriptor_clock_source_t *openavbAemDescriptorClockSourceNew(void);
 
-bool openavbAemDescriptorClockSourceInitialize(openavb_aem_descriptor_clock_source_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream);
+bool openavbAemDescriptorClockSourceInitialize(openavb_aem_descriptor_clock_source_t *pDescriptor, U16 nConfigIdx, const openavb_avdecc_configuration_cfg_t *pConfig);
 
 #endif // OPENAVB_DESCRIPTOR_CLOCK_SOURCE_PUB_H

@@ -43,7 +43,7 @@ typedef struct {
 openavb_aem_descriptor_jack_io_t *openavbAemDescriptorJackInputNew(void);
 openavb_aem_descriptor_jack_io_t *openavbAemDescriptorJackOutputNew(void);
 
-bool openavbAemDescriptorJackInputInitialize(openavb_aem_descriptor_jack_io_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream);
-bool openavbAemDescriptorJackOutputInitialize(openavb_aem_descriptor_jack_io_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream);
+bool openavbAemDescriptorJackInputInitialize(openavb_aem_descriptor_jack_io_t *pDescriptor, U16 nConfigIdx, const openavb_avdecc_configuration_cfg_t *pConfig);
+bool openavbAemDescriptorJackOutputInitialize(openavb_aem_descriptor_jack_io_t *pDescriptor, U16 nConfigIdx, const openavb_avdecc_configuration_cfg_t *pConfig);
 
 #endif // OPENAVB_DESCRIPTOR_JACK_IO_PUB_H

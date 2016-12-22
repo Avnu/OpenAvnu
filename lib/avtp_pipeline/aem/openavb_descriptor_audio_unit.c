@@ -237,14 +237,29 @@ extern DLL_EXPORT openavb_aem_descriptor_audio_unit_t *openavbAemDescriptorAudio
 	return pDescriptor;
 }
 
-extern DLL_EXPORT bool openavbAemDescriptorAudioUnitInitialize(openavb_aem_descriptor_audio_unit_t *pDescriptor, U16 nConfigIdx, const clientStream_t *stream)
+extern DLL_EXPORT bool openavbAemDescriptorAudioUnitInitialize(openavb_aem_descriptor_audio_unit_t *pDescriptor, U16 nConfigIdx, const openavb_avdecc_configuration_cfg_t *pConfig)
 {
 	(void) nConfigIdx;
-	if (!pDescriptor || !stream) {
+	if (!pDescriptor || !pConfig) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
-	// AVDECC_TODO - Any updates needed?
+	// Add the port information.
+	if (pConfig->stream->role == clientTalker) {
+		// There will be one stream output port.
+		pDescriptor->number_of_stream_output_ports = 1;
+		pDescriptor->base_stream_output_port = 0;
+	}
+	else if (pConfig->stream->role == clientListener) {
+		// There will be one stream input port.
+		pDescriptor->number_of_stream_input_ports = 1;
+		pDescriptor->base_stream_input_port = 0;
+	}
+	// AVDECC_TODO - Once implemented, add support for External and Internal ports.
+
+	// AVDECC_TODO - Once implemented, add support for mixers, matrices, splitters, combiners, demultiplexers, multiplexers, transcoders, and control blocks.
+
+	// AVDECC_TODO - Add the sample rate information.  Should this be done in openavbAemDescriptorAudioUnitUpdate() instead?
 
 	return TRUE;
 }

@@ -27,6 +27,7 @@
 #include "openavb_aem_pub.h"
 #include "openavb_types_pub.h"
 #include "openavb_result_codes.h"
+#include "openavb_endpoint.h"
 
 typedef openavbRC (*openavb_aem_descriptor_to_buf_t)(void *pVoidDescriptor, U16 bufLength, U8 *pBuf, U16 *descriptorSize);
 typedef openavbRC (*openavb_aem_descriptor_from_buf_t)(void *pVoidDescriptor, U16 bufLength, U8 *pBuf);
