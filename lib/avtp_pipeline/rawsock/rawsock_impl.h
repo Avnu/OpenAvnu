@@ -75,7 +75,7 @@ typedef struct {
 	bool (*txSetMark)(void* rawsock, int prio);
 	U8* (*getTxFrame)(void* rawsock, bool blocking, U32* size);
 	bool (*relTxFrame)(void* rawsock, U8* pBuffer);
-	bool (*txFrameReady)(void* rawsock, U8* pFrame, U32 len);
+	bool (*txFrameReady)(void* rawsock, U8* pFrame, U32 len, U64 timeNsec);
 	int (*send)(void* rawsock);
 	int (*txBufLevel)(void* rawsock);
 	int (*rxBufLevel)(void* rawsock);

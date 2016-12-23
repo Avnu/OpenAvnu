@@ -295,6 +295,12 @@ int msrp_event(int event, struct msrp_attribute *rattrib) {
 	}
 	if (test_state.forward_msrp_events) {
 		msrp_event_orig(event, rattrib);
+	} else {
+		/* RLA event has free embedded in the packet processing for some reason */
+		if (MRP_EVENT_RLA != event) {
+			/* if rattrib is not forwarded to MSRP stack, need to free it */
+			free(rattrib);
+		}
 	}
 	return 0;
 }

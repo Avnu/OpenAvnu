@@ -97,11 +97,12 @@ int main(int argc, char *argv[])
     fprintf(stdout, "ml freq offset %Lf\n", ptpData->ml_freqoffset);
     fprintf(stdout, "ls phoffset %ld\n", ptpData->ls_phoffset);
     fprintf(stdout, "ls freq offset %Lf\n", ptpData->ls_freqoffset);
-    fprintf(stdout, "local time %lu\n", ptpData->local_time);
+    fprintf(stdout, "local time %llu\n", ptpData->local_time);
     fprintf(stdout, "sync count %u\n", ptpData->sync_count);
     fprintf(stdout, "pdelay count %u\n", ptpData->pdelay_count);
     fprintf(stdout, "asCapable %s\n", ptpData->asCapable ? "True" : "False");
     fprintf(stdout, "Port State %d\n", (int)ptpData->port_state);
+    fprintf(stdout, "process_id %d\n", (int)ptpData->process_id);
 
     return 0;
 }

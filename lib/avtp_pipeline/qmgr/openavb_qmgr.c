@@ -122,7 +122,7 @@ static bool setupHWQueue(int nClass, unsigned classBytesPerSec)
  */
 U16 openavbQmgrAddStream(SRClassIdx_t nClass, unsigned classRate, unsigned maxIntervalFrames, unsigned maxFrameSize)
 {
-	unsigned fullFrameSize = maxFrameSize + OPENAVB_AVTP_ETHER_FRAME_OVERHEAD;
+	unsigned fullFrameSize = maxFrameSize + OPENAVB_AVTP_ETHER_FRAME_OVERHEAD + 1;
 	unsigned long streamBytesPerSec = fullFrameSize * maxIntervalFrames * classRate;
 	int idx, nStream;
 	U16 fwmark = INVALID_FWMARK;

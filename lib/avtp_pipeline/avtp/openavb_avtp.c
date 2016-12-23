@@ -324,15 +324,37 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			AVB_RC_LOG_TRACE_RET(rc, AVB_TRACE_AVTP_DETAIL);
 		}
 
-		if (!txBlockingInIntf) {
-		// Call interface module to read data
-		pStream->pIntfCB->intf_tx_cb(pStream->pMediaQ);
-		// Call mapping module to move data into AVTP frame
-		txCBResult = pStream->pMapCB->map_tx_cb(pStream->pMediaQ, pAvtpFrame, &avtpFrameLen);
+		U64 timeNsec = 0;
 
-		pStream->bytes += avtpFrameLen;
+		if (!txBlockingInIntf) {
+			// Call interface module to read data
+			pStream->pIntfCB->intf_tx_cb(pStream->pMediaQ);
+
+#if IGB_LAUNCHTIME_ENABLED
+			// lets get unmodified timestamp from mediaq item about to be sent by mapping
+			media_q_item_t* item = openavbMediaQTailLock(pStream->pMediaQ, true);
+			if (item) {
+				timeNsec = item->pAvtpTime->timeNsec;
+				openavbMediaQTailUnlock(pStream->pMediaQ);
+			}
+#endif
+
+			// Call mapping module to move data into AVTP frame
+			txCBResult = pStream->pMapCB->map_tx_cb(pStream->pMediaQ, pAvtpFrame, &avtpFrameLen);
+		
+			pStream->bytes += avtpFrameLen;
 		}
 		else {
+
+#if IGB_LAUNCHTIME_ENABLED
+			// lets get unmodified timestamp from mediaq item about to be sent by mapping
+			media_q_item_t* item = openavbMediaQTailLock(pStream->pMediaQ, true);
+			if (item) {
+				timeNsec = item->pAvtpTime->timeNsec;
+				openavbMediaQTailUnlock(pStream->pMediaQ);
+			}
+#endif
+
 			// Blocking in interface mode. Pull from media queue for tx first
 			if ((txCBResult = pStream->pMapCB->map_tx_cb(pStream->pMediaQ, pAvtpFrame, &avtpFrameLen)) == TX_CB_RET_PACKET_NOT_READY) {
 				// Call interface module to read data
@@ -353,7 +375,7 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			// Increment the sequence number now that we are sure this is a good packet.
 			pStream->avtp_sequence_num++;
 			// Mark the frame "ready to send".
-			openavbRawsockTxFrameReady(pStream->rawsock, pStream->pBuf, avtpFrameLen + pStream->ethHdrLen);
+			openavbRawsockTxFrameReady(pStream->rawsock, pStream->pBuf, avtpFrameLen + pStream->ethHdrLen, timeNsec);
 			// Send if requested
 			if (bSend)
 				openavbRawsockSend(pStream->rawsock);

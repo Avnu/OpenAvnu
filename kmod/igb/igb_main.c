@@ -361,6 +361,10 @@ static int debug = NETIF_MSG_DRV | NETIF_MSG_PROBE;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none, ..., 16=all)");
 
+
+static int tx_size = 256; /*default value*/
+module_param(tx_size, int, 0);
+MODULE_PARM_DESC(tx_size, "Tx Ring size passed in insmod parameter");
 /**
  * igb_init_module - Driver Registration Routine
  *
@@ -3237,7 +3241,8 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
 
 	/* set default ring sizes */
-	adapter->tx_ring_count = IGB_DEFAULT_TXD;
+	adapter->tx_ring_count = tx_size;
+	printk(KERN_INFO "igb_avb adapter->tx_ring_size %d", tx_size);
 	adapter->rx_ring_count = IGB_DEFAULT_RXD;
 
 	/* set default work limits */
@@ -6049,6 +6054,81 @@ void igb_update_stats(struct igb_adapter *adapter)
 	}
 }
 
+static void igb_tsync_interrupt(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct ptp_clock_event event;
+	struct timespec64 ts;
+	u32 ack = 0, tsauxc, sec, nsec, tsicr = E1000_READ_REG(hw, E1000_TSICR);
+
+	if (tsicr & TSINTR_SYS_WRAP) {
+		event.type = PTP_CLOCK_PPS;
+		if (adapter->ptp_caps.pps)
+			ptp_clock_event(adapter->ptp_clock, &event);
+		else
+			dev_err(&adapter->pdev->dev, "unexpected SYS WRAP");
+		ack |= TSINTR_SYS_WRAP;
+	}
+
+	if (tsicr & E1000_TSICR_TXTS) {
+		/* retrieve hardware timestamp */
+		schedule_work(&adapter->ptp_tx_work);
+		ack |= E1000_TSICR_TXTS;
+	}
+
+	if (tsicr & TSINTR_TT0) {
+		spin_lock(&adapter->tmreg_lock);
+		ts = timespec64_add(adapter->perout[0].start,
+				    adapter->perout[0].period);
+		/* u32 conversion of tv_sec is safe until y2106 */
+		E1000_WRITE_REG(hw, E1000_TRGTTIML0, ts.tv_nsec);
+		E1000_WRITE_REG(hw, E1000_TRGTTIMH0, (u32)ts.tv_sec);
+		tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+		tsauxc |= TSAUXC_EN_TT0;
+		E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+		adapter->perout[0].start = ts;
+		spin_unlock(&adapter->tmreg_lock);
+		ack |= TSINTR_TT0;
+	}
+
+	if (tsicr & TSINTR_TT1) {
+		spin_lock(&adapter->tmreg_lock);
+		ts = timespec64_add(adapter->perout[1].start,
+				    adapter->perout[1].period);
+		E1000_WRITE_REG(hw, E1000_TRGTTIML1, ts.tv_nsec);
+		E1000_WRITE_REG(hw, E1000_TRGTTIMH1, (u32)ts.tv_sec);
+		tsauxc = E1000_READ_REG(hw, E1000_TSAUXC);
+		tsauxc |= TSAUXC_EN_TT1;
+		E1000_WRITE_REG(hw, E1000_TSAUXC, tsauxc);
+		adapter->perout[1].start = ts;
+		spin_unlock(&adapter->tmreg_lock);
+		ack |= TSINTR_TT1;
+	}
+
+	if (tsicr & TSINTR_AUTT0) {
+		nsec = E1000_READ_REG(hw, E1000_AUXSTMPL0);
+		sec  = E1000_READ_REG(hw, E1000_AUXSTMPH0);
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = 0;
+		event.timestamp = sec * 1000000000ULL + nsec;
+		ptp_clock_event(adapter->ptp_clock, &event);
+		ack |= TSINTR_AUTT0;
+	}
+
+	if (tsicr & TSINTR_AUTT1) {
+		nsec = E1000_READ_REG(hw, E1000_AUXSTMPL1);
+		sec  = E1000_READ_REG(hw, E1000_AUXSTMPH1);
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = 1;
+		event.timestamp = sec * 1000000000ULL + nsec;
+		ptp_clock_event(adapter->ptp_clock, &event);
+		ack |= TSINTR_AUTT1;
+	}
+
+	/* acknowledge the interrupts */
+	E1000_WRITE_REG(hw, E1000_TSICR, ack);
+}
+
 static irqreturn_t igb_msix_other(int irq, void *data)
 {
 	struct igb_adapter *adapter = data;
@@ -6081,16 +6161,8 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 	}
 
 #ifdef HAVE_PTP_1588_CLOCK
-	if (icr & E1000_ICR_TS) {
-		u32 tsicr = E1000_READ_REG(hw, E1000_TSICR);
-
-		if (tsicr & E1000_TSICR_TXTS) {
-			/* acknowledge the interrupt */
-			E1000_WRITE_REG(hw, E1000_TSICR, E1000_TSICR_TXTS);
-			/* retrieve hardware timestamp */
-			schedule_work(&adapter->ptp_tx_work);
-		}
-	}
+	if (icr & E1000_ICR_TS)
+		igb_tsync_interrupt(adapter);
 #endif /* HAVE_PTP_1588_CLOCK */
 
 	/* Check for MDD event */
@@ -6999,16 +7071,8 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 	}
 
 #ifdef HAVE_PTP_1588_CLOCK
-	if (icr & E1000_ICR_TS) {
-		u32 tsicr = E1000_READ_REG(hw, E1000_TSICR);
-
-		if (tsicr & E1000_TSICR_TXTS) {
-			/* acknowledge the interrupt */
-			E1000_WRITE_REG(hw, E1000_TSICR, E1000_TSICR_TXTS);
-			/* retrieve hardware timestamp */
-			schedule_work(&adapter->ptp_tx_work);
-		}
-	}
+	if (icr & E1000_ICR_TS)
+		igb_tsync_interrupt(adapter);
 #endif /* HAVE_PTP_1588_CLOCK */
 
 	napi_schedule(&q_vector->napi);
@@ -7055,16 +7119,8 @@ static irqreturn_t igb_intr(int irq, void *data)
 	}
 
 #ifdef HAVE_PTP_1588_CLOCK
-	if (icr & E1000_ICR_TS) {
-		u32 tsicr = E1000_READ_REG(hw, E1000_TSICR);
-
-		if (tsicr & E1000_TSICR_TXTS) {
-			/* acknowledge the interrupt */
-			E1000_WRITE_REG(hw, E1000_TSICR, E1000_TSICR_TXTS);
-			/* retrieve hardware timestamp */
-			schedule_work(&adapter->ptp_tx_work);
-		}
-	}
+	if (icr & E1000_ICR_TS)
+		igb_tsync_interrupt(adapter);
 #endif /* HAVE_PTP_1588_CLOCK */
 
 	napi_schedule(&q_vector->napi);

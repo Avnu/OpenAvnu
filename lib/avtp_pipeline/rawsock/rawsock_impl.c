@@ -43,7 +43,7 @@ bool baseRawsockRxAVTPSubtype(void *rawsock, U8 subtype) { return false; }
 bool baseRawsockTxSetMark(void *rawsock, int prio) { return false; }
 U8 *baseRawsockGetTxFrame(void *rawsock, bool blocking, U32 *size) { return NULL; }
 bool baseRawsockRelTxFrame(void *rawsock, U8 *pBuffer) { return false; }
-bool baseRawsockTxFrameReady(void *rawsock, U8 *pFrame, U32 len) { return false; }
+bool baseRawsockTxFrameReady(void *rawsock, U8 *pFrame, U32 len, U64 timeNsec) { return false; }
 int baseRawsockSend(void *rawsock) { return -1; }
 int baseRawsockTxBufLevel(void *rawsock) { return -1; }
 int baseRawsockRxBufLevel(void *rawsock) { return -1; }
@@ -273,11 +273,11 @@ bool openavbRawsockRelTxFrame(void *pvRawsock, U8 *pBuffer)
 	return ret;
 }
 
-bool openavbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
+bool openavbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
 
-	bool ret = ((base_rawsock_t*)pvRawsock)->cb.txFrameReady(pvRawsock, pBuffer, len);
+	bool ret = ((base_rawsock_t*)pvRawsock)->cb.txFrameReady(pvRawsock, pBuffer, len, timeNsec);
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 	return ret;
