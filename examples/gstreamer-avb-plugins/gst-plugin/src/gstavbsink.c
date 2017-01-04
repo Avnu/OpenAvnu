@@ -270,7 +270,7 @@ void * read_start_feed(void *arg)
 		if (n > 0) {
 			sscanf(buf, "%d", &g_start_feeding);
 			printf("\nTransmitter status: %d", g_start_feeding);
-			if (g_start_feed_socket == 2) {
+			if (g_start_feeding == 2) {
 				listeners = 0;
 				halt_tx = 1;
 				/* disable Qav */
