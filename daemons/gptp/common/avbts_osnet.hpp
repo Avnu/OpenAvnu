@@ -127,7 +127,7 @@ class LinkLayerAddress:public InterfaceLabel {
 	 */
 	bool operator>(const LinkLayerAddress & cmp)const {
 		return memcmp
-			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) < 0 ? true : false;
+			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) > 0 ? true : false;
 	}
 
 	/**
@@ -202,7 +202,7 @@ class InterfaceName: public InterfaceLabel {
 	 * @return TRUE if the interface name is found to be greater than cmd. FALSE otherwise
 	 */
 	bool operator>(const InterfaceName & cmp)const {
-		return strcmp(name, cmp.name) < 0 ? true : false;
+		return strcmp(name, cmp.name) > 0 ? true : false;
 	}
 
 	/**
