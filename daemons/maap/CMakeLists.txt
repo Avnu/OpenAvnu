@@ -22,6 +22,17 @@ if(UNIX)
   include_directories( ${OsDir} )
   add_executable(maap_daemon ${ComSource} ${OsSource})
   target_link_libraries(maap_daemon rt pthread)
+elseif(WIN32)
+  set (OsDir "./windows/src")
+  set (OsSource
+    "${OsDir}/maap_main.c"
+    "${OsDir}/maap_log_windows.c"
+    "${OsDir}/maap_timer_windows.c"
+  )
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS -DHAVE_REMOTE)
+  include_directories( ${OsDir} )
+  add_executable(maap_daemon ${ComSource} ${OsSource})
+  target_link_libraries(maap_daemon ws2_32)
 endif()
 
 add_subdirectory("test")

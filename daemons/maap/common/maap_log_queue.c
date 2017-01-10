@@ -53,10 +53,10 @@ struct maap_log_queue {
 	uint32_t queueSize;
 
 	// Next element to be filled
-	int head;
+	uint32_t head;
 
 	// Next element to be pulled
-	int tail;
+	uint32_t tail;
 
 	maap_log_queue_elem_t elemArray;
 };

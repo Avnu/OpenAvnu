@@ -31,7 +31,7 @@ elseif(WIN32)
 
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
   add_executable (maap_test ${MAAP_SRC} ${MAAP_TEST_SRC} ${CPPUTEST_SRC} )
-  target_link_libraries(maap_test CppUTest CppUTestExt)
+  target_link_libraries(maap_test CppUTest CppUTestExt Ws2_32 Winmm)
 endif()
 
 add_test( maap_test maap_test )

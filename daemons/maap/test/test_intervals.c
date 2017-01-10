@@ -3,11 +3,17 @@
 #include <time.h>
 #include "intervals.h"
 
-#define INTERVALS_TO_ADD 1000
-#define INTERVALS_TO_REPLACE 100000
-#define INTERVALS_TO_SEARCH 10000
+#ifdef _WIN32
+/* Windows-specific header values */
+#define random() rand()
+#define srandom(s) srand(s)
+#endif
 
-int last_high = 0;
+#define INTERVALS_TO_ADD     1000
+#define INTERVALS_TO_REPLACE 100000
+#define INTERVALS_TO_SEARCH  10000
+
+uint32_t last_high = 0;
 int total = 0;
 
 void print_node(Interval *node) {
@@ -25,8 +31,7 @@ int main(void) {
   Interval *set = NULL, *inter, *over, *prev;
   int i, rv, count;
 
-  time((time_t *)&i);
-  srandom(i);
+  srandom((unsigned int) time(NULL));
 
   printf("Testing duplicate values\n");
   inter = alloc_interval(1, 10);
@@ -93,8 +98,8 @@ int main(void) {
 
   /* Test that searches always return the first match */
   for (i = 0; i < INTERVALS_TO_SEARCH; i++) {
-	int search_base = random() % 0xfffff;
-	int search_size = random() % 2048 + 1;
+	uint32_t search_base = random() % 0xfffff;
+	uint32_t search_size = random() % 2048 + 1;
     inter = search_interval(set, search_base, search_size);
     if (inter && !interval_check_overlap(inter, search_base, search_size)) {
       fprintf(stderr, "Error:  Search compare failure\n");

@@ -200,27 +200,21 @@ void maapLogBuffer(
 	int line);
 
 
-#define maapLogFn2(level, tag, company, component, path, line, fmt, ...) \
-    ({\
-        if (level <= MAAP_LOG_LEVEL) \
-            maapLogFn(0, tag, company, component, path, line, fmt, __VA_ARGS__); \
-    })
-
 #ifdef MAAP_LOG_ON
-#define MAAP_LOGF_DEV(LEVEL, FMT, ...) maapLogFn2(LEVEL,                 "DEV",     MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
-#define MAAP_LOGF_ERROR(FMT, ...)      maapLogFn2(MAAP_LOG_LEVEL_ERROR,   "ERROR",   MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
-#define MAAP_LOGF_WARNING(FMT, ...)    maapLogFn2(MAAP_LOG_LEVEL_WARNING, "WARNING", MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
-#define MAAP_LOGF_INFO(FMT, ...)       maapLogFn2(MAAP_LOG_LEVEL_INFO,    "INFO",    MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
-#define MAAP_LOGF_STATUS(FMT, ...)     maapLogFn2(MAAP_LOG_LEVEL_STATUS,  "STATUS",  MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
-#define MAAP_LOGF_DEBUG(FMT, ...)      maapLogFn2(MAAP_LOG_LEVEL_DEBUG,   "DEBUG",   MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
-#define MAAP_LOGF_VERBOSE(FMT, ...)    maapLogFn2(MAAP_LOG_LEVEL_VERBOSE, "VERBOSE", MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
-#define MAAP_LOG_DEV(LEVEL, MSG)       maapLogFn2(LEVEL,                  "DEV",     MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
-#define MAAP_LOG_ERROR(MSG)            maapLogFn2(MAAP_LOG_LEVEL_ERROR,   "ERROR",   MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
-#define MAAP_LOG_WARNING(MSG)          maapLogFn2(MAAP_LOG_LEVEL_WARNING, "WARNING", MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
-#define MAAP_LOG_INFO(MSG)             maapLogFn2(MAAP_LOG_LEVEL_INFO,    "INFO",    MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
-#define MAAP_LOG_STATUS(MSG)           maapLogFn2(MAAP_LOG_LEVEL_STATUS,  "STATUS",  MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
-#define MAAP_LOG_DEBUG(MSG)            maapLogFn2(MAAP_LOG_LEVEL_DEBUG,   "DEBUG",   MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
-#define MAAP_LOG_VERBOSE(MSG)          maapLogFn2(MAAP_LOG_LEVEL_VERBOSE, "VERBOSE", MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
+#define MAAP_LOGF_DEV(LEVEL, FMT, ...) do { if (LEVEL <= MAAP_LOG_LEVEL)                  maapLogFn(0, "DEV",     MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__); } while(0)
+#define MAAP_LOGF_ERROR(FMT, ...)      do { if (MAAP_LOG_LEVEL_ERROR <= MAAP_LOG_LEVEL)   maapLogFn(0, "ERROR",   MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__); } while(0)
+#define MAAP_LOGF_WARNING(FMT, ...)    do { if (MAAP_LOG_LEVEL_WARNING <= MAAP_LOG_LEVEL) maapLogFn(0, "WARNING", MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__); } while(0)
+#define MAAP_LOGF_INFO(FMT, ...)       do { if (MAAP_LOG_LEVEL_INFO <= MAAP_LOG_LEVEL)    maapLogFn(0, "INFO",    MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__); } while(0)
+#define MAAP_LOGF_STATUS(FMT, ...)     do { if (MAAP_LOG_LEVEL_STATUS <= MAAP_LOG_LEVEL)  maapLogFn(0, "STATUS",  MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__); } while(0)
+#define MAAP_LOGF_DEBUG(FMT, ...)      do { if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL)   maapLogFn(0, "DEBUG",   MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__); } while(0)
+#define MAAP_LOGF_VERBOSE(FMT, ...)    do { if (MAAP_LOG_LEVEL_VERBOSE <= MAAP_LOG_LEVEL) maapLogFn(0, "VERBOSE", MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__); } while(0)
+#define MAAP_LOG_DEV(LEVEL, MSG)       do { if (LEVEL <= MAAP_LOG_LEVEL)                  maapLogFn(0, "DEV",     MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG); } while(0)
+#define MAAP_LOG_ERROR(MSG)            do { if (MAAP_LOG_LEVEL_ERROR <= MAAP_LOG_LEVEL)   maapLogFn(0, "ERROR",   MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG); } while(0)
+#define MAAP_LOG_WARNING(MSG)          do { if (MAAP_LOG_LEVEL_WARNING <= MAAP_LOG_LEVEL) maapLogFn(0, "WARNING", MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG); } while(0)
+#define MAAP_LOG_INFO(MSG)             do { if (MAAP_LOG_LEVEL_INFO <= MAAP_LOG_LEVEL)    maapLogFn(0, "INFO",    MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG); } while(0)
+#define MAAP_LOG_STATUS(MSG)           do { if (MAAP_LOG_LEVEL_STATUS <= MAAP_LOG_LEVEL)  maapLogFn(0, "STATUS",  MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG); } while(0)
+#define MAAP_LOG_DEBUG(MSG)            do { if (MAAP_LOG_LEVEL_DEBUG <= MAAP_LOG_LEVEL)   maapLogFn(0, "DEBUG",   MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG); } while(0)
+#define MAAP_LOG_VERBOSE(MSG)          do { if (MAAP_LOG_LEVEL_VERBOSE <= MAAP_LOG_LEVEL) maapLogFn(0, "VERBOSE", MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG); } while(0)
 #define MAAP_LOGRT_ERROR(BEGIN, ITEM, END, FMT, TYPE, VAL)	maapLogRT(MAAP_LOG_LEVEL_ERROR, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define MAAP_LOGRT_WARNING(BEGIN, ITEM, END, FMT, TYPE, VAL)	maapLogRT(MAAP_LOG_LEVEL_WARNING, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define MAAP_LOGRT_INFO(BEGIN, ITEM, END, FMT, TYPE, VAL)	maapLogRT(MAAP_LOG_LEVEL_INFO, BEGIN, ITEM, END, FMT, TYPE, VAL)

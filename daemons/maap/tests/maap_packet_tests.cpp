@@ -134,7 +134,6 @@ TEST(maap_packet_group, Unpack)
 TEST(maap_packet_group, Pack)
 {
 	uint8_t buffer[42] = {0};
-	MAAP_Packet result;
 
 	pack_maap(&test_packet, buffer);
 	LONGS_EQUAL(0, memcmp(test_stream, buffer, 42));

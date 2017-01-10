@@ -113,7 +113,7 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf, Maap_Output_Type
     rv = 1;
     break;
   default:
-    bzero(&cmd, sizeof (Maap_Cmd));
+    memset(&cmd, 0, sizeof (Maap_Cmd));
     rv = parse_text_cmd(buf, &cmd);
     break;
   }

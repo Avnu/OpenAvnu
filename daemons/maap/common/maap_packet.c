@@ -1,5 +1,8 @@
 #include <assert.h>
 #include <string.h>
+#ifdef _WIN32
+#include "Winsock2.h"
+#endif
 #include "maap.h"
 #include "maap_packet.h"
 
@@ -85,7 +88,7 @@ int pack_maap(const MAAP_Packet *packet, uint8_t *stream) {
   memcpy(stream, &tmp16, 2);
   stream += 2;
 
-  tmp8 = packet->subtype;
+  tmp8 = (uint8_t) packet->subtype;
   *stream = tmp8;
   stream++;
 

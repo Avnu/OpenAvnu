@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "intervals.h"
 
-static inline int check_overlap(Interval *a, Interval *b) {
+static int check_overlap(Interval *a, Interval *b) {
   return (a->low <= b->high && b->low <= a->high);
 }
 
@@ -16,7 +16,7 @@ Interval *alloc_interval(uint32_t start, uint32_t count) {
 }
 
 void free_interval(Interval *node) {
-  return free(node);
+  free(node);
 }
 
 int insert_interval(Interval **root, Interval *node) {
