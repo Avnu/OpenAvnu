@@ -10,6 +10,12 @@ extern "C" {
 #include "../test/maap_log_dummy.h"
 #include "../test/maap_timer_dummy.h"
 
+#ifdef _WIN32
+	/* Windows-specific header values */
+#define random() rand()
+#define srandom(s) srand(s)
+#endif
+
 #define TEST_DEST_ADDR 0x91E0F000FF00
 #define TEST_SRC_ADDR  0x123456789abc
 
@@ -28,7 +34,7 @@ static void verify_sent_packets(Maap_Client *p_mc, Maap_Notify *p_mn,
 {
 	void setup() {
 		/* Try a variety of "random" values over subsequent tests. */
-		srand(time(NULL));
+		srandom((unsigned int) time(NULL));
 	}
 
 	void teardown() {
@@ -667,7 +673,6 @@ TEST(maap_group, Defending_vs_Announces)
 	uint32_t range_reserved_count;
 	int probe_packets_detected, announce_packets_detected;
 	void *packet_data = NULL;
-	MAAP_Packet packet_contents;
 	MAAP_Packet announce_packet;
 	uint8_t announce_buffer[MAAP_NET_BUFFER_SIZE];
 
@@ -794,7 +799,6 @@ TEST(maap_group, Defending_vs_Defends)
 	uint32_t range_reserved_count;
 	int probe_packets_detected, announce_packets_detected;
 	void *packet_data = NULL;
-	MAAP_Packet packet_contents;
 	MAAP_Packet defend_packet;
 	uint8_t defend_buffer[MAAP_NET_BUFFER_SIZE];
 

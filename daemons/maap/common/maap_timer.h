@@ -47,7 +47,7 @@ void Time_setTimer(Timer *timer, const Time *t);
  *
  * @param timer The timer to test
  *
- * @return The number of nanoseconds remaining on the timer, or -1 if an error occurred.
+ * @return The number of nanoseconds remaining on the timer, 0 if the timer has expired, or -1 if an error occurred.
  */
 int64_t Time_remaining(Timer *timer);
 

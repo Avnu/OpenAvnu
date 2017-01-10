@@ -9,8 +9,14 @@
 #include <ctype.h>
 #include <assert.h>
 
+#ifdef _WIN32
+/* Windows-specific header values */
+#define random() rand()
+#define srandom(s) srand(s)
+#else
 /* Linux-specific header files */
 #include <linux/if_ether.h>
+#endif
 
 #define MAAP_LOG_COMPONENT "Main"
 #include "maap_log.h"
@@ -218,7 +224,7 @@ static void start_timer(Maap_Client *mc) {
   }
 }
 
-static Interval *remove_range_interval(Interval **root, Interval *node) {
+static void remove_range_interval(Interval **root, Interval *node) {
   Range *old_range = node->data;
   Interval *free_inter, *test_inter;
 
@@ -661,7 +667,7 @@ static int assign_interval(Maap_Client *mc, Range *range, uint64_t attempt_base,
   if (attempt_base >= mc->address_base &&
       attempt_base + len - 1 <= mc->address_base + mc->range_len - 1)
   {
-    iv = alloc_interval(attempt_base - mc->address_base, len);
+    iv = alloc_interval((uint32_t) (attempt_base - mc->address_base), len);
     assert(iv->high <= range_max);
     rv = insert_interval(&mc->ranges, iv);
     if (rv == INTERVAL_OVERLAP) {
@@ -875,7 +881,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 
   /* Flag all the range items that overlap with the incoming packet. */
   num_overlaps = 0;
-  start = (uint64_t)p.requested_start_address - mc->address_base;
+  start = (uint32_t) (p.requested_start_address - mc->address_base);
   for (iv = search_interval(mc->ranges, start, p.requested_count); iv != NULL && interval_check_overlap(iv, start, p.requested_count); iv = next_interval(iv)) {
     range = iv->data;
     range->overlapping = 1;
