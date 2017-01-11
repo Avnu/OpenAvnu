@@ -225,6 +225,7 @@ void openavbTLRunListener(tl_state_t *pTLState)
 	}
 
 	AVBStreamID_t streamID;
+	memset(&streamID, 0, sizeof(streamID));
 	memcpy(streamID.addr, pCfg->stream_addr.mac, ETH_ALEN);
 	streamID.uniqueID = pCfg->stream_uid;
 
