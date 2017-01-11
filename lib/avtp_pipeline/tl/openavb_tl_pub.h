@@ -75,7 +75,7 @@ typedef enum {
 /// Maximum size of interface name
 #define IFNAMSIZE 16
 
-/// Indicatates that VLAN ID is not set in configuration
+/// Indicates that VLAN ID is not set in configuration
 #define VLAN_NULL UINT16_MAX
 
 /// Structure containing configuration of the host
@@ -84,7 +84,7 @@ typedef struct {
 	avb_role_t role;
 	/// Structure with callbacks to mapping
 	openavb_map_cb_t map_cb;
-	/// Structure with callbacks to inteface
+	/// Structure with callbacks to interface
 	openavb_intf_cb_t intf_cb;
 	/// MAC address of destination - multicast (talker only if SRP is enabled)
 	cfg_mac_t dest_addr;
@@ -113,13 +113,13 @@ typedef struct {
 	U32 report_seconds;
 	/// Start paused
 	bool start_paused;
-	/// Class in which host will operatea ::SRClassIdx_t (talker only)
+	/// Class in which host will operate ::SRClassIdx_t (talker only)
 	U8 sr_class;
 	/// Rank of the stream #SR_RANK_REGULAR or #SR_RANK_EMERGENCY (talker only)
 	U8 sr_rank;
 	/// Number of raw TX buffers that should be used (talker only)
 	U32 raw_tx_buffers;
-	/// Number of raw rx buffers (listener only)
+	/// Number of raw RX buffers (listener only)
 	U32 raw_rx_buffers;
 	/// Is the interface module blocking in the TX CB.
 	bool tx_blocking_in_intf;

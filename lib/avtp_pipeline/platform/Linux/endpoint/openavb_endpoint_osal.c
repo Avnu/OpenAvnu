@@ -61,7 +61,7 @@ inline int startPTP(void)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 
-	// make sure ptp, a seperate process, starts and is using the same interface as endpoint
+	// make sure ptp, a separate process, starts and is using the same interface as endpoint
 	int retVal = 0;
 //	char ptpCmd[80];
 //	memset(ptpCmd, 0, 80);
