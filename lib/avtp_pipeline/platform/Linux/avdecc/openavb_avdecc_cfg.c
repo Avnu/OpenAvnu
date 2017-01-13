@@ -42,7 +42,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_rawsock.h"
 #include "ini.h"
 
-#define	AVB_LOG_COMPONENT	"AVDECC_Endpoint"
+#define	AVB_LOG_COMPONENT	"AVDECC Cfg"
 #include "openavb_log.h"
 
 // macro to make matching names easier
@@ -72,7 +72,19 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 	bool valOK = FALSE;
 	char *pEnd;
 
-	if (MATCH(section, "vlan"))
+	if (MATCH(section, "network"))
+	{
+		if (MATCH(name, "ifname"))
+		{
+			if_info_t ifinfo;
+			if (openavbCheckInterface(value, &ifinfo)) {
+				strncpy(pCfg->ifname, value, IFNAMSIZ - 1);
+				memcpy(pCfg->ifmac, &ifinfo.mac, ETH_ALEN);
+				valOK = TRUE;
+			}
+		}
+	}
+	else if (MATCH(section, "vlan"))
 	{
 		if (MATCH(name, "vlanID")) {
 			errno = 0;

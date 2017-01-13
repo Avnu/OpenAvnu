@@ -38,17 +38,17 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_pub.h"
 #include "openavb_log.h"
 
-extern DLL_EXPORT bool osalAvdeccInitialize(const char* ifname)
+extern DLL_EXPORT bool osalAvdeccInitialize(const char* ifname, const char **inifiles, int numfiles)
 {
 	avbLogInit();
 	if (!osalAVBTimeInit()) { return FALSE; }
-	if (!startAVDECC(FQTSS_MODE_HW_CLASS, 0, ifname, 0, 0, 0)) { return FALSE; }
+	if (!startAvdecc(ifname, inifiles, numfiles)) { return FALSE; }
 	return TRUE;
 }
 
 extern DLL_EXPORT bool osalAvdeccFinalize(void)
 {
-	stopAVDECC();
+	stopAvdecc();
 	osalAVBTimeClose();
 	avbLogExit();
 	return TRUE;

@@ -76,15 +76,13 @@ void openavbAvdeccHostUsage(char *programName)
 		"\n"
 		"Examples:\n"
 		"  %s talker.ini\n"
-		"    Start 1 stream with data from the ini file.\n\n"
+		"    Control 1 stream with data from the ini file.\n\n"
 		"  %s talker1.ini talker2.ini\n"
-		"    Start 2 streams with data from the ini files.\n\n"
-		"  %s -I eth0 talker1.ini talker2.ini\n"
-		"    Start 2 streams with data from the ini files, both talkers use eth0 interface.\n\n"
-		"  %s -I eth0 talker1.ini talker2.ini listener1.ini,ifname=pcap:eth0\n"
-		"    Start 3 streams with data from the ini files, talkers 1&2 use eth0 interface, listener1 use pcap:eth0.\n\n"
+		"    Control 2 streams with data from the ini files.\n\n"
+		"  %s -I eth0 talker1.ini listener2.ini\n"
+		"    Control 2 streams with data from the ini files, using the eth0 interface.\n\n"
 		,
-		programName, programName, programName, programName, programName);
+		programName, programName, programName, programName);
 }
 
 /**********************************************
@@ -125,7 +123,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (!osalAvdeccInitialize(optIfnameGlobal)) {
+	int iniIdx = optind;
+	int tlCount = argc - iniIdx;
+
+	if (!osalAvdeccInitialize(optIfnameGlobal, (const char **) (argv + iniIdx), tlCount)) {
 		osalAvdeccFinalize();
 		exit(-1);
 	}

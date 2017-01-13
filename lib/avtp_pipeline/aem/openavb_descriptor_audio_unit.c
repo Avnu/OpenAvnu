@@ -245,12 +245,12 @@ extern DLL_EXPORT bool openavbAemDescriptorAudioUnitInitialize(openavb_aem_descr
 	}
 
 	// Add the port information.
-	if (pConfig->stream->role == clientTalker) {
+	if (pConfig->stream->role == AVB_ROLE_TALKER) {
 		// There will be one stream output port.
 		pDescriptor->number_of_stream_output_ports = 1;
 		pDescriptor->base_stream_output_port = 0;
 	}
-	else if (pConfig->stream->role == clientListener) {
+	else if (pConfig->stream->role == AVB_ROLE_LISTENER) {
 		// There will be one stream input port.
 		pDescriptor->number_of_stream_input_ports = 1;
 		pDescriptor->base_stream_input_port = 0;

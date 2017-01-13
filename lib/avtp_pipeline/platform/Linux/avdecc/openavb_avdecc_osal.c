@@ -33,6 +33,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_platform.h"
 #include "openavb_trace.h"
 #include "openavb_avdecc_cfg.h"
+#include "openavb_avdecc_read_ini_pub.h"
 #include "openavb_ether_hal.h"
 #include "openavb_list.h"
 
@@ -43,6 +44,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 // the following are from openavb_avdecc.c
 extern openavb_avdecc_cfg_t gAvdeccCfg;
+extern openavb_tl_data_cfg_t * streamList;
 extern bool avdeccRunning;
 
 static pthread_t avdeccServerHandle;
@@ -50,7 +52,7 @@ static void* avdeccServerThread(void *arg);
 
 static bool avdeccInitSucceeded;
 
-bool startAVDECC(int mode, int ifindex, const char* ifname, unsigned mtu, unsigned link_kbit, unsigned nsr_kbit)
+bool startAvdecc(const char* ifname, const char **inifiles, int numfiles)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 	LOG_EAVB_CORE_VERSION();
@@ -63,15 +65,46 @@ bool startAVDECC(int mode, int ifindex, const char* ifname, unsigned mtu, unsign
 		goto error;
 	}
 
-	// Set the configuration
-	memset(&gAvdeccCfg, 0, sizeof(openavb_avdecc_cfg_t));
-	if (ifname)
-		strncpy(gAvdeccCfg.ifname, ifname, sizeof(gAvdeccCfg.ifname));
-
-	igbGetMacAddr(gAvdeccCfg.ifmac);
-
 	// Get the AVDECC configuration
+	memset(&gAvdeccCfg, 0, sizeof(openavb_avdecc_cfg_t));
 	openavbReadAvdeccConfig(DEFAULT_AVDECC_INI_FILE, &gAvdeccCfg);
+
+	// Determine which interface to use.
+	if (ifname) {
+		strncpy(gAvdeccCfg.ifname, ifname, sizeof(gAvdeccCfg.ifname));
+	} else if (gAvdeccCfg.ifname[0] == '\0') {
+		AVB_LOG_ERROR("No interface specified.  Use the -I flag, or add one to " DEFAULT_AVDECC_INI_FILE ".");
+		goto error;
+	}
+
+	// Read the information from the supplied INI files.
+	openavb_tl_data_cfg_t * prevStream = NULL, * newStream;
+	U32 i1;
+	for (i1 = 0; i1 < numfiles; i1++) {
+
+		char iniFile[1024];
+		snprintf(iniFile, sizeof(iniFile), "%s", inifiles[i1]);
+		// Create a new item with this INI information.
+		newStream = malloc(sizeof(openavb_tl_data_cfg_t));
+		if (!newStream) {
+			AVB_LOG_ERROR("Out of memory");
+			goto error;
+		}
+		memset(newStream, 0, sizeof(openavb_tl_data_cfg_t));
+		if (!openavbReadTlDataIniFile(iniFile, newStream)) {
+			AVB_LOGF_ERROR("Error reading ini file: %s", inifiles[i1]);
+			goto error;
+		}
+		// Append this item to the list of items.
+		if (!prevStream) {
+			// First item.
+			streamList = newStream;
+		} else {
+			// Subsequent item.
+			prevStream->next = newStream;
+		}
+		prevStream = newStream;
+	}
 
 	/* Run AVDECC in its own thread. */
 	avdeccRunning = TRUE;
@@ -84,8 +117,8 @@ bool startAVDECC(int mode, int ifindex, const char* ifname, unsigned mtu, unsign
 
 	/* Wait a while to see if the thread was able to start AVDECC. */
 	int i;
-	for (i = 0; avdeccRunning && !avdeccInitSucceeded && i < 5; ++i) {
-		SLEEP(1);
+	for (i = 0; avdeccRunning && !avdeccInitSucceeded && i < 5000; ++i) {
+		SLEEP_MSEC(1);
 	}
 	if (!avdeccInitSucceeded) {
 		goto error;
@@ -99,7 +132,7 @@ error:
 	return false;
 }
 
-void stopAVDECC()
+void stopAvdecc()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
@@ -107,6 +140,13 @@ void stopAVDECC()
 	pthread_join(avdeccServerHandle, NULL);
 
 	AVB_LOG_INFO("Shutting down");
+
+	// Free the INI file items.
+	while (streamList) {
+		openavb_tl_data_cfg_t * del = streamList;
+		streamList = streamList->next;
+		free(del);
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 }

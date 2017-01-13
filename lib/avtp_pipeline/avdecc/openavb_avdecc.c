@@ -36,6 +36,7 @@
 
 bool avdeccRunning = TRUE;
 openavb_avdecc_cfg_t gAvdeccCfg;
+openavb_tl_data_cfg_t * streamList = NULL;
 
 static openavb_avdecc_configuration_cfg_t *pFirstConfigurationCfg = NULL;
 
@@ -115,7 +116,7 @@ void openavbAvdeccFindMacAddr(void)
 	}
 }
 
-bool openavbAvdeccAddConfiguration(const clientStream_t *stream)
+bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
 {
 	// Create a new config to hold the configuration information.
 	openavb_avdecc_configuration_cfg_t *pCfg = malloc(sizeof(openavb_avdecc_configuration_cfg_t));
@@ -183,7 +184,7 @@ bool openavbAvdeccAddConfiguration(const clientStream_t *stream)
 	//  SENSOR_UNIT
 	//  CONTROL
 
-	if (stream->role == clientTalker) {
+	if (stream->role == AVB_ROLE_TALKER) {
 		gAvdeccCfg.bTalker = TRUE;
 
 		// AVDECC_TODO:  Add other descriptors as needed.  Future options include:
@@ -194,7 +195,7 @@ bool openavbAvdeccAddConfiguration(const clientStream_t *stream)
 
 		AVB_LOG_DEBUG("AVDECC talker configuration added");
 	}
-	if (stream->role == clientListener) {
+	if (stream->role == AVB_ROLE_LISTENER) {
 		gAvdeccCfg.bListener = TRUE;
 
 		// AVDECC_TODO:  Add other descriptors as needed.  Future options include:
@@ -203,8 +204,8 @@ bool openavbAvdeccAddConfiguration(const clientStream_t *stream)
 
 		AVB_LOG_DEBUG("AVDECC listener configuration added");
 	}
-	if (stream->srClass == SR_CLASS_A) { gAvdeccCfg.bClassASupported = TRUE; }
-	if (stream->srClass == SR_CLASS_B) { gAvdeccCfg.bClassBSupported = TRUE; }
+	if (stream->sr_class == SR_CLASS_A) { gAvdeccCfg.bClassASupported = TRUE; }
+	if (stream->sr_class == SR_CLASS_B) { gAvdeccCfg.bClassBSupported = TRUE; }
 
 	// Add the localized strings to the configuration.
 	if (!openavbAemDescriptorLocaleStringsHandlerAddToConfiguration(gAvdeccCfg.pAemDescriptorLocaleStringsHandler, nConfigIdx)) {
@@ -269,10 +270,8 @@ extern DLL_EXPORT bool openavbAvdeccInitialize()
 
 	gAvdeccCfg.bTalker = gAvdeccCfg.bListener = FALSE;
 
-//	TODO:  What do we do here instead?
-/*
 	// Add a configuration for each talker or listener stream.
-	const clientStream_t *current_stream = streamList;
+	const openavb_tl_data_cfg_t *current_stream = streamList;
 	while (current_stream != NULL) {
 		// Create a new configuration with the information from this stream.
 		if (!openavbAvdeccAddConfiguration(current_stream)) {
@@ -284,7 +283,6 @@ extern DLL_EXPORT bool openavbAvdeccInitialize()
 		// Proceed to the next stream.
 		current_stream = current_stream->next;
 	}
-*/
 
 	if (!gAvdeccCfg.bTalker && !gAvdeccCfg.bListener) {
 		AVB_LOG_ERROR("No AVDECC Configurations -- Aborting");

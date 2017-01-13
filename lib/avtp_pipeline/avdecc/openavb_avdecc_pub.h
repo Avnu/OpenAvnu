@@ -50,6 +50,9 @@
 // Enumeration and control public includes
 #include "openavb_aecp_pub.h"
 
+// openavb_tl_data_cfg_t definition
+#include "openavb_avdecc_read_ini_pub.h"
+
 #ifndef IFNAMSIZ
 #define IFNAMSIZ 16
 #endif
@@ -92,14 +95,11 @@ typedef struct {
 	openavb_aem_descriptor_locale_strings_handler_t *pAemDescriptorLocaleStringsHandler;
 } openavb_avdecc_cfg_t;
 
-// clientStream_t is defined in openavb_endpoint.h.
-typedef struct clientStream_t clientStream_t;
-
 typedef struct openavb_avdecc_configuration_cfg {
 	struct openavb_avdecc_configuration_cfg *next; // next link list pointer
 
-	// Pointer to the endpoint clientStream_t information.
-	const clientStream_t *stream;
+	// Pointer to the endpoint information.
+	const openavb_tl_data_cfg_t *stream;
 
 	// Friendly name
 	char friendly_name[OPENAVB_AEM_STRLEN_MAX];

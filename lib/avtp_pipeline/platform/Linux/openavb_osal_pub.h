@@ -41,7 +41,7 @@ bool osalAVBInitialize(const char *ifname);
 bool osalAVBFinalize(void);
 
 
-bool osalAvdeccInitialize(const char *ifname);
+bool osalAvdeccInitialize(const char *ifname, const char **inifiles, int numfiles);
 
 bool osalAvdeccFinalize(void);
 

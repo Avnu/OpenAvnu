@@ -38,7 +38,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <unistd.h>
 #include <signal.h>
 
-bool startAVDECC(int mode, int ifindex, const char* ifname, unsigned mtu, unsigned link_kbit, unsigned nsr_kbit);
-void stopAVDECC();
+bool startAvdecc(const char* ifname, const char *inifiles[], int numfiles);
+void stopAvdecc();
 
 #endif // OSAL_AVDECC_H
