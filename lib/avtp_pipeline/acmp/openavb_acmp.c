@@ -46,6 +46,8 @@ openavbRC openavbAcmpStart()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
+// TODO:  This needs to be rewritten to communicate externally with the streaming.
+/*
 	openavb_avdecc_entity_model_t *pAem = openavbAemGetModel();
 	if (!pAem) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_ENTITY_MODEL_MISSING), AVB_TRACE_ACMP);
@@ -96,6 +98,7 @@ openavbRC openavbAcmpStart()
 		openavbAcmpSMTalkerStart();
 		bTalkerStarted = TRUE;
 	}
+*/
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_ACMP);
 }
@@ -104,6 +107,8 @@ void openavbAcmpStop()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
+	// TODO:  This needs to be rewritten to communicate externally with the streaming.
+/*
 	if (bTalkerStarted) {
 		openavbAcmpSMTalkerStop();
 	}
@@ -113,6 +118,7 @@ void openavbAcmpStop()
 	}
 
 	openavbAcmpMessageHandlerStop();
+*/
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }

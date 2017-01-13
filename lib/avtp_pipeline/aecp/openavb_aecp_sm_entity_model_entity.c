@@ -56,6 +56,19 @@ SEM_T(openavbAecpSMEntityModelEntityWaitingSemaphore);
 THREAD_TYPE(openavbAecpSMEntityModelEntityThread);
 THREAD_DEFINITON(openavbAecpSMEntityModelEntityThread);
 
+bool openavbTLIsStreaming(tl_handle_t handle)
+{
+	// TODO:  Support for this function needs to be added somewhere!
+	return FALSE;
+}
+
+void openavbTLPauseStream(tl_handle_t handle, bool bPause)
+{
+	// TODO:  Support for this function needs to be added somewhere!
+}
+
+
+
 void acquireEntity()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);

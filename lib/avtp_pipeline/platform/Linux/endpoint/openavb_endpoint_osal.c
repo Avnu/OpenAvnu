@@ -34,7 +34,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace.h"
 #include "openavb_endpoint.h"
 #include "openavb_endpoint_cfg.h"
-#include "openavb_endpoint_avdecc_cfg.h"
 #include "openavb_srp.h"
 #include "openavb_maap.h"
 #include "mrp_client.h"
@@ -48,14 +47,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 // the following are from openavb_endpoint.c
 extern openavb_endpoint_cfg_t 	x_cfg;
-extern openavb_avdecc_cfg_t gAvdeccCfg;
 extern bool endpointRunning;
 static pthread_t endpointServerHandle;
 static void* endpointServerThread(void *arg);
-
-extern bool avdeccRunning;
-static pthread_t avdeccServerHandle;
-static void* avdeccServerThread(void *arg);
 
 inline int startPTP(void)
 {
@@ -117,26 +111,11 @@ bool startEndpoint(int mode, int ifindex, const char* ifname, unsigned mtu, unsi
 
 	openavbReadConfig(DEFAULT_INI_FILE, &x_cfg);
 
-	// Get the AVDECC configuration
-	openavbReadAvdeccConfig(DEFAULT_AVDECC_INI_FILE, &gAvdeccCfg);
-
 	endpointRunning = TRUE;
 	int err = pthread_create(&endpointServerHandle, NULL, endpointServerThread, NULL);
 	if (err) {
 		AVB_LOGF_ERROR("Failed to start endpoint thread: %s", strerror(err));
 		goto error;
-	}
-
-	if (!gAvdeccCfg.useAvdecc) {
-		AVB_LOG_INFO("AVDECC not enabled");
-	} else {
-		/* Run AVDECC in its own thread. */
-		avdeccRunning = TRUE;
-		err = pthread_create(&avdeccServerHandle, NULL, avdeccServerThread, NULL);
-		if (err) {
-			AVB_LOGF_ERROR("Failed to start AVDECC thread: %s", strerror(err));
-			goto error;
-		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
@@ -154,9 +133,6 @@ void stopEndpoint()
 	endpointRunning = FALSE;
 	pthread_join(endpointServerHandle, NULL);
 
-	avdeccRunning = FALSE;
-	pthread_join(avdeccServerHandle, NULL);
-
 	openavbUnconfigure(&x_cfg);
 
 	AVB_LOG_INFO("Shutting down");
@@ -173,25 +149,6 @@ static void* endpointServerThread(void *arg)
 		if (err) {
 			AVB_LOG_ERROR("Make sure that mrpd daemon is started.");
 			SLEEP(1);
-		}
-	}
-
-	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
-	return NULL;
-}
-
-static void* avdeccServerThread(void *arg)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
-
-	/* Allow the endpoint support to start before starting the AVDECC support. */
-	SLEEP(2);
-
-	while (avdeccRunning) {
-		int err = avbAvdeccLoop();
-		if (err && avdeccRunning) {
-			AVB_LOG_ERROR("AVDECC support disabled");
-			avdeccRunning = false;
 		}
 	}
 

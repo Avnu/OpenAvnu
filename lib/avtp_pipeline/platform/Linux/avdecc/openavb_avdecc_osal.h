@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -28,22 +28,17 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
-#ifndef _OPENAVB_OSAL_PUB_H
-#define _OPENAVB_OSAL_PUB_H
+#ifndef OSAL_AVDECC_H
+#define OSAL_AVDECC_H
 
-// TODO_OPENAVB - Is this needed still?
-#define LINUX 1	// !!! FIX ME !!! THIS IS A HACK TO SUPPORT ANOTHER HACK IN openavb_avtp_time.c. REMOVE THIS WHEN openavb_avtp_time.c GETS FIXED !!!
+// should only be included from openavb_avdecc.h
 
-#include "openavb_os_services_osal_pub.h"
+#include <linux/un.h>
+#include <net/if.h>
+#include <unistd.h>
+#include <signal.h>
 
-bool osalAVBInitialize(const char *ifname);
+bool startAVDECC(int mode, int ifindex, const char* ifname, unsigned mtu, unsigned link_kbit, unsigned nsr_kbit);
+void stopAVDECC();
 
-bool osalAVBFinalize(void);
-
-
-bool osalAvdeccInitialize(const char *ifname);
-
-bool osalAvdeccFinalize(void);
-
-#endif // _OPENAVB_OSAL_PUB_H
-
+#endif // OSAL_AVDECC_H

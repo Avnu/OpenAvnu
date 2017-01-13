@@ -34,11 +34,12 @@
 
 #define ADDR_PTR(A) (U8*)(&((A)->ether_addr_octet))
 
-extern openavb_avdecc_cfg_t gAvdeccCfg;
+bool avdeccRunning = TRUE;
+openavb_avdecc_cfg_t gAvdeccCfg;
 
 static openavb_avdecc_configuration_cfg_t *pFirstConfigurationCfg = NULL;
 
-bool openavbAVDECCStartAdp()
+bool openavbAvdeccStartAdp()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
@@ -53,14 +54,14 @@ bool openavbAVDECCStartAdp()
 	return TRUE;
 }
 
-void openavbAVDECCStopAdp()
+void openavbAvdeccStopAdp()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 	openavbAdpStop();
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 }
 
-bool openavbAVDECCStartCmp()
+bool openavbAvdeccStartCmp()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
@@ -75,14 +76,14 @@ bool openavbAVDECCStartCmp()
 	return TRUE;
 }
 
-void openavbAVDECCStopCmp()
+void openavbAvdeccStopCmp()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 	openavbAcmpStop();
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 }
 
-bool openavbAVDECCStartEcp()
+bool openavbAvdeccStartEcp()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
@@ -97,14 +98,14 @@ bool openavbAVDECCStartEcp()
 	return TRUE;
 }
 
-void openavbAVDECCStopEcp()
+void openavbAvdeccStopEcp()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 	openavbAecpStop();
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 }
 
-void openavbAVDECCFindMacAddr(void)
+void openavbAvdeccFindMacAddr(void)
 {
 	// Open a rawsock may be the easiest cross platform way to get the MAC address.
 	void *txSock = openavbRawsockOpen(gAvdeccCfg.ifname, FALSE, TRUE, ETHERTYPE_AVTP, 100, 1);
@@ -114,7 +115,7 @@ void openavbAVDECCFindMacAddr(void)
 	}
 }
 
-bool openavbAVDECCAddConfiguration(const clientStream_t *stream)
+bool openavbAvdeccAddConfiguration(const clientStream_t *stream)
 {
 	// Create a new config to hold the configuration information.
 	openavb_avdecc_configuration_cfg_t *pCfg = malloc(sizeof(openavb_avdecc_configuration_cfg_t));
@@ -215,22 +216,13 @@ bool openavbAVDECCAddConfiguration(const clientStream_t *stream)
 	return TRUE;
 }
 
+
 ////////////////////////////////
 // Public functions
 ////////////////////////////////
-extern DLL_EXPORT bool openavbAVDECCInitialize(const char *ifname, const U8 *ifmac, const clientStream_t *streamList)
+extern DLL_EXPORT bool openavbAvdeccInitialize()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
-
-	// Check parameters
-	if (!ifname || !ifmac || !streamList) {
-		AVB_RC_LOG(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_ENTITY_MODEL_MISSING);
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
-	}
-	strncpy(gAvdeccCfg.ifname, ifname, sizeof(gAvdeccCfg.ifname));
-	gAvdeccCfg.ifname[sizeof(gAvdeccCfg.ifname) - 1] = '\0'; // Make sure string is 0-terminated.
-	memcpy(gAvdeccCfg.ifmac, ifmac, sizeof(gAvdeccCfg.ifmac));
 
 	gAvdeccCfg.pDescriptorEntity = openavbAemDescriptorEntityNew();
 	if (!gAvdeccCfg.pDescriptorEntity) {
@@ -245,7 +237,7 @@ extern DLL_EXPORT bool openavbAVDECCInitialize(const char *ifname, const U8 *ifm
 		return FALSE;
 	}
 
-	openavbAVDECCFindMacAddr();
+	openavbAvdeccFindMacAddr();
 
 	// Create the Entity Model
 	openavbRC rc = openavbAemCreate(gAvdeccCfg.pDescriptorEntity);
@@ -277,11 +269,13 @@ extern DLL_EXPORT bool openavbAVDECCInitialize(const char *ifname, const U8 *ifm
 
 	gAvdeccCfg.bTalker = gAvdeccCfg.bListener = FALSE;
 
+//	TODO:  What do we do here instead?
+/*
 	// Add a configuration for each talker or listener stream.
 	const clientStream_t *current_stream = streamList;
 	while (current_stream != NULL) {
 		// Create a new configuration with the information from this stream.
-		if (!openavbAVDECCAddConfiguration(current_stream)) {
+		if (!openavbAvdeccAddConfiguration(current_stream)) {
 			AVB_LOG_ERROR("Error adding AVDECC configuration");
 			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 			return FALSE;
@@ -290,6 +284,7 @@ extern DLL_EXPORT bool openavbAVDECCInitialize(const char *ifname, const U8 *ifm
 		// Proceed to the next stream.
 		current_stream = current_stream->next;
 	}
+*/
 
 	if (!gAvdeccCfg.bTalker && !gAvdeccCfg.bListener) {
 		AVB_LOG_ERROR("No AVDECC Configurations -- Aborting");
@@ -361,11 +356,11 @@ extern DLL_EXPORT bool openavbAVDECCInitialize(const char *ifname, const U8 *ifm
 }
 
 // Start the AVDECC protocols. 
-extern DLL_EXPORT bool openavbAVDECCStart()
+extern DLL_EXPORT bool openavbAvdeccStart()
 {
-	if (openavbAVDECCStartCmp()) {
-		if (openavbAVDECCStartEcp()) {
-			if (openavbAVDECCStartAdp()) {
+	if (openavbAvdeccStartCmp()) {
+		if (openavbAvdeccStartEcp()) {
+			if (openavbAvdeccStartAdp()) {
 				return TRUE;
 			}
 		}
@@ -374,14 +369,14 @@ extern DLL_EXPORT bool openavbAVDECCStart()
 }
 
 // Stop the AVDECC protocols. 
-extern DLL_EXPORT void openavbAVDECCStop(void)
+extern DLL_EXPORT void openavbAvdeccStop(void)
 {
-	openavbAVDECCStopCmp();
-	openavbAVDECCStopEcp();
-	openavbAVDECCStopAdp();
+	openavbAvdeccStopCmp();
+	openavbAvdeccStopEcp();
+	openavbAvdeccStopAdp();
 }
 
-extern DLL_EXPORT bool openavbAVDECCCleanup(void)
+extern DLL_EXPORT bool openavbAvdeccCleanup(void)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
@@ -401,6 +396,3 @@ extern DLL_EXPORT bool openavbAVDECCCleanup(void)
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;
 }
-
-
-

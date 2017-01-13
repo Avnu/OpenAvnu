@@ -25,6 +25,7 @@
 #include "openavb_platform.h"
 
 #include "openavb_avdecc_pub.h"
+#include "openavb_avdecc_osal.h"
 #include "openavb_types.h"
 #include "openavb_trace.h"
 

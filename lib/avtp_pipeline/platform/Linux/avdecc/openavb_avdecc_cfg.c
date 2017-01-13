@@ -37,9 +37,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
-#include "openavb_endpoint.h"
-//#include "openavb_endpoint_cfg.h"
-#include "openavb_endpoint_avdecc_cfg.h"
+#include "openavb_avdecc_cfg.h"
 #include "openavb_trace.h"
 #include "openavb_rawsock.h"
 #include "ini.h"
@@ -74,22 +72,7 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 	bool valOK = FALSE;
 	char *pEnd;
 
-	if (MATCH(section, "enable"))
-	{
-		if (MATCH(name, "useAvdecc")) {
-			errno = 0;
-			pCfg->useAvdecc = (strtoul(value, &pEnd, 10) != 0);
-			if (*pEnd == '\0' && errno == 0)
-				valOK = TRUE;
-		}
-		else {
-			// unmatched item, fail
-			AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
-			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
-			return 0;
-		}
-	}
-	else if (MATCH(section, "vlan"))
+	if (MATCH(section, "vlan"))
 	{
 		if (MATCH(name, "vlanID")) {
 			errno = 0;

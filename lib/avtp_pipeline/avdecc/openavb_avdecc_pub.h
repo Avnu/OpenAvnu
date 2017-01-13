@@ -50,15 +50,20 @@
 // Enumeration and control public includes
 #include "openavb_aecp_pub.h"
 
+#ifndef IFNAMSIZ
+#define IFNAMSIZ 16
+#endif
+#ifndef ETH_ALEN
+#define ETH_ALEN 6
+#endif
+
 // Indexes for localized strings.
 // (These are defined for internal use, and can be changed as needed.)
 #define LOCALE_STRING_VENDOR_NAME_INDEX 0
 #define LOCALE_STRING_MODEL_NAME_INDEX  1
 
 typedef struct {
-	bool useAvdecc;
 
-	// Values filled in from the openavbAVDECCInitialize() arguments
 	char ifname[IFNAMSIZ];
 	U8 ifmac[ETH_ALEN];
 
@@ -105,15 +110,15 @@ typedef struct openavb_avdecc_configuration_cfg {
 
 
 // General initialization for AVDECC. This must be called before any other AVDECC APIs including AEM APIs
-bool openavbAVDECCInitialize(const char *ifname, const U8 *ifmac, const clientStream_t *streamList);
+bool openavbAvdeccInitialize(void);
 
 // Start the AVDECC protocols. 
-bool openavbAVDECCStart(void);
+bool openavbAvdeccStart(void);
 
 // Stop the AVDECC protocols. 
-void openavbAVDECCStop(void);
+void openavbAvdeccStop(void);
 
 // General Cleanup for AVDECC.
-bool openavbAVDECCCleanup(void);
+bool openavbAvdeccCleanup(void);
 
 #endif // OPENAVB_AVDECC_PUB_H

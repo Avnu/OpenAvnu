@@ -38,7 +38,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_types.h"
 #include "openavb_srp_api.h"
 #include "openavb_endpoint_cfg.h"
-#include "openavb_endpoint_avdecc_cfg.h"
 #include "openavb_tl.h"
 
 #define AVB_ENDPOINT_HANDLE_INVALID (-1)
@@ -55,8 +54,6 @@ typedef enum {
 bool openavbEptClntService(int h, int timeout);
 void openavbEptSrvrService(void);
 int avbEndpointLoop(void);
-
-int avbAvdeccLoop(void);
 
 
 typedef enum {

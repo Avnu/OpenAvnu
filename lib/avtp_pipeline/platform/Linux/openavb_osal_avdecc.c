@@ -1,5 +1,5 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -28,22 +28,29 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
-#ifndef _OPENAVB_OSAL_PUB_H
-#define _OPENAVB_OSAL_PUB_H
+#include "openavb_platform.h"
+#include "openavb_ether_hal.h"
+#include "openavb_osal.h"
+#include "openavb_qmgr.h"
+#include "openavb_avdecc.h"
 
-// TODO_OPENAVB - Is this needed still?
-#define LINUX 1	// !!! FIX ME !!! THIS IS A HACK TO SUPPORT ANOTHER HACK IN openavb_avtp_time.c. REMOVE THIS WHEN openavb_avtp_time.c GETS FIXED !!!
+#define	AVB_LOG_COMPONENT	"osal"
+#include "openavb_pub.h"
+#include "openavb_log.h"
 
-#include "openavb_os_services_osal_pub.h"
+extern DLL_EXPORT bool osalAvdeccInitialize(const char* ifname)
+{
+	avbLogInit();
+	if (!osalAVBTimeInit()) { return FALSE; }
+	if (!startAVDECC(FQTSS_MODE_HW_CLASS, 0, ifname, 0, 0, 0)) { return FALSE; }
+	return TRUE;
+}
 
-bool osalAVBInitialize(const char *ifname);
-
-bool osalAVBFinalize(void);
-
-
-bool osalAvdeccInitialize(const char *ifname);
-
-bool osalAvdeccFinalize(void);
-
-#endif // _OPENAVB_OSAL_PUB_H
+extern DLL_EXPORT bool osalAvdeccFinalize(void)
+{
+	stopAVDECC();
+	osalAVBTimeClose();
+	avbLogExit();
+	return TRUE;
+}
 

@@ -92,6 +92,10 @@ endif ()
 if (NOT DEFINED AVB_FEATURE_ENDPOINT)
   set ( AVB_FEATURE_ENDPOINT 0 )
 endif ()
+# Default AVDECC feature
+if (NOT DEFINED AVB_FEATURE_AVDECC)
+  set ( AVB_FEATURE_AVDECC 0 )
+endif ()
 
 # Default launchtime feature
 if (NOT DEFINED IGB_LAUNCHTIME_ENABLED)
@@ -111,6 +115,9 @@ if (AVB_FEATURE_GSTREAMER)
 endif ()
 if (AVB_FEATURE_ENDPOINT)
   set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_ENDPOINT=1" )
+endif ()
+if (AVB_FEATURE_AVDECC)
+  set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_AVDECC=1" )
 endif ()
 
 #Export Platform defines
@@ -215,6 +222,7 @@ include_directories(
 		${AVB_SRC_DIR}/qmgr
 		${AVB_SRC_DIR}/tl 
 		${AVB_SRC_DIR}/util
+		${AVB_OSAL_DIR}/avdecc
 		${AVB_OSAL_DIR}/endpoint
 		${AVB_OSAL_DIR}/fqtss/qmgr
 		${AVB_SRC_DIR}/../common
@@ -228,12 +236,6 @@ link_directories(${GLIB_PKG_LIBRARY_DIRS})
 # AVB Core Library
 SET ( SRC_FILES "" )
 add_subdirectory ( avtp )
-add_subdirectory ( avdecc )
-add_subdirectory ( acmp )
-add_subdirectory ( adp )
-add_subdirectory ( aecp )
-add_subdirectory ( aem )
-add_subdirectory ( tl )
 add_subdirectory ( util )
 add_subdirectory ( mediaq )
 add_subdirectory ( inih )
@@ -242,8 +244,17 @@ add_subdirectory ( qmgr )
 add_subdirectory ( mcs )
 if (AVB_FEATURE_ENDPOINT)
 	add_subdirectory ( endpoint )
+	add_subdirectory ( tl )
 	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal_endpoint.c )
+elseif (AVB_FEATURE_AVDECC)
+	add_subdirectory ( avdecc )
+	add_subdirectory ( acmp )
+	add_subdirectory ( adp )
+	add_subdirectory ( aecp )
+	add_subdirectory ( aem )
+	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal_avdecc.c )
 else()
+	add_subdirectory ( tl )
 	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal.c )
 endif()
 SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/openavb_rawsock.c )
@@ -275,8 +286,13 @@ if ( AVB_FEATURE_PCAP )
    target_link_libraries ( avbTl ${PCAP_LIBRARY} )
 endif ()
 
-# avb_host (openavb_host and openavb_harness)
-add_subdirectory ( ${AVB_OSAL_DIR}/avb_host )
+if (AVB_FEATURE_AVDECC)
+	# avb_avdecc (openavb_avdecc)
+	add_subdirectory ( ${AVB_OSAL_DIR}/avb_avdecc )
+else ()
+	# avb_host (openavb_host and openavb_harness)
+	add_subdirectory ( ${AVB_OSAL_DIR}/avb_host )
+endif ()
 
 # mapping modules
 macro (add_map_mod MAP_NAME)
@@ -348,8 +364,10 @@ target_link_libraries (rawsock_tx avbTl ${GLIB_PKG_LIBRARIES} pthread rt pci ${P
 install ( TARGETS rawsock_tx RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
 
 # Copy additional installation files
-install ( FILES ${AVB_SRC_DIR}/endpoint/endpoint.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
-install ( FILES ${AVB_SRC_DIR}/avdecc/avdecc.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
-install ( PROGRAMS ${AVB_SRC_DIR}/endpoint/shutdown_openavb_endpoint.sh DESTINATION ${AVB_INSTALL_BIN_DIR} )
-
-
+if (AVB_FEATURE_ENDPOINT)
+	install ( FILES ${AVB_SRC_DIR}/endpoint/endpoint.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
+	install ( PROGRAMS ${AVB_SRC_DIR}/endpoint/shutdown_openavb_endpoint.sh DESTINATION ${AVB_INSTALL_BIN_DIR} )
+endif ()
+if (AVB_FEATURE_AVDECC)
+	install ( FILES ${AVB_SRC_DIR}/avdecc/avdecc.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
+endif ()

@@ -56,11 +56,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace.h"
 #include "openavb_endpoint.h"
 #include "openavb_endpoint_cfg.h"
-#include "openavb_endpoint_avdecc_cfg.h"
 #include "openavb_avtp.h"
 #include "openavb_qmgr.h"
 #include "openavb_maap.h"
-#include "openavb_avdecc.h"
 
 #define	AVB_LOG_COMPONENT	"Endpoint"
 #include "openavb_pub.h"
@@ -74,10 +72,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 clientStream_t* 				x_streamList;
 // true until we are signalled to stop
 bool endpointRunning = TRUE;
-bool avdeccRunning = TRUE;
-// data from our configuration files
+// data from our configuration file
 openavb_endpoint_cfg_t 	x_cfg;
-openavb_avdecc_cfg_t gAvdeccCfg;
 
 /*************************************************************
  * Functions to manage our list of streams.
@@ -526,73 +522,6 @@ int avbEndpointLoop(void)
 	if (!x_cfg.bypassAsCapableCheck && (stopPTP() < 0)) {
 		AVB_LOG_WARNING("Failed to execute PTP stop command: killall -s SIGINT openavb_gptp");
 	}
-
-	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
-	return retVal;
-}
-
-
-static bool startAvdeccSupport()
-{
-	bool succeeded = false;
-
-	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
-
-	do {
-		if (!openavbAVDECCInitialize(x_cfg.ifname, x_cfg.ifmac, x_streamList)) {
-			AVB_LOG_ERROR("Failed to initialize AVDECC");
-			openavbAVDECCCleanup();
-			break;
-		}
-
-		AVB_LOG_DEBUG("AVDECC Initialized");
-
-		if (!openavbAVDECCStart()) {
-			AVB_LOG_ERROR("Failed to start AVDECC");
-			openavbAVDECCStop();
-			openavbAVDECCCleanup();
-			break;
-		}
-
-		AVB_LOG_INFO("AVDECC Started");
-		succeeded = true;
-	} while(0);
-
-	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
-	return succeeded;
-}
-
-int avbAvdeccLoop(void)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
-
-	int retVal = -1;
-	bool avdeccEnabled = false;
-
-	do {
-
-		// Initialize and Start AVDECC
-		if(!gAvdeccCfg.useAvdecc) {
-			AVB_LOG_INFO("AVDECC not enabled");
-		} else {
-			avdeccEnabled = true;
-			if (!startAvdeccSupport()) {
-				AVB_LOG_ERROR("AVDECC not available");
-				avdeccEnabled = false; // Don't shutdown below.
-			}
-		}
-
-		while (avdeccEnabled && avdeccRunning) {
-			SLEEP(1);
-		}
-
-		if(avdeccEnabled) {
-			// Stop and Shutdown AVDECC
-			openavbAVDECCStop();
-			openavbAVDECCCleanup();
-		}
-
-	} while (0);
 
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return retVal;
