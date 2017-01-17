@@ -3,21 +3,22 @@ IGB_LAUNCHTIME_ENABLED ?= 0
 
 .PHONY: all clean
 
-all: build/Makefile
-	$(MAKE) -s -C build install
+all: build_avdecc/Makefile
+	$(MAKE) -s -C build_avdecc install
 
-doc: build/Makefile
-	$(MAKE) -s -C build doc
+doc: build_avdecc/Makefile
+	$(MAKE) -s -C build_avdecc doc
 	@echo "\n\nTo display documentation use:\n\n" \
-	      "\txdg-open $(abspath build/documents/api_docs/index.html)\n"
+	      "\txdg-open $(abspath build_avdecc/documents/api_docs/index.html)\n"
 
 clean:
-	$(RM) -r build
+	$(RM) -r build_avdecc
 
-build/Makefile:
-	mkdir -p build && \
-	cd build && \
+build_avdecc/Makefile:
+	mkdir -p build_avdecc && \
+	cd build_avdecc && \
 	cmake -DCMAKE_TOOLCHAIN_FILE=../platform/Linux/x86_i210_linux.cmake \
 	      -DAVB_FEATURE_AVDECC=$(AVB_FEATURE_AVDECC) \
 	      -DIGB_LAUNCHTIME_ENABLED=$(IGB_LAUNCHTIME_ENABLED) \
               ..
+
