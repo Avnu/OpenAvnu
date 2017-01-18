@@ -45,10 +45,4 @@ const char * openavbAemDescriptorStringsGet_string(openavb_aem_descriptor_string
 // Set a descriptor string at the specified index.
 bool openavbAemDescriptorStringsSet_string(openavb_aem_descriptor_strings_t *pDescriptor, const char *pString, U8 index);
 
-// Returns the number of strings descriptors in this locale.
-U16 openavbAemDescriptorStringsGet_number_of_strings(openavb_aem_descriptor_strings_t *pDescriptor);
-
-// Returns the desriptor index of the first strings descriptor for this locale.
-U16 openavbAemDescriptorStringsGet_base_strings(openavb_aem_descriptor_strings_t *pDescriptor);
-
 #endif // OPENAVB_DESCRIPTOR_STRINGS_PUB_H

@@ -160,10 +160,8 @@ extern DLL_EXPORT bool openavbAemDescriptorLocaleStringsHandlerSet_local_string(
 
 	bool ret = openavbAemDescriptorStringsSet_string(pGroup->pStrings, aString, uStringIndex);
 	if (ret) {
-		openavbAemDescriptorLocaleSet_number_of_strings(pGroup->pLocale,
-			openavbAemDescriptorStringsGet_number_of_strings(pGroup->pStrings));
-		openavbAemDescriptorLocaleSet_base_strings(pGroup->pLocale,
-			openavbAemDescriptorStringsGet_base_strings(pGroup->pStrings));
+		openavbAemDescriptorLocaleSet_number_of_strings(pGroup->pLocale, 1);
+		openavbAemDescriptorLocaleSet_base_strings(pGroup->pLocale, 0);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);

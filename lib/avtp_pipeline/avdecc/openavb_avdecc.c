@@ -331,6 +331,7 @@ extern DLL_EXPORT bool openavbAvdeccInitialize()
 		gAvdeccCfg.bClassASupported = gAvdeccCfg.bClassBSupported = TRUE;
 	}
 	openavbAemDescriptorEntitySet_entity_capabilities(gAvdeccCfg.pDescriptorEntity,
+		OPENAVB_ADP_ENTITY_CAPABILITIES_AEM_SUPPORTED |
 		(gAvdeccCfg.bClassASupported ? OPENAVB_ADP_ENTITY_CAPABILITIES_CLASS_A_SUPPORTED : 0) |
 		(gAvdeccCfg.bClassBSupported ? OPENAVB_ADP_ENTITY_CAPABILITIES_CLASS_B_SUPPORTED : 0) |
 		OPENAVB_ADP_ENTITY_CAPABILITIES_GPTP_SUPPORTED);
