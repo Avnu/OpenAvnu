@@ -133,7 +133,7 @@ bool openavbAdpOpenSocket(const char* ifname, U16 vlanID, U8 vlanPCP)
 			AVB_LOG_ERROR("TX socket Header Failure");
 			openavbAdpCloseSocket();
 			AVB_TRACE_EXIT(AVB_TRACE_ADP);
-			return FALSE;
+			return false;
 		}
 
 		AVB_TRACE_EXIT(AVB_TRACE_ADP);

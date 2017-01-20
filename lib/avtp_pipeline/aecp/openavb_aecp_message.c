@@ -118,7 +118,7 @@ bool openavbAecpOpenSocket(const char* ifname, U16 vlanID, U8 vlanPCP)
 			AVB_LOG_ERROR("TX socket Header Failure");
 			openavbAecpCloseSocket();
 			AVB_TRACE_EXIT(AVB_TRACE_AECP);
-			return FALSE;
+			return false;
 		}
 
 		AVB_TRACE_EXIT(AVB_TRACE_AECP);
@@ -129,7 +129,7 @@ bool openavbAecpOpenSocket(const char* ifname, U16 vlanID, U8 vlanPCP)
 	openavbAecpCloseSocket();
 
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
-	return TRUE;
+	return false;
 }
 
 static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_info_t *hdr)
