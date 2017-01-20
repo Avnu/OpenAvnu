@@ -31,3 +31,9 @@ set ( PLATFORM_LINK_LIBRARIES
 
 set ( GSTREAMER_1_0 0 )
 set ( AVB_FEATURE_PCAP 1 )
+
+if (AVB_FEATURE_AVDECC)
+	set ( AVB_FEATURE_IGB 0 )
+else ()
+	set ( AVB_FEATURE_IGB 1 )
+endif ()

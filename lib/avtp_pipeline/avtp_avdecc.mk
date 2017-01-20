@@ -1,5 +1,4 @@
 AVB_FEATURE_AVDECC ?= 1
-IGB_LAUNCHTIME_ENABLED ?= 0
 
 .PHONY: all clean
 
@@ -19,6 +18,5 @@ build_avdecc/Makefile:
 	cd build_avdecc && \
 	cmake -DCMAKE_TOOLCHAIN_FILE=../platform/Linux/x86_i210_linux.cmake \
 	      -DAVB_FEATURE_AVDECC=$(AVB_FEATURE_AVDECC) \
-	      -DIGB_LAUNCHTIME_ENABLED=$(IGB_LAUNCHTIME_ENABLED) \
               ..
 
