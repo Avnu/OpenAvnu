@@ -169,12 +169,24 @@ extern DLL_EXPORT openavb_aem_descriptor_clock_domain_t *openavbAemDescriptorClo
 
 extern DLL_EXPORT bool openavbAemDescriptorClockDomainInitialize(openavb_aem_descriptor_clock_domain_t *pDescriptor, U16 nConfigIdx, const openavb_avdecc_configuration_cfg_t *pConfig)
 {
-	(void) nConfigIdx;
+	int i;
+	openavb_aem_descriptor_clock_source_t *pClockSourceDescriptor;
+
 	if (!pDescriptor || !pConfig) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
-	// AVDECC_TODO - Any updates needed?
+	// Specify a name.
+	strcpy((char *)(pDescriptor->object_name), "Clock Domain");
+
+	// Add all the current clocks for this configuration to this domain.
+	for (i = 0; i < OPENAVB_DESCRIPTOR_CLOCK_DOMAIN_MAX_CLOCK_SOURCES; ++i) {
+		pClockSourceDescriptor =
+			(openavb_aem_descriptor_clock_source_t *) openavbAemGetDescriptor(nConfigIdx, OPENAVB_AEM_DESCRIPTOR_CLOCK_SOURCE, i);
+		if (pClockSourceDescriptor == NULL) { break; }
+		pDescriptor->clock_sources[0] = pClockSourceDescriptor->descriptor_index;
+		pDescriptor->clock_sources_count = i + 1;
+	}
 
 	return TRUE;
 }

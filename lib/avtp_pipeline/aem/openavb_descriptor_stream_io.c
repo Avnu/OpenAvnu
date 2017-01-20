@@ -436,7 +436,14 @@ extern DLL_EXPORT bool openavbAemDescriptorStreamInputInitialize(openavb_aem_des
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
-	// AVDECC_TODO - Any updates needed?
+	// Specify a name.
+	sprintf((char *)(pDescriptor->object_name), "Stream Input %u", pDescriptor->descriptor_index);
+
+	// Specify the stream flags.
+	if (pConfig->stream->sr_class == SR_CLASS_A) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_A; }
+	if (pConfig->stream->sr_class == SR_CLASS_B) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_B; }
+
+	// AVDECC_TODO - Specify the stream format information.
 
 	return TRUE;
 }
@@ -448,7 +455,14 @@ extern DLL_EXPORT bool openavbAemDescriptorStreamOutputInitialize(openavb_aem_de
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
-	// AVDECC_TODO - Any updates needed?
+	// Specify a name.
+	sprintf((char *)(pDescriptor->object_name), "Stream Output %u", pDescriptor->descriptor_index);
+
+	// Specify the stream flags.
+	if (pConfig->stream->sr_class == SR_CLASS_A) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_A; }
+	if (pConfig->stream->sr_class == SR_CLASS_B) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_B; }
+
+	// AVDECC_TODO - Specify the stream format information.
 
 	return TRUE;
 }

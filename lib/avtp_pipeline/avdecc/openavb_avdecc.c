@@ -187,19 +187,59 @@ bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
 	if (stream->role == AVB_ROLE_TALKER) {
 		gAvdeccCfg.bTalker = TRUE;
 
+		openavb_aem_descriptor_stream_io_t *pNewStreamOutput = openavbAemDescriptorStreamOutputNew();
+		if (!openavbAemAddDescriptor(pNewStreamOutput, nConfigIdx, &nResultIdx) ||
+				!openavbAemDescriptorStreamOutputInitialize(pNewStreamOutput, nConfigIdx, pCfg)) {
+			AVB_LOG_ERROR("Error adding AVDECC Stream Output to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+		openavb_aem_descriptor_clock_source_t *pNewClockSource = openavbAemDescriptorClockSourceNew();
+		if (!openavbAemAddDescriptor(pNewClockSource, nConfigIdx, &nResultIdx) ||
+				!openavbAemDescriptorClockSourceInitialize(pNewClockSource, nConfigIdx, pCfg)) {
+			AVB_LOG_ERROR("Error adding AVDECC Clock Source to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+		openavb_aem_descriptor_clock_domain_t *pNewClockDomain = openavbAemDescriptorClockDomainNew();
+		if (!openavbAemAddDescriptor(pNewClockDomain, nConfigIdx, &nResultIdx) ||
+				!openavbAemDescriptorClockDomainInitialize(pNewClockDomain, nConfigIdx, pCfg)) {
+			AVB_LOG_ERROR("Error adding AVDECC Clock Domain to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+
 		// AVDECC_TODO:  Add other descriptors as needed.  Future options include:
-		//  STREAM_OUTPUT
 		//  JACK_INPUT
-		//  CLOCK_SOURCE
-		//  CLOCK_DOMAIN
 
 		AVB_LOG_DEBUG("AVDECC talker configuration added");
 	}
 	if (stream->role == AVB_ROLE_LISTENER) {
 		gAvdeccCfg.bListener = TRUE;
 
+		openavb_aem_descriptor_stream_io_t *pNewStreamInput = openavbAemDescriptorStreamInputNew();
+		if (!openavbAemAddDescriptor(pNewStreamInput, nConfigIdx, &nResultIdx) ||
+				!openavbAemDescriptorStreamInputInitialize(pNewStreamInput, nConfigIdx, pCfg)) {
+			AVB_LOG_ERROR("Error adding AVDECC Stream Input to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+		openavb_aem_descriptor_clock_source_t *pNewClockSource = openavbAemDescriptorClockSourceNew();
+		if (!openavbAemAddDescriptor(pNewClockSource, nConfigIdx, &nResultIdx) ||
+				!openavbAemDescriptorClockSourceInitialize(pNewClockSource, nConfigIdx, pCfg)) {
+			AVB_LOG_ERROR("Error adding AVDECC Clock Source to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+		openavb_aem_descriptor_clock_domain_t *pNewClockDomain = openavbAemDescriptorClockDomainNew();
+		if (!openavbAemAddDescriptor(pNewClockDomain, nConfigIdx, &nResultIdx) ||
+				!openavbAemDescriptorClockDomainInitialize(pNewClockDomain, nConfigIdx, pCfg)) {
+			AVB_LOG_ERROR("Error adding AVDECC Clock Domain to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+
 		// AVDECC_TODO:  Add other descriptors as needed.  Future options include:
-		//  STREAM_INPUT
 		//  JACK_OUTPUT
 
 		AVB_LOG_DEBUG("AVDECC listener configuration added");

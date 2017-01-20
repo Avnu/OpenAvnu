@@ -163,7 +163,26 @@ extern DLL_EXPORT bool openavbAemDescriptorClockSourceInitialize(openavb_aem_des
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
 
-	// AVDECC_TODO - Any updates needed?
+	// AVDECC_TODO:  These values need to be verified.
+	if (pConfig->stream->role == AVB_ROLE_TALKER)
+	{
+		// Make this an internal clock.
+		strcpy((char *) pDescriptor->object_name, "Internal Clock");
+		pDescriptor->clock_source_flags = 0;
+		pDescriptor->clock_source_type = OPENAVB_AEM_CLOCK_SOURCE_TYPE_INTERNAL;
+		pDescriptor->clock_source_location_type = OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT;
+		pDescriptor->clock_source_location_index = 0;
+	}
+	else if (pConfig->stream->role == AVB_ROLE_LISTENER)
+	{
+		// Use the Talker's clock.
+		strcpy((char *) pDescriptor->object_name, "Input Stream");
+		pDescriptor->clock_source_flags = OPENAVB_AEM_CLOCK_SOURCE_FLAG_STREAM_ID;
+		pDescriptor->clock_source_type = OPENAVB_AEM_CLOCK_SOURCE_TYPE_INPUT_STREAM;
+		memcpy(pDescriptor->clock_source_identifier, pConfig->stream->stream_addr.buffer.ether_addr_octet, ETH_ALEN);
+		pDescriptor->clock_source_location_type = OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT;
+		pDescriptor->clock_source_location_index = 0;
+	}
 
 	return TRUE;
 }

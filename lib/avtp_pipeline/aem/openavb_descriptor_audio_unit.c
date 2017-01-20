@@ -89,15 +89,15 @@ openavbRC openavbAemDescriptorAudioUnitToBuf(void *pVoidDescriptor, U16 bufLengt
 	OCT_D2BHTONS(pDst, pSrc->base_transcoder);
 	OCT_D2BHTONS(pDst, pSrc->number_of_control_blocks);
 	OCT_D2BHTONS(pDst, pSrc->base_control_block);
-	BIT_D2BHTONS(pDst, pSrc->current_sampling_rate.pull, 29, 0);
-	BIT_D2BHTONS(pDst, pSrc->current_sampling_rate.base, 0, 4);
+	BIT_D2BHTONL(pDst, pSrc->current_sampling_rate.pull, 29, 0);
+	BIT_D2BHTONL(pDst, pSrc->current_sampling_rate.base, 0, 4);
 	OCT_D2BHTONS(pDst, pSrc->sampling_rates_offset);
 	OCT_D2BHTONS(pDst, pSrc->sampling_rates_count);
 
 	int i1;
 	for (i1 = 0; i1 < pSrc->sampling_rates_count; i1++) {
-		BIT_D2BHTONS(pDst, pSrc->sampling_rates[i1].pull, 29, 0);
-		BIT_D2BHTONS(pDst, pSrc->sampling_rates[i1].base, 0, 4);
+		BIT_D2BHTONL(pDst, pSrc->sampling_rates[i1].pull, 29, 0);
+		BIT_D2BHTONL(pDst, pSrc->sampling_rates[i1].base, 0, 4);
 	}
 
 	*descriptorSize = pDst - pBuf;
@@ -160,8 +160,8 @@ openavbRC openavbAemDescriptorAudioUnitFromBuf(void *pVoidDescriptor, U16 bufLen
 	OCT_B2DNTOHS(pDst->base_transcoder, pSrc);
 	OCT_B2DNTOHS(pDst->number_of_control_blocks, pSrc);
 	OCT_B2DNTOHS(pDst->base_control_block, pSrc);
-	BIT_B2DNTOHS(pDst->current_sampling_rate.pull, pSrc, 0xe0000000, 29, 0);
-	BIT_B2DNTOHS(pDst->current_sampling_rate.base, pSrc, 0x1fffffff, 0, 2);
+	BIT_B2DNTOHL(pDst->current_sampling_rate.pull, pSrc, 0xe0000000, 29, 0);
+	BIT_B2DNTOHL(pDst->current_sampling_rate.base, pSrc, 0x1fffffff, 0, 2);
 	OCT_B2DNTOHS(pDst->sampling_rates_offset, pSrc);
 	OCT_B2DNTOHS(pDst->sampling_rates_count, pSrc);
 
@@ -171,8 +171,8 @@ openavbRC openavbAemDescriptorAudioUnitFromBuf(void *pVoidDescriptor, U16 bufLen
 
 	int i1;
 	for (i1 = 0; i1 < pDst->sampling_rates_count; i1++) {
-		BIT_B2DNTOHS(pDst->sampling_rates[i1].pull, pSrc, 0xe0000000, 29, 0);
-		BIT_B2DNTOHS(pDst->sampling_rates[i1].base, pSrc, 0x1fffffff, 0, 2);
+		BIT_B2DNTOHL(pDst->sampling_rates[i1].pull, pSrc, 0xe0000000, 29, 0);
+		BIT_B2DNTOHL(pDst->sampling_rates[i1].base, pSrc, 0x1fffffff, 0, 2);
 	}
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
@@ -243,6 +243,9 @@ extern DLL_EXPORT bool openavbAemDescriptorAudioUnitInitialize(openavb_aem_descr
 	if (!pDescriptor || !pConfig) {
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AEM);
 	}
+
+	// Specify a name.
+	sprintf((char *)(pDescriptor->object_name), "Audio Unit %u", pDescriptor->descriptor_index);
 
 	// Add the port information.
 	if (pConfig->stream->role == AVB_ROLE_TALKER) {
