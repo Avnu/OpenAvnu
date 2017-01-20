@@ -184,7 +184,7 @@ extern DLL_EXPORT bool openavbAemDescriptorClockDomainInitialize(openavb_aem_des
 		pClockSourceDescriptor =
 			(openavb_aem_descriptor_clock_source_t *) openavbAemGetDescriptor(nConfigIdx, OPENAVB_AEM_DESCRIPTOR_CLOCK_SOURCE, i);
 		if (pClockSourceDescriptor == NULL) { break; }
-		pDescriptor->clock_sources[0] = pClockSourceDescriptor->descriptor_index;
+		pDescriptor->clock_sources[i] = pClockSourceDescriptor->descriptor_index;
 		pDescriptor->clock_sources_count = i + 1;
 	}
 
