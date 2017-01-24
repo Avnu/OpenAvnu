@@ -33,7 +33,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  */
 
 #include <openavb_types.h>
-#include "openavb_ether_hal.h"
+
 #define AVB_LOG_COMPONENT "QMGR"
 //#define AVB_LOG_LEVEL AVB_LOG_LEVEL_DEBUG
 #include "openavb_log.h"
@@ -41,7 +41,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include "openavb_qmgr.h"
 #include "avb_sched.h"
+
+#if (AVB_FEATURE_IGB)
 #include "openavb_ether_hal.h"
+#endif
 
 #define AVB_DEFAULT_QDISC_MODE AVB_SHAPER_HWQ_PER_CLASS
 
