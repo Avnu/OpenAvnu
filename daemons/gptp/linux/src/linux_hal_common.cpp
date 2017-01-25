@@ -779,8 +779,9 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 
 bool LinuxSharedMemoryIPC::update
 (int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
- FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
- uint32_t pdelay_count, PortState port_state, bool asCapable ) {
+ FrequencyRatio ls_freqoffset, uint64_t local_time,
+ uint8_t grandmaster_id[], uint8_t domain_number,
+ uint32_t sync_count, uint32_t pdelay_count, PortState port_state, bool asCapable ) {
 	int buf_offset = 0;
 	pid_t process_id = getpid();
 	char *shm_buffer = master_offset_buffer;
@@ -795,6 +796,8 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->ml_freqoffset = ml_freqoffset;
 		ptimedata->ls_freqoffset = ls_freqoffset;
 		ptimedata->local_time = local_time;
+		memcpy(ptimedata->grandmaster_id, grandmaster_id, PTP_CLOCK_IDENTITY_LENGTH);
+		ptimedata->domain_number = domain_number;
 		ptimedata->sync_count   = sync_count;
 		ptimedata->pdelay_count = pdelay_count;
         ptimedata->asCapable = asCapable;

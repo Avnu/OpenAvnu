@@ -152,6 +152,10 @@ class WindowsNPipeMessage {
         NPIPE_MSG_TYPE getType() { return type; }
 };
 
+#ifndef PTP_CLOCK_IDENTITY_LENGTH
+#define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS Clause 8.5.2.4*/
+#endif
+
 /**
  * @brief Provides an interface for the phase/frequency offsets
  */
@@ -160,8 +164,10 @@ class Offset {
         int64_t ml_phoffset;	/*!< Master to local phase offset */
         FrequencyRatio ml_freqoffset;	/*!< Master to local frequency offset */
         int64_t ls_phoffset;	/*!< Local to system phase offset */
-        FrequencyRatio ls_freqoffset;	/*!< Local to system frequency offset*/
-        uint64_t local_time;	/*!< Local time*/
+        FrequencyRatio ls_freqoffset;	/*!< Local to system frequency offset */
+        uint64_t local_time;	/*!< Local time */
+        uint8_t grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];	/*!< Current grandmaster id (all 0's if no grandmaster selected) */
+        uint8_t domain_number;	/*!< gPTP domain number */
 };
 
 /**
@@ -194,15 +200,20 @@ class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
          * @param  ls_phoffset Local to system phase offset in nano-seconds
          * @param  ls_freqoffset Local to system frequency offset in the ::FrequencyRatio format
          * @param  local_time Local time in nanoseconds
+         * @param  grandmaster_id Current grandmaster id (all 0's if no grandmaster selected)
+         * @param  domain_number gPTP domain number
          * @return void
          */
-        void init( int64_t ml_phoffset, FrequencyRatio ml_freqoffset, int64_t ls_phoffset, FrequencyRatio ls_freqoffset, uint64_t local_time ) {
+        void init( int64_t ml_phoffset, FrequencyRatio ml_freqoffset, int64_t ls_phoffset, FrequencyRatio ls_freqoffset, uint64_t local_time,
+                   uint8_t grandmaster_id[], uint8_t domain_number ) {
             _init();
             this->offset.ml_phoffset = ml_phoffset;
             this->offset.ml_freqoffset = ml_freqoffset;
             this->offset.ls_phoffset = ls_phoffset;
             this->offset.ls_freqoffset = ls_freqoffset;
             this->offset.local_time = local_time;
+            memcpy(this->offset.grandmaster_id, grandmaster_id, PTP_CLOCK_IDENTITY_LENGTH);
+            this->offset.domain_number = domain_number;
         }
         /**
          * @brief  Initializes the interface based on the Offset structure
@@ -238,6 +249,16 @@ class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
          * @return Local time
          */
         uint64_t getLocalTime() { return offset.local_time; }
+        /**
+         * @brief  Gets current grandmaster id
+         * @return Current grandmaster id
+         */
+        uint8_t * getGrandmasterId() { return offset.grandmaster_id; }
+        /**
+         * @brief  Gets domain number
+         * @return Domain number
+         */
+        uint64_t getDomainNumber() { return offset.domain_number; }
 };
 
 /**

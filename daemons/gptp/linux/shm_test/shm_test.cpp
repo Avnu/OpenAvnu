@@ -97,7 +97,13 @@ int main(int argc, char *argv[])
     fprintf(stdout, "ml freq offset %Lf\n", ptpData->ml_freqoffset);
     fprintf(stdout, "ls phoffset %ld\n", ptpData->ls_phoffset);
     fprintf(stdout, "ls freq offset %Lf\n", ptpData->ls_freqoffset);
-    fprintf(stdout, "local time %llu\n", ptpData->local_time);
+    fprintf(stdout, "local time %llu\n", (unsigned long long) ptpData->local_time);
+    fprintf(stdout, "grandmaster id %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+            (unsigned int)ptpData->grandmaster_id[0], (unsigned int)ptpData->grandmaster_id[1],
+            (unsigned int)ptpData->grandmaster_id[2], (unsigned int)ptpData->grandmaster_id[3],
+            (unsigned int)ptpData->grandmaster_id[4], (unsigned int)ptpData->grandmaster_id[5],
+            (unsigned int)ptpData->grandmaster_id[6], (unsigned int)ptpData->grandmaster_id[7]);
+    fprintf(stdout, "domain number %u\n", (unsigned int)ptpData->domain_number);
     fprintf(stdout, "sync count %u\n", ptpData->sync_count);
     fprintf(stdout, "pdelay count %u\n", ptpData->pdelay_count);
     fprintf(stdout, "asCapable %s\n", ptpData->asCapable ? "True" : "False");

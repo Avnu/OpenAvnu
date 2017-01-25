@@ -106,6 +106,8 @@ typedef struct {
 	FrequencyRatio ml_freqoffset;
 	FrequencyRatio ls_freqoffset;
 	uint64_t local_time;
+	uint8_t grandmaster_id[8];
+	uint8_t domain_number;
 } gPtpTimeData;
 
 /*TODO fix this*/

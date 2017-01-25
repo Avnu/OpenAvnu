@@ -57,6 +57,8 @@ public:
 		ls_phoffset = 0;
 		ls_freqoffset = 0.0;
 		local_time = 0;
+		memset(grandmaster_id, 0, sizeof(grandmaster_id));
+		domain_number = 0;
 	}
 	/**
 	 * @brief  Get Internal ready flag

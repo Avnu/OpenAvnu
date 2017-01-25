@@ -815,13 +815,16 @@ public:
 	 * @param  ml_freqoffset Master to local frequency offset
 	 * @param  ls_freq_offset Local to system frequency offset
 	 * @param  local_time Local time
+	 * @param  grandmaster_id Current grandmaster id (all 0's if no grandmaster selected)
+	 * @param  domain_number gPTP domain number
 	 * @param  sync_count Counts of sync mesasges
 	 * @param  pdelay_count Counts of pdelays
 	 * @param  port_state PortState information
-     * @param  asCapable asCapable flag
+	 * @param  asCapable asCapable flag
 	 * @return TRUE if sucess; FALSE if error
 	 */
 	virtual bool update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
+		uint8_t grandmaster_id[], uint8_t domain_number,
 		uint32_t sync_count, uint32_t pdelay_count, PortState port_state, bool asCapable);
 };
 

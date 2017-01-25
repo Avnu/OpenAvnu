@@ -62,6 +62,10 @@
 
 #include <ptptypes.hpp>
 
+#ifndef PTP_CLOCK_IDENTITY_LENGTH
+#define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS Clause 8.5.2.4*/
+#endif
+
 /**
  * @brief Provides a data structure for gPTP time
  */
@@ -71,6 +75,8 @@ typedef struct {
     FrequencyRatio ml_freqoffset;	//!< Master to local frequency offset
     FrequencyRatio ls_freqoffset;	//!< Local to system frequency offset
     uint64_t local_time;			//!< Local time of last update
+    uint8_t grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];	//!< Current grandmaster id (all 0's if no grandmaster selected)
+    uint8_t domain_number;			//!< gPTP domain number
     uint32_t sync_count;			//!< Sync messages count
     uint32_t pdelay_count;			//!< pdelay messages count
     bool asCapable;                 //!< asCapable flag: true = device is AS Capable; false otherwise

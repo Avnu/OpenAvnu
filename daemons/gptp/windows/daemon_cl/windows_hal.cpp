@@ -176,6 +176,7 @@ bool WindowsNamedPipeIPC::init(OS_IPC_ARG *arg) {
 }
 
 bool WindowsNamedPipeIPC::update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
+	uint8_t grandmaster_id[], uint8_t domain_number,
 	uint32_t sync_count, uint32_t pdelay_count, PortState port_state, bool asCapable) {
 
 
@@ -185,6 +186,8 @@ bool WindowsNamedPipeIPC::update(int64_t ml_phoffset, int64_t ls_phoffset, Frequ
 	lOffset_.ml_phoffset = ml_phoffset;
 	lOffset_.ls_freqoffset = ls_freq_offset;
 	lOffset_.ls_phoffset = ls_phoffset;
+	memcpy(lOffset_.grandmaster_id, grandmaster_id, PTP_CLOCK_IDENTITY_LENGTH);
+	lOffset_.domain_number = domain_number;
 
 	if (!lOffset_.isReady()) lOffset_.setReady(true);
 	lOffset_.put();

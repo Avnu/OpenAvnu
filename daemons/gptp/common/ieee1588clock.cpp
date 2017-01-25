@@ -349,10 +349,16 @@ void IEEE1588Clock::setMasterOffset
 						master_local_offset, master_local_freq_offset, sync_count, pdelay_count);
 	}
 
-	if( ipc != NULL ) ipc->update
-		( master_local_offset, local_system_offset, master_local_freq_offset,
-		  local_system_freq_offset, TIMESTAMP_TO_NS(local_time), sync_count,
-		  pdelay_count, port_state, asCapable );
+	if( ipc != NULL ) {
+		uint8_t grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];
+		grandmaster_clock_identity.getIdentityString(grandmaster_id);
+
+		ipc->update
+			( master_local_offset, local_system_offset, master_local_freq_offset,
+			  local_system_freq_offset, TIMESTAMP_TO_NS(local_time),
+			  grandmaster_id, domain_number,
+			  sync_count, pdelay_count, port_state, asCapable);
+	}
 
 	if( master_local_offset == 0 && master_local_freq_offset == 1.0 ) {
 		return;
