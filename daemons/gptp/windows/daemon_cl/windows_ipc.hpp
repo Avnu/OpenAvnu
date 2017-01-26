@@ -244,16 +244,6 @@ class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
          * @return Local time
          */
         uint64_t getLocalTime() { return offset.local_time; }
-        /**
-         * @brief  Gets current grandmaster id
-         * @return Current grandmaster id
-         */
-        uint8_t * getGrandmasterId() { return offset.grandmaster_id; }
-        /**
-         * @brief  Gets domain number
-         * @return Domain number
-         */
-        uint64_t getDomainNumber() { return offset.domain_number; }
 };
 
 /**
