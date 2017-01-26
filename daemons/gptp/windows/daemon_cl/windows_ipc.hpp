@@ -161,13 +161,30 @@ class WindowsNPipeMessage {
  */
 class Offset {
     public:
-        int64_t ml_phoffset;	/*!< Master to local phase offset */
-        FrequencyRatio ml_freqoffset;	/*!< Master to local frequency offset */
-        int64_t ls_phoffset;	/*!< Local to system phase offset */
-        FrequencyRatio ls_freqoffset;	/*!< Local to system frequency offset */
-        uint64_t local_time;	/*!< Local time */
-        uint8_t grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];	/*!< Current grandmaster id (all 0's if no grandmaster selected) */
-        uint8_t domain_number;	/*!< gPTP domain number */
+        int64_t ml_phoffset;					//!< Master to local phase offset
+        FrequencyRatio ml_freqoffset;			//!< Master to local frequency offset
+        int64_t ls_phoffset;					//!< Local to system phase offset
+        FrequencyRatio ls_freqoffset;			//!< Local to system frequency offset
+        uint64_t local_time;					//!< Local time
+
+        /* Current grandmaster information */
+        /* Referenced by the IEEE Std 1722.1-2013 AVDECC Discovery Protocol Data Unit (ADPDU) */
+        uint8_t gptp_grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];	//!< Current grandmaster id (all 0's if no grandmaster selected)
+        uint8_t gptp_domain_number;				//!< gPTP domain number
+
+        /* Grandmaster support for the network interface */
+        /* Referenced by the IEEE Std 1722.1-2013 AVDECC AVB_INTERFACE descriptor */
+        uint8_t  clock_identity[PTP_CLOCK_IDENTITY_LENGTH];	//!< The clock identity of the interface
+        uint8_t  priority1;						//!< The priority1 field of the grandmaster functionality of the interface, or 0xFF if not supported
+        uint8_t  clock_class;					//!< The clockClass field of the grandmaster functionality of the interface, or 0xFF if not supported
+        int16_t  offset_scaled_log_variance;	//!< The offsetScaledLogVariance field of the grandmaster functionality of the interface, or 0x0000 if not supported
+        uint8_t  clock_accuracy;				//!< The clockAccuracy field of the grandmaster functionality of the interface, or 0xFF if not supported
+        uint8_t  priority2;						//!< The priority2 field of the grandmaster functionality of the interface, or 0xFF if not supported
+        uint8_t  domain_number;					//!< The domainNumber field of the grandmaster functionality of the interface, or 0 if not supported
+        int8_t   log_sync_interval;				//!< The currentLogSyncInterval field of the grandmaster functionality of the interface, or 0 if not supported
+        int8_t   log_announce_interval;			//!< The currentLogAnnounceInterval field of the grandmaster functionality of the interface, or 0 if not supported
+        int8_t   log_pdelay_interval;			//!< The currentLogPDelayReqInterval field of the grandmaster functionality of the interface, or 0 if not supported
+        uint16_t port_number;					//!< The portNumber field of the interface, or 0x0000 if not supported
 };
 
 /**

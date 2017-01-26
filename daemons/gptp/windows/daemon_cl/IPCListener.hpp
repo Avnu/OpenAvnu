@@ -57,8 +57,21 @@ public:
 		ls_phoffset = 0;
 		ls_freqoffset = 0.0;
 		local_time = 0;
-		memset(grandmaster_id, 0, sizeof(grandmaster_id));
+
+		memset(gptp_grandmaster_id, 0, sizeof(gptp_grandmaster_id));
+		gptp_domain_number = 0;
+
+		memset(clock_identity, 0, sizeof(clock_identity));
+		priority1 = 0xFF;
+		clock_class = 0xFF;
+		offset_scaled_log_variance = 0x0000;
+		clock_accuracy = 0xFF;
+		priority2 = 0xFF;
 		domain_number = 0;
+		log_sync_interval = 0;
+		log_announce_interval = 0;
+		log_pdelay_interval = 0;
+		port_number = 0x0000;
 	}
 	/**
 	 * @brief  Get Internal ready flag
