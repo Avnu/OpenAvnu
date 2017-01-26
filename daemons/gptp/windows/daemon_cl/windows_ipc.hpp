@@ -211,28 +211,6 @@ class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
             memset( &this->offset, 0, sizeof( this->offset ));
         }
         /**
-         * @brief  Initializes the interface with specific values
-         * @param  ml_phoffset Master to local phase offset in nano-seconds
-         * @param  ml_freqoffset Master to local frequency offset in the ::FrequencyRatio format
-         * @param  ls_phoffset Local to system phase offset in nano-seconds
-         * @param  ls_freqoffset Local to system frequency offset in the ::FrequencyRatio format
-         * @param  local_time Local time in nanoseconds
-         * @param  grandmaster_id Current grandmaster id (all 0's if no grandmaster selected)
-         * @param  domain_number gPTP domain number
-         * @return void
-         */
-        void init( int64_t ml_phoffset, FrequencyRatio ml_freqoffset, int64_t ls_phoffset, FrequencyRatio ls_freqoffset, uint64_t local_time,
-                   uint8_t grandmaster_id[], uint8_t domain_number ) {
-            _init();
-            this->offset.ml_phoffset = ml_phoffset;
-            this->offset.ml_freqoffset = ml_freqoffset;
-            this->offset.ls_phoffset = ls_phoffset;
-            this->offset.ls_freqoffset = ls_freqoffset;
-            this->offset.local_time = local_time;
-            memcpy(this->offset.grandmaster_id, grandmaster_id, PTP_CLOCK_IDENTITY_LENGTH);
-            this->offset.domain_number = domain_number;
-        }
-        /**
          * @brief  Initializes the interface based on the Offset structure
          * @param  offset [in] Offset structure
          * @return void
