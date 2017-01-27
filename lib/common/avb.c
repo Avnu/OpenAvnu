@@ -40,6 +40,7 @@
 
 #include "avb.h"
 
+#if (AVB_FEATURE_IGB)
 /**
  * @brief Connect to the network card 
  * @param igb_dev [inout] Device handle
@@ -92,6 +93,7 @@ out:
 	pci_cleanup(pacc);
 	return 0;
 }
+#endif /* AVB_FEATURE_IGB */
 
 /**
  * @brief Open the memory mapping used for IPC

@@ -21,14 +21,23 @@
 
 #include <inttypes.h>
 
+#ifndef AVB_FEATURE_IGB
+/* IGB has not been disabled, so assume it is enabled. */
+#define AVB_FEATURE_IGB 1
+#endif
+
+#if (AVB_FEATURE_IGB)
 #include <igb.h>
+#endif
 
 #define VALID		1
 #define INVALID		0
 
 #define MAC_ADDR_LEN	6
 
+#if (AVB_FEATURE_IGB)
 #define IGB_BIND_NAMESZ		24
+#endif
 
 #define SHM_SIZE (4*8 + sizeof(pthread_mutex_t)) /* 3 - 64 bit and 2 - 32 bits */
 #define SHM_NAME  "/ptp"
@@ -132,7 +141,9 @@ typedef struct {
 typedef enum { false = 0, true = 1 } bool;
 #endif
 
+#if (AVB_FEATURE_IGB)
 int pci_connect(device_t * igb_dev);
+#endif
 
 int gptpinit(int *shm_fd, char **shm_map);
 int gptpdeinit(int *shm_fd, char **shm_map);
