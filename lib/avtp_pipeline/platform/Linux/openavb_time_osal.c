@@ -35,8 +35,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #if (AVB_FEATURE_IGB)
 #include "igb.h"
-#include "avb.h"
 #endif
+#include "avb.h"
 
 #include "openavb_platform.h"
 #include "openavb_time_osal.h"
@@ -47,30 +47,25 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_pub.h"
 #include "openavb_log.h"
 
-//#include "openavb_time_util_osal.h"
-
-#if (AVB_FEATURE_IGB)
 static pthread_mutex_t gOSALTimeInitMutex = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK()  	pthread_mutex_lock(&gOSALTimeInitMutex)
 #define UNLOCK()	pthread_mutex_unlock(&gOSALTimeInitMutex)
-#endif
 
 static bool bInitialized = FALSE;
-#if (AVB_FEATURE_IGB)
 static int gIgbShmFd = -1;
 static char *gIgbMmap = NULL;
 gPtpTimeData gPtpTD;
-#endif
 
-#if (AVB_FEATURE_IGB)
 static bool x_timeInit(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
+#if (AVB_FEATURE_IGB)
 	if (!halTimeInitialize()) {
 		AVB_LOG_ERROR("HAL Time Init failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
 	}
+#endif
 
 	if (gptpinit(&gIgbShmFd, &gIgbMmap) < 0) {
 		AVB_LOG_ERROR("GPTP init failed");
@@ -119,21 +114,16 @@ static bool x_getPTPTime(U64 *timeNsec) {
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
 	return FALSE;
 }
-#endif // (AVB_FEATURE_IGB)
 
 bool osalAVBTimeInit(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-#if (AVB_FEATURE_IGB)
 	LOCK();
 	if (!bInitialized) {
 		if (x_timeInit())
 			bInitialized = TRUE;
 	}
 	UNLOCK();
-#else
-	bInitialized = TRUE;
-#endif
 
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
 	return TRUE;
@@ -142,9 +132,9 @@ bool osalAVBTimeInit(void) {
 bool osalAVBTimeClose(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-#if (AVB_FEATURE_IGB)
 	gptpdeinit(&gIgbShmFd, &gIgbMmap);
 
+#if (AVB_FEATURE_IGB)
 	halTimeFinalize();
 #endif
 
@@ -155,9 +145,7 @@ bool osalAVBTimeClose(void) {
 bool osalClockGettime(openavb_clockId_t openavbClockId, struct timespec *getTime) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-#if (AVB_FEATURE_IGB)
 	if (openavbClockId < OPENAVB_CLOCK_WALLTIME)
-#endif
 	{
 		clockid_t clockId = CLOCK_MONOTONIC;
 		switch (openavbClockId) {
@@ -175,7 +163,6 @@ bool osalClockGettime(openavb_clockId_t openavbClockId, struct timespec *getTime
 		}
 		if (!clock_gettime(clockId, getTime)) return TRUE;
 	}
-#if (AVB_FEATURE_IGB)
 	else if (openavbClockId == OPENAVB_CLOCK_WALLTIME) {
 		U64 timeNsec;
 		if (!x_getPTPTime(&timeNsec)) {
@@ -187,15 +174,12 @@ bool osalClockGettime(openavb_clockId_t openavbClockId, struct timespec *getTime
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return TRUE;
 	}
-#endif
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
 	return FALSE;
 }
 
 bool osalClockGettime64(openavb_clockId_t openavbClockId, U64 *timeNsec) {
-#if (AVB_FEATURE_IGB)
 	if (openavbClockId < OPENAVB_CLOCK_WALLTIME)
-#endif
 	{
 		clockid_t clockId = CLOCK_MONOTONIC;
 		switch (openavbClockId) {
@@ -218,12 +202,10 @@ bool osalClockGettime64(openavb_clockId_t openavbClockId, U64 *timeNsec) {
 			return TRUE;
 		}
 	}
-#if (AVB_FEATURE_IGB)
 	else if (openavbClockId == OPENAVB_CLOCK_WALLTIME) {
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return x_getPTPTime(timeNsec);
 	}
-#endif
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
 	return FALSE;
 }

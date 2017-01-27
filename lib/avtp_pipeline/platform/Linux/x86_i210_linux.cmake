@@ -28,17 +28,17 @@ endif ()
 	${CMAKE_SOURCE_DIR}/../../daemons/mrpd
 )
 
-#if (AVB_FEATURE_IGB)
+if (AVB_FEATURE_IGB)
 	set ( PLATFORM_LINK_DIRECTORIES
 		${CMAKE_SOURCE_DIR}/../igb
 	)
-#endif ()
+endif ()
 
-#if (AVB_FEATURE_IGB)
+if (AVB_FEATURE_IGB)
 	set ( PLATFORM_LINK_LIBRARIES
 		igb
 	)
-#endif ()
+endif ()
 
 # TODO_OPENAVB : need this?
 # Set platform specific define

@@ -76,7 +76,7 @@ typedef enum {
 
 /**
  * @brief PortIdentity interface
- * Defined at IEEE 802.1AS Clause 8.5.2
+ * Defined at IEEE 802.1AS-2011 Clause 8.5.2
  */
 class PortIdentity {
 private:
@@ -90,7 +90,7 @@ public:
 
 	/**
 	 * @brief  Constructs PortIdentity interface.
-	 * @param  clock_id Clock ID value as defined at IEEE 802.1AS Clause 8.5.2.2
+	 * @param  clock_id Clock ID value as defined at IEEE 802.1AS-2011 Clause 8.5.2.2
 	 * @param  portNumber Port Number
 	 */
 	PortIdentity(uint8_t * clock_id, uint16_t * portNumber) {
@@ -733,7 +733,7 @@ class IEEE1588Port {
 
 
 	/**
-	 * @brief  Adds a new qualified announce the port. IEEE 802.1AS Clause 10.3.10.2
+	 * @brief  Adds a new qualified announce the port. IEEE 802.1AS-2011 Clause 10.3.10.2
 	 * @param  msg PTP announce message
 	 * @return void
 	 */
