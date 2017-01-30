@@ -68,11 +68,13 @@ extern bool openavbIntfViewerInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *p
 
 // Linux interface modules
 extern bool openavbIntfAlsaInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
-extern bool openavbIntfMjpegGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfMpeg2tsFileInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
-extern bool openavbIntfMpeg2tsGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfWavFileInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
+#ifdef AVB_FEATURE_GSTREAMER
+extern bool openavbIntfMjpegGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
+extern bool openavbIntfMpeg2tsGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfH264RtpGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
+#endif
 
 /***********************************************
  * Signal handler - used to respond to signals.
@@ -207,12 +209,13 @@ int main(int argc, char *argv[])
 	registerStaticIntfModule(openavbIntfToneGenInitialize);
 	registerStaticIntfModule(openavbIntfViewerInitialize);
 	registerStaticIntfModule(openavbIntfAlsaInitialize);
-	registerStaticIntfModule(openavbIntfMjpegGstInitialize);
 	registerStaticIntfModule(openavbIntfMpeg2tsFileInitialize);
-	registerStaticIntfModule(openavbIntfMpeg2tsGstInitialize);
 	registerStaticIntfModule(openavbIntfWavFileInitialize);
+#ifdef AVB_FEATURE_GSTREAMER
+	registerStaticIntfModule(openavbIntfMjpegGstInitialize);
+	registerStaticIntfModule(openavbIntfMpeg2tsGstInitialize);
 	registerStaticIntfModule(openavbIntfH264RtpGstInitialize);
-
+#endif
 	tlHandleList = calloc(1, sizeof(tl_handle_t) * tlCount);
 
 	// Open all streams
