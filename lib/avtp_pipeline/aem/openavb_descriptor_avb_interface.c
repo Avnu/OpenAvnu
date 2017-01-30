@@ -28,7 +28,10 @@
 #include "openavb_rawsock.h"
 #include "openavb_aem.h"
 #include "openavb_descriptor_avb_interface.h"
+
+#ifndef AVB_PTP_AVAILABLE
 #include "openavb_grandmaster_osal_pub.h"
+#endif // !AVB_PTP_AVAILABLE
 
 extern openavb_avdecc_cfg_t gAvdeccCfg;
 
@@ -136,6 +139,7 @@ openavbRC openavbAemDescriptorAvbInterfaceUpdate(void *pVoidDescriptor)
 		memcpy(pDescriptor->clock_identity, pEntityDescriptor->entity_id, sizeof(pDescriptor->clock_identity));
 	}
 
+#ifndef AVB_PTP_AVAILABLE
 	// Get the current grandmaster information.
 	if (!osalClockGrandmasterGetInterface(
 		pDescriptor->clock_identity,
@@ -152,6 +156,7 @@ openavbRC openavbAemDescriptorAvbInterfaceUpdate(void *pVoidDescriptor)
 	{
 		AVB_LOG_ERROR("osalClockGrandmasterGetInterface failure");
 	}
+#endif // !AVB_PTP_AVAILABLE
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
 }

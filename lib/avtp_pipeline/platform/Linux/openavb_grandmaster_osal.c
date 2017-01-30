@@ -44,7 +44,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_log.h"
 
 static pthread_mutex_t gOSALGrandmasterInitMutex = PTHREAD_MUTEX_INITIALIZER;
-#define LOCK()  	pthread_mutex_lock(&gOSALGrandmasterInitMutex)
+#define LOCK()		pthread_mutex_lock(&gOSALGrandmasterInitMutex)
 #define UNLOCK()	pthread_mutex_unlock(&gOSALGrandmasterInitMutex)
 
 static bool bInitialized = FALSE;
