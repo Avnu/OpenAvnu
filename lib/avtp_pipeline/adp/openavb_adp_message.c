@@ -43,6 +43,8 @@ void     openavbPtpReleaseSharedMemory     ();
 openavbRC openavbPtpUpdateSharedMemoryEntry ();
 openavbRC openavbPtpFindLatestSharedMemoryEntry(U32 *index);
 extern gmChangeTable_t openavbPtpGMChageTable;
+#else
+#include "openavb_grandmaster_osal_pub.h"
 #endif // AVB_PTP_AVAILABLE
 
 
@@ -383,7 +385,6 @@ openavbRC openavbAdpMessageSend(U8 messageType)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
 
-#ifdef AVB_PTP_AVAILABLE
 	// Note: this entire process of the GM ID is not as the 1722.1 spec expects.
 	//  The openavbAdpSMAdvertiseInterfaceSet_advertisedGrandmasterID() should be called when the
 	//  stack detects a GM change that will trigger an advertise. Instead we are detecting 
@@ -393,6 +394,7 @@ openavbRC openavbAdpMessageSend(U8 messageType)
 	//  pulled from the state machine var.
 	//  AVDECC_TODO: This logic should change to detect GM change else where in the system and call the 
 	//  expected openavbAdpSMAdvertiseInterfaceSet_advertisedGrandmasterID() to start the advertise process.
+#ifdef AVB_PTP_AVAILABLE
 	openavb_adp_data_unit_t *pPdu = &openavbAdpSMGlobalVars.entityInfo.pdu;
 	openavbRC  retCode = OPENAVB_PTP_FAILURE;
 	U32 ptpSharedMemoryEntryIndex;
@@ -405,6 +407,18 @@ openavbRC openavbAdpMessageSend(U8 messageType)
 			memcpy(pPdu->gptp_grandmaster_id, openavbPtpGMChageTable.entry[ptpSharedMemoryEntryIndex].gmId, sizeof(pPdu->gptp_grandmaster_id));
 			openavbAdpSMAdvertiseInterfaceSet_advertisedGrandmasterID(pPdu->gptp_grandmaster_id);
 		}
+	}
+#else
+	openavb_adp_data_unit_t *pPdu = &openavbAdpSMGlobalVars.entityInfo.pdu;
+	uint8_t current_grandmaster_id[8];
+	if (!osalAVBGrandmasterGetCurrent(current_grandmaster_id, &(pPdu->gptp_domain_number)))
+	{
+		AVB_LOG_ERROR("osalAVBGrandmasterGetCurrent failure");
+	}
+	else if (memcmp(pPdu->gptp_grandmaster_id, current_grandmaster_id, sizeof(pPdu->gptp_grandmaster_id)))
+	{
+		memcpy(pPdu->gptp_grandmaster_id, current_grandmaster_id, sizeof(pPdu->gptp_grandmaster_id));
+		openavbAdpSMAdvertiseInterfaceSet_advertisedGrandmasterID(pPdu->gptp_grandmaster_id);
 	}
 #endif
 

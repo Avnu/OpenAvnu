@@ -39,13 +39,13 @@ typedef struct {
 	U8 clock_identity[8];
 	U8 priority1;
 	U8 clock_class;
-	U16 offset_scaled_log_variance;
+	S16 offset_scaled_log_variance;
 	U8 clock_accuracy;
 	U8 priority2;
 	U8 domain_number;
-	U8 log_sync_interval;
-	U8 log_announce_interval;
-	U8 log_pdelay_interval;
+	S8 log_sync_interval;
+	S8 log_announce_interval;
+	S8 log_pdelay_interval;
 	U16 port_number;
 } openavb_aem_descriptor_avb_interface_t;
 

@@ -285,6 +285,9 @@ if ( AVB_FEATURE_IGB )
 	SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/openavb_ether_hal.c )
 	SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/openavb_time_hal.c )
 endif ()
+if (AVB_FEATURE_AVDECC)
+	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_grandmaster_osal.c )
+endif ()
 SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/mcr/openavb_mcr_hal.c )
 
 # OpenAVB Common (support) files

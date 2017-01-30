@@ -104,10 +104,7 @@ openavbRC openavbAdpStart()
 		pPdu->listener_capabilities = pAem->pDescriptorEntity->listener_capabilities;
 		pPdu->controller_capabilities = pAem->pDescriptorEntity->controller_capabilities;
 		pPdu->available_index = pAem->pDescriptorEntity->available_index;
-#ifdef AVB_PTP_AVAILABLE
-		// memcpy(pPdu->gptp_grandmaster_id, openavbPtpGMChageTable.entry[ptpSharedMemoryEntryIndex].gmId, sizeof(pPdu->gptp_grandmaster_id)); // Fill at TX time
-		// pPdu->gptp_domain_number = ???;												// AVDECC_TODO
-#endif // AVB_PTP_AVAILABLE
+		// The pPdu->gptp_grandmaster_id and pPdu->gptp_domain_number will be filled in when the ADPDU is transmitted.
 		// pPdu->reserved0;
 		// pPdu->identify_control_index = ???;											// AVDECC_TODO	
 		// pPdu->interface_index = ???;													// AVDECC_TODO	

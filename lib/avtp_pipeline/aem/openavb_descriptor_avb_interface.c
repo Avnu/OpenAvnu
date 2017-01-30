@@ -28,6 +28,7 @@
 #include "openavb_rawsock.h"
 #include "openavb_aem.h"
 #include "openavb_descriptor_avb_interface.h"
+#include "openavb_grandmaster_osal_pub.h"
 
 extern openavb_avdecc_cfg_t gAvdeccCfg;
 
@@ -135,7 +136,22 @@ openavbRC openavbAemDescriptorAvbInterfaceUpdate(void *pVoidDescriptor)
 		memcpy(pDescriptor->clock_identity, pEntityDescriptor->entity_id, sizeof(pDescriptor->clock_identity));
 	}
 
-	// AVDECC_TODO - Any updates needed?
+	// Get the current grandmaster information.
+	if (!osalClockGrandmasterGetInterface(
+		pDescriptor->clock_identity,
+		&pDescriptor->priority1,
+		&pDescriptor->clock_class,
+		&pDescriptor->offset_scaled_log_variance,
+		&pDescriptor->clock_accuracy,
+		&pDescriptor->priority2,
+		&pDescriptor->domain_number,
+		&pDescriptor->log_sync_interval,
+		&pDescriptor->log_announce_interval,
+		&pDescriptor->log_pdelay_interval,
+		&pDescriptor->port_number))
+	{
+		AVB_LOG_ERROR("osalClockGrandmasterGetInterface failure");
+	}
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AEM);
 }
