@@ -60,10 +60,17 @@ void openavbTimeTimespecAddUsec(struct timespec *pTime, U32 us)
 	if (!pTime) {
 		return;		// Error case - undefined behavior
 	}
+	/* Handle the seconds provided (to prevent overflowing). */
+	pTime->tv_sec += us / MICROSECONDS_PER_SECOND;
+	us = us % MICROSECONDS_PER_SECOND;
 
-	pTime->tv_nsec += us * NANOSECONDS_PER_USEC;
-    pTime->tv_sec += pTime->tv_nsec / NANOSECONDS_PER_SECOND;
-    pTime->tv_nsec = pTime->tv_nsec % NANOSECONDS_PER_SECOND;
+	/* Handle the remaining microseconds provided. */
+	if (us > 0) {
+		pTime->tv_nsec += us * NANOSECONDS_PER_USEC;
+
+		pTime->tv_sec += pTime->tv_nsec / NANOSECONDS_PER_SECOND;
+		pTime->tv_nsec = pTime->tv_nsec % NANOSECONDS_PER_SECOND;
+	}
 }
 
 void openavbTimeTimespecSubUsec(struct timespec *pTime, U32 us)
