@@ -1,235 +1,96 @@
- /*
-  * Copyright (c) <2013>, Intel Corporation.
-  *
-  * This program is free software; you can redistribute it and/or modify it
-  * under the terms and conditions of the GNU Lesser General Public License,
-  * version 2.1, as published by the Free Software Foundation.
-  *
-  * This program is distributed in the hope it will be useful, but WITHOUT
-  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
-  * more details.
-  *
-  * You should have received a copy of the GNU Lesser General Public License along with
-  * this program; if not, write to the Free Software Foundation, Inc.,
-  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-  *
-  */
+/*
+ * Copyright (c) <2013>, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU Lesser General Public License,
+ * version 2.1, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ */
 
-#include <errno.h>
-#include <fcntl.h>
-#include <math.h>
-#include <pthread.h>
-#include <stdio.h>
+#include "avb_avtp.h"
+
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <unistd.h>
 
 #include <arpa/inet.h>
-
 #include <linux/if.h>
-
-#include <netinet/in.h>
-
-#include <pci/pci.h>
-
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 
-#include "avb.h"
-
-/**
- * @brief Connect to the network card 
- * @param igb_dev [inout] Device handle
- * @return 0 for success, ENXIO for failure
- */
-
-int pci_connect(device_t *igb_dev)
+int32_t avb_get_iface_mac_address(int8_t *iface, uint8_t *addr)
 {
-	char devpath[IGB_BIND_NAMESZ];
-	struct pci_access *pacc;
-	struct pci_dev *dev;
-	int err;
+	struct ifreq ifreq;
+	int fd, ret;
 
-	memset(igb_dev, 0, sizeof(device_t));
-	pacc = pci_alloc();
-	pci_init(pacc);
-	pci_scan_bus(pacc);
+	/* Create a socket */
+	fd = socket(PF_PACKET, SOCK_RAW, htons(0x800));
+	if (fd < 0)
+		return -1;
 
-	for (dev = pacc->devices; dev; dev = dev->next) {
-		pci_fill_info(dev, PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
-		igb_dev->pci_vendor_id = dev->vendor_id;
-		igb_dev->pci_device_id = dev->device_id;
-		igb_dev->domain = dev->domain;
-		igb_dev->bus = dev->bus;
-		igb_dev->dev = dev->dev;
-		igb_dev->func = dev->func;
-		snprintf(devpath, IGB_BIND_NAMESZ, "%04x:%02x:%02x.%d",
-				dev->domain, dev->bus, dev->dev, dev->func);
-		err = igb_probe(igb_dev);
-		if (err) {
-			continue;
-		}
-		printf("attaching to %s\n", devpath);
-		err = igb_attach(devpath, igb_dev);
-		if (err) {
-			printf("attach failed! (%s)\n", strerror(err));
-			continue;
-		}
-		err = igb_attach_tx(igb_dev);
-		if (err) {
-			printf("attach_tx failed! (%s)\n", strerror(err));
-			igb_detach(igb_dev);
-			continue;
-		}
-		goto out;
-	}
-	pci_cleanup(pacc);
-	return ENXIO;
-out:
-	pci_cleanup(pacc);
-	return 0;
-}
+	memset(&ifreq, 0, sizeof(ifreq));
 
-/**
- * @brief Open the memory mapping used for IPC
- * @param shm_fd [inout] File descriptor for mapping
- * @param shm_map [inout] Pointer to mapping
- * @return 0 for success, negative for failure
- */
- 
-int gptpinit(int *shm_fd, char **shm_map)
-{
-	if (NULL == shm_fd || NULL == shm_map) {
+	strncpy(ifreq.ifr_name, (const char*)iface, sizeof(ifreq.ifr_name));
+	ret = ioctl(fd, SIOCGIFHWADDR, &ifreq);
+	if (ret < 0) {
+		close(fd);
 		return -1;
 	}
-	*shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	if (*shm_fd == -1) {
-		perror("shm_open()");
-		return -1;
-	}
-	*shm_map = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
-				MAP_SHARED, *shm_fd, 0);
-	if ((char*)-1 == *shm_map) {
-		perror("mmap()");
-		*shm_map = NULL;
-		shm_unlink(SHM_NAME);
-		return -1;
-	}
-	return 0;
-}
 
-/**
- * @brief Free the memory mapping used for IPC
- * @param shm_fd [in] File descriptor for mapping
- * @param shm_map [in] Pointer to mapping
- * @return 0 for success, negative for failure
- *	-1 = close failed
- *	-2 = munmap failed
- *	-3 = close and munmap failed
- */
-
-int gptpdeinit(int *shm_fd, char **shm_map)
-{
-	int ret = 0;
-	if (NULL == shm_fd || -1 == *shm_fd) {
-		ret -= 1;
-	} else {
-		if(close(*shm_fd) == -1) {
-			ret -= 1;
-		}
-		*shm_fd = -1;
-	}
-	if (NULL == shm_map || NULL == *shm_map) {
-		ret -= 2;
-	} else {
-		if (munmap(*shm_map, SHM_SIZE) == -1) {
-			ret -= 2;
-		}
-		*shm_map = NULL;
-	}
-	return ret;
-}
-
-/**
- * @brief Read the ptp data from IPC memory
- * @param shm_map [in] Pointer to mapping
- * @param td [inout] Struct to read the data into
- * @return 0 for success, negative for failure
- */
-
-int gptpgetdata(char *shm_map, gPtpTimeData *td)
-{
-	if (NULL == shm_map || NULL == td) {
-		return -1;
-	}
-	pthread_mutex_lock((pthread_mutex_t *) shm_map);
-	memcpy(td, shm_map + sizeof(pthread_mutex_t), sizeof(*td));
-	pthread_mutex_unlock((pthread_mutex_t *) shm_map);
+	memcpy(addr, ifreq.ifr_hwaddr.sa_data, ETH_ALEN);
+	close(fd);
 
 	return 0;
 }
 
-/**
- * @brief Read the ptp data from IPC memory and print its contents
- * @param shm_map [in] Pointer to mapping
- * @param td [inout] Struct to read the data into
- * @return 0 for success, negative for failure
- */
-
-int gptpscaling(char *shm_map, gPtpTimeData *td) //change this function name ??
+void *avb_create_packet(uint32_t payload_len)
 {
-	int i;
-	if ((i = gptpgetdata(shm_map, td)) < 0) {
-		return i;
-	}
-	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",
-		td->ml_phoffset, td->ls_phoffset);
-	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
-		td->ml_freqoffset, td->ls_freqoffset);
+	void *avb_packet = NULL;
+	uint32_t size;
+
+	size = sizeof(six1883_header);
+	size += sizeof(eth_header) + sizeof(seventeen22_header) + payload_len;
+
+	avb_packet = calloc(size, sizeof(uint8_t));
+	if (!avb_packet)
+		return NULL;
+
+	return avb_packet;
+}
+
+void avb_1722_set_eth_type(eth_header *eth_header) {
+
+	eth_header->h_protocol[0] = 0x22;
+	eth_header->h_protocol[1] = 0xf0;
+
+	return;
+}
+
+int32_t
+avb_eth_header_set_mac(eth_header *ethernet_header, uint8_t *addr, int8_t *iface)
+{
+	uint8_t source_mac[ETH_ALEN];
+
+	if (!addr || !iface)
+		return -EINVAL;
+
+	if (avb_get_iface_mac_address(iface, source_mac))
+		return -EINVAL;
+
+	memcpy(ethernet_header->h_dest, addr, ETH_ALEN);
+	memcpy(ethernet_header->h_source, source_mac, ETH_ALEN);
 
 	return 0;
-}
-
-bool gptplocaltime(const gPtpTimeData * td, uint64_t* now_local)
-{
-	struct timespec sys_time;
-	uint64_t now_system;
-	uint64_t system_time;
-	int64_t delta_local;
-	int64_t delta_system;
-
-	if (!td || !now_local)
-		return false;
-
-	if (clock_gettime(CLOCK_REALTIME, &sys_time) != 0)
-		return false;
-
-	now_system = (uint64_t)sys_time.tv_sec * 1000000000ULL + (uint64_t)sys_time.tv_nsec;
-
-	system_time = td->local_time + td->ls_phoffset;
-	delta_system = now_system - system_time;
-	delta_local = td->ls_freqoffset * delta_system;
-	*now_local = td->local_time + delta_local;
-
-	return true;
-}
-
-bool gptpmaster2local(const gPtpTimeData *td, const uint64_t master, uint64_t *local)
-{
-	int64_t delta_8021as;
-	int64_t delta_local;
-
-	if (!td || !local)
-		return false;
-
-	delta_8021as = master - td->local_time + td->ml_phoffset;
-	delta_local = delta_8021as / td->ml_freqoffset;
-	*local = td->local_time + delta_local;
-
-	return true;
 }
 
 /* setters & getters for seventeen22_header */
@@ -381,6 +242,24 @@ void avb_set_1722_length(seventeen22_header *h1722, uint64_t length)
 uint64_t avb_get_1722_length(seventeen22_header *h1722)
 {
 	return h1722->length;
+}
+
+void avb_initialize_h1722_to_defaults(seventeen22_header *h1722)
+{
+	avb_set_1722_subtype(h1722, 0x0);
+	avb_set_1722_cd_indicator(h1722, 0x0);
+	avb_set_1722_timestamp_valid(h1722, 0x0);
+	avb_set_1722_gateway_valid(h1722, 0x0);
+	avb_set_1722_reserved0(h1722, 0x0);
+	avb_set_1722_sid_valid(h1722, 0x0);
+	avb_set_1722_reset(h1722, 0x0);
+	avb_set_1722_version(h1722, 0x0);
+	avb_set_1722_seq_number(h1722, 0x0);
+	avb_set_1722_timestamp_uncertain(h1722, 0x0);
+	avb_set_1722_reserved1(h1722, 0x0);
+	avb_set_1722_timestamp(h1722, 0x0);
+	avb_set_1722_gateway_info(h1722, 0x0);
+	avb_set_1722_length(h1722, 0x0);
 }
 
 /* setters & getters for six1883_header */
@@ -545,39 +424,6 @@ uint16_t avb_get_61883_syt(six1883_header *h61883)
 	return h61883->syt;
 }
 
-void * avb_create_packet(uint32_t payload_len)
-{
-	void *avb_packet = NULL;
-	uint32_t size;
-
-	size = sizeof(six1883_header);
-	size += sizeof(eth_header) + sizeof(seventeen22_header) + payload_len;
-
-	avb_packet = calloc(size, sizeof(uint8_t));
-	if (!avb_packet)
-		return NULL;
-
-	return avb_packet;
-}
-
-void avb_initialize_h1722_to_defaults(seventeen22_header *h1722)
-{
-	avb_set_1722_subtype(h1722, 0x0);
-	avb_set_1722_cd_indicator(h1722, 0x0);
-	avb_set_1722_timestamp_valid(h1722, 0x0);
-	avb_set_1722_gateway_valid(h1722, 0x0);
-	avb_set_1722_reserved0(h1722, 0x0);
-	avb_set_1722_sid_valid(h1722, 0x0);
-	avb_set_1722_reset(h1722, 0x0);
-	avb_set_1722_version(h1722, 0x0);
-	avb_set_1722_seq_number(h1722, 0x0);
-	avb_set_1722_timestamp_uncertain(h1722, 0x0);
-	avb_set_1722_reserved1(h1722, 0x0);
-	avb_set_1722_timestamp(h1722, 0x0);
-	avb_set_1722_gateway_info(h1722, 0x0);
-	avb_set_1722_length(h1722, 0x0);
-}
-
 void avb_initialize_61883_to_defaults(six1883_header *h61883)
 {
 	avb_set_61883_packet_channel(h61883, 0x0);
@@ -596,54 +442,4 @@ void avb_initialize_61883_to_defaults(six1883_header *h61883)
 	avb_set_61883_eoh(h61883, 0x0);
 	avb_set_61883_format_dependent_field(h61883, 0x0);
 	avb_set_61883_syt(h61883, 0x0);
-}
-
-int32_t avb_get_iface_mac_address(int8_t *iface, uint8_t *addr)
-{
-	struct ifreq ifreq;
-	int fd, ret;
-
-	/* Create a socket */
-	fd = socket(PF_PACKET, SOCK_RAW, htons(0x800));
-	if (fd < 0)
-		return -1;
-
-	memset(&ifreq, 0, sizeof(ifreq));
-
-	strncpy(ifreq.ifr_name, (const char*)iface, sizeof(ifreq.ifr_name));
-	ret = ioctl(fd, SIOCGIFHWADDR, &ifreq);
-	if (ret < 0) {
-		close(fd);
-		return -1;
-	}
-
-	memcpy(addr, ifreq.ifr_hwaddr.sa_data, ETH_ALEN);
-	close(fd);
-
-	return 0;
-}
-
-void avb_1722_set_eth_type(eth_header *eth_header) {
-
-	eth_header->h_protocol[0] = 0x22;
-	eth_header->h_protocol[1] = 0xf0;
-
-	return;
-}
-
-int32_t
-avb_eth_header_set_mac(eth_header *ethernet_header, uint8_t *addr, int8_t *iface)
-{
-	uint8_t source_mac[ETH_ALEN];
-
-	if (!addr || !iface)
-		return -EINVAL;
-
-	if (avb_get_iface_mac_address(iface, source_mac))
-		return -EINVAL;
-
-	memcpy(ethernet_header->h_dest, addr, ETH_ALEN);
-	memcpy(ethernet_header->h_source, source_mac, ETH_ALEN);
-
-	return 0;
 }
