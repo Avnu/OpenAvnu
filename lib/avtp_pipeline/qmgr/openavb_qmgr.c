@@ -43,7 +43,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "avb_sched.h"
 
 #if (AVB_FEATURE_IGB)
-#include "openavb_ether_hal.h"
+#include "openavb_igb.h"
 #endif
 
 #define AVB_DEFAULT_QDISC_MODE AVB_SHAPER_HWQ_PER_CLASS
@@ -52,7 +52,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 // Qdisc configuration
 typedef struct {
+#if (AVB_FEATURE_IGB)
 	device_t *igb_dev;
+#endif
 	int mode;
 	int ifindex;
 	char ifname[IFNAMSIZ];
@@ -106,10 +108,11 @@ static bool setupHWQueue(int nClass, unsigned classBytesPerSec)
 		class_a_bytes_per_sec =  qmgr_classes[SR_CLASS_A].classBytesPerSec;
 		class_b_bytes_per_sec = classBytesPerSec;
 	}
-
+#if (AVB_FEATURE_IGB)
 	err = igb_set_class_bandwidth2(qdisc_data.igb_dev, class_a_bytes_per_sec, class_b_bytes_per_sec);
 	if (err)
 		AVB_LOGF_ERROR("Adding stream; igb_set_class_bandwidth failed: %s", strerror(err));
+#endif
 
 	AVB_TRACE_EXIT(AVB_TRACE_QUEUE_MANAGER);
 	return !err;
@@ -249,12 +252,14 @@ bool openavbQmgrInitialize(int mode, int ifindex, const char* ifname, unsigned m
 	AVB_LOGF_DEBUG("Initializing QMgr; mode=%d, idx=%d, mtu=%u, link_kbit=%u, nsr_kbit=%u",
 				   qdisc_data.mode, ifindex, mtu, link_kbit, nsr_kbit);
 
+#if (AVB_FEATURE_IGB)
 	if ( qdisc_data.mode != AVB_SHAPER_DISABLED
 	     && (qdisc_data.igb_dev = igbAcquireDevice()) == 0)
 	{
 		AVB_LOG_ERROR("Initializing QMgr; unable to acquire igb device");
 	}
 	else
+#endif
 	{
 		// Initialize data for classes and streams
 		memset(qmgr_classes, 0, sizeof(qmgr_classes));
@@ -297,8 +302,11 @@ void openavbQmgrFinalize(void)
 				}
 			}
 		}
+
+#if (AVB_FEATURE_IGB)
 		igbReleaseDevice(qdisc_data.igb_dev);
 		qdisc_data.igb_dev = NULL;
+#endif
 	}
 
 	UNLOCK();

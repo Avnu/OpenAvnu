@@ -37,8 +37,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_srp.h"
 #include "openavb_maap.h"
 #include "mrp_client.h"
-#include "openavb_ether_hal.h"
 #include "openavb_list.h"
+#include "openavb_rawsock.h"
 
 #define	AVB_LOG_COMPONENT	"Endpoint"
 //#define AVB_LOG_LEVEL AVB_LOG_LEVEL_DEBUG
@@ -100,12 +100,17 @@ bool startEndpoint(int mode, int ifindex, const char* ifname, unsigned mtu, unsi
 	memset(&x_cfg, 0, sizeof(openavb_endpoint_cfg_t));
 	x_cfg.fqtss_mode = mode;
 	x_cfg.ifindex = ifindex;
+	x_cfg.mtu = mtu;
 	if (ifname)
 		strncpy(x_cfg.ifname, ifname, sizeof(x_cfg.ifname));
 
-	igbGetMacAddr(x_cfg.ifmac);
+	if_info_t ifinfo;
+	if (openavbCheckInterface(x_cfg.ifname, &ifinfo)) {
+		memcpy(x_cfg.ifmac, &ifinfo.mac, ETH_ALEN);
+		x_cfg.ifindex = ifinfo.index;
+		x_cfg.mtu = ifinfo.mtu;
+	}
 
-	x_cfg.mtu = mtu;
 	x_cfg.link_kbit = link_kbit;
 	x_cfg.nsr_kbit = nsr_kbit;
 

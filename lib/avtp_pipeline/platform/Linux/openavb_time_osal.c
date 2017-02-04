@@ -33,14 +33,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-#if (AVB_FEATURE_IGB)
-#include "igb.h"
-#endif
-#include "avb.h"
+#include "avb_gptp.h"
 
 #include "openavb_platform.h"
 #include "openavb_time_osal.h"
-#include "openavb_time_hal.h"
 #include "openavb_trace.h"
 
 #define	AVB_LOG_COMPONENT	"osalTime"
@@ -52,28 +48,20 @@ static pthread_mutex_t gOSALTimeInitMutex = PTHREAD_MUTEX_INITIALIZER;
 #define UNLOCK()	pthread_mutex_unlock(&gOSALTimeInitMutex)
 
 static bool bInitialized = FALSE;
-static int gIgbShmFd = -1;
-static char *gIgbMmap = NULL;
+static int gPtpShmFd = -1;
+static char *gPtpMmap = NULL;
 gPtpTimeData gPtpTD;
 
 static bool x_timeInit(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-#if (AVB_FEATURE_IGB)
-	if (!halTimeInitialize()) {
-		AVB_LOG_ERROR("HAL Time Init failed");
-		AVB_TRACE_EXIT(AVB_TRACE_TIME);
-		return FALSE;
-	}
-#endif
-
-	if (gptpinit(&gIgbShmFd, &gIgbMmap) < 0) {
+	if (gptpinit(&gPtpShmFd, &gPtpMmap) < 0) {
 		AVB_LOG_ERROR("GPTP init failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
 	}
 
-	if (gptpgetdata(gIgbMmap, &gPtpTD) < 0) {
+	if (gptpgetdata(gPtpMmap, &gPtpTD) < 0) {
 		AVB_LOG_ERROR("GPTP data fetch failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
@@ -90,7 +78,7 @@ static bool x_timeInit(void) {
 static bool x_getPTPTime(U64 *timeNsec) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	if (gptpgetdata(gIgbMmap, &gPtpTD) < 0) {
+	if (gptpgetdata(gPtpMmap, &gPtpTD) < 0) {
 		AVB_LOG_ERROR("GPTP data fetch failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
@@ -132,11 +120,7 @@ bool osalAVBTimeInit(void) {
 bool osalAVBTimeClose(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	gptpdeinit(&gIgbShmFd, &gIgbMmap);
-
-#if (AVB_FEATURE_IGB)
-	halTimeFinalize();
-#endif
+	gptpdeinit(&gPtpShmFd, &gPtpMmap);
 
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
 	return TRUE;

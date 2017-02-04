@@ -1,7 +1,6 @@
 *.o
 *.swp
 *build/
-*.cmake
 *CMakeFiles/
 CMakeCache.txt
 

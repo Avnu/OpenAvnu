@@ -1,4 +1,5 @@
 AVB_FEATURE_AVDECC ?= 1
+PLATFORM_TOOLCHAIN ?= x86_i210_linux
 
 .PHONY: all clean
 
@@ -16,7 +17,7 @@ clean:
 build_avdecc/Makefile:
 	mkdir -p build_avdecc && \
 	cd build_avdecc && \
-	cmake -DCMAKE_TOOLCHAIN_FILE=../platform/Linux/x86_i210_linux.cmake \
+	cmake -DCMAKE_TOOLCHAIN_FILE=../platform/Linux/$(PLATFORM_TOOLCHAIN).cmake \
 	      -DAVB_FEATURE_AVDECC=$(AVB_FEATURE_AVDECC) \
               ..
 

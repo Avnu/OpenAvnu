@@ -28,12 +28,35 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
-#include "openavb_ether_osal.h"
+#define	AVB_LOG_COMPONENT	"MCR"
+#include "openavb_pub.h"
+#include "openavb_log.h"
 
-// MAC address is retrieved differently for Linux
-bool osalGetMacAddr(U8 *macAddr)
+#include "openavb_mcr_hal.h"
+
+
+bool halInitMCR(U32 packetRate, U32 pushInterval, U32 timestampInterval, U32 recoveryInterval)
 {
 	return TRUE;
 }
+
+bool halCloseMCR(void)
+{
+	return TRUE;
+}
+
+bool halPushMCR(void)
+{
+	return TRUE;	
+}
+
+void halAdjustMCRNSec(S32 adjNSec)
+{
+}
+
+void halAdjustMCRGranularityNSec(U32 adjGranularityNSec)
+{
+}
+
 
 
