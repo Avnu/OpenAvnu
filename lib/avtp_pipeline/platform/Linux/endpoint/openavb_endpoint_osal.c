@@ -101,20 +101,19 @@ bool startEndpoint(int mode, int ifindex, const char* ifname, unsigned mtu, unsi
 	x_cfg.fqtss_mode = mode;
 	x_cfg.ifindex = ifindex;
 	x_cfg.mtu = mtu;
-	if (ifname)
-		strncpy(x_cfg.ifname, ifname, sizeof(x_cfg.ifname));
-
-	if_info_t ifinfo;
-	if (openavbCheckInterface(x_cfg.ifname, &ifinfo)) {
-		memcpy(x_cfg.ifmac, &ifinfo.mac, ETH_ALEN);
-		x_cfg.ifindex = ifinfo.index;
-		x_cfg.mtu = ifinfo.mtu;
-	}
 
 	x_cfg.link_kbit = link_kbit;
 	x_cfg.nsr_kbit = nsr_kbit;
 
 	openavbReadConfig(DEFAULT_INI_FILE, &x_cfg);
+
+	if_info_t ifinfo;
+	if (ifname && openavbCheckInterface(ifname, &ifinfo)) {
+		strncpy(x_cfg.ifname, ifname, sizeof(x_cfg.ifname));
+		memcpy(x_cfg.ifmac, &ifinfo.mac, ETH_ALEN);
+		x_cfg.ifindex = ifinfo.index;
+		x_cfg.mtu = ifinfo.mtu;
+	}
 
 	endpointRunning = TRUE;
 	int err = pthread_create(&endpointServerHandle, NULL, endpointServerThread, NULL);
