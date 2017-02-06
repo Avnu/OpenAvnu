@@ -810,7 +810,7 @@ void openavbAecpMessageTxFrame(openavb_aecp_AEMCommandResponse_t *AEMCommandResp
 					openavb_aecp_response_data_get_counters_t *pSrc = &AEMCommandResponse->entityModelPdu.command_data.getCountersRsp;
 					OCT_D2BHTONS(pDst, pSrc->descriptor_type);
 					OCT_D2BHTONS(pDst, pSrc->descriptor_index);
-					OCT_D2BHTONS(pDst, pSrc->counters_valid);
+					OCT_D2BHTONL(pDst, pSrc->counters_valid);
 					OCT_D2BBUFCP(pDst, pSrc->counters_block, pSrc->counters_block_length);
 				}
 				break;
