@@ -212,7 +212,6 @@ include_directories(
 		${AVB_HAL_DIR}/mcr
 		${AVB_OSAL_DIR}
 		${AVB_OSAL_DIR}/include
-		${AVB_OSAL_DIR}/fqtss/include
 		${AVB_SRC_DIR}/include
 		${AVB_OSAL_DIR}/avtp
 		${AVB_OSAL_DIR}/tl
@@ -243,7 +242,6 @@ include_directories(
 		${AVB_SRC_DIR}/util
 		${AVB_OSAL_DIR}/avdecc
 		${AVB_OSAL_DIR}/endpoint
-		${AVB_OSAL_DIR}/fqtss/qmgr
 		${AVB_SRC_DIR}/../common
 		${AVB_SRC_DIR}/mcs
 		)
