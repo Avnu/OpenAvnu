@@ -258,7 +258,6 @@ typedef struct {
 	U16 valuesCount;		// Not part of spec. Used to track elements in arrays.
 } openavb_aecp_response_data_get_control_t;
 
-
 // START_STREAMING command and response IEEE Std 1722.1-2013 clause 7.4.35
 typedef struct {
 	U16 descriptor_type;
@@ -270,6 +269,21 @@ typedef struct {
 	U16 descriptor_type;
 	U16 descriptor_index;
 } openavb_aecp_commandresponse_data_stop_streaming_t;
+
+// GET_COUNTERS command IEEE Std 1722.1-2013 clause 7.4.42
+typedef struct {
+	U16 descriptor_type;
+	U16 descriptor_index;
+} openavb_aecp_command_data_get_counters_t;
+
+// GET_COUNTERS response IEEE Std 1722.1-2013 clause 7.4.42
+typedef struct {
+	U16 descriptor_type;
+	U16 descriptor_index;
+	U32 counters_valid;
+	U16 counters_block_length;
+	U8 counters_block[128];
+} openavb_aecp_response_data_get_counters_t;
 
 
 typedef struct {
@@ -306,6 +320,8 @@ typedef struct {
 		openavb_aecp_commandresponse_data_start_streaming_t startStreamingRsp;
 		openavb_aecp_commandresponse_data_stop_streaming_t stopStreamingCmd;
 		openavb_aecp_commandresponse_data_stop_streaming_t stopStreamingRsp;
+		openavb_aecp_command_data_get_counters_t getCountersCmd;
+		openavb_aecp_response_data_get_counters_t getCountersRsp;
 	} command_data;
 } openavb_aecp_entity_model_data_unit_t;
 

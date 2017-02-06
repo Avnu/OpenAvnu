@@ -394,6 +394,11 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 			case OPENAVB_AEM_COMMAND_CODE_GET_AS_PATH:
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_GET_COUNTERS:
+				{
+					openavb_aecp_command_data_get_counters_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.getCountersCmd;
+					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
+					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
+				}
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_REBOOT:
 				break;
@@ -801,6 +806,13 @@ void openavbAecpMessageTxFrame(openavb_aecp_AEMCommandResponse_t *AEMCommandResp
 			case OPENAVB_AEM_COMMAND_CODE_GET_AS_PATH:
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_GET_COUNTERS:
+				{
+					openavb_aecp_response_data_get_counters_t *pSrc = &AEMCommandResponse->entityModelPdu.command_data.getCountersRsp;
+					OCT_D2BHTONS(pDst, pSrc->descriptor_type);
+					OCT_D2BHTONS(pDst, pSrc->descriptor_index);
+					OCT_D2BHTONS(pDst, pSrc->counters_valid);
+					OCT_D2BBUFCP(pDst, pSrc->counters_block, pSrc->counters_block_length);
+				}
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_REBOOT:
 				break;

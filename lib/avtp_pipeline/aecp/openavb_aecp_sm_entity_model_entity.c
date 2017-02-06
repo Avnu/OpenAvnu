@@ -31,6 +31,8 @@
 #include "openavb_aecp_message.h"
 #include "openavb_aecp_sm_entity_model_entity.h"
 
+#include "openavb_aecp_cmd_get_counters.h"
+
 typedef enum {
 	OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING,
 	OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_UNSOLICITED_RESPONSE,
@@ -760,6 +762,11 @@ void processCommand()
 		case OPENAVB_AEM_COMMAND_CODE_GET_AS_PATH:
 			break;
 		case OPENAVB_AEM_COMMAND_CODE_GET_COUNTERS:
+			{
+				openavb_aecp_command_data_get_counters_t *pCmd = &pCommand->entityModelPdu.command_data.getCountersCmd;
+				openavb_aecp_response_data_get_counters_t *pRsp = &pCommand->entityModelPdu.command_data.getCountersRsp;
+				pCommand->headers.status = openavbAecpCommandGetCountersHandler(pCmd, pRsp);
+			}
 			break;
 		case OPENAVB_AEM_COMMAND_CODE_REBOOT:
 			break;
