@@ -64,7 +64,7 @@ public:
 	/**
 	 * @brief  Gets the TX hardware timestamp value
 	 * @param  identity Clock Identity
-	 * @param  sequenceId Sequence ID
+	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] Reference to the TX timestamps
 	 * @param  clock_value [out] 64 bit timestamp value
 	 * @param  last Not used
@@ -72,13 +72,13 @@ public:
 	 * is no data available. -1 in case of error when reading data from hardware interface.
 	 */
 	virtual int HWTimestamper_txtimestamp
-	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last );
 
 	/**
 	 * @brief  Gets the RX hardware timestamp value
 	 * @param  identity Clock identity
-	 * @param  sequenceId Sequence ID
+	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] Reference to the RX timestamps
 	 * @param  clock_value [out] 64 bit timestamp value
 	 * @param  last Not used
@@ -86,7 +86,7 @@ public:
 	 * is no data available. -1 in case of error when reading data from hardware interface.
 	 */
 	virtual int HWTimestamper_rxtimestamp
-	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last );
 
 	/**
