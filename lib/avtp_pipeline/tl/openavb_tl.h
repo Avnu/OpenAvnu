@@ -120,7 +120,7 @@ unsigned long timespec_usec_diff(struct timespec *t1, struct timespec *t2);
 int timespec_cmp(struct timespec *a, struct timespec *b);
 
 ////////////////
-// TL Handle List functions. The TL handle list is created in the implemntation of openavbTLInitialize.
+// TL Handle List functions. The TL handle list is created in the implementation of openavbTLInitialize.
 ////////////////
 // Get a tl_handle_t from the TLHandleList given an endpointHandle.
 extern U32 gMaxTL;
@@ -132,21 +132,6 @@ void openavbTLUnconfigure(tl_state_t *pTLState);
 
 // Remove a tl_handle_t from the TL handle list.
 bool TLHandleRemove(tl_handle_t handle);
-
-
-////////////////
-// AVDECC Integration functions.
-////////////////
-// Run a single talker or listener. At this point data can be sent or recieved. Used in place of the public openavbTLRun
-bool openavbTLAVDECCRunListener(tl_handle_t handle, U16 configIdx, U16 descriptorType, U16 descriptorIdx, void *pVoidListenerStreamInfo);
-bool openavbTLAVDECCRunTalker(tl_handle_t handle, U16 configIdx, U16 descriptorType, U16 descriptorIdx, void *pVoidTalkerStreamInfo);
-
-// Stop a single talker or listener. At this point data will not be sent or recieved. Used in place of the public openavbTLStop.
-bool openavbTLAVDECCStopListener(tl_handle_t handle, U16 configIdx, void *pVoidListenerStreamInfo);
-bool openavbTLAVDECCStopTalker(tl_handle_t handle, U16 configIdx, void *pVoidTalkerStreamInfo);
-
-// Get talker stream details. Structure members in TalkerStrreamInfo will be filled.
-bool openavbTLAVDECCGetTalkerStreamInfo(tl_handle_t handle, U16 configIdx, void *pVoidTalkerStreamInfo);
 
 
 ////////////////

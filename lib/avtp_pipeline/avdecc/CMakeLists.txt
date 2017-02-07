@@ -3,5 +3,6 @@ SET (SRC_FILES ${SRC_FILES}
 	${AVB_OSAL_DIR}/avdecc/openavb_avdecc_osal.c
 	${AVB_OSAL_DIR}/avdecc/openavb_avdecc_cfg.c
 	${AVB_OSAL_DIR}/avdecc/openavb_avdecc_read_ini.c
+	${AVB_OSAL_DIR}/avdecc/openavb_avdecc_pipeline_interaction.c
 	PARENT_SCOPE
 )

@@ -28,12 +28,12 @@
 
 #include "openavb_debug.h"
 #include "openavb_time.h"
-#include "openavb_tl.h"
 #include "openavb_aem.h"
 #include "openavb_acmp.h"
 #include "openavb_acmp_message.h"
 #include "openavb_acmp_sm_talker.h"
 #include "openavb_acmp_sm_listener.h"
+#include "openavb_avdecc_pipeline_interaction_pub.h"
 #include "openavb_time.h"
 
 typedef enum {
@@ -240,7 +240,10 @@ U8 openavbAcmpSMListener_connectListener(openavb_acmp_ACMPCommandResponse_t *res
 		U16 configIdx = openavbAemGetConfigIdx();
 		openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, response->listener_unique_id);
 
-		if (openavbTLAVDECCRunListener(pDescriptorStreamInput->tlHandle, configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, response->listener_unique_id, pListenerStreamInfo)) {
+		if (!pDescriptorStreamInput) {
+			retStatus = OPENAVB_ACMP_STATUS_LISTENER_UNKNOWN_ID;
+		}
+		else if (openavbAVDECCRunListener(pDescriptorStreamInput, configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, response->listener_unique_id, pListenerStreamInfo)) {
 			retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
 		}
 		else {
@@ -267,7 +270,10 @@ U8 openavbAcmpSMListener_disconnectListener(openavb_acmp_ACMPCommandResponse_t *
 		U16 configIdx = openavbAemGetConfigIdx();
 		openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, response->listener_unique_id);
 
-		if (openavbTLAVDECCStopListener(pDescriptorStreamInput->tlHandle, configIdx, pListenerStreamInfo)) {
+		if (!pDescriptorStreamInput) {
+			retStatus = OPENAVB_ACMP_STATUS_LISTENER_UNKNOWN_ID;
+		}
+		else if (openavbAVDECCStopListener(pDescriptorStreamInput, configIdx, pListenerStreamInfo)) {
 			retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
 		}
 		else {
@@ -339,6 +345,7 @@ void openavbAcmpSMListenerStateMachine()
 		switch (state) {
 			case OPENAVB_ACMP_SM_LISTENER_STATE_WAITING:
 				AVB_TRACE_LINE(AVB_TRACE_ACMP);
+				AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_LISTENER_STATE_WAITING");
 
 				openavbAcmpSMListenerVars.rcvdConnectRXCmd = FALSE;
 				openavbAcmpSMListenerVars.rcvdDisconnectRXCmd = FALSE;
@@ -351,7 +358,7 @@ void openavbAcmpSMListenerStateMachine()
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
 
 					// Calculate timeout for inflight commands
-					// Start is a abritary large time out.
+					// Start is a arbitrary large time out.
 					struct timespec timeout;
 					CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &timeout);
 					timeout.tv_sec += 60;	// At most will timeout after 60 seconds
@@ -429,6 +436,7 @@ void openavbAcmpSMListenerStateMachine()
 			case OPENAVB_ACMP_SM_LISTENER_STATE_CONNECT_RX_COMMAND:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_LISTENER_STATE_CONNECT_RX_COMMAND");
 
 					if (openavbAcmpSMListener_validListenerUnique(pRcvdCmdResp->listener_unique_id)) {
 						if (!openavbAcmpSMListener_listenerIsConnected(pRcvdCmdResp)) {
@@ -447,6 +455,7 @@ void openavbAcmpSMListenerStateMachine()
 			case OPENAVB_ACMP_SM_LISTENER_STATE_CONNECT_TX_RESPONSE:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_LISTENER_STATE_CONNECT_TX_RESPONSE");
 
 					U8 status;
 					if (openavbAcmpSMListener_validListenerUnique(pRcvdCmdResp->listener_unique_id)) {
@@ -476,6 +485,7 @@ void openavbAcmpSMListenerStateMachine()
 			case OPENAVB_ACMP_SM_LISTENER_STATE_GET_STATE:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_LISTENER_STATE_GET_STATE");
 
 					U8 error;
 
@@ -494,6 +504,7 @@ void openavbAcmpSMListenerStateMachine()
 			case OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_RX_COMMAND:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_RX_COMMAND");
 
 					if (openavbAcmpSMListener_validListenerUnique(pRcvdCmdResp->listener_unique_id)) {
 						U8 status;
@@ -517,6 +528,7 @@ void openavbAcmpSMListenerStateMachine()
 			case OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_TX_RESPONSE:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_TX_RESPONSE");
 
 					if (openavbAcmpSMListener_validListenerUnique(pRcvdCmdResp->listener_unique_id)) {
 						openavb_acmp_ACMPCommandResponse_t response;
@@ -541,6 +553,7 @@ void openavbAcmpSMListenerStateMachine()
 			case OPENAVB_ACMP_SM_LISTENER_STATE_CONNECT_TX_TIMEOUT:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_LISTENER_STATE_CONNECT_TX_TIMEOUT");
 
 					if (pInflightActive) {
 						if (pInflightActive->retried) {
@@ -560,6 +573,7 @@ void openavbAcmpSMListenerStateMachine()
 			case OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_TX_TIMEOUT:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_TX_TIMEOUT");
 
 					if (pInflightActive) {
 						if (pInflightActive->retried) {
