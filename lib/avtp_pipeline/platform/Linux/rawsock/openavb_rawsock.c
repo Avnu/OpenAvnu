@@ -28,11 +28,9 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
-#include "openavb_rawsock.h"
-#include <malloc.h>
+#include "sendmmsg_rawsock.h"
 #include "simple_rawsock.h"
 #include "ring_rawsock.h"
-
 #if AVB_FEATURE_PCAP
 #include "pcap_rawsock.h"
 #if AVB_FEATURE_IGB
@@ -40,10 +38,14 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #endif
 #endif
 
+#include "openavb_rawsock.h"
+
 #include "openavb_trace.h"
 
 #define	AVB_LOG_COMPONENT	"Raw Socket"
 #include "openavb_log.h"
+
+#include <malloc.h>
 
 
 // Get information about an interface
@@ -83,11 +85,6 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 	char proto[IF_NAMESIZE] = "simple";
 #endif
 
-	/* Default to "simple" for transmission-only sockets. */
-	if (tx_mode && !rx_mode) {
-		strcpy(proto, "simple");
-	}
-
 	char *colon = strchr(ifname_uri, ':');
 	if (colon) {
 		ifname = colon + 1;
@@ -125,6 +122,19 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 
 		// call constructor
 		pvRawsock = simpleRawsockOpen(rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
+	} else if (strcmp(proto, "sendmmsg") == 0) {
+
+		AVB_LOG_INFO("Using *sendmmsg* implementation");
+
+		// allocate memory for rawsock object
+		sendmmsg_rawsock_t *rawsock = calloc(1, sizeof(sendmmsg_rawsock_t));
+		if (!rawsock) {
+			AVB_LOG_ERROR("Creating rawsock; malloc failed");
+			return NULL;
+		}
+
+		// call constructor
+		pvRawsock = sendmmsgRawsockOpen(rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
 #if AVB_FEATURE_PCAP
 	} else if (strcmp(proto, "pcap") == 0) {
 
