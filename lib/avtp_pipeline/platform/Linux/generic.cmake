@@ -3,6 +3,7 @@
 
 set ( AVB_FEATURE_IGB 0 )
 set ( IGB_LAUNCHTIME_ENABLED 0 )
+set ( AVB_FEATURE_PCAP 1 )
 
 # Label for messages / build configuration
 set ( OPENAVB_HAL      "generic" )
