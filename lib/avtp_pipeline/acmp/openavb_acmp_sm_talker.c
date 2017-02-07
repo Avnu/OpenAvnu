@@ -26,11 +26,11 @@
 #define	AVB_LOG_COMPONENT	"ACMP"
 #include "openavb_log.h"
 
-#include "openavb_tl.h"
 #include "openavb_aem.h"
 #include "openavb_acmp_sm_talker.h"
 #include "openavb_acmp_sm_listener.h"
 #include "openavb_acmp_message.h"
+#include "openavb_avdecc_pipeline_interaction_pub.h"
 
 typedef enum {
 	OPENAVB_ACMP_SM_TALKER_STATE_WAITING,
@@ -122,9 +122,13 @@ U8 openavbAcmpSMTalker_connectTalker(openavb_acmp_ACMPCommandResponse_t *command
 
 				U16 configIdx = openavbAemGetConfigIdx();
 				openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, command->talker_unique_id);
-				openavbTLAVDECCGetTalkerStreamInfo(pDescriptorStreamOutput->tlHandle, configIdx, pTalkerStreamInfo);
+				if (!pDescriptorStreamOutput) {
+					AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+					return retStatus;
+				}
+				openavbAVDECCGetTalkerStreamInfo(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo);
 
-				if (openavbTLAVDECCRunTalker(pDescriptorStreamOutput->tlHandle, configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, command->talker_unique_id, pTalkerStreamInfo)) {
+				if (openavbAVDECCRunTalker(pDescriptorStreamOutput, configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, command->talker_unique_id, pTalkerStreamInfo)) {
 
 					memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
 					memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
@@ -164,9 +168,13 @@ U8 openavbAcmpSMTalker_disconnectTalker(openavb_acmp_ACMPCommandResponse_t *comm
 
 			U16 configIdx = openavbAemGetConfigIdx();
 			openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, command->talker_unique_id);
-			openavbTLAVDECCGetTalkerStreamInfo(pDescriptorStreamOutput->tlHandle, configIdx, pTalkerStreamInfo);
+			if (!pDescriptorStreamOutput) {
+				AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+				return retStatus;
+			}
+			openavbAVDECCGetTalkerStreamInfo(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo);
 
-			if (openavbTLAVDECCStopTalker(pDescriptorStreamOutput->tlHandle, configIdx, pTalkerStreamInfo)) {
+			if (openavbAVDECCStopTalker(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo)) {
 				memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
 				memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
 				command->connection_count = pTalkerStreamInfo->connection_count;
@@ -188,7 +196,11 @@ U8 openavbAcmpSMTalker_getState(openavb_acmp_ACMPCommandResponse_t *command)
 	if (pTalkerStreamInfo) {
 		U16 configIdx = openavbAemGetConfigIdx();
 		openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, command->talker_unique_id);
-		openavbTLAVDECCGetTalkerStreamInfo(pDescriptorStreamOutput->tlHandle, configIdx, pTalkerStreamInfo);
+		if (!pDescriptorStreamOutput) {
+			AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+			return retStatus;
+		}
+		openavbAVDECCGetTalkerStreamInfo(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo);
 
 		memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
 		memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
@@ -248,6 +260,7 @@ void openavbAcmpSMTalkerStateMachine()
 		switch (state) {
 			case OPENAVB_ACMP_SM_TALKER_STATE_WAITING:
 				AVB_TRACE_LINE(AVB_TRACE_ACMP);
+				AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_TALKER_STATE_WAITING");
 
 				openavbAcmpSMTalkerVars.rcvdConnectTX = FALSE;
 				openavbAcmpSMTalkerVars.rcvdDisconnectTX = FALSE;
@@ -289,6 +302,7 @@ void openavbAcmpSMTalkerStateMachine()
 			case OPENAVB_ACMP_SM_TALKER_STATE_CONNECT:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_TALKER_STATE_CONNECT");
 
 					U8 error;
 					openavb_acmp_ACMPCommandResponse_t response;
@@ -308,6 +322,7 @@ void openavbAcmpSMTalkerStateMachine()
 			case OPENAVB_ACMP_SM_TALKER_STATE_DISCONNECT:
 				{
 					AVB_TRACE_LINE(AVB_TRACE_ACMP);
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_TALKER_STATE_DISCONNECT");
 
 					U8 error;
 					openavb_acmp_ACMPCommandResponse_t response;
@@ -326,6 +341,8 @@ void openavbAcmpSMTalkerStateMachine()
 
 			case OPENAVB_ACMP_SM_TALKER_STATE_GET_STATE:
 				{
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_TALKER_STATE_GET_STATE");
+
 					U8 error;
 					openavb_acmp_ACMPCommandResponse_t response;
 					memcpy(&response, pRcvdCmdResp, sizeof(response));
@@ -343,6 +360,8 @@ void openavbAcmpSMTalkerStateMachine()
 
 			case OPENAVB_ACMP_SM_TALKER_STATE_GET_CONNECTION:
 				{
+					AVB_LOG_DEBUG("State:  OPENAVB_ACMP_SM_TALKER_STATE_GET_CONNECTION");
+
 					U8 error;
 					openavb_acmp_ACMPCommandResponse_t response;
 					memcpy(&response, pRcvdCmdResp, sizeof(response));
