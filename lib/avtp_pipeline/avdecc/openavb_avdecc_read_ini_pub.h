@@ -41,6 +41,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 //#include "openavb_intf_pub.h"
 #include "openavb_avtp_time_pub.h"
 
+#define MAX_SAMPLING_RATES_COUNT 91
+
 /** \file
  * AVDECC Read INI Public Interface.
  */
@@ -98,6 +100,14 @@ struct openavb_tl_data_cfg {
 	U32 thread_affinity;
 	/// Real time priority of thread.
 	U32 thread_rt_priority;
+	/// The current sample rate of this Audio Unit
+	U32 current_sampling_rate;
+	/// The number of sample rates in the sampling_rates field.
+	U16 sampling_rates_count;
+	/// An array of 4-octet sample rates supported by this Audio Unit
+	U32 sampling_rates[MAX_SAMPLING_RATES_COUNT];
+	/// The name of the initialize function in the mapper
+	char map_fn[100];
 };
 
 typedef struct openavb_tl_data_cfg openavb_tl_data_cfg_t;

@@ -263,6 +263,18 @@ extern DLL_EXPORT bool openavbAemDescriptorAudioUnitInitialize(openavb_aem_descr
 	// AVDECC_TODO - Once implemented, add support for mixers, matrices, splitters, combiners, demultiplexers, multiplexers, transcoders, and control blocks.
 
 	// AVDECC_TODO - Add the sample rate information.  Should this be done in openavbAemDescriptorAudioUnitUpdate() instead?
+	// AVDECC_TODO - Merge the configurations instead of overwriting it
+	pDescriptor->current_sampling_rate.pull = 0;
+	pDescriptor->current_sampling_rate.base = pConfig->stream->current_sampling_rate;
+	pDescriptor->sampling_rates_offset = OPENAVB_DESCRIPTOR_AUDIO_UNIT_BASE_LENGTH;
+	pDescriptor->sampling_rates_count = pConfig->stream->sampling_rates_count;
+	int i = 0;
+	while (i < OPENAVB_DESCRIPTOR_AUDIO_UNIT_MAX_SAMPLING_RATES && pConfig->stream->sampling_rates[i] != 0)
+	{
+		pDescriptor->sampling_rates[i].pull = 0;
+		pDescriptor->sampling_rates[i].base = pConfig->stream->sampling_rates[i];
+		i++;
+	}
 
 	return TRUE;
 }

@@ -118,7 +118,8 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 			U64 nTemp = strtoull(value, &pEnd, 0);
 			if (*pEnd == '\0' && errno == 0) {
 				valOK = TRUE;
-				for (int i = 7; i >= 0; --i) {
+				int i;
+				for (i = 7; i >= 0; --i) {
 					pCfg->entity_model_id[i] = (U8) (nTemp & 0xFF);
 					nTemp = (nTemp >> 8);
 				}

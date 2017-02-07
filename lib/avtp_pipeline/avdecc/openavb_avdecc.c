@@ -37,8 +37,13 @@
 bool avdeccRunning = TRUE;
 openavb_avdecc_cfg_t gAvdeccCfg;
 openavb_tl_data_cfg_t * streamList = NULL;
+openavb_aem_descriptor_configuration_t *pConfiguration = NULL;
 
 static openavb_avdecc_configuration_cfg_t *pFirstConfigurationCfg = NULL;
+static U8 talker_stream_sources = 0;
+static U8 listener_stream_sources = 0;
+static bool first_talker = 1;
+static bool first_listener = 1;
 
 bool openavbAvdeccStartAdp()
 {
@@ -118,6 +123,7 @@ void openavbAvdeccFindMacAddr(void)
 
 bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
 {
+	bool first_time = 0;
 	// Create a new config to hold the configuration information.
 	openavb_avdecc_configuration_cfg_t *pCfg = malloc(sizeof(openavb_avdecc_configuration_cfg_t));
 	if (!pCfg) {
@@ -141,14 +147,17 @@ bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
 	}
 
 	// Create a new configuration.
-	openavb_aem_descriptor_configuration_t *pConfiguration = openavbAemDescriptorConfigurationNew();
 	U16 nConfigIdx = 0;
-	if (!openavbAemAddDescriptor(pConfiguration, OPENAVB_AEM_DESCRIPTOR_INVALID, &nConfigIdx)) {
-		AVB_LOG_ERROR("Error adding AVDECC configuration");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
+	if (pConfiguration == NULL)
+	{
+		first_time = 1;
+		pConfiguration = openavbAemDescriptorConfigurationNew();
+		if (!openavbAemAddDescriptor(pConfiguration, OPENAVB_AEM_DESCRIPTOR_INVALID, &nConfigIdx)) {
+			AVB_LOG_ERROR("Error adding AVDECC configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
 	}
-
 	// Specify a default user-friendly name to use.
 	// AVDECC_TODO - Allow the user to specify a friendly name, or use the name if the .INI file.
 	if (pCfg->friendly_name[0] == '\0') {
@@ -164,19 +173,41 @@ bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
 
 	// Add the descriptors needed for both talkers and listeners.
 	U16 nResultIdx;
-	openavb_aem_descriptor_avb_interface_t *pNewAvbInterface = openavbAemDescriptorAvbInterfaceNew();
-	if (!openavbAemAddDescriptor(pNewAvbInterface, nConfigIdx, &nResultIdx) ||
-			!openavbAemDescriptorAvbInterfaceInitialize(pNewAvbInterface, nConfigIdx, pCfg)) {
-		AVB_LOG_ERROR("Error adding AVDECC AVB Interface to configuration");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
+	if (first_time)
+	{
+		openavb_aem_descriptor_avb_interface_t *pNewAvbInterface = openavbAemDescriptorAvbInterfaceNew();
+		if (!openavbAemAddDescriptor(pNewAvbInterface, nConfigIdx, &nResultIdx) ||
+				!openavbAemDescriptorAvbInterfaceInitialize(pNewAvbInterface, nConfigIdx, pCfg)) {
+			AVB_LOG_ERROR("Error adding AVDECC AVB Interface to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+		openavb_aem_descriptor_audio_unit_t *pNewAudioUnit = openavbAemDescriptorAudioUnitNew();
+		if (!openavbAemAddDescriptor(pNewAudioUnit, nConfigIdx, &nResultIdx) ||
+				!openavbAemDescriptorAudioUnitInitialize(pNewAudioUnit, nConfigIdx, pCfg)) {
+			AVB_LOG_ERROR("Error adding AVDECC Audio Unit to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
 	}
-	openavb_aem_descriptor_audio_unit_t *pNewAudioUnit = openavbAemDescriptorAudioUnitNew();
-	if (!openavbAemAddDescriptor(pNewAudioUnit, nConfigIdx, &nResultIdx) ||
-			!openavbAemDescriptorAudioUnitInitialize(pNewAudioUnit, nConfigIdx, pCfg)) {
-		AVB_LOG_ERROR("Error adding AVDECC Audio Unit to configuration");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
+	else
+	{
+		openavb_aem_descriptor_audio_unit_t *pAudioUnitDescriptor =
+		(openavb_aem_descriptor_audio_unit_t *) openavbAemGetDescriptor(nConfigIdx, OPENAVB_AEM_DESCRIPTOR_AUDIO_UNIT, 0);
+		if (pAudioUnitDescriptor != NULL)
+		{
+			if (!openavbAemDescriptorAudioUnitInitialize(pAudioUnitDescriptor, nConfigIdx, pCfg)) {
+				AVB_LOG_ERROR("Error updating AVDECC Audio Unit to configuration");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return FALSE;
+			}
+		}
+		else
+		{
+			AVB_LOG_ERROR("Error getting AVDECC Audio Unit descriptor");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
 	}
 
 	// AVDECC_TODO:  Add other descriptors as needed.  Future options include:
@@ -194,23 +225,29 @@ bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
 			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 			return FALSE;
 		}
-		openavb_aem_descriptor_clock_source_t *pNewClockSource = openavbAemDescriptorClockSourceNew();
-		if (!openavbAemAddDescriptor(pNewClockSource, nConfigIdx, &nResultIdx) ||
-				!openavbAemDescriptorClockSourceInitialize(pNewClockSource, nConfigIdx, pCfg)) {
-			AVB_LOG_ERROR("Error adding AVDECC Clock Source to configuration");
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-			return FALSE;
+		if (first_talker)
+		{
+			first_talker = 0;
+			openavb_aem_descriptor_clock_source_t *pNewClockSource = openavbAemDescriptorClockSourceNew();
+			if (!openavbAemAddDescriptor(pNewClockSource, nConfigIdx, &nResultIdx) ||
+					!openavbAemDescriptorClockSourceInitialize(pNewClockSource, nConfigIdx, pCfg)) {
+				AVB_LOG_ERROR("Error adding AVDECC Clock Source to configuration");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return FALSE;
+			}
+			openavb_aem_descriptor_clock_domain_t *pNewClockDomain = openavbAemDescriptorClockDomainNew();
+			if (!openavbAemAddDescriptor(pNewClockDomain, nConfigIdx, &nResultIdx) ||
+					!openavbAemDescriptorClockDomainInitialize(pNewClockDomain, nConfigIdx, pCfg)) {
+				AVB_LOG_ERROR("Error adding AVDECC Clock Domain to configuration");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return FALSE;
+			}
 		}
-		openavb_aem_descriptor_clock_domain_t *pNewClockDomain = openavbAemDescriptorClockDomainNew();
-		if (!openavbAemAddDescriptor(pNewClockDomain, nConfigIdx, &nResultIdx) ||
-				!openavbAemDescriptorClockDomainInitialize(pNewClockDomain, nConfigIdx, pCfg)) {
-			AVB_LOG_ERROR("Error adding AVDECC Clock Domain to configuration");
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-			return FALSE;
-		}
+
 
 		// AVDECC_TODO:  Add other descriptors as needed.  Future options include:
 		//  JACK_INPUT
+		talker_stream_sources++;
 
 		AVB_LOG_DEBUG("AVDECC talker configuration added");
 	}
@@ -224,34 +261,41 @@ bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
 			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 			return FALSE;
 		}
-		openavb_aem_descriptor_clock_source_t *pNewClockSource = openavbAemDescriptorClockSourceNew();
-		if (!openavbAemAddDescriptor(pNewClockSource, nConfigIdx, &nResultIdx) ||
-				!openavbAemDescriptorClockSourceInitialize(pNewClockSource, nConfigIdx, pCfg)) {
-			AVB_LOG_ERROR("Error adding AVDECC Clock Source to configuration");
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-			return FALSE;
-		}
-		openavb_aem_descriptor_clock_domain_t *pNewClockDomain = openavbAemDescriptorClockDomainNew();
-		if (!openavbAemAddDescriptor(pNewClockDomain, nConfigIdx, &nResultIdx) ||
-				!openavbAemDescriptorClockDomainInitialize(pNewClockDomain, nConfigIdx, pCfg)) {
-			AVB_LOG_ERROR("Error adding AVDECC Clock Domain to configuration");
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-			return FALSE;
+		if (first_listener)
+		{
+			openavb_aem_descriptor_clock_source_t *pNewClockSource = openavbAemDescriptorClockSourceNew();
+			if (!openavbAemAddDescriptor(pNewClockSource, nConfigIdx, &nResultIdx) ||
+					!openavbAemDescriptorClockSourceInitialize(pNewClockSource, nConfigIdx, pCfg)) {
+				AVB_LOG_ERROR("Error adding AVDECC Clock Source to configuration");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return FALSE;
+			}
+			openavb_aem_descriptor_clock_domain_t *pNewClockDomain = openavbAemDescriptorClockDomainNew();
+			if (!openavbAemAddDescriptor(pNewClockDomain, nConfigIdx, &nResultIdx) ||
+					!openavbAemDescriptorClockDomainInitialize(pNewClockDomain, nConfigIdx, pCfg)) {
+				AVB_LOG_ERROR("Error adding AVDECC Clock Domain to configuration");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return FALSE;
+			}
 		}
 
 		// AVDECC_TODO:  Add other descriptors as needed.  Future options include:
 		//  JACK_OUTPUT
+		listener_stream_sources++;
 
 		AVB_LOG_DEBUG("AVDECC listener configuration added");
 	}
 	if (stream->sr_class == SR_CLASS_A) { gAvdeccCfg.bClassASupported = TRUE; }
 	if (stream->sr_class == SR_CLASS_B) { gAvdeccCfg.bClassBSupported = TRUE; }
 
-	// Add the localized strings to the configuration.
-	if (!openavbAemDescriptorLocaleStringsHandlerAddToConfiguration(gAvdeccCfg.pAemDescriptorLocaleStringsHandler, nConfigIdx)) {
-		AVB_LOG_ERROR("Error adding AVDECC locale strings to configuration");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
+	if (first_time)
+	{
+		// Add the localized strings to the configuration.
+		if (!openavbAemDescriptorLocaleStringsHandlerAddToConfiguration(gAvdeccCfg.pAemDescriptorLocaleStringsHandler, nConfigIdx)) {
+			AVB_LOG_ERROR("Error adding AVDECC locale strings to configuration");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
 	}
 
 	return TRUE;
@@ -272,13 +316,13 @@ extern DLL_EXPORT bool openavbAvdeccInitialize()
 		return FALSE;
 	}
 
+	openavbAvdeccFindMacAddr();
+
 	if (!openavbAemDescriptorEntitySet_entity_id(gAvdeccCfg.pDescriptorEntity, NULL, gAvdeccCfg.ifmac, gAvdeccCfg.avdeccId)) {
 		AVB_LOG_ERROR("Failed to set the AVDECC descriptor");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
-
-	openavbAvdeccFindMacAddr();
 
 	// Create the Entity Model
 	openavbRC rc = openavbAemCreate(gAvdeccCfg.pDescriptorEntity);
@@ -378,14 +422,14 @@ extern DLL_EXPORT bool openavbAvdeccInitialize()
 
 	if (gAvdeccCfg.bTalker) {
 		// AVDECC_TODO:  Set these based on the available capabilities.
-		openavbAemDescriptorEntitySet_talker_capabilities(gAvdeccCfg.pDescriptorEntity, 1,
+		openavbAemDescriptorEntitySet_talker_capabilities(gAvdeccCfg.pDescriptorEntity, talker_stream_sources,
 			OPENAVB_ADP_TALKER_CAPABILITIES_IMPLEMENTED |
 			OPENAVB_ADP_TALKER_CAPABILITIES_AUDIO_SOURCE |
 			OPENAVB_ADP_TALKER_CAPABILITIES_MEDIA_CLOCK_SOURCE);
 	}
 	if (gAvdeccCfg.bListener) {
 		// AVDECC_TODO:  Set these based on the available capabilities.
-		openavbAemDescriptorEntitySet_listener_capabilities(gAvdeccCfg.pDescriptorEntity, 1,
+		openavbAemDescriptorEntitySet_listener_capabilities(gAvdeccCfg.pDescriptorEntity, listener_stream_sources,
 			OPENAVB_ADP_LISTENER_CAPABILITIES_IMPLEMENTED |
 			OPENAVB_ADP_LISTENER_CAPABILITIES_AUDIO_SINK);
 	}
@@ -394,7 +438,7 @@ extern DLL_EXPORT bool openavbAvdeccInitialize()
 	return TRUE;
 }
 
-// Start the AVDECC protocols. 
+// Start the AVDECC protocols.
 extern DLL_EXPORT bool openavbAvdeccStart()
 {
 	if (openavbAvdeccStartCmp()) {
@@ -407,7 +451,7 @@ extern DLL_EXPORT bool openavbAvdeccStart()
 	return FALSE;
 }
 
-// Stop the AVDECC protocols. 
+// Stop the AVDECC protocols.
 extern DLL_EXPORT void openavbAvdeccStop(void)
 {
 	openavbAvdeccStopCmp();

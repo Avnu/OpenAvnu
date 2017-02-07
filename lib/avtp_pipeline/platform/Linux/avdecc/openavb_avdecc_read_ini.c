@@ -23,7 +23,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Attributions: The inih library portion of the source code is licensed from
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
 Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
@@ -250,6 +250,43 @@ static int openavbIniCfgCallback(void *user, const char *tlSection, const char *
 			valOK = TRUE;
 		}
 	}
+	else if (MATCH(name, "current_sampling_rate")) {
+		errno = 0;
+		pCfg->current_sampling_rate = strtol(value, &pEnd, 10);
+		if (*pEnd == '\0' && errno == 0
+			&& pCfg->current_sampling_rate <= UINT32_MAX)
+			valOK = TRUE;
+	}
+	else if (MATCH(name, "sampling_rates")) {
+		errno = 0;
+		memset(pCfg->sampling_rates,0,sizeof(pCfg->sampling_rates));
+		char *rate, *copy;
+		copy = strdup(value);
+		rate = strtok(copy,",");
+		int i = 0,break_flag = 0;
+		while (rate != NULL )
+		{
+			pCfg->sampling_rates[i] = strtol(rate,&pEnd, 10);
+			if (*pEnd != '\0' || errno != 0
+				|| pCfg->sampling_rates[i] > UINT32_MAX)
+			{
+				break_flag = 1;
+				break;
+			}
+			rate = strtok(NULL,",");
+			i++;
+		}
+		if (break_flag != 1)
+		{
+			valOK = TRUE;
+			pCfg->sampling_rates_count = i;
+		}
+	}
+	else if (MATCH(name, "map_fn")) {
+		errno = 0;
+		memset(pCfg->map_fn,0,sizeof(pCfg->map_fn));
+		strncpy(pCfg->map_fn,value,sizeof(pCfg->map_fn)-1);
+	}
 
 	if (!valOK) {
 		// bad value
@@ -273,6 +310,20 @@ bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg)
 	if (result > 0) {
 		AVB_LOGF_ERROR("Error in INI file: %s, line %d", fileName, result);
 		return FALSE;
+	}
+	if (pCfg->sampling_rates[0] == 0 || pCfg->current_sampling_rate == 0)
+	{
+		if (pCfg->sampling_rates[0] == 0)
+		{
+			AVB_LOGF_WARNING("sampling_rates not specified in %s. Defaulting to 48000",fileName);
+			pCfg->sampling_rates[0] = 48000;
+			pCfg->current_sampling_rate = 48000;
+		}
+		else
+		{
+			AVB_LOGF_WARNING("current_sampling_rate not specified in %s. Defaulting to %u",fileName,pCfg->sampling_rates[0]);
+			pCfg->current_sampling_rate = pCfg->sampling_rates[0];
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);

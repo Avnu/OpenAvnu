@@ -443,7 +443,66 @@ extern DLL_EXPORT bool openavbAemDescriptorStreamInputInitialize(openavb_aem_des
 	if (pConfig->stream->sr_class == SR_CLASS_A) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_A; }
 	if (pConfig->stream->sr_class == SR_CLASS_B) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_B; }
 
-	// AVDECC_TODO - Specify the stream format information.
+	// AVDECC_TODO - Specify the stream format information for MMA Stream Format.
+	if (strcmp(pConfig->stream->map_fn,"openavbMapAVTPAudioInitialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_AVTP_AUDIO_SUBTYPE;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.nominal_sample_rate = 0x05;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.format = 2;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.bit_depth = 32;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.channels_per_frame = 2;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.samples_per_frame = 6;
+	}
+	else if (strcmp(pConfig->stream->map_fn,"openavbMapUncmpAudioInitialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_61883_IIDC_SUBTYPE;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_iidc.sf = 1;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.fmt = OPENAVB_AEM_STREAM_FORMAT_FMT_61883_6;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.fdf_evt = OPENAVB_AEM_STREAM_FORMAT_FDF_EVT_61883_6_AM824;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.fdf_sfc = 0x02;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.dbs = 0x08;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.b = 0x00;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.nb = 0x01;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_iec_60958_cnt = 0;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_mbla_cnt = 8;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_midi_cnt = 0;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_smptecnt = 0;
+	}
+	else if (strcmp(pConfig->stream->map_fn,"openavbMapCtrlInitialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_AVTP_CONTROL_SUBTYPE;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.protocol_type = 3;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[0] = 0x90;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[1] = 0xe0;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[2] = 0xf0;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[3] = 0x00;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[4] = 0x00;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[5] = 0x00;
+	}
+	else if (strcmp(pConfig->stream->map_fn,"openavbMapMpeg2tsInitialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_61883_IIDC_SUBTYPE;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_4.sf = 1;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_4.fmt = OPENAVB_AEM_STREAM_FORMAT_FMT_61883_4;
+	}
+	else if (strcmp(pConfig->stream->map_fn,"openavbMapMjpegInitialize") == 0 || strcmp(pConfig->stream->map_fn,"openavbMapH264Initialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_AVTP_VIDEO_SUBTYPE;
+		if (strcmp(pConfig->stream->map_fn,"openavbMapMjpegInitialize") == 0)
+		{
+			pDescriptor->stream_formats[0].subtypes.avtp_video.format = OPENAVB_AEM_RTP_PAYLOAD_SUBTYPE_RTP_MJPEG;
+		}
+		else
+		{
+			pDescriptor->stream_formats[0].subtypes.avtp_video.format = OPENAVB_AEM_RTP_PAYLOAD_SUBTYPE_RTP_H264;
+		}
+	}
+	memcpy(&(pDescriptor->current_format), &(pDescriptor->stream_formats[0]), sizeof(openavb_aem_stream_format_t));
 
 	return TRUE;
 }
@@ -462,7 +521,66 @@ extern DLL_EXPORT bool openavbAemDescriptorStreamOutputInitialize(openavb_aem_de
 	if (pConfig->stream->sr_class == SR_CLASS_A) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_A; }
 	if (pConfig->stream->sr_class == SR_CLASS_B) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_B; }
 
-	// AVDECC_TODO - Specify the stream format information.
+	// AVDECC_TODO - Specify the stream format information for MMA Stream Format.
+	if (strcmp(pConfig->stream->map_fn,"openavbMapAVTPAudioInitialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_AVTP_AUDIO_SUBTYPE;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.nominal_sample_rate = 0x05;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.format = 2;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.bit_depth = 32;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.channels_per_frame = 2;
+		pDescriptor->stream_formats[0].subtypes.avtp_audio.samples_per_frame = 6;
+	}
+	else if (strcmp(pConfig->stream->map_fn,"openavbMapUncmpAudioInitialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_61883_IIDC_SUBTYPE;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_iidc.sf = 1;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.fmt = OPENAVB_AEM_STREAM_FORMAT_FMT_61883_6;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.fdf_evt = OPENAVB_AEM_STREAM_FORMAT_FDF_EVT_61883_6_AM824;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.fdf_sfc = 0x02;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.dbs = 0x08;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.b = 0x00;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.nb = 0x01;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_iec_60958_cnt = 0;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_mbla_cnt = 8;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_midi_cnt = 0;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_smptecnt = 0;
+	}
+	else if (strcmp(pConfig->stream->map_fn,"openavbMapCtrlInitialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_AVTP_CONTROL_SUBTYPE;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.protocol_type = 3;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[0] = 0x90;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[1] = 0xe0;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[2] = 0xf0;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[3] = 0x00;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[4] = 0x00;
+		pDescriptor->stream_formats[0].subtypes.avtp_control.format_id[5] = 0x00;
+	}
+	else if (strcmp(pConfig->stream->map_fn,"openavbMapMpeg2tsInitialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_61883_IIDC_SUBTYPE;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_4.sf = 1;
+		pDescriptor->stream_formats[0].subtypes.iec_61883_4.fmt = OPENAVB_AEM_STREAM_FORMAT_FMT_61883_4;
+	}
+	else if (strcmp(pConfig->stream->map_fn,"openavbMapMjpegInitialize") == 0 || strcmp(pConfig->stream->map_fn,"openavbMapH264Initialize") == 0)
+	{
+		pDescriptor->stream_formats[0].v = 0;
+		pDescriptor->stream_formats[0].subtype = OPENAVB_AEM_STREAM_FORMAT_AVTP_VIDEO_SUBTYPE;
+		if (strcmp(pConfig->stream->map_fn,"openavbMapMjpegInitialize") == 0)
+		{
+			pDescriptor->stream_formats[0].subtypes.avtp_video.format = OPENAVB_AEM_RTP_PAYLOAD_SUBTYPE_RTP_MJPEG;
+		}
+		else
+		{
+			pDescriptor->stream_formats[0].subtypes.avtp_video.format = OPENAVB_AEM_RTP_PAYLOAD_SUBTYPE_RTP_H264;
+		}
+	}
+	memcpy(&(pDescriptor->current_format), &(pDescriptor->stream_formats[0]), sizeof(openavb_aem_stream_format_t));
 
 	return TRUE;
 }
