@@ -22,6 +22,12 @@ bool openavbAVDECCStopTalker(openavb_aem_descriptor_stream_io_t *pDescriptor, U1
 // Get talker stream details. Structure members in TalkerStrreamInfo will be filled.
 bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 configIdx, void *pVoidTalkerStreamInfo);
 
+// Determine if the talker or listener is streaming.
+bool openavbAVDECCIsStreaming(openavb_aem_descriptor_stream_io_t *pDescriptor);
+
+// Pause or resume the stream.
+void openavbAVDECCPauseStream(openavb_aem_descriptor_stream_io_t *pDescriptor, bool bPause);
+
 // Get the current counter value in pValue.  Returns TRUE if the counter is supported, FALSE otherwise.
 bool openavbAVDECCGetCounterValue(void *pDescriptor, U16 descriptorType, U32 counterFlag, U32 *pValue);
 

@@ -63,6 +63,25 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 	return TRUE;
 }
 
+bool openavbAVDECCIsStreaming(openavb_aem_descriptor_stream_io_t *pDescriptor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
+
+	AVB_LOG_ERROR("openavbAVDECCIsStreaming Not Implemented!");
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+	return FALSE;
+}
+
+void openavbAVDECCPauseStream(openavb_aem_descriptor_stream_io_t *pDescriptor, bool bPause)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
+
+	AVB_LOG_ERROR("openavbAVDECCPauseStream Not Implemented!");
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+}
+
 // Get the current counter value in pValue.  Returns TRUE if the counter is supported, FALSE otherwise.
 bool openavbAVDECCGetCounterValue(void *pDescriptor, U16 descriptorType, U32 counterFlag, U32 *pValue)
 {

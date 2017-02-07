@@ -54,8 +54,6 @@ typedef struct {
 	U32 buffer_length;
 	openavb_aem_stream_format_t stream_formats[OPENAVB_DESCRIPTOR_STREAM_IO_MAX_FORMATS];
 
-	// Non-standard descriptor data
-	tl_handle_t tlHandle;						// Enables AEM integration with the TL APIs
 } openavb_aem_descriptor_stream_io_t;
 
 openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStreamInputNew(void);

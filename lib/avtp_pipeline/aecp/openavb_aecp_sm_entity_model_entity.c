@@ -31,6 +31,7 @@
 #include "openavb_aecp_message.h"
 #include "openavb_aecp_sm_entity_model_entity.h"
 
+#include "openavb_avdecc_pipeline_interaction_pub.h"
 #include "openavb_aecp_cmd_get_counters.h"
 
 typedef enum {
@@ -57,18 +58,6 @@ MUTEX_HANDLE(openavbAecpSMMutex);
 SEM_T(openavbAecpSMEntityModelEntityWaitingSemaphore);
 THREAD_TYPE(openavbAecpSMEntityModelEntityThread);
 THREAD_DEFINITON(openavbAecpSMEntityModelEntityThread);
-
-bool openavbTLIsStreaming(tl_handle_t handle)
-{
-	// TODO:  Support for this function needs to be added somewhere!
-	return FALSE;
-}
-
-void openavbTLPauseStream(tl_handle_t handle, bool bPause)
-{
-	// TODO:  Support for this function needs to be added somewhere!
-}
-
 
 
 void acquireEntity()
@@ -166,7 +155,7 @@ bool processCommandCheckRestriction_StreamNotRunning(U16 descriptor_type, U16 de
 	if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
 		openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), descriptor_type, descriptor_index);
 		if (pDescriptorStreamInput) {
-			if (!openavbTLIsStreaming(pDescriptorStreamInput->tlHandle)) {
+			if (!openavbAVDECCIsStreaming(pDescriptorStreamInput)) {
 				bResult = TRUE;
 			}
 		}
@@ -174,7 +163,7 @@ bool processCommandCheckRestriction_StreamNotRunning(U16 descriptor_type, U16 de
 	else if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
 		openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), descriptor_type, descriptor_index);
 		if (pDescriptorStreamOutput) {
-			if (!openavbTLIsStreaming(pDescriptorStreamOutput->tlHandle)) {
+			if (!openavbAVDECCIsStreaming(pDescriptorStreamOutput)) {
 				bResult = TRUE;
 			}
 		}
@@ -690,7 +679,7 @@ void processCommand()
 					if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
 						openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 						if (pDescriptorStreamInput) {
-							openavbTLPauseStream(pDescriptorStreamInput->tlHandle, FALSE);
+							openavbAVDECCPauseStream(pDescriptorStreamInput, FALSE);
 							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
 						}
 						else {
@@ -700,7 +689,7 @@ void processCommand()
 					else if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
 						openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 						if (pDescriptorStreamOutput) {
-							openavbTLPauseStream(pDescriptorStreamOutput->tlHandle, FALSE);
+							openavbAVDECCPauseStream(pDescriptorStreamOutput, FALSE);
 							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
 						}
 						else {
@@ -725,7 +714,7 @@ void processCommand()
 					if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
 						openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 						if (pDescriptorStreamInput) {
-							openavbTLPauseStream(pDescriptorStreamInput->tlHandle, TRUE);
+							openavbAVDECCPauseStream(pDescriptorStreamInput, TRUE);
 							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
 						}
 						else {
@@ -735,7 +724,7 @@ void processCommand()
 					else if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
 						openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 						if (pDescriptorStreamOutput) {
-							openavbTLPauseStream(pDescriptorStreamOutput->tlHandle, TRUE);
+							openavbAVDECCPauseStream(pDescriptorStreamOutput, TRUE);
 							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
 						}
 						else {
