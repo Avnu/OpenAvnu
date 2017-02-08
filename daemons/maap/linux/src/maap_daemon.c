@@ -1,6 +1,6 @@
 /*************************************************************************
   Copyright (c) 2015 VAYAVYA LABS PVT LTD - http://vayavyalabs.com/
-  Copyright (c) 2016 Harman International Industries, Incorporated
+  Copyright (c) 2016-2017 Harman International Industries, Incorporated
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
