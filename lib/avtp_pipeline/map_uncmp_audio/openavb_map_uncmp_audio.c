@@ -730,7 +730,6 @@ extern DLL_EXPORT bool openavbMapUncmpAudioInitialize(media_q_t *pMediaQ, openav
 		pMapCB->map_max_data_size_cb = openavbMapUncmpAudioMaxDataSizeCB;
 		pMapCB->map_transmit_interval_cb = openavbMapUncmpAudioTransmitIntervalCB;
 		pMapCB->map_gen_init_cb = openavbMapUncmpAudioGenInitCB;
-		pMapCB->map_avdecc_init_cb = openavbMapUncmpAudioAVDECCInitCB;
 		pMapCB->map_tx_init_cb = openavbMapUncmpAudioTxInitCB;
 		pMapCB->map_tx_cb = openavbMapUncmpAudioTxCB;
 		pMapCB->map_rx_init_cb = openavbMapUncmpAudioRxInitCB;
