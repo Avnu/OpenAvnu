@@ -152,7 +152,7 @@ uint32_t maapLogGetMsg(uint8_t *pBuf, uint32_t bufSize)
 			if (pLogItem->bRT)
 				maapLogRTRender(pLogItem);
 
-			dataLen = strlen((const char *)pLogItem->msg);
+			dataLen = (uint32_t) strlen((const char *)pLogItem->msg);
 			if (dataLen <= bufSize)
 				memcpy(pBuf, (uint8_t *)pLogItem->msg, dataLen);
 			else
