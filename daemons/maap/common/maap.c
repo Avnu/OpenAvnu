@@ -338,10 +338,10 @@ static void log_print_notify_result(Maap_Output_Type outputType, int logLevel, c
 			if (nInitial < 0) {
 				if (logLevel == MAAP_LOG_LEVEL_ERROR) {
 					printf("Error:  ");
-					nInitial = strlen("Error:  ");
+					nInitial = (int) strlen("Error:  ");
 				} else if (logLevel == MAAP_LOG_LEVEL_WARNING) {
 					printf("Warning:  ");
-					nInitial = strlen("Warning:  ");
+					nInitial = (int) strlen("Warning:  ");
 				} else {
 					nInitial = 0;
 				}
