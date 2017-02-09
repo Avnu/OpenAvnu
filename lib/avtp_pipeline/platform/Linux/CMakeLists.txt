@@ -367,12 +367,12 @@ if (NOT AVB_FEATURE_AVDECC)
 
 	# rawsock_rx
 	add_executable (rawsock_rx ${AVB_OSAL_DIR}/rawsock/rawsock_rx.c)
-	target_link_libraries (rawsock_rx avbTl ${GLIB_PKG_LIBRARIES} pthread rt pci ${PLATFORM_LINK_LIBRARIES} )
+	target_link_libraries (rawsock_rx avbTl ${GLIB_PKG_LIBRARIES} pthread rt ${PLATFORM_LINK_LIBRARIES} )
 	install ( TARGETS rawsock_rx RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
 
 	# rawsock_tx
 	add_executable (rawsock_tx ${AVB_OSAL_DIR}/rawsock/rawsock_tx.c)
-	target_link_libraries (rawsock_tx avbTl ${GLIB_PKG_LIBRARIES} pthread rt pci ${PLATFORM_LINK_LIBRARIES} )
+	target_link_libraries (rawsock_tx avbTl ${GLIB_PKG_LIBRARIES} pthread rt ${PLATFORM_LINK_LIBRARIES} )
 	install ( TARGETS rawsock_tx RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
 endif ()
 

@@ -14,8 +14,7 @@ target_link_libraries( openavb_avdecc
 	${GST_PKG_LIBRARIES}
 	pthread
 	rt
-	dl
-	pci )
+	dl )
 
 # Install rules
 install ( TARGETS openavb_avdecc RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )

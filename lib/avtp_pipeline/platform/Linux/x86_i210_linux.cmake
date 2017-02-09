@@ -37,6 +37,7 @@ endif ()
 if (AVB_FEATURE_IGB)
 	set ( PLATFORM_LINK_LIBRARIES
 		igb
+		pci
 	)
 endif ()
 
