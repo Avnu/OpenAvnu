@@ -360,12 +360,13 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	memset(pCfg, 0, sizeof(openavb_tl_cfg_t));
 
 	// Set default values.
+	// (These values should match those set in openavbIniCfgInit().)
 	pCfg->role = AVB_ROLE_UNDEFINED;
 	//pCfg->map_cb;
 	//pCfg->intf_cb;
 	//pCfg->dest_addr;
 	//pCfg->stream_addr;
-	pCfg->stream_uid = -1;
+	pCfg->stream_uid = 0xFFFF;
 	pCfg->max_interval_frames = 1;
 	pCfg->max_frame_size = 1500;
 	pCfg->max_transit_usec = 50000;

@@ -58,7 +58,7 @@ struct openavb_tl_data_cfg {
 	/// MAC address of the source
 	cfg_mac_t stream_addr;
 	/// Stream UID (has to be unique)
-	S32 stream_uid;
+	U16 stream_uid;
 	/// Maximum number of packets sent during one interval (talker only)
 	U32 max_interval_frames;
 	/// Maximum size of the frame
