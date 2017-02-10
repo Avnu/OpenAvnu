@@ -66,6 +66,9 @@ MESSAGE ("-- SDK_INSTALL_SDK_EAVB_DIR      : ${SDK_INSTALL_SDK_EAVB_DIR}")
 # Turn on all build warnings
 set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -Wall" )
 
+# Turn off strict aliasing
+set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing" )
+
 # Set default visibility of symbols (requires GCC version > 4)
 set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden" )
 
