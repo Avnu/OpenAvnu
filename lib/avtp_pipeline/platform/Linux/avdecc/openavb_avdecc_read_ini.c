@@ -57,6 +57,39 @@ static bool parse_mac(const char *str, cfg_mac_t *mac)
 	return FALSE;
 }
 
+static void openavbIniCfgInit(openavb_tl_data_cfg_t *pCfg)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_TL);
+
+	memset(pCfg, 0, sizeof(openavb_tl_data_cfg_t));
+
+	// Set default values.
+	// (These values should match those set in openavbTLInitCfg().)
+	pCfg->role = AVB_ROLE_UNDEFINED;
+	pCfg->stream_uid = 0xFFFF;
+	pCfg->max_interval_frames = 1;
+	pCfg->max_frame_size = 1500;
+	pCfg->max_transit_usec = 50000;
+	pCfg->max_transmit_deficit_usec = 50000;
+	pCfg->internal_latency = 0;
+	pCfg->max_stale = MICROSECONDS_PER_SECOND;
+	pCfg->batch_factor = 1;
+	pCfg->report_seconds = 0;
+	pCfg->start_paused = FALSE;
+	pCfg->sr_class = SR_CLASS_B;
+	pCfg->sr_rank = SR_RANK_REGULAR;
+	pCfg->raw_tx_buffers = 8;
+	pCfg->raw_rx_buffers = 100;
+	pCfg->tx_blocking_in_intf =  0;
+	pCfg->rx_signal_mode = 1;
+	pCfg->vlan_id = 0xFFFF;
+	pCfg->fixed_timestamp = 0;
+	pCfg->thread_rt_priority = 0;
+	pCfg->thread_affinity = 0xFFFFFFFF;
+
+	AVB_TRACE_EXIT(AVB_TRACE_TL);
+}
+
 // callback function - called for each name/value pair by ini parsing library
 static int openavbIniCfgCallback(void *user, const char *tlSection, const char *name, const char *value)
 {
@@ -301,6 +334,8 @@ static int openavbIniCfgCallback(void *user, const char *tlSection, const char *
 bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
+
+	openavbIniCfgInit(pCfg);
 
 	int result = ini_parse(fileName, openavbIniCfgCallback, pCfg);
 	if (result < 0) {

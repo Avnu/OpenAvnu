@@ -72,9 +72,6 @@ static openavbRC openAvtpSock(avtp_stream_t *pStream)
 	}
 
 	if (pStream->rawsock != NULL) {
-		// Get the socket, so we can poll on it
-		pStream->sock = openavbRawsockGetSocket(pStream->rawsock);
-
 		openavbSetRxSignalMode(pStream->rawsock, pStream->bRxSignalMode);
 		
 		if (!pStream->tx) {

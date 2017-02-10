@@ -187,10 +187,6 @@ static bool checkIntfCallbacks(openavb_tl_cfg_t *pCfg)
 		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_gen_end'.");
 		// validCfg = FALSE;
 	}
-	if (!pCfg->intf_cb.intf_avdecc_init_cb) {
-		//AVB_LOG_WARNING("INI file doesn't specify interface callback for '_avdecc_init'.");
-		// validCfg = FALSE;
-	}
 
 	return validCfg;
 }
@@ -237,10 +233,6 @@ static bool checkMapCallbacks(openavb_tl_cfg_t *pCfg)
 	}
 	if (!pCfg->map_cb.map_gen_end_cb) {
 		AVB_LOG_WARNING("INI doesn't specify mapping callback for '_gen_end'.");
-		// validCfg = FALSE;
-	}
-	if (!pCfg->map_cb.map_avdecc_init_cb) {
-		//AVB_LOG_WARNING("INI doesn't specify mapping callback for '_avdecc_init'.");
 		// validCfg = FALSE;
 	}
 
@@ -368,12 +360,13 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	memset(pCfg, 0, sizeof(openavb_tl_cfg_t));
 
 	// Set default values.
+	// (These values should match those set in openavbIniCfgInit().)
 	pCfg->role = AVB_ROLE_UNDEFINED;
 	//pCfg->map_cb;
 	//pCfg->intf_cb;
 	//pCfg->dest_addr;
 	//pCfg->stream_addr;
-	pCfg->stream_uid = -1;
+	pCfg->stream_uid = 0xFFFF;
 	pCfg->max_interval_frames = 1;
 	pCfg->max_frame_size = 1500;
 	pCfg->max_transit_usec = 50000;

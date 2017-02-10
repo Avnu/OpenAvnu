@@ -65,20 +65,6 @@ typedef void (*openavb_intf_cfg_cb_t)(media_q_t *pMediaQ, const char *name, cons
  */
 typedef void (*openavb_intf_gen_init_cb_t)(media_q_t *pMediaQ);
 
-/** AVDECC initialize callback for both a talker or listener.
- *
- * Entity model based configuration can be processed at this time.
- * This callback is optional and only executed when AVDECC is used to connect
- * streams.
- *
- * \param pMediaQ A pointer to the media queue for this stream
- * \param configIdx current configuration descriptor index for the Entity Model
- * \param descriptorType The descriptorType is expected to be of STREAM_INPUT
- *        for listeners and STREAM_OUTPUT for talkers.
- * \param descriptorIdx descriptor index in the Entity Model
- */
-typedef void (*openavb_intf_avdecc_init_cb_t)(media_q_t *pMediaQ, U16 configIdx, U16 descriptorType, U16 descriptorIdx);
-
 /** Initialize transmit callback into the interface module.
  *
  * This callback function is called anytime a stream reservation has completed
@@ -199,8 +185,6 @@ typedef struct {
 	openavb_intf_cfg_cb_t			intf_cfg_cb;
 	/// General initialize callback.
 	openavb_intf_gen_init_cb_t		intf_gen_init_cb;
-	/// AVDECC initialize callback.
-	openavb_intf_avdecc_init_cb_t	intf_avdecc_init_cb;
 	/// Initialize transmit callback.
 	openavb_intf_tx_init_cb_t		intf_tx_init_cb;
 	/// Transmit callback.
