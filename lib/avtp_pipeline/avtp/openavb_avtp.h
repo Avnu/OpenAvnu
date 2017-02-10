@@ -100,8 +100,6 @@ typedef struct
 	U16 nbuffers;
 	// The rawsock library handle.  Used to send or receive frames.
 	void *rawsock;
-	// The actual socket used by the rawsock library.  Used for poll().
-	int sock;
 	// The streamID - in network form
 	U8 streamIDnet[8];
 	// The destination address for stream
