@@ -432,6 +432,28 @@ void openavbTLPauseTalker(tl_state_t *pTLState, bool bPause)
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }
 
+void openavbTLDropTalker(tl_state_t *pTLState, int drop_count)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_TL);
+
+	if (!pTLState) {
+		AVB_LOG_ERROR("Invalid TLState");
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		return;
+	}
+
+	talker_data_t *pTalkerData = pTLState->pPvtTalkerData;
+	if (!pTalkerData) {
+		AVB_LOG_ERROR("Invalid private talker data");
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		return;
+	}
+
+	openavbAvtpDrop(pTalkerData->avtpHandle, drop_count);
+
+	AVB_TRACE_EXIT(AVB_TRACE_TL);
+}
+
 void openavbTalkerClearStats(tl_state_t *pTLState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);

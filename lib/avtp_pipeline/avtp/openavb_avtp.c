@@ -384,11 +384,16 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 
 			// Increment the sequence number now that we are sure this is a good packet.
 			pStream->avtp_sequence_num++;
-			// Mark the frame "ready to send".
-			openavbRawsockTxFrameReady(pStream->rawsock, pStream->pBuf, avtpFrameLen + pStream->ethHdrLen, timeNsec);
-			// Send if requested
-			if (bSend)
-				openavbRawsockSend(pStream->rawsock);
+
+			if (pStream->drop_avtp_packets) {
+				pStream->drop_avtp_packets -= 1;
+			} else {
+				// Mark the frame "ready to send".
+				openavbRawsockTxFrameReady(pStream->rawsock, pStream->pBuf, avtpFrameLen + pStream->ethHdrLen, timeNsec);
+				// Send if requested
+				if (bSend)
+					openavbRawsockSend(pStream->rawsock);
+			}
 			// Drop our reference to it
 			pStream->pBuf = NULL;
 		}
@@ -707,6 +712,22 @@ void openavbAvtpPause(void *handle, bool bPause)
 	pStream->bPause = bPause;
 
 	// AVDECC_TODO:  Do something with the bPause value!
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
+}
+
+void openavbAvtpDrop(void *handle, int count)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVTP);
+
+	avtp_stream_t *pStream = (avtp_stream_t *)handle;
+	if (!pStream) {
+		AVB_RC_LOG(AVB_RC(OPENAVB_AVTP_FAILURE | OPENAVB_RC_INVALID_ARGUMENT));
+		AVB_TRACE_EXIT(AVB_TRACE_AVTP);
+		return;
+	}
+
+	pStream->drop_avtp_packets = count;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
 }

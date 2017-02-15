@@ -390,6 +390,7 @@ U64 openavbTLStat(tl_handle_t handle, tl_stat_t stat);
  */
 bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char *fileName, openavb_tl_cfg_t *pCfg, openavb_tl_cfg_name_value_t *pNVCfg);
 
+void openavbTLDropAvtpPackets(tl_handle_t TLhandle, int drop_count);
 
 /** \example openavb_host.c
  * Talker / Listener example host application.
