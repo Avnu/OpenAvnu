@@ -316,39 +316,39 @@ static int openavbIniCfgCallback(void *user, const char *tlSection, const char *
 			pCfg->sampling_rates_count = i;
 		}
 	}
-    else if (strcmp(name, "intf_nv_audio_rate") == 0) {
-        long int val = strtol(value, &pEnd, 10);
-        if (val >= AVB_AUDIO_RATE_8KHZ && val <= AVB_AUDIO_RATE_192KHZ) {
-        	pCfg->audioRate = val;
+	else if (strcmp(name, "intf_nv_audio_rate") == 0) {
+		long int val = strtol(value, &pEnd, 10);
+		if (val >= AVB_AUDIO_RATE_8KHZ && val <= AVB_AUDIO_RATE_192KHZ) {
+			pCfg->audioRate = val;
 			valOK = TRUE;
-        }
-        else {
-            AVB_LOG_ERROR("Invalid audio rate configured for intf_nv_audio_rate.");
-            pCfg->audioRate = AVB_AUDIO_RATE_44_1KHZ;
-        }
-    }
-    else if (strcmp(name, "intf_nv_audio_bit_depth") == 0) {
-    	long int val = strtol(value, &pEnd, 10);
-        if (val >= AVB_AUDIO_BIT_DEPTH_1BIT && val <= AVB_AUDIO_BIT_DEPTH_64BIT) {
-        	pCfg->audioBitDepth = val;
+		}
+		else {
+			AVB_LOG_ERROR("Invalid audio rate configured for intf_nv_audio_rate.");
+			pCfg->audioRate = AVB_AUDIO_RATE_44_1KHZ;
+		}
+	}
+	else if (strcmp(name, "intf_nv_audio_bit_depth") == 0) {
+		long int val = strtol(value, &pEnd, 10);
+		if (val >= AVB_AUDIO_BIT_DEPTH_1BIT && val <= AVB_AUDIO_BIT_DEPTH_64BIT) {
+			pCfg->audioBitDepth = val;
 			valOK = TRUE;
-        }
-        else {
-            AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_bits.");
-            pCfg->audioBitDepth = AVB_AUDIO_BIT_DEPTH_24BIT;
-        }
-    }
-    else if (strcmp(name, "intf_nv_audio_channels") == 0) {
-    	long int val = strtol(value, &pEnd, 10);
-        if (val >= AVB_AUDIO_CHANNELS_1 && val <= AVB_AUDIO_CHANNELS_8) {
-        	pCfg->audioChannels = val;
+		}
+		else {
+			AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_bits.");
+			pCfg->audioBitDepth = AVB_AUDIO_BIT_DEPTH_24BIT;
+		}
+	}
+	else if (strcmp(name, "intf_nv_audio_channels") == 0) {
+		long int val = strtol(value, &pEnd, 10);
+		if (val >= AVB_AUDIO_CHANNELS_1 && val <= AVB_AUDIO_CHANNELS_8) {
+			pCfg->audioChannels = val;
 			valOK = TRUE;
-        }
-        else {
-            AVB_LOG_ERROR("Invalid audio channels configured for intf_nv_audio_channels.");
-            pCfg->audioChannels = AVB_AUDIO_CHANNELS_2;
-        }
-    }
+		}
+		else {
+			AVB_LOG_ERROR("Invalid audio channels configured for intf_nv_audio_channels.");
+			pCfg->audioChannels = AVB_AUDIO_CHANNELS_2;
+		}
+	}
 	else if (MATCH(name, "map_fn")) {
 		errno = 0;
 		memset(pCfg->map_fn,0,sizeof(pCfg->map_fn));
