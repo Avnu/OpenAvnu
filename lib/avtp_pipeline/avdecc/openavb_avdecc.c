@@ -244,10 +244,13 @@ bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
 			}
 		}
 
-
 		// AVDECC_TODO:  Add other descriptors as needed.  Future options include:
 		//  JACK_INPUT
 		talker_stream_sources++;
+
+		// Add the class specific to the talker.
+		if (stream->sr_class == SR_CLASS_A) { gAvdeccCfg.bClassASupported = TRUE; }
+		if (stream->sr_class == SR_CLASS_B) { gAvdeccCfg.bClassBSupported = TRUE; }
 
 		AVB_LOG_DEBUG("AVDECC talker configuration added");
 	}
@@ -283,10 +286,12 @@ bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
 		//  JACK_OUTPUT
 		listener_stream_sources++;
 
+		// Listeners support both Class A and Class B.
+		gAvdeccCfg.bClassASupported = TRUE;
+		gAvdeccCfg.bClassBSupported = TRUE;
+
 		AVB_LOG_DEBUG("AVDECC listener configuration added");
 	}
-	if (stream->sr_class == SR_CLASS_A) { gAvdeccCfg.bClassASupported = TRUE; }
-	if (stream->sr_class == SR_CLASS_B) { gAvdeccCfg.bClassBSupported = TRUE; }
 
 	if (first_time)
 	{

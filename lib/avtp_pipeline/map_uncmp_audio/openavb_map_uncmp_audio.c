@@ -200,7 +200,7 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 				break;
 
 			default:
-				AVB_LOG_ERROR("Invalid audio frequency configured.");
+				AVB_LOGF_ERROR("Invalid audio frequency configured: %u", pPubMapInfo->audioRate);
 				pPvtData->cip_sfc = 2;
 				pPubMapInfo->sytInterval = 8;
 				break;
@@ -277,7 +277,7 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 				break;
 
 			default:
-				AVB_LOG_ERROR("Invalid audio format configured.");
+				AVB_LOGF_ERROR("Invalid audio bit depth configured: %u", pPubMapInfo->audioBitDepth);
 				pPvtData->AM824_label = 0x40000000;
 				break;
 		}

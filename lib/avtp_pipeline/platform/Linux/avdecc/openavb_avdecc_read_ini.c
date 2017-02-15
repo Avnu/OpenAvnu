@@ -37,6 +37,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include "openavb_platform.h"
 #include "openavb_trace.h"
+#include "openavb_audio_pub.h"
 #include "openavb_avdecc_read_ini_pub.h"
 
 #define	AVB_LOG_COMPONENT	"TL INI"
@@ -315,15 +316,58 @@ static int openavbIniCfgCallback(void *user, const char *tlSection, const char *
 			pCfg->sampling_rates_count = i;
 		}
 	}
+    else if (strcmp(name, "intf_nv_audio_rate") == 0) {
+        long int val = strtol(value, &pEnd, 10);
+        if (val >= AVB_AUDIO_RATE_8KHZ && val <= AVB_AUDIO_RATE_192KHZ) {
+        	pCfg->audioRate = val;
+			valOK = TRUE;
+        }
+        else {
+            AVB_LOG_ERROR("Invalid audio rate configured for intf_nv_audio_rate.");
+            pCfg->audioRate = AVB_AUDIO_RATE_44_1KHZ;
+        }
+    }
+    else if (strcmp(name, "intf_nv_audio_bit_depth") == 0) {
+    	long int val = strtol(value, &pEnd, 10);
+        if (val >= AVB_AUDIO_BIT_DEPTH_1BIT && val <= AVB_AUDIO_BIT_DEPTH_64BIT) {
+        	pCfg->audioBitDepth = val;
+			valOK = TRUE;
+        }
+        else {
+            AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_bits.");
+            pCfg->audioBitDepth = AVB_AUDIO_BIT_DEPTH_24BIT;
+        }
+    }
+    else if (strcmp(name, "intf_nv_audio_channels") == 0) {
+    	long int val = strtol(value, &pEnd, 10);
+        if (val >= AVB_AUDIO_CHANNELS_1 && val <= AVB_AUDIO_CHANNELS_8) {
+        	pCfg->audioChannels = val;
+			valOK = TRUE;
+        }
+        else {
+            AVB_LOG_ERROR("Invalid audio channels configured for intf_nv_audio_channels.");
+            pCfg->audioChannels = AVB_AUDIO_CHANNELS_2;
+        }
+    }
 	else if (MATCH(name, "map_fn")) {
 		errno = 0;
 		memset(pCfg->map_fn,0,sizeof(pCfg->map_fn));
 		strncpy(pCfg->map_fn,value,sizeof(pCfg->map_fn)-1);
+		valOK = TRUE;
+	}
+
+	else {
+		// Ignored item.
+		AVB_LOGF_DEBUG("Unhandled configuration item: name=%s, value=%s", name, value);
+
+		// Don't abort for this item.
+		valOK = TRUE;
 	}
 
 	if (!valOK) {
 		// bad value
-		AVB_LOGF_DEBUG("Unhandled configuration item: name=%s, value=%s", name, value);
+		AVB_LOGF_ERROR("Invalid value: name=%s, value=%s", name, value);
+		return 0;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
@@ -340,24 +384,55 @@ bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg)
 	int result = ini_parse(fileName, openavbIniCfgCallback, pCfg);
 	if (result < 0) {
 		AVB_LOGF_ERROR("Couldn't parse INI file: %s", fileName);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return FALSE;
 	}
 	if (result > 0) {
 		AVB_LOGF_ERROR("Error in INI file: %s, line %d", fileName, result);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return FALSE;
 	}
-	if (pCfg->sampling_rates[0] == 0 || pCfg->current_sampling_rate == 0)
+
+	if (pCfg->current_sampling_rate != 0 && pCfg->audioRate != 0 &&
+		pCfg->current_sampling_rate != pCfg->audioRate)
 	{
-		if (pCfg->sampling_rates[0] == 0)
-		{
-			AVB_LOGF_WARNING("sampling_rates not specified in %s. Defaulting to 48000",fileName);
-			pCfg->sampling_rates[0] = 48000;
-			pCfg->current_sampling_rate = 48000;
-		}
-		else
-		{
-			AVB_LOGF_WARNING("current_sampling_rate not specified in %s. Defaulting to %u",fileName,pCfg->sampling_rates[0]);
+		AVB_LOGF_ERROR("current_sampling_rate(%u) and intf_nv_audio_rate(%u) do not match.", pCfg->current_sampling_rate, pCfg->audioRate);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		return FALSE;
+	}
+
+	if (pCfg->current_sampling_rate == 0)
+	{
+		/* Make sure we have a default sampling rate. */
+		if (pCfg->audioRate != 0) {
+			pCfg->current_sampling_rate = pCfg->audioRate;
+		} else if (pCfg->sampling_rates[0] != 0) {
 			pCfg->current_sampling_rate = pCfg->sampling_rates[0];
+		} else {
+			pCfg->current_sampling_rate = AVB_AUDIO_RATE_48KHZ;
+		}
+		if (pCfg->audioRate == 0) {
+			AVB_LOGF_WARNING("current_sampling_rate not specified in %s. Defaulting to %u", fileName, pCfg->current_sampling_rate);
+		}
+	}
+	if (pCfg->sampling_rates_count == 0)
+	{
+		/* Set the list of sampling rates to the current sampling rate. */
+		pCfg->sampling_rates[0] = pCfg->current_sampling_rate;
+		pCfg->sampling_rates_count = 1;
+		if (pCfg->audioRate == 0) {
+			AVB_LOGF_WARNING("sampling_rates not specified in %s. Defaulting to %u", fileName, pCfg->current_sampling_rate);
+		}
+	} else {
+		/* Make sure the current sampling rate is in the list of sampling rates. */
+		U16 i;
+		for (i = 0; i < pCfg->sampling_rates_count; ++i) {
+			if (pCfg->sampling_rates[i] == pCfg->current_sampling_rate) break;
+		}
+		if (i >= pCfg->sampling_rates_count) {
+			AVB_LOGF_ERROR("current_sampling_rate(%u) not in list of sampling_rates.", pCfg->current_sampling_rate);
+			AVB_TRACE_EXIT(AVB_TRACE_TL);
+			return FALSE;
 		}
 	}
 

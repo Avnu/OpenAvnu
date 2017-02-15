@@ -489,6 +489,9 @@ static void fillInStreamFormat(openavb_aem_descriptor_stream_io_t *pDescriptor, 
 			pDescriptor->stream_formats[0].subtypes.avtp_video.format = OPENAVB_AEM_RTP_PAYLOAD_SUBTYPE_RTP_H264;
 		}
 	}
+	pDescriptor->number_of_formats = 1;
+
+	// Make the current format the first format in the list.
 	memcpy(&(pDescriptor->current_format), &(pDescriptor->stream_formats[0]), sizeof(openavb_aem_stream_format_t));
 }
 
@@ -503,8 +506,8 @@ extern DLL_EXPORT bool openavbAemDescriptorStreamInputInitialize(openavb_aem_des
 	sprintf((char *)(pDescriptor->object_name), "Stream Input %u", pDescriptor->descriptor_index);
 
 	// Specify the stream flags.
-	if (pConfig->stream->sr_class == SR_CLASS_A) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_A; }
-	if (pConfig->stream->sr_class == SR_CLASS_B) { pDescriptor->stream_flags |= OPENAVB_AEM_STREAM_FLAG_CLASS_B; }
+	// The stream configuration is ignored for Listeners, as Listeners will accept both Class A and Class B.
+	pDescriptor->stream_flags |= ( OPENAVB_AEM_STREAM_FLAG_CLASS_A | OPENAVB_AEM_STREAM_FLAG_CLASS_B );
 
 	// Specify the stream format information.
 	fillInStreamFormat(pDescriptor, pConfig);
