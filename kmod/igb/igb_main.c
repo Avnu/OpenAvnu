@@ -893,7 +893,7 @@ static void igb_disable_mdd(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 reg;
 
-	if ((hw->mac.type != e1000_i350) ||
+	if ((hw->mac.type != e1000_i350) &&
 	    (hw->mac.type != e1000_i354))
 		return;
 
