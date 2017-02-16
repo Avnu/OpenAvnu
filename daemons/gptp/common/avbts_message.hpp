@@ -165,6 +165,44 @@ enum MulticastType {
 	MCAST_OTHER
 };
 
+class PTPMessageId {
+	MessageType _messageType;
+	uint16_t _sequenceId;
+public:
+	PTPMessageId() { };
+	PTPMessageId(MessageType messageType, uint16_t sequenceId) :
+		_messageType(messageType),_sequenceId(sequenceId) { }
+	PTPMessageId(const PTPMessageId& a) {
+		_messageType = a._messageType;
+		_sequenceId = a._sequenceId;
+	}
+
+	MessageType getMessageType(void) {
+		return _messageType;
+	}
+	void setMessageType(MessageType messageType) {
+		_messageType = messageType;
+	}
+
+	uint16_t getSequenceId(void) {
+		return _sequenceId;
+	}
+	void setSequenceId(uint16_t sequenceId) {
+		_sequenceId = sequenceId;
+	}
+
+	bool operator!=(const PTPMessageId & cmp) const {
+		return
+			this->_sequenceId != cmp._sequenceId ||
+			this->_messageType != cmp._messageType ? true : false;
+	}
+	bool operator==(const PTPMessageId & cmp)const {
+		return
+			this->_sequenceId == cmp._sequenceId &&
+			this->_messageType == cmp._messageType ? true : false;
+	}
+};
+
 /**
  * @brief Provides the PTPMessage common interface used during building of
  * PTP messages.
@@ -237,6 +275,13 @@ protected:
 		return messageType;
 	}
 
+	/**
+	 * @brief  Gets the MessageID of the PTP message.
+	 * @return MessageId
+	 */
+	PTPMessageId getMessageId(void) {
+		return PTPMessageId(messageType, sequenceId);
+	}
 	/**
 	 * @brief  Gets the correctionField value in a Little-Endian format.
 	 * @return correctionField
