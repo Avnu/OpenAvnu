@@ -10617,7 +10617,6 @@ static int igb_close_file(struct inode *inode, struct file *file)
 	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter = NULL;
 	int err = 0;
-	int i;
 	struct igb_user_page *userpage;
 
 	if (igb_priv == NULL) {
@@ -10629,31 +10628,10 @@ static int igb_close_file(struct inode *inode, struct file *file)
 	if (adapter == NULL)
 		goto out;
 
-	mutex_lock(&adapter->lock);
-	/* free up any rings and user-mapped pages */
-	for (i = 0; i < 3; i++) {
-		if (igb_priv->uring_tx_init & (1 << i)) {
-			if (adapter->uring_tx_init & (1 << i)) {
-				igb_free_tx_resources(adapter->tx_ring[i]);
-			} else {
-				printk("Warning: invalid tx ring buffer state!\n");
-			}
-			adapter->uring_tx_init &= ~(1 << i);
-			igb_priv->uring_tx_init &= ~(1 << i);
-		}
-	}
+	mutex_lock(&adapter->lock);	
 
-	for (i = 0; i < 3; i++) {
-		if (igb_priv->uring_rx_init & (1 << i)) {
-			if (adapter->uring_rx_init & (1 << i)) {
-				igb_free_rx_resources(adapter->rx_ring[i]);
-			} else {
-				printk("Warning: invalid rx ring buffer state!\n");
-			}
-			adapter->uring_rx_init &= ~(1 << i);
-			igb_priv->uring_rx_init &= ~(1 << i);
-		}
-	}
+	adapter->uring_tx_init &= ~igb_priv->uring_tx_init;
+	adapter->uring_rx_init &= ~igb_priv->uring_rx_init;
 
 	userpage = igb_priv->userpages;
 
