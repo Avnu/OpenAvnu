@@ -114,7 +114,7 @@ bool osalAVBTimeInit(void) {
 	UNLOCK();
 
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
-	return TRUE;
+	return bInitialized;
 }
 
 bool osalAVBTimeClose(void) {
