@@ -41,6 +41,15 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define AVB_AVDECC_MSG_HANDLE_INVALID	(-1)
 #define AVDECC_MSG_RECONNECT_SECONDS 	10
 #define AVB_AVDECC_MSG_UNIX_PATH 		"/tmp/avdecc_msg"
+#define MAX_AVDECC_MSG_CLIENTS			16
+
+
+////////////////
+// AVDECC Msg state mutex
+////////////////
+extern MUTEX_HANDLE(gAvdeccMsgStateMutex);
+#define AVDECC_MSG_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(gAvdeccMsgStateMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
+#define AVDECC_MSG_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(gAvdeccMsgStateMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
 
 
 typedef enum OPENAVB_AVDECC_MSG_VER_STATE
@@ -73,30 +82,62 @@ typedef struct {
 } avdecc_msg_state_t;
 
 
+bool openavbAvdeccMsgInitialize(void);
+bool openavbAvdeccMsgCleanup();
+
+// Functions to save the list of AVDECC Msg clients (client-side support only)
+bool AvdeccMsgStateListAdd(avdecc_msg_state_t * pState);
+bool AvdeccMsgStateListRemove(avdecc_msg_state_t * pState);
+avdecc_msg_state_t * AvdeccMsgStateListGet(int avdeccMsgHandle);
+
 bool openavbAvdeccMsgClntService(int h, int timeout);
 void openavbAvdeccMsgSrvrService(void);
 
 
 typedef enum {
-	// client messages
-	OPENAVB_AVDECC_MSG_VERSION_REQUEST,
+	OPENAVB_AVDECC_MSG_PLAY,
+	OPENAVB_AVDECC_MSG_PAUSE,
+	OPENAVB_AVDECC_MSG_CLOSE,
+} openavbAvdeccMsgStateType_t;
 
-	// server messages
+typedef enum {
+	// client-to-server messages
+	OPENAVB_AVDECC_MSG_VERSION_REQUEST,
+	OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY,
+	OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION,
+
+	// server-to-client messages
 	OPENAVB_AVDECC_MSG_VERSION_CALLBACK,
+	OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST,
 } openavbAvdeccMsgType_t;
 
 //////////////////////////////
-// Client message parameters
+// Client-to-Server message parameters
 //////////////////////////////
 typedef struct {
 } openavbAvdeccMsgParams_VersionRequest_t;
 
+typedef struct {
+	U8 stream_src_mac[6]; // MAC Address for the Talker
+	U8 stream_dest_mac[6]; // Multicast address for the stream
+	U16 stream_uid; // Stream ID value
+	U16 stream_vlan_id; // VLAN ID of the stream
+} openavbAvdeccMsgParams_ListenerInitIdentify_t;
+
+typedef struct {
+	openavbAvdeccMsgStateType_t current_state;
+} openavbAvdeccMsgParams_ListenerChangeNotification_t;
+
 //////////////////////////////
-// Server messages parameters
+// Server-to-Client messages parameters
 //////////////////////////////
 typedef struct {
 	U32 		AVBVersion;
 } openavbAvdeccMsgParams_VersionCallback_t;
+
+typedef struct {
+	openavbAvdeccMsgStateType_t desired_state;
+} openavbAvdeccMsgParams_ListenerChangeRequest_t;
 
 #define OPENAVB_AVDECC_MSG_LEN sizeof(openavbAvdeccMessage_t)
 
@@ -128,9 +169,14 @@ bool openavbAvdeccMsgSrvrHndlVerRqstFromClient(int h);
 void openavbAvdeccMsgSrvrSendServerVersionToClient(int h, U32 AVBVersion);
 void openavbAvdeccMsgClntCheckVerMatchesSrvr(int h, U32 AVBVersion);
 
+// Client notify the server of identity (so AVDECC Msg knows client identity)
+bool openavbAvdeccMsgClientInitListenerIdentify(int avdeccMsgHandle, U8 stream_src_mac[6], U8 stream_dest_mac[6], U16 stream_uid, U16 stream_vlan_id);
+bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, U8 stream_src_mac[6], U8 stream_dest_mac[6], U16 stream_uid, U16 stream_vlan_id);
 
-bool AvdeccMsgStateListAdd(avdecc_msg_state_t * pState);
-bool AvdeccMsgStateListRemove(avdecc_msg_state_t * pState);
-avdecc_msg_state_t * AvdeccMsgStateListGet(int avdeccMsgHandle);
+// Server state change requests, and client notifications of state changes.
+bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState);
+bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState);
+bool openavbAvdeccMsgClntListenerChangeNotification(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState);
+bool openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState);
 
 #endif // OPENAVB_AVDECC_MSG_H

@@ -57,7 +57,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_avdecc_pub.h"
 
 // forward declarations
-static bool openavbAvdeccMsgSrvrReceiveFromClient(int h, openavbAvdeccMessage_t *msg);
+static bool openavbAvdeccMsgSrvrReceiveFromClient(int avdeccMsgHandle, openavbAvdeccMessage_t *msg);
 
 #include "openavb_avdecc_msg_server_osal.c"
 
@@ -66,7 +66,7 @@ extern openavb_avdecc_cfg_t gAvdeccCfg;
 extern openavb_tl_data_cfg_t * streamList;
 
 
-static bool openavbAvdeccMsgSrvrReceiveFromClient(int h, openavbAvdeccMessage_t *msg)
+static bool openavbAvdeccMsgSrvrReceiveFromClient(int avdeccMsgHandle, openavbAvdeccMessage_t *msg)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
@@ -79,8 +79,18 @@ static bool openavbAvdeccMsgSrvrReceiveFromClient(int h, openavbAvdeccMessage_t 
 	bool ret = FALSE;
 	switch (msg->type) {
 		case OPENAVB_AVDECC_MSG_VERSION_REQUEST:
-			AVB_LOG_DEBUG("Version request from client");
-			ret = openavbAvdeccMsgSrvrHndlVerRqstFromClient(h);
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_VERSION_REQUEST");
+			ret = openavbAvdeccMsgSrvrHndlVerRqstFromClient(avdeccMsgHandle);
+			break;
+		case OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY");
+			ret = openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(avdeccMsgHandle,
+				msg->params.listenerInitIdentify.stream_src_mac, msg->params.listenerInitIdentify.stream_dest_mac,
+				msg->params.listenerInitIdentify.stream_uid, msg->params.listenerInitIdentify.stream_vlan_id);
+			break;
+		case OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION");
+			ret = openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient(avdeccMsgHandle, msg->params.listenerChangeNotification.current_state);
 			break;
 		default:
 			AVB_LOG_ERROR("Unexpected message received at server");
@@ -92,7 +102,7 @@ static bool openavbAvdeccMsgSrvrReceiveFromClient(int h, openavbAvdeccMessage_t 
 	return ret;
 }
 
-void openavbAvdeccMsgSrvrSendServerVersionToClient(int h, U32 AVBVersion)
+void openavbAvdeccMsgSrvrSendServerVersionToClient(int avdeccMsgHandle, U32 AVBVersion)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
@@ -100,26 +110,85 @@ void openavbAvdeccMsgSrvrSendServerVersionToClient(int h, U32 AVBVersion)
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
 	msgBuf.type = OPENAVB_AVDECC_MSG_VERSION_CALLBACK;
 	msgBuf.params.versionCallback.AVBVersion = AVBVersion;
-	openavbAvdeccMsgSrvrSendToClient(h, &msgBuf);
+	openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }
 
 /* Client version request
  */
-bool openavbAvdeccMsgSrvrHndlVerRqstFromClient(int h)
+bool openavbAvdeccMsgSrvrHndlVerRqstFromClient(int avdeccMsgHandle)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
-	openavbAvdeccMsgSrvrSendServerVersionToClient(h, AVB_CORE_VER_FULL);
+	openavbAvdeccMsgSrvrSendServerVersionToClient(avdeccMsgHandle, AVB_CORE_VER_FULL);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return TRUE;
 }
 
+bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, U8 stream_src_mac[6], U8 stream_dest_mac[6], U16 stream_uid, U16 stream_vlan_id)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+	openavbAvdeccMessage_t msgBuf;
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		return false;
+	}
+
+	AVB_LOG_ERROR("openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient missing implementation!");
+	bool ret = true;
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return ret;
+}
+
+bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+	openavbAvdeccMessage_t msgBuf;
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		return false;
+	}
+
+	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
+	msgBuf.type = OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST;
+	openavbAvdeccMsgParams_ListenerChangeRequest_t * pParams =
+		&(msgBuf.params.listenerChangeRequest);
+	pParams->desired_state = desiredState;
+	bool ret = openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return ret;
+}
+
+bool openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+	openavbAvdeccMessage_t msgBuf;
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		return false;
+	}
+
+	AVB_LOG_ERROR("openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient missing implementation!");
+	bool ret = true;
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return ret;
+}
+
+
 /* Called if a client closes their end of the IPC
  */
-void openavbAvdeccMsgSrvrCloseClientConnection(int h)
+void openavbAvdeccMsgSrvrCloseClientConnection(int avdeccMsgHandle)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 

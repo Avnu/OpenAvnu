@@ -43,10 +43,13 @@ typedef struct {
 	AVBStreamID_t 			streamID;
 	union {
 		// Client messages
-		openavbAvdeccMsgParams_VersionRequest_t		versionRequest;
+		openavbAvdeccMsgParams_VersionRequest_t				versionRequest;
+		openavbAvdeccMsgParams_ListenerInitIdentify_t		listenerInitIdentify;
+		openavbAvdeccMsgParams_ListenerChangeNotification_t	listenerChangeNotification;
 
 		// Server messages
-		openavbAvdeccMsgParams_VersionCallback_t		versionCallback;
+		openavbAvdeccMsgParams_VersionCallback_t			versionCallback;
+		openavbAvdeccMsgParams_ListenerChangeRequest_t		listenerChangeRequest;
 	} params;
 } openavbAvdeccMessage_t;
 

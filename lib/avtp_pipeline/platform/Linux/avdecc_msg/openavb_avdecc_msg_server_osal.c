@@ -103,6 +103,9 @@ bool openavbAvdeccMsgServerOpen(void)
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	int i;
 
+	// Perform the base initialization.
+	openavbAvdeccMsgInitialize();
+
 	for (i=0; i < POLL_FD_COUNT; i++) {
 		fds[i].fd = SOCK_INVALID;
 		fds[i].events = 0;
@@ -250,6 +253,10 @@ void openavbAvdeccMsgServerClose(void)
 	if (unlink(serverAddr.sun_path) != 0) {
 		AVB_LOGF_ERROR("Failed to unlink %s: %s", serverAddr.sun_path, strerror(errno));
 	}
+
+	// Perform the base cleanup.
+	openavbAvdeccMsgCleanup();
+
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }
 

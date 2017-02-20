@@ -57,19 +57,16 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_log.h"
 
 // forward declarations
-static bool openavbAvdeccMsgClntReceiveFromServer(int h, openavbAvdeccMessage_t *msg);
+static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAvdeccMessage_t *msg);
 
 // OSAL specific functions for openavb_avdecc_msg_client.c
 #include "openavb_avdecc_msg_client_osal.c"
 
-#define MAX_AVDECC_MSGS 16
-avdecc_msg_state_t *gAvdeccMsgStateList[MAX_AVDECC_MSGS] = { 0 };
-
-static bool openavbAvdeccMsgClntReceiveFromServer(int h, openavbAvdeccMessage_t *msg)
+static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAvdeccMessage_t *msg)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
-	if (!msg || h == AVB_AVDECC_MSG_HANDLE_INVALID) {
+	if (!msg || avdeccMsgHandle == AVB_AVDECC_MSG_HANDLE_INVALID) {
 		AVB_LOG_ERROR("Client receive; invalid argument passed");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return FALSE;
@@ -78,7 +75,11 @@ static bool openavbAvdeccMsgClntReceiveFromServer(int h, openavbAvdeccMessage_t 
 	switch(msg->type) {
 		case OPENAVB_AVDECC_MSG_VERSION_CALLBACK:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_VERSION_CALLBACK");
-			openavbAvdeccMsgClntCheckVerMatchesSrvr(h, msg->params.versionCallback.AVBVersion);
+			openavbAvdeccMsgClntCheckVerMatchesSrvr(avdeccMsgHandle, msg->params.versionCallback.AVBVersion);
+			break;
+		case OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST");
+			openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(avdeccMsgHandle, msg->params.listenerChangeRequest.desired_state);
 			break;
 		default:
 			AVB_LOG_ERROR("Client receive: unexpected message");
@@ -89,14 +90,14 @@ static bool openavbAvdeccMsgClntReceiveFromServer(int h, openavbAvdeccMessage_t 
 	return TRUE;
 }
 
-bool openavbAvdeccMsgClntRequestVersionFromServer(int h)
+bool openavbAvdeccMsgClntRequestVersionFromServer(int avdeccMsgHandle)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavbAvdeccMessage_t msgBuf;
 
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
 	msgBuf.type = OPENAVB_AVDECC_MSG_VERSION_REQUEST;
-	bool ret = openavbAvdeccMsgClntSendToServer(h, &msgBuf);
+	bool ret = openavbAvdeccMsgClntSendToServer(avdeccMsgHandle, &msgBuf);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return ret;
@@ -122,6 +123,70 @@ void openavbAvdeccMsgClntCheckVerMatchesSrvr(int avdeccMsgHandle, U32 AVBVersion
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+}
+
+bool openavbAvdeccMsgClntInitListenerIdentify(int avdeccMsgHandle, U8 stream_src_mac[6], U8 stream_dest_mac[6], U16 stream_uid, U16 stream_vlan_id)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+	openavbAvdeccMessage_t msgBuf;
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		return false;
+	}
+
+	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
+	msgBuf.type = OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY;
+	openavbAvdeccMsgParams_ListenerInitIdentify_t * pParams =
+		&(msgBuf.params.listenerInitIdentify);
+	memcpy(pParams->stream_src_mac, stream_src_mac, sizeof(pParams->stream_src_mac));
+	memcpy(pParams->stream_dest_mac, stream_dest_mac, sizeof(pParams->stream_dest_mac));
+	pParams->stream_uid = stream_uid;
+	pParams->stream_vlan_id = stream_vlan_id;
+	bool ret = openavbAvdeccMsgClntSendToServer(avdeccMsgHandle, &msgBuf);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return ret;
+}
+
+bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		return false;
+	}
+
+	AVB_LOG_ERROR("openavbAvdeccMsgClntHndlListenerChangeRequestFromServer missing implementation!");
+	bool ret = true;
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return ret;
+}
+
+bool openavbAvdeccMsgClntListenerChangeNotification(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+	openavbAvdeccMessage_t msgBuf;
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		return false;
+	}
+
+	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
+	msgBuf.type = OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION;
+	openavbAvdeccMsgParams_ListenerChangeNotification_t * pParams =
+		&(msgBuf.params.listenerChangeNotification);
+	pParams->current_state = currentState;
+	bool ret = openavbAvdeccMsgClntSendToServer(avdeccMsgHandle, &msgBuf);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return ret;
 }
 
 
@@ -192,6 +257,9 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	avdecc_msg_state_t avdeccMsgState;
+
+	// Perform the base initialization.
+	openavbAvdeccMsgInitialize();
 
 	// Initialize our local state structure.
 	memset(&avdeccMsgState, 0, sizeof(avdeccMsgState));
@@ -273,83 +341,11 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 	avdeccMsgState.endpointHandle = 0;
 	avdeccMsgState.pTLState = NULL;
 
+	// Perform the base cleanup.
+	openavbAvdeccMsgCleanup();
+
 	THREAD_JOINABLE(avdeccMsgState.pTLState->avdeccMsgThread);
 
-	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-	return NULL;
-}
-
-
-bool AvdeccMsgStateListAdd(avdecc_msg_state_t * pState)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
-
-	if (!pState) {
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-		return FALSE;
-	}
-
-	TL_LOCK();
-	int i1;
-	for (i1 = 0; i1 < MAX_AVDECC_MSGS; i1++) {
-		if (!gAvdeccMsgStateList[i1]) {
-			gAvdeccMsgStateList[i1] = pState;
-			TL_UNLOCK();
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-			return TRUE;
-		}
-	}
-	TL_UNLOCK();
-	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-	return FALSE;
-}
-
-bool AvdeccMsgStateListRemove(avdecc_msg_state_t * pState)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
-
-	if (!pState) {
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-		return FALSE;
-	}
-
-	TL_LOCK();
-	int i1;
-	for (i1 = 0; i1 < MAX_AVDECC_MSGS; i1++) {
-		if (gAvdeccMsgStateList[i1] == pState) {
-			gAvdeccMsgStateList[i1] = NULL;
-			TL_UNLOCK();
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-			return TRUE;
-		}
-	}
-	TL_UNLOCK();
-	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-	return FALSE;
-}
-
-avdecc_msg_state_t * AvdeccMsgStateListGet(int avdeccMsgHandle)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
-
-	if (!avdeccMsgHandle) {
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-		return NULL;
-	}
-
-	TL_LOCK();
-	int i1;
-	for (i1 = 0; i1 < MAX_AVDECC_MSGS; i1++) {
-		if (gAvdeccMsgStateList[i1]) {
-			avdecc_msg_state_t *pState = (avdecc_msg_state_t *)gAvdeccMsgStateList[i1];
-			if (pState->socketHandle == avdeccMsgHandle) {
-				TL_UNLOCK();
-				AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-				return pState;
-			}
-		}
-	}
-	TL_LOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return NULL;
 }
