@@ -55,6 +55,7 @@ typedef struct {
 } talker_stats_t;
 
 THREAD_TYPE(TLThread);
+THREAD_TYPE(avdeccMsgThread);
 
 typedef struct {
 	// Running flag. (assumed atomic)
@@ -86,6 +87,9 @@ typedef struct {
 
 	// Thread for talker or listener
 	THREAD_DEFINITON(TLThread);
+
+	// Thread for AVDECC Msg support
+	THREAD_DEFINITON(avdeccMsgThread);
 
 	// Per stream Stats Mutex
 	MUTEX_HANDLE(statsMutex);

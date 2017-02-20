@@ -34,6 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace.h"
 #include "openavb_avdecc_cfg.h"
 #include "openavb_avdecc_read_ini_pub.h"
+#include "openavb_avdecc_msg.h"
 #include "openavb_list.h"
 
 #define	AVB_LOG_COMPONENT	"AVDECC"
@@ -168,12 +169,21 @@ static void* avdeccServerThread(void *arg)
 			break;
 		}
 
-		AVB_LOG_INFO("AVDECC Started");
-		avdeccInitSucceeded = TRUE;
+		if (!openavbAvdeccMsgServerOpen()) {
+			AVB_LOG_ERROR("Failed to start AVDECC Server");
+			openavbAvdeccStop();
+			break;
+		}
+		else {
+			AVB_LOG_INFO("AVDECC Started");
+			avdeccInitSucceeded = TRUE;
 
-		// Wait until AVDECC is finished.
-		while (avdeccRunning) {
-			SLEEP(1);
+			// Wait until AVDECC is finished.
+			while (avdeccRunning) {
+				openavbAvdeccMsgSrvrService();
+			}
+
+			openavbAvdeccMsgServerClose();
 		}
 
 		// Stop AVDECC

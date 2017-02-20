@@ -40,7 +40,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_mediaq.h"
 #include "openavb_talker.h"
 #include "openavb_listener.h"
-// #include "openavb_avtp.h"
+#include "openavb_avdecc_msg.h"
 #include "openavb_platform.h"
 
 #define	AVB_LOG_COMPONENT	"Talker / Listener"
@@ -63,6 +63,9 @@ THREAD_TYPE(talkerThread);
 void* openavbTLThreadFn(void *pv);
 #define THREAD_CREATE_TALKER() THREAD_CREATE(talkerThread, pTLState->TLThread, NULL, openavbTLThreadFn, pTLState)
 #define THREAD_CREATE_LISTENER() THREAD_CREATE(listenerThread, pTLState->TLThread, NULL, openavbTLThreadFn, pTLState)
+
+void* openavbAvdeccMsgThreadFn(void *pv);
+#define THREAD_CREATE_AVDECC_MSG() THREAD_CREATE(avdeccMsgThread, pTLState->avdeccMsgThread, NULL, openavbAvdeccMsgThreadFn, pTLState)
 
 void timespec_add_usec(struct timespec *t, unsigned long us)
 {
@@ -509,6 +512,8 @@ EXTERN_DLL_EXPORT bool openavbTLRun(tl_handle_t handle)
 			THREAD_CREATE_LISTENER();
 		}
 
+		THREAD_CREATE_AVDECC_MSG();
+
 		retVal = TRUE;
 
 	} while (0);
@@ -537,6 +542,7 @@ extern DLL_EXPORT bool openavbTLStop(tl_handle_t handle)
 		//pTLState->bStreaming = FALSE;
 		pTLState->bRunning = FALSE;
 
+		THREAD_JOIN(pTLState->avdeccMsgThread, NULL);
 		THREAD_JOIN(pTLState->TLThread, NULL);
 	}
 

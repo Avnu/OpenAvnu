@@ -44,29 +44,19 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 /////////////////////////////////////////////////////////
 #if defined(AVB_FEATURE_AVDECC) && (AVB_FEATURE_AVDECC)
 	#define AVB_CORE_NAME	"AVTP AVDECC"
-
-	#define AVB_CORE_VER_MAJOR		(0)
-	#define AVB_CORE_VER_MINOR		(1)
-	#define AVB_CORE_VER_REVISION	(0)
-
-	// Standard release designations. Uncomment one AVB_RELEASE_TYPE
-	#define AVB_CORE_RELEASE_TYPE	"Development"
-	//#define AVB_CORE_RELEASE_TYPE	"Alpha"
-	//#define AVB_CORE_RELEASE_TYPE	"Beta"
-	//#define AVB_CORE_RELEASE_TYPE	"Release"
 #else
 	#define AVB_CORE_NAME	"AVTP Pipeline"
-
-	#define AVB_CORE_VER_MAJOR		(0)
-	#define AVB_CORE_VER_MINOR		(1)
-	#define AVB_CORE_VER_REVISION	(0)
-
-	// Standard release designations. Uncomment one AVB_RELEASE_TYPE
-	#define AVB_CORE_RELEASE_TYPE	"Development"
-	//#define AVB_CORE_RELEASE_TYPE	"Alpha"
-	//#define AVB_CORE_RELEASE_TYPE	"Beta"
-	//#define AVB_CORE_RELEASE_TYPE	"Release"
 #endif
+
+#define AVB_CORE_VER_MAJOR		(0)
+#define AVB_CORE_VER_MINOR		(1)
+#define AVB_CORE_VER_REVISION	(0)
+
+// Standard release designations. Uncomment one AVB_RELEASE_TYPE
+#define AVB_CORE_RELEASE_TYPE	"Development"
+//#define AVB_CORE_RELEASE_TYPE	"Alpha"
+//#define AVB_CORE_RELEASE_TYPE	"Beta"
+//#define AVB_CORE_RELEASE_TYPE	"Release"
 
 #define AVB_CORE_VER_FULL		(AVB_CORE_VER_MAJOR << 16 | AVB_CORE_VER_MINOR << 8 | AVB_CORE_VER_REVISION)
 

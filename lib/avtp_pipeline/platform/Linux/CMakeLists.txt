@@ -243,8 +243,10 @@ include_directories(
 		${AVB_SRC_DIR}/qmgr
 		${AVB_SRC_DIR}/tl 
 		${AVB_SRC_DIR}/util
+		${AVB_SRC_DIR}/avdecc_msg
 		${AVB_OSAL_DIR}/avdecc
 		${AVB_OSAL_DIR}/endpoint
+		${AVB_OSAL_DIR}/avdecc_msg
 		${AVB_SRC_DIR}/../common
 		${AVB_SRC_DIR}/mcs
 		)
@@ -386,4 +388,5 @@ if (AVB_FEATURE_ENDPOINT)
 endif ()
 if (AVB_FEATURE_AVDECC)
 	install ( FILES ${AVB_SRC_DIR}/avdecc/avdecc.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
+	install ( PROGRAMS ${AVB_SRC_DIR}/avdecc/shutdown_openavb_avdecc.sh DESTINATION ${AVB_INSTALL_BIN_DIR} )
 endif ()

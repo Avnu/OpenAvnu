@@ -1,16 +1,16 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2012-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,39 +21,39 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
-#ifndef OPENAVB_ENDPOINT_CLIENT_OSAL_C
-#define OPENAVB_ENDPOINT_CLIENT_OSAL_C
+#ifndef OPENAVB_AVDECC_MSG_CLIENT_OSAL_C
+#define OPENAVB_AVDECC_MSG_CLIENT_OSAL_C
 
 static void socketClose(int h)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
-	if (h != AVB_ENDPOINT_HANDLE_INVALID) {
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+	if (h != AVB_AVDECC_MSG_HANDLE_INVALID) {
 		close(h);
 	}
-	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }
 
-static bool openavbEptClntSendToServer(int h, openavbEndpointMessage_t *msg)
+static bool openavbAvdeccMsgClntSendToServer(int h, openavbAvdeccMessage_t *msg)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
-	if (!msg || h == AVB_ENDPOINT_HANDLE_INVALID) {
+	if (!msg || h == AVB_AVDECC_MSG_HANDLE_INVALID) {
 		AVB_LOG_ERROR("Client send: invalid argument passed");
-		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return FALSE;
 	}
 
-	ssize_t nWrite = write(h, msg, OPENAVB_ENDPOINT_MSG_LEN);
-	AVB_LOGF_VERBOSE("Sent message, len=%zu, nWrite=%zu", OPENAVB_ENDPOINT_MSG_LEN, nWrite);
+	ssize_t nWrite = write(h, msg, OPENAVB_AVDECC_MSG_LEN);
+	AVB_LOGF_VERBOSE("Sent message, len=%zu, nWrite=%zu", OPENAVB_AVDECC_MSG_LEN, nWrite);
 
-	if (nWrite < OPENAVB_ENDPOINT_MSG_LEN) {
+	if (nWrite < OPENAVB_AVDECC_MSG_LEN) {
 		if (nWrite < 0) {
 			AVB_LOGF_ERROR("Client failed to write socket: %s", strerror(errno));
 		}
@@ -64,60 +64,61 @@ static bool openavbEptClntSendToServer(int h, openavbEndpointMessage_t *msg)
 			AVB_LOG_ERROR("Client send: short write");
 		}
 		socketClose(h);
-		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return FALSE;
 	}
 
-	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return TRUE;
 }
 
-int openavbEptClntOpenSrvrConnection(tl_state_t *pTLState)
+int openavbAvdeccMsgClntOpenSrvrConnection(void)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	struct sockaddr_un server;
 	server.sun_family = AF_UNIX;
-	snprintf(server.sun_path, UNIX_PATH_MAX, AVB_ENDPOINT_UNIX_PATH);
+	snprintf(server.sun_path, UNIX_PATH_MAX, AVB_AVDECC_MSG_UNIX_PATH);
 
 	int h = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (h < 0) {
-		AVB_LOGF_DEBUG("Failed to open socket: %s", strerror(errno));
-		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
-		return AVB_ENDPOINT_HANDLE_INVALID;
+		AVB_LOGF_ERROR("Failed to open socket: %s", strerror(errno));
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return AVB_AVDECC_MSG_HANDLE_INVALID;
 	}
 
 	AVB_LOGF_DEBUG("Connecting to %s", server.sun_path);
 	int rslt = connect(h, (struct sockaddr*)&server, sizeof(struct sockaddr_un));
 	if (rslt < 0) {
-		AVB_LOGF_DEBUG("Failed to connect socket: %s", strerror(errno));
+		AVB_LOGF_ERROR("Failed to connect socket: %s", strerror(errno));
 		socketClose(h);
-		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
-		return AVB_ENDPOINT_HANDLE_INVALID;
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return AVB_AVDECC_MSG_HANDLE_INVALID;
 	}
 
-	AVB_LOG_DEBUG("Connected to endpoint");
-	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+	AVB_LOG_DEBUG("Connected to AVDECC Msg");
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return h;
 }
 
-void openavbEptClntCloseSrvrConnection(int h)
+void openavbAvdeccMsgClntCloseSrvrConnection(int h)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	socketClose(h);
-	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+	AVB_LOG_DEBUG("Closed connection to AVDECC Msg");
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }
 
-bool openavbEptClntService(int h, int timeout)
+bool openavbAvdeccMsgClntService(int h, int timeout)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	bool rc = FALSE;
 
-	if (h == AVB_ENDPOINT_HANDLE_INVALID) {
+	if (h == AVB_AVDECC_MSG_HANDLE_INVALID) {
 		AVB_LOG_ERROR("Client service: invalid socket");
-		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return FALSE;
 	}
-	
+
 	struct pollfd fds[1];
 	memset(fds, 0, sizeof(struct pollfd));
 	fds[0].fd = h;
@@ -128,13 +129,13 @@ bool openavbEptClntService(int h, int timeout)
 
 	if (pRet == 0) {
 		AVB_LOG_VERBOSE("Poll timeout");
-		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return TRUE;
 	}
 	else if (pRet < 0) {
 		if (errno == EINTR) {
 			AVB_LOG_VERBOSE("Poll interrupted");
-			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 			return TRUE;
 		}
 		else {
@@ -144,11 +145,11 @@ bool openavbEptClntService(int h, int timeout)
 	else {
 		AVB_LOGF_DEBUG("Poll returned %d events", pRet);
 		// only one fd, so it's readable.
-		openavbEndpointMessage_t msgBuf;
-		memset(&msgBuf, 0, OPENAVB_ENDPOINT_MSG_LEN);
-		ssize_t nRead = read(h, &msgBuf, OPENAVB_ENDPOINT_MSG_LEN);
-					
-		if (nRead < OPENAVB_ENDPOINT_MSG_LEN) {
+		openavbAvdeccMessage_t msgBuf;
+		memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
+		ssize_t nRead = read(h, &msgBuf, OPENAVB_AVDECC_MSG_LEN);
+
+		if (nRead < OPENAVB_AVDECC_MSG_LEN) {
 			// sock closed
 			if (nRead == 0) {
 				AVB_LOG_ERROR("Socket closed unexpectedly");
@@ -163,7 +164,7 @@ bool openavbEptClntService(int h, int timeout)
 		}
 		else {
 			// got a message
-			if (openavbEptClntReceiveFromServer(h, &msgBuf)) {
+			if (openavbAvdeccMsgClntReceiveFromServer(h, &msgBuf)) {
 				rc = TRUE;
 			}
 			else {
@@ -172,8 +173,8 @@ bool openavbEptClntService(int h, int timeout)
 			}
 		}
 	}
-	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return rc;
 }
 
-#endif // OPENAVB_ENDPOINT_CLIENT_OSAL_C
+#endif // OPENAVB_AVDECC_MSG_CLIENT_OSAL_C
