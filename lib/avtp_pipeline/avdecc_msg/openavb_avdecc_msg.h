@@ -67,9 +67,6 @@ typedef struct {
 	// The status of the version check to make sure AVDECC Msg and TL are running the same version.
 	openavbAvdeccMsgVerState_t verState;
 
-	// Configuration settings. (Values are set once from a single thread no lock needed).
-	openavb_tl_cfg_t cfg;
-
 	// Handle to the endpoint linked to this AVDECC Msg instance.
 	int endpointHandle;
 

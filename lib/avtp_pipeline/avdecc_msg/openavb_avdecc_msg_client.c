@@ -234,6 +234,12 @@ void openavbAvdeccMsgRunListener(avdecc_msg_state_t *pState)
 
 	if (pState->bConnected) {
 
+		// Let the AVDECC Msg server know our identity.
+		openavb_tl_cfg_t * cfg = &(pState->pTLState->cfg);
+		openavbAvdeccMsgClntInitListenerIdentify(pState->socketHandle,
+			cfg->stream_addr.buffer.ether_addr_octet, cfg->dest_addr.buffer.ether_addr_octet,
+			cfg->stream_uid, cfg->vlan_id);
+
 		// Do until we are stopped or loose connection to endpoint
 		while (pState->pTLState->bRunning && pState->bConnected) {
 
@@ -309,7 +315,7 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 		}
 
 		if (avdeccMsgState.bConnected && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_VALID) {
-			if (avdeccMsgState.cfg.role == AVB_ROLE_TALKER) {
+			if (avdeccMsgState.pTLState->cfg.role == AVB_ROLE_TALKER) {
 				openavbAvdeccMsgRunTalker(&avdeccMsgState);
 			}
 			else {
