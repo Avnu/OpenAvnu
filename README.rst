@@ -3,8 +3,8 @@
 
 |
 
-.. image:: https://travis-ci.org/AVnu/Open-AVB.svg?branch=open-avb-next
-   :target: https://travis-ci.org/AVnu/Open-AVB
+.. image:: https://travis-ci.org/AVnu/OpenAvnu.svg?branch=open-avb-next
+   :target: https://travis-ci.org/AVnu/OpenAvnu
 
 OpenAvnu
 ========
@@ -105,7 +105,7 @@ AVDECC
 ------
 Jeff Koftinoff maintains a repository of AVDECC example open 
 source code. AVDECC is a management layer, similar to SNMP MIB formats, 
-which enables remote devices to detect, enumerate and configure AVB-related 
+which enables remote devices to detect, enumerate and configure AVB/TSN-related
 devices based on their standardized management properties.
 
 + https://github.com/jdkoftinoff/jdksavdecc-c
