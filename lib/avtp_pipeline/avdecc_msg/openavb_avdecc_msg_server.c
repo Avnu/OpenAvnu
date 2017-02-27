@@ -47,19 +47,23 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <stdlib.h>
 #include <string.h>
 
-#include "openavb_avdecc_msg.h"
-#include "openavb_trace.h"
-
 //#define AVB_LOG_LEVEL  AVB_LOG_LEVEL_DEBUG
-#define	AVB_LOG_COMPONENT	"AVDECC Msg Server"
+#define	AVB_LOG_COMPONENT	"AVDECC Msg"
 #include "openavb_pub.h"
 #include "openavb_log.h"
 #include "openavb_avdecc_pub.h"
 
+#include "openavb_avdecc_msg_server.h"
+#include "openavb_trace.h"
+
 // forward declarations
 static bool openavbAvdeccMsgSrvrReceiveFromClient(int avdeccMsgHandle, openavbAvdeccMessage_t *msg);
 
+// OSAL specific functions
 #include "openavb_avdecc_msg_server_osal.c"
+
+// AvdeccMsgStateListGet() support.
+#include "openavb_avdecc_msg.c"
 
 // the following are from openavb_avdecc.c
 extern openavb_avdecc_cfg_t gAvdeccCfg;
@@ -133,16 +137,39 @@ bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle,
 	openavbAvdeccMessage_t msgBuf;
 
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
-	if (!pState) {
-		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+	if (pState) {
+		// The handle was already specified.  Something has gone terribly wrong!
+		AVB_LOGF_ERROR("avdeccMsgHandle %d already used", avdeccMsgHandle);
+		AvdeccMsgStateListRemove(pState);
+		free(pState);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
 	}
 
-	AVB_LOG_ERROR("openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient missing implementation!");
-	bool ret = true;
+	// Create a structure to hold the client information.
+	pState = (avdecc_msg_state_t *) calloc(1, sizeof(avdecc_msg_state_t));
+	if (!pState) {
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
+	pState->socketHandle = avdeccMsgHandle;
+
+	// Copy the client-supplied information
+	memcpy(pState->stream_src_mac, stream_src_mac, sizeof(pState->stream_src_mac));
+	memcpy(pState->stream_dest_mac, stream_dest_mac, sizeof(pState->stream_dest_mac));
+	pState->stream_uid = stream_uid;
+	pState->stream_vlan_id = stream_vlan_id;
+
+	// Keep track of this new state item.
+	if (!AvdeccMsgStateListAdd(pState)) {
+		AVB_LOGF_ERROR("Error saving client identity information %d", avdeccMsgHandle);
+		free(pState);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-	return ret;
+	return true;
 }
 
 bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
@@ -153,6 +180,7 @@ bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdec
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
 	if (!pState) {
 		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
 	}
 
@@ -175,6 +203,7 @@ bool openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient(int avdeccMsgH
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
 	if (!pState) {
 		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
 	}
 
@@ -192,7 +221,12 @@ void openavbAvdeccMsgSrvrCloseClientConnection(int avdeccMsgHandle)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
-	// AVDECC_TODO:  Should we do anything here?
+	// Free the state for this handle.
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (pState) {
+		AvdeccMsgStateListRemove(pState);
+		free(pState);
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }

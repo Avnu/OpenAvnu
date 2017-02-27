@@ -47,7 +47,9 @@ static void socketClose(int h)
 		AVB_LOG_ERROR("Closing socket; invalid handle");
 	}
 	else {
-		openavbAvdeccMsgSrvrCloseClientConnection(h);
+		if (h != AVB_AVDECC_LISTEN_FDS) {
+			openavbAvdeccMsgSrvrCloseClientConnection(h);
+		}
 		close(fds[h].fd);
 		fds[h].fd = SOCK_INVALID;
 		fds[h].events = 0;
@@ -243,7 +245,7 @@ void openavbAvdeccMsgServerClose(void)
 	int i;
 	for (i = 0; i < POLL_FD_COUNT; i++) {
 		if (fds[i].fd != SOCK_INVALID) {
-			close(fds[i].fd);
+			socketClose(i);
 		}
 	}
 	if (lsock != SOCK_INVALID) {

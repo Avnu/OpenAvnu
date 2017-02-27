@@ -31,26 +31,26 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #ifndef OPENAVB_AVDECC_MSG_CLIENT_OSAL_C
 #define OPENAVB_AVDECC_MSG_CLIENT_OSAL_C
 
-static void socketClose(int h)
+static void socketClose(int socketHandle)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
-	if (h != AVB_AVDECC_MSG_HANDLE_INVALID) {
-		close(h);
+	if (socketHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
+		close(socketHandle);
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }
 
-static bool openavbAvdeccMsgClntSendToServer(int h, openavbAvdeccMessage_t *msg)
+static bool openavbAvdeccMsgClntSendToServer(int socketHandle, openavbAvdeccMessage_t *msg)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
-	if (!msg || h == AVB_AVDECC_MSG_HANDLE_INVALID) {
+	if (!msg || socketHandle == AVB_AVDECC_MSG_HANDLE_INVALID) {
 		AVB_LOG_ERROR("Client send: invalid argument passed");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return FALSE;
 	}
 
-	ssize_t nWrite = write(h, msg, OPENAVB_AVDECC_MSG_LEN);
+	ssize_t nWrite = write(socketHandle, msg, OPENAVB_AVDECC_MSG_LEN);
 	AVB_LOGF_VERBOSE("Sent message, len=%zu, nWrite=%zu", OPENAVB_AVDECC_MSG_LEN, nWrite);
 
 	if (nWrite < OPENAVB_AVDECC_MSG_LEN) {
@@ -63,7 +63,7 @@ static bool openavbAvdeccMsgClntSendToServer(int h, openavbAvdeccMessage_t *msg)
 		else {
 			AVB_LOG_ERROR("Client send: short write");
 		}
-		socketClose(h);
+		socketClose(socketHandle);
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return FALSE;
 	}
@@ -89,7 +89,7 @@ int openavbAvdeccMsgClntOpenSrvrConnection(void)
 	AVB_LOGF_DEBUG("Connecting to %s", server.sun_path);
 	int rslt = connect(h, (struct sockaddr*)&server, sizeof(struct sockaddr_un));
 	if (rslt < 0) {
-		AVB_LOGF_ERROR("Failed to connect socket: %s", strerror(errno));
+		AVB_LOGF_DEBUG("Failed to connect socket: %s", strerror(errno));
 		socketClose(h);
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return AVB_AVDECC_MSG_HANDLE_INVALID;
@@ -100,20 +100,20 @@ int openavbAvdeccMsgClntOpenSrvrConnection(void)
 	return h;
 }
 
-void openavbAvdeccMsgClntCloseSrvrConnection(int h)
+void openavbAvdeccMsgClntCloseSrvrConnection(int socketHandle)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
-	socketClose(h);
+	socketClose(socketHandle);
 	AVB_LOG_DEBUG("Closed connection to AVDECC Msg");
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }
 
-bool openavbAvdeccMsgClntService(int h, int timeout)
+bool openavbAvdeccMsgClntService(int socketHandle, int timeout)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	bool rc = FALSE;
 
-	if (h == AVB_AVDECC_MSG_HANDLE_INVALID) {
+	if (socketHandle == AVB_AVDECC_MSG_HANDLE_INVALID) {
 		AVB_LOG_ERROR("Client service: invalid socket");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return FALSE;
@@ -121,7 +121,7 @@ bool openavbAvdeccMsgClntService(int h, int timeout)
 
 	struct pollfd fds[1];
 	memset(fds, 0, sizeof(struct pollfd));
-	fds[0].fd = h;
+	fds[0].fd = socketHandle;
 	fds[0].events = POLLIN;
 
 	AVB_LOG_VERBOSE("Waiting for event...");
@@ -147,7 +147,7 @@ bool openavbAvdeccMsgClntService(int h, int timeout)
 		// only one fd, so it's readable.
 		openavbAvdeccMessage_t msgBuf;
 		memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
-		ssize_t nRead = read(h, &msgBuf, OPENAVB_AVDECC_MSG_LEN);
+		ssize_t nRead = read(socketHandle, &msgBuf, OPENAVB_AVDECC_MSG_LEN);
 
 		if (nRead < OPENAVB_AVDECC_MSG_LEN) {
 			// sock closed
@@ -160,16 +160,16 @@ bool openavbAvdeccMsgClntService(int h, int timeout)
 			else {
 				AVB_LOG_ERROR("Socket read to short");
 			}
-			socketClose(h);
+			socketClose(socketHandle);
 		}
 		else {
 			// got a message
-			if (openavbAvdeccMsgClntReceiveFromServer(h, &msgBuf)) {
+			if (openavbAvdeccMsgClntReceiveFromServer(socketHandle, &msgBuf)) {
 				rc = TRUE;
 			}
 			else {
 				AVB_LOG_ERROR("Invalid message received");
-				socketClose(h);
+				socketClose(socketHandle);
 			}
 		}
 	}

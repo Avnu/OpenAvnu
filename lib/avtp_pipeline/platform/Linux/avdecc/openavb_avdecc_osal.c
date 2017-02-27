@@ -187,8 +187,8 @@ static void* avdeccServerThread(void *arg)
 		}
 
 		// Stop AVDECC
+		AVB_LOG_DEBUG("AVDECC Stopping");
 		openavbAvdeccStop();
-
 		AVB_LOG_INFO("AVDECC Stopped");
 	}
 

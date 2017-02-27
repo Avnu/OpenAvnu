@@ -34,7 +34,6 @@
 
 #define ADDR_PTR(A) (U8*)(&((A)->ether_addr_octet))
 
-bool avdeccRunning = TRUE;
 openavb_avdecc_cfg_t gAvdeccCfg;
 openavb_tl_data_cfg_t * streamList = NULL;
 openavb_aem_descriptor_configuration_t *pConfiguration = NULL;

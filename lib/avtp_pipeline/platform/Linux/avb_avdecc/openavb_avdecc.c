@@ -43,7 +43,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define	AVB_LOG_COMPONENT	"AVDECC Main"
 #include "openavb_log_pub.h"
 
-bool bRunning = TRUE;
+bool avdeccRunning = TRUE;
 
 /***********************************************
  * Signal handler - used to respond to signals.
@@ -55,7 +55,7 @@ static void openavbAvdeccSigHandler(int signal)
 
 	if (signal == SIGINT) {
 		AVB_LOG_INFO("AVDECC shutting down");
-		bRunning = FALSE;
+		avdeccRunning = FALSE;
 	}
 	else if (signal == SIGUSR1) {
 		AVB_LOG_DEBUG("Waking up streaming thread");
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
-	while (bRunning) {
+	while (avdeccRunning) {
 		sleep(1);
 	}
 

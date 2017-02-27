@@ -48,19 +48,22 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include "openavb_platform.h"
 
-#include "openavb_trace.h"
-#include "openavb_avdecc_msg.h"
-#include "openavb_tl.h"
-
-#define	AVB_LOG_COMPONENT	"AVDECC Msg Client"
+#define	AVB_LOG_COMPONENT	"AVDECC Msg"
 #include "openavb_pub.h"
 #include "openavb_log.h"
+
+#include "openavb_trace.h"
+#include "openavb_avdecc_msg_client.h"
+#include "openavb_tl.h"
 
 // forward declarations
 static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAvdeccMessage_t *msg);
 
-// OSAL specific functions for openavb_avdecc_msg_client.c
+// OSAL specific functions
 #include "openavb_avdecc_msg_client_osal.c"
+
+// AvdeccMsgStateListGet() support.
+#include "openavb_avdecc_msg.c"
 
 static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAvdeccMessage_t *msg)
 {
@@ -110,6 +113,7 @@ void openavbAvdeccMsgClntCheckVerMatchesSrvr(int avdeccMsgHandle, U32 AVBVersion
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
 	if (!pState) {
 		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return;
 	}
 
@@ -133,6 +137,7 @@ bool openavbAvdeccMsgClntInitListenerIdentify(int avdeccMsgHandle, U8 stream_src
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
 	if (!pState) {
 		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
 	}
 
@@ -157,6 +162,7 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
 	if (!pState) {
 		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
 	}
 
@@ -175,6 +181,7 @@ bool openavbAvdeccMsgClntListenerChangeNotification(int avdeccMsgHandle, openavb
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
 	if (!pState) {
 		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
 	}
 

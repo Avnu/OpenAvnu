@@ -36,7 +36,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define OPENAVB_AVDECC_MSG_H
 
 #include "openavb_types.h"
-#include "openavb_tl.h"
 
 #define AVB_AVDECC_MSG_HANDLE_INVALID	(-1)
 #define AVDECC_MSG_RECONNECT_SECONDS 	10
@@ -59,35 +58,20 @@ typedef enum OPENAVB_AVDECC_MSG_VER_STATE
 	OPENAVB_AVDECC_MSG_VER_VALID,
 } openavbAvdeccMsgVerState_t;
 
-typedef struct {
-
-	// Connected to AVDECC Msg flag. (assumed atomic)
-	bool bConnected;
-
-	// The status of the version check to make sure AVDECC Msg and TL are running the same version.
-	openavbAvdeccMsgVerState_t verState;
-
-	// Handle to the endpoint linked to this AVDECC Msg instance.
-	int endpointHandle;
-
-	// Pointer to the talker/listener state linked to the AVDECC Msg instance.
-	tl_state_t *pTLState;
-
-	// Handle to the AVDECC Msg socket for the connection to the server.
-	int socketHandle;
-
-} avdecc_msg_state_t;
+struct _avdecc_msg_state;
+typedef struct _avdecc_msg_state avdecc_msg_state_t;
 
 
 bool openavbAvdeccMsgInitialize(void);
 bool openavbAvdeccMsgCleanup();
 
-// Functions to save the list of AVDECC Msg clients (client-side support only)
+// Functions to save the list of AVDECC Msg clients
 bool AvdeccMsgStateListAdd(avdecc_msg_state_t * pState);
 bool AvdeccMsgStateListRemove(avdecc_msg_state_t * pState);
 avdecc_msg_state_t * AvdeccMsgStateListGet(int avdeccMsgHandle);
+avdecc_msg_state_t * AvdeccMsgStateListGetFirst(void);
 
-bool openavbAvdeccMsgClntService(int h, int timeout);
+bool openavbAvdeccMsgClntService(int socketHandle, int timeout);
 void openavbAvdeccMsgSrvrService(void);
 
 

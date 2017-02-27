@@ -37,17 +37,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  * This code implements functions used by both sides of the IPC.
  */
 
-#include <stdlib.h>
-#include <string.h>
-
-#include "openavb_avdecc_msg.h"
-#include "openavb_trace.h"
-
-//#define AVB_LOG_LEVEL  AVB_LOG_LEVEL_DEBUG
-#define	AVB_LOG_COMPONENT	"AVDECC Msg"
-#include "openavb_pub.h"
-#include "openavb_log.h"
-#include "openavb_avdecc_pub.h"
 
 // We are accessed from multiple threads, so need a mutex
 MUTEX_HANDLE(gAvdeccMsgStateMutex);
@@ -77,6 +66,10 @@ EXTERN_DLL_EXPORT bool openavbAvdeccMsgCleanup()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
+	if (AvdeccMsgStateListGetFirst()) {
+		AVB_LOG_WARNING("AvdeccMsgStateList not empty on exit");
+	}
+
 	{
 		MUTEX_CREATE_ERR();
 		MUTEX_DESTROY(gAvdeccMsgStateMutex);
@@ -93,6 +86,7 @@ bool AvdeccMsgStateListAdd(avdecc_msg_state_t * pState)
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
 	if (!pState) {
+		AVB_LOG_ERROR("AvdeccMsgStateListAdd invalid param");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return FALSE;
 	}
@@ -103,11 +97,13 @@ bool AvdeccMsgStateListAdd(avdecc_msg_state_t * pState)
 		if (!gAvdeccMsgStateList[i1]) {
 			gAvdeccMsgStateList[i1] = pState;
 			AVDECC_MSG_UNLOCK();
+			AVB_LOGF_DEBUG("AvdeccMsgStateListAdd %d succeeded", pState->socketHandle);
 			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 			return TRUE;
 		}
 	}
 	AVDECC_MSG_UNLOCK();
+	AVB_LOGF_WARNING("AvdeccMsgStateListAdd %d out of space", pState->socketHandle);
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return FALSE;
 }
@@ -117,6 +113,7 @@ bool AvdeccMsgStateListRemove(avdecc_msg_state_t * pState)
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
 	if (!pState) {
+		AVB_LOG_ERROR("AvdeccMsgStateListRemove invalid param");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return FALSE;
 	}
@@ -127,11 +124,13 @@ bool AvdeccMsgStateListRemove(avdecc_msg_state_t * pState)
 		if (gAvdeccMsgStateList[i1] == pState) {
 			gAvdeccMsgStateList[i1] = NULL;
 			AVDECC_MSG_UNLOCK();
+			AVB_LOGF_DEBUG("AvdeccMsgStateListRemove %d succeeded", pState->socketHandle);
 			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 			return TRUE;
 		}
 	}
 	AVDECC_MSG_UNLOCK();
+	AVB_LOGF_WARNING("AvdeccMsgStateListRemove %d not found", pState->socketHandle);
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return FALSE;
 }
@@ -142,6 +141,7 @@ avdecc_msg_state_t * AvdeccMsgStateListGet(int avdeccMsgHandle)
 
 	if (!avdeccMsgHandle) {
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		AVB_LOG_ERROR("AvdeccMsgStateListGet invalid param");
 		return NULL;
 	}
 
@@ -152,12 +152,35 @@ avdecc_msg_state_t * AvdeccMsgStateListGet(int avdeccMsgHandle)
 			avdecc_msg_state_t *pState = (avdecc_msg_state_t *)gAvdeccMsgStateList[i1];
 			if (pState->socketHandle == avdeccMsgHandle) {
 				AVDECC_MSG_UNLOCK();
+				AVB_LOGF_DEBUG("AvdeccMsgStateListGet found index %d, handle %d", i1, pState->socketHandle);
 				AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 				return pState;
 			}
 		}
 	}
+	AVDECC_MSG_UNLOCK();
+	AVB_LOGF_DEBUG("AvdeccMsgStateListGet %d not found", avdeccMsgHandle);
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return NULL;
+}
+
+avdecc_msg_state_t * AvdeccMsgStateListGetFirst(void)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+
 	AVDECC_MSG_LOCK();
+	int i1;
+	for (i1 = 0; i1 < MAX_AVDECC_MSG_CLIENTS; i1++) {
+		if (gAvdeccMsgStateList[i1]) {
+			avdecc_msg_state_t *pState = (avdecc_msg_state_t *)gAvdeccMsgStateList[i1];
+			AVDECC_MSG_UNLOCK();
+			AVB_LOGF_DEBUG("AvdeccMsgStateListGetFirst found index %d, handle %d", i1, pState->socketHandle);
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+			return pState;
+		}
+	}
+	AVDECC_MSG_UNLOCK();
+	AVB_LOG_DEBUG("AvdeccMsgStateListGetFirst empty");
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return NULL;
 }
