@@ -150,6 +150,7 @@ int main(int argc, char **argv)
 	portInit.automotive_profile = false;
 	portInit.isGM = false;
 	portInit.testMode = false;
+	portInit.linkUp = false;
 	portInit.initialLogSyncInterval = LOG2_INTERVAL_INVALID;
 	portInit.initialLogPdelayReqInterval = LOG2_INTERVAL_INVALID;
 	portInit.operLogPdelayReqInterval = LOG2_INTERVAL_INVALID;

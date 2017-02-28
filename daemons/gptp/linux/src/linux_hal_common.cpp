@@ -205,11 +205,18 @@ static void x_readEvent(int sockint, IEEE1588Port *pPort, int ifindex)
 		if (msgHdr->nlmsg_type == RTM_NEWLINK) {
 			ifi = (struct ifinfomsg *)NLMSG_DATA(msgHdr);
 			if (ifi->ifi_index == ifindex) {
-				if ((ifi->ifi_flags & IFF_RUNNING)) {
-					pPort->processEvent(LINKUP);
+				bool linkUp = ifi->ifi_flags & IFF_RUNNING;
+				if (linkUp != pPort->getLinkUpState()) {
+					pPort->setLinkUpState(linkUp);
+					if (linkUp) {
+						pPort->processEvent(LINKUP);
+					}
+					else {
+						pPort->processEvent(LINKDOWN);
+					}
 				}
 				else {
-					pPort->processEvent(LINKDOWN);
+					GPTP_LOG_DEBUG("False (repeated) %s event for the interface", linkUp ? "LINKUP" : "LINKDOWN");
 				}
 			}
 		}
