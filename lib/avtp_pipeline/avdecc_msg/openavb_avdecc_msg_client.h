@@ -50,8 +50,8 @@ struct _avdecc_msg_state {
 	// Pointer to the talker/listener state linked to the AVDECC Msg instance.
 	tl_state_t *pTLState;
 
-	// Handle to the AVDECC Msg socket for the connection to the server.
-	int socketHandle;
+	// Handle to the AVDECC Msg handle for the connection to the server.
+	int avdeccMsgHandle;
 
 };
 

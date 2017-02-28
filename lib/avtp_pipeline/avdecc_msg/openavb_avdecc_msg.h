@@ -76,9 +76,9 @@ void openavbAvdeccMsgSrvrService(void);
 
 
 typedef enum {
-	OPENAVB_AVDECC_MSG_PLAY,
-	OPENAVB_AVDECC_MSG_PAUSE,
-	OPENAVB_AVDECC_MSG_CLOSE,
+	OPENAVB_AVDECC_MSG_UNKNOWN = 0,
+	OPENAVB_AVDECC_MSG_STOPPED,
+	OPENAVB_AVDECC_MSG_RUNNING
 } openavbAvdeccMsgStateType_t;
 
 typedef enum {

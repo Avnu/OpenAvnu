@@ -134,7 +134,7 @@ bool openavbAvdeccMsgSrvrHndlVerRqstFromClient(int avdeccMsgHandle)
 bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, U8 stream_src_mac[6], U8 stream_dest_mac[6], U16 stream_uid, U16 stream_vlan_id)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
-	openavbAvdeccMessage_t msgBuf;
+	openavb_tl_data_cfg_t * currentStream;
 
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
 	if (pState) {
@@ -152,13 +152,32 @@ bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle,
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
 	}
-	pState->socketHandle = avdeccMsgHandle;
+	pState->avdeccMsgHandle = avdeccMsgHandle;
+	pState->bTalker = false;
 
-	// Copy the client-supplied information
-	memcpy(pState->stream_src_mac, stream_src_mac, sizeof(pState->stream_src_mac));
-	memcpy(pState->stream_dest_mac, stream_dest_mac, sizeof(pState->stream_dest_mac));
-	pState->stream_uid = stream_uid;
-	pState->stream_vlan_id = stream_vlan_id;
+	// Find the state information matching this item.
+	for (currentStream = streamList; currentStream != NULL; currentStream = currentStream->next) {
+		if (memcmp(currentStream->stream_addr.buffer.ether_addr_octet, stream_src_mac, sizeof(currentStream->stream_addr.buffer.ether_addr_octet)) == 0 &&
+		    memcmp(currentStream->dest_addr.buffer.ether_addr_octet, stream_dest_mac, sizeof(currentStream->dest_addr.buffer.ether_addr_octet)) == 0 &&
+		    currentStream->stream_uid == stream_uid &&
+		    currentStream->vlan_id == stream_vlan_id)
+		{
+			break;
+		}
+	}
+	if (!currentStream) {
+		AVB_LOGF_WARNING("Ignoring unexpected client Listener %d:  "
+			"src_addr %02x:%02x:%02x:%02x:%02x:%02x, "
+			"stream %02x:%02x:%02x:%02x:%02x:%02x/%u, "
+			"vlan_id %u",
+			avdeccMsgHandle,
+			stream_src_mac[0], stream_src_mac[1], stream_src_mac[2], stream_src_mac[3], stream_src_mac[4], stream_src_mac[5],
+			stream_dest_mac[0], stream_dest_mac[1], stream_dest_mac[2], stream_dest_mac[3], stream_dest_mac[4], stream_dest_mac[5], stream_uid,
+			stream_vlan_id);
+		free(pState);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
 
 	// Keep track of this new state item.
 	if (!AvdeccMsgStateListAdd(pState)) {
@@ -167,6 +186,19 @@ bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle,
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
 	}
+
+	// Associate this Listener instance with the stream information.
+	pState->stream = currentStream;
+	currentStream->client = pState;
+
+	AVB_LOGF_INFO("Client Listener %d Detected:  "
+		"src_addr %02x:%02x:%02x:%02x:%02x:%02x, "
+		"stream %02x:%02x:%02x:%02x:%02x:%02x/%u, "
+		"vlan_id %u",
+		avdeccMsgHandle,
+		stream_src_mac[0], stream_src_mac[1], stream_src_mac[2], stream_src_mac[3], stream_src_mac[4], stream_src_mac[5],
+		stream_dest_mac[0], stream_dest_mac[1], stream_dest_mac[2], stream_dest_mac[3], stream_dest_mac[4], stream_dest_mac[5], stream_uid,
+		stream_vlan_id);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return true;
@@ -190,6 +222,10 @@ bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdec
 		&(msgBuf.params.listenerChangeRequest);
 	pParams->desired_state = desiredState;
 	bool ret = openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
+	if (ret) {
+		// Save the requested state for future reference.
+		pState->lastRequestedState = desiredState;
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return ret;
@@ -198,7 +234,6 @@ bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdec
 bool openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
-	openavbAvdeccMessage_t msgBuf;
 
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
 	if (!pState) {
@@ -207,11 +242,14 @@ bool openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient(int avdeccMsgH
 		return false;
 	}
 
-	AVB_LOG_ERROR("openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient missing implementation!");
-	bool ret = true;
+	// Save the updated state.
+	if (currentState != pState->lastReportedState) {
+		AVB_LOGF_INFO("client Listener %d state changed from %d to %d", avdeccMsgHandle, pState->lastReportedState, currentState);
+		pState->lastReportedState = currentState;
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-	return ret;
+	return true;
 }
 
 
@@ -225,6 +263,10 @@ void openavbAvdeccMsgSrvrCloseClientConnection(int avdeccMsgHandle)
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
 	if (pState) {
 		AvdeccMsgStateListRemove(pState);
+		if (streamList && pState->stream) {
+			// Clear the stream pointer to this object.
+			pState->stream = NULL;
+		}
 		free(pState);
 	}
 

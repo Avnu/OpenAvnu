@@ -97,13 +97,13 @@ bool AvdeccMsgStateListAdd(avdecc_msg_state_t * pState)
 		if (!gAvdeccMsgStateList[i1]) {
 			gAvdeccMsgStateList[i1] = pState;
 			AVDECC_MSG_UNLOCK();
-			AVB_LOGF_DEBUG("AvdeccMsgStateListAdd %d succeeded", pState->socketHandle);
+			AVB_LOGF_DEBUG("AvdeccMsgStateListAdd %d succeeded", pState->avdeccMsgHandle);
 			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 			return TRUE;
 		}
 	}
 	AVDECC_MSG_UNLOCK();
-	AVB_LOGF_WARNING("AvdeccMsgStateListAdd %d out of space", pState->socketHandle);
+	AVB_LOGF_WARNING("AvdeccMsgStateListAdd %d out of space", pState->avdeccMsgHandle);
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return FALSE;
 }
@@ -124,13 +124,13 @@ bool AvdeccMsgStateListRemove(avdecc_msg_state_t * pState)
 		if (gAvdeccMsgStateList[i1] == pState) {
 			gAvdeccMsgStateList[i1] = NULL;
 			AVDECC_MSG_UNLOCK();
-			AVB_LOGF_DEBUG("AvdeccMsgStateListRemove %d succeeded", pState->socketHandle);
+			AVB_LOGF_DEBUG("AvdeccMsgStateListRemove %d succeeded", pState->avdeccMsgHandle);
 			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 			return TRUE;
 		}
 	}
 	AVDECC_MSG_UNLOCK();
-	AVB_LOGF_WARNING("AvdeccMsgStateListRemove %d not found", pState->socketHandle);
+	AVB_LOGF_WARNING("AvdeccMsgStateListRemove %d not found", pState->avdeccMsgHandle);
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return FALSE;
 }
@@ -150,9 +150,9 @@ avdecc_msg_state_t * AvdeccMsgStateListGet(int avdeccMsgHandle)
 	for (i1 = 0; i1 < MAX_AVDECC_MSG_CLIENTS; i1++) {
 		if (gAvdeccMsgStateList[i1]) {
 			avdecc_msg_state_t *pState = (avdecc_msg_state_t *)gAvdeccMsgStateList[i1];
-			if (pState->socketHandle == avdeccMsgHandle) {
+			if (pState->avdeccMsgHandle == avdeccMsgHandle) {
 				AVDECC_MSG_UNLOCK();
-				AVB_LOGF_DEBUG("AvdeccMsgStateListGet found index %d, handle %d", i1, pState->socketHandle);
+				AVB_LOGF_DEBUG("AvdeccMsgStateListGet found index %d, handle %d", i1, pState->avdeccMsgHandle);
 				AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 				return pState;
 			}
@@ -174,7 +174,7 @@ avdecc_msg_state_t * AvdeccMsgStateListGetFirst(void)
 		if (gAvdeccMsgStateList[i1]) {
 			avdecc_msg_state_t *pState = (avdecc_msg_state_t *)gAvdeccMsgStateList[i1];
 			AVDECC_MSG_UNLOCK();
-			AVB_LOGF_DEBUG("AvdeccMsgStateListGetFirst found index %d, handle %d", i1, pState->socketHandle);
+			AVB_LOGF_DEBUG("AvdeccMsgStateListGetFirst found index %d, handle %d", i1, pState->avdeccMsgHandle);
 			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 			return pState;
 		}

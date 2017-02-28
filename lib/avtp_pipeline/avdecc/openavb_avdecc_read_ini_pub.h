@@ -47,6 +47,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  * AVDECC Read INI Public Interface.
  */
 
+struct _avdecc_msg_state;
+typedef struct _avdecc_msg_state avdecc_msg_state_t;
+
 /// Structure containing configuration of the host
 struct openavb_tl_data_cfg {
 	struct openavb_tl_data_cfg *next;
@@ -114,6 +117,10 @@ struct openavb_tl_data_cfg {
 	U8 audioChannels;
 	/// The name of the initialize function in the mapper
 	char map_fn[100];
+
+	// Pointer to the client Talker/Listener.
+	// Do not free this item; it is for reference only.
+	const avdecc_msg_state_t * client;
 };
 
 typedef struct openavb_tl_data_cfg openavb_tl_data_cfg_t;

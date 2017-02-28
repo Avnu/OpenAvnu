@@ -34,16 +34,23 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_types.h"
 #include "openavb_avdecc_msg.h"
 
+typedef struct openavb_tl_data_cfg openavb_tl_data_cfg_t;
+
 struct _avdecc_msg_state {
 
-	// Handle to the AVDECC Msg socket for the connection to the server.
-	int socketHandle;
+	// Handle to the AVDECC Msg handle for the connection to the server.
+	int avdeccMsgHandle;
 
-	// Identifying information supplied by the client.
-	U8 stream_src_mac[6];
-	U8 stream_dest_mac[6];
-	U16 stream_uid;
-	U16 stream_vlan_id;
+	// TRUE if a Talker, FALSE if a Listener.
+	bool bTalker;
+
+	// Local stream that matches the client's Talker/Listener.
+	// Do not free this pointer; it is for reference only.
+	const openavb_tl_data_cfg_t * stream;
+
+	// Talker/Listener state information.
+	openavbAvdeccMsgStateType_t lastRequestedState;
+	openavbAvdeccMsgStateType_t lastReportedState;
 };
 
 #endif // OPENAVB_AVDECC_MSG_SERVER_H

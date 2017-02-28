@@ -157,17 +157,57 @@ bool openavbAvdeccMsgClntInitListenerIdentify(int avdeccMsgHandle, U8 stream_src
 
 bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
 {
+	bool ret = false;
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
 	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
-	if (!pState) {
+	if (!pState || !pState->pTLState) {
 		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
 	}
 
-	AVB_LOG_ERROR("openavbAvdeccMsgClntHndlListenerChangeRequestFromServer missing implementation!");
-	bool ret = true;
+	switch (desiredState) {
+	case OPENAVB_AVDECC_MSG_STOPPED:
+		// Stop requested.
+		AVB_LOGF_INFO("Stop state requested for Listener %d", desiredState);
+		if (pState->pTLState->bRunning) {
+			if (openavbTLStop((tl_handle_t) pState->pTLState)) {
+				// Notify server of state change.
+				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+				ret = true;
+			} else {
+				// Notify server of issues.
+				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
+			}
+		} else {
+			// Notify server we are already in this state.
+			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+			ret = true;
+		}
+		break;
+	case OPENAVB_AVDECC_MSG_RUNNING:
+		// Run requested.
+		AVB_LOGF_INFO("Run state requested for Listener %d", desiredState);
+		if (!(pState->pTLState->bRunning)) {
+			if (openavbTLRun((tl_handle_t) pState->pTLState)) {
+				// Notify server of state change.
+				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
+				ret = true;
+			} else {
+				// Notify server of issues.
+				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
+			}
+		} else {
+			// Notify server we are already in this state.
+			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
+			ret = true;
+		}
+		break;
+	default:
+		AVB_LOGF_ERROR("openavbAvdeccMsgClntHndlListenerChangeRequestFromServer invalid state %d", desiredState);
+		break;
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return ret;
@@ -214,10 +254,10 @@ void openavbAvdeccMsgRunTalker(avdecc_msg_state_t *pState)
 		while (pState->pTLState->bRunning && pState->bConnected) {
 
 			// Look for messages from AVDECC Msg.
-			if (!openavbAvdeccMsgClntService(pState->socketHandle, 1000)) {
+			if (!openavbAvdeccMsgClntService(pState->avdeccMsgHandle, 1000)) {
 				AVB_LOG_WARNING("Lost connection to AVDECC Msg");
 				pState->bConnected = FALSE;
-				pState->socketHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+				pState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 			}
 		}
 	}
@@ -233,8 +273,15 @@ void openavbAvdeccMsgRunListener(avdecc_msg_state_t *pState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
-	if (!pState) {
+	if (!pState && !pState->pTLState) {
 		AVB_LOG_ERROR("Invalid AVDECC Msg State");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return;
+	}
+
+	openavb_tl_cfg_t * cfg = &(pState->pTLState->cfg);
+	if (cfg->role != AVB_ROLE_LISTENER) {
+		AVB_LOG_ERROR("openavbAvdeccMsgRunListener() passed a non-Listener state");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return;
 	}
@@ -242,19 +289,28 @@ void openavbAvdeccMsgRunListener(avdecc_msg_state_t *pState)
 	if (pState->bConnected) {
 
 		// Let the AVDECC Msg server know our identity.
-		openavb_tl_cfg_t * cfg = &(pState->pTLState->cfg);
-		openavbAvdeccMsgClntInitListenerIdentify(pState->socketHandle,
+		if (!openavbAvdeccMsgClntInitListenerIdentify(pState->avdeccMsgHandle,
 			cfg->stream_addr.buffer.ether_addr_octet, cfg->dest_addr.buffer.ether_addr_octet,
-			cfg->stream_uid, cfg->vlan_id);
+			cfg->stream_uid, cfg->vlan_id)) {
+			AVB_LOG_ERROR("openavbAvdeccMsgClntInitListenerIdentify() failed");
+		}
+		else {
+			// Let the AVDECC Msg server know our current state.
+			if (!openavbAvdeccMsgClntListenerChangeNotification(pState->avdeccMsgHandle,
+				(pState->pTLState->bRunning ? OPENAVB_AVDECC_MSG_RUNNING : OPENAVB_AVDECC_MSG_STOPPED))) {
+				AVB_LOG_ERROR("Initial openavbAvdeccMsgClntListenerChangeNotification() failed");
+			}
+			else {
+				// Do until we are stopped or loose connection to endpoint
+				while (pState->pTLState->bRunning && pState->bConnected) {
 
-		// Do until we are stopped or loose connection to endpoint
-		while (pState->pTLState->bRunning && pState->bConnected) {
-
-			// Look for messages from AVDECC Msg.
-			if (!openavbAvdeccMsgClntService(pState->socketHandle, 1000)) {
-				AVB_LOG_WARNING("Lost connection to AVDECC Msg");
-				pState->bConnected = FALSE;
-				pState->socketHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+					// Look for messages from AVDECC Msg.
+					if (!openavbAvdeccMsgClntService(pState->avdeccMsgHandle, 1000)) {
+						AVB_LOG_WARNING("Lost connection to AVDECC Msg");
+						pState->bConnected = FALSE;
+						pState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+					}
+				}
 			}
 		}
 	}
@@ -288,13 +344,13 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 		TL_UNLOCK();
 	}
 
-	avdeccMsgState.socketHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+	avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 	while (avdeccMsgState.pTLState->bRunning) {
 		AVB_TRACE_LINE(AVB_TRACE_AVDECC_MSG_DETAIL);
 
-		if (avdeccMsgState.socketHandle == AVB_AVDECC_MSG_HANDLE_INVALID) {
-			avdeccMsgState.socketHandle = openavbAvdeccMsgClntOpenSrvrConnection();
-			if (avdeccMsgState.socketHandle == AVB_AVDECC_MSG_HANDLE_INVALID) {
+		if (avdeccMsgState.avdeccMsgHandle == AVB_AVDECC_MSG_HANDLE_INVALID) {
+			avdeccMsgState.avdeccMsgHandle = openavbAvdeccMsgClntOpenSrvrConnection();
+			if (avdeccMsgState.avdeccMsgHandle == AVB_AVDECC_MSG_HANDLE_INVALID) {
 				// error connecting to AVDECC Msg, already logged
 				SLEEP(1);
 				continue;
@@ -304,13 +360,13 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 
 		// Validate the AVB version for TL and Endpoint are the same before continuing
 		avdeccMsgState.verState = OPENAVB_AVDECC_MSG_VER_UNKNOWN;
-		avdeccMsgState.bConnected = openavbAvdeccMsgClntRequestVersionFromServer(avdeccMsgState.socketHandle);
+		avdeccMsgState.bConnected = openavbAvdeccMsgClntRequestVersionFromServer(avdeccMsgState.avdeccMsgHandle);
 		if (avdeccMsgState.pTLState->bRunning && avdeccMsgState.bConnected && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_UNKNOWN) {
 			// Check for AVDECC Msg version message. Timeout in 500 msec.
-			if (!openavbAvdeccMsgClntService(avdeccMsgState.socketHandle, 500)) {
+			if (!openavbAvdeccMsgClntService(avdeccMsgState.avdeccMsgHandle, 500)) {
 				AVB_LOG_WARNING("Lost connection to AVDECC Msg, will retry");
 				avdeccMsgState.bConnected = FALSE;
-				avdeccMsgState.socketHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+				avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 			}
 		}
 		if (avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_UNKNOWN) {
@@ -332,9 +388,9 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 			// Close the endpoint connection. unless connection already gone in which case the socket could already be reused.
 			if (avdeccMsgState.bConnected) {
 				AvdeccMsgStateListRemove(&avdeccMsgState);
-				openavbAvdeccMsgClntCloseSrvrConnection(avdeccMsgState.socketHandle);
+				openavbAvdeccMsgClntCloseSrvrConnection(avdeccMsgState.avdeccMsgHandle);
 				avdeccMsgState.bConnected = FALSE;
-				avdeccMsgState.socketHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+				avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 			}
 		}
 
@@ -346,9 +402,9 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 	// Close the endpoint connection. unless connection already gone in which case the socket could already be reused.
 	if (avdeccMsgState.bConnected) {
 		AvdeccMsgStateListRemove(&avdeccMsgState);
-		openavbAvdeccMsgClntCloseSrvrConnection(avdeccMsgState.socketHandle);
+		openavbAvdeccMsgClntCloseSrvrConnection(avdeccMsgState.avdeccMsgHandle);
 		avdeccMsgState.bConnected = FALSE;
-		avdeccMsgState.socketHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+		avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 	}
 
 	avdeccMsgState.endpointHandle = 0;
