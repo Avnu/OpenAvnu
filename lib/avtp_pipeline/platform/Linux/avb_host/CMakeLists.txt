@@ -24,17 +24,12 @@ target_link_libraries( openavb_host
 	intf_tonegen
 	intf_viewer
 	intf_alsa
-	intf_mpeg2ts_gst
-	intf_mjpeg_gst
 	intf_mpeg2ts_file
 	intf_wav_file
-	intf_h264_gst
 	avbTl
 	${PLATFORM_LINK_LIBRARIES}
 	${ALSA_LIBRARIES}
-	${GSTRTP_PKG_LIBRARIES}
 	${GLIB_PKG_LIBRARIES}
-	${GST_PKG_LIBRARIES}
 	pthread 
 	rt 
 	dl 
@@ -59,17 +54,12 @@ target_link_libraries( openavb_harness
 	intf_tonegen
 	intf_viewer
 	intf_alsa
-	intf_mpeg2ts_gst
-	intf_mjpeg_gst
 	intf_mpeg2ts_file
 	intf_wav_file
-	intf_h264_gst
 	avbTl
 	${PLATFORM_LINK_LIBRARIES}
 	${ALSA_LIBRARIES}
-	${GSTRTP_PKG_LIBRARIES}
 	${GLIB_PKG_LIBRARIES}
-	${GST_PKG_LIBRARIES}
 	pthread 
 	rt 
 	dl 
@@ -81,6 +71,6 @@ install ( TARGETS openavb_harness RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
 
 if (AVB_FEATURE_GSTREAMER)
 include_directories( ${GLIB_PKG_INCLUDE_DIRS} ${GST_PKG_INCLUDE_DIRS} )
-target_link_libraries( openavb_host ${GLIB_PKG_LIBRARIES} ${GST_PKG_LIBRARIES} ${PLATFORM_LINK_LIBRARIES} )
-target_link_libraries( openavb_harness ${GLIB_PKG_LIBRARIES} ${GST_PKG_LIBRARIES} ${PLATFORM_LINK_LIBRARIES} )
+target_link_libraries( openavb_host  intf_mpeg2ts_gst intf_mjpeg_gst intf_h264_gst ${GST_PKG_LIBRARIES} ${GSTRTP_PKG_LIBRARIES} )
+target_link_libraries( openavb_harness intf_mpeg2ts_gst intf_mjpeg_gst intf_h264_gst ${GST_PKG_LIBRARIES} ${GSTRTP_PKG_LIBRARIES} )
 endif ()

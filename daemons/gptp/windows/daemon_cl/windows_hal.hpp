@@ -711,13 +711,13 @@ public:
 	/**
 	 * @brief  Gets the TX timestamp
 	 * @param  identity [in] PortIdentity interface
-	 * @param  sequenceId Sequence ID
+	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] TX hardware timestamp
 	 * @param  clock_value Not used
 	 * @param  last Not used
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
-	virtual int HWTimestamper_txtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, unsigned &clock_value, bool last )
+	virtual int HWTimestamper_txtimestamp(PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp, unsigned &clock_value, bool last)
 	{
 		DWORD buf[4], buf_tmp[4];
 		DWORD returned = 0;
@@ -747,13 +747,13 @@ public:
 	/**
 	 * @brief  Gets the RX timestamp
 	 * @param  identity PortIdentity interface
-	 * @param  sequenceId  Sequence ID
+	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] RX hardware timestamp
 	 * @param  clock_value [out] Not used
 	 * @param  last Not used
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
-	virtual int HWTimestamper_rxtimestamp( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp, unsigned &clock_value, bool last )
+	virtual int HWTimestamper_rxtimestamp(PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp, unsigned &clock_value, bool last)
 	{
 		DWORD buf[4], buf_tmp[4];
 		DWORD returned;
@@ -771,7 +771,7 @@ public:
 		if( result != ERROR_GEN_FAILURE ) return GPTP_EC_FAILURE;
 		if( returned != sizeof(buf_tmp) ) return GPTP_EC_EAGAIN;
 		packet_sequence_id = *((uint32_t *) buf+3) >> 16;
-		if( PLAT_ntohs( packet_sequence_id ) != sequenceId ) return GPTP_EC_EAGAIN;
+		if (PLAT_ntohs(packet_sequence_id) != messageId.getSequenceId()) return GPTP_EC_EAGAIN;
 		rx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		rx_s = scaleNativeClockToNanoseconds( rx_r );
 		timestamp = nanoseconds64ToTimestamp( rx_s ) - latency;

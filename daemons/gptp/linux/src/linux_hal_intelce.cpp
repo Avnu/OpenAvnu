@@ -121,17 +121,17 @@ int LinuxTimestamperIntelCE::ce_timestamp_common
 }
 
 int LinuxTimestamperIntelCE::HWTimestamper_txtimestamp
-( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
   unsigned &clock_value, bool last ) {
 	return ce_timestamp_common
-		( identity, sequenceId, timestamp, clock_value, true );
+		( identity, messageId.getSequenceId(), timestamp, clock_value, true );
 }
 
 int LinuxTimestamperIntelCE::HWTimestamper_rxtimestamp
-( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
   unsigned &clock_value, bool last ) {
 	return ce_timestamp_common
-		( identity, sequenceId, timestamp, clock_value, false );
+		( identity, messageId.getSequenceId(), timestamp, clock_value, false );
 }
 
 bool LinuxTimestamperIntelCE::post_init( int ifindex, int sd, TicketingLock *lock ) {

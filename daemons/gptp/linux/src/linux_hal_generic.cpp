@@ -277,7 +277,7 @@ void LinuxTimestamperGeneric::HWTimestamper_reset()
 }
 
 int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
-( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
   unsigned &clock_value, bool last ) {
 	int err;
 	int ret = GPTP_EC_EAGAIN;

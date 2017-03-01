@@ -39,7 +39,7 @@ CFLAGS_G = -Wall -g -I. -I../../common -I../src \
 PRECISE_TIME_TEST = "\#include <linux/ptp_clock.h>\\n\
 \#ifdef PTP_SYS_OFFSET_PRECISE\\nint main(){return 0;}\\n\#endif"
 
-HAS_PRECISE_TIME = $(shell echo $(PRECISE_TIME_TEST) | gcc -xc - \
+HAS_PRECISE_TIME = $(shell echo $(PRECISE_TIME_TEST) | $(CC) -xc - \
 -I$(ALTERNATE_LINUX_INCPATH) -o /dev/null > /dev/null 2>&1 ; echo $$?)
 
 ifeq ($(HAS_PRECISE_TIME),0)
