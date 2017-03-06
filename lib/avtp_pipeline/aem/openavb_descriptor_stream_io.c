@@ -512,6 +512,9 @@ extern DLL_EXPORT bool openavbAemDescriptorStreamInputInitialize(openavb_aem_des
 	// Specify the stream format information.
 	fillInStreamFormat(pDescriptor, pConfig);
 
+	// Save the stream configuration pointer.
+	pDescriptor->stream = pConfig->stream;
+
 	return TRUE;
 }
 
@@ -531,6 +534,9 @@ extern DLL_EXPORT bool openavbAemDescriptorStreamOutputInitialize(openavb_aem_de
 
 	// Specify the stream format information.
 	fillInStreamFormat(pDescriptor, pConfig);
+
+	// Save the stream configuration pointer.
+	pDescriptor->stream = pConfig->stream;
 
 	return TRUE;
 }

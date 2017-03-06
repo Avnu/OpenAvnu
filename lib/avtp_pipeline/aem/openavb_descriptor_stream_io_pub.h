@@ -26,6 +26,7 @@
 #include "openavb_aem_types_pub.h"
 #include "openavb_aem_pub.h"
 #include "openavb_tl_pub.h"
+#include "openavb_avdecc_read_ini_pub.h"
 
 #define OPENAVB_DESCRIPTOR_STREAM_IO_MAX_FORMATS (47)
 
@@ -53,6 +54,10 @@ typedef struct {
 	U16 avb_interface_index;
 	U32 buffer_length;
 	openavb_aem_stream_format_t stream_formats[OPENAVB_DESCRIPTOR_STREAM_IO_MAX_FORMATS];
+
+	// Also save a pointer to the supplied stream information, for future reference.
+	// Pointer to the stream information.
+	const openavb_tl_data_cfg_t *stream;
 
 } openavb_aem_descriptor_stream_io_t;
 

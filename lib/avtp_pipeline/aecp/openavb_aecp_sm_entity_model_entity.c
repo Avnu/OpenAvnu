@@ -153,17 +153,19 @@ bool processCommandCheckRestriction_StreamNotRunning(U16 descriptor_type, U16 de
 	bool bResult = FALSE;
 
 	if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
-		openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), descriptor_type, descriptor_index);
+		U16 configIdx = openavbAemGetConfigIdx();
+		openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, descriptor_type, descriptor_index);
 		if (pDescriptorStreamInput) {
-			if (!openavbAVDECCIsStreaming(pDescriptorStreamInput)) {
+			if (!openavbAVDECCListenerIsStreaming(pDescriptorStreamInput, configIdx)) {
 				bResult = TRUE;
 			}
 		}
 	}
 	else if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
-		openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), descriptor_type, descriptor_index);
+		U16 configIdx = openavbAemGetConfigIdx();
+		openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, descriptor_type, descriptor_index);
 		if (pDescriptorStreamOutput) {
-			if (!openavbAVDECCIsStreaming(pDescriptorStreamOutput)) {
+			if (!openavbAVDECCTalkerIsStreaming(pDescriptorStreamOutput, configIdx)) {
 				bResult = TRUE;
 			}
 		}

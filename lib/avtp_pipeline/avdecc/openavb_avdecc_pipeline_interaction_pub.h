@@ -8,22 +8,24 @@
 #ifndef OPENAVB_AVDECC_PIPELINE_INTERACTION_PUB_H
 #define OPENAVB_AVDECC_PIPELINE_INTERACTION_PUB_H 1
 
+#include "openavb_acmp.h"
 #include "openavb_descriptor_stream_io_pub.h"
 
 
-// Run a single talker or listener. At this point data can be sent or received. Used in place of the public openavbTLRun
-bool openavbAVDECCRunListener(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 configIdx, U16 descriptorType, U16 descriptorIdx, void *pVoidListenerStreamInfo);
-bool openavbAVDECCRunTalker(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 configIdx, U16 descriptorType, U16 descriptorIdx, void *pVoidTalkerStreamInfo);
+// Run a single talker or listener.
+bool openavbAVDECCRunListener(openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput, U16 configIdx, openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo);
+bool openavbAVDECCRunTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput, U16 configIdx, openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo);
 
-// Stop a single talker or listener. At this point data will not be sent or received. Used in place of the public openavbTLStop.
-bool openavbAVDECCStopListener(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 configIdx, void *pVoidListenerStreamInfo);
-bool openavbAVDECCStopTalker(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 configIdx, void *pVoidTalkerStreamInfo);
+// Stop a single talker or listener.
+bool openavbAVDECCStopListener(openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput, U16 configIdx, openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo);
+bool openavbAVDECCStopTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput, U16 configIdx, openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo);
 
 // Get talker stream details. Structure members in TalkerStrreamInfo will be filled.
-bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 configIdx, void *pVoidTalkerStreamInfo);
+bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput, U16 configIdx, openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo);
 
 // Determine if the talker or listener is streaming.
-bool openavbAVDECCIsStreaming(openavb_aem_descriptor_stream_io_t *pDescriptor);
+bool openavbAVDECCListenerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput, U16 configIdx);
+bool openavbAVDECCTalkerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput, U16 configIdx);
 
 // Pause or resume the stream.
 void openavbAVDECCPauseStream(openavb_aem_descriptor_stream_io_t *pDescriptor, bool bPause);

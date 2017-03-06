@@ -240,10 +240,12 @@ U8 openavbAcmpSMListener_connectListener(openavb_acmp_ACMPCommandResponse_t *res
 		U16 configIdx = openavbAemGetConfigIdx();
 		openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, response->listener_unique_id);
 
+		// AVDECC_TODO:  Verify that the pDescriptorStreamInput->stream details match that of pListenerStreamInfo.
+
 		if (!pDescriptorStreamInput) {
 			retStatus = OPENAVB_ACMP_STATUS_LISTENER_UNKNOWN_ID;
 		}
-		else if (openavbAVDECCRunListener(pDescriptorStreamInput, configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, response->listener_unique_id, pListenerStreamInfo)) {
+		else if (openavbAVDECCRunListener(pDescriptorStreamInput, configIdx, pListenerStreamInfo)) {
 			retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
 		}
 		else {
@@ -269,6 +271,8 @@ U8 openavbAcmpSMListener_disconnectListener(openavb_acmp_ACMPCommandResponse_t *
 	if (pListenerStreamInfo) {
 		U16 configIdx = openavbAemGetConfigIdx();
 		openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, response->listener_unique_id);
+
+		// AVDECC_TODO:  Verify that the pDescriptorStreamInput->stream details match that of pListenerStreamInfo.
 
 		if (!pDescriptorStreamInput) {
 			retStatus = OPENAVB_ACMP_STATUS_LISTENER_UNKNOWN_ID;

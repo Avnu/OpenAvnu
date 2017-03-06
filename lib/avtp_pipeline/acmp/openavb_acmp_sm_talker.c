@@ -128,7 +128,7 @@ U8 openavbAcmpSMTalker_connectTalker(openavb_acmp_ACMPCommandResponse_t *command
 				}
 				openavbAVDECCGetTalkerStreamInfo(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo);
 
-				if (openavbAVDECCRunTalker(pDescriptorStreamOutput, configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, command->talker_unique_id, pTalkerStreamInfo)) {
+				if (openavbAVDECCRunTalker(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo)) {
 
 					memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
 					memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));

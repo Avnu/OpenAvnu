@@ -192,6 +192,7 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 		if (!(pState->pTLState->bRunning)) {
 			if (openavbTLRun((tl_handle_t) pState->pTLState)) {
 				// Notify server of state change.
+				AVB_LOGF_INFO("Listener %d state changed to running", desiredState);
 				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
 				ret = true;
 			} else {
@@ -200,6 +201,7 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 			}
 		} else {
 			// Notify server we are already in this state.
+			AVB_LOGF_WARNING("Listener %d state is already at running", desiredState);
 			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
 			ret = true;
 		}
