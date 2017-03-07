@@ -69,7 +69,7 @@ bool openavbAvdeccMsgCleanup();
 bool AvdeccMsgStateListAdd(avdecc_msg_state_t * pState);
 bool AvdeccMsgStateListRemove(avdecc_msg_state_t * pState);
 avdecc_msg_state_t * AvdeccMsgStateListGet(int avdeccMsgHandle);
-avdecc_msg_state_t * AvdeccMsgStateListGetFirst(void);
+avdecc_msg_state_t * AvdeccMsgStateListGetIndex(int nIndex);
 
 bool openavbAvdeccMsgClntService(int socketHandle, int timeout);
 void openavbAvdeccMsgSrvrService(void);
@@ -78,7 +78,8 @@ void openavbAvdeccMsgSrvrService(void);
 typedef enum {
 	OPENAVB_AVDECC_MSG_UNKNOWN = 0,
 	OPENAVB_AVDECC_MSG_STOPPED,
-	OPENAVB_AVDECC_MSG_RUNNING
+	OPENAVB_AVDECC_MSG_RUNNING,
+	OPENAVB_AVDECC_MSG_PAUSED
 } openavbAvdeccMsgStateType_t;
 
 typedef enum {

@@ -66,7 +66,7 @@ EXTERN_DLL_EXPORT bool openavbAvdeccMsgCleanup()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
-	if (AvdeccMsgStateListGetFirst()) {
+	if (AvdeccMsgStateListGetIndex(0)) {
 		AVB_LOG_WARNING("AvdeccMsgStateList not empty on exit");
 	}
 
@@ -164,23 +164,25 @@ avdecc_msg_state_t * AvdeccMsgStateListGet(int avdeccMsgHandle)
 	return NULL;
 }
 
-avdecc_msg_state_t * AvdeccMsgStateListGetFirst(void)
+avdecc_msg_state_t * AvdeccMsgStateListGetIndex(int nIndex)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
 	AVDECC_MSG_LOCK();
-	int i1;
+	int i1, found = 0;
 	for (i1 = 0; i1 < MAX_AVDECC_MSG_CLIENTS; i1++) {
 		if (gAvdeccMsgStateList[i1]) {
-			avdecc_msg_state_t *pState = (avdecc_msg_state_t *)gAvdeccMsgStateList[i1];
-			AVDECC_MSG_UNLOCK();
-			AVB_LOGF_DEBUG("AvdeccMsgStateListGetFirst found index %d, handle %d", i1, pState->avdeccMsgHandle);
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
-			return pState;
+			if (found++ == nIndex) {
+				avdecc_msg_state_t *pState = (avdecc_msg_state_t *)gAvdeccMsgStateList[i1];
+				AVDECC_MSG_UNLOCK();
+				AVB_LOGF_DEBUG("AvdeccMsgStateListGetIndex found index %d, handle %d for supplied index %d", i1, pState->avdeccMsgHandle, nIndex);
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+				return pState;
+			}
 		}
 	}
 	AVDECC_MSG_UNLOCK();
-	AVB_LOG_DEBUG("AvdeccMsgStateListGetFirst empty");
+	AVB_LOGF_DEBUG("AvdeccMsgStateListGetIndex no match for index %d", nIndex);
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return NULL;
 }

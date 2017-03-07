@@ -484,6 +484,10 @@ EXTERN_DLL_EXPORT bool openavbTLConfigure(tl_handle_t handle, openavb_tl_cfg_t *
 	pTLState->cfg.map_cb.map_gen_init_cb(pTLState->pMediaQ);
 	pTLState->cfg.intf_cb.intf_gen_init_cb(pTLState->pMediaQ);
 
+	// Initialize the AVDECC support for this Talker/Listener.
+	pTLState->bAvdeccMsgRunning = TRUE;
+	THREAD_CREATE_AVDECC_MSG();
+
 	return TRUE;
 }
 
@@ -502,6 +506,7 @@ EXTERN_DLL_EXPORT bool openavbTLRun(tl_handle_t handle)
 		}
 
 		pTLState->bRunning = TRUE;
+		pTLState->bPaused = FALSE;
 		if (pTLState->cfg.role == AVB_ROLE_TALKER) {
 			THREAD_CREATE_TALKER();
 
@@ -511,8 +516,6 @@ EXTERN_DLL_EXPORT bool openavbTLRun(tl_handle_t handle)
 		else if (pTLState->cfg.role == AVB_ROLE_LISTENER) {
 			THREAD_CREATE_LISTENER();
 		}
-
-		THREAD_CREATE_AVDECC_MSG();
 
 		retVal = TRUE;
 
@@ -536,13 +539,13 @@ extern DLL_EXPORT bool openavbTLStop(tl_handle_t handle)
 		return FALSE;
 	}
 
+	pTLState->bPaused = FALSE;
 	if (pTLState->bRunning) {
 		// don't set bStreaming to false here, that's needed to track
 		// that the streaming thread is running, so we can shut it down.
 		//pTLState->bStreaming = FALSE;
 		pTLState->bRunning = FALSE;
 
-		THREAD_JOIN(pTLState->avdeccMsgThread, NULL);
 		THREAD_JOIN(pTLState->TLThread, NULL);
 	}
 
@@ -565,6 +568,12 @@ EXTERN_DLL_EXPORT bool openavbTLClose(tl_handle_t handle)
 	if (pTLState->bRunning == TRUE) {
 		// In case openavbTLStop wasn't called stop is now.
 		openavbTLStop(handle);
+	}
+
+	// Done with the AVDECC support.
+	if (pTLState->bAvdeccMsgRunning) {
+		pTLState->bAvdeccMsgRunning = FALSE;
+		THREAD_JOIN(pTLState->avdeccMsgThread, NULL);
 	}
 
 	pTLState->cfg.intf_cb.intf_gen_end_cb(pTLState->pMediaQ);

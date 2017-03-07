@@ -691,6 +691,8 @@ void openavbAvtpPause(void *handle, bool bPause)
 
 	pStream->bPause = bPause;
 
+	// AVDECC_TODO:  Do something with the bPause value!
+
 	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
 }
 

@@ -38,7 +38,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_tl.h"
 #include "openavb_avtp.h"
 #include "openavb_talker.h"
-// #include "openavb_time.h"
+#include "openavb_avdecc_msg_client.h"
 
 // DEBUG Uncomment to turn on logging for just this module.
 //#define AVB_LOG_ON	1
@@ -339,7 +339,10 @@ void openavbTLRunTalker(tl_state_t *pTLState)
 	if (pTLState->bConnected) {
 		bool bServiceIPC;
 
-		// Do until we are stopped or loose connection to endpoint
+		// Notify AVDECC Msg of the state change.
+		openavbAvdeccMsgClntNotifyCurrentState(pTLState);
+
+		// Do until we are stopped or lose connection to endpoint
 		while (pTLState->bRunning && pTLState->bConnected) {
 
 			// Talk (or just sleep if not streaming.)
@@ -371,6 +374,9 @@ void openavbTLRunTalker(tl_state_t *pTLState)
 			openavbEptClntStopStream(pTLState->endpointHandle, &(((talker_data_t *)pTLState->pPvtTalkerData)->streamID));
 
 		openavbTLRunTalkerFinish(pTLState);
+
+		// Notify AVDECC Msg of the state change.
+		openavbAvdeccMsgClntNotifyCurrentState(pTLState);
 	}
 	else {
 		AVB_LOGF_WARNING("Failed to connect to endpoint"STREAMID_FORMAT, STREAMID_ARGS(&(((talker_data_t *)pTLState->pPvtTalkerData)->streamID)));
@@ -401,7 +407,11 @@ void openavbTLPauseTalker(tl_state_t *pTLState, bool bPause)
 		return;
 	}
 
+	pTLState->bPaused = bPause;
 	openavbAvtpPause(pTalkerData->avtpHandle, bPause);
+
+	// Notify AVDECC Msg of the state change.
+	openavbAvdeccMsgClntNotifyCurrentState(pTLState);
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }

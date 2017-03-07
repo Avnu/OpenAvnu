@@ -61,6 +61,9 @@ typedef struct {
 	// Running flag. (assumed atomic)
 	bool bRunning;
 
+	// Paused while Running flag. (assumed atomic)
+	bool bPaused;
+
 	// Connected to endpoint flag. (assumed atomic)
 	bool bConnected;
 
@@ -87,6 +90,9 @@ typedef struct {
 
 	// Thread for talker or listener
 	THREAD_DEFINITON(TLThread);
+
+	// AVDECC Msg Running flag. (assumed atomic)
+	bool bAvdeccMsgRunning;
 
 	// Thread for AVDECC Msg support
 	THREAD_DEFINITON(avdeccMsgThread);

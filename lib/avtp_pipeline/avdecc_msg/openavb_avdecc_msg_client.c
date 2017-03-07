@@ -55,6 +55,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace.h"
 #include "openavb_avdecc_msg_client.h"
 #include "openavb_tl.h"
+#include "openavb_listener.h"
 
 // forward declarations
 static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAvdeccMessage_t *msg);
@@ -170,11 +171,11 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 	switch (desiredState) {
 	case OPENAVB_AVDECC_MSG_STOPPED:
 		// Stop requested.
-		AVB_LOGF_INFO("Stop state requested for Listener %d", desiredState);
+		AVB_LOGF_DEBUG("Stop state requested for Listener %d", avdeccMsgHandle);
 		if (pState->pTLState->bRunning) {
 			if (openavbTLStop((tl_handle_t) pState->pTLState)) {
-				// Notify server of state change.
-				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+				// NOTE:  openavbTLStop() call will cause listener change notification if successful.
+				AVB_LOGF_INFO("Listener %d state changed to stopped", desiredState);
 				ret = true;
 			} else {
 				// Notify server of issues.
@@ -182,30 +183,61 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 			}
 		} else {
 			// Notify server we are already in this state.
+			AVB_LOGF_WARNING("Listener %d state is already at stopped", avdeccMsgHandle);
 			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
 			ret = true;
 		}
 		break;
+
 	case OPENAVB_AVDECC_MSG_RUNNING:
 		// Run requested.
-		AVB_LOGF_INFO("Run state requested for Listener %d", desiredState);
+		AVB_LOGF_DEBUG("Run state requested for Listener %d", avdeccMsgHandle);
 		if (!(pState->pTLState->bRunning)) {
 			if (openavbTLRun((tl_handle_t) pState->pTLState)) {
-				// Notify server of state change.
+				// NOTE:  openavbTLRun() call will cause listener change notification if successful.
 				AVB_LOGF_INFO("Listener %d state changed to running", desiredState);
-				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
 				ret = true;
 			} else {
 				// Notify server of issues.
 				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 			}
-		} else {
+		}
+		else if (pState->pTLState->bRunning && pState->pTLState->bPaused) {
+			openavbTLPauseListener(pState->pTLState, FALSE);
+			// NOTE:  openavbTLPauseListener() call will cause listener change notification.
+			AVB_LOGF_INFO("Listener %d state changed from paused to running", avdeccMsgHandle);
+			ret = true;
+		}
+		else {
 			// Notify server we are already in this state.
-			AVB_LOGF_WARNING("Listener %d state is already at running", desiredState);
+			AVB_LOGF_WARNING("Listener %d state is already at running", avdeccMsgHandle);
 			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
 			ret = true;
 		}
 		break;
+
+	case OPENAVB_AVDECC_MSG_PAUSED:
+		// Running with Pause requested.
+		AVB_LOGF_DEBUG("Paused state requested for Listener %d", avdeccMsgHandle);
+		if (!(pState->pTLState->bRunning)) {
+			// Notify server of issues.
+			AVB_LOGF_ERROR("Listener %d attempted to pause the stream while not running.", avdeccMsgHandle);
+			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
+		}
+		else if (pState->pTLState->bRunning && !(pState->pTLState->bPaused)) {
+			openavbTLPauseListener(pState->pTLState, TRUE);
+			// NOTE:  openavbTLPauseListener() call will cause listener change notification.
+			AVB_LOGF_INFO("Listener %d state changed from running to paused", avdeccMsgHandle);
+			ret = true;
+		}
+		else {
+			// Notify server we are already in this state.
+			AVB_LOGF_WARNING("Listener %d state is already at paused", avdeccMsgHandle);
+			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_PAUSED);
+			ret = true;
+		}
+		break;
+
 	default:
 		AVB_LOGF_ERROR("openavbAvdeccMsgClntHndlListenerChangeRequestFromServer invalid state %d", desiredState);
 		break;
@@ -252,8 +284,8 @@ void openavbAvdeccMsgRunTalker(avdecc_msg_state_t *pState)
 
 	if (pState->bConnected) {
 
-		// Do until we are stopped or loose connection to endpoint
-		while (pState->pTLState->bRunning && pState->bConnected) {
+		// Do until we are stopped or lose connection to AVDECC Msg server.
+		while (pState->pTLState->bAvdeccMsgRunning && pState->bConnected) {
 
 			// Look for messages from AVDECC Msg.
 			if (!openavbAvdeccMsgClntService(pState->avdeccMsgHandle, 1000)) {
@@ -299,12 +331,14 @@ void openavbAvdeccMsgRunListener(avdecc_msg_state_t *pState)
 		else {
 			// Let the AVDECC Msg server know our current state.
 			if (!openavbAvdeccMsgClntListenerChangeNotification(pState->avdeccMsgHandle,
-				(pState->pTLState->bRunning ? OPENAVB_AVDECC_MSG_RUNNING : OPENAVB_AVDECC_MSG_STOPPED))) {
+				(pState->pTLState->bRunning ?
+					(pState->pTLState->bPaused ? OPENAVB_AVDECC_MSG_PAUSED : OPENAVB_AVDECC_MSG_RUNNING ) :
+					OPENAVB_AVDECC_MSG_STOPPED))) {
 				AVB_LOG_ERROR("Initial openavbAvdeccMsgClntListenerChangeNotification() failed");
 			}
 			else {
-				// Do until we are stopped or loose connection to endpoint
-				while (pState->pTLState->bRunning && pState->bConnected) {
+				// Do until we are stopped or lose connection to endpoint
+				while (pState->pTLState->bAvdeccMsgRunning && pState->bConnected) {
 
 					// Look for messages from AVDECC Msg.
 					if (!openavbAvdeccMsgClntService(pState->avdeccMsgHandle, 1000)) {
@@ -336,18 +370,8 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 	memset(&avdeccMsgState, 0, sizeof(avdeccMsgState));
 	avdeccMsgState.pTLState = (tl_state_t *)pv;
 
-	// Wait until the TLState endpointHandle value is assigned, and then use the same handle value.
-	// endpointHandle will be assigned by openavbTLThreadFn().
-	while (!avdeccMsgState.endpointHandle && avdeccMsgState.pTLState->bRunning) {
-		SLEEP_MSEC(1);
-
-		TL_LOCK();
-		avdeccMsgState.endpointHandle = avdeccMsgState.pTLState->endpointHandle;
-		TL_UNLOCK();
-	}
-
 	avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
-	while (avdeccMsgState.pTLState->bRunning) {
+	while (avdeccMsgState.pTLState->bAvdeccMsgRunning) {
 		AVB_TRACE_LINE(AVB_TRACE_AVDECC_MSG_DETAIL);
 
 		if (avdeccMsgState.avdeccMsgHandle == AVB_AVDECC_MSG_HANDLE_INVALID) {
@@ -363,7 +387,7 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 		// Validate the AVB version for TL and Endpoint are the same before continuing
 		avdeccMsgState.verState = OPENAVB_AVDECC_MSG_VER_UNKNOWN;
 		avdeccMsgState.bConnected = openavbAvdeccMsgClntRequestVersionFromServer(avdeccMsgState.avdeccMsgHandle);
-		if (avdeccMsgState.pTLState->bRunning && avdeccMsgState.bConnected && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_UNKNOWN) {
+		if (avdeccMsgState.pTLState->bAvdeccMsgRunning && avdeccMsgState.bConnected && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_UNKNOWN) {
 			// Check for AVDECC Msg version message. Timeout in 500 msec.
 			if (!openavbAvdeccMsgClntService(avdeccMsgState.avdeccMsgHandle, 500)) {
 				AVB_LOG_WARNING("Lost connection to AVDECC Msg, will retry");
@@ -396,7 +420,7 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 			}
 		}
 
-		if (avdeccMsgState.pTLState->bRunning && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_VALID) {
+		if (avdeccMsgState.pTLState->bAvdeccMsgRunning && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_VALID) {
 			SLEEP(1);
 		}
 	}
@@ -409,7 +433,6 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 		avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 	}
 
-	avdeccMsgState.endpointHandle = 0;
 	avdeccMsgState.pTLState = NULL;
 
 	// Perform the base cleanup.
@@ -419,4 +442,28 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return NULL;
+}
+
+
+// Client-side helper function.
+bool openavbAvdeccMsgClntNotifyCurrentState(tl_state_t *pTLState)
+{
+	if (!pTLState) { return FALSE; }
+
+	// Find the AVDECC Msg for the supplied tl_state_t pointer.
+	int i;
+	for (i = 0; i < MAX_AVDECC_MSG_CLIENTS; ++i) {
+		avdecc_msg_state_t * pAvdeccMsgState = AvdeccMsgStateListGetIndex(i);
+		if (pAvdeccMsgState && pAvdeccMsgState->pTLState == pTLState) {
+			// Notify the server regarding the current state.
+			if (pTLState->bRunning) {
+				openavbAvdeccMsgClntListenerChangeNotification(pAvdeccMsgState->avdeccMsgHandle, (pTLState->bPaused ? OPENAVB_AVDECC_MSG_PAUSED : OPENAVB_AVDECC_MSG_RUNNING));
+			} else {
+				openavbAvdeccMsgClntListenerChangeNotification(pAvdeccMsgState->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+			}
+			return TRUE;
+		}
+	}
+
+	return FALSE;
 }
