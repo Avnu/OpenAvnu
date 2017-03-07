@@ -21,22 +21,22 @@ bool openavbAVDECCRunListener(openavb_aem_descriptor_stream_io_t *pDescriptorStr
 	// Sanity tests.
 	if (!pDescriptorStreamInput) {
 		AVB_LOG_ERROR("openavbAVDECCRunListener Invalid descriptor");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pListenerStreamInfo) {
 		AVB_LOG_ERROR("openavbAVDECCRunListener Invalid streaminfo");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamInput->stream) {
 		AVB_LOG_ERROR("openavbAVDECCRunListener Invalid StreamInput descriptor stream");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamInput->stream->client) {
 		AVB_LOG_ERROR("openavbAVDECCRunListener Invalid stream client pointer");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 
@@ -45,14 +45,14 @@ bool openavbAVDECCRunListener(openavb_aem_descriptor_stream_io_t *pDescriptorStr
 	// Don't request if already running.
 	if (pDescriptorStreamInput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
 		AVB_LOG_INFO("Listener state change to running ignored, as Listener already Running");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return TRUE;
 	}
 
 	// Send the request to the client.
 	if (!openavbAvdeccMsgSrvrListenerChangeRequest(pDescriptorStreamInput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING)) {
 		AVB_LOG_ERROR("Error requesting listener change to Running");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	AVB_LOG_INFO("Listener state change to Running requested");
@@ -79,36 +79,36 @@ bool openavbAVDECCStopListener(openavb_aem_descriptor_stream_io_t *pDescriptorSt
 	// Sanity tests.
 	if (!pDescriptorStreamInput) {
 		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid descriptor");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pListenerStreamInfo) {
 		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid streaminfo");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamInput->stream) {
 		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid StreamInput descriptor stream");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamInput->stream->client) {
 		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid stream client pointer");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 
 	// Don't request if already stopped.
 	if (pDescriptorStreamInput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_STOPPED) {
 		AVB_LOG_INFO("Listener state change to running ignored, as Listener already Stopped");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return TRUE;
 	}
 
 	// Send the request to the client.
 	if (!openavbAvdeccMsgSrvrListenerChangeRequest(pDescriptorStreamInput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED)) {
 		AVB_LOG_ERROR("Error requesting listener change to Stopped");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	AVB_LOG_INFO("Listener state change to Stopped requested");
@@ -146,29 +146,29 @@ bool openavbAVDECCListenerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescr
 	// Sanity tests.
 	if (!pDescriptorStreamInput) {
 		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid descriptor");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamInput->stream) {
 		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid StreamInput descriptor stream");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamInput->stream->client) {
 		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid stream client pointer");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 
 	// Return the current listener state.
 	// If the state is not known, assume the Listener is not running.
 	if (pDescriptorStreamInput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return TRUE;
 	}
 	if (pDescriptorStreamInput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
 		AVB_LOG_WARNING("Listener state unknown");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
@@ -193,14 +193,59 @@ void openavbAVDECCPauseStream(openavb_aem_descriptor_stream_io_t *pDescriptor, b
 	// Sanity test.
 	if (!pDescriptor) {
 		AVB_LOG_ERROR("openavbAVDECCPauseStream Invalid descriptor");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return;
+	}
+	if (!pDescriptor->stream) {
+		AVB_LOG_ERROR("openavbAVDECCPauseStream Invalid StreamInput descriptor stream");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return;
+	}
+	if (!pDescriptor->stream->client) {
+		AVB_LOG_ERROR("openavbAVDECCPauseStream Invalid stream client pointer");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return;
 	}
 
 	if (pDescriptor->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
-		AVB_LOG_ERROR("openavbAVDECCPauseStream Listener Not Implemented!");
+
+		if (bPause) {
+			// If the client is not running (or already paused), ignore this command.
+			if (pDescriptor->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_RUNNING) {
+				AVB_LOG_DEBUG("Listener state change to pause ignored, as Listener not running");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return;
+			}
+
+			// Send the request to the client.
+			if (!openavbAvdeccMsgSrvrListenerChangeRequest(pDescriptor->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_PAUSED)) {
+				AVB_LOG_ERROR("Error requesting listener change to Paused");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return;
+			}
+
+			AVB_LOG_INFO("Listener state change from Running to Paused requested");
+		}
+		else {
+			// If the client is not paused, ignore this command.
+			if (pDescriptor->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_PAUSED) {
+				AVB_LOG_DEBUG("Listener state change to pause ignored, as Listener not paused");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return;
+			}
+
+			// Send the request to the client.
+			if (!openavbAvdeccMsgSrvrListenerChangeRequest(pDescriptor->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING)) {
+				AVB_LOG_ERROR("Error requesting listener change to Running");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return;
+			}
+
+			AVB_LOG_INFO("Listener state change from Paused to Running requested");
+		}
 	}
 	else if (pDescriptor->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
+		// AVDECC_TODO:  Implement this feature.
 		AVB_LOG_ERROR("openavbAVDECCPauseStream Talker Not Implemented!");
 	}
 	else {
