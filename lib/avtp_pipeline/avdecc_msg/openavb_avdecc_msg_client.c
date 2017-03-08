@@ -332,7 +332,7 @@ void openavbAvdeccMsgRunListener(avdecc_msg_state_t *pState)
 				AVB_LOG_ERROR("Initial openavbAvdeccMsgClntListenerChangeNotification() failed");
 			}
 			else {
-				// Do until we are stopped or lose connection to endpoint
+				// Do until we are stopped or lose connection to AVDECC Msg.
 				while (pState->pTLState->bAvdeccMsgRunning && pState->bConnected) {
 
 					// Look for messages from AVDECC Msg.
@@ -379,7 +379,7 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 		}
 		AvdeccMsgStateListAdd(&avdeccMsgState);
 
-		// Validate the AVB version for TL and Endpoint are the same before continuing
+		// Validate the AVB version for client and server are the same before continuing
 		avdeccMsgState.verState = OPENAVB_AVDECC_MSG_VER_UNKNOWN;
 		avdeccMsgState.bConnected = openavbAvdeccMsgClntRequestVersionFromServer(avdeccMsgState.avdeccMsgHandle);
 		if (avdeccMsgState.pTLState->bAvdeccMsgRunning && avdeccMsgState.bConnected && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_UNKNOWN) {
@@ -405,27 +405,17 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 			else {
 				openavbAvdeccMsgRunListener(&avdeccMsgState);
 			}
-
-			// Close the endpoint connection. unless connection already gone in which case the socket could already be reused.
-			if (avdeccMsgState.bConnected) {
-				AvdeccMsgStateListRemove(&avdeccMsgState);
-				openavbAvdeccMsgClntCloseSrvrConnection(avdeccMsgState.avdeccMsgHandle);
-				avdeccMsgState.bConnected = FALSE;
-				avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
-			}
 		}
 
-		if (avdeccMsgState.pTLState->bAvdeccMsgRunning && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_VALID) {
-			SLEEP(1);
-		}
-	}
-
-	// Close the endpoint connection. unless connection already gone in which case the socket could already be reused.
-	if (avdeccMsgState.bConnected) {
+		// Close the AVDECC Msg connection.
 		AvdeccMsgStateListRemove(&avdeccMsgState);
 		openavbAvdeccMsgClntCloseSrvrConnection(avdeccMsgState.avdeccMsgHandle);
 		avdeccMsgState.bConnected = FALSE;
 		avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+
+		if (avdeccMsgState.pTLState->bAvdeccMsgRunning && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_VALID) {
+			SLEEP(1);
+		}
 	}
 
 	avdeccMsgState.pTLState = NULL;
