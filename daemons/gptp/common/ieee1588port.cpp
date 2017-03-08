@@ -96,6 +96,7 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	automotive_profile = portInit->automotive_profile;
 	isGM = portInit->isGM;
 	testMode = portInit->testMode;
+	linkUp = portInit->linkUp;
 	initialLogSyncInterval = portInit->initialLogSyncInterval;
 	initialLogPdelayReqInterval = portInit->initialLogPdelayReqInterval;
 	operLogPdelayReqInterval = portInit->operLogPdelayReqInterval;
