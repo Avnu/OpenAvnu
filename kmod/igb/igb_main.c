@@ -10409,7 +10409,7 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		}
 		
 		if(!adapter->num_tx_queues) {
-			printk("Tx_queues number cleared, tx ring freed - preventing from dereferencing NULL pointer\n");
+			printk("igb_avb igb_mapbuf:tx ring freed %s\n", adapter->netdev->name);
 			return -EINVAL;
 		}
 
@@ -10434,7 +10434,7 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		}
 
 		if(!adapter->num_rx_queues) {
-			printk("Rx_queues number cleared, rx ring freed - preventing from dereferencing NULL pointer\n");
+			printk("igb_avb igb_mapbuf:rx ring freed %s \n", adapter->netdev->name);
 			return -EINVAL;
 		}
 
