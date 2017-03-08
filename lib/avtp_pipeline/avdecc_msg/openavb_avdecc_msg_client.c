@@ -130,7 +130,7 @@ void openavbAvdeccMsgClntCheckVerMatchesSrvr(int avdeccMsgHandle, U32 AVBVersion
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }
 
-bool openavbAvdeccMsgClntInitListenerIdentify(int avdeccMsgHandle, U8 stream_src_mac[6], U8 stream_dest_mac[6], U16 stream_uid, U16 stream_vlan_id)
+bool openavbAvdeccMsgClntInitListenerIdentify(int avdeccMsgHandle, const char * friendly_name)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavbAvdeccMessage_t msgBuf;
@@ -146,10 +146,7 @@ bool openavbAvdeccMsgClntInitListenerIdentify(int avdeccMsgHandle, U8 stream_src
 	msgBuf.type = OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY;
 	openavbAvdeccMsgParams_ListenerInitIdentify_t * pParams =
 		&(msgBuf.params.listenerInitIdentify);
-	memcpy(pParams->stream_src_mac, stream_src_mac, sizeof(pParams->stream_src_mac));
-	memcpy(pParams->stream_dest_mac, stream_dest_mac, sizeof(pParams->stream_dest_mac));
-	pParams->stream_uid = stream_uid;
-	pParams->stream_vlan_id = stream_vlan_id;
+	strncpy(pParams->friendly_name, friendly_name, sizeof(pParams->friendly_name));
 	bool ret = openavbAvdeccMsgClntSendToServer(avdeccMsgHandle, &msgBuf);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
@@ -323,9 +320,7 @@ void openavbAvdeccMsgRunListener(avdecc_msg_state_t *pState)
 	if (pState->bConnected) {
 
 		// Let the AVDECC Msg server know our identity.
-		if (!openavbAvdeccMsgClntInitListenerIdentify(pState->avdeccMsgHandle,
-			cfg->stream_addr.buffer.ether_addr_octet, cfg->dest_addr.buffer.ether_addr_octet,
-			cfg->stream_uid, cfg->vlan_id)) {
+		if (!openavbAvdeccMsgClntInitListenerIdentify(pState->avdeccMsgHandle, cfg->friendly_name)) {
 			AVB_LOG_ERROR("openavbAvdeccMsgClntInitListenerIdentify() failed");
 		}
 		else {
@@ -449,12 +444,17 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 bool openavbAvdeccMsgClntNotifyCurrentState(tl_state_t *pTLState)
 {
 	if (!pTLState) { return FALSE; }
+	if (!(pTLState->bAvdeccMsgRunning)) { return FALSE; }
 
 	// Find the AVDECC Msg for the supplied tl_state_t pointer.
 	int i;
 	for (i = 0; i < MAX_AVDECC_MSG_CLIENTS; ++i) {
 		avdecc_msg_state_t * pAvdeccMsgState = AvdeccMsgStateListGetIndex(i);
-		if (pAvdeccMsgState && pAvdeccMsgState->pTLState == pTLState) {
+		if (!pAvdeccMsgState) {
+			// Out of items.
+			break;
+		}
+		if (pAvdeccMsgState->pTLState == pTLState) {
 			// Notify the server regarding the current state.
 			if (pTLState->bRunning) {
 				openavbAvdeccMsgClntListenerChangeNotification(pAvdeccMsgState->avdeccMsgHandle, (pTLState->bPaused ? OPENAVB_AVDECC_MSG_PAUSED : OPENAVB_AVDECC_MSG_RUNNING));

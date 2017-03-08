@@ -284,6 +284,12 @@ static int openavbIniCfgCallback(void *user, const char *tlSection, const char *
 			valOK = TRUE;
 		}
 	}
+
+	else if (MATCH(name, "friendly_name")) {
+		strncpy(pCfg->friendly_name, value, FRIENDLY_NAME_SIZE - 1);
+		valOK = TRUE;
+	}
+
 	else if (MATCH(name, "current_sampling_rate")) {
 		errno = 0;
 		pCfg->current_sampling_rate = strtol(value, &pEnd, 10);
@@ -380,6 +386,19 @@ bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg)
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
 
 	openavbIniCfgInit(pCfg);
+
+	// Use the .INI file name as the default friendly name.
+	strncpy(pCfg->friendly_name, fileName, FRIENDLY_NAME_SIZE - 1);
+	char * pszComma = strchr(pCfg->friendly_name, ',');
+	if (pszComma) {
+		// Get rid of anything following the file name.
+		*pszComma = '\0';
+	}
+	char * pszExtension = strrchr(pCfg->friendly_name, '.');
+	if (pszExtension && strcasecmp(pszExtension, ".ini") == 0) {
+		// Get rid of the .INI file extension.
+		*pszExtension = '\0';
+	}
 
 	int result = ini_parse(fileName, openavbIniCfgCallback, pCfg);
 	if (result < 0) {

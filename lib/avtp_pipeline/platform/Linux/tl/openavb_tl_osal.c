@@ -349,6 +349,11 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 		}
 	}
 
+	else if (MATCH(name, "friendly_name")) {
+		strncpy(pCfg->friendly_name, value, FRIENDLY_NAME_SIZE - 1);
+		valOK = TRUE;
+	}
+
 	else if (MATCH(name, "map_lib")) {
 		if (pTLState->mapLib.libName)
 			free(pTLState->mapLib.libName);
@@ -436,6 +441,19 @@ EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char
 	parseIniData.pTLState = (tl_state_t *)TLhandle;
 	parseIniData.pCfg = pCfg;
 	parseIniData.pNVCfg = pNVCfg;
+
+	// Use the .INI file name as the default friendly name.
+	strncpy(parseIniData.pCfg->friendly_name, fileName, FRIENDLY_NAME_SIZE - 1);
+	char * pszComma = strchr(parseIniData.pCfg->friendly_name, ',');
+	if (pszComma) {
+		// Get rid of anything following the file name.
+		*pszComma = '\0';
+	}
+	char * pszExtension = strrchr(parseIniData.pCfg->friendly_name, '.');
+	if (pszExtension && strcasecmp(pszExtension, ".ini") == 0) {
+		// Get rid of the .INI file extension.
+		*pszExtension = '\0';
+	}
 
 	int result = ini_parse(fileName, openavbTLCfgCallback, &parseIniData);
 	if (result == 0) {

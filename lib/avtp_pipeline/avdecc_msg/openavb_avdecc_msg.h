@@ -100,10 +100,7 @@ typedef struct {
 } openavbAvdeccMsgParams_VersionRequest_t;
 
 typedef struct {
-	U8 stream_src_mac[6]; // MAC Address for the Talker
-	U8 stream_dest_mac[6]; // Multicast address for the stream
-	U16 stream_uid; // Stream ID value
-	U16 stream_vlan_id; // VLAN ID of the stream
+	char friendly_name[FRIENDLY_NAME_SIZE];
 } openavbAvdeccMsgParams_ListenerInitIdentify_t;
 
 typedef struct {
@@ -152,8 +149,8 @@ void openavbAvdeccMsgSrvrSendServerVersionToClient(int h, U32 AVBVersion);
 void openavbAvdeccMsgClntCheckVerMatchesSrvr(int h, U32 AVBVersion);
 
 // Client notify the server of identity (so AVDECC Msg knows client identity)
-bool openavbAvdeccMsgClientInitListenerIdentify(int avdeccMsgHandle, U8 stream_src_mac[6], U8 stream_dest_mac[6], U16 stream_uid, U16 stream_vlan_id);
-bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, U8 stream_src_mac[6], U8 stream_dest_mac[6], U16 stream_uid, U16 stream_vlan_id);
+bool openavbAvdeccMsgClntInitListenerIdentify(int avdeccMsgHandle, const char * friendly_name);
+bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, char * friendly_name);
 
 // Server state change requests, and client notifications of state changes.
 bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState);

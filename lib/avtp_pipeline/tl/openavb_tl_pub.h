@@ -75,6 +75,9 @@ typedef enum {
 /// Maximum size of interface name
 #define IFNAMSIZE 16
 
+/// Maximum size of the friendly name
+#define FRIENDLY_NAME_SIZE 64
+
 /// Indicates that VLAN ID is not set in configuration
 #define VLAN_NULL UINT16_MAX
 
@@ -135,6 +138,8 @@ typedef struct {
 	U32 thread_affinity;
 	/// Real time priority of thread.
 	U32 thread_rt_priority;
+	/// Friendly name for this configuration
+	char friendly_name[FRIENDLY_NAME_SIZE];
 
 	/// Initialization function in mapper
 	openavb_map_initialize_fn_t pMapInitFn;

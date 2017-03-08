@@ -50,6 +50,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 struct _avdecc_msg_state;
 typedef struct _avdecc_msg_state avdecc_msg_state_t;
 
+/// Maximum size of the friendly name
+#define FRIENDLY_NAME_SIZE 64
+
 /// Structure containing configuration of the host
 struct openavb_tl_data_cfg {
 	struct openavb_tl_data_cfg *next;
@@ -109,12 +112,14 @@ struct openavb_tl_data_cfg {
 	U16 sampling_rates_count;
 	/// An array of 4-octet sample rates supported by this Audio Unit
 	U32 sampling_rates[MAX_SAMPLING_RATES_COUNT];
-	// intf_nv_audio_rate
+	/// intf_nv_audio_rate
 	U16 audioRate;
-	// intf_nv_audio_bit_depth
+	/// intf_nv_audio_bit_depth
 	U8 audioBitDepth;
-	// intf_nv_channels
+	/// intf_nv_channels
 	U8 audioChannels;
+	/// Friendly name for this configuration
+	char friendly_name[FRIENDLY_NAME_SIZE];
 	/// The name of the initialize function in the mapper
 	char map_fn[100];
 

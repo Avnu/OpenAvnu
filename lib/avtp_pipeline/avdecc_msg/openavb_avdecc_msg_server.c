@@ -89,8 +89,7 @@ static bool openavbAvdeccMsgSrvrReceiveFromClient(int avdeccMsgHandle, openavbAv
 		case OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY");
 			ret = openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(avdeccMsgHandle,
-				msg->params.listenerInitIdentify.stream_src_mac, msg->params.listenerInitIdentify.stream_dest_mac,
-				msg->params.listenerInitIdentify.stream_uid, msg->params.listenerInitIdentify.stream_vlan_id);
+				msg->params.listenerInitIdentify.friendly_name);
 			break;
 		case OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION");
@@ -131,7 +130,7 @@ bool openavbAvdeccMsgSrvrHndlVerRqstFromClient(int avdeccMsgHandle)
 	return TRUE;
 }
 
-bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, U8 stream_src_mac[6], U8 stream_dest_mac[6], U16 stream_uid, U16 stream_vlan_id)
+bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, char * friendly_name)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavb_tl_data_cfg_t * currentStream;
@@ -146,6 +145,9 @@ bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle,
 		return false;
 	}
 
+	// Make sure the supplied string is nil-terminated.
+	friendly_name[FRIENDLY_NAME_SIZE - 1] = '\0';
+
 	// Create a structure to hold the client information.
 	pState = (avdecc_msg_state_t *) calloc(1, sizeof(avdecc_msg_state_t));
 	if (!pState) {
@@ -157,23 +159,14 @@ bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle,
 
 	// Find the state information matching this item.
 	for (currentStream = streamList; currentStream != NULL; currentStream = currentStream->next) {
-		if (memcmp(currentStream->stream_addr.buffer.ether_addr_octet, stream_src_mac, sizeof(currentStream->stream_addr.buffer.ether_addr_octet)) == 0 &&
-		    memcmp(currentStream->dest_addr.buffer.ether_addr_octet, stream_dest_mac, sizeof(currentStream->dest_addr.buffer.ether_addr_octet)) == 0 &&
-		    currentStream->stream_uid == stream_uid &&
-		    currentStream->vlan_id == stream_vlan_id)
+		if (strncmp(currentStream->friendly_name, friendly_name, FRIENDLY_NAME_SIZE) == 0)
 		{
 			break;
 		}
 	}
 	if (!currentStream) {
-		AVB_LOGF_WARNING("Ignoring unexpected client Listener %d:  "
-			"src_addr %02x:%02x:%02x:%02x:%02x:%02x, "
-			"stream %02x:%02x:%02x:%02x:%02x:%02x/%u, "
-			"vlan_id %u",
-			avdeccMsgHandle,
-			stream_src_mac[0], stream_src_mac[1], stream_src_mac[2], stream_src_mac[3], stream_src_mac[4], stream_src_mac[5],
-			stream_dest_mac[0], stream_dest_mac[1], stream_dest_mac[2], stream_dest_mac[3], stream_dest_mac[4], stream_dest_mac[5], stream_uid,
-			stream_vlan_id);
+		AVB_LOGF_WARNING("Ignoring unexpected client Listener %d, friendly_name:  %s",
+			avdeccMsgHandle, friendly_name);
 		free(pState);
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 		return false;
@@ -191,14 +184,8 @@ bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle,
 	pState->stream = currentStream;
 	currentStream->client = pState;
 
-	AVB_LOGF_INFO("Client Listener %d Detected:  "
-		"src_addr %02x:%02x:%02x:%02x:%02x:%02x, "
-		"stream %02x:%02x:%02x:%02x:%02x:%02x/%u, "
-		"vlan_id %u",
-		avdeccMsgHandle,
-		stream_src_mac[0], stream_src_mac[1], stream_src_mac[2], stream_src_mac[3], stream_src_mac[4], stream_src_mac[5],
-		stream_dest_mac[0], stream_dest_mac[1], stream_dest_mac[2], stream_dest_mac[3], stream_dest_mac[4], stream_dest_mac[5], stream_uid,
-		stream_vlan_id);
+	AVB_LOGF_INFO("Client Listener %d Detected, friendly_name:  %s",
+		avdeccMsgHandle, friendly_name);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return true;
