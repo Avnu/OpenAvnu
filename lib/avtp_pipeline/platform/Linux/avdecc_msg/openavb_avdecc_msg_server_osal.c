@@ -125,7 +125,7 @@ bool openavbAvdeccMsgServerOpen(void)
 	int rslt = bind(lsock, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un));
 	if (rslt != 0) {
 		AVB_LOGF_ERROR("Failed to create %s: %s", serverAddr.sun_path, strerror(errno));
-		AVB_LOG_WARNING("** If endpoint process crashed, run the cleanup script **");
+		AVB_LOG_WARNING("** If AVDECC Msg process crashed, run the cleanup script **");
 		goto error;
 	}
 

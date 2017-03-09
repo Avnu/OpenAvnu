@@ -191,6 +191,32 @@ bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle,
 	return true;
 }
 
+bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+	openavbAvdeccMessage_t msgBuf;
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
+
+	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
+	msgBuf.type = OPENAVB_AVDECC_MSG_LISTENER_STREAM_ID;
+	openavbAvdeccMsgParams_ListenerStreamID_t * pParams =
+		&(msgBuf.params.listenerStreamID);
+	memcpy(pParams->stream_src_mac, stream_src_mac, 6);
+	pParams->stream_uid = stream_uid;
+	memcpy(pParams->stream_dest_mac, stream_dest_mac, 6);
+	pParams->stream_vlan_id = stream_vlan_id;
+	bool ret = openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return ret;
+}
+
 bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);

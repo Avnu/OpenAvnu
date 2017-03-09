@@ -40,18 +40,30 @@ bool openavbAVDECCRunListener(openavb_aem_descriptor_stream_io_t *pDescriptorStr
 		return FALSE;
 	}
 
-	// AVDECC_TODO:  Should we send the pListenerStreamInfo stream_dest_mac and stream_id to the client?
-
-	// Don't request if already running.
-	if (pDescriptorStreamInput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
-		AVB_LOG_INFO("Listener state change to running ignored, as Listener already Running");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return TRUE;
+	// Stop the listener if it is currently running.
+	if (pDescriptorStreamInput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
+		if (!openavbAvdeccMsgSrvrListenerChangeRequest(pDescriptorStreamInput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED)) {
+			AVB_LOG_ERROR("Error requesting Listener change to Stopped");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+		AVB_LOG_INFO("Listener state change to Stopped requested");
 	}
 
-	// Send the request to the client.
+	// Send the Stream ID to the client.
+	if (!openavbAvdeccMsgSrvrListenerStreamID(pDescriptorStreamInput->stream->client->avdeccMsgHandle,
+			pListenerStreamInfo->stream_id, /* The first 6 bytes of the steam_id are the source MAC Address */
+			(((U16) pListenerStreamInfo->stream_id[6]) << 8 | (U16) pListenerStreamInfo->stream_id[7]),
+			pListenerStreamInfo->stream_dest_mac,
+			pListenerStreamInfo->stream_vlan_id)) {
+		AVB_LOG_ERROR("Error send Stream ID to Listener");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+
+	// Tell the client to start running.
 	if (!openavbAvdeccMsgSrvrListenerChangeRequest(pDescriptorStreamInput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING)) {
-		AVB_LOG_ERROR("Error requesting listener change to Running");
+		AVB_LOG_ERROR("Error requesting Listener change to Running");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}

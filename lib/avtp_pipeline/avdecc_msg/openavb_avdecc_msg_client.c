@@ -81,6 +81,12 @@ static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAv
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_VERSION_CALLBACK");
 			openavbAvdeccMsgClntCheckVerMatchesSrvr(avdeccMsgHandle, msg->params.versionCallback.AVBVersion);
 			break;
+		case OPENAVB_AVDECC_MSG_LISTENER_STREAM_ID:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_STREAM_ID");
+			openavbAvdeccMsgClntHndlListenerStreamIDFromServer(avdeccMsgHandle,
+				msg->params.listenerStreamID.stream_src_mac, msg->params.listenerStreamID.stream_uid,
+				msg->params.listenerStreamID.stream_dest_mac, msg->params.listenerStreamID.stream_vlan_id);
+			break;
 		case OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST");
 			openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(avdeccMsgHandle, msg->params.listenerChangeRequest.desired_state);
@@ -151,6 +157,46 @@ bool openavbAvdeccMsgClntListenerInitIdentify(int avdeccMsgHandle, const char * 
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return ret;
+}
+
+bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
+
+	if (!pState->pTLState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d state not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
+
+	// Update the stream information supplied by the server.
+	openavb_tl_cfg_t * pCfg = &(pState->pTLState->cfg);
+	memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
+	pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
+	pCfg->stream_uid = stream_uid;
+	memcpy(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6);
+	pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
+	pCfg->vlan_id = stream_vlan_id;
+	AVB_LOGF_DEBUG("AVDECC-supplied stream_id:  %02x:%02x:%02x:%02x:%02x:%02x/%u",
+		pCfg->stream_addr.buffer.ether_addr_octet[0], pCfg->stream_addr.buffer.ether_addr_octet[1],
+		pCfg->stream_addr.buffer.ether_addr_octet[2], pCfg->stream_addr.buffer.ether_addr_octet[3],
+		pCfg->stream_addr.buffer.ether_addr_octet[4], pCfg->stream_addr.buffer.ether_addr_octet[5],
+		pCfg->stream_uid);
+	AVB_LOGF_DEBUG("AVDECC-supplied dest_addr:  %02x:%02x:%02x:%02x:%02x:%02x",
+		pCfg->dest_addr.buffer.ether_addr_octet[0], pCfg->dest_addr.buffer.ether_addr_octet[1],
+		pCfg->dest_addr.buffer.ether_addr_octet[2], pCfg->dest_addr.buffer.ether_addr_octet[3],
+		pCfg->dest_addr.buffer.ether_addr_octet[4], pCfg->dest_addr.buffer.ether_addr_octet[5]);
+	AVB_LOGF_DEBUG("AVDECC-supplied vlan_id:  %u", pCfg->vlan_id);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return true;
 }
 
 bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
