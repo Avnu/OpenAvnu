@@ -56,7 +56,6 @@
 #include <sys/stat.h>
 
 #include <sys/socket.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
@@ -224,11 +223,41 @@ static void x_readEvent(int sockint, IEEE1588Port *pPort, int ifindex)
 	return;
 }
 
+static void x_initLinkUpStatus(IEEE1588Port *pPort, int ifindex)
+{
+	struct ifreq device;
+	memset(&device, 0, sizeof(device));
+	device.ifr_ifindex = ifindex;
+
+	int inetSocket = socket (AF_INET, SOCK_STREAM, 0);
+	if (inetSocket < 0) {
+		GPTP_LOG_ERROR("initLinkUpStatus error opening socket: %s", strerror(errno));
+		return;
+	}
+
+	int r = ioctl(inetSocket, SIOCGIFNAME, &device);
+	if (r < 0) {
+		GPTP_LOG_ERROR("initLinkUpStatus error reading interface name: %s", strerror(errno));
+		close(inetSocket);
+		return;
+	}
+	r = ioctl(inetSocket, SIOCGIFFLAGS, &device);
+	if (r < 0) {
+		GPTP_LOG_ERROR("initLinkUpStatus error reading flags: %s", strerror(errno));
+		close(inetSocket);
+		return;
+	}
+	if (device.ifr_flags && IFF_RUNNING) {
+		GPTP_LOG_DEBUG("Interface %s is up", device.ifr_name);
+		pPort->setLinkUpState(true);
+	} //linkUp == false by default
+	close(inetSocket);
+}
+
 void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 {
 	fd_set netLinkFD;
 	int netLinkSocket;
-
 	struct sockaddr_nl addr;
 
 	netLinkSocket = socket (AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
@@ -247,6 +276,8 @@ void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 		GPTP_LOG_ERROR("Socket bind failed");
 		return;
 	}
+
+	x_initLinkUpStatus(pPort, ifindex);
 
 	while (1) {
 		FD_ZERO(&netLinkFD);
