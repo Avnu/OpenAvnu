@@ -1,7 +1,7 @@
 
 if (AVB_FEATURE_AVDECC)
 	set ( AVB_FEATURE_GSTREAMER 0 )
-	set ( AVB_FEATURE_PCAP 1 )
+	set ( AVB_FEATURE_PCAP 0 )
 	set ( AVB_FEATURE_IGB 0 )
 else ()
 	set ( AVB_FEATURE_PCAP 1 )
