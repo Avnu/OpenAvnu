@@ -130,7 +130,7 @@ void openavbAvdeccMsgClntCheckVerMatchesSrvr(int avdeccMsgHandle, U32 AVBVersion
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }
 
-bool openavbAvdeccMsgClntInitListenerIdentify(int avdeccMsgHandle, const char * friendly_name)
+bool openavbAvdeccMsgClntListenerInitIdentify(int avdeccMsgHandle, const char * friendly_name)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavbAvdeccMessage_t msgBuf;
@@ -320,8 +320,8 @@ void openavbAvdeccMsgRunListener(avdecc_msg_state_t *pState)
 	if (pState->bConnected) {
 
 		// Let the AVDECC Msg server know our identity.
-		if (!openavbAvdeccMsgClntInitListenerIdentify(pState->avdeccMsgHandle, cfg->friendly_name)) {
-			AVB_LOG_ERROR("openavbAvdeccMsgClntInitListenerIdentify() failed");
+		if (!openavbAvdeccMsgClntListenerInitIdentify(pState->avdeccMsgHandle, cfg->friendly_name)) {
+			AVB_LOG_ERROR("openavbAvdeccMsgClntListenerInitIdentify() failed");
 		}
 		else {
 			// Let the AVDECC Msg server know our current state.

@@ -149,7 +149,7 @@ void openavbAvdeccMsgSrvrSendServerVersionToClient(int h, U32 AVBVersion);
 void openavbAvdeccMsgClntCheckVerMatchesSrvr(int h, U32 AVBVersion);
 
 // Client notify the server of identity (so AVDECC Msg knows client identity)
-bool openavbAvdeccMsgClntInitListenerIdentify(int avdeccMsgHandle, const char * friendly_name);
+bool openavbAvdeccMsgClntListenerInitIdentify(int avdeccMsgHandle, const char * friendly_name);
 bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, char * friendly_name);
 
 // Server state change requests, and client notifications of state changes.
