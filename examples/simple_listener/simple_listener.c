@@ -45,6 +45,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 			+ STREAM_ID_SIZE		\
 			+ SEVENTEEN22_HEADER_PART2_SIZE \
 			+ SIX1883_HEADER_SIZE)
+#define HEADER_SIZE_AUTOMOTIVE (38)
 #define SAMPLES_PER_SECOND (48000)
 #define SAMPLES_PER_FRAME (6)
 #define CHANNELS (2)
@@ -63,9 +64,17 @@ struct ethernet_header{
 static const char *version_str = "simple_listener v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
+static const char *auto_dest_mac_prefix = "91:E0:F0:00:FE";
+
 pcap_t* glob_pcap_handle;
+
 u_char glob_ether_type[] = { 0x22, 0xf0 };
-SNDFILE* glob_snd_file;
+SNDFILE* glob_snd_file = NULL;
+u_char* glob_target_stream_id = NULL;
+
+u_char glob_automotive = 0;
+u_char glob_static_stream_idx = 1;
+u_char glob_static_stream_id[] = { 0x91, 0xE0, 0xF0, 0x00, 0xFE, 0x00, 0x00, 0x01 };
 
 static void help()
 {
@@ -75,17 +84,29 @@ static void help()
 		"Options:\n"
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
+		"    -a  use automotive mode (no SRP)\n"
+		"          [Payload offset:%d, Freq:48kHz, Channels:2, SampPerFrame:6, AAF Int16 ]\n"
+		"          [MAC:%s:IDX, StreamId:0x%s0000IDX]\n"
+		"    -s  specify static stream index (IDX for automotive)\n"
 		"    -f  set the name of the output wav-file\n"
-		"\n" "%s" "\n", version_str);
+		"\n" "%s" "\n",
+		HEADER_SIZE_AUTOMOTIVE,
+		auto_dest_mac_prefix,
+		auto_dest_mac_prefix,
+		version_str);
 	exit(EXIT_FAILURE);
 }
 
 void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const u_char* packet)
 {
 	unsigned char* test_stream_id;
+	unsigned char* target_stream_id;
 	struct ethernet_header* eth_header;
-	uint32_t *buf;
+	// uint32_t *buf;
+	void *buf;
 	uint32_t frame[2] = { 0 , 0 };
+	uint16_t frame_16[2] = { 0 , 0 };
+
 	int i;
 	struct mrp_listener_ctx *ctx = (struct mrp_listener_ctx*) args;
 	(void) packet_header; /* unused */
@@ -112,25 +133,36 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 			     test_stream_id[6], test_stream_id[7]);
 #endif /* DEBUG*/
 
-		if (0 == memcmp(test_stream_id, ctx->stream_id, sizeof(STREAM_ID_SIZE)))
+		if (0 == memcmp(test_stream_id, glob_target_stream_id, sizeof(STREAM_ID_SIZE)))
 		{
 
 #if DEBUG
 			fprintf(stdout,"Stream ids matched.\n");
 #endif /* DEBUG*/
-			buf = (uint32_t*) (packet + HEADER_SIZE);
+			buf = (void*)(packet + (glob_automotive ? HEADER_SIZE_AUTOMOTIVE : HEADER_SIZE));
 			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
 			{
-				memcpy(&frame[0], &buf[i], sizeof(frame));
+				if (glob_automotive)
+				{
+					memcpy(&frame_16[0], &((int16_t*)buf)[i], sizeof(frame_16));
 
-				frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
-				frame[1] = ntohl(frame[1]);
-				frame[0] &= 0x00ffffff;       /* ignore leading label */
-				frame[1] &= 0x00ffffff;
-				frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
-				frame[1] <<= 8;
+					frame_16[0] = ntohs(frame_16[0]);   /* convert to host-byte order */
+					frame_16[1] = ntohs(frame_16[1]);
+					sf_writef_short(glob_snd_file, (const short *)frame_16, 1);
+				}
+				else
+				{
+					memcpy(&frame[0], &((uint32_t*)buf)[i], sizeof(frame));
 
-				sf_writef_int(glob_snd_file, (const int *)frame, 1);
+					frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
+					frame[1] = ntohl(frame[1]);
+					frame[0] &= 0x00ffffff;       /* ignore leading label */
+					frame[1] &= 0x00ffffff;
+					frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
+					frame[1] <<= 8;
+
+					sf_writef_int(glob_snd_file, (const int *)frame, 1);
+				}
 			}
 		}
 	}
@@ -165,26 +197,78 @@ void sigint_handler(int signum)
 #endif /* PCAP */
 
 #if LIBSND
-	sf_write_sync(glob_snd_file);
-	sf_close(glob_snd_file);
+  if (NULL != glob_snd_file)
+	{
+		sf_write_sync(glob_snd_file);
+	  sf_close(glob_snd_file);
+  }
 #endif /* LIBSND */
+}
+
+int init_mrp(struct mrp_listener_ctx *ctx, struct mrp_domain_attr *class_a, struct mrp_domain_attr *class_b)// struct mrp_domain_attr *class_a, struct mrp_domain_attr *class_a)
+{
+	int rc;
+
+	rc = mrp_listener_client_init(ctx);
+	if (rc)
+	{
+		printf("failed to initialize global variables\n");
+		return -1;
+	}
+
+	if (create_socket(ctx))
+	{
+		fprintf(stderr, "Socket creation failed.\n");
+		return -1;
+	}
+
+	rc = mrp_monitor(ctx);
+	if (rc)
+	{
+		printf("failed creating MRP monitor thread\n");
+		return -1;
+	}
+	rc = mrp_get_domain(ctx, class_a, class_b);
+	if (rc)
+	{
+		printf("failed calling mrp_get_domain()\n");
+		return -1;
+	}
+
+	printf("detected domain Class A PRIO=%d VID=%04x...\n",class_a->priority,class_a->vid);
+
+	rc = report_domain_status(class_a,ctx);
+	if (rc) {
+		printf("report_domain_status failed\n");
+		return -1;
+	}
+
+	rc = join_vlan(class_a, ctx);
+	if (rc) {
+		printf("join_vlan failed\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 int main(int argc, char *argv[])
 {
 	char* file_name = NULL;
 	char* dev = NULL;
+	int sf_pcm_format;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/* The compiled filter expression */
 	char filter_exp[100];				/* The filter expression */
+	char dest_mac[30];
 	struct mrp_listener_ctx *ctx = malloc(sizeof(struct mrp_listener_ctx));
 	struct mrp_domain_attr *class_a = malloc(sizeof(struct mrp_domain_attr));
 	struct mrp_domain_attr *class_b = malloc(sizeof(struct mrp_domain_attr));
 	ctx_sig = ctx;
 	signal(SIGINT, sigint_handler);
 
-	int c,rc;
-	while((c = getopt(argc, argv, "hi:f:")) > 0)
+	int c, rc;
+	while((c = getopt(argc, argv, "ahi:f:s:")) > 0)
 	{
 		switch (c)
 		{
@@ -197,63 +281,60 @@ int main(int argc, char *argv[])
 		case 'f':
 			file_name = strdup(optarg);
 			break;
+		case 'a':
+			glob_automotive = 1;
+			break;
+		case 's':
+			if (optarg) {
+				glob_static_stream_idx = atoi(optarg);
+				glob_static_stream_id[7] = glob_static_stream_idx;
+			}
+			else {
+				fprintf(stderr, "-s {idx} option require static stream index parameter!\n");
+			}
+		break;
 		default:
-          		fprintf(stderr, "Unrecognized option!\n");
+    	fprintf(stderr, "Unrecognized option!\n");
 		}
 	}
 
 	if ((NULL == dev) || (NULL == file_name))
 		help();
 
-	rc = mrp_listener_client_init(ctx);
-	if (rc)
+	if (glob_automotive)
 	{
-		printf("failed to initialize global variables\n");
-		return EXIT_FAILURE;
+		sf_pcm_format = SF_FORMAT_PCM_16;
+		sprintf(dest_mac,"%s:%02X", auto_dest_mac_prefix, glob_static_stream_idx);
+		glob_target_stream_id = glob_static_stream_id;
 	}
-
-	if (create_socket(ctx))
+	else
 	{
-		fprintf(stderr, "Socket creation failed.\n");
-		return errno;
-	}
+		if (-1 == init_mrp(ctx, class_a, class_b))
+		{
+			printf("init_mrp failed\n");
+			return EXIT_FAILURE;
+		}
 
-	rc = mrp_monitor(ctx);
-	if (rc)
-	{
-		printf("failed creating MRP monitor thread\n");
-		return EXIT_FAILURE;
-	}
-	rc=mrp_get_domain(ctx, class_a, class_b);
-	if (rc)
-	{
-		printf("failed calling mrp_get_domain()\n");
-		return EXIT_FAILURE;
-	}
-
-	printf("detected domain Class A PRIO=%d VID=%04x...\n",class_a->priority,class_a->vid);
-
-	rc = report_domain_status(class_a,ctx);
-	if (rc) {
-		printf("report_domain_status failed\n");
-		return EXIT_FAILURE;
-	}
-
-	rc = join_vlan(class_a, ctx);
-	if (rc) {
-		printf("join_vlan failed\n");
-		return EXIT_FAILURE;
-	}
-
-	fprintf(stdout,"Waiting for talker...\n");
-	await_talker(ctx);
+		fprintf(stdout,"Waiting for talker...\n");
+		await_talker(ctx);
 
 #if DEBUG
-	fprintf(stdout,"Send ready-msg...\n");
+		fprintf(stdout,"Send ready-msg...\n");
 #endif /* DEBUG */
-	rc = send_ready(ctx);
-	if (rc) {
-		printf("send_ready failed\n");
+		rc = send_ready(ctx);
+		if (rc) {
+			printf("send_ready failed\n");
+			return EXIT_FAILURE;
+		}
+
+		glob_target_stream_id = ctx->stream_id;
+		sf_pcm_format = SF_FORMAT_PCM_24;
+		sprintf(dest_mac,"%02x:%02x:%02x:%02x:%02x:%02x",ctx->dst_mac[0],ctx->dst_mac[1],ctx->dst_mac[2],ctx->dst_mac[3],ctx->dst_mac[4],ctx->dst_mac[5]);
+	}
+
+	if (NULL == glob_target_stream_id)
+	{
+		fprintf(stderr, "Target Stream ID not set");
 		return EXIT_FAILURE;
 	}
 
@@ -264,7 +345,7 @@ int main(int argc, char *argv[])
 
 	sf_info->samplerate = SAMPLES_PER_SECOND;
 	sf_info->channels = CHANNELS;
-	sf_info->format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
+	sf_info->format = SF_FORMAT_WAV | sf_pcm_format;
 
 	if (0 == sf_format_check(sf_info))
 	{
@@ -293,8 +374,10 @@ int main(int argc, char *argv[])
 #if DEBUG
 	fprintf(stdout,"Got session pcap handler.\n");
 #endif /* DEBUG */
+
+  fprintf(stdout,"Create packet filter ether dst %s\n", dest_mac);
 	/* compile and apply filter */
-	sprintf(filter_exp,"ether dst %02x:%02x:%02x:%02x:%02x:%02x",ctx->dst_mac[0],ctx->dst_mac[1],ctx->dst_mac[2],ctx->dst_mac[3],ctx->dst_mac[4],ctx->dst_mac[5]);
+	sprintf(filter_exp,"ether dst %s", dest_mac);
 	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
 		fprintf(stderr, "Could not parse filter %s: %s\n", filter_exp, pcap_geterr(glob_pcap_handle));
@@ -310,7 +393,9 @@ int main(int argc, char *argv[])
 #if DEBUG
 	fprintf(stdout,"Compiled and applied filter.\n");
 #endif /* DEBUG */
-
+	printf("Target Stream ID: 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+	glob_target_stream_id[0], glob_target_stream_id[1], glob_target_stream_id[2], glob_target_stream_id[3],
+	glob_target_stream_id[4], glob_target_stream_id[5], glob_target_stream_id[6], glob_target_stream_id[7]);
 	/** loop forever and call callback-function for every received packet */
 	pcap_loop(glob_pcap_handle, -1, pcap_callback, (u_char*)ctx);
 #endif /* PCAP */
