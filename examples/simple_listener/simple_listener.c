@@ -45,9 +45,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 			+ STREAM_ID_SIZE		\
 			+ SEVENTEEN22_HEADER_PART2_SIZE \
 			+ SIX1883_HEADER_SIZE)
-#define HEADER_SIZE_AUTOMOTIVE (38)
+#define HEADER_SIZE_AAF (36)
 #define SAMPLES_PER_SECOND (48000)
 #define SAMPLES_PER_FRAME (6)
+#define SAMPLES_PER_FRAME_AAF (64)
 #define CHANNELS (2)
 
 struct mrp_listener_ctx *ctx_sig;//Context pointer for signal handler
@@ -64,7 +65,8 @@ struct ethernet_header{
 static const char *version_str = "simple_listener v" VERSION_STR "\n"
     "Copyright (c) 2012, Intel Corporation\n";
 
-static const char *auto_dest_mac_prefix = "91:E0:F0:00:FE";
+static const char *static_dest_mac = "91:E0:F0:00:FE:01";
+static u_char static_stream_id[] = { 0x91, 0xE0, 0xF0, 0x00, 0xFE, 0x00, 0x00, 0x01 };
 
 pcap_t* glob_pcap_handle;
 
@@ -72,9 +74,8 @@ u_char glob_ether_type[] = { 0x22, 0xf0 };
 SNDFILE* glob_snd_file = NULL;
 u_char* glob_target_stream_id = NULL;
 
-u_char glob_automotive = 0;
-u_char glob_static_stream_idx = 1;
-u_char glob_static_stream_id[] = { 0x91, 0xE0, 0xF0, 0x00, 0xFE, 0x00, 0x00, 0x01 };
+u_char glob_no_srp = 0;
+u_char glob_use_aaf = 0;
 
 static void help()
 {
@@ -84,31 +85,22 @@ static void help()
 		"Options:\n"
 		"    -h  show this message\n"
 		"    -i  specify interface for AVB connection\n"
-		"    -a  use automotive mode (no SRP)\n"
-		"          [Payload offset:%d, Freq:48kHz, Channels:2, SampPerFrame:6, AAF Int16 ]\n"
-		"          [MAC:%s:IDX, StreamId:0x%s0000IDX]\n"
-		"    -s  specify static stream index (IDX for automotive)\n"
+		"    -n  no SRP\n"
+		"    -a  use AAF\n"
 		"    -f  set the name of the output wav-file\n"
-		"\n" "%s" "\n",
-		HEADER_SIZE_AUTOMOTIVE,
-		auto_dest_mac_prefix,
-		auto_dest_mac_prefix,
-		version_str);
+		"\n" "%s" "\n", version_str);
 	exit(EXIT_FAILURE);
 }
 
 void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const u_char* packet)
 {
 	unsigned char* test_stream_id;
-	unsigned char* target_stream_id;
 	struct ethernet_header* eth_header;
-	// uint32_t *buf;
-	void *buf;
+	uint32_t* buf;
 	uint32_t frame[2] = { 0 , 0 };
-	uint16_t frame_16[2] = { 0 , 0 };
 
 	int i;
-	struct mrp_listener_ctx *ctx = (struct mrp_listener_ctx*) args;
+	(void) args; /* unused */
 	(void) packet_header; /* unused */
 
 #if DEBUG
@@ -139,30 +131,71 @@ void pcap_callback(u_char* args, const struct pcap_pkthdr* packet_header, const 
 #if DEBUG
 			fprintf(stdout,"Stream ids matched.\n");
 #endif /* DEBUG*/
-			buf = (void*)(packet + (glob_automotive ? HEADER_SIZE_AUTOMOTIVE : HEADER_SIZE));
+			buf = (uint32_t*)(packet + HEADER_SIZE);
 			for(i = 0; i < SAMPLES_PER_FRAME * CHANNELS; i += 2)
 			{
-				if (glob_automotive)
-				{
-					memcpy(&frame_16[0], &((int16_t*)buf)[i], sizeof(frame_16));
+				memcpy(&frame[0], &buf[i], sizeof(frame));
 
-					frame_16[0] = ntohs(frame_16[0]);   /* convert to host-byte order */
-					frame_16[1] = ntohs(frame_16[1]);
-					sf_writef_short(glob_snd_file, (const short *)frame_16, 1);
-				}
-				else
-				{
-					memcpy(&frame[0], &((uint32_t*)buf)[i], sizeof(frame));
+				frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
+				frame[1] = ntohl(frame[1]);
+				frame[0] &= 0x00ffffff;       /* ignore leading label */
+				frame[1] &= 0x00ffffff;
+				frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
+				frame[1] <<= 8;
 
-					frame[0] = ntohl(frame[0]);   /* convert to host-byte order */
-					frame[1] = ntohl(frame[1]);
-					frame[0] &= 0x00ffffff;       /* ignore leading label */
-					frame[1] &= 0x00ffffff;
-					frame[0] <<= 8;               /* left-align remaining PCM-24 sample */
-					frame[1] <<= 8;
+				sf_writef_int(glob_snd_file, (const int *)frame, 1);
+			}
+		}
+	}
+}
 
-					sf_writef_int(glob_snd_file, (const int *)frame, 1);
-				}
+void pcap_aaf_callback(u_char* args, const struct pcap_pkthdr* packet_header, const u_char* packet)
+{
+	unsigned char* test_stream_id;
+	struct ethernet_header* eth_header;
+	uint16_t* buf;
+	uint16_t frame[2] = { 0 , 0 };
+
+	int i;
+	(void) args; /* unused */
+	(void) packet_header; /* unused */
+
+#if DEBUG
+	fprintf(stdout,"Got packet.\n");
+#endif /* DEBUG*/
+
+	eth_header = (struct ethernet_header*)(packet);
+
+#if DEBUG
+	fprintf(stdout,"Ether Type: 0x%02x%02x\n", eth_header->type[0], eth_header->type[1]);
+#endif /* DEBUG*/
+
+	if (0 == memcmp(glob_ether_type,eth_header->type,sizeof(eth_header->type)))
+	{
+		test_stream_id = (unsigned char*)(packet + ETHERNET_HEADER_SIZE + SEVENTEEN22_HEADER_PART1_SIZE);
+
+#if DEBUG
+		fprintf(stderr, "Received stream id: %02x%02x%02x%02x%02x%02x%02x%02x\n ",
+			     test_stream_id[0], test_stream_id[1],
+			     test_stream_id[2], test_stream_id[3],
+			     test_stream_id[4], test_stream_id[5],
+			     test_stream_id[6], test_stream_id[7]);
+#endif /* DEBUG*/
+
+		if (0 == memcmp(test_stream_id, glob_target_stream_id, sizeof(STREAM_ID_SIZE)))
+		{
+
+#if DEBUG
+			fprintf(stdout,"Stream ids matched.\n");
+#endif /* DEBUG*/
+			buf = (uint16_t*)(packet + HEADER_SIZE_AAF);
+			for(i = 0; i < SAMPLES_PER_FRAME_AAF * CHANNELS; i += 2)
+			{
+				memcpy(&frame[0], &buf[i], sizeof(frame));
+				frame[0] = ntohs(frame[0]);   /* convert to host-byte order */
+				frame[1] = ntohs(frame[1]);
+
+				sf_writef_short(glob_snd_file, (const short *)frame, 1);
 			}
 		}
 	}
@@ -197,11 +230,8 @@ void sigint_handler(int signum)
 #endif /* PCAP */
 
 #if LIBSND
-  if (NULL != glob_snd_file)
-	{
-		sf_write_sync(glob_snd_file);
-	  sf_close(glob_snd_file);
-  }
+	sf_write_sync(glob_snd_file);
+	sf_close(glob_snd_file);
 #endif /* LIBSND */
 }
 
@@ -256,11 +286,12 @@ int main(int argc, char *argv[])
 {
 	char* file_name = NULL;
 	char* dev = NULL;
-	int sf_pcm_format;
+	int sf_pcm_format = SF_FORMAT_PCM_24;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program comp_filter_exp;		/* The compiled filter expression */
 	char filter_exp[100];				/* The filter expression */
 	char dest_mac[30];
+	pcap_handler callback = pcap_callback;
 	struct mrp_listener_ctx *ctx = malloc(sizeof(struct mrp_listener_ctx));
 	struct mrp_domain_attr *class_a = malloc(sizeof(struct mrp_domain_attr));
 	struct mrp_domain_attr *class_b = malloc(sizeof(struct mrp_domain_attr));
@@ -268,7 +299,7 @@ int main(int argc, char *argv[])
 	signal(SIGINT, sigint_handler);
 
 	int c, rc;
-	while((c = getopt(argc, argv, "ahi:f:s:")) > 0)
+	while((c = getopt(argc, argv, "anhi:f:")) > 0)
 	{
 		switch (c)
 		{
@@ -281,17 +312,15 @@ int main(int argc, char *argv[])
 		case 'f':
 			file_name = strdup(optarg);
 			break;
-		case 'a':
-			glob_automotive = 1;
+		case 'n':
+			glob_no_srp = 1;
+			sprintf(dest_mac,"%s", static_dest_mac);
+			glob_target_stream_id = static_stream_id;
 			break;
-		case 's':
-			if (optarg) {
-				glob_static_stream_idx = atoi(optarg);
-				glob_static_stream_id[7] = glob_static_stream_idx;
-			}
-			else {
-				fprintf(stderr, "-s {idx} option require static stream index parameter!\n");
-			}
+		case 'a':
+			glob_use_aaf = 1;
+			sf_pcm_format = SF_FORMAT_PCM_16;
+			callback = pcap_aaf_callback;
 		break;
 		default:
     	fprintf(stderr, "Unrecognized option!\n");
@@ -301,13 +330,7 @@ int main(int argc, char *argv[])
 	if ((NULL == dev) || (NULL == file_name))
 		help();
 
-	if (glob_automotive)
-	{
-		sf_pcm_format = SF_FORMAT_PCM_16;
-		sprintf(dest_mac,"%s:%02X", auto_dest_mac_prefix, glob_static_stream_idx);
-		glob_target_stream_id = glob_static_stream_id;
-	}
-	else
+	if (0 == glob_no_srp)
 	{
 		if (-1 == init_mrp(ctx, class_a, class_b))
 		{
@@ -328,8 +351,9 @@ int main(int argc, char *argv[])
 		}
 
 		glob_target_stream_id = ctx->stream_id;
-		sf_pcm_format = SF_FORMAT_PCM_24;
-		sprintf(dest_mac,"%02x:%02x:%02x:%02x:%02x:%02x",ctx->dst_mac[0],ctx->dst_mac[1],ctx->dst_mac[2],ctx->dst_mac[3],ctx->dst_mac[4],ctx->dst_mac[5]);
+		sprintf(dest_mac,"%02x:%02x:%02x:%02x:%02x:%02x",
+		ctx->dst_mac[0], ctx->dst_mac[1], ctx->dst_mac[2],
+		ctx->dst_mac[3], ctx->dst_mac[4], ctx->dst_mac[5]);
 	}
 
 	if (NULL == glob_target_stream_id)
@@ -353,11 +377,14 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+  fprintf(stdout,"Output SampleRate:%d, Channels:%d, Format0x%X\n",
+	sf_info->samplerate, sf_info->channels, sf_info->format);
 	if (NULL == (glob_snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
 	{
 		fprintf(stderr, "Could not create file.");
 		return EXIT_FAILURE;
 	}
+
 	fprintf(stdout,"Created file called %s\n", file_name);
 #endif /* LIBSND */
 
@@ -397,7 +424,7 @@ int main(int argc, char *argv[])
 	glob_target_stream_id[0], glob_target_stream_id[1], glob_target_stream_id[2], glob_target_stream_id[3],
 	glob_target_stream_id[4], glob_target_stream_id[5], glob_target_stream_id[6], glob_target_stream_id[7]);
 	/** loop forever and call callback-function for every received packet */
-	pcap_loop(glob_pcap_handle, -1, pcap_callback, (u_char*)ctx);
+	pcap_loop(glob_pcap_handle, -1, callback, (u_char*)ctx);
 #endif /* PCAP */
 	free(ctx);
 	free(class_a);
