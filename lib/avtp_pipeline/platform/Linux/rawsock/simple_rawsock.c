@@ -355,10 +355,23 @@ U8* simpleRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, 
 //		return NULL;
 //	}
 
+	*offset = 0;
+	*len = 0;
+
+	// Wait until a packet is available, or a timeout occurs.
+	struct timeval tv_timeout = { timeout / MICROSECONDS_PER_SECOND, timeout % MICROSECONDS_PER_SECOND };
+	fd_set readfds;
+	FD_ZERO( &readfds );
+	FD_SET( rawsock->sock, &readfds );
+	int err = select( rawsock->sock + 1, &readfds, NULL, NULL, &tv_timeout );
+	if (err <= 0) {
+		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
+		return NULL;
+	}
+
 	int flags = 0;
 
 	U8 *pBuffer = rawsock->rxBuffer;
-	*offset = 0;
 	*len = recv(rawsock->sock, pBuffer, rawsock->base.frameSize, flags);
 
 	if (*len == -1) {
@@ -408,8 +421,8 @@ bool simpleRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 add
 
 	// In addition to adding the multicast membership, we also want to
 	//	add a packet filter to restrict the packets that we'll receive
-	//	on this socket.  Multicast memeberships are global - not
-	//	per-socket, so without the filter, this socket would receieve
+	//	on this socket.  Multicast memberships are global - not
+	//	per-socket, so without the filter, this socket would receive
 	//	packets for all the multicast addresses added by all other
 	//	sockets.
 	//
