@@ -377,7 +377,7 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-  fprintf(stdout,"Output SampleRate:%d, Channels:%d, Format0x%X\n",
+	fprintf(stdout,"Output SampleRate:%d, Channels:%d, Format0x%X\n",
 	sf_info->samplerate, sf_info->channels, sf_info->format);
 	if (NULL == (glob_snd_file = sf_open(file_name, SFM_WRITE, sf_info)))
 	{
@@ -401,9 +401,9 @@ int main(int argc, char *argv[])
 #if DEBUG
 	fprintf(stdout,"Got session pcap handler.\n");
 #endif /* DEBUG */
-
-  fprintf(stdout,"Create packet filter ether dst %s\n", dest_mac);
+	
 	/* compile and apply filter */
+	fprintf(stdout,"Create packet filter ether dst %s\n", dest_mac);
 	sprintf(filter_exp,"ether dst %s", dest_mac);
 	if (-1 == pcap_compile(glob_pcap_handle, &comp_filter_exp, filter_exp, 0, PCAP_NETMASK_UNKNOWN))
 	{
