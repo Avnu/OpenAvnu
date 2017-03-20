@@ -68,7 +68,7 @@ extern openavb_acmp_sm_global_vars_t openavbAcmpSMGlobalVars;
 THREAD_TYPE(openavbAcmpMessageRxThread);
 THREAD_DEFINITON(openavbAcmpMessageRxThread);
 
-static bool bRunning; 
+static bool bRunning = FALSE;
 
 void openavbAcmpCloseSocket()
 {
@@ -364,12 +364,15 @@ openavbRC openavbAcmpMessageHandlerStart()
 		THREAD_CREATE(openavbAcmpMessageRxThread, openavbAcmpMessageRxThread, NULL, openavbAcmpMessageRxThreadFn, NULL);
 		THREAD_CHECK_ERROR(openavbAcmpMessageRxThread, "Thread / task creation failed", errResult);
 		if (errResult) {
+			bRunning = FALSE;
+			openavbAcmpCloseSocket();
 			AVB_RC_TRACE_RET(OPENAVB_AVDECC_FAILURE, AVB_TRACE_ACMP);
 		}
 
 		AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_ACMP);
 	}
 
+	bRunning = FALSE;
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_FAILURE, AVB_TRACE_ACMP);
 }
 
@@ -377,9 +380,11 @@ void openavbAcmpMessageHandlerStop()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
-	bRunning = FALSE;
-	THREAD_JOIN(openavbAcmpMessageRxThread, NULL);
-	openavbAcmpCloseSocket();
+	if (bRunning) {
+		bRunning = FALSE;
+		THREAD_JOIN(openavbAcmpMessageRxThread, NULL);
+		openavbAcmpCloseSocket();
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }

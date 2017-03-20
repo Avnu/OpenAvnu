@@ -62,7 +62,7 @@ extern openavb_aecp_sm_global_vars_t openavbAecpSMGlobalVars;
 THREAD_TYPE(openavbAecpMessageRxThread);
 THREAD_DEFINITON(openavbAecpMessageRxThread);
 
-static bool bRunning; 
+static bool bRunning = FALSE;
 
 static openavb_aecp_AEMCommandResponse_t openavbAecpCommandResponse;
 
@@ -908,12 +908,12 @@ void* openavbAecpMessageRxThreadFn(void *pv)
 
 	AVB_LOG_DEBUG("AECP Thread Started");
 	while (bRunning) {
-		// Try to get and process an ADP discovery message. 
+		// Try to get and process an AECP discovery message.
 		openavbAecpMessageRxFrameReceive(MICROSECONDS_PER_SECOND);
 	}
 	AVB_LOG_DEBUG("AECP Thread Done");
 
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 	return NULL;
 }
 
@@ -930,12 +930,15 @@ openavbRC openavbAecpMessageHandlerStart()
 		THREAD_CREATE(openavbAecpMessageRxThread, openavbAecpMessageRxThread, NULL, openavbAecpMessageRxThreadFn, NULL);
 		THREAD_CHECK_ERROR(openavbAecpMessageRxThread, "Thread / task creation failed", errResult);
 		if (errResult) {
-			AVB_RC_TRACE_RET(OPENAVB_AVDECC_FAILURE, AVB_TRACE_ADP);
+			bRunning = FALSE;
+			openavbAecpCloseSocket();
+			AVB_RC_TRACE_RET(OPENAVB_AVDECC_FAILURE, AVB_TRACE_AECP);
 		}
 
 		AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AECP);
 	}
 
+	bRunning = FALSE;
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_FAILURE, AVB_TRACE_AECP);
 }
 
@@ -943,9 +946,11 @@ void openavbAecpMessageHandlerStop()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 
-	bRunning = FALSE;
-	THREAD_JOIN(openavbAecpMessageRxThread, NULL);
-	openavbAecpCloseSocket();
+	if (bRunning) {
+		bRunning = FALSE;
+		THREAD_JOIN(openavbAecpMessageRxThread, NULL);
+		openavbAecpCloseSocket();
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 }
