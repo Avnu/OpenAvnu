@@ -430,7 +430,7 @@ void openavbAcmpSMListenerStateMachine()
 								state = OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_RX_COMMAND;
 							}
 							else if (openavbAcmpSMListenerVars.rcvdDisconnectTXResp) {
-								state = OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_TX_TIMEOUT;
+								state = OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_TX_RESPONSE;
 							}
 						}
 					}
