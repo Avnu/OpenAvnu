@@ -2,7 +2,7 @@
  ******************************************************************
  * COPYRIGHT � Symphony Teleca
  *----------------------------------------------------------------*
- * MODULE : AVDECC Enumeration and control protocol (ACMP) Message Handler
+ * MODULE : AVDECC Enumeration and control protocol (AECP) Message Handler
  *
  * PROGRAMMER : Ken Carlino (Triple Play Integration)
  * DATE :       13-Dec-2013
@@ -10,7 +10,7 @@
  *
  *----------------------------------------------------------------*
  *
- * MODULE SUMMARY : Implements the AVDECC Enumeration and control protocol (ACMP) message handler
+ * MODULE SUMMARY : Implements the AVDECC Enumeration and control protocol (AECP) message handler
  *
  *----------------------------------------------------------------*
  *
@@ -908,7 +908,7 @@ void* openavbAecpMessageRxThreadFn(void *pv)
 
 	AVB_LOG_DEBUG("AECP Thread Started");
 	while (bRunning) {
-		// Try to get and process an AECP discovery message.
+		// Try to get and process an AECP message.
 		openavbAecpMessageRxFrameReceive(MICROSECONDS_PER_SECOND);
 	}
 	AVB_LOG_DEBUG("AECP Thread Done");

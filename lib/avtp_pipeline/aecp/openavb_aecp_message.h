@@ -2,7 +2,7 @@
  ******************************************************************
  * COPYRIGHT � Symphony Teleca
  *----------------------------------------------------------------*
- * MODULE : AVDECC Enumeration and control protocol (ACMP) Message Handler Interface
+ * MODULE : AVDECC Enumeration and control protocol (AECP) Message Handler Interface
  *
  * PROGRAMMER : Ken Carlino (Triple Play Integration)
  * DATE :       13-Dec-2013
@@ -10,7 +10,7 @@
  *
  *----------------------------------------------------------------*
  *
- * MODULE SUMMARY : Interface for the AVDECC Enumeration and control protocol (ACMP) message handlers
+ * MODULE SUMMARY : Interface for the AVDECC Enumeration and control protocol (AECP) message handlers
  *
  *----------------------------------------------------------------*
  *

@@ -347,7 +347,7 @@ void* openavbAcmpMessageRxThreadFn(void *pv)
 	}
 	AVB_LOG_DEBUG("ACMP Thread Done");
 
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 	return NULL;
 }
 

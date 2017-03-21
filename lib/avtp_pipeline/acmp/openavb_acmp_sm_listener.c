@@ -605,7 +605,7 @@ void* openavbAcmpSmListenerThreadFn(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	openavbAcmpSMListenerStateMachine();
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 	return NULL;
 }
 

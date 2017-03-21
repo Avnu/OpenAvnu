@@ -344,7 +344,7 @@ void* openavbAdpMessageRxThreadFn(void *pv)
 	}
 	AVB_LOG_DEBUG("ADP Thread Done");
 
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 	return NULL;
 }
 

@@ -2,7 +2,7 @@
  ******************************************************************
  * COPYRIGHT � Symphony Teleca
  *----------------------------------------------------------------*
- * MODULE : AVDECC Enumeration and control protocol (ACMP) : Entity Model Entity State Machine
+ * MODULE : AVDECC Enumeration and control protocol (AECP) : Entity Model Entity State Machine
  *
  * PROGRAMMER : Ken Carlino (Triple Play Integration)
  * DATE :       13-Dec-2013
@@ -10,7 +10,7 @@
  *
  *----------------------------------------------------------------*
  *
- * MODULE SUMMARY : Implements the AVDECC Enumeration and control protocol (ACMP) : Entity Model Entity State Machine
+ * MODULE SUMMARY : Implements the AVDECC Enumeration and control protocol (AECP) : Entity Model Entity State Machine
  * IEEE Std 1722.1-2013 clause 9.2.2.3
  *
  *----------------------------------------------------------------*
@@ -912,7 +912,7 @@ void* openavbAecpSMEntityModelEntityThreadFn(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 	openavbAecpSMEntityModelEntityStateMachine();
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 	return NULL;
 }
 

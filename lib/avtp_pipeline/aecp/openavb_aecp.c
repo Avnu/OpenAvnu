@@ -2,7 +2,7 @@
  ******************************************************************
  * COPYRIGHT � Symphony Teleca
  *----------------------------------------------------------------*
- * MODULE : AVDECC Enumeration and control protocol (ACMP)
+ * MODULE : AVDECC Enumeration and control protocol (AECP)
  *
  * PROGRAMMER : Ken Carlino (Triple Play Integration)
  * DATE :       13-Dec-2013
@@ -10,7 +10,7 @@
  *
  *----------------------------------------------------------------*
  *
- * MODULE SUMMARY : Implements the AVDECC Enumeration and control protocol (ACMP)
+ * MODULE SUMMARY : Implements the AVDECC Enumeration and control protocol (AECP)
  *
  *----------------------------------------------------------------*
  *

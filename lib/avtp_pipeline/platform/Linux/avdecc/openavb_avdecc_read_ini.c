@@ -60,7 +60,7 @@ static bool parse_mac(const char *str, cfg_mac_t *mac)
 
 static void openavbIniCfgInit(openavb_tl_data_cfg_t *pCfg)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_TL);
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
 	memset(pCfg, 0, sizeof(openavb_tl_data_cfg_t));
 
@@ -88,13 +88,13 @@ static void openavbIniCfgInit(openavb_tl_data_cfg_t *pCfg)
 	pCfg->thread_rt_priority = 0;
 	pCfg->thread_affinity = 0xFFFFFFFF;
 
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 }
 
 // callback function - called for each name/value pair by ini parsing library
 static int openavbIniCfgCallback(void *user, const char *tlSection, const char *name, const char *value)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_TL);
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
 	openavb_tl_data_cfg_t *pCfg = (openavb_tl_data_cfg_t *)user;
 
@@ -376,14 +376,14 @@ static int openavbIniCfgCallback(void *user, const char *tlSection, const char *
 		return 0;
 	}
 
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 
 	return 1; // OK
 }
 
 bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_TL);
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
 	openavbIniCfgInit(pCfg);
 
@@ -403,12 +403,12 @@ bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg)
 	int result = ini_parse(fileName, openavbIniCfgCallback, pCfg);
 	if (result < 0) {
 		AVB_LOGF_ERROR("Couldn't parse INI file: %s", fileName);
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (result > 0) {
 		AVB_LOGF_ERROR("Error in INI file: %s, line %d", fileName, result);
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 
@@ -416,7 +416,7 @@ bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg)
 		pCfg->current_sampling_rate != pCfg->audioRate)
 	{
 		AVB_LOGF_ERROR("current_sampling_rate(%u) and intf_nv_audio_rate(%u) do not match.", pCfg->current_sampling_rate, pCfg->audioRate);
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 
@@ -450,11 +450,11 @@ bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg)
 		}
 		if (i >= pCfg->sampling_rates_count) {
 			AVB_LOGF_ERROR("current_sampling_rate(%u) not in list of sampling_rates.", pCfg->current_sampling_rate);
-			AVB_TRACE_EXIT(AVB_TRACE_TL);
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 			return FALSE;
 		}
 	}
 
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;
 }

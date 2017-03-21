@@ -162,7 +162,7 @@ void* openavbAdpSMAdvertiseEntityThreadFn(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
 	openavbAdpSMAdvertiseEntityStateMachine();
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 	return NULL;
 }
 
