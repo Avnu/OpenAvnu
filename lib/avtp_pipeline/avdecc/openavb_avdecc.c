@@ -445,14 +445,20 @@ extern DLL_EXPORT bool openavbAvdeccInitialize()
 // Start the AVDECC protocols.
 extern DLL_EXPORT bool openavbAvdeccStart()
 {
-	if (openavbAvdeccStartCmp()) {
-		if (openavbAvdeccStartEcp()) {
-			if (openavbAvdeccStartAdp()) {
-				return TRUE;
-			}
-		}
+	if (!openavbAvdeccStartCmp()) {
+		AVB_LOG_ERROR("openavbAvdeccStartCmp() failure!");
+		return FALSE;
 	}
-	return FALSE;
+	if (!openavbAvdeccStartEcp()) {
+		AVB_LOG_ERROR("openavbAvdeccStartEcp() failure!");
+		return FALSE;
+	}
+	if (!openavbAvdeccStartAdp()) {
+		AVB_LOG_ERROR("openavbAvdeccStartAdp() failure!");
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 // Stop the AVDECC protocols.
