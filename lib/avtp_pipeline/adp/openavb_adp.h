@@ -71,4 +71,6 @@ typedef struct {
 openavbRC openavbAdpStart(void);
 void openavbAdpStop(void);
 
+openavbRC openavbAdpHaveTL(bool bHaveTL);
+
 #endif // OPENAVB_ADP_H

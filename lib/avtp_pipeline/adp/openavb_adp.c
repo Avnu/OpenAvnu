@@ -48,11 +48,11 @@ MUTEX_HANDLE(openavbAdpMutex);
 #define ADP_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAdpMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
 #define ADP_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(openavbAdpMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
 
+static bool s_bPreviousHaveTL = false;
+
 openavbRC openavbAdpStart()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
-
-	openavbRC rc = OPENAVB_AVDECC_FAILURE;
 
 	openavb_avdecc_entity_model_t *pAem = openavbAemGetModel();
 	if (!pAem) {
@@ -113,14 +113,8 @@ openavbRC openavbAdpStart()
 	}
 	ADP_UNLOCK();
 
-	rc = openavbAdpMessageHandlerStart();
-	if (IS_OPENAVB_FAILURE(rc)) {
-		openavbAdpStop();
-		AVB_RC_TRACE_RET(rc, AVB_TRACE_ADP);
-	}
-
-	openavbAdpSMAdvertiseInterfaceStart();
-	openavbAdpSMAdvertiseEntityStart();
+	// Wait until we are notified that we have a Talker or Listener before supporting discover.
+	s_bPreviousHaveTL = false;
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_ADP);
 }
@@ -133,11 +127,35 @@ void openavbAdpStop()
 	openavbPtpReleaseSharedMemory();
 #endif // AVB_PTP_AVAILABLE
 
-	openavbAdpSMAdvertiseInterfaceStop();
-	openavbAdpSMAdvertiseEntityStop();
-	openavbAdpMessageHandlerStop();
+	// Stop Advertising and supporting Discovery.
+	openavbAdpHaveTL(false);
 
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 }
 
 
+openavbRC openavbAdpHaveTL(bool bHaveTL)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
+
+	if (bHaveTL && !s_bPreviousHaveTL) {
+		// Start Advertising and supporting Discovery.
+		openavbRC rc = openavbAdpMessageHandlerStart();
+		if (IS_OPENAVB_FAILURE(rc)) {
+			AVB_RC_TRACE_RET(rc, AVB_TRACE_ADP);
+		}
+
+		openavbAdpSMAdvertiseInterfaceStart();
+		openavbAdpSMAdvertiseEntityStart();
+		s_bPreviousHaveTL = true;
+	}
+	else if (!bHaveTL && s_bPreviousHaveTL) {
+		// Stop Advertising and supporting Discovery.
+		openavbAdpSMAdvertiseInterfaceStop();
+		openavbAdpSMAdvertiseEntityStop();
+		openavbAdpMessageHandlerStop();
+		s_bPreviousHaveTL = false;
+	}
+
+	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_ADP);
+}

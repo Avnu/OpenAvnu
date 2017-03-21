@@ -52,6 +52,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_pub.h"
 #include "openavb_log.h"
 #include "openavb_avdecc_pub.h"
+#include "openavb_adp.h"
 
 #include "openavb_avdecc_msg_server.h"
 #include "openavb_trace.h"
@@ -187,6 +188,9 @@ bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle,
 	AVB_LOGF_INFO("Client Listener %d Detected, friendly_name:  %s",
 		avdeccMsgHandle, friendly_name);
 
+	// Enable ADP support, now that we have at least one Talker/Listener.
+	openavbAdpHaveTL(true);
+
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return true;
 }
@@ -281,6 +285,11 @@ void openavbAvdeccMsgSrvrCloseClientConnection(int avdeccMsgHandle)
 			pState->stream = NULL;
 		}
 		free(pState);
+
+		// If there are no more Talkers or Listeners, stop ADP.
+		if (AvdeccMsgStateListGetIndex(0) == NULL) {
+			openavbAdpHaveTL(false);
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
