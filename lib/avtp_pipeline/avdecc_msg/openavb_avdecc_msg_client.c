@@ -218,10 +218,11 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 		if (pState->pTLState->bRunning) {
 			if (openavbTLStop((tl_handle_t) pState->pTLState)) {
 				// NOTE:  openavbTLStop() call will cause listener change notification if successful.
-				AVB_LOGF_INFO("Listener %d state changed to stopped", desiredState);
+				AVB_LOGF_INFO("Listener %d state changed to stopped", avdeccMsgHandle);
 				ret = true;
 			} else {
 				// Notify server of issues.
+				AVB_LOGF_ERROR("Unable to change listener %d state to stopped", avdeccMsgHandle);
 				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 			}
 		} else {
@@ -238,10 +239,11 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 		if (!(pState->pTLState->bRunning)) {
 			if (openavbTLRun((tl_handle_t) pState->pTLState)) {
 				// NOTE:  openavbTLRun() call will cause listener change notification if successful.
-				AVB_LOGF_INFO("Listener %d state changed to running", desiredState);
+				AVB_LOGF_INFO("Listener %d state changed to running", avdeccMsgHandle);
 				ret = true;
 			} else {
 				// Notify server of issues.
+				AVB_LOGF_ERROR("Unable to change listener %d state to running", avdeccMsgHandle);
 				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 			}
 		}
