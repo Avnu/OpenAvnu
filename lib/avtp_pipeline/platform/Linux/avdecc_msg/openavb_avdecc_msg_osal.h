@@ -44,7 +44,7 @@ typedef struct {
 	union {
 		// Client-to-Server messages
 		openavbAvdeccMsgParams_VersionRequest_t				versionRequest;
-		openavbAvdeccMsgParams_ListenerInitIdentify_t		listenerInitIdentify;
+		openavbAvdeccMsgParams_ClientInitIdentify_t			clientInitIdentify;
 		openavbAvdeccMsgParams_ListenerChangeNotification_t	listenerChangeNotification;
 
 		// Server-to-Client messages

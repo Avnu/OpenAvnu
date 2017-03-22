@@ -87,10 +87,11 @@ static bool openavbAvdeccMsgSrvrReceiveFromClient(int avdeccMsgHandle, openavbAv
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_VERSION_REQUEST");
 			ret = openavbAvdeccMsgSrvrHndlVerRqstFromClient(avdeccMsgHandle);
 			break;
-		case OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY:
-			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY");
-			ret = openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(avdeccMsgHandle,
-				msg->params.listenerInitIdentify.friendly_name);
+		case OPENAVB_AVDECC_MSG_CLIENT_INIT_IDENTIFY:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_CLIENT_INIT_IDENTIFY");
+			ret = openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(avdeccMsgHandle,
+				msg->params.clientInitIdentify.friendly_name,
+				msg->params.clientInitIdentify.talker);
 			break;
 		case OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION");
@@ -131,7 +132,7 @@ bool openavbAvdeccMsgSrvrHndlVerRqstFromClient(int avdeccMsgHandle)
 	return TRUE;
 }
 
-bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, char * friendly_name)
+bool openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(int avdeccMsgHandle, char * friendly_name, U8 talker)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavb_tl_data_cfg_t * currentStream;
@@ -156,7 +157,7 @@ bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle,
 		return false;
 	}
 	pState->avdeccMsgHandle = avdeccMsgHandle;
-	pState->bTalker = false;
+	pState->bTalker = (talker != 0);
 
 	// Find the state information matching this item.
 	for (currentStream = streamList; currentStream != NULL; currentStream = currentStream->next) {

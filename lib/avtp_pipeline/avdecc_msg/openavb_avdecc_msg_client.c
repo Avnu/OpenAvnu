@@ -136,7 +136,7 @@ void openavbAvdeccMsgClntCheckVerMatchesSrvr(int avdeccMsgHandle, U32 AVBVersion
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 }
 
-bool openavbAvdeccMsgClntListenerInitIdentify(int avdeccMsgHandle, const char * friendly_name)
+bool openavbAvdeccMsgClntInitIdentify(int avdeccMsgHandle, const char * friendly_name, U8 talker)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavbAvdeccMessage_t msgBuf;
@@ -149,10 +149,11 @@ bool openavbAvdeccMsgClntListenerInitIdentify(int avdeccMsgHandle, const char * 
 	}
 
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
-	msgBuf.type = OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY;
-	openavbAvdeccMsgParams_ListenerInitIdentify_t * pParams =
-		&(msgBuf.params.listenerInitIdentify);
+	msgBuf.type = OPENAVB_AVDECC_MSG_CLIENT_INIT_IDENTIFY;
+	openavbAvdeccMsgParams_ClientInitIdentify_t * pParams =
+		&(msgBuf.params.clientInitIdentify);
 	strncpy(pParams->friendly_name, friendly_name, sizeof(pParams->friendly_name));
+	pParams->talker = talker;
 	bool ret = openavbAvdeccMsgClntSendToServer(avdeccMsgHandle, &msgBuf);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
@@ -327,16 +328,29 @@ void openavbAvdeccMsgRunTalker(avdecc_msg_state_t *pState)
 		return;
 	}
 
+	openavb_tl_cfg_t * cfg = &(pState->pTLState->cfg);
+	if (cfg->role != AVB_ROLE_TALKER) {
+		AVB_LOG_ERROR("openavbAvdeccMsgRunTalker() passed a non-Talker state");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return;
+	}
+
 	if (pState->bConnected) {
 
-		// Do until we are stopped or lose connection to AVDECC Msg server.
-		while (pState->pTLState->bAvdeccMsgRunning && pState->bConnected) {
+		// Let the AVDECC Msg server know our identity.
+		if (!openavbAvdeccMsgClntInitIdentify(pState->avdeccMsgHandle, cfg->friendly_name, true)) {
+			AVB_LOG_ERROR("openavbAvdeccMsgClntInitIdentify() failed");
+		}
+		else {
+			// Do until we are stopped or lose connection to AVDECC Msg server.
+			while (pState->pTLState->bAvdeccMsgRunning && pState->bConnected) {
 
-			// Look for messages from AVDECC Msg.
-			if (!openavbAvdeccMsgClntService(pState->avdeccMsgHandle, 1000)) {
-				AVB_LOG_WARNING("Lost connection to AVDECC Msg");
-				pState->bConnected = FALSE;
-				pState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+				// Look for messages from AVDECC Msg.
+				if (!openavbAvdeccMsgClntService(pState->avdeccMsgHandle, 1000)) {
+					AVB_LOG_WARNING("Lost connection to AVDECC Msg");
+					pState->bConnected = FALSE;
+					pState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+				}
 			}
 		}
 	}
@@ -368,8 +382,8 @@ void openavbAvdeccMsgRunListener(avdecc_msg_state_t *pState)
 	if (pState->bConnected) {
 
 		// Let the AVDECC Msg server know our identity.
-		if (!openavbAvdeccMsgClntListenerInitIdentify(pState->avdeccMsgHandle, cfg->friendly_name)) {
-			AVB_LOG_ERROR("openavbAvdeccMsgClntListenerInitIdentify() failed");
+		if (!openavbAvdeccMsgClntInitIdentify(pState->avdeccMsgHandle, cfg->friendly_name, false)) {
+			AVB_LOG_ERROR("openavbAvdeccMsgClntInitIdentify() failed");
 		}
 		else {
 			// Let the AVDECC Msg server know our current state.

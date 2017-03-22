@@ -85,7 +85,7 @@ typedef enum {
 typedef enum {
 	// Client-to-Server messages
 	OPENAVB_AVDECC_MSG_VERSION_REQUEST,
-	OPENAVB_AVDECC_MSG_LISTENER_INIT_IDENTIFY,
+	OPENAVB_AVDECC_MSG_CLIENT_INIT_IDENTIFY,
 	OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION,
 
 	// Server-to-Client messages
@@ -102,7 +102,8 @@ typedef struct {
 
 typedef struct {
 	char friendly_name[FRIENDLY_NAME_SIZE];
-} openavbAvdeccMsgParams_ListenerInitIdentify_t;
+	U8 talker;
+} openavbAvdeccMsgParams_ClientInitIdentify_t;
 
 typedef struct {
 	openavbAvdeccMsgStateType_t current_state;
@@ -157,8 +158,8 @@ void openavbAvdeccMsgSrvrSendServerVersionToClient(int h, U32 AVBVersion);
 void openavbAvdeccMsgClntCheckVerMatchesSrvr(int h, U32 AVBVersion);
 
 // Client notify the server of identity (so AVDECC Msg knows client identity)
-bool openavbAvdeccMsgClntListenerInitIdentify(int avdeccMsgHandle, const char * friendly_name);
-bool openavbAvdeccMsgSrvrHndlListenerInitIdentifyFromClient(int avdeccMsgHandle, char * friendly_name);
+bool openavbAvdeccMsgClntInitIdentify(int avdeccMsgHandle, const char * friendly_name, U8 talker);
+bool openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(int avdeccMsgHandle, char * friendly_name, U8 talker);
 
 // Server notify the client of the stream values to use.
 bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
