@@ -79,7 +79,7 @@ static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAv
 	switch(msg->type) {
 		case OPENAVB_AVDECC_MSG_VERSION_CALLBACK:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_VERSION_CALLBACK");
-			openavbAvdeccMsgClntCheckVerMatchesSrvr(avdeccMsgHandle, msg->params.versionCallback.AVBVersion);
+			openavbAvdeccMsgClntCheckVerMatchesSrvr(avdeccMsgHandle, ntohl(msg->params.versionCallback.AVBVersion));
 			break;
 		case OPENAVB_AVDECC_MSG_LISTENER_STREAM_ID:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_STREAM_ID");
@@ -87,9 +87,9 @@ static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAv
 				msg->params.listenerStreamID.stream_src_mac, msg->params.listenerStreamID.stream_uid,
 				msg->params.listenerStreamID.stream_dest_mac, msg->params.listenerStreamID.stream_vlan_id);
 			break;
-		case OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST:
-			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST");
-			openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(avdeccMsgHandle, msg->params.listenerChangeRequest.desired_state);
+		case OPENAVB_AVDECC_MSG_CLIENT_CHANGE_REQUEST:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_CLIENT_CHANGE_REQUEST");
+			openavbAvdeccMsgClntHndlChangeRequestFromServer(avdeccMsgHandle, msg->params.clientChangeRequest.desired_state);
 			break;
 		default:
 			AVB_LOG_ERROR("Client receive: unexpected message");
@@ -181,10 +181,10 @@ bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, con
 	openavb_tl_cfg_t * pCfg = &(pState->pTLState->cfg);
 	memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
 	pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
-	pCfg->stream_uid = stream_uid;
+	pCfg->stream_uid = ntohs(stream_uid);
 	memcpy(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6);
 	pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
-	pCfg->vlan_id = stream_vlan_id;
+	pCfg->vlan_id = ntohs(stream_vlan_id);
 	AVB_LOGF_DEBUG("AVDECC-supplied stream_id:  %02x:%02x:%02x:%02x:%02x:%02x/%u",
 		pCfg->stream_addr.buffer.ether_addr_octet[0], pCfg->stream_addr.buffer.ether_addr_octet[1],
 		pCfg->stream_addr.buffer.ether_addr_octet[2], pCfg->stream_addr.buffer.ether_addr_octet[3],
@@ -200,7 +200,7 @@ bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, con
 	return true;
 }
 
-bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
+bool openavbAvdeccMsgClntHndlChangeRequestFromServer(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
 {
 	bool ret = false;
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
@@ -224,12 +224,12 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 			} else {
 				// Notify server of issues.
 				AVB_LOGF_ERROR("Unable to change listener %d state to stopped", avdeccMsgHandle);
-				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
+				openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 			}
 		} else {
 			// Notify server we are already in this state.
 			AVB_LOGF_WARNING("Listener %d state is already at stopped", avdeccMsgHandle);
-			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
 			ret = true;
 		}
 		break;
@@ -245,7 +245,7 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 			} else {
 				// Notify server of issues.
 				AVB_LOGF_ERROR("Unable to change listener %d state to running", avdeccMsgHandle);
-				openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
+				openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 			}
 		}
 		else if (pState->pTLState->bRunning && pState->pTLState->bPaused) {
@@ -257,7 +257,7 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 		else {
 			// Notify server we are already in this state.
 			AVB_LOGF_WARNING("Listener %d state is already at running", avdeccMsgHandle);
-			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
+			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
 			ret = true;
 		}
 		break;
@@ -268,7 +268,7 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 		if (!(pState->pTLState->bRunning)) {
 			// Notify server of issues.
 			AVB_LOGF_ERROR("Listener %d attempted to pause the stream while not running.", avdeccMsgHandle);
-			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
+			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 		}
 		else if (pState->pTLState->bRunning && !(pState->pTLState->bPaused)) {
 			openavbTLPauseListener(pState->pTLState, TRUE);
@@ -279,13 +279,13 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 		else {
 			// Notify server we are already in this state.
 			AVB_LOGF_WARNING("Listener %d state is already at paused", avdeccMsgHandle);
-			openavbAvdeccMsgClntListenerChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_PAUSED);
+			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_PAUSED);
 			ret = true;
 		}
 		break;
 
 	default:
-		AVB_LOGF_ERROR("openavbAvdeccMsgClntHndlListenerChangeRequestFromServer invalid state %d", desiredState);
+		AVB_LOGF_ERROR("openavbAvdeccMsgClntHndlChangeRequestFromServer invalid state %d", desiredState);
 		break;
 	}
 
@@ -293,7 +293,7 @@ bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle
 	return ret;
 }
 
-bool openavbAvdeccMsgClntListenerChangeNotification(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState)
+bool openavbAvdeccMsgClntChangeNotification(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavbAvdeccMessage_t msgBuf;
@@ -306,9 +306,9 @@ bool openavbAvdeccMsgClntListenerChangeNotification(int avdeccMsgHandle, openavb
 	}
 
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
-	msgBuf.type = OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION;
-	openavbAvdeccMsgParams_ListenerChangeNotification_t * pParams =
-		&(msgBuf.params.listenerChangeNotification);
+	msgBuf.type = OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION;
+	openavbAvdeccMsgParams_ClientChangeNotification_t * pParams =
+		&(msgBuf.params.clientChangeNotification);
 	pParams->current_state = currentState;
 	bool ret = openavbAvdeccMsgClntSendToServer(avdeccMsgHandle, &msgBuf);
 
@@ -342,14 +342,23 @@ void openavbAvdeccMsgRunTalker(avdecc_msg_state_t *pState)
 			AVB_LOG_ERROR("openavbAvdeccMsgClntInitIdentify() failed");
 		}
 		else {
-			// Do until we are stopped or lose connection to AVDECC Msg server.
-			while (pState->pTLState->bAvdeccMsgRunning && pState->bConnected) {
+			// Let the AVDECC Msg server know our current state.
+			if (!openavbAvdeccMsgClntChangeNotification(pState->avdeccMsgHandle,
+				(pState->pTLState->bRunning ?
+					(pState->pTLState->bPaused ? OPENAVB_AVDECC_MSG_PAUSED : OPENAVB_AVDECC_MSG_RUNNING ) :
+					OPENAVB_AVDECC_MSG_STOPPED))) {
+				AVB_LOG_ERROR("Initial openavbAvdeccMsgClntChangeNotification() failed");
+			}
+			else {
+				// Do until we are stopped or lose connection to AVDECC Msg server.
+				while (pState->pTLState->bAvdeccMsgRunning && pState->bConnected) {
 
-				// Look for messages from AVDECC Msg.
-				if (!openavbAvdeccMsgClntService(pState->avdeccMsgHandle, 1000)) {
-					AVB_LOG_WARNING("Lost connection to AVDECC Msg");
-					pState->bConnected = FALSE;
-					pState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+					// Look for messages from AVDECC Msg.
+					if (!openavbAvdeccMsgClntService(pState->avdeccMsgHandle, 1000)) {
+						AVB_LOG_WARNING("Lost connection to AVDECC Msg");
+						pState->bConnected = FALSE;
+						pState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+					}
 				}
 			}
 		}
@@ -387,11 +396,11 @@ void openavbAvdeccMsgRunListener(avdecc_msg_state_t *pState)
 		}
 		else {
 			// Let the AVDECC Msg server know our current state.
-			if (!openavbAvdeccMsgClntListenerChangeNotification(pState->avdeccMsgHandle,
+			if (!openavbAvdeccMsgClntChangeNotification(pState->avdeccMsgHandle,
 				(pState->pTLState->bRunning ?
 					(pState->pTLState->bPaused ? OPENAVB_AVDECC_MSG_PAUSED : OPENAVB_AVDECC_MSG_RUNNING ) :
 					OPENAVB_AVDECC_MSG_STOPPED))) {
-				AVB_LOG_ERROR("Initial openavbAvdeccMsgClntListenerChangeNotification() failed");
+				AVB_LOG_ERROR("Initial openavbAvdeccMsgClntChangeNotification() failed");
 			}
 			else {
 				// Do until we are stopped or lose connection to AVDECC Msg.
@@ -509,9 +518,9 @@ bool openavbAvdeccMsgClntNotifyCurrentState(tl_state_t *pTLState)
 		if (pAvdeccMsgState->pTLState == pTLState) {
 			// Notify the server regarding the current state.
 			if (pTLState->bRunning) {
-				openavbAvdeccMsgClntListenerChangeNotification(pAvdeccMsgState->avdeccMsgHandle, (pTLState->bPaused ? OPENAVB_AVDECC_MSG_PAUSED : OPENAVB_AVDECC_MSG_RUNNING));
+				openavbAvdeccMsgClntChangeNotification(pAvdeccMsgState->avdeccMsgHandle, (pTLState->bPaused ? OPENAVB_AVDECC_MSG_PAUSED : OPENAVB_AVDECC_MSG_RUNNING));
 			} else {
-				openavbAvdeccMsgClntListenerChangeNotification(pAvdeccMsgState->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+				openavbAvdeccMsgClntChangeNotification(pAvdeccMsgState->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
 			}
 			return TRUE;
 		}

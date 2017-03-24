@@ -48,6 +48,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_rawsock.h"
 #include "openavb_mediaq.h"
 #include "openavb_tl.h"
+#include "openavb_avtp.h"
 
 #define	AVB_LOG_COMPONENT	"Talker / Listener"
 #include "openavb_log.h"
@@ -410,12 +411,14 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 	else {
 		// unmatched item, fail
 		AVB_LOGF_ERROR("Unrecognized configuration item: name=%s", name);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return 0;
 	}
 
 	if (!valOK) {
 		// bad value
 		AVB_LOGF_ERROR("Invalid value: name=%s, value=%s", name, value);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return 0;
 	}
 
@@ -428,9 +431,6 @@ bool openavbTLThreadFnOsal(tl_state_t *pTLState)
 {
 	return TRUE;
 }
-
-
-
 
 
 EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char *fileName, openavb_tl_cfg_t *pCfg, openavb_tl_cfg_name_value_t *pNVCfg)
@@ -460,16 +460,47 @@ EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char
 		if_info_t ifinfo;
 		if (!openavbCheckInterface(parseIniData.pCfg->ifname, &ifinfo)) {
 			AVB_LOGF_ERROR("Invalid value: name=%s, value=%s", "ifname", parseIniData.pCfg->ifname);
+			AVB_TRACE_EXIT(AVB_TRACE_TL);
 			return FALSE;
 		}
 	}
 	if (result < 0) {
 		AVB_LOGF_ERROR("Couldn't parse INI file: %s", fileName);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return FALSE;
 	}
 	if (result > 0) {
 		AVB_LOGF_ERROR("Error in INI file: %s, line %d", fileName, result);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return FALSE;
+	}
+
+	// For a Talker, use the adapter MAC Address as the stream address when one was not supplied.
+	if (parseIniData.pCfg->role == AVB_ROLE_TALKER &&
+	    (!parseIniData.pCfg->stream_addr.mac || memcmp(parseIniData.pCfg->stream_addr.mac, "\x00\x00\x00\x00\x00\x00", 6) == 0))
+	{
+		// Open a rawsock may be the easiest cross platform way to get the MAC address.
+		void *txSock = openavbRawsockOpen(parseIniData.pCfg->ifname, FALSE, TRUE, ETHERTYPE_AVTP, 100, 1);
+		if (txSock) {
+			if (openavbRawsockGetAddr(txSock, parseIniData.pCfg->stream_addr.buffer.ether_addr_octet)) {
+				parseIniData.pCfg->stream_addr.mac = &(parseIniData.pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
+			}
+			openavbRawsockClose(txSock);
+			txSock = NULL;
+		}
+
+		if (!parseIniData.pCfg->stream_addr.mac || memcmp(parseIniData.pCfg->stream_addr.mac, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+			AVB_LOG_ERROR("stream_addr required, but not specified.");
+			AVB_TRACE_EXIT(AVB_TRACE_TL);
+			return FALSE;
+		}
+		AVB_LOGF_DEBUG("Detected stream_addr:  %02x:%02x:%02x:%02x:%02x:%02x",
+			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[0],
+			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[1],
+			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[2],
+			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[3],
+			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[4],
+			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[5]);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
@@ -483,12 +514,14 @@ bool openavbTLOpenLinkLibsOsal(tl_state_t *pTLState)
 
 	if (!pTLState->cfg.pMapInitFn) {
 		if (!openMapLib(pTLState)) {
+			AVB_TRACE_EXIT(AVB_TRACE_TL);
 			return FALSE;
 		}
 	}
 
 	if (!pTLState->cfg.pIntfInitFn) {
 		if (!openIntfLib(pTLState)) {
+			AVB_TRACE_EXIT(AVB_TRACE_TL);
 			return FALSE;
 		}
 	}

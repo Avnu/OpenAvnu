@@ -93,9 +93,9 @@ static bool openavbAvdeccMsgSrvrReceiveFromClient(int avdeccMsgHandle, openavbAv
 				msg->params.clientInitIdentify.friendly_name,
 				msg->params.clientInitIdentify.talker);
 			break;
-		case OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION:
-			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION");
-			ret = openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient(avdeccMsgHandle, msg->params.listenerChangeNotification.current_state);
+		case OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION");
+			ret = openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(avdeccMsgHandle, msg->params.clientChangeNotification.current_state);
 			break;
 		default:
 			AVB_LOG_ERROR("Unexpected message received at server");
@@ -114,7 +114,7 @@ void openavbAvdeccMsgSrvrSendServerVersionToClient(int avdeccMsgHandle, U32 AVBV
 	openavbAvdeccMessage_t  msgBuf;
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
 	msgBuf.type = OPENAVB_AVDECC_MSG_VERSION_CALLBACK;
-	msgBuf.params.versionCallback.AVBVersion = AVBVersion;
+	msgBuf.params.versionCallback.AVBVersion = htonl(AVBVersion);
 	openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
@@ -213,16 +213,16 @@ bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, const U8 stream_s
 	openavbAvdeccMsgParams_ListenerStreamID_t * pParams =
 		&(msgBuf.params.listenerStreamID);
 	memcpy(pParams->stream_src_mac, stream_src_mac, 6);
-	pParams->stream_uid = stream_uid;
+	pParams->stream_uid = htons(stream_uid);
 	memcpy(pParams->stream_dest_mac, stream_dest_mac, 6);
-	pParams->stream_vlan_id = stream_vlan_id;
+	pParams->stream_vlan_id = htons(stream_vlan_id);
 	bool ret = openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return ret;
 }
 
-bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
+bool openavbAvdeccMsgSrvrChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavbAvdeccMessage_t msgBuf;
@@ -235,9 +235,9 @@ bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdec
 	}
 
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
-	msgBuf.type = OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST;
-	openavbAvdeccMsgParams_ListenerChangeRequest_t * pParams =
-		&(msgBuf.params.listenerChangeRequest);
+	msgBuf.type = OPENAVB_AVDECC_MSG_CLIENT_CHANGE_REQUEST;
+	openavbAvdeccMsgParams_ClientChangeRequest_t * pParams =
+		&(msgBuf.params.clientChangeRequest);
 	pParams->desired_state = desiredState;
 	bool ret = openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
 	if (ret) {
@@ -249,7 +249,7 @@ bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdec
 	return ret;
 }
 
-bool openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState)
+bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 

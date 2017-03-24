@@ -86,12 +86,12 @@ typedef enum {
 	// Client-to-Server messages
 	OPENAVB_AVDECC_MSG_VERSION_REQUEST,
 	OPENAVB_AVDECC_MSG_CLIENT_INIT_IDENTIFY,
-	OPENAVB_AVDECC_MSG_LISTENER_CHANGE_NOTIFICATION,
+	OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION,
 
 	// Server-to-Client messages
 	OPENAVB_AVDECC_MSG_VERSION_CALLBACK,
 	OPENAVB_AVDECC_MSG_LISTENER_STREAM_ID,
-	OPENAVB_AVDECC_MSG_LISTENER_CHANGE_REQUEST,
+	OPENAVB_AVDECC_MSG_CLIENT_CHANGE_REQUEST,
 } openavbAvdeccMsgType_t;
 
 //////////////////////////////
@@ -107,7 +107,7 @@ typedef struct {
 
 typedef struct {
 	openavbAvdeccMsgStateType_t current_state;
-} openavbAvdeccMsgParams_ListenerChangeNotification_t;
+} openavbAvdeccMsgParams_ClientChangeNotification_t;
 
 //////////////////////////////
 // Server-to-Client messages parameters
@@ -125,7 +125,7 @@ typedef struct {
 
 typedef struct {
 	openavbAvdeccMsgStateType_t desired_state;
-} openavbAvdeccMsgParams_ListenerChangeRequest_t;
+} openavbAvdeccMsgParams_ClientChangeRequest_t;
 
 #define OPENAVB_AVDECC_MSG_LEN sizeof(openavbAvdeccMessage_t)
 
@@ -166,9 +166,9 @@ bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, const U8 stream_s
 bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
 
 // Server state change requests, and client notifications of state changes.
-bool openavbAvdeccMsgSrvrListenerChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState);
-bool openavbAvdeccMsgClntHndlListenerChangeRequestFromServer(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState);
-bool openavbAvdeccMsgClntListenerChangeNotification(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState);
-bool openavbAvdeccMsgSrvrHndlListenerChangeNotificationFromClient(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState);
+bool openavbAvdeccMsgSrvrChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState);
+bool openavbAvdeccMsgClntHndlChangeRequestFromServer(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState);
+bool openavbAvdeccMsgClntChangeNotification(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState);
+bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState);
 
 #endif // OPENAVB_AVDECC_MSG_H

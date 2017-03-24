@@ -40,17 +40,17 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 typedef struct {
 	openavbAvdeccMsgType_t	type;
-	AVBStreamID_t 			streamID;
+	AVBStreamID_t			streamID;
 	union {
 		// Client-to-Server messages
 		openavbAvdeccMsgParams_VersionRequest_t				versionRequest;
 		openavbAvdeccMsgParams_ClientInitIdentify_t			clientInitIdentify;
-		openavbAvdeccMsgParams_ListenerChangeNotification_t	listenerChangeNotification;
+		openavbAvdeccMsgParams_ClientChangeNotification_t	clientChangeNotification;
 
 		// Server-to-Client messages
 		openavbAvdeccMsgParams_VersionCallback_t			versionCallback;
 		openavbAvdeccMsgParams_ListenerStreamID_t			listenerStreamID;
-		openavbAvdeccMsgParams_ListenerChangeRequest_t		listenerChangeRequest;
+		openavbAvdeccMsgParams_ClientChangeRequest_t		clientChangeRequest;
 	} params;
 } openavbAvdeccMessage_t;
 
