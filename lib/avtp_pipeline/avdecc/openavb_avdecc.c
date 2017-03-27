@@ -120,7 +120,7 @@ void openavbAvdeccFindMacAddr(void)
 	}
 }
 
-bool openavbAvdeccAddConfiguration(const openavb_tl_data_cfg_t *stream)
+bool openavbAvdeccAddConfiguration(openavb_tl_data_cfg_t *stream)
 {
 	bool first_time = 0;
 	// Create a new config to hold the configuration information.
@@ -359,7 +359,7 @@ extern DLL_EXPORT bool openavbAvdeccInitialize()
 	gAvdeccCfg.bTalker = gAvdeccCfg.bListener = FALSE;
 
 	// Add a configuration for each talker or listener stream.
-	const openavb_tl_data_cfg_t *current_stream = streamList;
+	openavb_tl_data_cfg_t *current_stream = streamList;
 	while (current_stream != NULL) {
 		// Create a new configuration with the information from this stream.
 		if (!openavbAvdeccAddConfiguration(current_stream)) {

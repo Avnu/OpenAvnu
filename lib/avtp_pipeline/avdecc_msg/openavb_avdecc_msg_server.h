@@ -46,7 +46,7 @@ struct _avdecc_msg_state {
 
 	// Local stream that matches the client's Talker/Listener.
 	// Do not free this pointer; it is for reference only.
-	const openavb_tl_data_cfg_t * stream;
+	openavb_tl_data_cfg_t * stream;
 
 	// Talker/Listener state information.
 	openavbAvdeccMsgStateType_t lastRequestedState;

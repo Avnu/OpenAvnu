@@ -86,6 +86,7 @@ typedef enum {
 	// Client-to-Server messages
 	OPENAVB_AVDECC_MSG_VERSION_REQUEST,
 	OPENAVB_AVDECC_MSG_CLIENT_INIT_IDENTIFY,
+	OPENAVB_AVDECC_MSG_TALKER_STREAM_ID,
 	OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION,
 
 	// Server-to-Client messages
@@ -104,6 +105,13 @@ typedef struct {
 	char friendly_name[FRIENDLY_NAME_SIZE];
 	U8 talker;
 } openavbAvdeccMsgParams_ClientInitIdentify_t;
+
+typedef struct {
+	U8 stream_src_mac[6]; // MAC Address for the Talker
+	U16 stream_uid; // Stream ID value
+	U8 stream_dest_mac[6]; // Multicast address for the stream
+	U16 stream_vlan_id; // VLAN ID of the stream
+} openavbAvdeccMsgParams_TalkerStreamID_t;
 
 typedef struct {
 	openavbAvdeccMsgStateType_t current_state;
@@ -161,7 +169,11 @@ void openavbAvdeccMsgClntCheckVerMatchesSrvr(int h, U32 AVBVersion);
 bool openavbAvdeccMsgClntInitIdentify(int avdeccMsgHandle, const char * friendly_name, U8 talker);
 bool openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(int avdeccMsgHandle, char * friendly_name, U8 talker);
 
-// Server notify the client of the stream values to use.
+// Client notify the server of the stream values for the Talker to use.
+bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
+bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
+
+// Server notify the client of the stream values for the Listener to use.
 bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
 bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
 

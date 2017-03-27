@@ -77,8 +77,45 @@ bool openavbAVDECCRunTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStrea
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
-	// AVDECC_TODO:  Fill this in.
-	AVB_LOG_ERROR("openavbAVDECCRunTalker Not Implemented!");
+	// Sanity tests.
+	if (!pDescriptorStreamOutput) {
+		AVB_LOG_ERROR("openavbAVDECCRunTalker Invalid descriptor");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pTalkerStreamInfo) {
+		AVB_LOG_ERROR("openavbAVDECCRunTalker Invalid streaminfo");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pDescriptorStreamOutput->stream) {
+		AVB_LOG_ERROR("openavbAVDECCRunTalker Invalid StreamInput descriptor stream");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pDescriptorStreamOutput->stream->client) {
+		AVB_LOG_ERROR("openavbAVDECCRunTalker Invalid stream client pointer");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+
+	// Stop the Talker if it is currently running.
+	if (pDescriptorStreamOutput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
+		if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptorStreamOutput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED)) {
+			AVB_LOG_ERROR("Error requesting Talker change to Stopped");
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return FALSE;
+		}
+		AVB_LOG_INFO("Talker state change to Stopped requested");
+	}
+
+	// Tell the client to start running.
+	if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptorStreamOutput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING)) {
+		AVB_LOG_ERROR("Error requesting Talker change to Running");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	AVB_LOG_INFO("Talker state change to Running requested");
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;
@@ -133,8 +170,42 @@ bool openavbAVDECCStopTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStre
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
-	// AVDECC_TODO:  Fill this in.
-	AVB_LOG_ERROR("openavbAVDECCStopTalker Not Implemented!");
+	// Sanity tests.
+	if (!pDescriptorStreamOutput) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid descriptor");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pTalkerStreamInfo) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid streaminfo");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pDescriptorStreamOutput->stream) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid StreamInput descriptor stream");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pDescriptorStreamOutput->stream->client) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid stream client pointer");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+
+	// Don't request if already stopped.
+	if (pDescriptorStreamOutput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_STOPPED) {
+		AVB_LOG_INFO("Talker state change to running ignored, as Talker already Stopped");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return TRUE;
+	}
+
+	// Send the request to the client.
+	if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptorStreamOutput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED)) {
+		AVB_LOG_ERROR("Error requesting Talker change to Stopped");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	AVB_LOG_INFO("Talker state change to Stopped requested");
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;
@@ -144,8 +215,49 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
-	// AVDECC_TODO:  Fill this in.
-	AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Not Implemented!");
+	// Sanity tests.
+	if (!pDescriptorStreamOutput) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid descriptor");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pTalkerStreamInfo) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid streaminfo");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pDescriptorStreamOutput->stream) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid StreamInput descriptor stream");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+
+	// Get the destination MAC Address.
+	if (!pDescriptorStreamOutput->stream->dest_addr.mac ||
+			memcmp(pDescriptorStreamOutput->stream->dest_addr.buffer.ether_addr_octet, "\x00\x00\x00\x00\x00\x00", ETH_ALEN) == 0) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid stream dest_addr");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	memcpy(pTalkerStreamInfo->stream_dest_mac, pDescriptorStreamOutput->stream->dest_addr.mac, ETH_ALEN);
+	AVB_LOGF_DEBUG("Talker stream_dest_mac:  %02x:%02x:%02x:%02x:%02x:%02x",
+		pTalkerStreamInfo->stream_dest_mac[0], pTalkerStreamInfo->stream_dest_mac[1], pTalkerStreamInfo->stream_dest_mac[2],
+		pTalkerStreamInfo->stream_dest_mac[3], pTalkerStreamInfo->stream_dest_mac[4], pTalkerStreamInfo->stream_dest_mac[5]);
+
+	// Get the Stream ID.
+	if (!pDescriptorStreamOutput->stream->stream_addr.mac ||
+			memcmp(pDescriptorStreamOutput->stream->stream_addr.buffer.ether_addr_octet, "\x00\x00\x00\x00\x00\x00", ETH_ALEN) == 0) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid stream stream_addr");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	memcpy(pTalkerStreamInfo->stream_id, pDescriptorStreamOutput->stream->stream_addr.mac, ETH_ALEN);
+	U8 *pStreamUID = pTalkerStreamInfo->stream_id + 6;
+	*(U16 *)(pStreamUID) = htons(pDescriptorStreamOutput->stream->stream_uid);
+	AVB_LOGF_DEBUG("Talker stream_id:  %02x:%02x:%02x:%02x:%02x:%02x/%02x:%02x",
+		pTalkerStreamInfo->stream_id[0], pTalkerStreamInfo->stream_id[1], pTalkerStreamInfo->stream_id[2],
+		pTalkerStreamInfo->stream_id[3], pTalkerStreamInfo->stream_id[4], pTalkerStreamInfo->stream_id[5],
+		pTalkerStreamInfo->stream_id[6], pTalkerStreamInfo->stream_id[7]);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;
@@ -191,9 +303,34 @@ bool openavbAVDECCTalkerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescrip
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
-	// AVDECC_TODO:  Fill this in.
-	AVB_LOG_ERROR("openavbAVDECCTalkerIsStreaming Not Implemented!");
+	// Sanity tests.
+	if (!pDescriptorStreamOutput) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid descriptor");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pDescriptorStreamOutput->stream) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid StreamInput descriptor stream");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pDescriptorStreamOutput->stream->client) {
+		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid stream client pointer");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
 
+	// Return the current Talker state.
+	// If the state is not known, assume the Talker is not running.
+	if (pDescriptorStreamOutput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return TRUE;
+	}
+	if (pDescriptorStreamOutput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
+		AVB_LOG_WARNING("Talker state unknown");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return FALSE;
 }
@@ -257,8 +394,41 @@ void openavbAVDECCPauseStream(openavb_aem_descriptor_stream_io_t *pDescriptor, b
 		}
 	}
 	else if (pDescriptor->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
-		// AVDECC_TODO:  Implement this feature.
-		AVB_LOG_ERROR("openavbAVDECCPauseStream Talker Not Implemented!");
+
+		if (bPause) {
+			// If the client is not running (or already paused), ignore this command.
+			if (pDescriptor->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_RUNNING) {
+				AVB_LOG_DEBUG("Talker state change to pause ignored, as Talker not running");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return;
+			}
+
+			// Send the request to the client.
+			if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptor->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_PAUSED)) {
+				AVB_LOG_ERROR("Error requesting Talker change to Paused");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return;
+			}
+
+			AVB_LOG_INFO("Talker state change from Running to Paused requested");
+		}
+		else {
+			// If the client is not paused, ignore this command.
+			if (pDescriptor->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_PAUSED) {
+				AVB_LOG_DEBUG("Talker state change to pause ignored, as Talker not paused");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return;
+			}
+
+			// Send the request to the client.
+			if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptor->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING)) {
+				AVB_LOG_ERROR("Error requesting Talker change to Running");
+				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+				return;
+			}
+
+			AVB_LOG_INFO("Talker state change from Paused to Running requested");
+		}
 	}
 	else {
 		AVB_LOG_ERROR("openavbAVDECCPauseStream unsupported descriptor");

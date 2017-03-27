@@ -45,6 +45,7 @@ typedef struct {
 		// Client-to-Server messages
 		openavbAvdeccMsgParams_VersionRequest_t				versionRequest;
 		openavbAvdeccMsgParams_ClientInitIdentify_t			clientInitIdentify;
+		openavbAvdeccMsgParams_TalkerStreamID_t				talkerStreamID;
 		openavbAvdeccMsgParams_ClientChangeNotification_t	clientChangeNotification;
 
 		// Server-to-Client messages

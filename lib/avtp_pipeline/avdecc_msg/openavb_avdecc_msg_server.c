@@ -93,6 +93,14 @@ static bool openavbAvdeccMsgSrvrReceiveFromClient(int avdeccMsgHandle, openavbAv
 				msg->params.clientInitIdentify.friendly_name,
 				msg->params.clientInitIdentify.talker);
 			break;
+		case OPENAVB_AVDECC_MSG_TALKER_STREAM_ID:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_TALKER_STREAM_ID");
+			ret = openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(avdeccMsgHandle,
+				msg->params.talkerStreamID.stream_src_mac,
+				ntohs(msg->params.talkerStreamID.stream_uid),
+				msg->params.talkerStreamID.stream_dest_mac,
+				ntohs(msg->params.talkerStreamID.stream_vlan_id));
+			break;
 		case OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION");
 			ret = openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(avdeccMsgHandle, msg->params.clientChangeNotification.current_state);
@@ -191,6 +199,41 @@ bool openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(int avdeccMsgHandle, char * 
 
 	// Enable ADP support, now that we have at least one Talker/Listener.
 	openavbAdpHaveTL(true);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return true;
+}
+
+bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
+
+	openavb_tl_data_cfg_t *pCfg = pState->stream;
+	if (!pCfg) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d stream not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
+
+	// Update the stream information supplied by the client.
+	memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
+	pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
+	pCfg->stream_uid = stream_uid;
+	memcpy(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6);
+	pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
+	pCfg->vlan_id = stream_vlan_id;
+	AVB_LOGF_DEBUG("Talker-supplied stream_id:  " ETH_FORMAT "/%u",
+		ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
+	AVB_LOGF_DEBUG("Talker-supplied dest_addr:  " ETH_FORMAT,
+		ETH_OCTETS(pCfg->dest_addr.buffer.ether_addr_octet));
+	AVB_LOGF_DEBUG("AVDECC-supplied vlan_id:  %u", pCfg->vlan_id);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return true;

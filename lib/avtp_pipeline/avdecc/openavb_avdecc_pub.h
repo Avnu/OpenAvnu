@@ -99,7 +99,7 @@ typedef struct openavb_avdecc_configuration_cfg {
 	struct openavb_avdecc_configuration_cfg *next; // next link list pointer
 
 	// Pointer to the endpoint information.
-	const openavb_tl_data_cfg_t *stream;
+	openavb_tl_data_cfg_t *stream;
 
 	// Friendly name
 	char friendly_name[OPENAVB_AEM_STRLEN_MAX];
