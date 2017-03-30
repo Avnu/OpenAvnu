@@ -487,7 +487,7 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 			else if (pStream->avtp_sequence_num != rxSeq) {
 				nLost = (rxSeq - pStream->avtp_sequence_num)
 					+ (rxSeq < pStream->avtp_sequence_num ? 256 : 0);
-				AVB_LOGF_DEBUG("AVTP sequence mismatch: expected: %u,\tgot: %u,\tlost %d",
+				AVB_LOGF_DEBUG("AVTP sequence mismatch: expected: %3u,\tgot: %3u,\tlost %3d",
 					pStream->avtp_sequence_num, rxSeq, nLost);
 				pStream->nLost += nLost;
 			}

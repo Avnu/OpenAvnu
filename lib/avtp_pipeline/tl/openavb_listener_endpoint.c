@@ -97,10 +97,8 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 				}
 				else {
 					memcpy(&pListenerData->destAddr, &pCfg->dest_addr.mac->ether_addr_octet, ETH_ALEN);
-					AVB_LOGF_INFO("  Listener configured dest_addr is %02x:%02x:%02x:%02x:%02x:%02x",
-						pListenerData->destAddr[0], pListenerData->destAddr[1],
-						pListenerData->destAddr[2], pListenerData->destAddr[3],
-						pListenerData->destAddr[4], pListenerData->destAddr[5]);
+					AVB_LOGF_INFO("  Listener configured dest_addr is " ETH_FORMAT,
+						ETH_OCTETS(pListenerData->destAddr));
 				}
 				if ((!pCfg->max_interval_frames) || (!pCfg->max_frame_size)) {
 					AVB_LOG_ERROR("  Configuration Error - both max_interval_frames and max_frame_size required in listener config file");

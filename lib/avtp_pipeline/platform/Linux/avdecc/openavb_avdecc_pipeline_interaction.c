@@ -100,6 +100,7 @@ bool openavbAVDECCRunTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStrea
 	}
 
 	// Stop the Talker if it is currently running.
+	// (This should never occur, but is here just in case.)
 	if (pDescriptorStreamOutput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
 		if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptorStreamOutput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED)) {
 			AVB_LOG_ERROR("Error requesting Talker change to Stopped");
@@ -240,9 +241,8 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 		return FALSE;
 	}
 	memcpy(pTalkerStreamInfo->stream_dest_mac, pDescriptorStreamOutput->stream->dest_addr.mac, ETH_ALEN);
-	AVB_LOGF_DEBUG("Talker stream_dest_mac:  %02x:%02x:%02x:%02x:%02x:%02x",
-		pTalkerStreamInfo->stream_dest_mac[0], pTalkerStreamInfo->stream_dest_mac[1], pTalkerStreamInfo->stream_dest_mac[2],
-		pTalkerStreamInfo->stream_dest_mac[3], pTalkerStreamInfo->stream_dest_mac[4], pTalkerStreamInfo->stream_dest_mac[5]);
+	AVB_LOGF_DEBUG("Talker stream_dest_mac:  " ETH_FORMAT,
+		ETH_OCTETS(pTalkerStreamInfo->stream_dest_mac));
 
 	// Get the Stream ID.
 	if (!pDescriptorStreamOutput->stream->stream_addr.mac ||
@@ -254,10 +254,9 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 	memcpy(pTalkerStreamInfo->stream_id, pDescriptorStreamOutput->stream->stream_addr.mac, ETH_ALEN);
 	U8 *pStreamUID = pTalkerStreamInfo->stream_id + 6;
 	*(U16 *)(pStreamUID) = htons(pDescriptorStreamOutput->stream->stream_uid);
-	AVB_LOGF_DEBUG("Talker stream_id:  %02x:%02x:%02x:%02x:%02x:%02x/%02x:%02x",
-		pTalkerStreamInfo->stream_id[0], pTalkerStreamInfo->stream_id[1], pTalkerStreamInfo->stream_id[2],
-		pTalkerStreamInfo->stream_id[3], pTalkerStreamInfo->stream_id[4], pTalkerStreamInfo->stream_id[5],
-		pTalkerStreamInfo->stream_id[6], pTalkerStreamInfo->stream_id[7]);
+	AVB_LOGF_DEBUG("Talker stream_id:  " ETH_FORMAT "/%u",
+		ETH_OCTETS(pTalkerStreamInfo->stream_id),
+		(((U16) pTalkerStreamInfo->stream_id[6]) << 8) | (U16) pTalkerStreamInfo->stream_id[7]);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;

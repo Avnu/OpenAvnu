@@ -494,13 +494,8 @@ EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char
 			AVB_TRACE_EXIT(AVB_TRACE_TL);
 			return FALSE;
 		}
-		AVB_LOGF_DEBUG("Detected stream_addr:  %02x:%02x:%02x:%02x:%02x:%02x",
-			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[0],
-			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[1],
-			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[2],
-			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[3],
-			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[4],
-			parseIniData.pCfg->stream_addr.buffer.ether_addr_octet[5]);
+		AVB_LOGF_DEBUG("Detected stream_addr:  ETH_FORMAT",
+			ETH_OCTETS(parseIniData.pCfg->stream_addr.buffer.ether_addr_octet));
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
