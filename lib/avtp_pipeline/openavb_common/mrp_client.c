@@ -437,6 +437,7 @@ int mrp_disconnect(void)
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "BYE");
 	mrp_okay = 0;
+	AVB_LOGF_DEBUG("MRP Command (Disconnect):  %s", msgbuf);
 	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 
@@ -466,6 +467,7 @@ int mrp_register_domain(int *class_id, int *priority, u_int16_t * vid)
 
 	sprintf(msgbuf, "S+D:C=%d,P=%d,V=%04x", *class_id, *priority, *vid);
 	mrp_okay = 0;
+	AVB_LOGF_DEBUG("MRP Command (Register Domain):  %s", msgbuf);
 	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 
@@ -502,6 +504,7 @@ mrp_advertise_stream(uint8_t * streamid,
 		destaddr[3], destaddr[4], destaddr[5], vlan, pktsz,
 		interval, priority << 5, latency);
 	mrp_okay = 0;
+	AVB_LOGF_DEBUG("MRP Command (Advertise Stream):  %s", msgbuf);
 	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 
@@ -535,6 +538,7 @@ mrp_unadvertise_stream(uint8_t * streamid,
 		destaddr[3], destaddr[4], destaddr[5], vlan, pktsz,
 		interval, priority << 5, latency);
 	mrp_okay = 0;
+	AVB_LOGF_DEBUG("MRP Command (Unadvertise Stream):  %s", msgbuf);
 	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 
@@ -556,6 +560,7 @@ int mrp_await_listener(unsigned char *streamid)
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S??");
+	AVB_LOGF_DEBUG("MRP Command (Await Listener):  %s", msgbuf);
 	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 	if (rc != 1500)
@@ -587,6 +592,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "S??");
+	AVB_LOGF_DEBUG("MRP Command (Get Domain):  %s", msgbuf);
 	ret = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 	if (ret != 1500)
@@ -623,6 +629,7 @@ int mrp_join_vlan()
 		return -1;
 	memset(msgbuf, 0, 1500);
 	sprintf(msgbuf, "V++:I=0002");
+	AVB_LOGF_DEBUG("MRP Command (Join VLAN):  %s", msgbuf);
 	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 
@@ -645,6 +652,7 @@ int mrp_join_listener(uint8_t * streamid)
 		",D=2", streamid[0], streamid[1], streamid[2], streamid[3],
 		streamid[4], streamid[5], streamid[6], streamid[7]);
 	mrp_okay = 0;
+	AVB_LOGF_DEBUG("MRP Command (Join Listener):  %s", msgbuf);
 	rc = send_mrp_msg(msgbuf, 1500);
 	free(msgbuf);
 
@@ -676,6 +684,7 @@ int mrp_send_ready(uint8_t *stream_id)
 		     stream_id[2], stream_id[3],
 		     stream_id[4], stream_id[5],
 		     stream_id[6], stream_id[7]);
+	AVB_LOGF_DEBUG("MRP Command (Send Ready):  %s", databuf);
 	rc = send_mrp_msg(databuf, 1500);
 	free(databuf);
 
@@ -700,6 +709,7 @@ int mrp_send_leave(uint8_t *stream_id)
 		     stream_id[4], stream_id[5],
 		     stream_id[6], stream_id[7]);
 
+	AVB_LOGF_DEBUG("MRP Command (Send Leave):  %s", databuf);
 	rc = send_mrp_msg(databuf, 1500);
 	free(databuf);
 
