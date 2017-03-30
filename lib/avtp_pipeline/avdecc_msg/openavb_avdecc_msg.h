@@ -114,7 +114,7 @@ typedef struct {
 } openavbAvdeccMsgParams_TalkerStreamID_t;
 
 typedef struct {
-	openavbAvdeccMsgStateType_t current_state;
+	U8 current_state; // Convert to openavbAvdeccMsgStateType_t
 } openavbAvdeccMsgParams_ClientChangeNotification_t;
 
 //////////////////////////////
@@ -132,7 +132,7 @@ typedef struct {
 } openavbAvdeccMsgParams_ListenerStreamID_t;
 
 typedef struct {
-	openavbAvdeccMsgStateType_t desired_state;
+	U8 desired_state; // Convert to openavbAvdeccMsgStateType_t
 } openavbAvdeccMsgParams_ClientChangeRequest_t;
 
 #define OPENAVB_AVDECC_MSG_LEN sizeof(openavbAvdeccMessage_t)

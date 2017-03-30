@@ -103,7 +103,7 @@ static bool openavbAvdeccMsgSrvrReceiveFromClient(int avdeccMsgHandle, openavbAv
 			break;
 		case OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION");
-			ret = openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(avdeccMsgHandle, msg->params.clientChangeNotification.current_state);
+			ret = openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(avdeccMsgHandle, (openavbAvdeccMsgStateType_t) msg->params.clientChangeNotification.current_state);
 			break;
 		default:
 			AVB_LOG_ERROR("Unexpected message received at server");
@@ -281,7 +281,7 @@ bool openavbAvdeccMsgSrvrChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStat
 	msgBuf.type = OPENAVB_AVDECC_MSG_CLIENT_CHANGE_REQUEST;
 	openavbAvdeccMsgParams_ClientChangeRequest_t * pParams =
 		&(msgBuf.params.clientChangeRequest);
-	pParams->desired_state = desiredState;
+	pParams->desired_state = (U8) desiredState;
 	bool ret = openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
 	if (ret) {
 		// Save the requested state for future reference.
