@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
 		}
 		open("/dev/null", O_RDONLY);
 		open("/dev/null", O_WRONLY);
-		open(logfile, O_WRONLY|O_CREAT|O_APPEND);
+		open(logfile, O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 	}
 
 	if (listenport == NULL)
@@ -870,7 +870,7 @@ static int do_daemonize(void)
 	}
 
 	umask(0);
-	chdir("/");
+	x = chdir("/");
 
 	/* Close all open file descriptors */
 	for (x = sysconf(_SC_OPEN_MAX); x>=0; x--) {
