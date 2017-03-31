@@ -2,7 +2,7 @@ COMMON_DIR=../../common
 LINUX_DIR=../src
 TEST_DIR=../../test
 
-OPT=-O2
+OPT?=-O2
 CFLAGS=$(OPT) -Wall
 CPPFLAGS=-I$(COMMON_DIR)
 CC?=gcc
