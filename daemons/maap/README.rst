@@ -152,13 +152,6 @@ Known Issues and Future Enhancements
   allow using ``telnet`` or ``netcat`` for command line clients instead of the
   ``-c`` flag to the binary.
 
-- On one Linux system, the mechanism to select the socket protocol for the
-  client/server socket connection resulted in a client that couldn't connect to
-  the server. Changing the ``getaddrinfo`` parameter ``hints`` in
-  ``maap_daemon.c`` to use the ``ai_family`` value of ``AF_INET`` (which selects
-  IPV4) instead of ``AF_UNSPEC`` (which allows either IPV4 or IPV6) resolved the
-  issue there, although this was not necessary on other Linux systems.
-
 - The Windows platform-specific code is incomplete and nonfunctional.
 
 API Documentation

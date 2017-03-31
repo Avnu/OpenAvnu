@@ -705,24 +705,21 @@ static int act_as_client(const char *listenport)
 
 	for(p = ai; p != NULL; p = p->ai_next) {
 		socketfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if (socketfd != -1) {
+		if (socketfd == -1) {
+			continue;
+		}
+		ret = connect(socketfd, p->ai_addr, p->ai_addrlen);
+		if (ret == -1) {
+			close(socketfd);
+			continue;
+		} else {
 			break;
 		}
 	}
 
 	if (p == NULL) {
-		MAAP_LOGF_ERROR("Socket creation error %d (%s)", errno, strerror(errno));
-		freeaddrinfo(ai);
-		maapLogExit();
-		return -1;
-	}
-
-	/* Connect to the MAAP daemon. */
-	if (connect(socketfd, p->ai_addr, p->ai_addrlen) < 0)
-	{
 		MAAP_LOGF_ERROR("Unable to connect to the daemon, error %d (%s)", errno, strerror(errno));
 		freeaddrinfo(ai);
-		close(socketfd);
 		maapLogExit();
 		return -1;
 	}
