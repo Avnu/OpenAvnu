@@ -36,7 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 typedef struct {
 	uint8_t msg[LOG_QUEUE_MSG_SIZE];
-  	int bRT;						// TRUE = Details are in RT queue
+	int bRT;						// TRUE = Details are in RT queue
 } log_queue_item_t;
 
 typedef struct {
@@ -72,7 +72,7 @@ static int loggingThreadRunning = FALSE;
 DWORD WINAPI loggingThreadFn(LPVOID pv);
 static HANDLE loggingThread = NULL;
 
-#define THREAD_STACK_SIZE 									65536
+#define THREAD_STACK_SIZE									65536
 
 static HANDLE gLogMutex = NULL;
 #define MUTEX_CREATE_ALT(h) h = CreateMutex(NULL, FALSE, NULL)
@@ -83,7 +83,7 @@ static HANDLE gLogMutex = NULL;
 void maapLogRTRender(log_queue_item_t *pLogItem)
 {
 	if (logRTQueue) {
-	  	pLogItem->msg[0] = 0x00;
+		pLogItem->msg[0] = 0x00;
 		int bMore = TRUE;
 		while (bMore) {
 			maap_log_queue_elem_t elem = maapLogQueueTailLock(logRTQueue);
