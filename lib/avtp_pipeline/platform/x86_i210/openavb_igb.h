@@ -28,45 +28,31 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
+#ifndef OPENAVB_IGB_H
+#define OPENAVB_IGB_H	1
+
 #include "openavb_platform.h"
-#include "openavb_time_hal.h"
-#include "openavb_ether_hal.h"
+#include "openavb_types_base.h"
 
-#include "openavb_trace.h"
+#include "igb.h"
 
-#define	AVB_LOG_COMPONENT	"halTime"
-#include "openavb_pub.h"
-#include "openavb_log.h"
+#define IGB_MTU 1522
 
-static device_t *igb_dev = NULL;
+// how many pages to alloc for tx buffers (2 frames fit in one page)
+#define IGB_PAGES 20
 
-bool halTimeInitialize(void)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
-	igb_dev = igbAcquireDevice();
-	AVB_TRACE_EXIT(AVB_TRACE_TIME);
-	return TRUE;
-}
+device_t *igbAcquireDevice();
 
-bool halTimeFinalize(void)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
-	igbReleaseDevice(igb_dev);
-	AVB_TRACE_EXIT(AVB_TRACE_TIME);
-	return TRUE;
-}
+void igbReleaseDevice(device_t *igb_dev);
 
-bool halTimeGetLocaltime(U64 *localTime64)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
+struct igb_packet *igbGetTxPacket(device_t* dev);
 
-	if (igb_get_wallclock(igb_dev, localTime64, NULL ) > 0) {
-		IF_LOG_INTERVAL(1000) AVB_LOG_ERROR("Failed to get wallclock time");
-		AVB_TRACE_EXIT(AVB_TRACE_TIME);
-		return FALSE;
-	}
+void igbRelTxPacket(device_t* dev, int queue, struct igb_packet *tx_packet);
 
-	AVB_TRACE_EXIT(AVB_TRACE_TIME);
-	return TRUE;
-}
+int igbTxBufLevel(device_t *dev);
 
+bool igbGetMacAddr(U8 mac_addr[ETH_ALEN]);
+
+bool igbControlLaunchTime(device_t *dev, int enable);
+
+#endif	// OPENAVB_IGB_H

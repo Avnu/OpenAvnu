@@ -32,7 +32,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "pcap_rawsock.h"
 #include "simple_rawsock.h"
 #include "avb.h"
-#include "openavb_ether_hal.h"
+#include "openavb_igb.h"
 #include "avb_sched.h"
 
 #include "openavb_trace.h"

@@ -28,13 +28,10 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
-#ifndef OPENAVB_ETHER_OSAL_H
-#define OPENAVB_ETHER_OSAL_H 1
+#ifndef OPENAVB_MCR_HAL_H
+#define OPENAVB_MCR_HAL_H
 
-#include "openavb_types_base.h"
-#include "openavb_osal.h"
+#include "openavb_platform.h"
+#include "openavb_mcr_hal_pub.h"
 
-struct ether_addr* ether_aton_r(const char *asc, struct ether_addr *addr);
-bool osalGetMacAddr(U8 *macAddr);
-
-#endif // OPENAVB_ETHER_OSAL_H
+#endif // OPENAVB_MCR_HAL_H
