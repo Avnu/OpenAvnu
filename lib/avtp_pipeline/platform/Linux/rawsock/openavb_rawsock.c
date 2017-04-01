@@ -34,6 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "ring_rawsock.h"
 
 #if AVB_FEATURE_IGB
+#include "igb_rawsock.h"
 #define DEFAULT_PROTO "igb"
 #else
 #define DEFAULT_PROTO "simple"
@@ -41,7 +42,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #if AVB_FEATURE_PCAP
 #include "pcap_rawsock.h"
-#include "igb_rawsock.h"
 #endif
 
 #include "openavb_trace.h"
