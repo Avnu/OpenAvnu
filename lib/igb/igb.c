@@ -742,6 +742,11 @@ static int igb_allocate_queues(struct adapter *adapter)
 			error = EBUSY;
 			goto tx_desc;
 		}
+
+		if (ubuf.physaddr % 128)
+			printf("warning: tx ring addr (0x%lx) is not a 128 byte-aligned\n",
+				ubuf.physaddr);
+
 		adapter->tx_rings[i].txdma.paddr = ubuf.physaddr;
 		adapter->tx_rings[i].txdma.mmap_size = ubuf.mmap_size;
 		adapter->tx_rings[i].tx_base = NULL;
@@ -761,6 +766,14 @@ static int igb_allocate_queues(struct adapter *adapter)
 		/* XXX Initialize a TX lock ?? */
 		adapter->num_tx_desc = ubuf.mmap_size /
 				       sizeof(union e1000_adv_tx_desc);
+
+		/*
+		 * num_tx_desc must be always a multiple of 8 because the value of
+		 * TDLEN must be a multipe of 128 and each descriptor has 16 bytes.
+		 */
+		if (adapter->num_tx_desc % 8)
+			printf("warning: num_tx_desc(%d) is not a multiple of 8\n",
+				adapter->num_tx_desc);
 
 		memset((void *)adapter->tx_rings[i].tx_base, 0, ubuf.mmap_size);
 		adapter->tx_rings[i].tx_buffers =
@@ -1285,6 +1298,11 @@ static int igb_allocate_rx_queues(struct adapter *adapter)
 			error = EBUSY;
 			goto rx_desc;
 		}
+
+		if (ubuf.physaddr % 128)
+			printf("warning: rx ring addr (0x%lx) is not a 128 byte-aligned\n",
+				ubuf.physaddr);
+
 		adapter->rx_rings[i].rxdma.paddr = ubuf.physaddr;
 		adapter->rx_rings[i].rxdma.mmap_size = ubuf.mmap_size;
 		adapter->rx_rings[i].rx_base = NULL;
@@ -1302,6 +1320,14 @@ static int igb_allocate_rx_queues(struct adapter *adapter)
 
 		adapter->num_rx_desc = ubuf.mmap_size /
 				       sizeof(union e1000_adv_rx_desc);
+
+		/*
+		 * num_rx_desc must be always a multiple of 8 because the value of
+		 * RDLEN must be a multipe of 128 and each descriptor has 16 bytes.
+		 */
+		if (adapter->num_rx_desc % 8)
+			printf("num_rx_desc(%d) is not a multiple of 8\n",
+				adapter->num_rx_desc);
 
 		memset((void *)adapter->rx_rings[i].rx_base, 0, ubuf.mmap_size);
 		adapter->rx_rings[i].rx_buffers =
@@ -2220,6 +2246,7 @@ int igb_setup_flex_filter(device_t *dev, unsigned int queue_id,
 	struct e1000_hw *hw;
 	u32 i = 0, j, k;
 	u32 fhft, wufc;
+	u_int8_t *filter_buf = filter;
 
 	if (dev == NULL)
 		return -EINVAL;
@@ -2236,6 +2263,20 @@ int igb_setup_flex_filter(device_t *dev, unsigned int queue_id,
 
 	if (filter_len > 128)
 		return -EINVAL;
+
+	if (filter_len % 8) {
+		unsigned int aligned_filter_len = ((filter_len + (8 - 1)) / 8) * 8;
+
+		printf ("warning: filter_len(%d) should be a 8 byte aligned value\n",
+					filter_len);
+
+		filter_buf = calloc(1, aligned_filter_len);
+		if (!filter_buf)
+			return -ENOMEM;
+
+		memcpy((void*)filter_buf, (void*)filter, (size_t)filter_len);
+		filter_len = aligned_filter_len;
+	}
 
 	hw = &adapter->hw;
 
@@ -2283,7 +2324,7 @@ int igb_setup_flex_filter(device_t *dev, unsigned int queue_id,
 		for (j = 0; j < 8; j += 4) {
 			fhft = 0;
 			for (k = 0; k < 4; k++)
-				fhft |= ((u32)(filter[i + j + k])) << (k * 8);
+				fhft |= ((u32)(filter_buf[i + j + k])) << (k * 8);
 			E1000_WRITE_REG_ARRAY(hw, E1000_FHFT(filter_id),
 					(i/2) + (j/4), fhft);
 		}
@@ -2300,6 +2341,9 @@ int igb_setup_flex_filter(device_t *dev, unsigned int queue_id,
 	wufc = E1000_READ_REG(hw, E1000_WUFC);
 	wufc |= (E1000_WUFC_FLX0 << filter_id) | E1000_WUFC_FLEX_HQ;
 	E1000_WRITE_REG(hw, E1000_WUFC, wufc);
+
+	if (filter_buf && (filter_buf != filter))
+		free(filter_buf);
 
 	return 0;
 }
