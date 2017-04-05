@@ -246,7 +246,8 @@ SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/openavb_time_hal.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/mcr/openavb_mcr_hal.c )
 
 # OpenAVB Common (support) files
-SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/../common/avb.c )
+SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/../common/avb_gptp.c )
+SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/../common/avb_igb.c )
 SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/mrp_client.c )
 
 if ( AVB_FEATURE_PCAP )
