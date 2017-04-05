@@ -1,0 +1,24 @@
+/**
+ * \mainpage MAAP Documentation
+ *
+ * Introduction
+ * ------------
+ * This is a MAAP implementation.  Details will be provided soon.
+ * 
+ * Linux Specific
+ * -------------
+ * 
+ * Requirements for documentation on a ubuntu based system:
+ *     - cmake: sudo apt-get install cmake
+ *     - doxygen: sudo apt-get install doxygen
+ * 
+ * To build, execute the linux/build makefile.
+ * 
+ * To execute, run ./maap_daemon
+ * 
+ * Windows Version
+ * ---------------
+ * 
+ * Windows is not supported.
+*/
+
