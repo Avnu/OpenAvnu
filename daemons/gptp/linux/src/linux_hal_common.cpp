@@ -475,8 +475,10 @@ bool LinuxTimestamper::post_init( int ifindex, int sd, TicketingLock *lock ) {
 LinuxTimestamper::~LinuxTimestamper() {}
 
 unsigned long LinuxTimer::sleep(unsigned long micros) {
-	struct timespec req = { 0, (long int)(micros * 1000) };
+    struct timespec req;
 	struct timespec rem;
+    req.tv_sec = micros / 1000000;
+    req.tv_nsec = micros % 1000000 * 1000;
 	int ret = nanosleep( &req, &rem );
 	while( ret == -1 && errno == EINTR ) {
 		req = rem;

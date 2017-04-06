@@ -56,6 +56,10 @@
 #include <unistd.h>
 #include <string.h>
 
+#ifdef SYSTEMD_WATCHDOG
+    #include <watchdog.hpp>
+#endif
+
 #define PHY_DELAY_GB_TX_I20 184 //1G delay
 #define PHY_DELAY_GB_RX_I20 382 //1G delay
 #define PHY_DELAY_MB_TX_I20 1044//100M delay
@@ -94,6 +98,33 @@ void print_usage( char *arg0 ) {
 		);
 }
 
+int watchdog_setup(OSThreadFactory *thread_factory)
+{
+#ifdef SYSTEMD_WATCHDOG
+    SystemdWatchdogHandler *watchdog = new SystemdWatchdogHandler();
+    OSThread *watchdog_thread = thread_factory->createThread();
+    int watchdog_result;
+    long unsigned int watchdog_interval;
+    watchdog_interval = watchdog->getSystemdWatchdogInterval(&watchdog_result);
+    if (watchdog_result)
+    {
+        GPTP_LOG_INFO("Watchtog interval read from service file: %lld us", watchdog_interval);
+        watchdog->update_interval = watchdog_interval / 2;
+        GPTP_LOG_STATUS("Starting watchdog handler (Update every: %lld us)", watchdog->update_interval);
+        watchdog_thread->start(watchdogUpdateThreadFunction, watchdog);
+        return 0;
+    } else if (watchdog_result < 0) {
+        GPTP_LOG_ERROR("Watchdog settings read error.");
+        return -1;
+    } else {
+        GPTP_LOG_STATUS("Watchdog disabled");
+        return 0;
+    }
+#else
+    return 0;
+#endif
+}
+
 static IEEE1588Clock *pClock = NULL;
 static IEEE1588Port *pPort = NULL;
 
@@ -123,6 +154,7 @@ int main(int argc, char **argv)
 	memset(config_file_path, 0, 512);
 
 	GPTPPersist *pGPTPPersist = NULL;
+    LinuxThreadFactory *thread_factory = new LinuxThreadFactory();
 
 	// Block SIGUSR1
 	{
@@ -137,7 +169,10 @@ int main(int argc, char **argv)
 
 	GPTP_LOG_REGISTER();
 	GPTP_LOG_INFO("gPTP starting");
-
+    if (watchdog_setup(thread_factory) != 0) {
+        GPTP_LOG_ERROR("Watchdog handler setup error");
+        return -1;
+    }
 	int phy_delay[4]={0,0,0,0};
 	bool input_delay=false;
 
@@ -164,7 +199,6 @@ int main(int argc, char **argv)
 		new LinuxNetworkInterfaceFactory;
 	OSNetworkInterfaceFactory::registerFactory
 		(factory_name_t("default"), default_factory);
-	LinuxThreadFactory *thread_factory = new LinuxThreadFactory();
 	LinuxTimerQueueFactory *timerq_factory = new LinuxTimerQueueFactory();
 	LinuxLockFactory *lock_factory = new LinuxLockFactory();
 	LinuxTimerFactory *timer_factory = new LinuxTimerFactory();
