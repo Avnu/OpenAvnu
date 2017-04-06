@@ -37,9 +37,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include "openavb_types_pub.h"
 #include "openavb_mediaq_pub.h"
-//#include "openavb_map_pub.h"
-//#include "openavb_intf_pub.h"
 #include "openavb_avtp_time_pub.h"
+#include "openavb_tl_pub.h"
 
 #define MAX_SAMPLING_RATES_COUNT 91
 
@@ -59,6 +58,8 @@ struct openavb_tl_data_cfg {
 
 	/// Role of the host
 	avb_role_t role;
+	/// Initial Talker/Listener state
+	tl_init_state_t initial_state;
 	/// MAC address of destination - multicast (talker only if SRP is enabled)
 	cfg_mac_t dest_addr;
 	/// MAC address of the source

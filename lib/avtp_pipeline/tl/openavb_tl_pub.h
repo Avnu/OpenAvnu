@@ -81,10 +81,22 @@ typedef enum {
 /// Indicates that VLAN ID is not set in configuration
 #define VLAN_NULL UINT16_MAX
 
+/// Initial talker/listener state
+typedef enum {
+	/// Unspecified
+	TL_INIT_STATE_UNSPECIFIED,
+	/// Stopped
+	TL_INIT_STATE_STOPPED,
+	/// Running
+	TL_INIT_STATE_RUNNING,
+} tl_init_state_t;
+
 /// Structure containing configuration of the host
 typedef struct {
 	/// Role of the host
 	avb_role_t role;
+	/// Initial Talker/Listener state
+	tl_init_state_t initial_state;
 	/// Structure with callbacks to mapping
 	openavb_map_cb_t map_cb;
 	/// Structure with callbacks to interface
@@ -324,6 +336,13 @@ bool openavbTLIsStreaming(tl_handle_t handle);
  * \return The current role
  */
 avb_role_t openavbTLGetRole(tl_handle_t handle);
+
+/** Return the specified initial state of the talker or listener.
+ *
+ * \param handle The handle return from openavbTLOpen()
+ * \return The initial state requested
+ */
+tl_init_state_t openavbTLGetInitialState(tl_handle_t handle);
 
 /** Allows pulling current stat counters for a running stream.
  *

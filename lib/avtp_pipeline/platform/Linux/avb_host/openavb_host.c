@@ -262,8 +262,11 @@ int main(int argc, char *argv[])
 	gst_init(0, NULL);
 #endif
 
+	// Run any streams where the stop initial state was not requested.
 	for (i1 = 0; i1 < tlCount; i1++) {
-		openavbTLRun(tlHandleList[i1]);
+		if (openavbTLGetInitialState(tlHandleList[i1]) != TL_INIT_STATE_STOPPED) {
+			openavbTLRun(tlHandleList[i1]);
+		}
 	}
 
 	while (bRunning) {

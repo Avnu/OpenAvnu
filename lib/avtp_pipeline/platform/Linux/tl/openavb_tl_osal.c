@@ -174,6 +174,16 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 			valOK = TRUE;
 		}
 	}
+	else if (MATCH(name, "initial_state")) {
+		if (MATCH(value, "running")) {
+			pCfg->initial_state = TL_INIT_STATE_RUNNING;
+			valOK = TRUE;
+		}
+		else if (MATCH(value, "stopped")) {
+			pCfg->initial_state = TL_INIT_STATE_STOPPED;
+			valOK = TRUE;
+		}
+	}
 	else if (MATCH(name, "dest_addr")) {
 		valOK = parse_mac(value, &pCfg->dest_addr);
 	}

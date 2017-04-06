@@ -309,13 +309,15 @@ bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, o
 		AVB_LOGF_INFO("client %d state changed from %d to %d", avdeccMsgHandle, pState->lastReportedState, currentState);
 		pState->lastReportedState = currentState;
 
-		// If the client is Running, and AVDECC did not yet set the client state, tell the client to Stop.
-		// This way AVDECC can configure and start the client when appropriate.
-		//
-		// AVDECC_TODO:  Do we want to be able to configure the client's initial state?
-		//
-		if (pState->lastRequestedState == OPENAVB_AVDECC_MSG_UNKNOWN && pState->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
-			openavbAvdeccMsgSrvrChangeRequest(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+		// If AVDECC did not yet set the client state, set the client state to the desired state.
+		if (pState->lastRequestedState == OPENAVB_AVDECC_MSG_UNKNOWN) {
+			if (pState->stream->initial_state == TL_INIT_STATE_RUNNING && pState->lastReportedState != OPENAVB_AVDECC_MSG_RUNNING) {
+				// Have the client be running if the user explicitly requested it to be running.
+				openavbAvdeccMsgSrvrChangeRequest(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
+			} else if (pState->stream->initial_state != TL_INIT_STATE_RUNNING && pState->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
+				// Have the client not be running if the user didn't explicitly request it to be running.
+				openavbAvdeccMsgSrvrChangeRequest(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+			}
 		}
 	}
 

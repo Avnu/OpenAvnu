@@ -365,6 +365,7 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	// Set default values.
 	// (These values should match those set in openavbIniCfgInit().)
 	pCfg->role = AVB_ROLE_UNDEFINED;
+	pCfg->initial_state = TL_INIT_STATE_UNSPECIFIED;
 	//pCfg->map_cb;
 	//pCfg->intf_cb;
 	//pCfg->dest_addr;
@@ -693,6 +694,21 @@ EXTERN_DLL_EXPORT avb_role_t openavbTLGetRole(tl_handle_t handle)
 	return pTLState->cfg.role;
 }
 
+EXTERN_DLL_EXPORT tl_init_state_t openavbTLGetInitialState(tl_handle_t handle)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_TL);
+
+	tl_state_t *pTLState = (tl_state_t *)handle;
+
+	if (!pTLState) {
+		AVB_LOG_ERROR("Invalid handle");
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		return TL_INIT_STATE_UNSPECIFIED;
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	return pTLState->cfg.initial_state;
+}
 
 EXTERN_DLL_EXPORT U64 openavbTLStat(tl_handle_t handle, tl_stat_t stat)
 {

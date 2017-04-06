@@ -67,6 +67,7 @@ static void openavbIniCfgInit(openavb_tl_data_cfg_t *pCfg)
 	// Set default values.
 	// (These values should match those set in openavbTLInitCfg().)
 	pCfg->role = AVB_ROLE_UNDEFINED;
+	pCfg->initial_state = TL_INIT_STATE_UNSPECIFIED;
 	pCfg->stream_uid = 0xFFFF;
 	pCfg->max_interval_frames = 1;
 	pCfg->max_frame_size = 1500;
@@ -110,6 +111,16 @@ static int openavbIniCfgCallback(void *user, const char *tlSection, const char *
 		}
 		else if (MATCH(value, "listener")) {
 			pCfg->role = AVB_ROLE_LISTENER;
+			valOK = TRUE;
+		}
+	}
+	else if (MATCH(name, "initial_state")) {
+		if (MATCH(value, "running")) {
+			pCfg->initial_state = TL_INIT_STATE_RUNNING;
+			valOK = TRUE;
+		}
+		else if (MATCH(value, "stopped")) {
+			pCfg->initial_state = TL_INIT_STATE_STOPPED;
 			valOK = TRUE;
 		}
 	}
