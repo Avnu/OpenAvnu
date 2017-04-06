@@ -63,7 +63,7 @@ OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/gptp_log.o\
 		 $(OBJ_DIR)/platform.o \
 		 $(OBJ_DIR)/ini.o \
-		 $(OBJ_DIR)/gptp_cfg.o 
+		 $(OBJ_DIR)/gptp_cfg.o
 
 HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(COMMON_DIR)/avbts_ostimerq.hpp\
@@ -85,7 +85,7 @@ HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
 		$(SRC_DIR)/linux_ipc.hpp\
 		$(SRC_DIR)/linux_hal_common.hpp\
 		$(SRC_DIR)/linux_hal_persist_file.hpp\
-		$(SRC_DIR)/platform.hpp 
+		$(SRC_DIR)/platform.hpp
 
 ifeq ($(ARCH),I210)
 	IGB_LIB_INCPATH=../../../../lib/igb/
@@ -112,7 +112,7 @@ else
 endif
 
 ifeq ($(GENIVI_DLT),1)
-	GENIVI_DLT_INCLUDE_PATH=/usr/include/dlt/
+	GENIVI_DLT_INCLUDE_PATH=/usr/local/include/dlt/
 	GENIVI_DLT_LIB_PATH=/usr/local/lib/x86_64-linux-gnu/static/
 	CFLAGS_G += -I$(GENIVI_DLT_INCLUDE_PATH) -DGENIVI_DLT
 	LDFLAGS_G += -ldlt -L$(GENIVI_DLT_LIB_PATH)
