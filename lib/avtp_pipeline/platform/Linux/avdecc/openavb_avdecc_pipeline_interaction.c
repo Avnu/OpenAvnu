@@ -99,17 +99,6 @@ bool openavbAVDECCRunTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStrea
 		return FALSE;
 	}
 
-	// Stop the Talker if it is currently running.
-	// (This should never occur, but is here just in case.)
-	if (pDescriptorStreamOutput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
-		if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptorStreamOutput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED)) {
-			AVB_LOG_ERROR("Error requesting Talker change to Stopped");
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-			return FALSE;
-		}
-		AVB_LOG_INFO("Talker state change to Stopped requested");
-	}
-
 	// Tell the client to start running.
 	if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptorStreamOutput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING)) {
 		AVB_LOG_ERROR("Error requesting Talker change to Running");

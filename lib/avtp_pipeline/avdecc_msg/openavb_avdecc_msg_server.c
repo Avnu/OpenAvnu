@@ -166,6 +166,7 @@ bool openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(int avdeccMsgHandle, char * 
 	}
 	pState->avdeccMsgHandle = avdeccMsgHandle;
 	pState->bTalker = (talker != 0);
+	pState->lastRequestedState = pState->lastReportedState = OPENAVB_AVDECC_MSG_UNKNOWN;
 
 	// Find the state information matching this item.
 	for (currentStream = streamList; currentStream != NULL; currentStream = currentStream->next) {
@@ -175,7 +176,7 @@ bool openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(int avdeccMsgHandle, char * 
 		}
 	}
 	if (!currentStream) {
-		AVB_LOGF_WARNING("Ignoring unexpected client Listener %d, friendly_name:  %s",
+		AVB_LOGF_WARNING("Ignoring unexpected client %d, friendly_name:  %s",
 			avdeccMsgHandle, friendly_name);
 		free(pState);
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
@@ -194,7 +195,7 @@ bool openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(int avdeccMsgHandle, char * 
 	pState->stream = currentStream;
 	currentStream->client = pState;
 
-	AVB_LOGF_INFO("Client Listener %d Detected, friendly_name:  %s",
+	AVB_LOGF_INFO("Client %d Detected, friendly_name:  %s",
 		avdeccMsgHandle, friendly_name);
 
 	// Enable ADP support, now that we have at least one Talker/Listener.
@@ -305,8 +306,17 @@ bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, o
 
 	// Save the updated state.
 	if (currentState != pState->lastReportedState) {
-		AVB_LOGF_INFO("client Listener %d state changed from %d to %d", avdeccMsgHandle, pState->lastReportedState, currentState);
+		AVB_LOGF_INFO("client %d state changed from %d to %d", avdeccMsgHandle, pState->lastReportedState, currentState);
 		pState->lastReportedState = currentState;
+
+		// If the client is Running, and AVDECC did not yet set the client state, tell the client to Stop.
+		// This way AVDECC can configure and start the client when appropriate.
+		//
+		// AVDECC_TODO:  Do we want to be able to configure the client's initial state?
+		//
+		if (pState->lastRequestedState == OPENAVB_AVDECC_MSG_UNKNOWN && pState->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
+			openavbAvdeccMsgSrvrChangeRequest(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
