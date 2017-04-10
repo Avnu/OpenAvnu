@@ -139,7 +139,7 @@ bool openavbAVDECCStopListener(openavb_aem_descriptor_stream_io_t *pDescriptorSt
 
 	// Don't request if already stopped.
 	if (pDescriptorStreamInput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_STOPPED) {
-		AVB_LOG_INFO("Listener state change to running ignored, as Listener already Stopped");
+		AVB_LOG_INFO("Listener state change to Stopped ignored, as Listener already Stopped");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return TRUE;
 	}
@@ -184,7 +184,7 @@ bool openavbAVDECCStopTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStre
 
 	// Don't request if already stopped.
 	if (pDescriptorStreamOutput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_STOPPED) {
-		AVB_LOG_INFO("Talker state change to running ignored, as Talker already Stopped");
+		AVB_LOG_INFO("Talker state change to Stopped ignored, as Talker already Stopped");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return TRUE;
 	}
@@ -207,17 +207,17 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 
 	// Sanity tests.
 	if (!pDescriptorStreamOutput) {
-		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid descriptor");
+		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid descriptor");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pTalkerStreamInfo) {
-		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid streaminfo");
+		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid streaminfo");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamOutput->stream) {
-		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid StreamInput descriptor stream");
+		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid StreamInput descriptor stream");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
@@ -225,7 +225,7 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 	// Get the destination MAC Address.
 	if (!pDescriptorStreamOutput->stream->dest_addr.mac ||
 			memcmp(pDescriptorStreamOutput->stream->dest_addr.buffer.ether_addr_octet, "\x00\x00\x00\x00\x00\x00", ETH_ALEN) == 0) {
-		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid stream dest_addr");
+		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid stream dest_addr");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
@@ -236,7 +236,7 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 	// Get the Stream ID.
 	if (!pDescriptorStreamOutput->stream->stream_addr.mac ||
 			memcmp(pDescriptorStreamOutput->stream->stream_addr.buffer.ether_addr_octet, "\x00\x00\x00\x00\x00\x00", ETH_ALEN) == 0) {
-		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid stream stream_addr");
+		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid stream stream_addr");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
@@ -257,17 +257,17 @@ bool openavbAVDECCListenerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescr
 
 	// Sanity tests.
 	if (!pDescriptorStreamInput) {
-		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid descriptor");
+		AVB_LOG_ERROR("openavbAVDECCListenerIsStreaming Invalid descriptor");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamInput->stream) {
-		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid StreamInput descriptor stream");
+		AVB_LOG_ERROR("openavbAVDECCListenerIsStreaming Invalid StreamInput descriptor stream");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamInput->stream->client) {
-		AVB_LOG_ERROR("openavbAVDECCStopListener Invalid stream client pointer");
+		AVB_LOG_ERROR("openavbAVDECCListenerIsStreaming Invalid stream client pointer");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
@@ -293,17 +293,17 @@ bool openavbAVDECCTalkerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescrip
 
 	// Sanity tests.
 	if (!pDescriptorStreamOutput) {
-		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid descriptor");
+		AVB_LOG_ERROR("openavbAVDECCTalkerIsStreaming Invalid descriptor");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamOutput->stream) {
-		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid StreamInput descriptor stream");
+		AVB_LOG_ERROR("openavbAVDECCTalkerIsStreaming Invalid StreamInput descriptor stream");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamOutput->stream->client) {
-		AVB_LOG_ERROR("openavbAVDECCStopTalker Invalid stream client pointer");
+		AVB_LOG_ERROR("openavbAVDECCTalkerIsStreaming Invalid stream client pointer");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
