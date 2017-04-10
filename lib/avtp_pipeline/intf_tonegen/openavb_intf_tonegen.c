@@ -630,13 +630,18 @@ void openavbIntfToneGenGenEndCB(media_q_t *pMediaQ)
 void openavbIntfToneGenEnableFixedTimestamp(media_q_t *pMediaQ, bool enabled, U32 transmitInterval, U32 batchFactor)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
-	if (pMediaQ && pMediaQ->pPvtIntfInfo) {
+	if (pMediaQ && pMediaQ->pPvtIntfInfo && pMediaQ->pPubMapInfo) {
+		media_q_pub_map_uncmp_audio_info_t *pPubMapUncmpAudioInfo = pMediaQ->pPubMapInfo;
 		pvt_data_t *pPvtData = (pvt_data_t *)pMediaQ->pPvtIntfInfo;
 
 		pPvtData->fixedTimestampEnabled = enabled;
 		if (pPvtData->fixedTimestampEnabled) {
-				openavbMcsInit(&pPvtData->mcs, NANOSECONDS_PER_SECOND/transmitInterval);
-				AVB_LOG_INFO("Fixed timestamping enabled");
+			/* Ignore passed in transmit interval and use framesPerItem and audioRate so
+			   we work with both AAF and 61883-6 */
+			transmitInterval = NANOSECONDS_PER_SECOND/pPvtData->audioRate;
+			transmitInterval *= pPubMapUncmpAudioInfo->framesPerItem;
+			openavbMcsInit(&pPvtData->mcs, transmitInterval);
+			AVB_LOG_INFO("Fixed timestamping enabled");
 		}
 
 		if (batchFactor != 1) {
