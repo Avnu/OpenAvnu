@@ -245,6 +245,8 @@ static void openavbAdpMessageRxFrameReceive(U32 timeoutUsec)
 			}
 			else {
 				AVB_LOG_WARNING("Received non-AVTP frame!");
+				AVB_LOGF_DEBUG("Unexpected packet data (length %d):", len);
+				AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, pFrame, len, 16);
 			}
 		}
 
