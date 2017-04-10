@@ -174,7 +174,9 @@ U8 openavbAcmpSMTalker_disconnectTalker(openavb_acmp_ACMPCommandResponse_t *comm
 			}
 			openavbAVDECCGetTalkerStreamInfo(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo);
 
-			if (openavbAVDECCStopTalker(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo)) {
+			// Stop the Talker if connection_count is 0.
+			if (pTalkerStreamInfo->connection_count > 0 ||
+					openavbAVDECCStopTalker(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo)) {
 				memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
 				memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
 				command->connection_count = pTalkerStreamInfo->connection_count;

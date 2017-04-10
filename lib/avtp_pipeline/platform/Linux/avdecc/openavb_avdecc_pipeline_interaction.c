@@ -100,6 +100,7 @@ bool openavbAVDECCRunTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStrea
 	}
 
 	// Tell the client to start running.
+	// Note that that Talker may already be running; this call ensures that it really is.
 	if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptorStreamOutput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING)) {
 		AVB_LOG_ERROR("Error requesting Talker change to Running");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
