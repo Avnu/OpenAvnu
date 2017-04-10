@@ -104,7 +104,7 @@ net_result LinuxNetworkInterface::send
 		err = sendto
 			( sd_general, payload, length, 0, (sockaddr *) remote,
 			  sizeof( *remote ));
-  }
+	}
 	delete remote;
 	if( err == -1 ) {
 		GPTP_LOG_ERROR( "Failed to send: %s(%d)", strerror(errno), errno );
@@ -365,7 +365,7 @@ void *LinuxTimerQueueHandler( void *arg ) {
 void LinuxTimerQueue::LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg ) {
 	arg->func( arg->inner_arg );
 
-    return;
+	return;
 }
 
 OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
@@ -462,10 +462,10 @@ bool LinuxTimerQueue::cancelEvent( int type, unsigned *event ) {
 
 
 void* OSThreadCallback( void* input ) {
-    OSThreadArg *arg = (OSThreadArg*) input;
+	OSThreadArg *arg = (OSThreadArg*) input;
 
-    arg->ret = arg->func( arg->arg );
-    return 0;
+	arg->ret = arg->func( arg->arg );
+	return 0;
 }
 
 bool LinuxTimestamper::post_init( int ifindex, int sd, TicketingLock *lock ) {
@@ -475,10 +475,10 @@ bool LinuxTimestamper::post_init( int ifindex, int sd, TicketingLock *lock ) {
 LinuxTimestamper::~LinuxTimestamper() {}
 
 unsigned long LinuxTimer::sleep(unsigned long micros) {
-    struct timespec req;
+	struct timespec req;
 	struct timespec rem;
-    req.tv_sec = micros / 1000000;
-    req.tv_nsec = micros % 1000000 * 1000;
+	req.tv_sec = micros / 1000000;
+	req.tv_nsec = micros % 1000000 * 1000;
 	int ret = nanosleep( &req, &rem );
 	while( ret == -1 && errno == EINTR ) {
 		req = rem;
@@ -588,7 +588,7 @@ TicketingLock::~TicketingLock() {
 }
 
 struct LinuxLockPrivate {
-    pthread_t thread_id;
+	pthread_t thread_id;
 	pthread_mutexattr_t mta;
 	pthread_mutex_t mutex;
 	pthread_cond_t port_ready_signal;
@@ -837,7 +837,7 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->local_time = local_time;
 		ptimedata->sync_count   = sync_count;
 		ptimedata->pdelay_count = pdelay_count;
-        ptimedata->asCapable = asCapable;
+		ptimedata->asCapable = asCapable;
 		ptimedata->port_state   = port_state;
 		ptimedata->process_id   = process_id;
 		/* unlock */

@@ -9,13 +9,13 @@ OSThreadExitCode watchdogUpdateThreadFunction(void *arg);
 class SystemdWatchdogHandler
 {
 public:
-    long unsigned int update_interval;
-    long unsigned int getSystemdWatchdogInterval(int *result);
-    void run_update();
-    SystemdWatchdogHandler();
-    virtual ~SystemdWatchdogHandler();
+	long unsigned int update_interval;
+	long unsigned int getSystemdWatchdogInterval(int *result);
+	void run_update();
+	SystemdWatchdogHandler();
+	virtual ~SystemdWatchdogHandler();
 private:
-    OSTimer *timer;
+	OSTimer *timer;
 };
 
 #endif // SYSTEMDWATCHDOGHANDLER_H
