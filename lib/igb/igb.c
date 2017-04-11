@@ -2069,7 +2069,7 @@ int igb_set_class_bandwidth2(device_t *dev, u_int32_t class_a_bytes_per_second,
 	int temp;
 	struct adapter *adapter;
 	struct e1000_hw *hw;
-	struct igb_link_cmd link;
+	struct igb_link_cmd link = {0};
 	int err;
 	float class_a_percent, class_b_percent;
 	int error = 0;

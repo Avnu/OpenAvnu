@@ -107,7 +107,7 @@ device_t *igbAcquireDevice()
 
 	LOCK();
 	if (!igb_dev) {
-		device_t *tmp_dev = malloc(sizeof(device_t));
+		device_t *tmp_dev = calloc(1, sizeof(device_t));
 		if (!tmp_dev) {
 			AVB_LOGF_ERROR("Cannot allocate memory for device: %s", strerror(errno));
 			goto unlock;

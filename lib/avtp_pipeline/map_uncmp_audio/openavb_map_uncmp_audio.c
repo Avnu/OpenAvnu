@@ -473,9 +473,9 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 		while (framesProcessed < pPubMapInfo->framesPerPacket) {
 			pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
 
-			if (pMediaQItem && pMediaQItem->dataLen > 0) {
+			if (pMediaQItem && pMediaQItem->pPubData && pMediaQItem->dataLen > 0) {
 				if (pMediaQItem->readIdx == 0) {
-					// Timestamp from the media queue is always assoicated with the first data point.
+					// Timestamp from the media queue is always associated with the first data point.
 
 					// Update time stamp
 

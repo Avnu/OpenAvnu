@@ -347,7 +347,7 @@ bool openavbMediaQSetSize(media_q_t *pMediaQ, int itemCount, int itemSize)
 					int i1;
 					for (i1 = 0; i1 < itemCount; i1++) {
 						pMediaQInfo->pItems[i1].pAvtpTime = openavbAvtpTimeCreate(pMediaQInfo->maxLatencyUsec);
-						pMediaQInfo->pItems[i1].pPubData = calloc(1, itemSize);
+						pMediaQInfo->pItems[i1].pPubData = calloc(1, itemSize + 4 /* Just in case */);
 						pMediaQInfo->pItems[i1].dataLen = 0;
 						pMediaQInfo->pItems[i1].itemSize = itemSize;
 						if (!pMediaQInfo->pItems[i1].pPubData) {

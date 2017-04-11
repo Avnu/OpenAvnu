@@ -64,7 +64,12 @@ typedef struct {
 	int ref;
 } qdisc_data_t;
 
-static qdisc_data_t qdisc_data;
+static qdisc_data_t qdisc_data = {
+#if (AVB_FEATURE_IGB)
+	NULL,
+#endif
+	0, 0, {0}, 0, 0, 0, 0
+};
 
 // We do get accessed from multiple threads, so need a mutex
 pthread_mutex_t qmgr_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
