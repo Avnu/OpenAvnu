@@ -41,13 +41,14 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // We are accessed from multiple threads, so need a mutex
 MUTEX_HANDLE(gAvdeccMsgStateMutex);
 
-avdecc_msg_state_t *gAvdeccMsgStateList[MAX_AVDECC_MSG_CLIENTS] = { 0 };
+static avdecc_msg_state_t *gAvdeccMsgStateList[MAX_AVDECC_MSG_CLIENTS] = { 0 };
+static int nNumInitialized = 0;
 
 EXTERN_DLL_EXPORT bool openavbAvdeccMsgInitialize(void)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
-	{
+	if (nNumInitialized++ == 0) {
 		MUTEX_ATTR_HANDLE(mta);
 		MUTEX_ATTR_INIT(mta);
 		MUTEX_ATTR_SET_TYPE(mta, MUTEX_ATTR_TYPE_DEFAULT);
@@ -66,11 +67,13 @@ EXTERN_DLL_EXPORT bool openavbAvdeccMsgCleanup()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
-	if (AvdeccMsgStateListGetIndex(0)) {
-		AVB_LOG_WARNING("AvdeccMsgStateList not empty on exit");
-	}
+	if (--nNumInitialized <= 0) {
+		nNumInitialized = 0;
 
-	{
+		if (AvdeccMsgStateListGetIndex(0)) {
+			AVB_LOG_WARNING("AvdeccMsgStateList not empty on exit");
+		}
+
 		MUTEX_CREATE_ERR();
 		MUTEX_DESTROY(gAvdeccMsgStateMutex);
 		MUTEX_LOG_ERR("Error destroying mutex");
