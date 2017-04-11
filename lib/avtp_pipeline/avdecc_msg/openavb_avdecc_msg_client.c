@@ -237,20 +237,20 @@ bool openavbAvdeccMsgClntHndlChangeRequestFromServer(int avdeccMsgHandle, openav
 	switch (desiredState) {
 	case OPENAVB_AVDECC_MSG_STOPPED:
 		// Stop requested.
-		AVB_LOGF_DEBUG("Stop state requested for Listener %d", avdeccMsgHandle);
+		AVB_LOGF_DEBUG("Stop state requested for client %d", avdeccMsgHandle);
 		if (pState->pTLState->bRunning) {
 			if (openavbTLStop((tl_handle_t) pState->pTLState)) {
-				// NOTE:  openavbTLStop() call will cause listener change notification if successful.
-				AVB_LOGF_INFO("Listener %d state changed to stopped", avdeccMsgHandle);
+				// NOTE:  openavbTLStop() call will cause client change notification if successful.
+				AVB_LOGF_INFO("Client %d state changed to stopped", avdeccMsgHandle);
 				ret = true;
 			} else {
 				// Notify server of issues.
-				AVB_LOGF_ERROR("Unable to change listener %d state to stopped", avdeccMsgHandle);
+				AVB_LOGF_ERROR("Unable to change client %d state to stopped", avdeccMsgHandle);
 				openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 			}
 		} else {
 			// Notify server we are already in this state.
-			AVB_LOGF_WARNING("Listener %d state is already at stopped", avdeccMsgHandle);
+			AVB_LOGF_INFO("Client %d state is already at stopped", avdeccMsgHandle);
 			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
 			ret = true;
 		}
@@ -258,27 +258,34 @@ bool openavbAvdeccMsgClntHndlChangeRequestFromServer(int avdeccMsgHandle, openav
 
 	case OPENAVB_AVDECC_MSG_RUNNING:
 		// Run requested.
-		AVB_LOGF_DEBUG("Run state requested for Listener %d", avdeccMsgHandle);
+		AVB_LOGF_DEBUG("Run state requested for client %d", avdeccMsgHandle);
 		if (!(pState->pTLState->bRunning)) {
 			if (openavbTLRun((tl_handle_t) pState->pTLState)) {
-				// NOTE:  openavbTLRun() call will cause listener change notification if successful.
-				AVB_LOGF_INFO("Listener %d state changed to running", avdeccMsgHandle);
+				// NOTE:  openavbTLRun() call will cause client change notification if successful.
+				AVB_LOGF_INFO("Client %d state changed to running", avdeccMsgHandle);
 				ret = true;
 			} else {
 				// Notify server of issues.
-				AVB_LOGF_ERROR("Unable to change listener %d state to running", avdeccMsgHandle);
+				AVB_LOGF_ERROR("Unable to change client %d state to running", avdeccMsgHandle);
 				openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 			}
 		}
 		else if (pState->pTLState->bRunning && pState->pTLState->bPaused) {
-			openavbTLPauseListener(pState->pTLState, FALSE);
-			// NOTE:  openavbTLPauseListener() call will cause listener change notification.
-			AVB_LOGF_INFO("Listener %d state changed from paused to running", avdeccMsgHandle);
-			ret = true;
+			if (pState->pTLState->cfg.role == AVB_ROLE_TALKER) {
+				openavbTLPauseTalker(pState->pTLState, FALSE);
+				// NOTE:  openavbTLPauseTalker() call will cause Talker change notification.
+				AVB_LOGF_INFO("Talker %d state changed from paused to running", avdeccMsgHandle);
+				ret = true;
+			} else {
+				openavbTLPauseListener(pState->pTLState, FALSE);
+				// NOTE:  openavbTLPauseListener() call will cause Listener change notification.
+				AVB_LOGF_INFO("Listener %d state changed from paused to running", avdeccMsgHandle);
+				ret = true;
+			}
 		}
 		else {
 			// Notify server we are already in this state.
-			AVB_LOGF_WARNING("Listener %d state is already at running", avdeccMsgHandle);
+			AVB_LOGF_INFO("Client %d state is already at running", avdeccMsgHandle);
 			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
 			ret = true;
 		}
@@ -286,21 +293,28 @@ bool openavbAvdeccMsgClntHndlChangeRequestFromServer(int avdeccMsgHandle, openav
 
 	case OPENAVB_AVDECC_MSG_PAUSED:
 		// Running with Pause requested.
-		AVB_LOGF_DEBUG("Paused state requested for Listener %d", avdeccMsgHandle);
+		AVB_LOGF_DEBUG("Paused state requested for client %d", avdeccMsgHandle);
 		if (!(pState->pTLState->bRunning)) {
 			// Notify server of issues.
-			AVB_LOGF_ERROR("Listener %d attempted to pause the stream while not running.", avdeccMsgHandle);
+			AVB_LOGF_ERROR("Client %d attempted to pause the stream while not running.", avdeccMsgHandle);
 			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 		}
 		else if (pState->pTLState->bRunning && !(pState->pTLState->bPaused)) {
-			openavbTLPauseListener(pState->pTLState, TRUE);
-			// NOTE:  openavbTLPauseListener() call will cause listener change notification.
-			AVB_LOGF_INFO("Listener %d state changed from running to paused", avdeccMsgHandle);
-			ret = true;
+			if (pState->pTLState->cfg.role == AVB_ROLE_TALKER) {
+				openavbTLPauseTalker(pState->pTLState, TRUE);
+				// NOTE:  openavbTLPauseTalker() call will cause Talker change notification.
+				AVB_LOGF_INFO("Talker %d state changed from running to paused", avdeccMsgHandle);
+				ret = true;
+			} else {
+				openavbTLPauseListener(pState->pTLState, TRUE);
+				// NOTE:  openavbTLPauseListener() call will cause Listener change notification.
+				AVB_LOGF_INFO("Listener %d state changed from running to paused", avdeccMsgHandle);
+				ret = true;
+			}
 		}
 		else {
 			// Notify server we are already in this state.
-			AVB_LOGF_WARNING("Listener %d state is already at paused", avdeccMsgHandle);
+			AVB_LOGF_INFO("Client %d state is already at paused", avdeccMsgHandle);
 			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_PAUSED);
 			ret = true;
 		}
