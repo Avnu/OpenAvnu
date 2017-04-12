@@ -103,13 +103,18 @@ U8 openavbAcmpSMTalker_connectTalker(openavb_acmp_ACMPCommandResponse_t *command
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	U8 retStatus = OPENAVB_ACMP_STATUS_TALKER_MISBEHAVING;
 
-	openavb_list_node_t node = openavbAcmpSMTalker_findListenerPairNodeFromCommand(command);
-	if (node) {
-		retStatus = OPENAVB_ACMP_STATUS_LISTENER_MISBEHAVING;
-	}
-	else {
-		openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo = openavbArrayDataIdx(openavbAcmpSMTalkerVars.talkerStreamInfos, command->talker_unique_id);
-		if (pTalkerStreamInfo) {
+	openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo = openavbArrayDataIdx(openavbAcmpSMTalkerVars.talkerStreamInfos, command->talker_unique_id);
+	if (pTalkerStreamInfo) {
+		openavb_list_node_t node = openavbAcmpSMTalker_findListenerPairNodeFromCommand(command);
+		if (node) {
+			// Already connected, so return the current status.
+			memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
+			memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
+			command->stream_vlan_id = pTalkerStreamInfo->stream_vlan_id;
+			command->connection_count = pTalkerStreamInfo->connection_count;
+			retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
+		}
+		else {
 			if (!pTalkerStreamInfo->connected_listeners) {
 				pTalkerStreamInfo->connected_listeners = openavbListNewList();
 			}
@@ -139,6 +144,9 @@ U8 openavbAcmpSMTalker_connectTalker(openavb_acmp_ACMPCommandResponse_t *command
 			}
 		}
 	}
+	else {
+		retStatus = OPENAVB_ACMP_STATUS_TALKER_UNKNOWN_ID;
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 	return retStatus;
@@ -156,13 +164,17 @@ U8 openavbAcmpSMTalker_disconnectTalker(openavb_acmp_ACMPCommandResponse_t *comm
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	U8 retStatus = OPENAVB_ACMP_STATUS_TALKER_MISBEHAVING;
 
-	openavb_list_node_t node = openavbAcmpSMTalker_findListenerPairNodeFromCommand(command);
-	if (!node) {
-		retStatus = OPENAVB_ACMP_STATUS_LISTENER_MISBEHAVING;
-	}
-	else {
-		openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo = openavbArrayDataIdx(openavbAcmpSMTalkerVars.talkerStreamInfos, command->talker_unique_id);
-		if (pTalkerStreamInfo) {
+	openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo = openavbArrayDataIdx(openavbAcmpSMTalkerVars.talkerStreamInfos, command->talker_unique_id);
+	if (pTalkerStreamInfo) {
+		openavb_list_node_t node = openavbAcmpSMTalker_findListenerPairNodeFromCommand(command);
+		if (!node) {
+			// Already disconnected, so return the current status.
+			memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
+			memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
+			command->connection_count = pTalkerStreamInfo->connection_count;
+			retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
+		}
+		else {
 			openavbListDelete(pTalkerStreamInfo->connected_listeners, node);
 			pTalkerStreamInfo->connection_count--;
 
@@ -183,6 +195,9 @@ U8 openavbAcmpSMTalker_disconnectTalker(openavb_acmp_ACMPCommandResponse_t *comm
 				retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
 			}
 		}
+	}
+	else {
+		retStatus = OPENAVB_ACMP_STATUS_TALKER_UNKNOWN_ID;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
