@@ -55,6 +55,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace.h"
 #include "openavb_avdecc_msg_client.h"
 #include "openavb_tl.h"
+#include "openavb_talker.h"
 #include "openavb_listener.h"
 
 // forward declarations
