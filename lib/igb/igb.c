@@ -1916,7 +1916,7 @@ int igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b,
 	u_int32_t linkrate;
 	struct adapter *adapter;
 	struct e1000_hw *hw;
-	struct igb_link_cmd link;
+	struct igb_link_cmd link = {0};
 	int err;
 	float class_a_percent, class_b_percent;
 	int error = 0;

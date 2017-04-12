@@ -20,7 +20,7 @@
  ******************************************************************
  */
 
-#ifndef OPENAVB_ADP_SM_ADVERTISE_INTERACE_H
+#ifndef OPENAVB_ADP_SM_ADVERTISE_INTERFACE_H
 #define OPENAVB_ADP_SM_ADVERTISE_INTERFACE_H 1
 
 #include "openavb_adp.h"

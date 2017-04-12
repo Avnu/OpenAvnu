@@ -114,7 +114,7 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 		AVB_LOG_INFO("Using *simple* implementation");
 
 		// allocate memory for rawsock object
-		simple_rawsock_t *rawsock = calloc(1, sizeof(simple_rawsock_t));
+		simple_rawsock_t *rawsock = calloc(1, sizeof(simple_rawsock_t) + 4 /* Just in case */);
 		if (!rawsock) {
 			AVB_LOG_ERROR("Creating rawsock; malloc failed");
 			return NULL;

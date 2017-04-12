@@ -2,7 +2,7 @@
  ******************************************************************
  * COPYRIGHT � Symphony Teleca
  *----------------------------------------------------------------*
- * MODULE : ADP - AVDECC Discovery Protocol : Discovery State Machine Interace
+ * MODULE : ADP - AVDECC Discovery Protocol : Discovery State Machine Interface
  *
  * PROGRAMMER : Ken Carlino (Triple Play Integration)
  * DATE :       5-Dec-2013
