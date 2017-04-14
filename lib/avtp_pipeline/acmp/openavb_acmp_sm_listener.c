@@ -109,6 +109,7 @@ bool openavbAcmpSMListener_listenerIsConnected(openavb_acmp_ACMPCommandResponse_
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	bool bResult = FALSE;
 
+	// Returns TRUE if listener is connected to a stream source other than the one specified in the command.
 	openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo = openavbArrayDataIdx(openavbAcmpSMListenerVars.listenerStreamInfos, command->listener_unique_id);
 	if (pListenerStreamInfo) {
 		if (pListenerStreamInfo->connected) {
@@ -130,6 +131,7 @@ bool openavbAcmpSMListener_listenerIsConnectedTo(openavb_acmp_ACMPCommandRespons
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	bool bResult = FALSE;
 
+	// Returns TRUE if listener is connected to the stream source specified in the command.
 	openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo = openavbArrayDataIdx(openavbAcmpSMListenerVars.listenerStreamInfos, command->listener_unique_id);
 	if (pListenerStreamInfo) {
 		if (pListenerStreamInfo->connected) {
@@ -225,7 +227,9 @@ void openavbAcmpSMListener_txResponse(U8 messageType, openavb_acmp_ACMPCommandRe
 U8 openavbAcmpSMListener_connectListener(openavb_acmp_ACMPCommandResponse_t *response)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
-	U8 retStatus; 
+	U8 retStatus;
+
+	// AVDECC_TODO:  What do we do if the Listener is already connected?
 
 	openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo = openavbArrayDataIdx(openavbAcmpSMListenerVars.listenerStreamInfos, response->listener_unique_id);
 	if (pListenerStreamInfo) {
@@ -328,7 +332,7 @@ U8 openavbAcmpSMListener_getState(openavb_acmp_ACMPCommandResponse_t *command)
 		command->connection_count = pListenerStreamInfo->connected ? 1 : 0;			// AVDECC_TODO - questionable information in spec.
 		command->flags = pListenerStreamInfo->flags;
 		memcpy(command->talker_entity_id, pListenerStreamInfo->talker_entity_id, sizeof(command->talker_entity_id));
-		//command->listener_unique_id = command->listener_unique_id;				// Overwritting data in passed in structure
+		//command->listener_unique_id = command->listener_unique_id;				// Overwriting data in passed in structure
 		retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
 	}
 
