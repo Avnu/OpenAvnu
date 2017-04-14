@@ -242,7 +242,7 @@ U8 openavbAcmpSMTalker_getConnection(openavb_acmp_ACMPCommandResponse_t *command
 		int count = command->connection_count;
 
 		openavb_list_node_t node = openavbListIterFirst(pTalkerStreamInfo->connected_listeners);
-		while (node && --count) {
+		while (node && count-- > 0) {
 			node = openavbListIterNext(pTalkerStreamInfo->connected_listeners);
 		}
 
