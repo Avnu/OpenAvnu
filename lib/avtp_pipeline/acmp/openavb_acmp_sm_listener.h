@@ -52,7 +52,7 @@ void openavbAcmpSMListener_cancelTimeout(openavb_acmp_ACMPCommandResponse_t *com
 void openavbAcmpSMListener_removeInflight(openavb_acmp_ACMPCommandResponse_t *commandResponse);
 U8 openavbAcmpSMListener_getState(openavb_acmp_ACMPCommandResponse_t *command);
 
-void openavbAcmpSMListenerStart(void);
+bool openavbAcmpSMListenerStart(void);
 void openavbAcmpSMListenerStop(void);
 
 void openavbAcmpSMListenerSet_rcvdConnectRXCmd(openavb_acmp_ACMPCommandResponse_t *command);

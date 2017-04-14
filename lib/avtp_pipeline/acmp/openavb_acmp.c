@@ -29,6 +29,7 @@
 #include "openavb_acmp.h"
 #include "openavb_acmp_sm_listener.h"
 #include "openavb_acmp_sm_talker.h"
+#include "openavb_acmp_sm_controller.h"
 #include "openavb_acmp_message.h"
 
 extern openavb_avdecc_cfg_t gAvdeccCfg;
@@ -88,13 +89,21 @@ openavbRC openavbAcmpStart()
 	}
 
 	if (gAvdeccCfg.bListener) {
-		openavbAcmpSMListenerStart();
+		if (!openavbAcmpSMListenerStart()) {
+			AVB_RC_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_GENERIC), AVB_TRACE_ACMP);
+		}
 		bListenerStarted = TRUE;
 	}
 
 	if (gAvdeccCfg.bTalker) {
-		openavbAcmpSMTalkerStart();
+		if (!openavbAcmpSMTalkerStart()) {
+			AVB_RC_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_GENERIC), AVB_TRACE_ACMP);
+		}
 		bTalkerStarted = TRUE;
+	}
+
+	if (!openavbAcmpSMControllerStart()) {
+		AVB_RC_TRACE_RET(AVB_RC(OPENAVB_AVDECC_FAILURE | OPENAVBAVDECC_RC_GENERIC), AVB_TRACE_ACMP);
 	}
 
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_ACMP);
@@ -103,6 +112,8 @@ openavbRC openavbAcmpStart()
 void openavbAcmpStop()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
+
+	openavbAcmpSMControllerStop();
 
 	if (bTalkerStarted) {
 		openavbAcmpSMTalkerStop();

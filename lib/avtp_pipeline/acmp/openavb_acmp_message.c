@@ -32,6 +32,7 @@
 #include "openavb_avtp.h"
 #include "openavb_srp.h"
 #include "openavb_acmp.h"
+#include "openavb_acmp_sm_controller.h"
 #include "openavb_acmp_sm_listener.h"
 #include "openavb_acmp_sm_talker.h"
 
@@ -193,26 +194,31 @@ static void openavbAcmpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 			openavbAcmpSMTalkerSet_rcvdGetTXState(&acmpCommandResponse);
 			break;
 		case OPENAVB_ACMP_MESSAGE_TYPE_GET_TX_STATE_RESPONSE:
+			openavbAcmpSMControllerSet_rcvdResponse(&acmpCommandResponse);
 			break;
 		case OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_COMMAND:
 			openavbAcmpSMListenerSet_rcvdConnectRXCmd(&acmpCommandResponse);
 			break;
 		case OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE:
+			openavbAcmpSMControllerSet_rcvdResponse(&acmpCommandResponse);
 			break;
 		case OPENAVB_ACMP_MESSAGE_TYPE_DISCONNECT_RX_COMMAND:
 			openavbAcmpSMListenerSet_rcvdDisconnectRXCmd(&acmpCommandResponse);
 			break;
 		case OPENAVB_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE:
+			openavbAcmpSMControllerSet_rcvdResponse(&acmpCommandResponse);
 			break;
 		case OPENAVB_ACMP_MESSAGE_TYPE_GET_RX_STATE_COMMAND:
 			openavbAcmpSMListenerSet_rcvdGetRXState(&acmpCommandResponse);
 			break;
 		case OPENAVB_ACMP_MESSAGE_TYPE_GET_RX_STATE_RESPONSE:
+			openavbAcmpSMControllerSet_rcvdResponse(&acmpCommandResponse);
 			break;
 		case OPENAVB_ACMP_MESSAGE_TYPE_GET_TX_CONNECTION_COMMAND:
 			openavbAcmpSMTalkerSet_rcvdGetTXConnectionCmd(&acmpCommandResponse);
 			break;
 		case OPENAVB_ACMP_MESSAGE_TYPE_GET_TX_CONNECTION_RESPONSE:
+			openavbAcmpSMControllerSet_rcvdResponse(&acmpCommandResponse);
 			break;
 	}
 

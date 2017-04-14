@@ -44,7 +44,8 @@ extern openavb_acmp_sm_global_vars_t openavbAcmpSMGlobalVars;
 
 static openavb_acmp_ACMPCommandResponse_t rcvdCmdResp;
 static openavb_acmp_ACMPCommandResponse_t *pRcvdCmdResp = &rcvdCmdResp;
-static openavb_acmp_sm_talker_vars_t openavbAcmpSMTalkerVars;
+static openavb_acmp_sm_talker_vars_t openavbAcmpSMTalkerVars = {0};
+static bool bRunning = FALSE;
 
 extern MUTEX_HANDLE(openavbAcmpMutex);
 #define ACMP_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAcmpMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
@@ -57,6 +58,7 @@ static MUTEX_HANDLE(openavbAcmpSMTalkerMutex);
 SEM_T(openavbAcmpSMTalkerSemaphore);
 THREAD_TYPE(openavbAcmpSmTalkerThread);
 THREAD_DEFINITON(openavbAcmpSmTalkerThread);
+
 
 openavb_list_node_t openavbAcmpSMTalker_findListenerPairNodeFromCommand(openavb_acmp_ACMPCommandResponse_t *command)
 {
@@ -267,7 +269,6 @@ U8 openavbAcmpSMTalker_getConnection(openavb_acmp_ACMPCommandResponse_t *command
 void openavbAcmpSMTalkerStateMachine()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
-	bool bRunning = TRUE;
 
 	openavb_acmp_sm_talker_state_t state = OPENAVB_ACMP_SM_TALKER_STATE_WAITING;
 
@@ -408,14 +409,15 @@ void* openavbAcmpSMTalkerThreadFn(void *pv)
 	return NULL;
 }
 
-void openavbAcmpSMTalkerStart()
+bool openavbAcmpSMTalkerStart()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
 	openavbAcmpSMTalkerVars.talkerStreamInfos = openavbArrayNewArray(sizeof(openavb_acmp_TalkerStreamInfo_t));
 	if (!openavbAcmpSMTalkerVars.talkerStreamInfos) {
 		AVB_LOG_ERROR("Unable to create talkerStreamInfos array. ACMP protocol not started.");
-		return;
+		AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+		return FALSE;
 	}
 	openavb_array_t streamOutputDescriptorArray = openavbAemGetDescriptorArray(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT);
 	if (streamOutputDescriptorArray) {
@@ -436,26 +438,41 @@ void openavbAcmpSMTalkerStart()
 
 	// Start the State Machine
 	bool errResult;
+	bRunning = TRUE;
 	THREAD_CREATE(openavbAcmpSmTalkerThread, openavbAcmpSmTalkerThread, NULL, openavbAcmpSMTalkerThreadFn, NULL);
 	THREAD_CHECK_ERROR(openavbAcmpSmTalkerThread, "Thread / task creation failed", errResult);
-	if (errResult);		// Already reported 
+	if (errResult) {
+		bRunning = FALSE;
+		AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+		return FALSE;
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+	return TRUE;
 }
 
 void openavbAcmpSMTalkerStop()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
-	openavbAcmpSMTalkerSet_doTerminate(TRUE);
+	if (bRunning) {
+		openavbAcmpSMTalkerSet_doTerminate(TRUE);
 
-	THREAD_JOIN(openavbAcmpSmTalkerThread, NULL);
+		THREAD_JOIN(openavbAcmpSmTalkerThread, NULL);
+	}
 
 	SEM_ERR_T(err);
 	SEM_DESTROY(openavbAcmpSMTalkerSemaphore, err);
 	SEM_LOG_ERR(err);
 
-	// AVDECC_TODO - need to remove the listener pair lists first
+	openavb_array_elem_t node = openavbArrayIterFirst(openavbAcmpSMTalkerVars.talkerStreamInfos);
+	if (node) {
+		openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo = openavbArrayData(node);
+		if (pTalkerStreamInfo != NULL) {
+			openavbListDeleteList(pTalkerStreamInfo->connected_listeners);
+			node = openavbArrayIterNext(openavbAcmpSMTalkerVars.talkerStreamInfos);
+		}
+	}
 	openavbArrayDeleteArray(openavbAcmpSMTalkerVars.talkerStreamInfos);
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);

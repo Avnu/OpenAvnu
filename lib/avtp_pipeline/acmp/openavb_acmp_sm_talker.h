@@ -45,7 +45,7 @@ U8 openavbAcmpSMTalker_disconnectTalker(openavb_acmp_ACMPCommandResponse_t *comm
 U8 openavbAcmpSMTalker_getState(openavb_acmp_ACMPCommandResponse_t *command);
 U8 openavbAcmpSMTalker_getConnection(openavb_acmp_ACMPCommandResponse_t *command);
 
-void openavbAcmpSMTalkerStart(void);
+bool openavbAcmpSMTalkerStart(void);
 void openavbAcmpSMTalkerStop(void);
 
 void openavbAcmpSMTalkerSet_rcvdConnectTXCmd(openavb_acmp_ACMPCommandResponse_t *command);

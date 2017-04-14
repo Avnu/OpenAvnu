@@ -51,7 +51,8 @@ extern openavb_acmp_sm_global_vars_t openavbAcmpSMGlobalVars;
 
 static openavb_acmp_ACMPCommandResponse_t rcvdCmdResp;
 static openavb_acmp_ACMPCommandResponse_t *pRcvdCmdResp = &rcvdCmdResp;
-static openavb_acmp_sm_listener_vars_t openavbAcmpSMListenerVars;
+static openavb_acmp_sm_listener_vars_t openavbAcmpSMListenerVars = {0};
+static bool bRunning = FALSE;
 
 extern MUTEX_HANDLE(openavbAcmpMutex);
 #define ACMP_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAcmpMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
@@ -338,9 +339,8 @@ U8 openavbAcmpSMListener_getState(openavb_acmp_ACMPCommandResponse_t *command)
 void openavbAcmpSMListenerStateMachine()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
-	bool bRunning = TRUE;
-	openavb_acmp_InflightCommand_t *pInflightActive = NULL;		// The inflight command for the current state
 
+	openavb_acmp_InflightCommand_t *pInflightActive = NULL;		// The inflight command for the current state
 	openavb_acmp_sm_listener_state_t state = OPENAVB_ACMP_SM_LISTENER_STATE_WAITING;
 
 	// Lock such that the mutex is held unless waiting for a semaphore. Synchronous processing of command responses.
@@ -609,19 +609,21 @@ void* openavbAcmpSmListenerThreadFn(void *pv)
 	return NULL;
 }
 
-void openavbAcmpSMListenerStart()
+bool openavbAcmpSMListenerStart()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
 	openavbAcmpSMListenerVars.inflight = openavbListNewList();
 	if (!openavbAcmpSMListenerVars.inflight) {
 		AVB_LOG_ERROR("Unable to create inflight list. ACMP protocol not started.");
-		return;
+		AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+		return FALSE;
 	}
 	openavbAcmpSMListenerVars.listenerStreamInfos = openavbArrayNewArray(sizeof(openavb_acmp_ListenerStreamInfo_t));
 	if (!openavbAcmpSMListenerVars.listenerStreamInfos) {
 		AVB_LOG_ERROR("Unable to create listenerStreamInfos array. ACMP protocol not started.");
-		return;
+		AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+		return FALSE;
 	}
 	openavb_array_t streamInputDescriptorArray = openavbAemGetDescriptorArray(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT);
 	if (streamInputDescriptorArray) {
@@ -642,20 +644,28 @@ void openavbAcmpSMListenerStart()
 
 	// Start the State Machine
 	bool errResult;
+	bRunning = TRUE;
 	THREAD_CREATE(openavbAcmpSmListenerThread, openavbAcmpSmListenerThread, NULL, openavbAcmpSmListenerThreadFn, NULL);
 	THREAD_CHECK_ERROR(openavbAcmpSmListenerThread, "Thread / task creation failed", errResult);
-	if (errResult);		// Already reported 
+	if (errResult) {
+		bRunning = FALSE;
+		AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+		return FALSE;
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+	return TRUE;
 }
 
 void openavbAcmpSMListenerStop()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 
-	openavbAcmpSMListenerSet_doTerminate(TRUE);
+	if (bRunning) {
+		openavbAcmpSMListenerSet_doTerminate(TRUE);
 
-	THREAD_JOIN(openavbAcmpSmListenerThread, NULL);
+		THREAD_JOIN(openavbAcmpSmListenerThread, NULL);
+	}
 
 	SEM_ERR_T(err);
 	SEM_DESTROY(openavbAcmpSMListenerSemaphore, err);
