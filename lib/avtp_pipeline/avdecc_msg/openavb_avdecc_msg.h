@@ -38,8 +38,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_types.h"
 
 #define AVB_AVDECC_MSG_HANDLE_INVALID	(-1)
-#define AVDECC_MSG_RECONNECT_SECONDS 	10
-#define AVB_AVDECC_MSG_UNIX_PATH 		"/tmp/avdecc_msg"
+#define AVDECC_MSG_RECONNECT_SECONDS	10
+#define AVB_AVDECC_MSG_UNIX_PATH		"/tmp/avdecc_msg"
 #define MAX_AVDECC_MSG_CLIENTS			16
 
 
@@ -121,7 +121,7 @@ typedef struct {
 // Server-to-Client messages parameters
 //////////////////////////////
 typedef struct {
-	U32 		AVBVersion;
+	U32 AVBVersion;
 } openavbAvdeccMsgParams_VersionCallback_t;
 
 typedef struct {

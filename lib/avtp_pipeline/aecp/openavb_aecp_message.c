@@ -897,9 +897,9 @@ void openavbAecpMessageTxFrame(openavb_aecp_AEMCommandResponse_t *AEMCommandResp
 	if (pDst - pBuf < 64) { pDst = pBuf + 64; }
 
 #if 0
- 	AVB_LOGF_DEBUG("openavbAecpMessageTxFrame packet data (length %d):", pDst - pBuf);
- 	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, pBuf, pDst - pBuf, 16);
- #endif
+	AVB_LOGF_DEBUG("openavbAecpMessageTxFrame packet data (length %d):", pDst - pBuf);
+	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, pBuf, pDst - pBuf, 16);
+#endif
 
 	openavbRawsockTxFrameReady(txSock, pBuf, pDst - pBuf, 0);
 	openavbRawsockSend(txSock);

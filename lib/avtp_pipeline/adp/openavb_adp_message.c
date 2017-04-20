@@ -325,9 +325,9 @@ void openavbAdpMessageTxFrame(U8 msgType, U8 *destAddr)
 	ADP_UNLOCK();
 
 #if 0
- 	AVB_LOGF_DEBUG("openavbAdpMessageTxFrame packet data (length %d):", hdrlen + AVTP_HDR_LEN + ADP_DATA_LEN);
- 	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, pBuf, hdrlen + AVTP_HDR_LEN + ADP_DATA_LEN, 16);
- #endif
+	AVB_LOGF_DEBUG("openavbAdpMessageTxFrame packet data (length %d):", hdrlen + AVTP_HDR_LEN + ADP_DATA_LEN);
+	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, pBuf, hdrlen + AVTP_HDR_LEN + ADP_DATA_LEN, 16);
+#endif
 
 	openavbRawsockTxFrameReady(txSock, pBuf, hdrlen + AVTP_HDR_LEN + ADP_DATA_LEN, 0);
 	openavbRawsockSend(txSock);

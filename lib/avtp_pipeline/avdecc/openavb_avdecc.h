@@ -95,7 +95,7 @@ d += sizeof(U32);								\
 #define BIT_D2BHTONB(d, s, shf, inc)			\
 {												\
 U8 sAlign8 = s << shf;							\
-U8 dAlign8; 									\
+U8 dAlign8;										\
 memcpy(&dAlign8, d, sizeof(U8));				\
 dAlign8 |= sAlign8;								\
 memcpy(d, &dAlign8, sizeof(U8));				\
@@ -106,7 +106,7 @@ d += inc;										\
 #define BIT_D2BHTONS(d, s, shf, inc)			\
 {												\
 U16 sAlign16 = htons((U16)(s << shf));			\
-U16 dAlign16; 									\
+U16 dAlign16;									\
 memcpy(&dAlign16, d, sizeof(U16));				\
 dAlign16 |= sAlign16;							\
 memcpy(d, &dAlign16, sizeof(U16));				\
@@ -117,7 +117,7 @@ d += inc;										\
 #define BIT_D2BHTONL(d, s, shf, inc)			\
 {												\
 U32 sAlign32 = htonl((U32)(s << shf));			\
-U32 dAlign32; 									\
+U32 dAlign32;									\
 memcpy(&dAlign32, d, sizeof(U32));				\
 dAlign32 |= sAlign32;							\
 memcpy(d, &dAlign32, sizeof(U32));				\
