@@ -893,6 +893,9 @@ void openavbAecpMessageTxFrame(openavb_aecp_AEMCommandResponse_t *AEMCommandResp
 	// Set length into buffer
 	BIT_D2BHTONS(pcontrol_data_length, (pDst - pcontrol_data_length_start_marker), 0, 2);
 
+	// Make sure the packet will be at least 64 bytes long.
+	if (pDst - pBuf < 64) { pDst = pBuf + 64; }
+
 #if 0
  	AVB_LOGF_DEBUG("openavbAecpMessageTxFrame packet data (length %d):", pDst - pBuf);
  	AVB_LOG_BUFFER(AVB_LOG_LEVEL_DEBUG, pBuf, pDst - pBuf, 16);
