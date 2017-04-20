@@ -482,14 +482,15 @@ void openavbAcmpSMTalkerSet_rcvdConnectTXCmd(openavb_acmp_ACMPCommandResponse_t 
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMTalkerVars.rcvdConnectTX = TRUE;
 
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMTalkerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
@@ -497,14 +498,15 @@ void openavbAcmpSMTalkerSet_rcvdDisconnectTXCmd(openavb_acmp_ACMPCommandResponse
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMTalkerVars.rcvdDisconnectTX = TRUE;
 
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMTalkerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
@@ -512,14 +514,15 @@ void openavbAcmpSMTalkerSet_rcvdGetTXState(openavb_acmp_ACMPCommandResponse_t *c
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMTalkerVars.rcvdGetTXState = TRUE;
 
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMTalkerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
@@ -527,14 +530,15 @@ void openavbAcmpSMTalkerSet_rcvdGetTXConnectionCmd(openavb_acmp_ACMPCommandRespo
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMTalkerVars.rcvdGetTXConnection = TRUE;
 
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMTalkerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
@@ -549,5 +553,3 @@ void openavbAcmpSMTalkerSet_doTerminate(bool value)
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
-
-

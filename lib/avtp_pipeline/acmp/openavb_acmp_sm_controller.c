@@ -384,14 +384,15 @@ void openavbAcmpSMControllerSet_rcvdResponse(openavb_acmp_ACMPCommandResponse_t 
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMControllerVars.rcvdResponse = TRUE;
 
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMControllerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 

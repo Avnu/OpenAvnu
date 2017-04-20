@@ -685,13 +685,15 @@ void openavbAcmpSMListenerSet_rcvdConnectRXCmd(openavb_acmp_ACMPCommandResponse_
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMListenerVars.rcvdConnectRXCmd = TRUE;
+
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMListenerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
@@ -699,13 +701,15 @@ void openavbAcmpSMListenerSet_rcvdDisconnectRXCmd(openavb_acmp_ACMPCommandRespon
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMListenerVars.rcvdDisconnectRXCmd = TRUE;
+
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMListenerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
@@ -713,13 +717,15 @@ void openavbAcmpSMListenerSet_rcvdConnectTXResp(openavb_acmp_ACMPCommandResponse
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMListenerVars.rcvdConnectTXResp = TRUE;
+
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMListenerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
@@ -727,13 +733,15 @@ void openavbAcmpSMListenerSet_rcvdDisconnectTXResp(openavb_acmp_ACMPCommandRespo
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMListenerVars.rcvdDisconnectTXResp = TRUE;
+
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMListenerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
@@ -741,13 +749,15 @@ void openavbAcmpSMListenerSet_rcvdGetRXState(openavb_acmp_ACMPCommandResponse_t 
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
 	ACMP_SM_LOCK();
+
 	memcpy(pRcvdCmdResp, command, sizeof(*command));
-	ACMP_SM_UNLOCK();
 	openavbAcmpSMListenerVars.rcvdGetRXState = TRUE;
+
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMListenerSemaphore, err);
 	SEM_LOG_ERR(err);
 
+	ACMP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
