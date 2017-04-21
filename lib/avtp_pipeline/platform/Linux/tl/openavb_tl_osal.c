@@ -440,7 +440,7 @@ EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char
 	int result = ini_parse(fileName, openavbTLCfgCallback, &parseIniData);
 	if (result == 0) {
 		if_info_t ifinfo;
-		if (!openavbCheckInterface(&parseIniData.pCfg->ifname, &ifinfo)) {
+		if (!openavbCheckInterface(parseIniData.pCfg->ifname, &ifinfo)) {
 			AVB_LOGF_ERROR("Invalid value: name=%s, value=%s", "ifname", parseIniData.pCfg->ifname);
 			return FALSE;
 		}

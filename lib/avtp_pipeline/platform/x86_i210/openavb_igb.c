@@ -28,9 +28,9 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
-#include "openavb_ether_hal.h"
+#include "openavb_igb.h"
 #include "openavb_osal.h"
-#include "avb.h"
+#include "avb_igb.h"
 #include "igb.h"
 
 #define	AVB_LOG_COMPONENT	"HAL Ethernet"
