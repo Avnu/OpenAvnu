@@ -192,6 +192,8 @@ int baseRawsockRxParseHdr(void *pvRawsock, U8 *pBuffer, hdr_info_t *pInfo)
 	pInfo->dhost = eth_hdr->dhost;
 	pInfo->shost = eth_hdr->shost;
 	pInfo->ethertype = ntohs(eth_hdr->ethertype);
+	pInfo->ts.tv_sec = 0;
+	pInfo->ts.tv_nsec = 0;
 	int hdrLen = sizeof(eth_hdr_t);
 
 	if (pInfo->ethertype == ETHERTYPE_8021Q) {

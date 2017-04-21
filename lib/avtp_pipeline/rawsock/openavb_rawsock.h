@@ -61,6 +61,7 @@ typedef struct {
 	bool vlan;		// Include VLAN header?
 	U8  vlan_pcp;	// VLAN Priority Code Point
 	U16 vlan_vid;	// VLAN ID
+	struct timespec ts;	// RX timestamp
 } hdr_info_t;
 	
 	

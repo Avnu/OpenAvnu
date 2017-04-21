@@ -120,6 +120,7 @@ void *pcapRawsockOpen(pcap_rawsock_t* rawsock, const char *ifname, bool rx_mode,
 	cb->send = pcapRawsockSend;
 	cb->getRxFrame = pcapRawsockGetRxFrame;
 	cb->rxMulticast = pcapRawsockRxMulticast;
+	cb->rxParseHdr = pcapRawsockRxParseHdr;
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 	return rawsock;
@@ -206,6 +207,19 @@ U8 *pcapRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, un
 	}
 
 	return NULL;
+}
+
+int pcapRawsockRxParseHdr(void* pvRawsock, U8* pBuffer, hdr_info_t* pInfo)
+{
+	int hdrLen = baseRawsockRxParseHdr(pvRawsock, pBuffer, pInfo);
+
+	pcap_rawsock_t *rawsock = (pcap_rawsock_t*)pvRawsock;
+	if (rawsock && rawsock->rxHeader) {
+		pInfo->ts.tv_sec = rawsock->rxHeader->ts.tv_sec;
+		// we requested nanosecond timestamp precision, so probably we don't have to scale here
+		pInfo->ts.tv_nsec = rawsock->rxHeader->ts.tv_usec;
+	}
+	return hdrLen;
 }
 
 // Setup the rawsock to receive multicast packets

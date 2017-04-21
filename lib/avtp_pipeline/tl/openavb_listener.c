@@ -145,20 +145,11 @@ static inline void listenerShowStats(listener_data_t *pListenerData, tl_state_t 
 	U32 rxbuf = openavbAvtpRxBufferLevel(pListenerData->avtpHandle);
 	U32 mqbuf = openavbMediaQCountItems(pTLState->pMediaQ, TRUE);
 	U32 mqrdy = openavbMediaQCountItems(pTLState->pMediaQ, FALSE);
-	U32 lastTs = openavbAvtpLastTimestamp(pListenerData->avtpHandle);
-
-#if AVB_LOG_LEVEL >= AVB_LOG_LEVEL_DEBUG
-	struct timespec rxTs = openavbAvtpLastRxTimestamp(pListenerData->avtpHandle);
-
-	AVB_LOGF_DEBUG("RX UID:%d, rxTs %d:%06d", pListenerData->streamID.uniqueID,
-	              rxTs.tv_sec, rxTs.tv_nsec / 1000);
-#endif
 
 	AVB_LOGRT_INFO(LOG_RT_BEGIN, LOG_RT_ITEM, FALSE, "RX UID:%d, ", LOG_RT_DATATYPE_U16, &pListenerData->streamID.uniqueID);
 	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "calls=%ld, ", LOG_RT_DATATYPE_U32, &pListenerData->nReportCalls);
 	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "frames=%ld, ", LOG_RT_DATATYPE_U32, &pListenerData->nReportFrames);
 	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "lost=%lld, ", LOG_RT_DATATYPE_U64, &lost);
-	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "ts=%u, ", LOG_RT_DATATYPE_U32, &lastTs);
 	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "bytes=%lld, ", LOG_RT_DATATYPE_U64, &bytes);
 	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "rxbuf=%d, ", LOG_RT_DATATYPE_U32, &rxbuf);
 	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "mqbuf=%d, ", LOG_RT_DATATYPE_U32, &mqbuf);

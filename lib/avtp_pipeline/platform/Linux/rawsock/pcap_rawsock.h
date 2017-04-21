@@ -53,6 +53,8 @@ int pcapRawsockSend(void *pvRawsock);
 
 U8 *pcapRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, unsigned int *len);
 
+int pcapRawsockRxParseHdr(void* pvRawsock, U8* pBuffer, hdr_info_t* pInfo);
+
 bool pcapRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 addr[ETH_ALEN]);
 
 #endif
