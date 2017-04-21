@@ -292,7 +292,7 @@ void processCommand()
 				if (pRsp->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
 					openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 					if (pDescriptorStreamInput) {
-						memcpy(pRsp->stream_format, &pDescriptorStreamInput->current_format, sizeof(pRsp->stream_format));
+						openavbAemStreamFormatToBuf(&pDescriptorStreamInput->current_format, pRsp->stream_format);
 						pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
 					}
 				}
@@ -367,7 +367,10 @@ void processCommand()
 				if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_AUDIO_UNIT) {
 					openavb_aem_descriptor_audio_unit_t *pDescriptorAudioUnit = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 					if (pDescriptorAudioUnit) {
-						memcpy(pRsp->sampling_rate, &pDescriptorAudioUnit->current_sampling_rate, sizeof(pRsp->sampling_rate));
+						U8 *pSrDst = (U8*)(pRsp->sampling_rate);
+						memset(pRsp->sampling_rate, 0, sizeof(pRsp->sampling_rate));
+						BIT_D2BHTONL(pSrDst, pDescriptorAudioUnit->current_sampling_rate.pull, 29, 0);
+						BIT_D2BHTONL(pSrDst, pDescriptorAudioUnit->current_sampling_rate.base, 0, 0);
 						pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
 					}
 				}

@@ -136,6 +136,7 @@ bool talkerStartStream(tl_state_t *pTLState)
 	nowNS = ((nowNS + (pTalkerData->intervalNS)) / pTalkerData->intervalNS) * pTalkerData->intervalNS;
 
 	pTalkerData->nextReportNS = nowNS + (pCfg->report_seconds * NANOSECONDS_PER_SECOND);
+	pTalkerData->lastReportFrames = 0;
 	pTalkerData->nextSecondNS = nowNS + NANOSECONDS_PER_SECOND;
 	pTalkerData->nextCycleNS = nowNS + pTalkerData->intervalNS;
 
@@ -191,6 +192,28 @@ void talkerStopStream(tl_state_t *pTLState)
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
+}
+
+static inline void talkerShowStats(talker_data_t *pTalkerData, tl_state_t *pTLState)
+{
+	S32 late = pTalkerData->wakesPerReport - pTalkerData->cntWakes;
+	U64 bytes = openavbAvtpBytes(pTalkerData->avtpHandle);
+	if (late < 0) late = 0;
+	U32 txbuf = openavbAvtpTxBufferLevel(pTalkerData->avtpHandle);
+	U32 mqbuf = openavbMediaQCountItems(pTLState->pMediaQ, TRUE);
+	U32 lastTs = openavbAvtpLastTimestamp(pTalkerData->avtpHandle);
+
+	AVB_LOGRT_INFO(LOG_RT_BEGIN, LOG_RT_ITEM, FALSE, "TX UID:%d, ", LOG_RT_DATATYPE_U16, &pTalkerData->streamID.uniqueID);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "calls=%ld, ", LOG_RT_DATATYPE_U32, &pTalkerData->cntWakes);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "frames=%ld, ", LOG_RT_DATATYPE_U32, &pTalkerData->cntFrames);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "late=%d, ", LOG_RT_DATATYPE_U32, &late);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "ts=%u, ", LOG_RT_DATATYPE_U32, &lastTs);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "bytes=%lld, ", LOG_RT_DATATYPE_U64, &bytes);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "txbuf=%d, ", LOG_RT_DATATYPE_U32, &txbuf);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, LOG_RT_END, "mqbuf=%d, ", LOG_RT_DATATYPE_U32, &mqbuf);
+
+	openavbTalkerAddStat(pTLState, TL_STAT_TX_LATE, late);
+	openavbTalkerAddStat(pTLState, TL_STAT_TX_BYTES, bytes);
 }
 
 static inline bool talkerDoStream(tl_state_t *pTLState)
@@ -251,29 +274,19 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 
 		if (pCfg->report_seconds > 0) {
 			if (nowNS > pTalkerData->nextReportNS) {
+				talkerShowStats(pTalkerData, pTLState);
 			  
-				S32 late = pTalkerData->wakesPerReport - pTalkerData->cntWakes;
-				U64 bytes = openavbAvtpBytes(pTalkerData->avtpHandle);
-				if (late < 0) late = 0;
-				U32 txbuf = openavbAvtpTxBufferLevel(pTalkerData->avtpHandle);
-				U32 mqbuf = openavbMediaQCountItems(pTLState->pMediaQ, TRUE);
-			
-				AVB_LOGRT_INFO(LOG_RT_BEGIN, LOG_RT_ITEM, FALSE, "TX UID:%d, ", LOG_RT_DATATYPE_U16, &pTalkerData->streamID.uniqueID);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "calls=%ld, ", LOG_RT_DATATYPE_U32, &pTalkerData->cntWakes);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "frames=%ld, ", LOG_RT_DATATYPE_U32, &pTalkerData->cntFrames);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "late=%d, ", LOG_RT_DATATYPE_U32, &late);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "bytes=%lld, ", LOG_RT_DATATYPE_U64, &bytes);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "txbuf=%d, ", LOG_RT_DATATYPE_U32, &txbuf);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, LOG_RT_END, "mqbuf=%d, ", LOG_RT_DATATYPE_U32, &mqbuf);
-
 				openavbTalkerAddStat(pTLState, TL_STAT_TX_CALLS, pTalkerData->cntWakes);
 				openavbTalkerAddStat(pTLState, TL_STAT_TX_FRAMES, pTalkerData->cntFrames);
-				openavbTalkerAddStat(pTLState, TL_STAT_TX_LATE, late);
-				openavbTalkerAddStat(pTLState, TL_STAT_TX_BYTES, bytes);
 
 				pTalkerData->cntFrames = 0;
 				pTalkerData->cntWakes = 0;
-				pTalkerData->nextReportNS = nowNS + (pCfg->report_seconds * NANOSECONDS_PER_SECOND);  
+				pTalkerData->nextReportNS = nowNS + (pCfg->report_seconds * NANOSECONDS_PER_SECOND);
+			}
+		} else if (pCfg->report_frames > 0 && pTalkerData->cntFrames != pTalkerData->lastReportFrames) {
+			if (pTalkerData->cntFrames % pCfg->report_frames == 1) {
+				talkerShowStats(pTalkerData, pTLState);
+				pTalkerData->lastReportFrames = pTalkerData->cntFrames;
 			}
 		}
 

@@ -114,7 +114,8 @@ void openavbAvdeccFindMacAddr(void)
 {
 	// Open a rawsock may be the easiest cross platform way to get the MAC address.
 	void *txSock = openavbRawsockOpen(gAvdeccCfg.ifname, FALSE, TRUE, ETHERTYPE_AVTP, 100, 1);
-	if (txSock && openavbRawsockGetAddr(txSock, gAvdeccCfg.ifmac)) {
+	if (txSock) {
+		openavbRawsockGetAddr(txSock, gAvdeccCfg.ifmac);
 		openavbRawsockClose(txSock);
 		txSock = NULL;
 	}

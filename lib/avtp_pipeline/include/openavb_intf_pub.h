@@ -156,6 +156,15 @@ typedef void (*openavb_intf_gen_end_cb_t)(media_q_t *pMediaQ);
  */
 typedef unsigned int (*openavb_intf_get_src_bitrate_t)(media_q_t *pMediaQ);
 
+/** Inform interface about stream_uid.
+ *
+ * Will be used for logging to distinguish information logged from different streams
+ * using the same interface.
+ * \param pMediaQ A pointer to the media queue for this stream
+ * \param stream_uid stream unique ID (last two bytes of streamID)
+ */
+typedef void (*openavb_intf_set_stream_uid_t)(media_q_t *pMediaQ, U16 stream_uid);
+
 /** Enable fixed timestamping in interface.
  *
  * Everytime interface needs to set media_q_item_t.pAvtpTime it calls openavbAvtpTimeSetToWallTime() to set.
@@ -203,6 +212,8 @@ typedef struct {
 	void *						intf_host_cb_list;
 	/// Source bit rate callback.
 	openavb_intf_get_src_bitrate_t  intf_get_src_bitrate_cb;
+	/// Callback for setting stream uid
+	openavb_intf_set_stream_uid_t  intf_set_stream_uid_cb;
 	/// Enable fixed timestamp callback
 	openavb_intf_enable_fixed_timestamp intf_enable_fixed_timestamp;
 } openavb_intf_cb_t;

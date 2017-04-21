@@ -126,6 +126,8 @@ typedef struct {
 	U32 batch_factor;
 	/// Statistics reporting frequency
 	U32 report_seconds;
+	/// Statistics reporting frequency in frames
+	U32 report_frames;
 	/// Start paused
 	bool start_paused;
 	/// Class in which host will operate ::SRClassIdx_t (talker only)

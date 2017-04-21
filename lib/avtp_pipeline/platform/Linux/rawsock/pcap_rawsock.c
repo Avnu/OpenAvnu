@@ -38,6 +38,36 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define	AVB_LOG_COMPONENT	"Raw Socket"
 #include "openavb_log.h"
 
+static pcap_t* open_pcap_dev(const char* ifname, int frameSize, char* errbuf)
+{
+	pcap_t* handle = pcap_create(ifname, errbuf);
+	if (handle) {
+		int err;
+		err = pcap_set_snaplen(handle, frameSize);
+		if (err) AVB_LOGF_WARNING("Cannot set snap len %d", err);
+
+		err = pcap_set_promisc(handle, 1);
+		if (err) AVB_LOGF_WARNING("Cannot set promisc %d", err);
+
+		err = pcap_set_immediate_mode(handle, 1);
+		if (err) AVB_LOGF_WARNING("Cannot set immediate mode %d", err);
+
+		// we need timeout (here 100ms) otherwise we could block for ever
+		err = pcap_set_timeout(handle, 100);
+		if (err) AVB_LOGF_WARNING("Cannot set timeout %d", err);
+
+		err = pcap_set_tstamp_precision(handle, PCAP_TSTAMP_PRECISION_NANO);
+		if (err) AVB_LOGF_WARNING("Cannot set tstamp nano precision %d", err);
+
+		err = pcap_set_tstamp_type(handle, PCAP_TSTAMP_ADAPTER_UNSYNCED);
+		if (err) AVB_LOGF_WARNING("Cannot set tstamp adapter unsynced %d", err);
+
+		err = pcap_activate(handle);
+		if (err) AVB_LOGF_WARNING("Cannot activate pcap %d", err);
+	}
+	return handle;
+}
+
 // Open a rawsock for TX or RX
 void *pcapRawsockOpen(pcap_rawsock_t* rawsock, const char *ifname, bool rx_mode, bool tx_mode, U16 ethertype, U32 frame_size, U32 num_frames)
 {
@@ -67,14 +97,14 @@ void *pcapRawsockOpen(pcap_rawsock_t* rawsock, const char *ifname, bool rx_mode,
 		rawsock->base.frameSize = rawsock->base.ifInfo.mtu + ETH_HLEN + VLAN_HLEN;
 	}
 	else if (rawsock->base.frameSize > rawsock->base.ifInfo.mtu + ETH_HLEN + VLAN_HLEN) {
-		AVB_LOG_ERROR("Creating raswsock; requested frame size exceeds MTU");
+		AVB_LOG_ERROR("Creating rawsock; requested frame size exceeds MTU");
 		free(rawsock);
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 		return NULL;
 	}
 
 	char errbuf[PCAP_ERRBUF_SIZE];
-	rawsock->handle = pcap_open_live(ifname, rawsock->base.frameSize, 1, 1, errbuf);
+	rawsock->handle = open_pcap_dev(ifname, rawsock->base.frameSize, errbuf);
 	if (!rawsock->handle) {
 		AVB_LOGF_ERROR("Cannot open device %s: %s", ifname, errbuf);
 		free(rawsock);
@@ -149,16 +179,16 @@ U8 *pcapRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, un
 {
 	pcap_rawsock_t *rawsock = (pcap_rawsock_t*)pvRawsock;
 
-	struct pcap_pkthdr *header = 0;
+	rawsock->rxHeader = 0;
 	const u_char *packet = 0;
 	int ret;
 
 	if (rawsock) {
-		ret = pcap_next_ex(rawsock->handle, &header, &packet);
+		ret = pcap_next_ex(rawsock->handle, &rawsock->rxHeader, &packet);
 		switch(ret) {
 		case 1:
 			*offset = 0;
-			*len = header->caplen;
+			*len = rawsock->rxHeader->caplen;
 			return (U8*)packet;
 		case -1:
 			AVB_LOGF_ERROR("pcap_next_ex failed: %s", pcap_geterr(rawsock->handle));
@@ -168,7 +198,7 @@ U8 *pcapRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, un
 			break;
 		case -2:
 			// no packets to be read from savefile
-			// this should not happend
+			// this should not happened
 			break;
 		default:
 			break;

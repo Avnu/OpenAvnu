@@ -60,6 +60,7 @@ typedef struct {
 	U64 			intervalNS;
 	U64 			nextReportNS;
 	U64				nextSecondNS;
+	unsigned long	lastReportFrames;
 	talker_stats_t	stats;
 } talker_data_t;
 

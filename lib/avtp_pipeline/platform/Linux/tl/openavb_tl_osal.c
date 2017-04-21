@@ -294,6 +294,14 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 			&& pCfg->report_seconds <= INT32_MAX)
 			valOK = TRUE;
 	}
+	else if (MATCH(name, "report_frames")) {
+		errno = 0;
+		pCfg->report_frames = strtol(value, &pEnd, 10);
+		if (*pEnd == '\0' && errno == 0
+			&& (int)pCfg->report_frames >= 0
+			&& pCfg->report_frames <= INT32_MAX)
+			valOK = TRUE;
+	}
 	else if (MATCH(name, "start_paused")) {
 		// ignore this item - tl_host doesn't use it because
 		// it pauses before reading any of its streams.
@@ -468,7 +476,7 @@ EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char
 	int result = ini_parse(fileName, openavbTLCfgCallback, &parseIniData);
 	if (result == 0) {
 		if_info_t ifinfo;
-		if (!openavbCheckInterface(parseIniData.pCfg->ifname, &ifinfo)) {
+		if (pCfg->ifname[0] && !openavbCheckInterface(parseIniData.pCfg->ifname, &ifinfo)) {
 			AVB_LOGF_ERROR("Invalid value: name=%s, value=%s", "ifname", parseIniData.pCfg->ifname);
 			AVB_TRACE_EXIT(AVB_TRACE_TL);
 			return FALSE;

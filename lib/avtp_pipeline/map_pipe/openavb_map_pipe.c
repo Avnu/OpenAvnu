@@ -182,7 +182,7 @@ void openavbMapPipeCfgCB(media_q_t *pMediaQ, const char *name, const char *value
 			char *pEnd;
 			pPvtData->maxPayloadSize = strtol(value, &pEnd, 10);
 			pPvtData->maxDataSize = (pPvtData->maxPayloadSize + TOTAL_HEADER_SIZE);
-			pPvtData->itemSize =	pPvtData->maxDataSize;
+			pPvtData->itemSize =	pPvtData->maxPayloadSize;
 		}
 		else if (strcmp(name, "map_nv_push_header") == 0) {
 			char *pEnd;

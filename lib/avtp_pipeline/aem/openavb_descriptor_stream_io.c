@@ -31,109 +31,6 @@
 ////////////////////////////////
 // Private (internal) functions
 ////////////////////////////////
-void x_openavbAemStreamFormatToBuf(openavb_aem_stream_format_t *pSrc, U8 *pBuf)
-{
-	U8 *pDst = pBuf;
-
-	// Tightly bound to caller not safety checks needed.
-
-	memset(pBuf, 0, 8);
-
-	if (pSrc->v == 0) {
-		BIT_D2BHTONB(pDst, pSrc->v, 7, 0);
-		BIT_D2BHTONB(pDst, pSrc->subtype, 0, 1);
-		switch (pSrc->subtype) {
-			case OPENAVB_AEM_STREAM_FORMAT_61883_IIDC_SUBTYPE:
-				{
-					if (pSrc->subtypes.iec_61883_iidc.sf == OPENAVB_AEM_STREAM_FORMAT_SF_IIDC) {
-						BIT_D2BHTONB(pDst, pSrc->subtypes.iidc.sf, 7, 1);
-						pDst += 3;
-						OCT_D2BHTONB(pDst, pSrc->subtypes.iidc.iidc_format);
-						OCT_D2BHTONB(pDst, pSrc->subtypes.iidc.iidc_mode);
-						OCT_D2BHTONB(pDst, pSrc->subtypes.iidc.iidc_rate);
-					}
-					else {
-						if (pSrc->subtypes.iec_61883.fmt == OPENAVB_AEM_STREAM_FORMAT_FMT_61883_4) {
-							BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_4.sf, 7, 0);
-							BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_4.fmt, 1, 1);
-						}
-						else if (pSrc->subtypes.iec_61883.fmt == OPENAVB_AEM_STREAM_FORMAT_FMT_61883_6) {
-							if (pSrc->subtypes.iec_61883_6.fdf_evt == OPENAVB_AEM_STREAM_FORMAT_FDF_EVT_61883_6_32BITS) {
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.sf, 7, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.fmt, 1, 1);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.fdf_evt, 3, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.fdf_sfc, 0, 1);
-								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.dbs);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.b, 7, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.nb, 6, 1);
-							}
-							else if (pSrc->subtypes.iec_61883_6.fdf_evt == OPENAVB_AEM_STREAM_FORMAT_FDF_EVT_61883_6_FLOAT) {
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.sf, 7, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.fmt, 1, 1);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.fdf_evt, 3, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.fdf_sfc, 0, 1);
-								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.dbs);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.b, 7, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.nb, 6, 1);
-							}
-							else if (pSrc->subtypes.iec_61883_6.fdf_evt == OPENAVB_AEM_STREAM_FORMAT_FDF_EVT_61883_6_AM824) {
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.sf, 7, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.fmt, 1, 1);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.fdf_evt, 3, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.fdf_sfc, 0, 1);
-								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.dbs);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.b, 7, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.nb, 6, 1);
-								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.label_iec_60958_cnt);
-								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.label_mbla_cnt);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.label_midi_cnt, 4, 0);
-								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.label_smptecnt, 0, 1);
-							}
-						}
-						else if (pSrc->subtypes.iec_61883.fmt == OPENAVB_AEM_STREAM_FORMAT_FMT_61883_8) {
-							BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.sf, 7, 0);
-							BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.fmt, 1, 1);
-							pDst += 3;
-							OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.video_mode);
-							OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.compress_mode);
-							OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.color_space);
-						}
-					}
-				}
-
-				break;
-			case OPENAVB_AEM_STREAM_FORMAT_MMA_SUBTYPE:
-				// Nothing to do
-				break;
-			case OPENAVB_AEM_STREAM_FORMAT_AVTP_AUDIO_SUBTYPE:
-				BIT_D2BHTONB(pDst, pSrc->subtypes.avtp_audio.nominal_sample_rate, 0, 1);
-				OCT_D2BHTONB(pDst, pSrc->subtypes.avtp_audio.format);
-				OCT_D2BHTONB(pDst, pSrc->subtypes.avtp_audio.bit_depth);
-				BIT_D2BHTONL(pDst, pSrc->subtypes.avtp_audio.channels_per_frame, 22, 0);
-				BIT_D2BHTONL(pDst, pSrc->subtypes.avtp_audio.samples_per_frame, 12, 4);
-				break;
-			case OPENAVB_AEM_STREAM_FORMAT_AVTP_VIDEO_SUBTYPE:
-				OCT_D2BHTONB(pDst, pSrc->subtypes.avtp_video.format);
-				break;
-			case OPENAVB_AEM_STREAM_FORMAT_AVTP_CONTROL_SUBTYPE:
-				BIT_D2BHTONB(pDst, pSrc->subtypes.avtp_control.protocol_type, 4, 1);
-				OCT_D2BMEMCP(pDst, pSrc->subtypes.avtp_control.format_id);
-				break;
-			case OPENAVB_AEM_STREAM_FORMAT_VENDOR_SUBTYPE:
-				pDst++;
-				OCT_D2BMEMCP(pDst, pSrc->subtypes.vendor.format_id);
-				break;
-			case OPENAVB_AEM_STREAM_FORMAT_EXPERIMENTAL_SUBTYPE:
-				// Nothing to do
-				break;
-		}
-	}
-	else {
-		BIT_D2BHTONB(pDst, pSrc->v, 7, 1);
-		pDst++;
-		OCT_D2BMEMCP(pDst, pSrc->subtypes.vendor_specific.format_id);
-	}
-}
 
 openavbRC openavbAemDescriptorStreamIOToBuf(void *pVoidDescriptor, U16 bufLength, U8 *pBuf, U16 *descriptorSize)
 {
@@ -161,7 +58,7 @@ openavbRC openavbAemDescriptorStreamIOToBuf(void *pVoidDescriptor, U16 bufLength
 	BIT_D2BHTONS(pDst, pSrc->localized_description.index, 0, 2);
 	OCT_D2BHTONS(pDst, pSrc->clock_domain_index);
 	OCT_D2BHTONS(pDst, pSrc->stream_flags);
-	x_openavbAemStreamFormatToBuf(&pSrc->current_format, pDst);
+	openavbAemStreamFormatToBuf(&pSrc->current_format, pDst);
 	pDst += 8;
 	OCT_D2BHTONS(pDst, pSrc->formats_offset);
 	OCT_D2BHTONS(pDst, pSrc->number_of_formats);
@@ -178,7 +75,7 @@ openavbRC openavbAemDescriptorStreamIOToBuf(void *pVoidDescriptor, U16 bufLength
 
 	int i1;
 	for (i1 = 0; i1 < pSrc->number_of_formats; i1++) {
-		x_openavbAemStreamFormatToBuf(&pSrc->stream_formats[i1], pDst);
+		openavbAemStreamFormatToBuf(&pSrc->stream_formats[i1], pDst);
 		pDst += 8;
 	}
 
@@ -539,4 +436,114 @@ extern DLL_EXPORT bool openavbAemDescriptorStreamOutputInitialize(openavb_aem_de
 	pDescriptor->stream = pConfig->stream;
 
 	return TRUE;
+}
+
+
+////////////////////////////////
+// Public functions for internal
+// AVDECC use (not exported)
+////////////////////////////////
+
+void openavbAemStreamFormatToBuf(openavb_aem_stream_format_t *pSrc, U8 *pBuf)
+{
+	U8 *pDst = pBuf;
+
+	// Tightly bound to caller not safety checks needed.
+
+	memset(pBuf, 0, 8);
+
+	if (pSrc->v == 0) {
+		BIT_D2BHTONB(pDst, pSrc->v, 7, 0);
+		BIT_D2BHTONB(pDst, pSrc->subtype, 0, 1);
+		switch (pSrc->subtype) {
+			case OPENAVB_AEM_STREAM_FORMAT_61883_IIDC_SUBTYPE:
+				{
+					if (pSrc->subtypes.iec_61883_iidc.sf == OPENAVB_AEM_STREAM_FORMAT_SF_IIDC) {
+						BIT_D2BHTONB(pDst, pSrc->subtypes.iidc.sf, 7, 1);
+						pDst += 3;
+						OCT_D2BHTONB(pDst, pSrc->subtypes.iidc.iidc_format);
+						OCT_D2BHTONB(pDst, pSrc->subtypes.iidc.iidc_mode);
+						OCT_D2BHTONB(pDst, pSrc->subtypes.iidc.iidc_rate);
+					}
+					else {
+						if (pSrc->subtypes.iec_61883.fmt == OPENAVB_AEM_STREAM_FORMAT_FMT_61883_4) {
+							BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_4.sf, 7, 0);
+							BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_4.fmt, 1, 1);
+						}
+						else if (pSrc->subtypes.iec_61883.fmt == OPENAVB_AEM_STREAM_FORMAT_FMT_61883_6) {
+							if (pSrc->subtypes.iec_61883_6.fdf_evt == OPENAVB_AEM_STREAM_FORMAT_FDF_EVT_61883_6_32BITS) {
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.sf, 7, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.fmt, 1, 1);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.fdf_evt, 3, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.fdf_sfc, 0, 1);
+								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.dbs);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.b, 7, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_32bit.nb, 6, 1);
+							}
+							else if (pSrc->subtypes.iec_61883_6.fdf_evt == OPENAVB_AEM_STREAM_FORMAT_FDF_EVT_61883_6_FLOAT) {
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.sf, 7, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.fmt, 1, 1);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.fdf_evt, 3, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.fdf_sfc, 0, 1);
+								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.dbs);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.b, 7, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_float.nb, 6, 1);
+							}
+							else if (pSrc->subtypes.iec_61883_6.fdf_evt == OPENAVB_AEM_STREAM_FORMAT_FDF_EVT_61883_6_AM824) {
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.sf, 7, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.fmt, 1, 1);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.fdf_evt, 3, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.fdf_sfc, 0, 1);
+								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.dbs);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.b, 7, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.nb, 6, 1);
+								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.label_iec_60958_cnt);
+								OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.label_mbla_cnt);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.label_midi_cnt, 4, 0);
+								BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_6_am824.label_smptecnt, 0, 1);
+							}
+						}
+						else if (pSrc->subtypes.iec_61883.fmt == OPENAVB_AEM_STREAM_FORMAT_FMT_61883_8) {
+							BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.sf, 7, 0);
+							BIT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.fmt, 1, 1);
+							pDst += 3;
+							OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.video_mode);
+							OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.compress_mode);
+							OCT_D2BHTONB(pDst, pSrc->subtypes.iec_61883_8.color_space);
+						}
+					}
+				}
+
+				break;
+			case OPENAVB_AEM_STREAM_FORMAT_MMA_SUBTYPE:
+				// Nothing to do
+				break;
+			case OPENAVB_AEM_STREAM_FORMAT_AVTP_AUDIO_SUBTYPE:
+				BIT_D2BHTONB(pDst, pSrc->subtypes.avtp_audio.nominal_sample_rate, 0, 1);
+				OCT_D2BHTONB(pDst, pSrc->subtypes.avtp_audio.format);
+				OCT_D2BHTONB(pDst, pSrc->subtypes.avtp_audio.bit_depth);
+				BIT_D2BHTONL(pDst, pSrc->subtypes.avtp_audio.channels_per_frame, 22, 0);
+				BIT_D2BHTONL(pDst, pSrc->subtypes.avtp_audio.samples_per_frame, 12, 4);
+				break;
+			case OPENAVB_AEM_STREAM_FORMAT_AVTP_VIDEO_SUBTYPE:
+				OCT_D2BHTONB(pDst, pSrc->subtypes.avtp_video.format);
+				break;
+			case OPENAVB_AEM_STREAM_FORMAT_AVTP_CONTROL_SUBTYPE:
+				BIT_D2BHTONB(pDst, pSrc->subtypes.avtp_control.protocol_type, 4, 1);
+				OCT_D2BMEMCP(pDst, pSrc->subtypes.avtp_control.format_id);
+				break;
+			case OPENAVB_AEM_STREAM_FORMAT_VENDOR_SUBTYPE:
+				pDst++;
+				OCT_D2BMEMCP(pDst, pSrc->subtypes.vendor.format_id);
+				break;
+			case OPENAVB_AEM_STREAM_FORMAT_EXPERIMENTAL_SUBTYPE:
+				// Nothing to do
+				break;
+		}
+	}
+	else {
+		BIT_D2BHTONB(pDst, pSrc->v, 7, 1);
+		pDst++;
+		OCT_D2BMEMCP(pDst, pSrc->subtypes.vendor_specific.format_id);
+	}
 }

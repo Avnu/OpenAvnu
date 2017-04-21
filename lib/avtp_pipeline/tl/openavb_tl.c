@@ -379,6 +379,7 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	pCfg->max_stale = MICROSECONDS_PER_SECOND;
 	pCfg->batch_factor = 1;
 	pCfg->report_seconds = 0;
+	pCfg->report_frames = 0;
 	pCfg->start_paused = FALSE;
 	pCfg->sr_class = SR_CLASS_B;
 	pCfg->sr_rank = SR_RANK_REGULAR;

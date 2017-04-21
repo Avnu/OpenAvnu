@@ -66,4 +66,6 @@ openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStreamOutputNew(void);
 bool openavbAemDescriptorStreamInputInitialize(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 nConfigIdx, const openavb_avdecc_configuration_cfg_t *pConfig);
 bool openavbAemDescriptorStreamOutputInitialize(openavb_aem_descriptor_stream_io_t *pDescriptor, U16 nConfigIdx, const openavb_avdecc_configuration_cfg_t *pConfig);
 
+void openavbAemStreamFormatToBuf(openavb_aem_stream_format_t *pSrc, U8 *pBuf);
+
 #endif // OPENAVB_DESCRIPTOR_STREAM_IO_PUB_H

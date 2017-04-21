@@ -79,7 +79,13 @@ U8* simpleRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, 
 // Setup the rawsock to receive multicast packets
 bool simpleRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 addr[ETH_ALEN]);
 
+// Allows for filtering of AVTP subtypes at the rawsock level for rawsock implementations that aren't able to
+//  delivery the same packet to multiple sockets.
+bool simpleRawsockRxAVTPSubtype(void *rawsock, U8 subtype);
+
 // Get the socket used for this rawsock; can be used for poll/select
 int  simpleRawsockGetSocket(void *pvRawsock);
+
+bool simpleRawsockRelRxFrame(void *pvRawsock, U8 *pFrame);
 
 #endif

@@ -194,7 +194,7 @@ bool openavbIntfEchoTxCB(media_q_t *pMediaQ)
 
 		media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
 		if (pMediaQItem) {
-			if (pMediaQItem->itemSize >= pPvtData->increment ? pPvtData->echoStringLen + 16 : pPvtData->echoStringLen) {
+			if (pMediaQItem->itemSize >= (pPvtData->increment ? pPvtData->echoStringLen + 16 : pPvtData->echoStringLen)) {
 				if (pPvtData->increment) {
 					int len = sprintf(pMediaQItem->pPubData, "%s %u", pPvtData->pEchoString, pPvtData->Counter++);
 					pMediaQItem->dataLen = len;

@@ -84,7 +84,7 @@ static void openavbTLSigHandler(int signal)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HOST);
 
-	if (signal == SIGINT) {
+	if (signal == SIGINT || signal == SIGTERM) {
 		AVB_LOG_INFO("Host shutting down");
 		bRunning = FALSE;
 	}
@@ -182,6 +182,13 @@ int main(int argc, char *argv[])
 	if (err)
 	{
 		AVB_LOG_ERROR("Failed to setup SIGINT handler");
+		osalAVBFinalize();
+		exit(-1);
+	}
+	err = sigaction(SIGTERM, &sa, NULL);
+	if (err)
+	{
+		AVB_LOG_ERROR("Failed to setup SIGTERM handler");
 		osalAVBFinalize();
 		exit(-1);
 	}

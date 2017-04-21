@@ -153,7 +153,7 @@ thread##_type	thread##_ThreadData
 #define SEM_POST(sem, err) err = sem_post(&sem);
 #define SEM_DESTROY(sem, err) err = sem_destroy(&sem);
 #define SEM_IS_ERR_NONE(err) (0 == err)
-#define SEM_IS_ERR_TIMEOUT(err) (ETIMEDOUT == err || -1 == err)
+#define SEM_IS_ERR_TIMEOUT(err) (ETIMEDOUT == err || ((-1 == err) && (ETIMEDOUT == errno)))
 #define SEM_LOG_ERR(err) if (0 != err) MAAP_LOGF_ERROR("Semaphore error code: %d", err);
 
 #define MUTEX_ATTR_TYPE_DEFAULT				  	   PTHREAD_MUTEX_DEFAULT

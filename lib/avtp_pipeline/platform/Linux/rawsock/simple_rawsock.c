@@ -137,7 +137,7 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 	// Get info about the network device
 	if (!simpleAvbCheckInterface(ifname, &(rawsock->base.ifInfo))) {
 		AVB_LOGF_ERROR("Creating rawsock; bad interface name: %s", ifname);
-		free(rawsock);
+		simpleRawsockClose(rawsock);
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 		return NULL;
 	}
@@ -149,7 +149,7 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 	}
 	else if (rawsock->base.frameSize > rawsock->base.ifInfo.mtu + ETH_HLEN + VLAN_HLEN) {
 		AVB_LOG_ERROR("Creating raswsock; requested frame size exceeds MTU");
-		free(rawsock);
+		simpleRawsockClose(rawsock);
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 		return NULL;
 	}
@@ -204,7 +204,9 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 	cb->send = simpleRawsockSend;
 	cb->getRxFrame = simpleRawsockGetRxFrame;
 	cb->rxMulticast = simpleRawsockRxMulticast;
+	cb->rxAVTPSubtype = simpleRawsockRxAVTPSubtype;
 	cb->getSocket = simpleRawsockGetSocket;
+	cb->relRxFrame = simpleRawsockRelRxFrame;
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 	return rawsock;
@@ -470,6 +472,11 @@ bool simpleRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 add
 	return TRUE;
 }
 
+bool simpleRawsockRxAVTPSubtype(void *rawsock, U8 subtype)
+{
+	return true; //TODO: implement as BPF to improve performance
+}
+
 // Get the socket used for this rawsock; can be used for poll/select
 int  simpleRawsockGetSocket(void *pvRawsock)
 {
@@ -483,4 +490,9 @@ int  simpleRawsockGetSocket(void *pvRawsock)
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 	return rawsock->sock;
+}
+
+bool simpleRawsockRelRxFrame(void *pvRawsock, U8 *pFrame)
+{
+	return true;
 }

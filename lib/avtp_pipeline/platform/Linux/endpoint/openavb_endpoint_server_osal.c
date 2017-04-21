@@ -117,6 +117,11 @@ bool openavbEndpointServerOpen(void)
 	serverAddr.sun_family = AF_UNIX;
 	snprintf(serverAddr.sun_path, UNIX_PATH_MAX, AVB_ENDPOINT_UNIX_PATH);
 
+	// try remove old socket
+	if (unlink(serverAddr.sun_path) == -1 && errno != ENOENT) {
+		AVB_LOGF_ERROR("Failed to remove %s: %s", serverAddr.sun_path, strerror(errno));
+	}
+
 	int rslt = bind(lsock, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un));
 	if (rslt != 0) {
 		AVB_LOGF_ERROR("Failed to create %s: %s", serverAddr.sun_path, strerror(errno));

@@ -53,8 +53,8 @@ typedef struct {
 	unsigned	nsr_kbit;
 	unsigned	mtu;
 	unsigned	fqtss_mode;
-	bool        noSrp;
-	bool        bypassAsCapableCheck;
+	bool		noSrp;
+	bool		bypassAsCapableCheck;
 } openavb_endpoint_cfg_t;
 
 int openavbReadConfig(const char *inifile, openavb_endpoint_cfg_t *pCfg);

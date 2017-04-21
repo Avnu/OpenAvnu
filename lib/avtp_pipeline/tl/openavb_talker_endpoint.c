@@ -73,12 +73,18 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 
 	AVB_LOGF_DEBUG("%s streaming=%d, lsnrDecl=%d", __FUNCTION__, pTLState->bStreaming, lsnrDecl);
 
+	openavb_tl_cfg_t *pCfg = &pTLState->cfg;
+
 	if (!pTLState->bStreaming) {
 		if (lsnrDecl == openavbSrp_LDSt_Ready
 			|| lsnrDecl == openavbSrp_LDSt_Ready_Failed) {
 
 			// Save the data provided by endpoint/SRP
-			strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+			if (!pCfg->ifname[0]) {
+				strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+			} else {
+				strncpy(pTalkerData->ifname, pCfg->ifname, IFNAMSIZ);
+			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
 			pTalkerData->classRate = classRate;
@@ -92,7 +98,11 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 		}
 		else if (lsnrDecl == openavbSrp_LDSt_Stream_Info) {
 			// Stream information is available does NOT mean listener is ready. Stream not started yet.
-			strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+			if (!pCfg->ifname[0]) {
+				strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+			} else {
+				strncpy(pTalkerData->ifname, pCfg->ifname, IFNAMSIZ);
+			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
 			pTalkerData->classRate = classRate;

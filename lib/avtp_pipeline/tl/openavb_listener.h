@@ -58,6 +58,7 @@ typedef struct {
 	unsigned long	nReportCalls;
 	U64 			nextReportNS;
 	U64				nextSecondNS;
+	unsigned long	lastReportFrames;
 	listener_stats_t stats;
 } listener_data_t;
 

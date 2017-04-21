@@ -144,6 +144,9 @@ openavbRC openavbAvtpTxInit(
 
 	pStream->pMapCB->map_tx_init_cb(pStream->pMediaQ);
 	pStream->pIntfCB->intf_tx_init_cb(pStream->pMediaQ);
+	if (pStream->pIntfCB->intf_set_stream_uid_cb) {
+		pStream->pIntfCB->intf_set_stream_uid_cb(pStream->pMediaQ, streamID->uniqueID);
+	}
 
 	// Set the frame length
 	pStream->frameLen = pStream->pMapCB->map_max_data_size_cb(pStream->pMediaQ) + ETH_HDR_LEN_VLAN;
@@ -362,8 +365,9 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			}
 		}
 
-		// If we got data from the mapping module, notify the raw sockets.
-		if (txCBResult != TX_CB_RET_PACKET_NOT_READY) {
+		// If we got data from the mapping module and stream is not paused,
+		// notify the raw sockets.
+		if (txCBResult != TX_CB_RET_PACKET_NOT_READY && !pStream->bPause) {
 
 			if (pStream->tsEval) {
 				processTimestampEval(pStream, pAvtpFrame);
@@ -421,7 +425,7 @@ openavbRC openavbAvtpRxInit(
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVTP_FAILURE | OPENAVB_RC_OUT_OF_MEMORY), AVB_TRACE_AVTP);
 	}
 	pStream->tx = FALSE;
-	pStream->nLost = -1;
+	pStream->nLost = 0; // report lost on first packet also
 
 	pStream->pMediaQ = pMediaQ;
 	pStream->pMapCB = pMapCB;
@@ -429,6 +433,9 @@ openavbRC openavbAvtpRxInit(
 
 	pStream->pMapCB->map_rx_init_cb(pStream->pMediaQ);
 	pStream->pIntfCB->intf_rx_init_cb(pStream->pMediaQ);
+	if (pStream->pIntfCB->intf_set_stream_uid_cb) {
+		pStream->pIntfCB->intf_set_stream_uid_cb(pStream->pMediaQ, streamID->uniqueID);
+	}
 
 	// Set the frame length
 	pStream->frameLen = pStream->pMapCB->map_max_data_size_cb(pStream->pMediaQ) + ETH_HDR_LEN_VLAN;

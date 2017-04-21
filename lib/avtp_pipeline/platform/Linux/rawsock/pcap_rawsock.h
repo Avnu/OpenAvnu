@@ -38,6 +38,7 @@ typedef struct {
 	base_rawsock_t base;
 	pcap_t* handle;
 	U8 txBuffer[1518];
+	struct pcap_pkthdr *rxHeader;
 } pcap_rawsock_t;
 
 void *pcapRawsockOpen(pcap_rawsock_t* rawsock, const char *ifname, bool rx_mode, bool tx_mode, U16 ethertype, U32 frame_size, U32 num_frames);

@@ -84,6 +84,7 @@ bool listenerStartStream(tl_state_t *pTLState)
 	U64 nowNS;
 	CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
 	pListenerData->nextReportNS = nowNS + (pCfg->report_seconds * NANOSECONDS_PER_SECOND);
+	pListenerData->lastReportFrames = 0;
 	pListenerData->nextSecondNS = nowNS + NANOSECONDS_PER_SECOND;
 
 	// Clear counters
@@ -137,6 +138,36 @@ void listenerStopStream(tl_state_t *pTLState)
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }
 
+static inline void listenerShowStats(listener_data_t *pListenerData, tl_state_t *pTLState)
+{
+	U64 lost = openavbAvtpLost(pListenerData->avtpHandle);
+	U64 bytes = openavbAvtpBytes(pListenerData->avtpHandle);
+	U32 rxbuf = openavbAvtpRxBufferLevel(pListenerData->avtpHandle);
+	U32 mqbuf = openavbMediaQCountItems(pTLState->pMediaQ, TRUE);
+	U32 mqrdy = openavbMediaQCountItems(pTLState->pMediaQ, FALSE);
+	U32 lastTs = openavbAvtpLastTimestamp(pListenerData->avtpHandle);
+
+#if AVB_LOG_LEVEL >= AVB_LOG_LEVEL_DEBUG
+	struct timespec rxTs = openavbAvtpLastRxTimestamp(pListenerData->avtpHandle);
+
+	AVB_LOGF_DEBUG("RX UID:%d, rxTs %d:%06d", pListenerData->streamID.uniqueID,
+	              rxTs.tv_sec, rxTs.tv_nsec / 1000);
+#endif
+
+	AVB_LOGRT_INFO(LOG_RT_BEGIN, LOG_RT_ITEM, FALSE, "RX UID:%d, ", LOG_RT_DATATYPE_U16, &pListenerData->streamID.uniqueID);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "calls=%ld, ", LOG_RT_DATATYPE_U32, &pListenerData->nReportCalls);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "frames=%ld, ", LOG_RT_DATATYPE_U32, &pListenerData->nReportFrames);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "lost=%lld, ", LOG_RT_DATATYPE_U64, &lost);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "ts=%u, ", LOG_RT_DATATYPE_U32, &lastTs);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "bytes=%lld, ", LOG_RT_DATATYPE_U64, &bytes);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "rxbuf=%d, ", LOG_RT_DATATYPE_U32, &rxbuf);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "mqbuf=%d, ", LOG_RT_DATATYPE_U32, &mqbuf);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, LOG_RT_END, "mqrdy=%d", LOG_RT_DATATYPE_U32, &mqrdy);
+
+	openavbListenerAddStat(pTLState, TL_STAT_RX_LOST, lost);
+	openavbListenerAddStat(pTLState, TL_STAT_RX_BYTES, bytes);
+}
+
 static inline bool listenerDoStream(tl_state_t *pTLState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
@@ -165,30 +196,19 @@ static inline bool listenerDoStream(tl_state_t *pTLState)
 
 		if (pCfg->report_seconds > 0) {
 			if (nowNS > pListenerData->nextReportNS) {
-			  
-				U64 lost = openavbAvtpLost(pListenerData->avtpHandle);
-				U64 bytes = openavbAvtpBytes(pListenerData->avtpHandle);
-				U32 rxbuf = openavbAvtpRxBufferLevel(pListenerData->avtpHandle);
-				U32 mqbuf = openavbMediaQCountItems(pTLState->pMediaQ, TRUE);
-				U32 mqrdy = openavbMediaQCountItems(pTLState->pMediaQ, FALSE);
-			
-				AVB_LOGRT_INFO(LOG_RT_BEGIN, LOG_RT_ITEM, FALSE, "RX UID:%d, ", LOG_RT_DATATYPE_U16, &pListenerData->streamID.uniqueID);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "calls=%ld, ", LOG_RT_DATATYPE_U32, &pListenerData->nReportCalls);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "frames=%ld, ", LOG_RT_DATATYPE_U32, &pListenerData->nReportFrames);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "lost=%lld, ", LOG_RT_DATATYPE_U64, &lost);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "bytes=%lld, ", LOG_RT_DATATYPE_U64, &bytes);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "rxbuf=%d, ", LOG_RT_DATATYPE_U32, &rxbuf);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "mqbuf=%d, ", LOG_RT_DATATYPE_U32, &mqbuf);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, LOG_RT_END, "mqrdy=%d", LOG_RT_DATATYPE_U32, &mqrdy);
+				listenerShowStats(pListenerData, pTLState);
 
 				openavbListenerAddStat(pTLState, TL_STAT_RX_CALLS, pListenerData->nReportCalls);
 				openavbListenerAddStat(pTLState, TL_STAT_RX_FRAMES, pListenerData->nReportFrames);
-				openavbListenerAddStat(pTLState, TL_STAT_RX_LOST, lost);
-				openavbListenerAddStat(pTLState, TL_STAT_RX_BYTES, bytes);
 
 				pListenerData->nReportCalls = 0;
 				pListenerData->nReportFrames = 0;
 				pListenerData->nextReportNS += (pCfg->report_seconds * NANOSECONDS_PER_SECOND);  
+			}
+		} else if (pCfg->report_frames > 0 && pListenerData->nReportFrames != pListenerData->lastReportFrames) {
+			if (pListenerData->nReportFrames % pCfg->report_frames == 1) {
+				listenerShowStats(pListenerData, pTLState);
+				pListenerData->lastReportFrames = pListenerData->nReportFrames;
 			}
 		}
 

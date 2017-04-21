@@ -90,7 +90,7 @@ static void openavbTLSigHandler(int signal)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HOST);
 
-	if (signal == SIGINT) {
+	if (signal == SIGINT || signal == SIGTERM) {
 		AVB_LOG_INFO("Host shutting down");
 		bRunning = FALSE;
 	}
@@ -182,6 +182,7 @@ int main(int argc, char *argv[])
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0; // not SA_RESTART
 	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGUSR1, &sa, NULL);
 
 	registerStaticMapModule(openavbMapPipeInitialize);

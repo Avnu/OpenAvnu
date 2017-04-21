@@ -82,7 +82,11 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 		bool rc = openavbEptClntAttachStream(pTLState->endpointHandle, streamID, openavbSrp_LDSt_Ready);
 		if (rc) {
 			// Save data provided by endpoint/SRP
-			strncpy(pListenerData->ifname, ifname, IFNAMSIZ);
+			if (!pCfg->ifname[0]) {
+				strncpy(pListenerData->ifname, ifname, IFNAMSIZ);
+			} else {
+				strncpy(pListenerData->ifname, pCfg->ifname, IFNAMSIZ);
+			}
 			memcpy(&pListenerData->streamID, streamID, sizeof(AVBStreamID_t));
 			if (memcmp(destAddr, emptyMAC, ETH_ALEN) != 0) {
 				memcpy(&pListenerData->destAddr, destAddr, ETH_ALEN);
