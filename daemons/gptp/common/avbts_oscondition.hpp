@@ -109,7 +109,7 @@ public:
 	 * @brief  Creates OSCondition class
 	 * @return Pointer to OSCondition object
 	 */
-	virtual OSCondition * createCondition() = 0;
+	virtual OSCondition *createCondition() const = 0;
 
 	/**
 	 * @brief Destroys OSCondition objects

@@ -80,13 +80,11 @@ int parseMacAddr( _TCHAR *macstr, uint8_t *octet_string ) {
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	IEEE1588PortInit_t portInit;
+	PortInit_t portInit;
 
 	portInit.clock = NULL;
 	portInit.index = 1;
-	portInit.forceSlave = false;
 	portInit.timestamper = NULL;
-	portInit.offset = 0;
 	portInit.net_label = NULL;
 	portInit.automotive_profile = false;
 	portInit.isGM = false;
@@ -166,7 +164,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	// Create Clock object
 	portInit.clock = new IEEE1588Clock( false, false, priority1, portInit.timestamper, timerq_factory, ipc, portInit.lock_factory );  // Do not force slave
 	// Create Port Object linked to clock and low level
-	IEEE1588Port *port = new IEEE1588Port( &portInit );
+	EtherPort *port = new EtherPort( &portInit );
 	if (!port->init_port(phy_delays)) {
 		printf( "Failed to initialize port\n" );
 		return -1;

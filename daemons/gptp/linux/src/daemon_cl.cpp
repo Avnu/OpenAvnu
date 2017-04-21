@@ -125,11 +125,11 @@ int watchdog_setup(OSThreadFactory *thread_factory)
 }
 
 static IEEE1588Clock *pClock = NULL;
-static IEEE1588Port *pPort = NULL;
+static EtherPort *pPort = NULL;
 
 int main(int argc, char **argv)
 {
-	IEEE1588PortInit_t portInit;
+	PortInit_t portInit;
 
 	sigset_t set;
 	InterfaceName *ifname;
@@ -176,9 +176,7 @@ int main(int argc, char **argv)
 
 	portInit.clock = NULL;
 	portInit.index = 0;
-	portInit.forceSlave = false;
 	portInit.timestamper = NULL;
-	portInit.offset = 0;
 	portInit.net_label = NULL;
 	portInit.automotive_profile = false;
 	portInit.isGM = false;
@@ -380,16 +378,14 @@ int main(int argc, char **argv)
 	// just set directly into the portInit struct.
 	portInit.clock = pClock;
 	portInit.index = 1;
-	portInit.forceSlave = false;
 	portInit.timestamper = timestamper;
-	portInit.offset = 0;
 	portInit.net_label = ifname;
 	portInit.condition_factory = condition_factory;
 	portInit.thread_factory = thread_factory;
 	portInit.timer_factory = timer_factory;
 	portInit.lock_factory = lock_factory;
 
-	pPort = new IEEE1588Port(&portInit);
+	pPort = new EtherPort(&portInit);
 
 	if(use_config_file)
 	{
