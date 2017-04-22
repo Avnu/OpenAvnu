@@ -26,7 +26,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+
+#if defined(_WIN32) && (_MSC_VER < 1800)
+/* Visual Studio 2012 and earlier */
+typedef unsigned __int8 uint8_t;
+typedef unsigned __int32 uint32_t;
+#else
 #include <inttypes.h>
+#endif
+
 #include <assert.h>
 
 #include "platform.h"

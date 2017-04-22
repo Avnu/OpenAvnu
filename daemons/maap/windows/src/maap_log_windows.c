@@ -26,7 +26,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+
+#if defined(_WIN32) && (_MSC_VER < 1800)
+/* Visual Studio 2012 and earlier */
+typedef __int8 int8_t;
+typedef __int16 int16_t;
+typedef __int32 int32_t;
+typedef __int64 int64_t;
+typedef unsigned __int8 uint8_t;
+typedef unsigned __int16 uint16_t;
+typedef unsigned __int32 uint32_t;
+typedef unsigned __int64 uint64_t;
+#else
 #include <inttypes.h>
+#endif
 
 #include "platform.h"
 #include "maap_log_queue.h"
@@ -83,8 +96,8 @@ static HANDLE gLogMutex = NULL;
 void maapLogRTRender(log_queue_item_t *pLogItem)
 {
 	if (logRTQueue) {
-		pLogItem->msg[0] = 0x00;
 		int bMore = TRUE;
+		pLogItem->msg[0] = 0x00;
 		while (bMore) {
 			maap_log_queue_elem_t elem = maapLogQueueTailLock(logRTQueue);
 			if (elem) {
@@ -167,13 +180,13 @@ uint32_t maapLogGetMsg(uint8_t *pBuf, uint32_t bufSize)
 DWORD WINAPI loggingThreadFn(LPVOID pv)
 {
 	while (loggingThreadRunning) {
-		Sleep(LOG_QUEUE_SLEEP_MSEC);
-
 		int more = TRUE;
 
+		Sleep(LOG_QUEUE_SLEEP_MSEC);
+
 		while (more) {
-			more = FALSE;
 			maap_log_queue_elem_t elem = maapLogQueueTailLock(logQueue);
+			more = FALSE;
 			if (elem) {
 				log_queue_item_t *pLogItem = (log_queue_item_t *)maapLogQueueData(elem);
 
@@ -243,7 +256,7 @@ void maapLogFn(
 		vsprintf(msg, fmt, args);
 
 		if (MAAP_LOG_FILE_INFO && path) {
-			char* file = strrchr(path, '/');
+			const char* file = strrchr(path, '/');
 			if (!file)
 				file = strrchr(path, '\\');
 			if (file)
@@ -302,9 +315,10 @@ void maapLogRT(int level, int bBegin, int bItem, int bEnd, char *pFormat, log_rt
 	if (level <= MAAP_LOG_LEVEL) {
 		if (logRTQueue) {
 			if (bBegin) {
+				maap_log_queue_elem_t elem;
 				LOG_LOCK();
 
-				maap_log_queue_elem_t elem = maapLogQueueHeadLock(logRTQueue);
+				elem = maapLogQueueHeadLock(logRTQueue);
 				if (elem) {
 					log_rt_queue_item_t *pLogRTItem = (log_rt_queue_item_t *)maapLogQueueData(elem);
 					pLogRTItem->bEnd = FALSE;

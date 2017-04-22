@@ -27,6 +27,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_WIN32) && (_MSC_VER < 1800)
+/* Visual Studio 2012 and earlier */
+#define strtoull(x,y,z) _strtoui64(x,y,z)
+#endif
+
 #include "maap.h"
 #include "maap_parse.h"
 
