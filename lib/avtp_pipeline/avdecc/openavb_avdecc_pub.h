@@ -78,6 +78,8 @@ typedef struct {
 	U16 vlanID;
 	U8 vlanPCP;
 
+	U8 valid_time; // Number of 2-second units
+
 	// Information to add to the descriptor.
 	unsigned avdeccId;
 	U8 entity_model_id[8];

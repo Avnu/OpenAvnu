@@ -48,6 +48,8 @@ MUTEX_HANDLE(openavbAdpMutex);
 #define ADP_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAdpMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
 #define ADP_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(openavbAdpMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
 
+extern openavb_avdecc_cfg_t gAvdeccCfg;
+
 static bool s_bPreviousHaveTL = false;
 
 openavbRC openavbAdpStart()
@@ -79,7 +81,7 @@ openavbRC openavbAdpStart()
 		pHeader->sv = 0;
 		pHeader->version = 0;
 		pHeader->message_type = 0;					// Set later depending on message type
-		pHeader->valid_time = 31;
+		pHeader->valid_time = gAvdeccCfg.valid_time;
 		pHeader->control_data_length = 56;
 		memcpy(pHeader->entity_id, pAem->pDescriptorEntity->entity_id, sizeof(pAem->pDescriptorEntity->entity_id));
 	}
