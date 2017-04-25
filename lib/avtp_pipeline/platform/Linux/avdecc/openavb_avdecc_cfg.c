@@ -111,14 +111,16 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 			errno = 0;
 			pCfg->valid_time = strtoul(value, &pEnd, 10);
 			if (*pEnd == '\0' && errno == 0) {
-				if (pCfg->valid_time >= 2 && pCfg->valid_time <= 62 && (pCfg->valid_time & 1) == 0) {
-					pCfg->valid_time /= 2; // Convert from seconds to 2-second units.
-					valOK = TRUE;
-				} else {
-					AVB_LOG_ERROR("valid_time must be an even number between 2 and 62")
+				if (pCfg->valid_time < 2 || pCfg->valid_time > 62) {
+					AVB_LOG_ERROR("valid_time must be between 2 and 62 (inclusive)");
 					AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 					return 0;
 				}
+				if ((pCfg->valid_time & 1) != 0) {
+					AVB_LOGF_WARNING("valid_time converted to an even number (%d to %d)", pCfg->valid_time, pCfg->valid_time - 1);
+				}
+				pCfg->valid_time /= 2; // Convert from seconds to 2-second units.
+				valOK = TRUE;
 			}
 		}
 		else {
