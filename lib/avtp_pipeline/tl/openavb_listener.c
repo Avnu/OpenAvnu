@@ -131,7 +131,7 @@ void listenerStopStream(tl_state_t *pTLState)
 		openavbListenerGetStat(pTLState, TL_STAT_RX_BYTES));
 
 	if (pTLState->bStreaming) {
-		openavbAvtpShutdown(pListenerData->avtpHandle);
+		openavbAvtpShutdownListener(pListenerData->avtpHandle);
 		pTLState->bStreaming = FALSE;
 	}
 

@@ -703,7 +703,7 @@ void openavbAvtpPause(void *handle, bool bPause)
 	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
 }
 
-void openavbAvtpShutdown(void *pv)
+void openavbAvtpShutdownTalker(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP);
 	AVB_LOG_DEBUG("Shutdown");
@@ -718,6 +718,32 @@ void openavbAvtpShutdown(void *pv)
 			openavbRawsockClose(pStream->rawsock);
 			pStream->rawsock = NULL;
 		}
+
+		if (pStream->ifname)
+			free(pStream->ifname);
+
+		// free the malloc'd stream info
+		free(pStream);
+	}
+	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
+	return;
+}
+
+void openavbAvtpShutdownListener(void *pv)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVTP);
+	AVB_LOG_DEBUG("Shutdown");
+
+	avtp_stream_t *pStream = (avtp_stream_t *)pv;
+	if (pStream) {
+		// close the rawsock
+		if (pStream->rawsock) {
+			openavbRawsockClose(pStream->rawsock);
+			pStream->rawsock = NULL;
+		}
+
+		pStream->pIntfCB->intf_end_cb(pStream->pMediaQ);
+		pStream->pMapCB->map_end_cb(pStream->pMediaQ);
 
 		if (pStream->ifname)
 			free(pStream->ifname);

@@ -46,7 +46,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define	AVB_LOG_COMPONENT	"ALSA Interface"
 #include "openavb_log_pub.h"
 
-// The asoundlib.h header needs to appear after openavb_trace_pub.h otherwise an incompatibtily version of time.h gets pulled in.
+// The asoundlib.h header needs to appear after openavb_trace_pub.h otherwise an incompatible version of time.h gets pulled in.
 #include <alsa/asoundlib.h>
 
 #define PCM_DEVICE_NAME_DEFAULT	"default"
@@ -427,7 +427,7 @@ void openavbIntfAlsaTxInitCB(media_q_t *pMediaQ)
 			return;
 		}
 
-		// Initialize the hardware paramneters
+		// Initialize the hardware parameters
 		rslt = snd_pcm_hw_params_any(pPvtData->pcmHandle, hwParams);
 		if (rslt < 0) {
 			AVB_LOGF_ERROR("snd_pcm_hw_params_any() error: %s", snd_strerror(rslt));
@@ -537,6 +537,7 @@ void openavbIntfAlsaTxInitCB(media_q_t *pMediaQ)
 		snd_output_t* out;
 		snd_output_stdio_attach(&out, stderr, 0);
 		snd_pcm_dump(pPvtData->pcmHandle, out);
+		snd_output_close(out);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -849,6 +850,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_malloc error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -858,6 +861,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_current error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -867,6 +872,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_set_start_threshold error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -876,6 +883,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_set_avail_min error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -885,6 +894,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_set_period_event error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -894,6 +905,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -917,6 +930,7 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 		snd_output_t* out;
 		snd_output_stdio_attach(&out, stderr, 0);
 		snd_pcm_dump(pPvtData->pcmHandle, out);
+		snd_output_close(out);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -991,6 +1005,11 @@ void openavbIntfAlsaEndCB(media_q_t *pMediaQ)
 		if (pPvtData->pcmHandle) {
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+
+#if 0
+			// Optional call when using Valgrind to stop reports of memory leaks.
+			snd_config_update_free_global();
+#endif
 		}
 	}
 

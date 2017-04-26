@@ -187,7 +187,7 @@ void talkerStopStream(tl_state_t *pTLState)
 		);
 
 	if (pTLState->bStreaming) {
-		openavbAvtpShutdown(pTalkerData->avtpHandle);
+		openavbAvtpShutdownTalker(pTalkerData->avtpHandle);
 		pTLState->bStreaming = FALSE;
 	}
 

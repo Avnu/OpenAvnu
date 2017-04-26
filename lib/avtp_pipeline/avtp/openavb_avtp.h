@@ -177,7 +177,8 @@ void openavbAvtpConfigTimsstampEval(void *handle, U32 tsInterval, U32 reportInte
 
 void openavbAvtpPause(void *handle, bool bPause);
 
-void openavbAvtpShutdown(void *handle);
+void openavbAvtpShutdownTalker(void *handle);
+void openavbAvtpShutdownListener(void *handle);
 
 int openavbAvtpTxBufferLevel(void *handle);
 
