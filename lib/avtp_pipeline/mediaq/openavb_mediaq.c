@@ -40,18 +40,12 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_mediaq.h"
 #include "openavb_avtp_time_pub.h"
 
-#include "openavb_printbuf.h"
-
 #define	AVB_LOG_COMPONENT	"Media Queue"
 #include "openavb_log.h"
 
 static MUTEX_HANDLE(gMediaQMutex);
 #define MEDIAQ_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(gMediaQMutex); MUTEX_LOG_ERR("Mutex Lock failure"); }
 #define MEDIAQ_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(gMediaQMutex); MUTEX_LOG_ERR("Mutex Unlock failure"); }
-
-// CORE_TODO : Currently this first future logic for purge the media queue and incoming items
-// may be too aggressive and can result in never catching up. Therefore it is disabled for now
-//#define ENABLE_FIRST_FUTURE 1
 
 //#define DUMP_HEAD_PUSH 		1
 //#define DUMP_TAIL_PULL 		1
@@ -84,9 +78,6 @@ typedef struct {
 				
 	// True is next item to be pulled is locked
 	bool tailLocked;
-
-	// set if timestamp is ever in the future
-	bool firstFuture;
 
 	// Maximum latency
 	U32 maxLatencyUsec;
@@ -167,18 +158,6 @@ void x_openavbMediaQPurgeStaleTail(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_MEDIAQ_DETAIL);
 
-#if 0 // debug
-	// Debug code to report delta from TS
-	static bool init = TRUE;
-	static U32 cnt = 0;
-	static openavb_printbuf_t printBuf;
-	if (init) {
-		printBuf = openavbPrintbufNew(2000, 20);
-		init = FALSE;
-	}
-#endif
-
-
 	if (pMediaQ) {
 		if (pMediaQ->pPvtMediaQInfo) {
 			media_q_info_t *pMediaQInfo = (media_q_info_t *)(pMediaQ->pPvtMediaQInfo);
@@ -196,14 +175,12 @@ void x_openavbMediaQPurgeStaleTail(media_q_t *pMediaQ)
 								pMediaQInfo->tailLocked = TRUE;
 								bool bPurge = FALSE;
 
-#ifdef ENABLE_FIRST_FUTURE
 								if (bFirst) {
 									S32 delta = openavbAvtpTimeUsecDelta(pTail->pAvtpTime);
 									S32 maxStale = (S32)(0 - pMediaQInfo->maxStaleTailUsec);
 
 									if (delta < maxStale) {
-										IF_LOG_INTERVAL(100) AVB_LOGF_INFO("Purging stale MediaQ items: delta:%dus maxStale%dus", delta, maxStale);
-										
+										AVB_LOGF_DEBUG("Purging stale MediaQ items: delta %d us, maxStale %d us", delta, maxStale);
 										bPurge = TRUE;
 									}
 									bFirst = FALSE;
@@ -211,6 +188,7 @@ void x_openavbMediaQPurgeStaleTail(media_q_t *pMediaQ)
 								else {
 									// Once we have triggered a stale tail purge everything past presentation time.
 									if (openavbAvtpTimeIsPast(pTail->pAvtpTime)) {
+										AVB_LOG_DEBUG("Purging stale MediaQ items");
 										bPurge = TRUE;
 									}
 								}
@@ -224,46 +202,6 @@ void x_openavbMediaQPurgeStaleTail(media_q_t *pMediaQ)
 									pMediaQInfo->tailLocked = FALSE;
 									pTail = NULL;
 								}
-#else // ENABLE_FIRST_FUTURE
-								if (bFirst) {
-									S32 delta = openavbAvtpTimeUsecDelta(pTail->pAvtpTime);
-									S32 maxStale = (S32)(0 - pMediaQInfo->maxStaleTailUsec);
-									if(delta >= 0) {
-										pMediaQInfo->firstFuture = TRUE;
-									}
-									else if (delta < maxStale) {
-										bPurge = TRUE;
-										pMediaQInfo->firstFuture = FALSE;
-									}
-	
-									bFirst = FALSE;
-								}
-								else {
-									// Once we have triggered a stale tail purge everything past presentation time.
-									if (openavbAvtpTimeIsPast(pTail->pAvtpTime)) {
-#if 0 // debug
-										if (!(++cnt % 1)) {
-											openavbPrintbufPrintf(printBuf, "Purge More\n");
-										}
-#endif
-										bPurge = TRUE;
-									}
-									else {
-										pMediaQInfo->firstFuture = TRUE;
-									}
-								}
-
-								if (bPurge || (pMediaQInfo->firstFuture == FALSE)) {
-									openavbMediaQTailPull(pMediaQ);
-									pTail = NULL;
-									bMore = TRUE;
-								}
-								else {
-									pMediaQInfo->tailLocked = FALSE;
-									pTail = NULL;
-								}
-#endif // ENABLE_FIRST_FUTURE								
-								
 							}
 						}
 					}
@@ -292,7 +230,6 @@ media_q_t* openavbMediaQCreate()
 			pMediaQInfo->headLocked = FALSE;
 			pMediaQInfo->tail = -1;
 			pMediaQInfo->tailLocked = FALSE;
-			pMediaQInfo->firstFuture = TRUE;
 			pMediaQInfo->maxLatencyUsec = 0;
 			pMediaQInfo->threadSafeOn = FALSE;
 			pMediaQInfo->maxStaleTailUsec = MICROSECONDS_PER_SECOND;
@@ -699,13 +636,14 @@ media_q_item_t* openavbMediaQTailLock(media_q_t *pMediaQ, bool ignoreTimestamp)
 							if (pMediaQInfo->threadSafeOn) {
 								MEDIAQ_UNLOCK();
 							}
+							AVB_TRACE_EXIT(AVB_TRACE_MEDIAQ_DETAIL);
 							return NULL;
 						}
 					}
 
 					pMediaQInfo->tailLocked = TRUE;
-					AVB_TRACE_EXIT(AVB_TRACE_MEDIAQ_DETAIL);
 					// Mutex (LOCK()) if acquired stays locked
+					AVB_TRACE_EXIT(AVB_TRACE_MEDIAQ_DETAIL);
 					return pTail;
 				}
 			}
