@@ -469,7 +469,7 @@ openavbRC openavbAvtpRxInit(
 static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP_DETAIL);
-	AVB_LOGF_DEBUG("pFrame=%p, len=%u", pFrame, frameLen);
+	IF_LOG_INTERVAL(4096) AVB_LOGF_DEBUG("pFrame=%p, len=%u", pFrame, frameLen);
 	U8 subtype, flags, flags2, rxSeq, nLost, avtpVersion;
 	U8 *pRead = pFrame;
 
@@ -503,8 +503,7 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 			pStream->bytes += frameLen;
 
 			flags2 = *pRead++;
-
-			AVB_LOGF_DEBUG("subtype=%u, sv=%u, ver=%u, mr=%u, tv=%u tu=%u",
+			IF_LOG_INTERVAL(4096) AVB_LOGF_DEBUG("subtype=%u, sv=%u, ver=%u, mr=%u, tv=%u tu=%u",
 				subtype, flags & 0x80, avtpVersion,
 				flags & 0x08, flags & 0x01, flags2 & 0x01);
 
