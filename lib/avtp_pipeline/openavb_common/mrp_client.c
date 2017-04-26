@@ -85,7 +85,6 @@ int send_mrp_msg(char *notify_data, int notify_len)
 
 int process_mrp_msg(char *buf, int buflen)
 {
-
 	/*
 	 * 1st character indicates application
 	 * [MVS] - MAC, VLAN or STREAM
@@ -97,180 +96,63 @@ int process_mrp_msg(char *buf, int buflen)
 	unsigned int max_interval_frames;
 	unsigned int priority_and_rank;
 	unsigned int latency;
-	int i, j, k;
+	int i, j;
 	unsigned int substate;
 	unsigned char recovered_streamid[8];
 	unsigned char dest_addr[6];
-	k = 0;
- next_line:if (k >= buflen)
-		return 0;
-	switch (buf[k]) {
-	case 'E':
-		AVB_LOGF_DEBUG("%s from mrpd", buf);
-		mrp_error = 1;
-		break;
-	case 'O':
-		mrp_okay = 1;
-		break;
-	case 'M':
-	case 'V':
-		AVB_LOGF_DEBUG("%s unhandled from mrpd", buf);
-		/* unhandled for now */
-		break;
-	case 'L':
+	int offset = 0;
 
-		/* parse a listener attribute - see if it matches our monitor_stream_id */
-		i = k;
-		while (buf[i] != 'D')
-			i++;
-		i += 2;		/* skip the ':' */
-		sscanf(&(buf[i]), "%d", &substate);
-		while (buf[i] != 'S')
-			i++;
-		i += 2;		/* skip the ':' */
-		for (j = 0; j < 8; j++) {
-			sscanf(&(buf[i + 2 * j]), "%02x", &id);
-			recovered_streamid[j] = (unsigned char)id;
-		}
-		AVB_LOGF_DEBUG
-		    ("FOUND STREAM ID=%02x%02x%02x%02x%02x%02x%02x%02x ",
-		     recovered_streamid[0], recovered_streamid[1],
-		     recovered_streamid[2], recovered_streamid[3],
-		     recovered_streamid[4], recovered_streamid[5],
-		     recovered_streamid[6], recovered_streamid[7]);
-		switch (substate) {
-		case 0:
-			AVB_LOG_DEBUG("with state ignore");
+#if (AVB_LOG_LEVEL_DEBUG <= AVB_LOG_LEVEL)
+	// Display this response in a user-friendly format.
+	static char szMrpData[MAX_MRPD_CMDSZ];
+	int nMrpDataLength = (buflen < MAX_MRPD_CMDSZ - 1 ? buflen : MAX_MRPD_CMDSZ - 1);
+	strncpy(szMrpData, buf, nMrpDataLength);
+	szMrpData[nMrpDataLength] = '\0';
+	while (nMrpDataLength > 0 &&
+			(buf[nMrpDataLength - 1] == '\0' || buf[nMrpDataLength - 1] == '\r' || buf[nMrpDataLength - 1] == '\n')) {
+		// Remove the trailing whitespace.
+		szMrpData[--nMrpDataLength] = '\0';
+	}
+	AVB_LOGF_DEBUG("MRP Response:  %s", szMrpData);
+#endif
+
+	while (offset < buflen && buf[offset] != '\0') {
+
+		switch (buf[offset]) {
+		case 'E':
+			mrp_error = 1;
 			break;
-		case 1:
-			AVB_LOG_DEBUG("with state askfailed");
+
+		case 'O':
+			mrp_okay = 1;
 			break;
-		case 2:
-			AVB_LOG_DEBUG("with state ready");
+
+		case 'M':
+		case 'V':
+			/* unhandled for now */
 			break;
-		case 3:
-			AVB_LOG_DEBUG("with state readyfail");
-			break;
-		default:
-			AVB_LOGF_DEBUG("with state UNKNOWN (%d)", substate);
-			break;
-		}
-		mrp_attach_cb(recovered_streamid, substate);
-		if (substate > MSRP_LISTENER_ASKFAILED) {
-			if (memcmp
-			    (recovered_streamid, monitor_stream_id,
-			     sizeof(recovered_streamid)) == 0) {
-				listeners = 1;
-				AVB_LOG_DEBUG("added listener");
-			}
-		}
 
-		/* try to find a newline ... */
-		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
-			i++;
-		if (i == buflen)
-			return 0;
-		if (buf[i] == '\0')
-			return 0;
-		i++;
-		k = i;
-		goto next_line;
-		break;
-	case 'D':
-		i = k + 4;
-
-		/* save the domain attribute */
-		sscanf(&(buf[i]), "%d", &id);
-		while (buf[i] != 'P')
-			i++;
-		i += 2;		/* skip the ':' */
-		sscanf(&(buf[i]), "%d", &priority);
-		while (buf[i] != 'V')
-			i++;
-		i += 2;		/* skip the ':' */
-		sscanf(&(buf[i]), "%x", &vid);
-		if (id == 6) {
-			domain_class_a_id = id;
-			domain_class_a_priority = priority;
-			domain_class_a_vid = vid;
-			domain_a_valid = 1;
-		} else {
-			domain_class_b_id = id;
-			domain_class_b_priority = priority;
-			domain_class_b_vid = vid;
-			domain_b_valid = 1;
-		}
-		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
-			i++;
-		if ((i == buflen) || (buf[i] == '\0'))
-			return 0;
-		i++;
-		k = i;
-		goto next_line;
-		break;
-	case 'T':
-		i = k;
-		while (buf[i] != 'S')
-			i++;
-		// skip S=
-		i += 2;
-		for (j = 0; j < 8; j++) {
-			sscanf(&(buf[i + 2 * j]), "%02x", &id);
-			recovered_streamid[j] = (unsigned char)id;
-		}
-		while (buf[i] != 'A')
-			i++;
-		// skip A=
-		i += 2;
-		for (j = 0; j < 6; j++) {
-			sscanf(&(buf[i + 2 * j]), "%02x", &id);
-			dest_addr[j] = (unsigned char)id;
-		}
-		i+= j*2 + 1;
-
-		sscanf(&(buf[i]), "V=%d,Z=%d,I=%d,P=%d,L=%d",
-		       &vid,
-		       &max_frame_size,
-		       &max_interval_frames,
-		       &priority_and_rank,
-		       &latency);
-
-		mrp_register_cb(recovered_streamid, 0, dest_addr, max_frame_size, max_interval_frames, vid, latency);
-
-		while ((i < buflen) && (buf[i] != '\n') && (buf[i] != '\0'))
-			i++;
-
-		if (i == buflen)
-			return 0;
-		if (buf[i] == '\0')
-			return 0;
-		i++;
-		k = i;
-		goto next_line;
-		break;
-	case 'S':
-
-		/* handle the leave/join events */
-		switch (buf[k + 4]) {
 		case 'L':
-			i = k + 5;
+
+			/* parse a listener attribute - see if it matches our monitor_stream_id */
+			i = offset;
 			while (buf[i] != 'D')
 				i++;
-			i += 2;	/* skip the ':' */
+			i += 2;		/* skip the ':' */
 			sscanf(&(buf[i]), "%d", &substate);
 			while (buf[i] != 'S')
 				i++;
-			i += 2;	/* skip the ':' */
+			i += 2;		/* skip the ':' */
 			for (j = 0; j < 8; j++) {
 				sscanf(&(buf[i + 2 * j]), "%02x", &id);
 				recovered_streamid[j] = (unsigned char)id;
 			}
 			AVB_LOGF_DEBUG
-			    ("EVENT on STREAM ID=%02x%02x%02x%02x%02x%02x%02x%02x ",
-			     recovered_streamid[0], recovered_streamid[1],
-			     recovered_streamid[2], recovered_streamid[3],
-			     recovered_streamid[4], recovered_streamid[5],
-			     recovered_streamid[6], recovered_streamid[7]);
+				("FOUND STREAM ID=%02x%02x%02x%02x%02x%02x%02x%02x ",
+				 recovered_streamid[0], recovered_streamid[1],
+				 recovered_streamid[2], recovered_streamid[3],
+				 recovered_streamid[4], recovered_streamid[5],
+				 recovered_streamid[6], recovered_streamid[7]);
 			switch (substate) {
 			case 0:
 				AVB_LOG_DEBUG("with state ignore");
@@ -288,34 +170,45 @@ int process_mrp_msg(char *buf, int buflen)
 				AVB_LOGF_DEBUG("with state UNKNOWN (%d)", substate);
 				break;
 			}
-			switch (buf[k + 1]) {
-			case 'L':
-				mrp_attach_cb(recovered_streamid, substate);
-				AVB_LOGF_DEBUG("got a leave indication substate %d", substate);
+			mrp_attach_cb(recovered_streamid, substate);
+			if (substate > MSRP_LISTENER_ASKFAILED) {
 				if (memcmp
-				    (recovered_streamid, monitor_stream_id,
-				     sizeof(recovered_streamid)) == 0) {
-					listeners = 0;
-					AVB_LOG_DEBUG("listener left");
+					(recovered_streamid, monitor_stream_id,
+					 sizeof(recovered_streamid)) == 0) {
+					listeners = 1;
+					AVB_LOG_DEBUG("added listener");
 				}
-				break;
-			case 'J':
-			case 'N':
-				AVB_LOGF_DEBUG("got a new/join indication substate %d", substate);
-				mrp_attach_cb(recovered_streamid, substate);
-				if (substate > MSRP_LISTENER_ASKFAILED) {
-					if (memcmp
-					    (recovered_streamid,
-					     monitor_stream_id,
-					     sizeof(recovered_streamid)) == 0)
-						listeners = 1;
-				}
-				break;
+			}
+			break;
+
+		case 'D':
+			i = offset + 4;
+
+			/* save the domain attribute */
+			sscanf(&(buf[i]), "%d", &id);
+			while (buf[i] != 'P')
+				i++;
+			i += 2;		/* skip the ':' */
+			sscanf(&(buf[i]), "%d", &priority);
+			while (buf[i] != 'V')
+				i++;
+			i += 2;		/* skip the ':' */
+			sscanf(&(buf[i]), "%x", &vid);
+			if (id == 6) {
+				domain_class_a_id = id;
+				domain_class_a_priority = priority;
+				domain_class_a_vid = vid;
+				domain_a_valid = 1;
+			} else {
+				domain_class_b_id = id;
+				domain_class_b_priority = priority;
+				domain_class_b_vid = vid;
+				domain_b_valid = 1;
 			}
 			break;
 
 		case 'T':
-			i = k + 5;
+			i = offset;
 			while (buf[i] != 'S')
 				i++;
 			// skip S=
@@ -335,21 +228,127 @@ int process_mrp_msg(char *buf, int buflen)
 			i+= j*2 + 1;
 
 			sscanf(&(buf[i]), "V=%d,Z=%d,I=%d,P=%d,L=%d",
-			       &vid,
-			       &max_frame_size,
-			       &max_interval_frames,
-			       &priority_and_rank,
-			       &latency);
+				   &vid,
+				   &max_frame_size,
+				   &max_interval_frames,
+				   &priority_and_rank,
+				   &latency);
 
-			mrp_register_cb(recovered_streamid, buf[k+1] == 'J', dest_addr, max_frame_size, max_interval_frames, vid, latency);
+			mrp_register_cb(recovered_streamid, 0, dest_addr, max_frame_size, max_interval_frames, vid, latency);
 			break;
-		default:
-			return 0;
+
+		case 'S':
+
+			/* handle the leave/join events */
+			switch (buf[offset + 4]) {
+			case 'L':
+				i = offset + 5;
+				while (buf[i] != 'D')
+					i++;
+				i += 2;	/* skip the ':' */
+				sscanf(&(buf[i]), "%d", &substate);
+				while (buf[i] != 'S')
+					i++;
+				i += 2;	/* skip the ':' */
+				for (j = 0; j < 8; j++) {
+					sscanf(&(buf[i + 2 * j]), "%02x", &id);
+					recovered_streamid[j] = (unsigned char)id;
+				}
+				AVB_LOGF_DEBUG
+					("EVENT on STREAM ID=%02x%02x%02x%02x%02x%02x%02x%02x ",
+					 recovered_streamid[0], recovered_streamid[1],
+					 recovered_streamid[2], recovered_streamid[3],
+					 recovered_streamid[4], recovered_streamid[5],
+					 recovered_streamid[6], recovered_streamid[7]);
+				switch (substate) {
+				case 0:
+					AVB_LOG_DEBUG("with state ignore");
+					break;
+				case 1:
+					AVB_LOG_DEBUG("with state askfailed");
+					break;
+				case 2:
+					AVB_LOG_DEBUG("with state ready");
+					break;
+				case 3:
+					AVB_LOG_DEBUG("with state readyfail");
+					break;
+				default:
+					AVB_LOGF_DEBUG("with state UNKNOWN (%d)", substate);
+					break;
+				}
+				switch (buf[offset + 1]) {
+				case 'L':
+					mrp_attach_cb(recovered_streamid, substate);
+					AVB_LOGF_DEBUG("got a leave indication substate %d", substate);
+					if (memcmp
+						(recovered_streamid, monitor_stream_id,
+						 sizeof(recovered_streamid)) == 0) {
+						listeners = 0;
+						AVB_LOG_DEBUG("listener left");
+					}
+					break;
+				case 'J':
+				case 'N':
+					AVB_LOGF_DEBUG("got a new/join indication substate %d", substate);
+					mrp_attach_cb(recovered_streamid, substate);
+					if (substate > MSRP_LISTENER_ASKFAILED) {
+						if (memcmp
+							(recovered_streamid,
+							 monitor_stream_id,
+							 sizeof(recovered_streamid)) == 0)
+							listeners = 1;
+					}
+					break;
+				}
+				break;
+
+			case 'T':
+				i = offset + 5;
+				while (buf[i] != 'S')
+					i++;
+				// skip S=
+				i += 2;
+				for (j = 0; j < 8; j++) {
+					sscanf(&(buf[i + 2 * j]), "%02x", &id);
+					recovered_streamid[j] = (unsigned char)id;
+				}
+				while (buf[i] != 'A')
+					i++;
+				// skip A=
+				i += 2;
+				for (j = 0; j < 6; j++) {
+					sscanf(&(buf[i + 2 * j]), "%02x", &id);
+					dest_addr[j] = (unsigned char)id;
+				}
+				i+= j*2 + 1;
+
+				sscanf(&(buf[i]), "V=%d,Z=%d,I=%d,P=%d,L=%d",
+					   &vid,
+					   &max_frame_size,
+					   &max_interval_frames,
+					   &priority_and_rank,
+					   &latency);
+
+				mrp_register_cb(recovered_streamid, buf[offset+1] == 'J' || buf[offset+1] == 'N', dest_addr, max_frame_size, max_interval_frames, vid, latency);
+				break;
+
+			default:
+				break;
+			}
+			break;
+
+		case '\0':
 			break;
 		}
-		break;
-	case '\0':
-		break;
+
+		// Proceed to the next line.
+		while (offset < buflen && buf[offset] != '\n' && buf[offset] != '\0') {
+			offset++;
+		}
+		if (offset < buflen && buf[offset] == '\n') {
+			offset++;
+		}
 	}
 	return 0;
 }

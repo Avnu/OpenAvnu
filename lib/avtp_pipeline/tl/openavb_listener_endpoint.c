@@ -73,6 +73,12 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 		return;
 	}
 
+	// If not a listener, ignore this callback.
+	if (pTLState->cfg.role != AVB_ROLE_LISTENER) {
+		AVB_LOG_DEBUG("Ignoring Listener callback");
+		return;
+	}
+
 	AVB_LOGF_DEBUG("%s streaming=%d, tlkrDecl=%d", __FUNCTION__, pTLState->bStreaming, tlkrDecl);
 
 	if (!pTLState->bStreaming
