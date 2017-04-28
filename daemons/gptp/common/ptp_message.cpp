@@ -34,14 +34,14 @@
 #include <ieee1588.hpp>
 #include <avbts_clock.hpp>
 #include <avbts_message.hpp>
-#include <avbts_port.hpp>
+#include <ether_port.hpp>
 #include <avbts_ostimer.hpp>
 
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 
-PTPMessageCommon::PTPMessageCommon(IEEE1588Port * port)
+PTPMessageCommon::PTPMessageCommon( CommonPort *port )
 {
 	// Fill in fields using port/clock dataset as a template
 	versionPTP = GPTP_VERSION;
@@ -65,7 +65,8 @@ bool PTPMessageCommon::isSenderEqual(PortIdentity portIdentity)
 }
 
 PTPMessageCommon *buildPTPMessage
-(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port)
+( char *buf, int size, LinkLayerAddress *remote,
+  EtherPort *port )
 {
 	OSTimer *timer = port->getTimerFactory()->createTimer();
 	PTPMessageCommon *msg = NULL;
@@ -541,7 +542,7 @@ abort:
 	return NULL;
 }
 
-void PTPMessageCommon::processMessage(IEEE1588Port * port)
+void PTPMessageCommon::processMessage( EtherPort *port )
 {
 	_gc = true;
 	return;
@@ -665,7 +666,8 @@ PTPMessageSync::PTPMessageSync() {
 PTPMessageSync::~PTPMessageSync() {
 }
 
-PTPMessageSync::PTPMessageSync(IEEE1588Port * port) : PTPMessageCommon(port)
+PTPMessageSync::PTPMessageSync( EtherPort *port ) :
+	PTPMessageCommon( port )
 {
 	messageType = SYNC_MESSAGE;	// This is an event message
 	sequenceId = port->getNextSyncSequenceId();
@@ -679,7 +681,8 @@ PTPMessageSync::PTPMessageSync(IEEE1588Port * port) : PTPMessageCommon(port)
 	return;
 }
 
-void PTPMessageSync::sendPort(IEEE1588Port * port, PortIdentity * destIdentity)
+void PTPMessageSync::sendPort
+( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
@@ -714,8 +717,8 @@ void PTPMessageSync::sendPort(IEEE1588Port * port, PortIdentity * destIdentity)
 	return;
 }
 
- PTPMessageAnnounce::PTPMessageAnnounce(IEEE1588Port * port) : PTPMessageCommon
-    (port)
+PTPMessageAnnounce::PTPMessageAnnounce( CommonPort *port ) :
+	PTPMessageCommon( port )
 {
 	messageType = ANNOUNCE_MESSAGE;	// This is an event message
 	sequenceId = port->getNextAnnounceSequenceId();
@@ -740,8 +743,8 @@ void PTPMessageSync::sendPort(IEEE1588Port * port, PortIdentity * destIdentity)
 	return;
 }
 
-void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
-				  PortIdentity * destIdentity)
+void PTPMessageAnnounce::sendPort
+( CommonPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
@@ -786,7 +789,7 @@ void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
 	return;
 }
 
-void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
+void PTPMessageAnnounce::processMessage( EtherPort *port )
 {
 	ClockIdentity my_clock_identity;
 
@@ -809,7 +812,7 @@ void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 	}
 
 	// Add message to the list
-	port->addQualifiedAnnounce(this);
+	port->setQualifiedAnnounce( this );
 
 	port->getClock()->addEventTimerLocked(port, STATE_CHANGE_EVENT, 16000000);
  bail:
@@ -823,7 +826,7 @@ void PTPMessageAnnounce::processMessage(IEEE1588Port * port)
 		   1000000000.0)));
 }
 
-void PTPMessageSync::processMessage(IEEE1588Port * port)
+void PTPMessageSync::processMessage( EtherPort *port )
 {
 	if (port->getPortState() == PTP_DISABLED ) {
 		// Do nothing Sync messages should be ignored when in this state
@@ -856,8 +859,8 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 	return;
 }
 
- PTPMessageFollowUp::PTPMessageFollowUp(IEEE1588Port * port):PTPMessageCommon
-    (port)
+PTPMessageFollowUp::PTPMessageFollowUp( EtherPort *port ) :
+	PTPMessageCommon( port )
 {
 	messageType = FOLLOWUP_MESSAGE;	/* This is an event message */
 	control = FOLLOWUP;
@@ -867,8 +870,8 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 	return;
 }
 
-void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
-				  PortIdentity * destIdentity)
+void PTPMessageFollowUp::sendPort
+( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
@@ -927,7 +930,7 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	return;
 }
 
-void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
+void PTPMessageFollowUp::processMessage( EtherPort *port )
 {
 	uint64_t delay;
 	Timestamp sync_arrival;
@@ -1096,8 +1099,8 @@ done:
 	return;
 }
 
- PTPMessagePathDelayReq::PTPMessagePathDelayReq(IEEE1588Port * port):
-	 PTPMessageCommon (port)
+PTPMessagePathDelayReq::PTPMessagePathDelayReq
+( EtherPort *port ) : PTPMessageCommon( port )
 {
 	logMeanMessageInterval = 0;
 	control = MESSAGE_OTHER;
@@ -1106,7 +1109,7 @@ done:
 	return;
 }
 
-void PTPMessagePathDelayReq::processMessage(IEEE1588Port * port)
+void PTPMessagePathDelayReq::processMessage( EtherPort *port )
 {
 	OSTimer *timer = port->getTimerFactory()->createTimer();
 	PortIdentity resp_fwup_id;
@@ -1228,8 +1231,8 @@ done:
 	return;
 }
 
-void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
-				      PortIdentity * destIdentity)
+void PTPMessagePathDelayReq::sendPort
+( EtherPort *port, PortIdentity *destIdentity )
 {
 	if(port->pdelayHalted())
 		return;
@@ -1248,8 +1251,8 @@ void PTPMessagePathDelayReq::sendPort(IEEE1588Port * port,
 	return;
 }
 
- PTPMessagePathDelayResp::PTPMessagePathDelayResp(IEEE1588Port * port) :
-	 PTPMessageCommon(port)
+PTPMessagePathDelayResp::PTPMessagePathDelayResp
+( EtherPort *port ) : PTPMessageCommon( port )
 {
     /*TODO: Why 0x7F?*/
 	logMeanMessageInterval = 0x7F;
@@ -1268,7 +1271,7 @@ PTPMessagePathDelayResp::~PTPMessagePathDelayResp()
 	delete requestingPortIdentity;
 }
 
-void PTPMessagePathDelayResp::processMessage(IEEE1588Port * port)
+void PTPMessagePathDelayResp::processMessage( EtherPort *port )
 {
 	if (port->getPortState() == PTP_DISABLED) {
 		// Do nothing all messages should be ignored when in this state
@@ -1346,8 +1349,8 @@ bypass_verify_duplicate:
 	return;
 }
 
-void PTPMessagePathDelayResp::sendPort(IEEE1588Port * port,
-				       PortIdentity * destIdentity)
+void PTPMessagePathDelayResp::sendPort
+( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
@@ -1406,7 +1409,7 @@ void PTPMessagePathDelayResp::getRequestingPortIdentity
 }
 
 PTPMessagePathDelayRespFollowUp::PTPMessagePathDelayRespFollowUp
-(IEEE1588Port * port) : PTPMessageCommon (port)
+( EtherPort *port ) : PTPMessageCommon( port )
 {
 	logMeanMessageInterval = 0x7F;
 	control = MESSAGE_OTHER;
@@ -1423,7 +1426,8 @@ PTPMessagePathDelayRespFollowUp::~PTPMessagePathDelayRespFollowUp()
 }
 
 #define US_PER_SEC 1000000
-void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
+void PTPMessagePathDelayRespFollowUp::processMessage
+( EtherPort *port )
 {
 	Timestamp remote_resp_tx_timestamp(0, 0, 0);
 	Timestamp request_tx_timestamp(0, 0, 0);
@@ -1666,8 +1670,8 @@ void PTPMessagePathDelayRespFollowUp::processMessage(IEEE1588Port * port)
 	return;
 }
 
-void PTPMessagePathDelayRespFollowUp::sendPort(IEEE1588Port * port,
-					       PortIdentity * destIdentity)
+void PTPMessagePathDelayRespFollowUp::sendPort
+( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
@@ -1727,7 +1731,8 @@ void PTPMessagePathDelayRespFollowUp::setRequestingPortIdentity
 {
 }
 
- PTPMessageSignalling::PTPMessageSignalling(IEEE1588Port * port) : PTPMessageCommon(port)
+PTPMessageSignalling::PTPMessageSignalling
+( EtherPort *port ) : PTPMessageCommon( port )
 {
 	messageType = SIGNALLING_MESSAGE;
 	sequenceId = port->getNextSignalSequenceId();
@@ -1750,7 +1755,8 @@ void PTPMessageSignalling::setintervals(int8_t linkDelayInterval, int8_t timeSyn
 	tlv.setAnnounceInterval(announceInterval);
 }
 
-void PTPMessageSignalling::sendPort(IEEE1588Port * port, PortIdentity * destIdentity)
+void PTPMessageSignalling::sendPort
+( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
@@ -1771,7 +1777,7 @@ void PTPMessageSignalling::sendPort(IEEE1588Port * port, PortIdentity * destIden
 	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
 }
 
-void PTPMessageSignalling::processMessage(IEEE1588Port * port)
+void PTPMessageSignalling::processMessage( EtherPort *port )
 {
 	long long unsigned int waitTime;
 
@@ -1806,7 +1812,7 @@ void PTPMessageSignalling::processMessage(IEEE1588Port * port)
 	}
 
 	if (timeSyncInterval == PTPMessageSignalling::sigMsgInterval_Initial) {
-		port->setInitSyncInterval();
+		port->resetInitSyncInterval();
 
 		waitTime = ((long long) (pow((double)2, port->getSyncInterval()) *  1000000000.0));
 		waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;

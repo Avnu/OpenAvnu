@@ -203,7 +203,7 @@ public:
 	/**
 	 * @brief Watch for net link changes.
 	 */
-	virtual void watchNetLink(IEEE1588Port *pPort);
+	virtual void watchNetLink( CommonPort *pPort );
 
 	/**
 	 * @brief Gets the payload offset
@@ -292,7 +292,8 @@ public:
 	 * @param type OSLockType enumeration
 	 * @return Pointer to OSLock object
 	 */
-	OSLock * createLock(OSLockType type) {
+	OSLock * createLock( OSLockType type ) const
+	{
 		LinuxLock *lock = new LinuxLock();
 		if (lock->initialize(type) != oslock_ok) {
 			delete lock;
@@ -365,7 +366,8 @@ public:
 	 * @brief Creates LinuxCondition objects
 	 * @return Pointer to the OSCondition object in case of success. NULL otherwise
 	 */
-	OSCondition * createCondition() {
+	OSCondition *createCondition() const
+	{
 		LinuxCondition *result = new LinuxCondition();
 		return result->initialize() ? result : NULL;
 	}
@@ -487,7 +489,8 @@ class LinuxTimerFactory : public OSTimerFactory {
 	  * @brief  Creates the linux timer
 	  * @return Pointer to OSTimer object
 	  */
-	virtual OSTimer * createTimer() {
+	virtual OSTimer *createTimer() const
+	{
 		return new LinuxTimer();
 	}
 };
@@ -551,7 +554,7 @@ class LinuxThreadFactory:public OSThreadFactory {
 	  * @brief Creates a new LinuxThread
 	  * @return Pointer to LinuxThread object
 	  */
-	 OSThread * createThread() {
+	 OSThread *createThread() const {
 		 return new LinuxThread();
 	 }
 };
