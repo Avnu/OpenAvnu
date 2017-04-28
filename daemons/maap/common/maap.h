@@ -59,13 +59,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MAAP_SUBTYPE 0xFE /**< AVTP MAAP subtype - Defined in IEEE 1722-2016 Table 6 */
 #define MAAP_PKT_SIZE 42  /**< Number of bytes for a raw MAAP Ethernet packet */
 
-/** MAAP Range States */
+ /** MAAP Range States */
 typedef enum {
-  MAAP_STATE_INVALID = 0,
-  MAAP_STATE_PROBING,    /**< Probing to determine if the address interval is available */
-  MAAP_STATE_DEFENDING,  /**< The address interval has been reserved, and defend if conflicts detected */
-  MAAP_STATE_RELEASED,   /**< The address interval has been released, and is waiting to be freed */
-} Maap_State;
+	MAAP_STATE_INVALID = 0,
+	MAAP_STATE_PROBING,    /**< Probing to determine if the address interval is available */
+	MAAP_STATE_DEFENDING,  /**< The address interval has been reserved, and defend if conflicts detected */
+	MAAP_STATE_RELEASED,   /**< The address interval has been released, and is waiting to be freed */
+ } Maap_State;
 
 
 /** Wrapper for struct maap_notify */
@@ -73,9 +73,9 @@ typedef struct maap_notify_list Maap_Notify_List;
 
 /** Structure for each queued notification */
 struct maap_notify_list {
-  Maap_Notify notify;     /**< Notification information to send */
-  const void *sender;     /**< Sender information pointer for the entity that requested the original command */
-  Maap_Notify_List *next; /**< Next notification in the queue */
+	Maap_Notify notify;     /**< Notification information to send */
+	const void *sender;     /**< Sender information pointer for the entity that requested the original command */
+	Maap_Notify_List *next; /**< Next notification in the queue */
 };
 
 
@@ -84,31 +84,31 @@ typedef struct range Range;
 
 /** Structure for each range in use */
 struct range {
-  int id;             /**< Unique identifier for this range */
-  Maap_State state;   /**< State of this range */
-  int counter;        /**< Counter used to limit the number of probes for this range */
-  int overlapping;    /**< Temporary flag used to keep track of ranges that require overlap processing */
-  Time next_act_time; /**< Next time to perform an action for this range */
-  Interval *interval; /**< Interval information for the range */
-  const void *sender; /**< Sender information pointer for the entity that requested the range */
-  Range *next_timer;  /**< Next range in the list */
+	int id;             /**< Unique identifier for this range */
+	Maap_State state;   /**< State of this range */
+	int counter;        /**< Counter used to limit the number of probes for this range */
+	int overlapping;    /**< Temporary flag used to keep track of ranges that require overlap processing */
+	Time next_act_time; /**< Next time to perform an action for this range */
+	Interval *interval; /**< Interval information for the range */
+	const void *sender; /**< Sender information pointer for the entity that requested the range */
+	Range *next_timer;  /**< Next range in the list */
 };
 
 
 /** MAAP Initialization Information */
 typedef struct {
-  uint64_t dest_mac;          /**< Multicast address for MAAP packets */
-  uint64_t src_mac;           /**< Local adapter interface MAC Address */
-  uint64_t address_base;      /**< Starting address of the recognized range of addresses (typically #MAAP_DYNAMIC_POOL_BASE) */
-  uint32_t range_len;         /**< Number of recognized addresses (typically #MAAP_DYNAMIC_POOL_SIZE) */
-  Interval *ranges;           /**< Pointer to the root of the #Interval tree, which contains all the Range structures */
-  Range *timer_queue;         /**< Pointer to a linked list of ranges that need timer support,
-                                 * with the first timer to expire being first in the list */
-  Timer *timer;               /**< Pointer to the platform-specific timing support (initialized by calling #Time_newTimer) */
-  Net *net;                   /**< Pointer to the platform-specific networking support (initialized by calling #Net_newNet) */
-  int maxid;                  /**< Identifier value of the latest reservation */
-  Maap_Notify_List *notifies; /**< Pointer to a linked list of queued notification */
-  int initialized;            /**< 1 if the structure has been initialized, 0 otherwise */
+	uint64_t dest_mac;          /**< Multicast address for MAAP packets */
+	uint64_t src_mac;           /**< Local adapter interface MAC Address */
+	uint64_t address_base;      /**< Starting address of the recognized range of addresses (typically #MAAP_DYNAMIC_POOL_BASE) */
+	uint32_t range_len;         /**< Number of recognized addresses (typically #MAAP_DYNAMIC_POOL_SIZE) */
+	Interval *ranges;           /**< Pointer to the root of the #Interval tree, which contains all the Range structures */
+	Range *timer_queue;         /**< Pointer to a linked list of ranges that need timer support,
+								 * with the first timer to expire being first in the list */
+	Timer *timer;               /**< Pointer to the platform-specific timing support (initialized by calling #Time_newTimer) */
+	Net *net;                   /**< Pointer to the platform-specific networking support (initialized by calling #Net_newNet) */
+	int maxid;                  /**< Identifier value of the latest reservation */
+	Maap_Notify_List *notifies; /**< Pointer to a linked list of queued notification */
+	int initialized;            /**< 1 if the structure has been initialized, 0 otherwise */
 } Maap_Client;
 
 

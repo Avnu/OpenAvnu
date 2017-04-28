@@ -403,7 +403,7 @@ void maapLogBuffer(
 {
 	char szDataLine[ 400 ];
 	char *pszOut;
-	int i, j;
+	size_t i, j;
 
 	if (level > MAAP_LOG_LEVEL) { return; }
 

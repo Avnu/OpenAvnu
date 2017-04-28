@@ -1014,7 +1014,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	scalar_offset -= TIMESTAMP_TO_NS( preciseOriginTimestamp );
 
 	GPTP_LOG_VERBOSE
-		("Followup Correction Field: %Ld,%lu", correctionField >> 16,
+		("Followup Correction Field: %Ld, Link Delay: %lu", correctionField,
 		 delay);
 	GPTP_LOG_VERBOSE
 		("FollowUp Scalar = %lld", scalar_offset);

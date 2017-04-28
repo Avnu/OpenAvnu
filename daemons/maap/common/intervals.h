@@ -72,12 +72,12 @@ typedef void (*Visitor)(Interval *);
  * Structure for each node of the interval tree
  */
 struct interval_node {
-  uint32_t low;          /**< Low value of this interval */
-  uint32_t high;         /**< High value of this interval */
-  void *data;            /**< Pointer to the data associated with this interval */
-  Interval *parent;      /**< Pointer to the parent of the current tree, or NULL if this is the root node */
-  Interval *left_child;  /**< Pointer to a subtree with smaller intervals, or NULL if none */
-  Interval *right_child; /**< Pointer to a subtree with larger intervals, or NULL if none */
+	uint32_t low;          /**< Low value of this interval */
+	uint32_t high;         /**< High value of this interval */
+	void *data;            /**< Pointer to the data associated with this interval */
+	Interval *parent;      /**< Pointer to the parent of the current tree, or NULL if this is the root node */
+	Interval *left_child;  /**< Pointer to a subtree with smaller intervals, or NULL if none */
+	Interval *right_child; /**< Pointer to a subtree with larger intervals, or NULL if none */
 };
 
 /**
@@ -89,8 +89,8 @@ struct interval_node {
  *
  * @return TRUE if the interval overlaps the supplied integers, FALSE otherwise
  */
-#define interval_check_overlap(inter, start, count) \
-        (((inter)->low <= (start) + (count) - 1) && ((start) <= (inter)->high))
+#define interval_check_overlap(inter, start, count)						\
+	(((inter)->low <= (start) + (count) - 1) && ((start) <= (inter)->high))
 
 
 /**

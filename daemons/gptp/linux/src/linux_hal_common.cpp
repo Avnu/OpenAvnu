@@ -56,7 +56,6 @@
 #include <sys/stat.h>
 
 #include <sys/socket.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
@@ -105,7 +104,7 @@ net_result LinuxNetworkInterface::send
 		err = sendto
 			( sd_general, payload, length, 0, (sockaddr *) remote,
 			  sizeof( *remote ));
-  }
+	}
 	delete remote;
 	if( err == -1 ) {
 		GPTP_LOG_ERROR( "Failed to send: %s(%d)", strerror(errno), errno );
@@ -205,11 +204,18 @@ static void x_readEvent(int sockint, IEEE1588Port *pPort, int ifindex)
 		if (msgHdr->nlmsg_type == RTM_NEWLINK) {
 			ifi = (struct ifinfomsg *)NLMSG_DATA(msgHdr);
 			if (ifi->ifi_index == ifindex) {
-				if ((ifi->ifi_flags & IFF_RUNNING)) {
-					pPort->processEvent(LINKUP);
+				bool linkUp = ifi->ifi_flags & IFF_RUNNING;
+				if (linkUp != pPort->getLinkUpState()) {
+					pPort->setLinkUpState(linkUp);
+					if (linkUp) {
+						pPort->processEvent(LINKUP);
+					}
+					else {
+						pPort->processEvent(LINKDOWN);
+					}
 				}
 				else {
-					pPort->processEvent(LINKDOWN);
+					GPTP_LOG_DEBUG("False (repeated) %s event for the interface", linkUp ? "LINKUP" : "LINKDOWN");
 				}
 			}
 		}
@@ -217,11 +223,41 @@ static void x_readEvent(int sockint, IEEE1588Port *pPort, int ifindex)
 	return;
 }
 
+static void x_initLinkUpStatus(IEEE1588Port *pPort, int ifindex)
+{
+	struct ifreq device;
+	memset(&device, 0, sizeof(device));
+	device.ifr_ifindex = ifindex;
+
+	int inetSocket = socket (AF_INET, SOCK_STREAM, 0);
+	if (inetSocket < 0) {
+		GPTP_LOG_ERROR("initLinkUpStatus error opening socket: %s", strerror(errno));
+		return;
+	}
+
+	int r = ioctl(inetSocket, SIOCGIFNAME, &device);
+	if (r < 0) {
+		GPTP_LOG_ERROR("initLinkUpStatus error reading interface name: %s", strerror(errno));
+		close(inetSocket);
+		return;
+	}
+	r = ioctl(inetSocket, SIOCGIFFLAGS, &device);
+	if (r < 0) {
+		GPTP_LOG_ERROR("initLinkUpStatus error reading flags: %s", strerror(errno));
+		close(inetSocket);
+		return;
+	}
+	if (device.ifr_flags && IFF_RUNNING) {
+		GPTP_LOG_DEBUG("Interface %s is up", device.ifr_name);
+		pPort->setLinkUpState(true);
+	} //linkUp == false by default
+	close(inetSocket);
+}
+
 void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 {
 	fd_set netLinkFD;
 	int netLinkSocket;
-
 	struct sockaddr_nl addr;
 
 	netLinkSocket = socket (AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
@@ -240,6 +276,8 @@ void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 		GPTP_LOG_ERROR("Socket bind failed");
 		return;
 	}
+
+	x_initLinkUpStatus(pPort, ifindex);
 
 	while (1) {
 		FD_ZERO(&netLinkFD);
@@ -327,7 +365,7 @@ void *LinuxTimerQueueHandler( void *arg ) {
 void LinuxTimerQueue::LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg ) {
 	arg->func( arg->inner_arg );
 
-    return;
+	return;
 }
 
 OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
@@ -424,10 +462,10 @@ bool LinuxTimerQueue::cancelEvent( int type, unsigned *event ) {
 
 
 void* OSThreadCallback( void* input ) {
-    OSThreadArg *arg = (OSThreadArg*) input;
+	OSThreadArg *arg = (OSThreadArg*) input;
 
-    arg->ret = arg->func( arg->arg );
-    return 0;
+	arg->ret = arg->func( arg->arg );
+	return 0;
 }
 
 bool LinuxTimestamper::post_init( int ifindex, int sd, TicketingLock *lock ) {
@@ -437,8 +475,10 @@ bool LinuxTimestamper::post_init( int ifindex, int sd, TicketingLock *lock ) {
 LinuxTimestamper::~LinuxTimestamper() {}
 
 unsigned long LinuxTimer::sleep(unsigned long micros) {
-	struct timespec req = { 0, (long int)(micros * 1000) };
+	struct timespec req;
 	struct timespec rem;
+	req.tv_sec = micros / 1000000;
+	req.tv_nsec = micros % 1000000 * 1000;
 	int ret = nanosleep( &req, &rem );
 	while( ret == -1 && errno == EINTR ) {
 		req = rem;
@@ -548,7 +588,7 @@ TicketingLock::~TicketingLock() {
 }
 
 struct LinuxLockPrivate {
-    pthread_t thread_id;
+	pthread_t thread_id;
 	pthread_mutexattr_t mta;
 	pthread_mutex_t mutex;
 	pthread_cond_t port_ready_signal;

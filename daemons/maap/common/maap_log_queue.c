@@ -26,7 +26,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(_WIN32) && (_MSC_VER < 1800)
+/* Visual Studio 2012 and earlier */
+typedef unsigned __int8 uint8_t;
+typedef unsigned __int32 uint32_t;
+#else
 #include <inttypes.h>
+#endif
 
 #include "maap_log_queue.h"
 
@@ -63,10 +70,12 @@ struct maap_log_queue {
 
 maap_log_queue_t maapLogQueueNewQueue(uint32_t elemSize, uint32_t queueSize)
 {
+	maap_log_queue_t retQueue;
+
 	if (elemSize < 1 || queueSize < 1)
 		return NULL;
 
-	maap_log_queue_t retQueue = calloc(1, sizeof(struct maap_log_queue));
+	retQueue = calloc(1, sizeof(struct maap_log_queue));
 	if (retQueue) {
 		retQueue->elemArray = calloc(queueSize, sizeof(struct maap_log_queue_elem));
 		if (retQueue->elemArray) {

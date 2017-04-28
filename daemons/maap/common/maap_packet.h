@@ -44,22 +44,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /** MAAP Packet contents - Defined in IEEE 1722-2016 Figure B.1 */
 typedef struct {
-  uint64_t DA;                      /**< Destination Address */
-  uint64_t SA;                      /**< Source Address */
-  uint16_t Ethertype;               /**< AVTB Ethertype (i.e. @p MAAP_TYPE) */
-  uint16_t subtype;                 /**< AVTP Subtype (i.e. @p MAAP_SUBTYPE) */
-  uint8_t SV;                       /**< 1 if stream_id is valid, 0 otherwise.  Always 0 for MAAP. */
-  uint8_t version;                  /**< AVTP Version.  Always 0 for MAAP */
-  uint8_t message_type;             /**< MAAP message type (MAAP_PROBE, MAAP_DEFEND, or MAAP_ANNOUNCE) */
-  uint8_t maap_version;             /**< MAAP Version.  Currently 1 for MAAP. */
-  uint16_t control_data_length;     /**< Control Data Length in Bytes.  Always 16 for MAAP. */
-  uint64_t stream_id;               /**< MAAP stream_id.  Always 0 for MAAP. */
-  uint64_t requested_start_address; /**< Starting address for a MAAP_PROBE or MAAP_ANNOUNCE.
+	uint64_t DA;                      /**< Destination Address */
+	uint64_t SA;                      /**< Source Address */
+	uint16_t Ethertype;               /**< AVTB Ethertype (i.e. @p MAAP_TYPE) */
+	uint16_t subtype;                 /**< AVTP Subtype (i.e. @p MAAP_SUBTYPE) */
+	uint8_t SV;                       /**< 1 if stream_id is valid, 0 otherwise.  Always 0 for MAAP. */
+	uint8_t version;                  /**< AVTP Version.  Always 0 for MAAP */
+	uint8_t message_type;             /**< MAAP message type (MAAP_PROBE, MAAP_DEFEND, or MAAP_ANNOUNCE) */
+	uint8_t maap_version;             /**< MAAP Version.  Currently 1 for MAAP. */
+	uint16_t control_data_length;     /**< Control Data Length in Bytes.  Always 16 for MAAP. */
+	uint64_t stream_id;               /**< MAAP stream_id.  Always 0 for MAAP. */
+	uint64_t requested_start_address; /**< Starting address for a MAAP_PROBE or MAAP_ANNOUNCE.
                                        * For a MAAP_DEFEND, the same address as the MAAP_PROBE or MAAP_ANNOUNCE that initiated the defend. */
-  uint16_t requested_count;         /**< Number of addresses for a MAAP_PROBE or MAAP_ANNOUNCE.
+	uint16_t requested_count;         /**< Number of addresses for a MAAP_PROBE or MAAP_ANNOUNCE.
                                        * For a MAAP_DEFEND, the same number of addresses as the MAAP_PROBE or MAAP_ANNOUNCE that initiated the defend. */
-  uint64_t conflict_start_address;  /**< For a MAAP_DEFEND, the starting address of the block that conflicts with the MAAP_PROBE or MAAP_ANNOUNCE. */
-  uint16_t conflict_count;          /**< For a MAAP_DEFEND, the number of addresses in the block that conflicts with the MAAP_PROBE or MAAP_ANNOUNCE. */
+	uint64_t conflict_start_address;  /**< For a MAAP_DEFEND, the starting address of the block that conflicts with the MAAP_PROBE or MAAP_ANNOUNCE. */
+	uint16_t conflict_count;          /**< For a MAAP_DEFEND, the number of addresses in the block that conflicts with the MAAP_PROBE or MAAP_ANNOUNCE. */
 } MAAP_Packet;
 
 /**

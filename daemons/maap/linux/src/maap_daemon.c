@@ -37,11 +37,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 #include <netdb.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
@@ -66,6 +68,8 @@
 static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], uint8_t dest_mac[ETH_ALEN]);
 static int get_listener_socket(const char *listenport);
 static int act_as_client(const char *listenport);
+static int act_as_server(const char *listenport, char *iface, int daemonize);
+static int do_daemonize(void);
 
 
 static const char *version_str =
@@ -78,14 +82,14 @@ static void usage(void)
 	fprintf(stderr,
 		"\n" "%s"
 		"\n"
-		"usage: maap_daemon [-c | [-d] -i interface-name] [-p port_num]"
+		"usage: maap_daemon [ -c | -i interface-name [-d log_file] ] [-p port_num]"
 		"\n"
 		"options:\n"
 		"\t-c  Run as a client (sends commands to the daemon)\n"
-		"\t-d  Run daemon in the background\n"
-		"\t-i  Specify daemon interface to monitor\n"
+		"\t-i  Run as a server monitoring the specified interface\n"
+		"\t-d  Daemonize the server and log to log_file\n"
 		"\t-p  Specify the control port to connect to (client) or\n"
-		"\t    listen to (daemon).  The default port is " DEFAULT_PORT ".\n"
+		"\t    listen to (server).  The default port is " DEFAULT_PORT ".\n"
 		"\n",
 		version_str);
 	exit(1);
@@ -104,42 +108,19 @@ static void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char *argv[])
 {
-	Maap_Client mc;
-
 	int c;
 	int as_client = 0, daemonize = 0;
 	char *iface = NULL;
 	char *listenport = NULL;
+	char *logfile = NULL;
 	int ret;
-
-	int socketfd;
-	uint8_t dest_mac[ETH_ALEN] = MAAP_DEST_MAC;
-	uint8_t src_mac[ETH_ALEN];
-
-	int listener;
-
-	int clientfd[MAX_CLIENT_CONNECTIONS];
-	int i, nextclientindex;
-
-	fd_set master, read_fds;
-	int fdmax;
-
-	void *packet_data;
-	int64_t waittime;
-	struct timeval tv;
-	char recvbuffer[1600];
-	int recvbytes;
-	Maap_Cmd recvcmd;
-	Maap_Notify recvnotify;
-	uintptr_t notifysocket;
-	int exit_received = 0;
 
 
 	/*
 	 *  Parse the arguments
 	 */
 
-	while ((c = getopt(argc, argv, "hcdi:p:")) >= 0)
+	while ((c = getopt(argc, argv, "hcd:i:p:")) >= 0)
 	{
 		switch (c)
 		{
@@ -148,14 +129,25 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'd':
+			if (daemonize)
+			{
+				fprintf(stderr, "Only one log file per server is supported\n");
+				usage();
+				if (logfile)
+				{
+					free(logfile);
+				}
+			}
 			daemonize = 1;
+			logfile = strdup(optarg);
 			break;
 
 		case 'i':
 			if (iface)
 			{
-				fprintf(stderr, "Only one interface per daemon is supported\n");
+				fprintf(stderr, "Only one interface per server is supported\n");
 				usage();
+				free(iface);
 			}
 			iface = strdup(optarg);
 			break;
@@ -163,8 +155,9 @@ int main(int argc, char *argv[])
 		case 'p':
 			if (listenport)
 			{
-				fprintf(stderr, "Only one port per daemon is supported\n");
+				fprintf(stderr, "Only one port per server is supported\n");
 				usage();
+				free(listenport);
 			}
 			listenport = strdup(optarg);
 			break;
@@ -198,11 +191,14 @@ int main(int argc, char *argv[])
 	}
 
 	if (daemonize) {
-		ret = daemon(1, 0);
+		ret = do_daemonize();
 		if (ret) {
 			fprintf(stderr, "Error:  Failed to daemonize\n");
 			return -1;
 		}
+		open("/dev/null", O_RDONLY);
+		open("/dev/null", O_WRONLY);
+		open(logfile, O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 	}
 
 	if (listenport == NULL)
@@ -211,21 +207,57 @@ int main(int argc, char *argv[])
 		listenport = strdup(DEFAULT_PORT);
 	}
 
-	if (as_client)
-	{
-		/* Run as a client instead of a server. */
-		ret = act_as_client(listenport);
-		free(listenport);
-		return ret;
-	}
-
-
 	/*
 	 * Initialize the logging support.
 	 */
 
 	maapLogInit();
 
+
+	if (as_client)
+	{
+		/* Run as a client instead of a server. */
+		ret = act_as_client(listenport);
+	}
+	else
+	{
+		ret = act_as_server(listenport, iface, daemonize);
+	}
+
+	maapLogExit();
+
+	free(listenport);
+	return ret;
+}
+
+/* Local function to server side of network command & control. */
+static int act_as_server(const char *listenport, char *iface, int daemonize)
+{
+	Maap_Client mc;
+
+	int socketfd;
+	uint8_t dest_mac[ETH_ALEN] = MAAP_DEST_MAC;
+	uint8_t src_mac[ETH_ALEN];
+
+	int listener;
+
+	int clientfd[MAX_CLIENT_CONNECTIONS];
+	int i, nextclientindex;
+
+	fd_set master, read_fds;
+	int fdmax;
+
+	void *packet_data;
+	int64_t waittime;
+	struct timeval tv;
+	char recvbuffer[1600];
+	int recvbytes;
+	Maap_Cmd recvcmd;
+	Maap_Notify recvnotify;
+	uintptr_t notifysocket;
+	int exit_received = 0;
+
+	int ret;
 
 	/*
 	 * Initialize the networking support.
@@ -242,7 +274,9 @@ int main(int argc, char *argv[])
 
 	FD_ZERO(&read_fds);
 	FD_ZERO(&master);
-	FD_SET(STDIN_FILENO, &master);
+	if (!daemonize) {
+		FD_SET(STDIN_FILENO, &master);
+	}
 	FD_SET(socketfd, &master);
 	fdmax = socketfd;
 
@@ -257,9 +291,6 @@ int main(int argc, char *argv[])
 		maapLogExit();
 		return -1;
 	}
-
-	free(listenport);
-	listenport = NULL;
 
 	/* Add the listener to the master set */
 	FD_SET(listener, &master);
@@ -294,7 +325,7 @@ int main(int argc, char *argv[])
 	 * Main event loop
 	 */
 
-	printf("Daemon started\n");
+	MAAP_LOG_STATUS("Server started");
 	while (!exit_received)
 	{
 		/* Send any queued packets. */
@@ -442,7 +473,7 @@ int main(int argc, char *argv[])
 		}
 
 		/* Handle any commands received via stdin. */
-		if (FD_ISSET(STDIN_FILENO, &read_fds))
+		if (!daemonize && FD_ISSET(STDIN_FILENO, &read_fds))
 		{
 			recvbytes = read(STDIN_FILENO, recvbuffer, sizeof(recvbuffer) - 1);
 			if (recvbytes <= 0)
@@ -514,6 +545,8 @@ int main(int argc, char *argv[])
 	}
 
 	maap_deinit_client(&mc);
+
+	MAAP_LOG_STATUS("Server stopped");
 
 	maapLogExit();
 
@@ -592,7 +625,7 @@ static int init_maap_networking(const char *iface, uint8_t src_mac[ETH_ALEN], ui
 /* Initializes the listener socket, and returns a socket handle for that socket. */
 static int get_listener_socket(const char *listenport)
 {
-	int listener;
+	int listener = -1;
 	struct addrinfo hints, *ai, *p;
 	int yes=1;
 	int ret;
@@ -629,7 +662,9 @@ static int get_listener_socket(const char *listenport)
 	/* If we got here, it means we didn't get bound */
 	if (p == NULL) {
 		MAAP_LOGF_ERROR("Socket failed to bind error %d (%s)", errno, strerror(errno));
-		close(listener);
+		if (listener != -1) {
+			close(listener);
+		}
 		return -1;
 	}
 
@@ -641,7 +676,6 @@ static int get_listener_socket(const char *listenport)
 
 	return listener;
 }
-
 
 /* Local function to handle client side of network command & control. */
 static int act_as_client(const char *listenport)
@@ -658,13 +692,6 @@ static int act_as_client(const char *listenport)
 	Maap_Cmd recvcmd;
 	int exit_received = 0;
 
-	/*
-	 * Initialize the logging support.
-	 */
-
-	maapLogInit();
-
-
 	/* Create a localhost socket. */
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -678,24 +705,21 @@ static int act_as_client(const char *listenport)
 
 	for(p = ai; p != NULL; p = p->ai_next) {
 		socketfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if (socketfd != -1) {
+		if (socketfd == -1) {
+			continue;
+		}
+		ret = connect(socketfd, p->ai_addr, p->ai_addrlen);
+		if (ret == -1) {
+			close(socketfd);
+			continue;
+		} else {
 			break;
 		}
 	}
 
 	if (p == NULL) {
-		MAAP_LOGF_ERROR("Socket creation error %d (%s)", errno, strerror(errno));
-		freeaddrinfo(ai);
-		maapLogExit();
-		return -1;
-	}
-
-	/* Connect to the MAAP daemon. */
-	if (connect(socketfd, p->ai_addr, p->ai_addrlen) < 0)
-	{
 		MAAP_LOGF_ERROR("Unable to connect to the daemon, error %d (%s)", errno, strerror(errno));
 		freeaddrinfo(ai);
-		close(socketfd);
 		maapLogExit();
 		return -1;
 	}
@@ -815,4 +839,40 @@ static int act_as_client(const char *listenport)
 	maapLogExit();
 
 	return (exit_received ? 0 : -1);
+}
+
+static int do_daemonize(void)
+{
+	int x;
+	pid_t pid;
+
+	pid = fork();
+	if (pid < 0) {
+		exit(EXIT_FAILURE);
+	} else if (pid > 0) {
+		/* Let the controlling terminal know the first fork worked. */
+		exit(EXIT_SUCCESS);
+	}
+
+	/* Make child process session leader */
+	if (setsid() < 0) {
+		exit(EXIT_FAILURE);
+	}
+
+	signal(SIGCHLD, SIG_IGN);
+	signal(SIGHUP, SIG_IGN);
+
+	if (fork() != 0) {
+		exit(EXIT_FAILURE);
+	}
+
+	umask(0);
+	x = chdir("/");
+
+	/* Close all open file descriptors */
+	for (x = sysconf(_SC_OPEN_MAX); x>=0; x--) {
+		close(x);
+	}
+
+	return 0;
 }

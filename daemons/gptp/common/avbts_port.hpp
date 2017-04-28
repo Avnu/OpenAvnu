@@ -237,6 +237,9 @@ typedef struct {
 	/* Set to true if the port is the grandmaster. Used for fixed GM in the the AVnu automotive profile */
 	bool testMode;
 
+	/* Set to true if the port's network interface is up. Used to filter false LINKUP/LINKDOWN events */
+	bool linkUp;
+
 	/* gPTP 10.2.4.4 */
 	char initialLogSyncInterval;
 
@@ -306,6 +309,7 @@ class IEEE1588Port {
 	unsigned sync_count;  // 0 for master, ++ for each sync receive as slave
 	// set to 0 when asCapable is false, increment for each pdelay recvd
 	unsigned pdelay_count;
+	bool linkUp;
 
 	/* Port Configuration */
 	unsigned char delay_mechanism;
@@ -1516,6 +1520,23 @@ class IEEE1588Port {
 	 */
 	bool getTestMode(void) {
 		return testMode;
+	}
+
+	/**
+	 * @brief  Sets the linkUp status
+	 * @param  bool of the linkUp status
+	 * @return void
+	 */
+	void setLinkUpState(bool state) {
+		linkUp = state;
+	}
+
+	/**
+	 * @brief  Gets the linkUp status
+	 * @return bool of the linkUp status
+	 */
+	bool getLinkUpState(void) {
+		return linkUp;
 	}
 
 	/**

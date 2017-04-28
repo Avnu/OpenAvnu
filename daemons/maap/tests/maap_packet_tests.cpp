@@ -95,12 +95,12 @@ static void dump_maap_packet(MAAP_Packet *packet) {
 	printf("maap_version: %d\n", packet->maap_version);
 	printf("control_data_length: %d\n", packet->control_data_length);
 	printf("stream_id: 0x%016llx\n",
-	       (unsigned long long int)packet->stream_id);
+		(unsigned long long int)packet->stream_id);
 	printf("requested_start_address: 0x%012llx\n",
-	       (unsigned long long int)packet->requested_start_address);
+		(unsigned long long int)packet->requested_start_address);
 	printf("requested_count: %d\n", packet->requested_count);
 	printf("conflict_start_address: 0x%012llx\n",
-	       (unsigned long long int)packet->conflict_start_address);
+		(unsigned long long int)packet->conflict_start_address);
 	printf("conflict_count: %d\n", packet->conflict_count);
 }
 
