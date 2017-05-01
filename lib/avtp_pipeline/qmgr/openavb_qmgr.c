@@ -219,7 +219,7 @@ void openavbQmgrRemoveStream(U16 fwmark)
 
 		// update class
 		qmgr_classes[nClass].classBytesPerSec -= qmgr_streams[idx].streamBytesPerSec;
-		AVB_LOGF_DEBUG("Removed strea; classBPS=%u, streamBPS=%u", qmgr_classes[nClass].classBytesPerSec, qmgr_streams[idx].streamBytesPerSec);
+		AVB_LOGF_DEBUG("Removed stream; classBPS=%u, streamBPS=%u", qmgr_classes[nClass].classBytesPerSec, qmgr_streams[idx].streamBytesPerSec);
 		// and stream
 		memset(&qmgr_streams[idx], 0, sizeof(qmgrStream_t));
 	}

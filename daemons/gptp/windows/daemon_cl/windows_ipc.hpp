@@ -325,7 +325,7 @@ class WinNPipeCtrlMessage : public WindowsNPipeMessage {
         uint16_t flags;
     public:
         /**
-         * @brief  Initializes interace's internal variables.
+         * @brief  Initializes interface's internal variables.
          * @return void
          */
         void init() {
