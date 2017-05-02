@@ -97,6 +97,9 @@ typedef struct {
 	// Thread for AVDECC Msg support
 	THREAD_DEFINITON(avdeccMsgThread);
 
+	// Handle to the AVDECC Msg support.  (Value set by avdeccMsgThread)
+	int avdeccMsgHandle;
+
 	// Per stream Stats Mutex
 	MUTEX_HANDLE(statsMutex);
 

@@ -41,6 +41,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_avtp.h"
 #include "openavb_talker.h"
 #include "openavb_time.h"
+#include "openavb_avdecc_msg.h"
 
 // DEBUG Uncomment to turn on logging for just this module.
 //#define AVB_LOG_ON	1
@@ -115,6 +116,15 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 			pTalkerData->vlanID = vlanID;
 			pTalkerData->vlanPCP = priority;
 			pTalkerData->fwmark = fwmark;
+
+			// Let the AVDECC Msg server know our current state.
+			if (pTLState->avdeccMsgHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
+				if (!openavbAvdeccMsgClntTalkerStreamID(pTLState->avdeccMsgHandle,
+						pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
+						pTalkerData->destAddr, pTalkerData->vlanID)) {
+					AVB_LOG_ERROR("openavbAvdeccMsgClntTalkerStreamID() failed");
+				}
+			}
 		}
 	}
 	else {

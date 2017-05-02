@@ -486,7 +486,8 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 	memset(&avdeccMsgState, 0, sizeof(avdeccMsgState));
 	avdeccMsgState.pTLState = (tl_state_t *)pv;
 
-	avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+	avdeccMsgState.avdeccMsgHandle =
+		avdeccMsgState.pTLState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 	while (avdeccMsgState.pTLState->bAvdeccMsgRunning) {
 		AVB_TRACE_LINE(AVB_TRACE_AVDECC_MSG_DETAIL);
 
@@ -497,6 +498,7 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 				SLEEP(1);
 				continue;
 			}
+			avdeccMsgState.pTLState->avdeccMsgHandle = avdeccMsgState.avdeccMsgHandle;
 		}
 		AvdeccMsgStateListAdd(&avdeccMsgState);
 
@@ -508,7 +510,8 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 			if (!openavbAvdeccMsgClntService(avdeccMsgState.avdeccMsgHandle, 500)) {
 				AVB_LOG_WARNING("Lost connection to AVDECC Msg, will retry");
 				avdeccMsgState.bConnected = FALSE;
-				avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+				avdeccMsgState.avdeccMsgHandle =
+					avdeccMsgState.pTLState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 			}
 		}
 		if (avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_UNKNOWN) {
@@ -532,7 +535,8 @@ void* openavbAvdeccMsgThreadFn(void *pv)
 		AvdeccMsgStateListRemove(&avdeccMsgState);
 		openavbAvdeccMsgClntCloseSrvrConnection(avdeccMsgState.avdeccMsgHandle);
 		avdeccMsgState.bConnected = FALSE;
-		avdeccMsgState.avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
+		avdeccMsgState.avdeccMsgHandle =
+			avdeccMsgState.pTLState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 
 		if (avdeccMsgState.pTLState->bAvdeccMsgRunning && avdeccMsgState.verState == OPENAVB_AVDECC_MSG_VER_VALID) {
 			SLEEP(1);

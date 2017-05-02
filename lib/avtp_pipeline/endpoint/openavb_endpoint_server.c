@@ -230,8 +230,9 @@ bool openavbEptSrvrRegisterStream(int h,
 	ps->latency = latency;
 	ps->fwmark = INVALID_FWMARK;
 
-	if (memcmp(ps->destAddr, destAddr, ETH_ALEN) == 0) {
-		// no client-supplied address, use MAAP
+	// If MAAP is available, or no client-supplied address, allocate an address.
+	if (openavbMaapDaemonAvailable() ||
+			memcmp(ps->destAddr, destAddr, ETH_ALEN) == 0) {
 		struct ether_addr addr;
 		ps->hndMaap = openavbMaapAllocate(1, &addr);
 		if (ps->hndMaap) {

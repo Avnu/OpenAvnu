@@ -339,6 +339,7 @@ EXTERN_DLL_EXPORT tl_handle_t openavbTLOpen(void)
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
 
 	tl_state_t *pTLState = calloc(1, sizeof(tl_state_t));
+	pTLState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 
 	if (!pTLState) {
 		AVB_LOG_ERROR("Unable to allocate talker listener state data.");

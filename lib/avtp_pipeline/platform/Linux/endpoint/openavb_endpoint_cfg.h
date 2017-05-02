@@ -54,6 +54,7 @@ typedef struct {
 	unsigned	mtu;
 	unsigned	fqtss_mode;
 	bool		noSrp;
+	unsigned	maapPort;
 	bool		bypassAsCapableCheck;
 } openavb_endpoint_cfg_t;
 
