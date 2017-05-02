@@ -1,3 +1,7 @@
+
+dist: trusty
+sudo: required
+
 language: c
 # git submodules workaround
 git:
@@ -9,9 +13,7 @@ before_install:
   - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
   - sudo apt-get update -qq
   - sudo apt-get install doxygen graphviz gcc-4.8 g++-4.8
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.6 10
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 20
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.6 10
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 20
   - sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc 30
   - sudo update-alternatives --set cc /usr/bin/gcc
@@ -19,12 +21,12 @@ before_install:
   - sudo update-alternatives --set c++ /usr/bin/g++
 compiler:
   - gcc
-env: BUILD_KERNEL=3.13.0-36-generic
+env: BUILD_KERNEL=4.4.0-75-generic
 install:
   - sudo apt-get update -qq
-  - sudo apt-get install -y libpcap-dev libpci-dev libsndfile1-dev libjack-dev linux-headers-3.13.0-36-generic cmake
+  - sudo apt-get install -y libpcap-dev libpci-dev libsndfile1-dev libjack-dev linux-headers-4.4.0-75-generic cmake
   - sudo apt-get install -y libgstreamer0.10-dev libgstreamer-plugins-base0.10-dev libasound2-dev
-  - sudo cp /usr/src/linux-headers-3.13.0-36/include/uapi/linux/ethtool.h /usr/include/linux
-  - sudo cp /usr/src/linux-headers-3.13.0-36/include/uapi/linux/ptp_clock.h /usr/include/linux
+  - sudo cp /usr/src/linux-headers-4.4.0-75/include/uapi/linux/ethtool.h /usr/include/linux
+  - sudo cp /usr/src/linux-headers-4.4.0-75/include/uapi/linux/ptp_clock.h /usr/include/linux
 script: ./travis.sh
 
