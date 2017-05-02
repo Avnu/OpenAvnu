@@ -18,6 +18,7 @@ set ( PLATFORM_INCLUDE_DIRECTORIES
 	${CMAKE_SOURCE_DIR}/openavb_common
 	${CMAKE_SOURCE_DIR}/../../daemons/common
 	${CMAKE_SOURCE_DIR}/../../daemons/mrpd
+	${CMAKE_SOURCE_DIR}/../../daemons/maap/common
 )
 
 # TODO_OPENAVB : need this?
