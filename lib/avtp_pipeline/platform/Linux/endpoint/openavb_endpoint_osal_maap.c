@@ -57,7 +57,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 typedef struct {
 	struct ether_addr destAddr;
-	//U8 destAddr[ETH_ALEN];
 	bool taken;
 } maapAlloc_t;
 
