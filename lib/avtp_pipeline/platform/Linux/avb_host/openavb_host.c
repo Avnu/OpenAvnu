@@ -85,8 +85,14 @@ static void openavbTLSigHandler(int signal)
 	AVB_TRACE_ENTRY(AVB_TRACE_HOST);
 
 	if (signal == SIGINT || signal == SIGTERM) {
-		AVB_LOG_INFO("Host shutting down");
-		bRunning = FALSE;
+		if (bRunning) {
+			AVB_LOG_INFO("Host shutting down");
+			bRunning = FALSE;
+		}
+		else {
+			// Force shutdown
+			exit(2);
+		}
 	}
 	else if (signal == SIGUSR1) {
 		AVB_LOG_DEBUG("Waking up streaming thread");

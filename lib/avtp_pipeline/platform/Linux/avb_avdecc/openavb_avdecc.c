@@ -54,11 +54,14 @@ static void openavbAvdeccSigHandler(int signal)
 	AVB_TRACE_ENTRY(AVB_TRACE_HOST);
 
 	if (signal == SIGINT || signal == SIGTERM) {
-		AVB_LOG_INFO("AVDECC shutting down");
-		avdeccRunning = FALSE;
-	}
-	else if (signal == SIGUSR1) {
-		AVB_LOG_DEBUG("Waking up streaming thread");
+		if (avdeccRunning) {
+			AVB_LOG_INFO("AVDECC shutting down");
+			avdeccRunning = FALSE;
+		}
+		else {
+			// Force shutdown
+			exit(2);
+		}
 	}
 	else {
 		AVB_LOG_ERROR("Unexpected signal");
