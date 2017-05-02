@@ -126,7 +126,7 @@ bool talkerStartStream(tl_state_t *pTLState)
 	// setup the initial times
 	U64 nowNS;
 
-	if (!pCfg->fixed_timestamp) {
+	if (!pCfg->spin_wait) {
 		CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
 	} else {
 		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
@@ -233,7 +233,7 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 
 		if (!pCfg->tx_blocking_in_intf) {
 
-			if (!pCfg->fixed_timestamp) {
+			if (!pCfg->spin_wait) {
 				// sleep until the next interval
 				SLEEP_UNTIL_NSEC(pTalkerData->nextCycleNS);
 			} else {
@@ -264,7 +264,7 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 			bRet = TRUE;
 		}
 
-		if (!pCfg->fixed_timestamp) {
+		if (!pCfg->spin_wait) {
 			CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
 		} else {
 			CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);

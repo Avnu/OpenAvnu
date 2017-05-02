@@ -217,19 +217,10 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 		}
 
 		pPubMapInfo->packingFactor = pPvtData->packingFactor;
-		if (pPubMapInfo->packingFactor > 1) {
-			// Packing multiple packets of sampling into a media queue item
-			pPubMapInfo->framesPerItem = pPubMapInfo->framesPerPacket * pPvtData->packingFactor;
-			if (pPubMapInfo->framesPerItem < 1) {
-				pPubMapInfo->framesPerItem = 1;
-			}
-		}
-		else {
-			// No packing. SYT_INTERVAL is used for media queue item size.
-			pPubMapInfo->framesPerItem = pPubMapInfo->sytInterval;
-			if (pPubMapInfo->framesPerItem < 1) {
-				pPubMapInfo->framesPerItem = 1;
-			}
+		// Packing multiple timestamp intervals of sampling into a media queue item
+		pPubMapInfo->framesPerItem = pPubMapInfo->sytInterval * pPvtData->packingFactor;
+		if (pPubMapInfo->framesPerItem < 1) {
+			pPubMapInfo->framesPerItem = 1;
 		}
 
 		pPubMapInfo->packetSampleSizeBytes = 4;
@@ -312,6 +303,10 @@ void openavbMapUncmpAudioCfgCB(media_q_t *pMediaQ, const char *name, const char 
 		else if (strcmp(name, "map_nv_packing_factor") == 0) {
 			char *pEnd;
 			pPvtData->packingFactor = strtol(value, &pEnd, 10);
+			if (pPvtData->packingFactor != 1) {
+				AVB_LOG_ERROR("Uncmp Audio Mapper only supports packingFactor 1");
+				pPvtData->packingFactor = 1;
+			}
 		}
 		else if (strcmp(name, "map_nv_audio_mcr") == 0) {
 			char *pEnd;
@@ -470,14 +465,15 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 		U32 framesProcessed = 0;
 		U8 *pAVTPDataUnit = pPayload;
 		bool timestampSet = FALSE;		// index of the timestamp
+		U32 sytInt = pPubMapInfo->sytInterval;
+		U8 dbc = pPvtData->DBC;
 		while (framesProcessed < pPubMapInfo->framesPerPacket) {
 			pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
-
 			if (pMediaQItem && pMediaQItem->pPubData && pMediaQItem->dataLen > 0) {
+				U8 *pItemData = (U8 *)pMediaQItem->pPubData + pMediaQItem->readIdx;
+
 				if (pMediaQItem->readIdx == 0) {
 					// Timestamp from the media queue is always associated with the first data point.
-
-					// Update time stamp
 
 					// PTP walltime already set in the interface module. Just add the max transit time.
 					openavbAvtpTimeAddUSec(pMediaQItem->pAvtpTime, pPvtData->maxTransitUsec);
@@ -492,14 +488,11 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 					// Set timestamp uncertain flag
 					if (openavbAvtpTimeTimestampIsUncertain(pMediaQItem->pAvtpTime))
 						pHdr[HIDX_AVTP_HIDE7_TU1] |= 0x01;      // Set
-					else pHdr[HIDX_AVTP_HIDE7_TU1] &= ~0x01;     // Clear
+					else
+						pHdr[HIDX_AVTP_HIDE7_TU1] &= ~0x01;     // Clear
 
-					*(U32 *)(&pHdr[HIDX_AVTP_TIMESTAMP32]) = htonl(openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime));
-
-					timestampSet = TRUE;
 				}
 
-				U8 *pItemData = (U8 *)pMediaQItem->pPubData + pMediaQItem->readIdx;
 				while (framesProcessed < pPubMapInfo->framesPerPacket && pMediaQItem->readIdx < pMediaQItem->dataLen) {
 					int i1;
 					for (i1 = 0; i1 < pPubMapInfo->audioChannels; i1++) {
@@ -524,6 +517,12 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 						}
 					}
 					framesProcessed++;
+					if (dbc % sytInt == 0) {
+						*(U32 *)(&pHdr[HIDX_AVTP_TIMESTAMP32]) = htonl(openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime));
+
+						timestampSet = TRUE;
+					}
+					dbc++;
 					pMediaQItem->readIdx += pPubMapInfo->itemFrameSizeBytes;
 				}
 
@@ -544,12 +543,12 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 		// Check if timestamp was set
 		if (!timestampSet) {
 			// Timestamp wasn't set so mark it as invalid
-			pHdr[HIDX_AVTP_HIDE7_TV1] &= ~0x01;     
+			pHdr[HIDX_AVTP_HIDE7_TV1] &= ~0x01;
 		}
 
 		// Set the block continutity and data length
 		pHdr[HIDX_DBC8] = pPvtData->DBC;
-		pPvtData->DBC += pPubMapInfo->framesPerPacket;
+		pPvtData->DBC = dbc;
 
 		*(U16 *)(&pHdr[HIDX_DATALEN16]) = htons((pPubMapInfo->framesPerPacket * pPubMapInfo->packetFrameSizeBytes) + CIP_HEADER_SIZE);
 
