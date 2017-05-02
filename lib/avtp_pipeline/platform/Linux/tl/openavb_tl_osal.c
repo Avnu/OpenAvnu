@@ -512,7 +512,7 @@ EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char
 			AVB_TRACE_EXIT(AVB_TRACE_TL);
 			return FALSE;
 		}
-		AVB_LOGF_DEBUG("Detected stream_addr:  ETH_FORMAT",
+		AVB_LOGF_DEBUG("Detected stream_addr:  " ETH_FORMAT,
 			ETH_OCTETS(parseIniData.pCfg->stream_addr.buffer.ether_addr_octet));
 	}
 
