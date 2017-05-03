@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <signal.h>
 #include <netdb.h>
@@ -71,11 +72,15 @@ static int act_as_client(const char *listenport);
 static int act_as_server(const char *listenport, char *iface, int daemonize);
 static int do_daemonize(void);
 
+static void log_print_notify_result(void *callback_data, int logLevel, const char *notifyText);
+static void display_print_notify_result(void *callback_data, int logLevel, const char *notifyText);
+static void send_print_notify_result(void *callback_data, int logLevel, const char *notifyText);
+
 
 static const char *version_str =
 	"maap_daemon v" VERSION_STR "\n"
 	"Copyright (c) 2014-2015, VAYAVYA LABS PVT LTD\n"
-	"Copyright (c) 2016, Harman International Industries, Inc.\n";
+	"Copyright (c) 2016-2017, Harman International Industries, Inc.\n";
 
 static void usage(void)
 {
@@ -132,11 +137,8 @@ int main(int argc, char *argv[])
 			if (daemonize)
 			{
 				fprintf(stderr, "Only one log file per server is supported\n");
+				free(logfile);
 				usage();
-				if (logfile)
-				{
-					free(logfile);
-				}
 			}
 			daemonize = 1;
 			logfile = strdup(optarg);
@@ -146,8 +148,8 @@ int main(int argc, char *argv[])
 			if (iface)
 			{
 				fprintf(stderr, "Only one interface per server is supported\n");
-				usage();
 				free(iface);
+				usage();
 			}
 			iface = strdup(optarg);
 			break;
@@ -156,8 +158,8 @@ int main(int argc, char *argv[])
 			if (listenport)
 			{
 				fprintf(stderr, "Only one port per server is supported\n");
-				usage();
 				free(listenport);
+				usage();
 			}
 			listenport = strdup(optarg);
 			break;
@@ -242,6 +244,7 @@ static int act_as_server(const char *listenport, char *iface, int daemonize)
 	int listener;
 
 	int clientfd[MAX_CLIENT_CONNECTIONS];
+	int client_wants_text[MAX_CLIENT_CONNECTIONS];
 	int i, nextclientindex;
 
 	fd_set master, read_fds;
@@ -300,7 +303,10 @@ static int act_as_server(const char *listenport, char *iface, int daemonize)
 		fdmax = listener;
 	}
 
-	for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) { clientfd[i] = -1; }
+	for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i) {
+		clientfd[i] = -1;
+		client_wants_text[i] = 0;
+	}
 	nextclientindex = 0;
 
 
@@ -346,20 +352,26 @@ static int act_as_server(const char *listenport, char *iface, int daemonize)
 		{
 			if ((int) notifysocket == -1) {
 				/* Just display the information for the user. */
-				print_notify(&recvnotify, MAAP_OUTPUT_USER_FRIENDLY);
+				print_notify(&recvnotify, display_print_notify_result, NULL);
 			} else {
 				/* Log the result. */
-				print_notify(&recvnotify, MAAP_OUTPUT_LOGGING);
+				print_notify(&recvnotify, log_print_notify_result, NULL);
 
 				/* Send the notification information to the client. */
 				for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i)
 				{
 					if (clientfd[i] == (int) notifysocket)
 					{
-						if (send((int) notifysocket, &recvnotify, sizeof(recvnotify), 0) < 0)
-						{
-							/* Something went wrong. Assume the socket will be closed below. */
-							MAAP_LOGF_ERROR("Error %d writing to client socket %d (%s)", errno, (int) notifysocket, strerror(errno));
+						if (client_wants_text[i]) {
+							// Send the friendly text notification to the socket.
+							print_notify(&recvnotify, send_print_notify_result, (void *) &(clientfd[i]));
+						} else {
+							// Send the raw notification to the socket.
+							if (send((int) notifysocket, &recvnotify, sizeof(recvnotify), 0) < 0)
+							{
+								/* Something went wrong. Assume the socket will be closed below. */
+								MAAP_LOGF_ERROR("Error %d writing to client socket %d (%s)", errno, (int) notifysocket, strerror(errno));
+							}
 						}
 						break;
 					}
@@ -486,10 +498,16 @@ static int act_as_server(const char *listenport, char *iface, int daemonize)
 
 				/* Process the command data (may be binary or text). */
 				memset(&recvcmd, 0, sizeof(recvcmd));
-				if (parse_write(&mc, (const void *)(uintptr_t) -1, recvbuffer, MAAP_OUTPUT_USER_FRIENDLY))
+				int result = parse_write(&mc, (const void *)(uintptr_t) -1, recvbuffer, NULL);
+				if (result > 0)
 				{
 					/* Received a command to exit. */
 					exit_received = 1;
+				}
+				else if (result < 0)
+				{
+					/* Invalid command.  Tell the user what valid commands are. */
+					parse_usage(display_print_notify_result, NULL);
 				}
 			}
 		}
@@ -522,10 +540,16 @@ static int act_as_server(const char *listenport, char *iface, int daemonize)
 
 					/* Process the command data (may be binary or text). */
 					memset(&recvcmd, 0, sizeof(recvcmd));
-					if (parse_write(&mc, (const void *)(uintptr_t) clientfd[i], recvbuffer, MAAP_OUTPUT_LOGGING))
+					int result = parse_write(&mc, (const void *)(uintptr_t) clientfd[i], recvbuffer, &(client_wants_text[i]));
+					if (result > 0)
 					{
 						/* Received a command to exit. */
 						exit_received = 1;
+					}
+					else if (result < 0)
+					{
+						/* Invalid command.  Tell the user what valid commands are. */
+						parse_usage(send_print_notify_result, (void *) &(clientfd[i]));
 					}
 				}
 			}
@@ -767,7 +791,7 @@ static int act_as_client(const char *listenport)
 				/* Process the response data (will be binary). */
 				if (recvbytes == sizeof(Maap_Notify))
 				{
-					print_notify((Maap_Notify *) recvbuffer, MAAP_OUTPUT_USER_FRIENDLY);
+					print_notify((Maap_Notify *) recvbuffer, display_print_notify_result, NULL);
 				}
 				else
 				{
@@ -816,6 +840,9 @@ static int act_as_client(const char *listenport)
 				default:
 					memset(&recvcmd, 0, sizeof(Maap_Cmd));
 					rv = parse_text_cmd(recvbuffer, &recvcmd);
+					if (!rv) {
+						parse_usage(display_print_notify_result, NULL);
+					}
 					break;
 				}
 
@@ -875,4 +902,101 @@ static int do_daemonize(void)
 	}
 
 	return 0;
+}
+
+static void log_print_notify_result(void *callback_data, int logLevel, const char *notifyText)
+{
+	switch (logLevel) {
+	case MAAP_LOG_LEVEL_ERROR:
+		MAAP_LOG_ERROR(notifyText);
+		break;
+	case MAAP_LOG_LEVEL_WARNING:
+		MAAP_LOG_WARNING(notifyText);
+		break;
+	case MAAP_LOG_LEVEL_INFO:
+		MAAP_LOG_INFO(notifyText);
+		break;
+	case MAAP_LOG_LEVEL_STATUS:
+		MAAP_LOG_STATUS(notifyText);
+		break;
+	case MAAP_LOG_LEVEL_DEBUG:
+		MAAP_LOG_DEBUG(notifyText);
+		break;
+	case MAAP_LOG_LEVEL_VERBOSE:
+		MAAP_LOG_VERBOSE(notifyText);
+		break;
+	}
+}
+
+static void format_print_notify_result(int logLevel, const char *notifyText, char *szOutputText)
+
+{
+	int i, nLastSpace;
+	int nInitial = -1;
+	char *pszOut = szOutputText;
+
+	/* Break the string up into one-line chunks.
+	 * Note that tabs and newlines are not handled correctly. */
+	while (*notifyText) {
+		if (nInitial < 0) {
+			if (logLevel == MAAP_LOG_LEVEL_ERROR) {
+				strcpy(pszOut, "Error:  ");
+				nInitial = (int) strlen(pszOut);
+				pszOut += nInitial;
+			} else if (logLevel == MAAP_LOG_LEVEL_WARNING) {
+				strcpy(pszOut, "Warning:  ");
+				nInitial = (int) strlen(pszOut);
+				pszOut += nInitial;
+			} else {
+				nInitial = 0;
+			}
+		} else {
+			/* We already accounted for the initial text. */
+			nInitial = 0;
+		}
+
+		nLastSpace = -1;
+		for (i = 0; (i < MAAP_LOG_STDOUT_CONSOLE_WIDTH - nInitial || nLastSpace <= 0) && notifyText[i]; ++i) {
+			if (isspace(notifyText[i])) { nLastSpace = i; }
+		}
+		if (notifyText[i] == '\0') {
+			/* Print the remainder of the string. */
+			strcpy(pszOut, notifyText);
+			pszOut += strlen(pszOut);
+			*pszOut++ = '\n';
+			break;
+		}
+
+		/* Print the string up to the last space. */
+		for (i = 0; i < nLastSpace; ++i) {
+			*pszOut++ = *notifyText++;
+		}
+		*pszOut++ = '\n';
+
+		/* Go to the start of the next word in the string. */
+		while (isspace(*notifyText)) { notifyText++; }
+	}
+
+	*pszOut = '\0';
+}
+
+static void display_print_notify_result(void *callback_data, int logLevel, const char *notifyText)
+{
+	char szOutputText[ 300 ];
+
+	format_print_notify_result(logLevel, notifyText, szOutputText);
+	fputs(szOutputText, stdout);
+	fflush(stdout);
+}
+
+static void send_print_notify_result(void *callback_data, int logLevel, const char *notifyText)
+{
+	char szOutputText[ 300 ];
+
+	format_print_notify_result(logLevel, notifyText, szOutputText);
+	if (send(*(int *)callback_data, szOutputText, strlen(szOutputText), 0) < 0)
+	{
+		/* Something went wrong. Assume the socket will be closed below. */
+		MAAP_LOGF_ERROR("Error %d writing to client socket %d (%s)", errno, *(int *)callback_data, strerror(errno));
+	}
 }
