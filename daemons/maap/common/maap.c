@@ -303,77 +303,7 @@ int get_notify(Maap_Client *mc, const void **sender, Maap_Notify *mn) {
 	return 0;
 }
 
-static void log_print_notify_result(Maap_Output_Type outputType, int logLevel, const char *szOutput)
-{
-	if ((outputType & MAAP_OUTPUT_LOGGING)) {
-		switch (logLevel) {
-		case MAAP_LOG_LEVEL_ERROR:
-			MAAP_LOG_ERROR(szOutput);
-			break;
-		case MAAP_LOG_LEVEL_WARNING:
-			MAAP_LOG_WARNING(szOutput);
-			break;
-		case MAAP_LOG_LEVEL_INFO:
-			MAAP_LOG_INFO(szOutput);
-			break;
-		case MAAP_LOG_LEVEL_STATUS:
-			MAAP_LOG_STATUS(szOutput);
-			break;
-		case MAAP_LOG_LEVEL_DEBUG:
-			MAAP_LOG_DEBUG(szOutput);
-			break;
-		case MAAP_LOG_LEVEL_VERBOSE:
-			MAAP_LOG_VERBOSE(szOutput);
-			break;
-		}
-	}
-
-	if ((outputType & MAAP_OUTPUT_USER_FRIENDLY)) {
-		int i, nLastSpace;
-		int nInitial = -1;
-
-		/* Break the string up into one-line chunks.
-		 * Note that tabs and newlines are not handled correctly. */
-		while (*szOutput) {
-			if (nInitial < 0) {
-				if (logLevel == MAAP_LOG_LEVEL_ERROR) {
-					printf("Error:  ");
-					nInitial = (int) strlen("Error:  ");
-				} else if (logLevel == MAAP_LOG_LEVEL_WARNING) {
-					printf("Warning:  ");
-					nInitial = (int) strlen("Warning:  ");
-				} else {
-					nInitial = 0;
-				}
-			} else {
-				/* We already accounted for the initial text. */
-				nInitial = 0;
-			}
-
-			nLastSpace = -1;
-			for (i = 0; (i < MAAP_LOG_STDOUT_CONSOLE_WIDTH - nInitial || nLastSpace <= 0) && szOutput[i]; ++i) {
-				if (isspace(szOutput[i])) { nLastSpace = i; }
-			}
-			if (szOutput[i] == '\0') {
-				/* Print the remainder of the string. */
-				puts(szOutput);
-				break;
-			}
-
-			/* Print the string up to the last space. */
-			for (i = 0; i < nLastSpace; ++i) {
-				putc(*szOutput, stdout);
-				szOutput++;
-			}
-			putc('\n', stdout);
-
-			/* Go to the start of the next word in the string. */
-			while (isspace(*szOutput)) { szOutput++; }
-		}
-	}
-}
-
-void print_notify(Maap_Notify *mn, Maap_Output_Type outputType)
+void print_notify(Maap_Notify *mn, print_notify_callback_t notify_callback, void *callback_data)
 {
 	char szOutput[300];
 
@@ -385,33 +315,33 @@ void print_notify(Maap_Notify *mn, Maap_Output_Type outputType)
 		/* No error.  Don't display anything. */
 		break;
 	case MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION:
-		log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+		notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR,
 			"MAAP is not initialized, so the command cannot be performed.");
 		break;
 	case MAAP_NOTIFY_ERROR_ALREADY_INITIALIZED:
-		log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+		notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR,
 			"MAAP is already initialized, so the values cannot be changed.");
 		break;
 	case MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE:
-		log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+		notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR,
 			"The MAAP reservation is not available, or yield cannot allocate a replacement block. "
 			"Try again with a smaller address block size.");
 		break;
 	case MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID:
-		log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+		notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR,
 			"The MAAP reservation ID is not valid, so cannot be released or report its status.");
 		break;
 	case MAAP_NOTIFY_ERROR_OUT_OF_MEMORY:
-		log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+		notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR,
 			"The MAAP application is out of memory.");
 		break;
 	case MAAP_NOTIFY_ERROR_INTERNAL:
-		log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+		notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR,
 			"The MAAP application experienced an internal error.");
 		break;
 	default:
 		sprintf(szOutput, "The MAAP application returned an unknown error %d.", mn->result);
-		log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
+		notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR, szOutput);
 		break;
 	}
 
@@ -423,13 +353,13 @@ void print_notify(Maap_Notify *mn, Maap_Output_Type outputType)
 				(unsigned long long) mn->start,
 				(unsigned long long) mn->start + mn->count - 1,
 				(unsigned int) mn->count);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_INFO, szOutput);
 		} else {
 			sprintf(szOutput, "MAAP previously initialized to 0x%012llx-0x%012llx (Size: %d)",
 				(unsigned long long) mn->start,
 				(unsigned long long) mn->start + mn->count - 1,
 				(unsigned int) mn->count);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR, szOutput);
 		}
 		break;
 	case MAAP_NOTIFY_ACQUIRING:
@@ -439,10 +369,10 @@ void print_notify(Maap_Notify *mn, Maap_Output_Type outputType)
 				(unsigned long long) mn->start,
 				(unsigned long long) mn->start + mn->count - 1,
 				mn->count);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_INFO, szOutput);
 		} else {
 			sprintf(szOutput, "Unknown address range %d acquisition error", mn->id);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR, szOutput);
 		}
 		break;
 	case MAAP_NOTIFY_ACQUIRED:
@@ -452,15 +382,15 @@ void print_notify(Maap_Notify *mn, Maap_Output_Type outputType)
 				(unsigned long long) mn->start,
 				(unsigned long long) mn->start + mn->count - 1,
 				mn->count);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_INFO, szOutput);
 		} else if (mn->id != -1) {
 			sprintf(szOutput, "Address range %d of size %d not acquired",
 				mn->id, mn->count);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR, szOutput);
 		} else {
 			sprintf(szOutput, "Address range of size %d not acquired",
 				mn->count);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR, szOutput);
 		}
 		break;
 	case MAAP_NOTIFY_RELEASED:
@@ -470,11 +400,11 @@ void print_notify(Maap_Notify *mn, Maap_Output_Type outputType)
 				(unsigned long long) mn->start,
 				(unsigned long long) mn->start + mn->count - 1,
 				mn->count);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_INFO, szOutput);
 		} else {
 			sprintf(szOutput, "Address range %d not released",
 				mn->id);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR, szOutput);
 		}
 		break;
 	case MAAP_NOTIFY_STATUS:
@@ -484,11 +414,11 @@ void print_notify(Maap_Notify *mn, Maap_Output_Type outputType)
 				(unsigned long long) mn->start,
 				(unsigned long long) mn->start + mn->count - 1,
 				mn->count);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_INFO, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_INFO, szOutput);
 		} else {
 			sprintf(szOutput, "ID %d is not valid",
 				mn->id);
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR, szOutput);
 		}
 		break;
 	case MAAP_NOTIFY_YIELDED:
@@ -497,15 +427,15 @@ void print_notify(Maap_Notify *mn, Maap_Output_Type outputType)
 			(unsigned long long) mn->start,
 			(unsigned long long) mn->start + mn->count - 1,
 			mn->count);
-		log_print_notify_result(outputType, MAAP_LOG_LEVEL_WARNING, szOutput);
+		notify_callback(callback_data, MAAP_LOG_LEVEL_WARNING, szOutput);
 		if (mn->result != MAAP_NOTIFY_ERROR_NONE) {
-			log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR,
+			notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR,
 				"A new address range will not be allocated");
 		}
 		break;
 	default:
 		sprintf(szOutput, "Notification type %d not recognized", mn->kind);
-		log_print_notify_result(outputType, MAAP_LOG_LEVEL_ERROR, szOutput);
+		notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR, szOutput);
 		break;
 	}
 }

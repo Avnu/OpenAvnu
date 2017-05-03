@@ -228,11 +228,12 @@ void add_notify(Maap_Client *mc, const void *sender, const Maap_Notify *mn);
 int get_notify(Maap_Client *mc, const void **sender, Maap_Notify *mn);
 
 /**
- * Output the text equivalent of the notification information to stdout.
+ * Output the text equivalent of the notification information to the callback function.
  *
  * @param mn Pointer to the notification information structure.
- * @param outputType One or more of the #Maap_Output_Type flag values.
+ * @param notify_callback Function of type #print_notify_callback_t that will handle printable results.
+ * @param callback_data Data to return with the callback.
  */
-void print_notify(Maap_Notify *mn, Maap_Output_Type outputType);
+void print_notify(Maap_Notify *mn, print_notify_callback_t notify_callback, void *callback_data);
 
 #endif

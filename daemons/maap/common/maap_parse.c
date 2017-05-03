@@ -96,30 +96,13 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
 		} else if (strncmp(argv[0], "exit", 4) == 0 && argc == 1) {
 			cmd->kind = MAAP_CMD_EXIT;
 			set_cmd = 1;
-		} else {
-			printf("Invalid command type\n");
 		}
 	}
 
-	if (!set_cmd)
-	{
-		printf("input usage:\n");
-		printf("    init [<range_base> <range_size>] - Initialize the MAAP daemon to recognize\n"
-			"        the specified range of addresses.  If not specified, it uses\n"
-			"        range_base=0x%llx, range_size=0x%04x.\n", MAAP_DYNAMIC_POOL_BASE, MAAP_DYNAMIC_POOL_SIZE);
-		printf("    reserve [<addr_base>] <addr_size> - Reserve a range of addresses of size\n"
-			"        <addr_size> in the initialized range.  If <addr_base> is specified,\n"
-			"        that address base will be attempted first.\n");
-		printf("    release <id> - Release the range of addresses with identifier ID\n");
-		printf("    status <id> - Get the range of addresses associated with identifier ID\n");
-		printf("    exit - Shutdown the MAAP daemon\n\n");
-		return 0;
-	}
-
-	return 1;
+	return set_cmd;
  }
 
-int parse_write(Maap_Client *mc, const void *sender, char *buf, Maap_Output_Type outputType) {
+int parse_write(Maap_Client *mc, const void *sender, char *buf, int *input_is_text) {
 	Maap_Cmd *bufcmd, cmd;
 	int rv = 0;
 	int retVal = 0;
@@ -132,12 +115,18 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf, Maap_Output_Type
 	case MAAP_CMD_RELEASE:
 	case MAAP_CMD_STATUS:
 	case MAAP_CMD_EXIT:
+		if (input_is_text) { *input_is_text = 0; }
 		memcpy(&cmd, bufcmd, sizeof (Maap_Cmd));
 		rv = 1;
 		break;
 	default:
+		if (input_is_text) { *input_is_text = 1; }
 		memset(&cmd, 0, sizeof (Maap_Cmd));
 		rv = parse_text_cmd(buf, &cmd);
+		if (!rv) {
+			/* Unrecognized command. */
+			retVal = -1;
+		}
 		break;
 	}
 
@@ -180,16 +169,41 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf, Maap_Output_Type
 			retVal = 1; /* Indicate that we should exit. */
 			break;
 		default:
-			if ((outputType & MAAP_OUTPUT_LOGGING)) {
-				MAAP_LOG_ERROR("Unrecognized input to parse_write");
-			}
-			if ((outputType & MAAP_OUTPUT_USER_FRIENDLY)) {
-				printf("Unrecognized input to parse_write\n");
-			}
-			rv = 0;
+			MAAP_LOG_ERROR("Unrecognized input to parse_write");
+			retVal = -1;
 			break;
 		}
 	}
 
 	return retVal;
+}
+
+void parse_usage(print_notify_callback_t print_callback, void *callback_data)
+{
+	char szOutput[100];
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"Invalid command type");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"Input usage:");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"    init [<range_base> <range_size>] - Initialize the MAAP daemon to recognize");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"        the specified range of addresses.  If not specified, it uses");
+	sprintf(szOutput,
+		"        range_base=0x%llx, range_size=0x%04x.", MAAP_DYNAMIC_POOL_BASE, MAAP_DYNAMIC_POOL_SIZE);
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO, szOutput);
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"    reserve [<addr_base>] <addr_size> - Reserve a range of addresses of size");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"        <addr_size> in the initialized range.  If <addr_base> is specified,");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"        that address base will be attempted first.");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"    release <id> - Release the range of addresses with identifier ID");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"    status <id> - Get the range of addresses associated with identifier ID");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"    exit - Shutdown the MAAP daemon");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		" "); // Blank line
 }
