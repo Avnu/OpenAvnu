@@ -67,9 +67,6 @@ void openavbAdpSMAdvertiseInterface_txEntityAvailable()
 void openavbAdpSMAdvertiseInterface_txEntityDeparting()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
-	ADP_LOCK();
-	openavbAdpSMGlobalVars.entityInfo.header.valid_time = 0;
-	ADP_UNLOCK();
 	openavbAdpMessageSend(OPENAVB_ADP_MESSAGE_TYPE_ENTITY_DEPARTING);
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 }
