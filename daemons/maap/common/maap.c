@@ -229,16 +229,16 @@ static int inform_status(Maap_Client *mc, const void *sender, int id, Range *ran
 	return 0;
 }
 
-static int inform_yielded(Maap_Client *mc, Range *range, int result) {
+static int inform_yielded(Maap_Client *mc, const void *sender, int id, Range *range, Maap_Notify_Error result) {
 	Maap_Notify note;
 
 	note.kind = MAAP_NOTIFY_YIELDED;
-	note.id = range->id;
-	note.start = get_start_address(mc, range);
-	note.count = get_count(mc, range);
+	note.id = id;
+	note.start = (range ? get_start_address(mc, range) : 0);
+	note.count = (range ? get_count(mc, range) : 0 );
 	note.result = result;
 
-	add_notify(mc, range->sender, &note);
+	add_notify(mc, sender, &note);
 	return 0;
 }
 
@@ -422,15 +422,21 @@ void print_notify(Maap_Notify *mn, print_notify_callback_t notify_callback, void
 		}
 		break;
 	case MAAP_NOTIFY_YIELDED:
-		sprintf(szOutput, "Address range %d yielded:  0x%012llx-0x%012llx (Size %d)",
-			mn->id,
-			(unsigned long long) mn->start,
-			(unsigned long long) mn->start + mn->count - 1,
-			mn->count);
-		notify_callback(callback_data, MAAP_LOG_LEVEL_WARNING, szOutput);
-		if (mn->result != MAAP_NOTIFY_ERROR_NONE) {
-			notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR,
-				"A new address range will not be allocated");
+		if (mn->result != MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION && mn->result != MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID) {
+			sprintf(szOutput, "Address range %d yielded:  0x%012llx-0x%012llx (Size %d)",
+				mn->id,
+				(unsigned long long) mn->start,
+				(unsigned long long) mn->start + mn->count - 1,
+				mn->count);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_WARNING, szOutput);
+			if (mn->result != MAAP_NOTIFY_ERROR_NONE) {
+				notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR,
+					"A new address range will not be allocated");
+			}
+		} else {
+			sprintf(szOutput, "ID %d is not valid",
+				mn->id);
+			notify_callback(callback_data, MAAP_LOG_LEVEL_ERROR, szOutput);
 		}
 		break;
 	default:
@@ -765,6 +771,39 @@ void maap_range_status(Maap_Client *mc, const void *sender, int id)
 	inform_status(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID);
 }
 
+int maap_yield_range(Maap_Client *mc, const void *sender, int id) {
+	Range *range;
+	MAAP_Packet announce_packet;
+	uint8_t announce_buffer[MAAP_NET_BUFFER_SIZE];
+
+	if (!mc->initialized) {
+		MAAP_LOG_DEBUG("Yield not allowed, as MAAP not initialized");
+		inform_yielded(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION);
+		return -1;
+	}
+
+	range = mc->timer_queue;
+	while (range) {
+		if (range->id == id && range->state == MAAP_STATE_DEFENDING) {
+			// Create a conflicting packet for this range.
+			// Use a source address which will always be less than our address, so we should always yield.
+			init_packet(&announce_packet, 0x010000000000ull, 0x010000000000ull);
+			announce_packet.message_type = MAAP_ANNOUNCE;
+			announce_packet.requested_start_address = get_start_address(mc, range);
+			announce_packet.requested_count = get_count(mc, range);
+			pack_maap(&announce_packet, announce_buffer);
+			maap_handle_packet(mc, announce_buffer, MAAP_NET_BUFFER_SIZE);
+
+			return 0;
+		}
+		range = range->next_timer;
+	}
+
+	MAAP_LOGF_DEBUG("Range id %d does not exist", id);
+	inform_yielded(mc, sender, id, NULL, MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID);
+	return -1;
+}
+
 int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 	MAAP_Packet p;
 	Interval *iv;
@@ -921,7 +960,7 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 				 */
 				new_range = malloc(sizeof(Range));
 				if (new_range == NULL) {
-					inform_yielded(mc, range, MAAP_NOTIFY_ERROR_OUT_OF_MEMORY);
+					inform_yielded(mc, range->sender, range->id, range, MAAP_NOTIFY_ERROR_OUT_OF_MEMORY);
 				} else {
 					new_range->id = range->id;
 					new_range->state = MAAP_STATE_PROBING;
@@ -934,20 +973,20 @@ int maap_handle_packet(Maap_Client *mc, const uint8_t *stream, int len) {
 					if (assign_interval(mc, new_range, 0, range_size) < 0)
 					{
 						/* Cannot find any available intervals of the requested size. */
-						inform_yielded(mc, range, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
+						inform_yielded(mc, range->sender, range->id, range, MAAP_NOTIFY_ERROR_RESERVE_NOT_AVAILABLE);
 						free(new_range);
 					} else {
 #ifdef DEBUG_NEGOTIATE_MSG
 						MAAP_LOGF_DEBUG("Requested replacement address range, id %d", new_range->id);
 						MAAP_LOGF_DEBUG("Selected replacement address range 0x%012llx-0x%012llx", get_start_address(mc, new_range), get_end_address(mc, new_range));
 #endif
-						inform_acquiring(mc, range);
 
 						/* Send a probe for the replacement address range to try. */
 						schedule_timer(mc, new_range);
 						send_probe(mc, new_range);
 
-						inform_yielded(mc, range, MAAP_NOTIFY_ERROR_NONE);
+						inform_yielded(mc, range->sender, range->id, range, MAAP_NOTIFY_ERROR_NONE);
+						inform_acquiring(mc, new_range);
 					}
 				}
 

@@ -93,6 +93,10 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd) {
 			cmd->kind = MAAP_CMD_STATUS;
 			cmd->id = (int)strtoul(argv[1], NULL, 0);
 			set_cmd = 1;
+		} else if (strncmp(argv[0], "yield", 7) == 0 && argc == 2) {
+			cmd->kind = MAAP_CMD_YIELD;
+			cmd->id = (int)strtoul(argv[1], NULL, 0);
+			set_cmd = 1;
 		} else if (strncmp(argv[0], "exit", 4) == 0 && argc == 1) {
 			cmd->kind = MAAP_CMD_EXIT;
 			set_cmd = 1;
@@ -114,6 +118,7 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf, int *input_is_te
 	case MAAP_CMD_RESERVE:
 	case MAAP_CMD_RELEASE:
 	case MAAP_CMD_STATUS:
+	case MAAP_CMD_YIELD:
 	case MAAP_CMD_EXIT:
 		if (input_is_text) { *input_is_text = 0; }
 		memcpy(&cmd, bufcmd, sizeof (Maap_Cmd));
@@ -162,6 +167,12 @@ int parse_write(Maap_Client *mc, const void *sender, char *buf, int *input_is_te
 #endif
 			maap_range_status(mc, sender, cmd.id);
 			break;
+		case MAAP_CMD_YIELD:
+#ifdef DEBUG_CMD_MSG
+			MAAP_LOGF_DEBUG("Got cmd MAAP_CMD_YIELD, id: %d", (int) cmd.id);
+#endif
+			rv = maap_yield_range(mc, sender, cmd.id);
+			break;
 		case MAAP_CMD_EXIT:
 #ifdef DEBUG_CMD_MSG
 			MAAP_LOG_DEBUG("Got cmd MAAP_CMD_EXIT");
@@ -200,6 +211,10 @@ void parse_usage(print_notify_callback_t print_callback, void *callback_data)
 		"    release <id> - Release the range of addresses with identifier ID");
 	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
 		"    status <id> - Get the range of addresses associated with identifier ID");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"    yield <id> - Yield the range of addresses associated with identifier ID.");
+	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
+		"        This is only useful for testing.");
 	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
 		"    exit - Shutdown the MAAP daemon");
 	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
