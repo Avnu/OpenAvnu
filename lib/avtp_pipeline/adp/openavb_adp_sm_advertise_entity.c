@@ -103,10 +103,6 @@ void openavbAdpSMAdvertiseEntityStateMachine()
 					CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &openavbAdpSMAdvertiseEntityVars.reannounceTimerTimeout);
 					/* The advertisements should be sent at intervals of 1/4 valid_time, where valid_time is in 2-second units.
 					 * See IEEE Std 1722.1-2013 clauses 6.2.1.6 and 6.2.4. */
-					if (openavbAdpSMGlobalVars.entityInfo.header.valid_time == 0) {
-						AVB_LOG_ERROR("openavbAdpSMGlobalVars.entityInfo.header.valid_time not valid");
-						openavbAdpSMGlobalVars.entityInfo.header.valid_time = 31;
-					}
 					U32 advDelayUsec = openavbAdpSMGlobalVars.entityInfo.header.valid_time / 2 * MICROSECONDS_PER_SECOND;
 					if (advDelayUsec < MICROSECONDS_PER_SECOND) {
 						advDelayUsec = MICROSECONDS_PER_SECOND;
