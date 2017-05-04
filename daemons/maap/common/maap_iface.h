@@ -45,6 +45,7 @@ typedef enum {
 	MAAP_CMD_RESERVE, /**< Preserve a block of addresses within the initialized range */
 	MAAP_CMD_RELEASE, /**< Release a previously-reserved block of addresses */
 	MAAP_CMD_STATUS,  /**< Return the block of reserved addresses associated with the supplied ID */
+	MAAP_CMD_YIELD,   /**< Yield a previously-reserved block of addresses.  This is only useful for testing. */
 	MAAP_CMD_EXIT,    /**< Have the daemon exit */
  } Maap_Cmd_Tag;
 
@@ -55,7 +56,7 @@ typedef enum {
  */
 typedef struct {
 	Maap_Cmd_Tag kind; /**< Type of command to perform */
-	int32_t  id;       /**< ID to use for #MAAP_CMD_RELEASE or #MAAP_CMD_STATUS */
+	int32_t  id;       /**< ID to use for #MAAP_CMD_RELEASE, #MAAP_CMD_STATUS, or #MAAP_CMD_YIELD */
 	uint64_t start;    /**< Address range start for #MAAP_CMD_INIT */
 	uint32_t count;    /**< Address range size for #MAAP_CMD_INIT, or address block size for #MAAP_CMD_RESERVE */
 } Maap_Cmd;

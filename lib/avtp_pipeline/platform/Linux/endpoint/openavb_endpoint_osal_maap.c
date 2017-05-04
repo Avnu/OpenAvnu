@@ -226,20 +226,24 @@ static void process_maap_notify(Maap_Notify *mn, int socketfd)
 		}
 		break;
 	case MAAP_NOTIFY_YIELDED:
-		if (mn->result != MAAP_NOTIFY_ERROR_NONE) {
-			AVB_LOGF_ERROR("MAAP Address range %d yielded:  0x%012llx-0x%012llx (Size %d).  A new address range will not be allocated.",
-				mn->id,
-				(unsigned long long) mn->start,
-				(unsigned long long) mn->start + mn->count - 1,
-				mn->count);
-			maapState = MAAP_STATE_ERROR;
-		}
-		else {
-			AVB_LOGF_WARNING("MAAP Address range %d yielded:  0x%012llx-0x%012llx (Size %d)",
-				mn->id,
-				(unsigned long long) mn->start,
-				(unsigned long long) mn->start + mn->count - 1,
-				mn->count);
+		if (mn->result != MAAP_NOTIFY_ERROR_REQUIRES_INITIALIZATION && mn->result != MAAP_NOTIFY_ERROR_RELEASE_INVALID_ID) {
+			if (mn->result != MAAP_NOTIFY_ERROR_NONE) {
+				AVB_LOGF_ERROR("MAAP Address range %d yielded:  0x%012llx-0x%012llx (Size %d).  A new address range will not be allocated.",
+					mn->id,
+					(unsigned long long) mn->start,
+					(unsigned long long) mn->start + mn->count - 1,
+					mn->count);
+				maapState = MAAP_STATE_ERROR;
+			}
+			else {
+				AVB_LOGF_WARNING("MAAP Address range %d yielded:  0x%012llx-0x%012llx (Size %d)",
+					mn->id,
+					(unsigned long long) mn->start,
+					(unsigned long long) mn->start + mn->count - 1,
+					mn->count);
+			}
+		} else {
+			AVB_LOGF_ERROR("ID %d is not valid", mn->id);
 		}
 		break;
 	default:
