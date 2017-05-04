@@ -45,6 +45,7 @@ typedef enum {
 	OPENAVB_ADP_SM_ADVERTISE_INTERFACE_STATE_LINK_STATE_CHANGE,
 } openavb_adp_sm_advertise_interface_state_t;
 
+extern openavb_avdecc_cfg_t gAvdeccCfg;
 extern openavb_adp_sm_global_vars_t openavbAdpSMGlobalVars;
 extern openavb_adp_sm_advertise_entity_vars_t openavbAdpSMAdvertiseEntityVars;
 openavb_adp_sm_advertise_interface_vars_t openavbAdpSMAdvertiseInterfaceVars;
@@ -60,6 +61,9 @@ THREAD_DEFINITON(openavbAdpSmAdvertiseInterfaceThread);
 void openavbAdpSMAdvertiseInterface_txEntityAvailable()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
+	ADP_LOCK();
+	openavbAdpSMGlobalVars.entityInfo.header.valid_time = gAvdeccCfg.valid_time;
+	ADP_UNLOCK();
 	openavbAdpMessageSend(OPENAVB_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE);
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 }
@@ -67,6 +71,9 @@ void openavbAdpSMAdvertiseInterface_txEntityAvailable()
 void openavbAdpSMAdvertiseInterface_txEntityDeparting()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ADP);
+	ADP_LOCK();
+	openavbAdpSMGlobalVars.entityInfo.header.valid_time = 0;
+	ADP_UNLOCK();
 	openavbAdpMessageSend(OPENAVB_ADP_MESSAGE_TYPE_ENTITY_DEPARTING);
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 }
