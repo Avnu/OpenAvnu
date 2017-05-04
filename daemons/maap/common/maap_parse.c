@@ -182,8 +182,6 @@ void parse_usage(print_notify_callback_t print_callback, void *callback_data)
 {
 	char szOutput[100];
 	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
-		"Invalid command type");
-	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
 		"Input usage:");
 	print_callback(callback_data, MAAP_LOG_LEVEL_INFO,
 		"    init [<range_base> <range_size>] - Initialize the MAAP daemon to recognize");
