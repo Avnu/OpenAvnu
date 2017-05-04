@@ -32,30 +32,40 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "openavb_log_pub.h"
 #include "openavb_mcs.h"
 
-void openavbMcsInit(mcs_t *mediaClockSynth, U64 nsPerAdvance)
+void openavbMcsInit(mcs_t *mediaClockSynth, U64 nsPerAdvance, S32 correctionAmount, U32 correctionInterval)
 {
-  mediaClockSynth->firstTimeSet = FALSE;
-  mediaClockSynth->nsPerAdvance = nsPerAdvance;
-  mediaClockSynth->edgeTime = 0;
+	mediaClockSynth->firstTimeSet = FALSE;
+	mediaClockSynth->nsPerAdvance = nsPerAdvance;
+	mediaClockSynth->correctionAmount = correctionAmount;
+	mediaClockSynth->correctionInterval = correctionInterval;
+	mediaClockSynth->startTime = 0;
+	mediaClockSynth->tickCount = 0;
+	mediaClockSynth->edgeTime = 0;
 }
 
 void openavbMcsAdvance(mcs_t *mediaClockSynth)
 {
-  if (mediaClockSynth->firstTimeSet == FALSE) {
-    CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &mediaClockSynth->edgeTime);
-    if (mediaClockSynth->edgeTime) {
-      mediaClockSynth->firstTimeSet = TRUE;
-    }
-  }
-  else	{
-    mediaClockSynth->edgeTime += mediaClockSynth->nsPerAdvance;
+	if (mediaClockSynth->firstTimeSet == FALSE) {
+		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &mediaClockSynth->edgeTime);
+		if (mediaClockSynth->edgeTime) {
+			mediaClockSynth->firstTimeSet = TRUE;
+			mediaClockSynth->startTime = mediaClockSynth->edgeTime;
+		}
+	}
+	else
+	{
+		mediaClockSynth->edgeTime += mediaClockSynth->nsPerAdvance;
+		mediaClockSynth->tickCount++;
+		if (mediaClockSynth->tickCount % mediaClockSynth->correctionInterval == 0) {
+			mediaClockSynth->edgeTime += mediaClockSynth->correctionAmount;
+		}
 #if !IGB_LAUNCHTIME_ENABLED
-    IF_LOG_INTERVAL(8000) {
-      U64 nowNS;
-      CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
-      S64 fixedRealDelta = mediaClockSynth->edgeTime - nowNS;
-      AVB_LOGF_INFO("Fixed/Real TS Delta: %llu", fixedRealDelta);
-    }
+		IF_LOG_INTERVAL(8000) {
+			U64 nowNS;
+			CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
+			S64 fixedRealDelta = mediaClockSynth->edgeTime - nowNS;
+			AVB_LOGF_INFO("Fixed/Real TS Delta: %lld", fixedRealDelta);
+		}
 #endif
-  }
+	}
 }

@@ -31,12 +31,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define OPENAVB_MCS_H
 
 typedef struct {
-  bool firstTimeSet;
-  U64 nsPerAdvance;
-  U64 edgeTime;
+	bool firstTimeSet;
+	U64 nsPerAdvance;
+	U64 startTime;
+	U64 tickCount;
+	S32 correctionAmount;
+	U32 correctionInterval;
+	U64 edgeTime;
 } mcs_t;
 
-void openavbMcsInit(mcs_t *mediaClockSynth, U64 nsPerAdvance);
+void openavbMcsInit(mcs_t *mediaClockSynth, U64 nsPerAdvance, S32 correctionAmount, U32 correctionInterval);
 void openavbMcsAdvance(mcs_t *mediaClockSynth);
 
 #endif

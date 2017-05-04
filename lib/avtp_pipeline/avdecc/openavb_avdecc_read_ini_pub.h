@@ -103,6 +103,8 @@ struct openavb_tl_data_cfg {
 	bool rx_signal_mode;
 	/// Enable fixed timestamping in interface
 	U32 fixed_timestamp;
+	/// Wait for next observation interval by spinning rather than sleeping
+	bool spin_wait;
 	/// Bit mask used for CPU pinning
 	U32 thread_affinity;
 	/// Real time priority of thread.

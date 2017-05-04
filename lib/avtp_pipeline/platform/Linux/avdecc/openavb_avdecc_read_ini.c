@@ -86,6 +86,7 @@ static void openavbIniCfgInit(openavb_tl_data_cfg_t *pCfg)
 	pCfg->rx_signal_mode = 1;
 	pCfg->vlan_id = 0xFFFF;
 	pCfg->fixed_timestamp = 0;
+	pCfg->spin_wait = FALSE;
 	pCfg->thread_rt_priority = 0;
 	pCfg->thread_affinity = 0xFFFFFFFF;
 
@@ -265,6 +266,15 @@ static int openavbIniCfgCallback(void *user, const char *tlSection, const char *
 		tmp = strtol(value, &pEnd, 0);
 		if (*pEnd == '\0' && errno == 0) {
 			pCfg->fixed_timestamp = tmp;
+			valOK = TRUE;
+		}
+	}
+	else if (MATCH(name, "spin_wait")) {
+		errno = 0;
+		long tmp;
+		tmp = strtol(value, &pEnd, 0);
+		if (*pEnd == '\0' && errno == 0) {
+			pCfg->spin_wait = (tmp == 1);
 			valOK = TRUE;
 		}
 	}
