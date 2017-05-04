@@ -796,7 +796,7 @@ static int act_as_client(const char *listenport)
 		/* Handle any responses received. */
 		if (FD_ISSET(socketfd, &read_fds))
 		{
-			while ((recvbytes = recv(socketfd, recvbuffer, sizeof(recvbuffer) - 1, 0)) > 0)
+			while ((recvbytes = recv(socketfd, recvbuffer, sizeof(Maap_Notify), 0)) > 0)
 			{
 				recvbuffer[recvbytes] = '\0';
 
