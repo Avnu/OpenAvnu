@@ -116,15 +116,6 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 			pTalkerData->vlanID = vlanID;
 			pTalkerData->vlanPCP = priority;
 			pTalkerData->fwmark = fwmark;
-
-			// Let the AVDECC Msg server know our current state.
-			if (pTLState->avdeccMsgHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
-				if (!openavbAvdeccMsgClntTalkerStreamID(pTLState->avdeccMsgHandle,
-						pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
-						pTalkerData->destAddr, pTalkerData->vlanID)) {
-					AVB_LOG_ERROR("openavbAvdeccMsgClntTalkerStreamID() failed");
-				}
-			}
 		}
 	}
 	else {
@@ -136,6 +127,14 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 		}
 	}
 
+	// Let the AVDECC Msg server know our current state.
+	if (pTLState->avdeccMsgHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
+		if (!openavbAvdeccMsgClntTalkerStreamID(pTLState->avdeccMsgHandle,
+				pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
+				pTalkerData->destAddr, pTalkerData->vlanID)) {
+			AVB_LOG_ERROR("openavbAvdeccMsgClntTalkerStreamID() failed");
+		}
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }
