@@ -332,6 +332,10 @@ static int act_as_server(const char *listenport, char *iface, int daemonize)
 	 */
 
 	MAAP_LOG_STATUS("Server started");
+	if (!daemonize) {
+		puts("Enter \"help\" for a list of valid commands.");
+	}
+
 	while (!exit_received)
 	{
 		/* Send any queued packets. */
@@ -507,6 +511,9 @@ static int act_as_server(const char *listenport, char *iface, int daemonize)
 				else if (result < 0)
 				{
 					/* Invalid command.  Tell the user what valid commands are. */
+					if (strncmp(recvbuffer, "help", 4) != 0) {
+						puts("Invalid command type");
+					}
 					parse_usage(display_print_notify_result, NULL);
 				}
 			}
@@ -549,6 +556,9 @@ static int act_as_server(const char *listenport, char *iface, int daemonize)
 					else if (result < 0)
 					{
 						/* Invalid command.  Tell the user what valid commands are. */
+						if (strncmp(recvbuffer, "help", 4) != 0) {
+							send_print_notify_result((void *) &(clientfd[i]), MAAP_LOG_LEVEL_INFO, "Invalid command type");
+						}
 						parse_usage(send_print_notify_result, (void *) &(clientfd[i]));
 					}
 				}
@@ -769,7 +779,9 @@ static int act_as_client(const char *listenport)
 	 * Main event loop
 	 */
 
-	printf("Client started\n");
+	puts("Client started");
+	puts("Enter \"help\" for a list of valid commands.");
+
 	while (!exit_received)
 	{
 		/* Wait for something to happen. */
@@ -841,6 +853,9 @@ static int act_as_client(const char *listenport)
 					memset(&recvcmd, 0, sizeof(Maap_Cmd));
 					rv = parse_text_cmd(recvbuffer, &recvcmd);
 					if (!rv) {
+						if (strncmp(recvbuffer, "help", 4) != 0) {
+							puts("Invalid command type");
+						}
 						parse_usage(display_print_notify_result, NULL);
 					}
 					break;
@@ -963,6 +978,7 @@ static void format_print_notify_result(int logLevel, const char *notifyText, cha
 			/* Print the remainder of the string. */
 			strcpy(pszOut, notifyText);
 			pszOut += strlen(pszOut);
+			*pszOut++ = '\r'; // Useful for Telnet interaction
 			*pszOut++ = '\n';
 			break;
 		}
@@ -971,6 +987,7 @@ static void format_print_notify_result(int logLevel, const char *notifyText, cha
 		for (i = 0; i < nLastSpace; ++i) {
 			*pszOut++ = *notifyText++;
 		}
+		*pszOut++ = '\r'; // Useful for Telnet interaction
 		*pszOut++ = '\n';
 
 		/* Go to the start of the next word in the string. */
