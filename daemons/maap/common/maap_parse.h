@@ -53,10 +53,18 @@ int parse_text_cmd(char *buf, Maap_Cmd *cmd);
  * @param mc Pointer to the Maap_Client structure to use
  * @param sender Sender information pointer used to track the entity requesting the command
  * @param buf Binary or text data to parse
- * @param outputType One or more of the #Maap_Output_Type flag values.
+ * @param input_is_text Optional pointer for variable set to 1 if the input is text, 0 if the input is binary.
  *
- * @return 1 if the exit command was received, 0 otherwise.
+ * @return 1 if the exit command was received, -1 for an unrecognized command, or 0 otherwise.
  */
-int parse_write(Maap_Client *mc, const void *sender, char *buf, Maap_Output_Type outputType);
+int parse_write(Maap_Client *mc, const void *sender, char *buf, int *input_is_text);
+
+/**
+ * Prints the usage expected for parsing.
+ *
+ * @param print_callback Function of type #print_notify_callback_t that will handle printable results.
+ * @param callback_data Data to return with the callback.
+ */
+void parse_usage(print_notify_callback_t print_callback, void *callback_data);
 
 #endif /* MAAP_PARSE_H_ */
