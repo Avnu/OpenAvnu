@@ -1030,7 +1030,7 @@ void PTPMessageFollowUp::processMessage( EtherPort *port )
 
 	/* Adjust local_clock to correspond to sync_arrival */
 	device_sync_time_offset =
-	    TIMESTAMP_TO_NS(device_time) - TIMESTAMP_TO_NS(sync_arrival);
+		(uint32_t) (TIMESTAMP_TO_NS(device_time) - TIMESTAMP_TO_NS(sync_arrival));
 
 	GPTP_LOG_VERBOSE
 	    ("ptp_message::FollowUp::processMessage System time: %u,%u "
