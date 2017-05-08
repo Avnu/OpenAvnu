@@ -176,6 +176,20 @@ int maap_release_range(Maap_Client *mc, const void *sender, int id);
  */
 void maap_range_status(Maap_Client *mc, const void *sender, int id);
 
+/**
+ * Yield a reserved block of addresses, in support of a MAAP_CMD_YIELD command.
+ *
+ * @note This call starts the yield process, which is only useful for testing.
+ * A MAAP_NOTIFY_YIELDED notification will be sent when the process is complete.
+ *
+ * @param mc Pointer to the Maap_Client structure to use
+ * @param sender Sender information pointer used to track the entity requesting the command
+ * @param id Identifier for the address block to yield
+ *
+ * @return 0 if the yield was started successfully, -1 otherwise.
+ */
+int maap_yield_range(Maap_Client *mc, const void *sender, int id);
+
 
 /**
  * Processing for a received (incoming) networking packet

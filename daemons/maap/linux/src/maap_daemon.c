@@ -845,6 +845,7 @@ static int act_as_client(const char *listenport)
 				case MAAP_CMD_RESERVE:
 				case MAAP_CMD_RELEASE:
 				case MAAP_CMD_STATUS:
+				case MAAP_CMD_YIELD:
 				case MAAP_CMD_EXIT:
 					memcpy(&recvcmd, bufcmd, sizeof(Maap_Cmd));
 					rv = 1;
