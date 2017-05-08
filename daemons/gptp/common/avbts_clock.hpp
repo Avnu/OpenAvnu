@@ -134,8 +134,6 @@ private:
 	Timestamp _prev_local_time;
 	Timestamp _prev_system_time;
 
-	HWTimestamper *_timestamper;
-
 	OS_IPC *ipc;
 
 	OSTimerQueue *timerq;
@@ -184,15 +182,14 @@ public:
    * @param forceOrdinarySlave Forces it to be an ordinary slave
    * @param syntonize if TRUE, clock will syntonize to the master clock
    * @param priority1 It is used in the execution of BCMA. See IEEE 802.1AS-2011 Clause 10.3
-   * @param timestamper [in] Provides an object for hardware timestamp
    * @param timerq_factory [in] Provides a factory object for creating timer queues (managing events)
    * @param ipc [in] Inter process communication object
    * @param lock_factory [in] Provides a factory object for creating locking a locking mechanism
    */
   IEEE1588Clock
 	  (bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
-	   HWTimestamper *timestamper, OSTimerQueueFactory * timerq_factory,
-	   OS_IPC * ipc, OSLockFactory *lock_factory );
+	   OSTimerQueueFactory * timerq_factory, OS_IPC * ipc,
+	   OSLockFactory *lock_factory );
 
   /*
    * Destroys the IEEE 1588 clock entity
