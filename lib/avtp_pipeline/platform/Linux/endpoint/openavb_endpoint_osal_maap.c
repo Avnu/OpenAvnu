@@ -82,6 +82,9 @@ static int maapReservationId = 0;
 
 static char maapDaemonPort[6] = {0};
 
+static MUTEX_HANDLE(maapMutex);
+#define MAAP_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(maapMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
+#define MAAP_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(maapMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
 
 static void MaapResultToMacAddr(unsigned long long nAddress, struct ether_addr *destAddr)
 {
@@ -178,14 +181,18 @@ static void process_maap_notify(Maap_Notify *mn, int socketfd)
 				mn->count);
 
 			// Update the stored addresses.
+			MAAP_LOCK();
 			int i = 0;
 			for (i = 0; i < mn->count && i < MAX_AVB_STREAMS; i++) {
 				MaapResultToMacAddr(mn->start + i, &(maapAllocList[i].destAddr));
 				if (maapAllocList[i].taken && maapRestartCallback) {
 					// Use the callback to notify that a change has occurred.
+					MAAP_UNLOCK();
 					maapRestartCallback(&(maapAllocList[i]), &(maapAllocList[i].destAddr));
+					MAAP_LOCK();
 				}
 			}
+			MAAP_UNLOCK();
 
 			// We now have addresses we can use.
 			maapReservationId = mn->id;
@@ -419,6 +426,14 @@ bool openavbMaapInitialize(const char *ifname, unsigned int maapPort, openavbMaa
 	// Save the supplied callback function.
 	maapRestartCallback = cbfn;
 
+	MUTEX_ATTR_HANDLE(mta);
+	MUTEX_ATTR_INIT(mta);
+	MUTEX_ATTR_SET_TYPE(mta, MUTEX_ATTR_TYPE_DEFAULT);
+	MUTEX_ATTR_SET_NAME(mta, "maapMutex");
+	MUTEX_CREATE_ERR();
+	MUTEX_CREATE(maapMutex, mta);
+	MUTEX_LOG_ERR("Could not create/initialize 'maapMutex' mutex");
+
 	// Default to using addresses from the MAAP locally administered Pool.
 	int i = 0;
 	U8 destAddr[ETH_ALEN] = {0x91, 0xe0, 0xf0, 0x00, 0xfe, 0x80};
@@ -459,6 +474,10 @@ void openavbMaapFinalize()
 		maapRunning = FALSE;
 		pthread_join(maapThreadHandle, NULL);
 	}
+
+	MUTEX_CREATE_ERR();
+	MUTEX_DESTROY(maapMutex);
+	MUTEX_LOG_ERR("Error destroying mutex");
 
 	AVB_TRACE_EXIT(AVB_TRACE_MAAP);
 }
@@ -503,6 +522,8 @@ void* openavbMaapAllocate(int count, /* out */ struct ether_addr *addr)
 		SLEEP_MSEC(50);
 	}
 
+	MAAP_LOCK();
+
 	// Find the next non-allocated address.
 	int i = 0;
 	while (i < MAX_AVB_STREAMS && maapAllocList[i].taken) {
@@ -513,11 +534,15 @@ void* openavbMaapAllocate(int count, /* out */ struct ether_addr *addr)
 	if (i < MAX_AVB_STREAMS) {
 		maapAllocList[i].taken = true;
 		memcpy(addr, maapAllocList[i].destAddr.ether_addr_octet, sizeof(struct ether_addr));
-		AVB_LOGF_INFO("Allocated MAAP address " ETH_FORMAT, ETH_OCTETS(maapAllocList[i].destAddr.ether_addr_octet));
+		AVB_LOGF_INFO("Allocated MAAP address " ETH_FORMAT, ETH_OCTETS(addr->ether_addr_octet));
+
+		MAAP_UNLOCK();
 
 		AVB_TRACE_EXIT(AVB_TRACE_MAAP);
 		return &maapAllocList[i];
 	}
+
+	MAAP_UNLOCK();
 
 	AVB_LOG_ERROR("All MAAP addresses already allocated");
 	AVB_TRACE_EXIT(AVB_TRACE_MAAP);
@@ -528,9 +553,11 @@ void openavbMaapRelease(void* handle)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_MAAP);
 
+	MAAP_LOCK();
 	maapAlloc_t *elem = handle;
 	elem->taken = false;
 	AVB_LOGF_DEBUG("Freed MAAP address " ETH_FORMAT, ETH_OCTETS(elem->destAddr.ether_addr_octet));
+	MAAP_UNLOCK();
 
 	AVB_TRACE_EXIT(AVB_TRACE_MAAP);
 }
