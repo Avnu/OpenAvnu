@@ -140,6 +140,9 @@ typedef struct {
 	U16 connection_count;
 	openavb_list_t connected_listeners;
 	U16 stream_vlan_id;
+
+	// Extra information indicating a GET_TX_CONNECTION_RESPONSE command is needed.
+	openavb_acmp_ACMPCommandResponse_t *waiting_on_talker;
 } openavb_acmp_TalkerStreamInfo_t;
 
 // InflightCommand type IEEE Std 1722.1-2013 clause 8.2.2.2.5

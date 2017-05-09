@@ -114,6 +114,7 @@ U8 openavbAcmpSMTalker_connectTalker(openavb_acmp_ACMPCommandResponse_t *command
 			memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
 			command->stream_vlan_id = pTalkerStreamInfo->stream_vlan_id;
 			command->connection_count = pTalkerStreamInfo->connection_count;
+			openavbAcmpSMTalker_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE, command, OPENAVB_ACMP_STATUS_SUCCESS);
 			retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
 		}
 		else {
@@ -141,6 +142,16 @@ U8 openavbAcmpSMTalker_connectTalker(openavb_acmp_ACMPCommandResponse_t *command
 					memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
 					command->stream_vlan_id = pTalkerStreamInfo->stream_vlan_id;
 					command->connection_count = pTalkerStreamInfo->connection_count;
+
+					// Wait for the Talker to supply us with updated stream information.
+					if (!pTalkerStreamInfo->waiting_on_talker) {
+						pTalkerStreamInfo->waiting_on_talker = (openavb_acmp_ACMPCommandResponse_t *) malloc(sizeof(openavb_acmp_ACMPCommandResponse_t));
+						if (!pTalkerStreamInfo->waiting_on_talker) {
+							AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+							return OPENAVB_ACMP_STATUS_TALKER_MISBEHAVING;
+						}
+					}
+					memcpy(pTalkerStreamInfo->waiting_on_talker, command, sizeof(openavb_acmp_ACMPCommandResponse_t));
 					retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
 				}
 			}
@@ -325,14 +336,25 @@ void openavbAcmpSMTalkerStateMachine()
 					U8 error;
 					openavb_acmp_ACMPCommandResponse_t response;
 					memcpy(&response, pRcvdCmdResp, sizeof(response));
-					if (openavbAcmpSMTalker_validTalkerUnique(pRcvdCmdResp->talker_unique_id)) {
-						error = openavbAcmpSMTalker_connectTalker(&response);
-					}
-					else {
+					if (!openavbAcmpSMTalker_validTalkerUnique(pRcvdCmdResp->talker_unique_id)) {
+						// Talker ID is not recognized.
 						error = OPENAVB_ACMP_STATUS_TALKER_UNKNOWN_ID;
+						openavbAcmpSMTalker_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE, &response, error);
+						state = OPENAVB_ACMP_SM_TALKER_STATE_WAITING;
+						break;
 					}
-					openavbAcmpSMTalker_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE, &response, error);
 
+					// Try and start the Talker.
+					error = openavbAcmpSMTalker_connectTalker(&response);
+					if (error != OPENAVB_ACMP_STATUS_SUCCESS) {
+						openavbAcmpSMTalker_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE, &response, error);
+						state = OPENAVB_ACMP_SM_TALKER_STATE_WAITING;
+						break;
+					}
+
+					// openavbAcmpSMTalker_connectTalker() either sent a response, or updated the state
+					// to indicate we are waiting for information from the Talker.
+					// Either way, there is nothing else to do for now.
 					state = OPENAVB_ACMP_SM_TALKER_STATE_WAITING;
 				}
 				break;
@@ -466,12 +488,16 @@ void openavbAcmpSMTalkerStop()
 	SEM_LOG_ERR(err);
 
 	openavb_array_elem_t node = openavbArrayIterFirst(openavbAcmpSMTalkerVars.talkerStreamInfos);
-	if (node) {
+	while (node) {
 		openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo = openavbArrayData(node);
 		if (pTalkerStreamInfo != NULL) {
 			openavbListDeleteList(pTalkerStreamInfo->connected_listeners);
-			node = openavbArrayIterNext(openavbAcmpSMTalkerVars.talkerStreamInfos);
+			if (pTalkerStreamInfo->waiting_on_talker) {
+				free(pTalkerStreamInfo->waiting_on_talker);
+				pTalkerStreamInfo->waiting_on_talker = NULL;
+			}
 		}
+		node = openavbArrayIterNext(openavbAcmpSMTalkerVars.talkerStreamInfos);
 	}
 	openavbArrayDeleteArray(openavbAcmpSMTalkerVars.talkerStreamInfos);
 
@@ -550,6 +576,58 @@ void openavbAcmpSMTalkerSet_doTerminate(bool value)
 	SEM_ERR_T(err);
 	SEM_POST(openavbAcmpSMTalkerSemaphore, err);
 	SEM_LOG_ERR(err);
+
+	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
+}
+
+
+void openavbAcmpSMTalker_updateStreamInfo(openavb_tl_data_cfg_t *pCfg)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
+
+	ACMP_SM_LOCK();
+
+	// Find the talker stream waiting for the update.
+	openavb_array_elem_t node = openavbArrayIterFirst(openavbAcmpSMTalkerVars.talkerStreamInfos);
+	while (node) {
+		openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo = openavbArrayData(node);
+		if (pTalkerStreamInfo != NULL && pTalkerStreamInfo->waiting_on_talker != NULL) {
+			U16 configIdx = openavbAemGetConfigIdx();
+			S32 talker_unique_id = openavbArrayGetIdx(node);
+			openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, talker_unique_id);
+			if (pDescriptorStreamOutput && pDescriptorStreamOutput->stream == pCfg) {
+
+				// We will handle the GET_TX_CONNECTION_RESPONSE command response here.
+				AVB_LOGF_DEBUG("Received an update for talker_unique_id %d", talker_unique_id);
+				openavb_acmp_ACMPCommandResponse_t *response = pTalkerStreamInfo->waiting_on_talker;
+				pTalkerStreamInfo->waiting_on_talker = NULL;
+
+				// Update the talker stream information with the information from the configuration.
+				memcpy(pTalkerStreamInfo->stream_id, pCfg->stream_addr.mac, ETH_ALEN);
+				U8 *pStreamUID = pTalkerStreamInfo->stream_id + 6;
+				*(U16 *)(pStreamUID) = htons(pCfg->stream_uid);
+				memcpy(pTalkerStreamInfo->stream_dest_mac, pCfg->dest_addr.buffer.ether_addr_octet, ETH_ALEN);
+				pTalkerStreamInfo->stream_vlan_id = pCfg->vlan_id;
+
+				// Update the GET_TX_CONNECTION_RESPONSE command information.
+				memcpy(response->stream_id, pTalkerStreamInfo->stream_id, sizeof(response->stream_id));
+				memcpy(response->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(response->stream_dest_mac));
+				response->stream_vlan_id = pTalkerStreamInfo->stream_vlan_id;
+				response->connection_count = pTalkerStreamInfo->connection_count;
+
+				// Send the response.
+				openavbAcmpSMTalker_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE, response, OPENAVB_ACMP_STATUS_SUCCESS);
+				AVB_LOG_DEBUG("Sent a CONNECT_TX_RESPONSE command");
+
+				// Done with the response command.
+				free(response);
+				break;
+			}
+		}
+		node = openavbArrayIterNext(openavbAcmpSMTalkerVars.talkerStreamInfos);
+	}
+
+	ACMP_SM_UNLOCK();
 
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }

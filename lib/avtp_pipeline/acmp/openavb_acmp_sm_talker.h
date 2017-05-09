@@ -54,5 +54,6 @@ void openavbAcmpSMTalkerSet_rcvdGetTXState(openavb_acmp_ACMPCommandResponse_t *c
 void openavbAcmpSMTalkerSet_rcvdGetTXConnectionCmd(openavb_acmp_ACMPCommandResponse_t *command);
 void openavbAcmpSMTalkerSet_doTerminate(bool value);
 
+void openavbAcmpSMTalker_updateStreamInfo(openavb_tl_data_cfg_t *pCfg);
 
 #endif // OPENAVB_ACMP_SM_TALKER_H

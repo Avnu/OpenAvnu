@@ -385,7 +385,7 @@ void openavbAvdeccMsgRunTalker(avdecc_msg_state_t *pState)
 		return;
 	}
 
-	// Let the AVDECC Msg server know our current state.
+	// Let the AVDECC Msg server know our stream ID.
 	if (!openavbAvdeccMsgClntTalkerStreamID(pState->avdeccMsgHandle,
 			cfg->stream_addr.buffer.ether_addr_octet, cfg->stream_uid,
 			cfg->dest_addr.buffer.ether_addr_octet, cfg->vlan_id)) {
@@ -394,7 +394,7 @@ void openavbAvdeccMsgRunTalker(avdecc_msg_state_t *pState)
 		return;
 	}
 
-	// Let the AVDECC Msg server know our Stream ID.
+	// Let the AVDECC Msg server know our current state.
 	if (!openavbAvdeccMsgClntChangeNotification(pState->avdeccMsgHandle,
 		(pState->pTLState->bRunning ?
 			(pState->pTLState->bPaused ? OPENAVB_AVDECC_MSG_PAUSED : OPENAVB_AVDECC_MSG_RUNNING ) :

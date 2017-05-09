@@ -53,6 +53,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_log.h"
 #include "openavb_avdecc_pub.h"
 #include "openavb_adp.h"
+#include "openavb_acmp_sm_talker.h"
 
 #include "openavb_avdecc_msg_server.h"
 #include "openavb_trace.h"
@@ -235,6 +236,9 @@ bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, const
 	AVB_LOGF_DEBUG("Talker-supplied dest_addr:  " ETH_FORMAT,
 		ETH_OCTETS(pCfg->dest_addr.buffer.ether_addr_octet));
 	AVB_LOGF_DEBUG("AVDECC-supplied vlan_id:  %u", pCfg->vlan_id);
+
+	// Notify the state machine that we received this information.
+	openavbAcmpSMTalker_updateStreamInfo(pCfg);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return true;

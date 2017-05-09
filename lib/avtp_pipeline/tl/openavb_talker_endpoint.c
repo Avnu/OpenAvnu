@@ -127,7 +127,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 		}
 	}
 
-	// Let the AVDECC Msg server know our current state.
+	// Let the AVDECC Msg server know our current stream ID, in case it was updated by MAAP.
 	if (pTLState->avdeccMsgHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
 		if (!openavbAvdeccMsgClntTalkerStreamID(pTLState->avdeccMsgHandle,
 				pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
