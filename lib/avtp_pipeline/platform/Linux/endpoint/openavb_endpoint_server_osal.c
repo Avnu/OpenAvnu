@@ -118,7 +118,7 @@ bool openavbEndpointServerOpen(void)
 	snprintf(serverAddr.sun_path, UNIX_PATH_MAX, AVB_ENDPOINT_UNIX_PATH);
 
 	// try remove old socket
-	if (unlink(serverAddr.sun_path) == -1 && errno != ENOENT) {
+	if (unlink(serverAddr.sun_path) < 0 && errno != ENOENT) {
 		AVB_LOGF_ERROR("Failed to remove %s: %s", serverAddr.sun_path, strerror(errno));
 	}
 
@@ -145,7 +145,7 @@ bool openavbEndpointServerOpen(void)
   error:
 	if (lsock >= 0) {
 		close(lsock);
-		lsock = -1;
+		lsock = SOCK_INVALID;
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return FALSE;
@@ -244,10 +244,12 @@ void openavbEndpointServerClose(void)
 	for (i = 0; i < POLL_FD_COUNT; i++) {
 		if (fds[i].fd != SOCK_INVALID) {
 			close(fds[i].fd);
+			fds[i].fd = SOCK_INVALID;
 		}
 	}
 	if (lsock != SOCK_INVALID) {
 		close(lsock);
+		lsock = SOCK_INVALID;
 	}
 
 	if (unlink(serverAddr.sun_path) != 0) {

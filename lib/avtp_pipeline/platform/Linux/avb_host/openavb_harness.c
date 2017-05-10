@@ -191,6 +191,9 @@ int main(int argc, char *argv[])
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGUSR1, &sa, NULL);
 
+	// Ignore SIGPIPE signals.
+	signal(SIGPIPE, SIG_IGN);
+
 	registerStaticMapModule(openavbMapPipeInitialize);
 	registerStaticMapModule(openavbMapAVTPAudioInitialize);
 	registerStaticMapModule(openavbMapCtrlInitialize);
