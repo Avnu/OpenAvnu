@@ -69,6 +69,8 @@ openavb_list_t strElemList;
 #define SID_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x/%d"
 #define SID_OCTETS(a) (a)[0],(a)[1],(a)[2],(a)[3],(a)[4],(a)[5],(a)[6]<<8|(a)[7]
 
+// Callback for SRP to notify AVTP Talker that a Listener Declaration has been
+// registered (or de-registered)
 void mrp_attach_cb(unsigned char streamid[8], int subtype)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_SRP_PUBLIC);
@@ -80,21 +82,24 @@ void mrp_attach_cb(unsigned char streamid[8], int subtype)
 		while (node) {
 			strElem_t *elem = openavbListData(node);
 			if (elem && elem->talker && memcmp(streamid, elem->streamId, sizeof(elem->streamId)) == 0) {
-				if (elem->subtype != subtype) {
-					_attachCb(elem->avtpHandle, subtype);
-					elem->subtype = subtype;
-				}
+				_attachCb(elem->avtpHandle, subtype);
+				elem->subtype = subtype;
+				AVB_LOGF_DEBUG("mrp_attach_cb subtype changed to %d", elem->subtype);
 				break;
+			}
+			else if (elem) {
+				AVB_LOGF_DEBUG("mrp_attach_cb skipping elem " SID_FORMAT ", talker %d",
+					SID_OCTETS(elem->streamId), elem->talker ? 1 : 0);
 			}
 			node = openavbListIterNext(strElemList);
 		}
-		if (!node)
-			AVB_LOG_DEBUG("attach_cb stream not ours");
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_SRP_PUBLIC);
 }
 
+// Callback for SRP to notify AVTP Listener that a Talker Declaration has been
+// registered (or de-registered)
 void mrp_register_cb(unsigned char streamid[8], int join, unsigned char destaddr[6], unsigned int max_frame_size, unsigned int max_interval_frames, uint16_t vid, unsigned int latency)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_SRP_PUBLIC);
@@ -107,26 +112,27 @@ void mrp_register_cb(unsigned char streamid[8], int join, unsigned char destaddr
 		while (node) {
 			strElem_t *elem = openavbListData(node);
 			if (elem && !elem->talker && memcmp(streamid, elem->streamId, sizeof(elem->streamId)) == 0) {
-				if (elem->subtype != join) {
-					AVBTSpec_t tSpec;
-					tSpec.maxFrameSize = max_frame_size;
-					tSpec.maxIntervalFrames = max_interval_frames;
-					_registerCb(elem->avtpHandle,
-						    join ? openavbSrp_AtTyp_TalkerAdvertise : openavbSrp_AtTyp_None,
-						    destaddr,
-						    &tSpec,
-						    0, // SR_CLASS is ignored anyway
-						    latency,
-						    NULL
-						    );
-					elem->subtype = join;
-				}
+				AVBTSpec_t tSpec;
+				tSpec.maxFrameSize = max_frame_size;
+				tSpec.maxIntervalFrames = max_interval_frames;
+				_registerCb(elem->avtpHandle,
+						join ? openavbSrp_AtTyp_TalkerAdvertise : openavbSrp_AtTyp_None,
+						destaddr,
+						&tSpec,
+						0, // SR_CLASS is ignored anyway
+						latency,
+						NULL
+						);
+				elem->subtype = join;
+				AVB_LOGF_DEBUG("mrp_register_cb subtype changed to %d", elem->subtype);
 				break;
+			}
+			else if (elem) {
+				AVB_LOGF_DEBUG("mrp_register_cb skipping elem " SID_FORMAT ", talker %d",
+					SID_OCTETS(elem->streamId), elem->talker ? 1 : 0);
 			}
 			node = openavbListIterNext(strElemList);
 		}
-		if (!node)
-			AVB_LOG_DEBUG("register_cb stream not ours");
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_SRP_PUBLIC);
