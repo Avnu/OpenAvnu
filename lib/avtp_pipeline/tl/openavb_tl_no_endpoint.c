@@ -86,7 +86,7 @@ void* openavbTLThreadFn(void *pv)
 		}
 
 		if (pTLState->bRunning) {
-			SLEEP(1);
+			SLEEP_MSEC(1);
 		}
 	}
 

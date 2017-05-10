@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
 		}
 
 		while (bRunning) {
-			sleep(1);
+			SLEEP_MSEC(1);
 		}
 
 		for (i1 = 0; i1 < tlCount; i1++) {

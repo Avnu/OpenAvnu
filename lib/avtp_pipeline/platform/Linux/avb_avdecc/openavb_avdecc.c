@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
 	}
 
 	while (avdeccRunning) {
-		sleep(1);
+		SLEEP_MSEC(1);
 	}
 
 	osalAvdeccFinalize();

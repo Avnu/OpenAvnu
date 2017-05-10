@@ -305,9 +305,10 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 		}
 	}
 	else {
-            SLEEP(1);
-	    // time to service the endpoint IPC
-	    bRet = TRUE;
+		SLEEP_MSEC(1);
+
+		// time to service the endpoint IPC
+		bRet = TRUE;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
