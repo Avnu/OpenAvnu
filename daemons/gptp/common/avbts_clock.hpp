@@ -36,7 +36,7 @@
 
 #include <stdint.h>
 #include <ieee1588.hpp>
-#include <avbts_port.hpp>
+#include <common_port.hpp>
 #include <avbts_ostimerq.hpp>
 #include <avbts_osipc.hpp>
 
@@ -121,7 +121,7 @@ private:
 	float _ppm;
 	int _phase_error_violation;
 
-	IEEE1588Port *port_list[MAX_PORTS];
+	CommonPort *port_list[MAX_PORTS];
 
 	static Timestamp start_time;
 	Timestamp last_sync_time;
@@ -163,12 +163,13 @@ private:
 
 	/**
 	 * @brief  Add a new event to the timer queue
-	 * @param  target IEEE1588Port target
+	 * @param  target EtherPort target
 	 * @param  e Event to be added
 	 * @param  time_ns Time in nanoseconds
 	 */
 	void addEventTimer
-		( IEEE1588Port * target, Event e, unsigned long long time_ns );
+	( CommonPort *target, Event e,
+	  unsigned long long time_ns );
 
 	/**
 	 * @brief  Deletes an event from the timer queue
@@ -176,7 +177,7 @@ private:
 	 * @param  e Event to be removed
 	 * @return void
 	 */
-	void deleteEventTimer(IEEE1588Port * target, Event e);
+	void deleteEventTimer( CommonPort *target, Event e );
 public:
   /**
    * @brief Instantiates a IEEE 1588 Clock
@@ -467,12 +468,13 @@ public:
    * @param  index Port's index
    * @return void
    */
-  void registerPort(IEEE1588Port * port, uint16_t index) {
+	void registerPort( CommonPort *port, uint16_t index )
+	{
 	  if (index < MAX_PORTS) {
 		  port_list[index - 1] = port;
 	  }
 	  ++number_ports;
-  }
+	}
 
   /**
    * @brief  Gets the current port list instance
@@ -480,7 +482,7 @@ public:
    * @param  ports [out] Pointer to the port list
    * @return
    */
-  void getPortList(int &count, IEEE1588Port ** &ports) {
+  void getPortList(int &count, CommonPort ** &ports) {
 	  ports = this->port_list;
 	  count = number_ports;
 	  return;
@@ -494,13 +496,13 @@ public:
 
   /**
    * @brief  Adds an event to the timer queue using a lock
-   * @param  target IEEE1588Port target
+   * @param  target EtherPort target
    * @param  e Event to be added
    * @param  time_ns event time in nanoseconds
    * @return void
    */
   void addEventTimerLocked
-	  ( IEEE1588Port * target, Event e, unsigned long long time_ns );
+  ( CommonPort *target, Event e, unsigned long long time_ns );
 
   /**
    * @brief  Deletes and event from the timer queue using a lock
@@ -508,7 +510,7 @@ public:
    * @param  e Event to be deleted
    * @return
    */
-  void deleteEventTimerLocked(IEEE1588Port * target, Event e);
+  void deleteEventTimerLocked( CommonPort *target, Event e );
 
   /**
    * @brief  Calculates the master to local clock rate difference
@@ -542,15 +544,11 @@ public:
    * @param  asCapable asCapable flag
    */
   void setMasterOffset
-	  ( IEEE1588Port * port, int64_t master_local_offset, Timestamp local_time,
-		FrequencyRatio master_local_freq_offset,
-		int64_t local_system_offset,
-		Timestamp system_time,
-		FrequencyRatio local_system_freq_offset,
-		unsigned sync_count,
-        unsigned pdelay_count,
-        PortState port_state,
-        bool asCapable );
+  ( CommonPort *port, int64_t master_local_offset,
+    Timestamp local_time, FrequencyRatio master_local_freq_offset,
+    int64_t local_system_offset, Timestamp system_time,
+    FrequencyRatio local_system_freq_offset, unsigned sync_count,
+    unsigned pdelay_count, PortState port_state, bool asCapable );
 
   /**
    * @brief  Get the IEEE1588Clock identity value
@@ -574,7 +572,7 @@ public:
    */
   void restartPDelayAll() {
 	  int number_ports, i, j = 0;
-	  IEEE1588Port **ports;
+	  CommonPort **ports;
 
 	  getPortList( number_ports, ports );
 
@@ -590,7 +588,7 @@ public:
    */
   int getTxLockAll() {
 	  int number_ports, i, j = 0;
-	  IEEE1588Port **ports;
+	  CommonPort **ports;
 
 	  getPortList( number_ports, ports );
 
@@ -610,7 +608,7 @@ public:
    */
   int putTxLockAll() {
 	  int number_ports, i, j = 0;
-	  IEEE1588Port **ports;
+	  CommonPort **ports;
 
 	  getPortList( number_ports, ports );
 

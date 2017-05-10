@@ -49,7 +49,8 @@
 
 #include <gptp_log.hpp>
 
-#define MAX_PORTS 32	/*!< Maximum number of IEEE1588Port instances */
+#define MAX_PORTS 32	/*!< Maximum number of EtherPort
+			 * instances */
 
 #define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS-2011 Clause 8.5.2.4*/
 
@@ -72,7 +73,8 @@ class PTPMessageAnnounce;
 class PTPMessagePathDelayReq;
 class PTPMessagePathDelayResp;
 class PTPMessagePathDelayRespFollowUp;
-class IEEE1588Port;
+class EtherPort;
+class CommonPort;
 class IEEE1588Clock;
 class OSNetworkInterface;
 
@@ -105,7 +107,7 @@ typedef enum {
  * @brief Defines an event descriptor type
  */
 typedef struct {
-	IEEE1588Port *port;	//!< IEEE 1588 Port
+	CommonPort *port;	//!< Media Dependent Ether Port
 	Event event;	//!< Event enumeration
 } event_descriptor_t;
 
@@ -499,7 +501,8 @@ public:
 	 * @param  frequency_offset Frequency offset
 	 * @return false
 	 */
-	virtual bool HWTimestamper_adjclockrate( float frequency_offset )
+	virtual bool HWTimestamper_adjclockrate
+	( float frequency_offset ) const
 	{ return false; }
 
 	/**
@@ -526,7 +529,7 @@ public:
 	virtual bool HWTimestamper_gettime(Timestamp * system_time,
 			Timestamp * device_time,
 			uint32_t * local_clock,
-			uint32_t * nominal_clock_rate) = 0;
+			uint32_t * nominal_clock_rate) const = 0;
 
 	/**
 	 * @brief  Gets the tx timestamp from hardware
@@ -580,7 +583,8 @@ public:
 	 * @return void
 	 * @todo There is no current implementation for this method.
 	 */
-	virtual void HWTimestamper_get_extderror(char *msg) {
+	virtual void HWTimestamper_get_extderror(char *msg) const
+	{
 		*msg = '\0';
 	}
 
@@ -600,7 +604,8 @@ public:
 	 * @brief  Gets the HWTimestamper version
 	 * @return version (signed integer)
 	 */
-	int getVersion() {
+	int getVersion() const
+	{
 		return version;
 	}
 	/**
@@ -626,7 +631,7 @@ public:
 	  * @return 0
 	  **/
 
-	 int get_phy_delay (struct phy_delay *get_delay)
+	 int get_phy_delay (struct phy_delay *get_delay) const
 	 {
 		get_delay->mb_tx_phy_delay = delay.mb_tx_phy_delay;
 		get_delay->mb_rx_phy_delay = delay.mb_rx_phy_delay;
@@ -671,8 +676,8 @@ public:
  * @param  port [in] IEEE1588 port
  * @return PTP message instance of PTPMessageCommon
  */
-PTPMessageCommon *buildPTPMessage(char *buf, int size,
-		LinkLayerAddress * remote,
-		IEEE1588Port * port);
+PTPMessageCommon *buildPTPMessage
+( char *buf, int size, LinkLayerAddress *remote,
+  EtherPort *port );
 
 #endif

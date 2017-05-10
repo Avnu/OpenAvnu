@@ -65,7 +65,7 @@ public:
 	 * @brief Creates the OSTimer
 	 * @return Pointer to OSTimer object
 	 */
-	virtual OSTimer * createTimer() = 0;
+	virtual OSTimer *createTimer() const = 0;
 
 	/*
 	 * Destroys the OSTimer previsouly created

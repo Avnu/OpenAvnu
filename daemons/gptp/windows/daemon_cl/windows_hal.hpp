@@ -110,7 +110,7 @@ public:
 	/**
 	* @brief Watch for netlink changes.
 	*/
-	virtual void watchNetLink(IEEE1588Port *pPort);
+	virtual void watchNetLink( CommonPort *pPort );
 
 	/**
 	 * @brief  Gets the offset to the start of data in the Layer 2 Frame
@@ -258,7 +258,7 @@ public:
 	 * @param  type Lock type - OSLockType
 	 * @return New lock on OSLock format
 	 */
-	OSLock *createLock( OSLockType type ) {
+	OSLock *createLock( OSLockType type ) const {
 		WindowsLock *lock = new WindowsLock();
 		if( !lock->initialize( type )) {
 			delete lock;
@@ -327,7 +327,7 @@ public:
  */
 class WindowsConditionFactory : public OSConditionFactory {
 public:
-	OSCondition *createCondition() {
+	OSCondition *createCondition() const {
 		WindowsCondition *result = new WindowsCondition();
 		return result->initialize() ? result : NULL;
 	}
@@ -514,7 +514,7 @@ public:
 	 * @brief  Creates a new timer
 	 * @return New windows OSTimer
 	 */
-    virtual OSTimer *createTimer() {
+    virtual OSTimer *createTimer() const {
         return new WindowsTimer();
     }
 };
@@ -583,7 +583,7 @@ public:
 	 * @brief  Creates a new windows thread
 	 * @return New thread of type OSThread
 	 */
-	OSThread *createThread() {
+	OSThread *createThread() const {
 		return new WindowsThread();
 	}
 };
@@ -633,7 +633,7 @@ private:
 	HANDLE miniport;
 	LARGE_INTEGER tsc_hz;
 	LARGE_INTEGER netclock_hz;
-	DWORD readOID( NDIS_OID oid, void *output_buffer, DWORD size, DWORD *size_returned ) {
+	DWORD readOID( NDIS_OID oid, void *output_buffer, DWORD size, DWORD *size_returned ) const {
 		NDIS_OID oid_l = oid;
 		DWORD rc = DeviceIoControl(
 			miniport,
@@ -647,19 +647,19 @@ private:
 		if( rc == 0 ) return GetLastError();
 		return ERROR_SUCCESS;
 	}
-	Timestamp nanoseconds64ToTimestamp( uint64_t time ) {
+	Timestamp nanoseconds64ToTimestamp( uint64_t time ) const {
 		Timestamp timestamp;
 		timestamp.nanoseconds = time % 1000000000;
 		timestamp.seconds_ls = (time / 1000000000) & 0xFFFFFFFF;
 		timestamp.seconds_ms = (uint16_t)((time / 1000000000) >> 32);
 		return timestamp;
 	}
-	uint64_t scaleNativeClockToNanoseconds( uint64_t time ) {
+	uint64_t scaleNativeClockToNanoseconds( uint64_t time ) const {
 		long double scaled_output = ((long double)netclock_hz.QuadPart)/1000000000;
 		scaled_output = ((long double) time)/scaled_output;
 		return (uint64_t) scaled_output;
 	}
-	uint64_t scaleTSCClockToNanoseconds( uint64_t time ) {
+	uint64_t scaleTSCClockToNanoseconds( uint64_t time ) const {
 		long double scaled_output = ((long double)tsc_hz.QuadPart)/1000000000;
 		scaled_output = ((long double) time)/scaled_output;
 		return (uint64_t) scaled_output;
@@ -686,7 +686,7 @@ public:
 	 * @return True in case of success. FALSE in case of error
 	 */
 	virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
-					    uint32_t *nominal_clock_rate ) {
+					    uint32_t *nominal_clock_rate ) const {
 		DWORD buf[6];
 		DWORD returned;
 		uint64_t now_net, now_tsc;

@@ -243,7 +243,7 @@ bool WindowsNamedPipeIPC::update_network_interface(
 }
 
 
-void WindowsPCAPNetworkInterface::watchNetLink(IEEE1588Port *pPort)
+void WindowsPCAPNetworkInterface::watchNetLink( CommonPort *pPort)
 {
 	/* ToDo add link up/down detection, Google MIB_IPADDR_DISCONNECTED */
 }

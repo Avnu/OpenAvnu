@@ -233,7 +233,7 @@ void timerq_handler(void *arg)
 }
 
 void IEEE1588Clock::addEventTimer
-( IEEE1588Port * target, Event e, unsigned long long time_ns )
+( CommonPort *target, Event e, unsigned long long time_ns )
 {
 	event_descriptor_t *event_descriptor = new event_descriptor_t();
 	event_descriptor->event = e;
@@ -244,7 +244,7 @@ void IEEE1588Clock::addEventTimer
 }
 
 void IEEE1588Clock::addEventTimerLocked
-( IEEE1588Port * target, Event e, unsigned long long time_ns )
+( CommonPort *target, Event e, unsigned long long time_ns )
 {
     if( getTimerQLock() == oslock_fail ) return;
 	addEventTimer( target, e, time_ns );
@@ -253,12 +253,14 @@ void IEEE1588Clock::addEventTimerLocked
 
 
 
-void IEEE1588Clock::deleteEventTimer(IEEE1588Port * target, Event event)
+void IEEE1588Clock::deleteEventTimer
+( CommonPort *target, Event event )
 {
 	timerq->cancelEvent((int)event, NULL);
 }
 
-void IEEE1588Clock::deleteEventTimerLocked(IEEE1588Port * target, Event event)
+void IEEE1588Clock::deleteEventTimerLocked
+( CommonPort *target, Event event )
 {
     if( getTimerQLock() == oslock_fail ) return;
 
@@ -336,10 +338,11 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 }
 
 void IEEE1588Clock::setMasterOffset
-( IEEE1588Port * port, int64_t master_local_offset, Timestamp local_time,
-  FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
-  Timestamp system_time, FrequencyRatio local_system_freq_offset,
-  unsigned sync_count, unsigned pdelay_count, PortState port_state, bool asCapable )
+( CommonPort *port, int64_t master_local_offset,
+  Timestamp local_time, FrequencyRatio master_local_freq_offset,
+  int64_t local_system_offset, Timestamp system_time,
+  FrequencyRatio local_system_freq_offset, unsigned sync_count,
+  unsigned pdelay_count, PortState port_state, bool asCapable )
 {
 	_master_local_freq_offset = master_local_freq_offset;
 	_local_system_freq_offset = local_system_freq_offset;

@@ -34,7 +34,7 @@
 #include <linux_hal_common.hpp>
 #include <sys/types.h>
 #include <avbts_clock.hpp>
-#include <avbts_port.hpp>
+#include <ether_port.hpp>
 
 #include <pthread.h>
 #include <linux_ipc.hpp>
@@ -168,7 +168,8 @@ void LinuxNetworkInterface::clear_reenable_rx_queue() {
 	}
 }
 
-static void x_readEvent(int sockint, IEEE1588Port *pPort, int ifindex)
+static void x_readEvent
+( int sockint, EtherPort *pPort, int ifindex )
 {
 	int status;
 	char buf[4096];
@@ -223,7 +224,7 @@ static void x_readEvent(int sockint, IEEE1588Port *pPort, int ifindex)
 	return;
 }
 
-static void x_initLinkUpStatus(IEEE1588Port *pPort, int ifindex)
+static void x_initLinkUpStatus( EtherPort *pPort, int ifindex )
 {
 	struct ifreq device;
 	memset(&device, 0, sizeof(device));
@@ -254,11 +255,19 @@ static void x_initLinkUpStatus(IEEE1588Port *pPort, int ifindex)
 	close(inetSocket);
 }
 
-void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
+void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 {
 	fd_set netLinkFD;
 	int netLinkSocket;
 	struct sockaddr_nl addr;
+
+	EtherPort *pPort =
+		dynamic_cast<EtherPort *>(iPort);
+	if( pPort == NULL )
+	{
+		GPTP_LOG_ERROR("NETLINK socket open error");
+		return;
+	}
 
 	netLinkSocket = socket (AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (netLinkSocket < 0) {

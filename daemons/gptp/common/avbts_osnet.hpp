@@ -325,7 +325,7 @@ class OSNetworkInterface {
 	 /**
 	  * @brief Watch for netlink changes.
 	  */
-	 virtual void watchNetLink(IEEE1588Port *pPort) = 0;
+	 virtual void watchNetLink( CommonPort *pPort ) = 0;
 
 	 /**
 	  * @brief  Provides generic method for getting the payload offset

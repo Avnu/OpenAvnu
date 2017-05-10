@@ -433,7 +433,8 @@ static inline Timestamp pctTimestamp( struct ptp_clock_time *t ) {
 // Use HW cross-timestamp if available
 bool LinuxTimestamperGeneric::HWTimestamper_gettime
 ( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
-  uint32_t *nominal_clock_rate ) {
+  uint32_t *nominal_clock_rate ) const
+{
 	if( phc_fd == -1 )
 		return false;
 
