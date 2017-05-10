@@ -602,16 +602,19 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 
 			rslt = snd_pcm_readi(pPvtData->pcmHandle, pMediaQItem->pPubData + pMediaQItem->dataLen, pPubMapUncmpAudioInfo->framesPerItem - (pMediaQItem->dataLen / pPubMapUncmpAudioInfo->itemFrameSizeBytes));
 
-			if (rslt < 0) {
+			switch(rslt) {
+			case -EPIPE:
 				AVB_LOGF_ERROR("snd_pcm_readi() error: %s", snd_strerror(rslt));
 				rslt = snd_pcm_recover(pPvtData->pcmHandle, rslt, 0);
 				if (rslt < 0) {
 					AVB_LOGF_ERROR("snd_pcm_recover: %s", snd_strerror(rslt));
 				}
-				openavbMediaQHeadUnlock(pMediaQ);
-				AVB_TRACE_EXIT(AVB_TRACE_INTF);
-				return FALSE;
+				break;
+			case -EAGAIN:
+				AVB_LOG_WARNING("snd_pcm_readi() had no data available");
+				break;
 			}
+
 			if (rslt < 0) {
 				openavbMediaQHeadUnlock(pMediaQ);
 				AVB_TRACE_EXIT(AVB_TRACE_INTF);
