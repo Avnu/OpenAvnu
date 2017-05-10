@@ -174,7 +174,7 @@ void talkerStopStream(tl_state_t *pTLState)
 
 	openavbTalkerAddStat(pTLState, TL_STAT_TX_CALLS, pTalkerData->cntWakes);
 	openavbTalkerAddStat(pTLState, TL_STAT_TX_FRAMES, pTalkerData->cntFrames);
-//	openavbTalkerAddStat(pTLState, TL_STAT_TX_LATE, 0);		// Can't calulate at this time
+//	openavbTalkerAddStat(pTLState, TL_STAT_TX_LATE, 0);		// Can't calculate at this time
 	openavbTalkerAddStat(pTLState, TL_STAT_TX_BYTES, openavbAvtpBytes(pTalkerData->avtpHandle));
 
 	AVB_LOGF_INFO("TX "STREAMID_FORMAT", Totals: calls=%" PRIu64 ", frames=%" PRIu64 ", late=%" PRIu64 ", bytes=%" PRIu64 ", TXOutOfBuffs=%ld",
