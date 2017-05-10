@@ -378,7 +378,7 @@ void IEEE1588Clock::setMasterOffset
 			priority2, domain_number,
 			port->getSyncInterval(),
 			port->getAnnounceInterval(),
-			port->getPDelayInterval(),
+			0, // TODO:  Was port->getPDelayInterval() before refactoring.  What do we do now?
 			port_number);
 	}
 
