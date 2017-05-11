@@ -826,10 +826,17 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	return false;
 }
 
-bool LinuxSharedMemoryIPC::update
-(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
- FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
- uint32_t pdelay_count, PortState port_state, bool asCapable ) {
+bool LinuxSharedMemoryIPC::update(
+	int64_t ml_phoffset,
+	int64_t ls_phoffset,
+	FrequencyRatio ml_freqoffset,
+	FrequencyRatio ls_freqoffset,
+	uint64_t local_time,
+	uint32_t sync_count,
+	uint32_t pdelay_count,
+	PortState port_state,
+	bool asCapable )
+{
 	int buf_offset = 0;
 	pid_t process_id = getpid();
 	char *shm_buffer = master_offset_buffer;
@@ -849,6 +856,64 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->asCapable = asCapable;
 		ptimedata->port_state   = port_state;
 		ptimedata->process_id   = process_id;
+		/* unlock */
+		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
+	}
+	return true;
+}
+
+bool LinuxSharedMemoryIPC::update_grandmaster(
+	uint8_t gptp_grandmaster_id[],
+	uint8_t gptp_domain_number )
+{
+	int buf_offset = 0;
+	char *shm_buffer = master_offset_buffer;
+	gPtpTimeData *ptimedata;
+	if( shm_buffer != NULL ) {
+		/* lock */
+		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
+		buf_offset += sizeof(pthread_mutex_t);
+		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
+		memcpy(ptimedata->gptp_grandmaster_id, gptp_grandmaster_id, PTP_CLOCK_IDENTITY_LENGTH);
+		ptimedata->gptp_domain_number = gptp_domain_number;
+		/* unlock */
+		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
+	}
+	return true;
+}
+
+bool LinuxSharedMemoryIPC::update_network_interface(
+	uint8_t  clock_identity[],
+	uint8_t  priority1,
+	uint8_t  clock_class,
+	int16_t  offset_scaled_log_variance,
+	uint8_t  clock_accuracy,
+	uint8_t  priority2,
+	uint8_t  domain_number,
+	int8_t   log_sync_interval,
+	int8_t   log_announce_interval,
+	int8_t   log_pdelay_interval,
+	uint16_t port_number )
+{
+	int buf_offset = 0;
+	char *shm_buffer = master_offset_buffer;
+	gPtpTimeData *ptimedata;
+	if( shm_buffer != NULL ) {
+		/* lock */
+		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
+		buf_offset += sizeof(pthread_mutex_t);
+		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
+		memcpy(ptimedata->clock_identity, clock_identity, PTP_CLOCK_IDENTITY_LENGTH);
+		ptimedata->priority1 = priority1;
+		ptimedata->clock_class = clock_class;
+		ptimedata->offset_scaled_log_variance = offset_scaled_log_variance;
+		ptimedata->clock_accuracy = clock_accuracy;
+		ptimedata->priority2 = priority2;
+		ptimedata->domain_number = domain_number;
+		ptimedata->log_sync_interval = log_sync_interval;
+		ptimedata->log_announce_interval = log_announce_interval;
+		ptimedata->log_pdelay_interval = log_pdelay_interval;
+		ptimedata->port_number   = port_number;
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 	}

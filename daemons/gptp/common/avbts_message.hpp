@@ -547,7 +547,7 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	}
 
 	/**
-	 * @brief  Gets the steps removed value. See IEEE 802.1AS clause 10.3.3
+	 * @brief  Gets the steps removed value. See IEEE 802.1AS-2011 Clause 10.3.3
 	 * @return steps removed value
 	 */
 	uint16_t getStepsRemoved(void) {

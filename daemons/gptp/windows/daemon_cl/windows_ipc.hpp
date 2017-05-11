@@ -152,16 +152,39 @@ class WindowsNPipeMessage {
         NPIPE_MSG_TYPE getType() { return type; }
 };
 
+#ifndef PTP_CLOCK_IDENTITY_LENGTH
+#define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS-2011 Clause 8.5.2.4*/
+#endif
+
 /**
  * @brief Provides an interface for the phase/frequency offsets
  */
 class Offset {
     public:
-        int64_t ml_phoffset;	/*!< Master to local phase offset */
-        FrequencyRatio ml_freqoffset;	/*!< Master to local frequency offset */
-        int64_t ls_phoffset;	/*!< Local to system phase offset */
-        FrequencyRatio ls_freqoffset;	/*!< Local to system frequency offset*/
-        uint64_t local_time;	/*!< Local time*/
+        int64_t ml_phoffset;					//!< Master to local phase offset
+        FrequencyRatio ml_freqoffset;			//!< Master to local frequency offset
+        int64_t ls_phoffset;					//!< Local to system phase offset
+        FrequencyRatio ls_freqoffset;			//!< Local to system frequency offset
+        uint64_t local_time;					//!< Local time
+
+        /* Current grandmaster information */
+        /* Referenced by the IEEE Std 1722.1-2013 AVDECC Discovery Protocol Data Unit (ADPDU) */
+        uint8_t gptp_grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];	//!< Current grandmaster id (all 0's if no grandmaster selected)
+        uint8_t gptp_domain_number;				//!< gPTP domain number
+
+        /* Grandmaster support for the network interface */
+        /* Referenced by the IEEE Std 1722.1-2013 AVDECC AVB_INTERFACE descriptor */
+        uint8_t  clock_identity[PTP_CLOCK_IDENTITY_LENGTH];	//!< The clock identity of the interface
+        uint8_t  priority1;						//!< The priority1 field of the grandmaster functionality of the interface, or 0xFF if not supported
+        uint8_t  clock_class;					//!< The clockClass field of the grandmaster functionality of the interface, or 0xFF if not supported
+        int16_t  offset_scaled_log_variance;	//!< The offsetScaledLogVariance field of the grandmaster functionality of the interface, or 0x0000 if not supported
+        uint8_t  clock_accuracy;				//!< The clockAccuracy field of the grandmaster functionality of the interface, or 0xFF if not supported
+        uint8_t  priority2;						//!< The priority2 field of the grandmaster functionality of the interface, or 0xFF if not supported
+        uint8_t  domain_number;					//!< The domainNumber field of the grandmaster functionality of the interface, or 0 if not supported
+        int8_t   log_sync_interval;				//!< The currentLogSyncInterval field of the grandmaster functionality of the interface, or 0 if not supported
+        int8_t   log_announce_interval;			//!< The currentLogAnnounceInterval field of the grandmaster functionality of the interface, or 0 if not supported
+        int8_t   log_pdelay_interval;			//!< The currentLogPDelayReqInterval field of the grandmaster functionality of the interface, or 0 if not supported
+        uint16_t port_number;					//!< The portNumber field of the interface, or 0x0000 if not supported
 };
 
 /**
@@ -186,23 +209,6 @@ class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
         void init() {
             _init();
             memset( &this->offset, 0, sizeof( this->offset ));
-        }
-        /**
-         * @brief  Initializes the interface with specific values
-         * @param  ml_phoffset Master to local phase offset in nano-seconds
-         * @param  ml_freqoffset Master to local frequency offset in the ::FrequencyRatio format
-         * @param  ls_phoffset Local to system phase offset in nano-seconds
-         * @param  ls_freqoffset Local to system frequency offset in the ::FrequencyRatio format
-         * @param  local_time Local time in nanoseconds
-         * @return void
-         */
-        void init( int64_t ml_phoffset, FrequencyRatio ml_freqoffset, int64_t ls_phoffset, FrequencyRatio ls_freqoffset, uint64_t local_time ) {
-            _init();
-            this->offset.ml_phoffset = ml_phoffset;
-            this->offset.ml_freqoffset = ml_freqoffset;
-            this->offset.ls_phoffset = ls_phoffset;
-            this->offset.ls_freqoffset = ls_freqoffset;
-            this->offset.local_time = local_time;
         }
         /**
          * @brief  Initializes the interface based on the Offset structure
@@ -319,7 +325,7 @@ class WinNPipeCtrlMessage : public WindowsNPipeMessage {
         uint16_t flags;
     public:
         /**
-         * @brief  Initializes interace's internal variables.
+         * @brief  Initializes interface's internal variables.
          * @return void
          */
         void init() {

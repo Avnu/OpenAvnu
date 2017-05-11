@@ -352,10 +352,35 @@ void IEEE1588Clock::setMasterOffset
 						master_local_offset, master_local_freq_offset, sync_count, pdelay_count);
 	}
 
-	if( ipc != NULL ) ipc->update
-		( master_local_offset, local_system_offset, master_local_freq_offset,
-		  local_system_freq_offset, TIMESTAMP_TO_NS(local_time), sync_count,
-		  pdelay_count, port_state, asCapable );
+	if( ipc != NULL ) {
+		uint8_t grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];
+		uint8_t clock_id[PTP_CLOCK_IDENTITY_LENGTH];
+		PortIdentity port_identity;
+		uint16_t port_number;
+
+		grandmaster_clock_identity.getIdentityString(grandmaster_id);
+		clock_identity.getIdentityString(clock_id);
+		port->getPortIdentity(port_identity);
+		port_identity.getPortNumber(&port_number);
+
+		ipc->update(
+			master_local_offset, local_system_offset, master_local_freq_offset,
+			local_system_freq_offset, TIMESTAMP_TO_NS(local_time),
+			sync_count, pdelay_count, port_state, asCapable);
+
+		ipc->update_grandmaster(
+			grandmaster_id, domain_number);
+
+		ipc->update_network_interface(
+			clock_id, priority1,
+			clock_quality.cq_class,	clock_quality.offsetScaledLogVariance,
+			clock_quality.clockAccuracy,
+			priority2, domain_number,
+			port->getSyncInterval(),
+			port->getAnnounceInterval(),
+			0, // TODO:  Was port->getPDelayInterval() before refactoring.  What do we do now?
+			port_number);
+	}
 
 	if( master_local_offset == 0 && master_local_freq_offset == 1.0 ) {
 		return;
