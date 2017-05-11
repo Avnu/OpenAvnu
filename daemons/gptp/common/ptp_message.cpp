@@ -840,7 +840,9 @@ void PTPMessageSync::processMessage( EtherPort *port )
 
 	port->incCounter_ieee8021AsPortStatRxSyncCount();
 
+#if CHECK_ASSIST_BIT
 	if( flags[PTP_ASSIST_BYTE] & (0x1<<PTP_ASSIST_BIT)) {
+#endif
 		PTPMessageSync *old_sync = port->getLastSync();
 
 		if (old_sync != NULL) {
@@ -849,11 +851,13 @@ void PTPMessageSync::processMessage( EtherPort *port )
 		port->setLastSync(this);
 		_gc = false;
 		goto done;
+#if CHECK_ASSIST_BIT
 	} else {
 		GPTP_LOG_ERROR("PTP assist flag is not set, discarding invalid sync");
 		_gc = true;
 		goto done;
 	}
+#endif
 
  done:
 	return;
