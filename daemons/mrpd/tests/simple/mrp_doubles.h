@@ -60,6 +60,13 @@ typedef void (*msrp_observer_t)(int event, struct msrp_attribute *attrib);
  */
 void dump_msrp_attrib(struct msrp_attribute *attr);
 
+/**
+* Callback function type that can be used to observe and validate
+* MVRP events
+*/
+typedef void(*mvrp_observer_t)(int event, struct mvrp_attribute *attrib);
+
+
 
 /**
  * Structure that holds all test double state.
@@ -88,11 +95,19 @@ struct mrpd_test_state {
 	size_t tx_PDU_len;
 	int sent_count;
 
+	/* CTL Msg */
+	int sent_ctl_msg_count;
+
 	/* MSRP Events */
 	uint16_t msrp_event_counts[21];
 	uint16_t msrp_event_counts_per_type[4][21];
 	int forward_msrp_events;
 	msrp_observer_t msrp_observe;
+
+	/* MVRP Events */
+	uint16_t mvrp_event_counts[21];
+	int forward_mvrp_events;
+	mvrp_observer_t mvrp_observe;
 
 	/* Log Buffer */
 	char mrpd_log[MRPD_DOUBLE_LOG_SIZE];
