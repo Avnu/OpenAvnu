@@ -322,13 +322,24 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 
 	inter_sync_time =
 		TIMESTAMP_TO_NS(sync_time) - TIMESTAMP_TO_NS(_prev_sync_time);
-	inter_master_time =
-		TIMESTAMP_TO_NS(master_time) -  TIMESTAMP_TO_NS(_prev_master_time);
+
+	uint64_t master_time_ns = TIMESTAMP_TO_NS(master_time);
+	uint64_t prev_master_time_ns = TIMESTAMP_TO_NS(_prev_master_time);
+
+	inter_master_time = master_time_ns - prev_master_time_ns;
 
 	if( inter_sync_time != 0 ) {
 		ppt_offset = ((FrequencyRatio)inter_master_time)/inter_sync_time;
 	} else {
 		ppt_offset = 1.0;
+	}
+
+	if( master_time_ns < prev_master_time_ns ) {
+		GPTP_LOG_ERROR("Negative time jump detected - inter_master_time: %lld, inter_sync_time: %lld, icorrect ppt_offset: %Lf",
+					   inter_master_time, inter_sync_time, ppt_offset);
+		_master_local_freq_offset_init = false;
+
+		return NEGATIVE_TIME_JUMP;
 	}
 
 	_prev_sync_time = sync_time;
