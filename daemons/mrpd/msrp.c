@@ -581,6 +581,11 @@ int msrp_event(int event, struct msrp_attribute *rattrib)
 			attrib = msrp_lookup(rattrib);
 
 			if (NULL == attrib) {
+				/* ignore rMT! if attribute does not already exist */
+				if (MRP_EVENT_RMT == event) {
+					free(rattrib);
+					return 0;
+				}
 				msrp_add(rattrib);
 				attrib = rattrib;
 			} else {

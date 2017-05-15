@@ -283,6 +283,11 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		attrib = mvrp_lookup(rattrib);
 
 		if (NULL == attrib) {
+			/* ignore rMT! if attribute does not already exist */
+			if (MRP_EVENT_RMT == event) {
+				free(rattrib);
+				return 0;
+			}
 			mvrp_add(rattrib);
 			attrib = rattrib;
 		} else {
