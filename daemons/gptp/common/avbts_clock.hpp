@@ -183,7 +183,7 @@ public:
    * @brief Instantiates a IEEE 1588 Clock
    * @param forceOrdinarySlave Forces it to be an ordinary slave
    * @param syntonize if TRUE, clock will syntonize to the master clock
-   * @param priority1 It is used in the execution of BCMA. See IEEE 802.1AS Clause 10.3
+   * @param priority1 It is used in the execution of BCMA. See IEEE 802.1AS-2011 Clause 10.3
    * @param timestamper [in] Provides an object for hardware timestamp
    * @param timerq_factory [in] Provides a factory object for creating timer queues (managing events)
    * @param ipc [in] Inter process communication object
@@ -326,7 +326,7 @@ public:
   }
 
   /**
-   * @brief  Gets grandmaster priority1 attribute (IEEE 802.1AS clause 10.5.3.2.2)
+   * @brief  Gets grandmaster priority1 attribute (IEEE 802.1AS-2011 Clause 10.5.3.2.2)
    * @return Grandmaster priority1
    */
   unsigned char getGrandmasterPriority1(void) {
@@ -334,7 +334,7 @@ public:
   }
 
   /**
-   * @brief  Gets grandmaster priotity2 attribute (IEEE 802.1AS clause 10.5.3.2.4)
+   * @brief  Gets grandmaster priotity2 attribute (IEEE 802.1AS-2011 Clause 10.5.3.2.4)
    * @return Grandmaster priority2
    */
   unsigned char getGrandmasterPriority2(void) {
@@ -342,7 +342,7 @@ public:
   }
 
   /**
-   * @brief  Sets grandmaster's priority1 attribute (IEEE 802.1AS clause 10.5.3.2.2)
+   * @brief  Sets grandmaster's priority1 attribute (IEEE 802.1AS-2011 Clause 10.5.3.2.2)
    * @param  priority1 value to be set
    * @return void
    */
@@ -351,7 +351,7 @@ public:
   }
 
   /**
-   * @brief  Sets grandmaster's priority2 attribute (IEEE 802.1AS clause 10.5.3.2.4)
+   * @brief  Sets grandmaster's priority2 attribute (IEEE 802.1AS-2011 Clause 10.5.3.2.4)
    * @param  priority2 Value to be set
    * @return void
    */
@@ -360,7 +360,7 @@ public:
   }
 
   /**
-   * @brief  Gets master steps removed (IEEE 802.1AS clause 10.3.3)
+   * @brief  Gets master steps removed (IEEE 802.1AS-2011 Clause 10.3.3)
    * @return steps removed value
    */
   uint16_t getMasterStepsRemoved(void) {
@@ -368,7 +368,7 @@ public:
   }
 
   /**
-   * @brief  Gets the currentUtcOffset attribute (IEEE 802.1AS clause 10.3.8.9)
+   * @brief  Gets the currentUtcOffset attribute (IEEE 802.1AS-2011 Clause 10.3.8.9)
    * @return currentUtcOffset
    */
   uint16_t getCurrentUtcOffset(void) {
@@ -384,7 +384,7 @@ public:
   }
 
   /**
-   * @brief  Gets IEEE1588Clock priority1 value (IEEE 802.1AS clause 8.6.2.1)
+   * @brief  Gets IEEE1588Clock priority1 value (IEEE 802.1AS-2011 Clause 8.6.2.1)
    * @return Priority1 value
    */
   unsigned char getPriority1(void) {
@@ -392,7 +392,7 @@ public:
   }
 
   /**
-   * @brief  Gets IEEE1588Clock priority2 attribute (IEEE 802.1AS clause 8.6.2.5)
+   * @brief  Gets IEEE1588Clock priority2 attribute (IEEE 802.1AS-2011 Clause 8.6.2.5)
    * @return Priority2 value
    */
   unsigned char getPriority2(void) {
@@ -452,7 +452,7 @@ public:
   /**
    * @brief Updates the follow up info internal object with the current clock source time
    * status values. This method should be called whenever the clockSource entity time
-   * base changes (IEEE 802.1AS clause 9.2)
+   * base changes (IEEE 802.1AS-2011 Clause 9.2)
    * @return void
    */
   void updateFUPInfo(void)

@@ -175,16 +175,67 @@ bool WindowsNamedPipeIPC::init(OS_IPC_ARG *arg) {
 	return true;
 }
 
-bool WindowsNamedPipeIPC::update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-	uint32_t sync_count, uint32_t pdelay_count, PortState port_state, bool asCapable) {
-
-
+bool WindowsNamedPipeIPC::update(
+	int64_t ml_phoffset,
+	int64_t ls_phoffset,
+	FrequencyRatio ml_freqoffset,
+	FrequencyRatio ls_freq_offset,
+	uint64_t local_time,
+	uint32_t sync_count,
+	uint32_t pdelay_count,
+	PortState port_state,
+	bool asCapable )
+{
 	lOffset_.get();
 	lOffset_.local_time = local_time;
 	lOffset_.ml_freqoffset = ml_freqoffset;
 	lOffset_.ml_phoffset = ml_phoffset;
 	lOffset_.ls_freqoffset = ls_freq_offset;
 	lOffset_.ls_phoffset = ls_phoffset;
+
+	if (!lOffset_.isReady()) lOffset_.setReady(true);
+	lOffset_.put();
+	return true;
+}
+
+bool WindowsNamedPipeIPC::update_grandmaster(
+	uint8_t gptp_grandmaster_id[],
+	uint8_t gptp_domain_number )
+{
+	lOffset_.get();
+	memcpy(lOffset_.gptp_grandmaster_id, gptp_grandmaster_id, PTP_CLOCK_IDENTITY_LENGTH);
+	lOffset_.gptp_domain_number = gptp_domain_number;
+
+	if (!lOffset_.isReady()) lOffset_.setReady(true);
+	lOffset_.put();
+	return true;
+}
+
+bool WindowsNamedPipeIPC::update_network_interface(
+	uint8_t  clock_identity[],
+	uint8_t  priority1,
+	uint8_t  clock_class,
+	int16_t  offset_scaled_log_variance,
+	uint8_t  clock_accuracy,
+	uint8_t  priority2,
+	uint8_t  domain_number,
+	int8_t   log_sync_interval,
+	int8_t   log_announce_interval,
+	int8_t   log_pdelay_interval,
+	uint16_t port_number )
+{
+	lOffset_.get();
+	memcpy(lOffset_.clock_identity, clock_identity, PTP_CLOCK_IDENTITY_LENGTH);
+	lOffset_.priority1 = priority1;
+	lOffset_.clock_class = clock_class;
+	lOffset_.offset_scaled_log_variance = offset_scaled_log_variance;
+	lOffset_.clock_accuracy = clock_accuracy;
+	lOffset_.priority2 = priority2;
+	lOffset_.domain_number = domain_number;
+	lOffset_.log_sync_interval = log_sync_interval;
+	lOffset_.log_announce_interval = log_announce_interval;
+	lOffset_.log_pdelay_interval = log_pdelay_interval;
+	lOffset_.port_number = port_number;
 
 	if (!lOffset_.isReady()) lOffset_.setReady(true);
 	lOffset_.put();
