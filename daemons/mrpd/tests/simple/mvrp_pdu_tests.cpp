@@ -35,7 +35,7 @@ char *mrp_event_string(int e);
  * packets for the tests */
 #include "sample_mvrp_packets.h"
 
-/* Needed for msrp_recv_cmd() */
+/* Needed for mvrp_recv_cmd() */
 static struct sockaddr_in client;
 
 /*
@@ -130,7 +130,7 @@ TEST_GROUP(MvrpPDUTests)
  */
 TEST(MvrpPDUTests, ParsePkt1)
 {
-	static struct client_s client1;
+	static struct sockaddr_in client1;
 	int rv;
 
 	memset(&client1, 0, sizeof(client1));
