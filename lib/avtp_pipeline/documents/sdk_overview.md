@@ -4,7 +4,7 @@ EAVB SDK Overview {#sdk_overview}
 
 Introduction {#sdk_overview_introduction}
 ============
-Symphony Teleca Corporation (OPENAVB) has developed a software Protocol Stack to 
+Harman International Industries, Inc. has developed a software Protocol Stack to 
 support Ethernet Audio Video Bridging (EAVB or AVB) on a variety of platforms. 
 The software includes explicit Operating System and Hardware Abstraction Layers 
 (OSAL and HAL) to facilitate rapid and efficient porting of the generic stack to 
@@ -96,8 +96,6 @@ interface modules and mapping modules communicate.
 **RTOS:** Real-time OS
 
 **SRP:** Stream Reservation Protocol
-
-**OPENAVB:** Symphony Teleca Corporation
 
 **Stream:** A series of AVTP data packets
 
