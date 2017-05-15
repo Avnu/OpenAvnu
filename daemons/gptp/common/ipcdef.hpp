@@ -62,10 +62,6 @@
 
 #include <ptptypes.hpp>
 
-#ifndef PTP_CLOCK_IDENTITY_LENGTH
-#define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS-2011 Clause 8.5.2.4*/
-#endif
-
 /**
  * @brief Provides a data structure for gPTP time
  */
