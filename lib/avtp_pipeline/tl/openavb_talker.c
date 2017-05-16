@@ -260,15 +260,18 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 				pTalkerData->cntFrames++;
 		}
 
-		if (pTalkerData->cntWakes++ % pTalkerData->wakeRate == 0) {
-			// time to service the endpoint IPC
-			bRet = TRUE;
-		}
-
 		if (!pCfg->spin_wait) {
 			CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
 		} else {
 			CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
+		}
+
+		if (pTalkerData->cntWakes++ % pTalkerData->wakeRate == 0) {
+			// time to service the endpoint IPC
+			bRet = TRUE;
+
+			// Don't need to check again for another second.
+			pTalkerData->nextSecondNS = nowNS + NANOSECONDS_PER_SECOND;
 		}
 
 		if (pCfg->report_seconds > 0) {
@@ -290,7 +293,7 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 		}
 
 		if (nowNS > pTalkerData->nextSecondNS) {
-			pTalkerData->nextSecondNS += NANOSECONDS_PER_SECOND;
+			pTalkerData->nextSecondNS = nowNS + NANOSECONDS_PER_SECOND;
 			bRet = TRUE;
 		}
 
@@ -306,7 +309,7 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 		}
 	}
 	else {
-		SLEEP_MSEC(1);
+		SLEEP_MSEC(10);
 
 		// time to service the endpoint IPC
 		bRet = TRUE;
@@ -361,7 +364,7 @@ void openavbTLRunTalker(tl_state_t *pTLState)
 			// Talk (or just sleep if not streaming.)
 			bServiceIPC = talkerDoStream(pTLState);
 
-			// TalkerDoStream() returns TRUE once per second,
+			// TalkerDoStream() returns TRUE occasionally,
 			// so that we can service our IPC at that low rate.
 			if (bServiceIPC) {
 				// Look for messages from endpoint.  Don't block (timeout=0)
