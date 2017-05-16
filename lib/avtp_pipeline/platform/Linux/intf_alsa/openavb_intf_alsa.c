@@ -578,6 +578,7 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 		media_q_item_t *pMediaQItem = NULL;
 		if (!pPvtData) {
 			AVB_LOG_ERROR("Private interface module data not allocated.");
+			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 			return FALSE;
 		}
 
@@ -592,6 +593,7 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 		}
 
 		if (pPvtData->intervalCounter++ % pPubMapUncmpAudioInfo->packingFactor != 0) {
+			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 			return TRUE;
 		}
 
@@ -599,27 +601,35 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 		if (pMediaQItem) {
 			if (pMediaQItem->itemSize < pPubMapUncmpAudioInfo->itemSize) {
 				AVB_LOG_ERROR("Media queue item not large enough for samples");
+				openavbMediaQTailUnlock(pMediaQ);
+				AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
+				return FALSE;
 			}
 
 			rslt = snd_pcm_readi(pPvtData->pcmHandle, pMediaQItem->pPubData + pMediaQItem->dataLen, pPubMapUncmpAudioInfo->framesPerItem - (pMediaQItem->dataLen / pPubMapUncmpAudioInfo->itemFrameSizeBytes));
 
-			switch(rslt) {
-			case -EPIPE:
-				AVB_LOGF_ERROR("snd_pcm_readi() error: %s", snd_strerror(rslt));
-				rslt = snd_pcm_recover(pPvtData->pcmHandle, rslt, 0);
-				if (rslt < 0) {
-					AVB_LOGF_ERROR("snd_pcm_recover: %s", snd_strerror(rslt));
-				}
-				break;
-			case -EAGAIN:
-				AVB_LOG_WARNING("snd_pcm_readi() had no data available");
-				break;
-			}
-
 			if (rslt < 0) {
-				openavbMediaQHeadUnlock(pMediaQ);
-				AVB_TRACE_EXIT(AVB_TRACE_INTF);
-				return FALSE;
+				switch(rslt) {
+				case -EPIPE:
+					AVB_LOGF_ERROR("snd_pcm_readi() error: %s", snd_strerror(rslt));
+					rslt = snd_pcm_recover(pPvtData->pcmHandle, rslt, 0);
+					if (rslt < 0) {
+						AVB_LOGF_ERROR("snd_pcm_recover: %s", snd_strerror(rslt));
+					}
+					break;
+				case -EAGAIN:
+					AVB_LOG_WARNING("snd_pcm_readi() had no data available");
+					break;
+				default:
+					AVB_LOGF_ERROR("Unhandled snd_pcm_readi() error: %s", snd_strerror(rslt));
+					break;
+				}
+
+				if (rslt < 0) {
+					openavbMediaQHeadUnlock(pMediaQ);
+					AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
+					return FALSE;
+				}
 			}
 
 			pMediaQItem->dataLen += rslt * pPubMapUncmpAudioInfo->itemFrameSizeBytes;
@@ -978,6 +988,7 @@ bool openavbIntfAlsaRxCB(media_q_t *pMediaQ)
 		pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
 		if (!pPvtData) {
 			AVB_LOG_ERROR("Private interface module data not allocated.");
+			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 			return FALSE;
 		}
 
