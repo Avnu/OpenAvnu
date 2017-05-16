@@ -90,6 +90,7 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 	if (colon) {
 		ifname = colon + 1;
 		strncpy(proto, ifname_uri, colon - ifname_uri);
+		proto[colon - ifname_uri] = '\0';
 	}
 
 	AVB_LOGF_DEBUG("%s ifname_uri %s ifname %s proto %s", __func__, ifname_uri, ifname, proto);
