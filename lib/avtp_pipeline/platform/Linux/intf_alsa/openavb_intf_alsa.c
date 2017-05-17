@@ -106,6 +106,9 @@ typedef struct {
 
 	// Use Media Clock Synth module instead of timestamps taken during Tx callback
 	bool fixedTimestampEnabled;
+
+	// How many extra items we have read ahead of schedule
+	S32 surplus;
 } pvt_data_t;
 
 
@@ -568,6 +571,7 @@ void openavbIntfAlsaTxInitCB(media_q_t *pMediaQ)
 // This callback will be called for each AVB transmit interval.
 bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 {
+	bool moreItems = TRUE;
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF_DETAIL);
 
 	S32 rslt;
@@ -595,60 +599,64 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 			return TRUE;
 		}
 
-		pMediaQItem = openavbMediaQHeadLock(pMediaQ);
-		if (pMediaQItem) {
-			if (pMediaQItem->itemSize < pPubMapUncmpAudioInfo->itemSize) {
-				AVB_LOG_ERROR("Media queue item not large enough for samples");
-			}
+		if (pPvtData->surplus > 0) {
+			pPvtData->surplus--;
+			return TRUE;
+		}
 
-			rslt = snd_pcm_readi(pPvtData->pcmHandle, pMediaQItem->pPubData + pMediaQItem->dataLen, pPubMapUncmpAudioInfo->framesPerItem - (pMediaQItem->dataLen / pPubMapUncmpAudioInfo->itemFrameSizeBytes));
-
-			switch(rslt) {
-			case -EPIPE:
-				AVB_LOGF_ERROR("snd_pcm_readi() error: %s", snd_strerror(rslt));
-				rslt = snd_pcm_recover(pPvtData->pcmHandle, rslt, 0);
-				if (rslt < 0) {
-					AVB_LOGF_ERROR("snd_pcm_recover: %s", snd_strerror(rslt));
+		while (moreItems) {
+			pMediaQItem = openavbMediaQHeadLock(pMediaQ);
+			if (pMediaQItem) {
+				if (pMediaQItem->itemSize < pPubMapUncmpAudioInfo->itemSize) {
+					AVB_LOG_ERROR("Media queue item not large enough for samples");
 				}
-				break;
-			case -EAGAIN:
-				AVB_LOG_WARNING("snd_pcm_readi() had no data available");
-				break;
-			}
 
-			if (rslt < 0) {
-				openavbMediaQHeadUnlock(pMediaQ);
-				AVB_TRACE_EXIT(AVB_TRACE_INTF);
-				return FALSE;
-			}
+				rslt = snd_pcm_readi(pPvtData->pcmHandle, pMediaQItem->pPubData + pMediaQItem->dataLen, pPubMapUncmpAudioInfo->framesPerItem - (pMediaQItem->dataLen / pPubMapUncmpAudioInfo->itemFrameSizeBytes));
 
-			pMediaQItem->dataLen += rslt * pPubMapUncmpAudioInfo->itemFrameSizeBytes;
-			if (pMediaQItem->dataLen != pPubMapUncmpAudioInfo->itemSize) {
-				openavbMediaQHeadUnlock(pMediaQ);
-				AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-				return TRUE;
+				switch(rslt) {
+				case -EPIPE:
+					AVB_LOGF_ERROR("snd_pcm_readi() error: %s", snd_strerror(rslt));
+					rslt = snd_pcm_recover(pPvtData->pcmHandle, rslt, 0);
+					if (rslt < 0) {
+						AVB_LOGF_ERROR("snd_pcm_recover: %s", snd_strerror(rslt));
+					}
+					break;
+				case -EAGAIN:
+					AVB_LOG_DEBUG("snd_pcm_readi() had no data available");
+					break;
+				}
+
+				if (rslt < 0) {
+					openavbMediaQHeadUnlock(pMediaQ);
+					break;
+				}
+
+				pPvtData->surplus++;
+
+				pMediaQItem->dataLen += rslt * pPubMapUncmpAudioInfo->itemFrameSizeBytes;
+				if (pMediaQItem->dataLen != pPubMapUncmpAudioInfo->itemSize) {
+					openavbMediaQHeadUnlock(pMediaQ);
+				}
+				else {
+					if (!pPvtData->fixedTimestampEnabled) {
+						openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+					} else {
+						openavbMcsAdvance(&pPvtData->mcs);
+						openavbAvtpTimeSetToTimestampNS(pMediaQItem->pAvtpTime, pPvtData->mcs.edgeTime);
+					}
+					openavbMediaQHeadPush(pMediaQ);
+				}
 			}
 			else {
-				if (!pPvtData->fixedTimestampEnabled) {
-					openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
-				} else {
-					openavbMcsAdvance(&pPvtData->mcs);
-					openavbAvtpTimeSetToTimestampNS(pMediaQItem->pAvtpTime, pPvtData->mcs.edgeTime);
-				}
-				openavbMediaQHeadPush(pMediaQ);
-
-				AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-				return TRUE;
+				moreItems = FALSE;
 			}
 		}
-		else {
-			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-			return FALSE;	// Media queue full
-		}
+
+		IF_LOG_INTERVAL(1000) AVB_LOGF_DEBUG("Surplus: %d", pPvtData->surplus);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-	return FALSE;
+	return !moreItems;
 }
 
 // A call to this callback indicates that this interface module will be
@@ -1081,10 +1089,8 @@ void openavbIntfAlsaEnableFixedTimestamp(media_q_t *pMediaQ, bool enabled, U32 t
 			AVB_LOGF_INFO("Fixed timestamping enabled: %d %d/%d", transmitInterval, rem, 10);
 		}
 
-		if (batchFactor != 1) {
-			AVB_LOGF_WARNING("batchFactor of %d ignored (must be 1)", batchFactor);
-		}
 	}
+
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
@@ -1123,6 +1129,7 @@ extern DLL_EXPORT bool openavbIntfAlsaInitialize(media_q_t *pMediaQ, openavb_int
 
 		pPvtData->fixedTimestampEnabled = FALSE;
 		pPvtData->clockSkewPPB = 0;
+		pPvtData->surplus = 0;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
