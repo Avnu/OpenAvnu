@@ -426,7 +426,7 @@ openavbRC openavbAvtpRxInit(
 		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVTP_FAILURE | OPENAVB_RC_OUT_OF_MEMORY), AVB_TRACE_AVTP);
 	}
 	pStream->tx = FALSE;
-	pStream->nLost = 0; // report lost on first packet also
+	pStream->nLost = -1;
 
 	pStream->pMediaQ = pMediaQ;
 	pStream->pMapCB = pMapCB;
@@ -495,7 +495,7 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 			else if (pStream->avtp_sequence_num != rxSeq) {
 				nLost = (rxSeq - pStream->avtp_sequence_num)
 					+ (rxSeq < pStream->avtp_sequence_num ? 256 : 0);
-				AVB_LOGF_DEBUG("AVTP sequence mismatch: expected: %3u,\tgot: %3u,\tlost %3d",
+				AVB_LOGF_INFO("AVTP sequence mismatch: expected: %3u,\tgot: %3u,\tlost %3d",
 					pStream->avtp_sequence_num, rxSeq, nLost);
 				pStream->nLost += nLost;
 			}
