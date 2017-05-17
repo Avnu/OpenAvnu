@@ -706,7 +706,7 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			return;
 		}
 
-		// Initialize the hardware paramneters
+		// Initialize the hardware parameters
 		rslt = snd_pcm_hw_params_any(pPvtData->pcmHandle, hwParams);
 		if (rslt < 0) {
 			AVB_LOGF_ERROR("snd_pcm_hw_params_any() error: %s", snd_strerror(rslt));
@@ -814,7 +814,7 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			buffer_time = (max / usec_round) * usec_round;
 		}
 
-		// Check for maximum perioid time and adjust ours down if necessary
+		// Check for maximum period time and adjust ours down if necessary
 		rslt = snd_pcm_hw_params_get_period_time_max(hwParams, &max, &dir);
 		if (rslt < 0) {
 			AVB_LOGF_ERROR("snd_pcm_hw_params_get_period_time_max() error: %s", snd_strerror(rslt));
