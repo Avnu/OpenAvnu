@@ -218,8 +218,14 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 		}
 
 		pPubMapInfo->packingFactor = pPvtData->packingFactor;
-		// Packing multiple timestamp intervals of sampling into a media queue item
-		pPubMapInfo->framesPerItem = pPubMapInfo->sytInterval * pPvtData->packingFactor;
+		if (pPubMapInfo->packingFactor > 1) {
+			// Packing multiple packets of sampling into a media queue item
+			pPubMapInfo->framesPerItem = pPubMapInfo->framesPerPacket * pPvtData->packingFactor;
+		}
+		else {
+			// No packing. SYT_INTERVAL is used for media queue item size.
+			pPubMapInfo->framesPerItem = pPubMapInfo->sytInterval;
+		}
 		if (pPubMapInfo->framesPerItem < 1) {
 			pPubMapInfo->framesPerItem = 1;
 		}
@@ -304,10 +310,6 @@ void openavbMapUncmpAudioCfgCB(media_q_t *pMediaQ, const char *name, const char 
 		else if (strcmp(name, "map_nv_packing_factor") == 0) {
 			char *pEnd;
 			pPvtData->packingFactor = strtol(value, &pEnd, 10);
-			if (pPvtData->packingFactor != 1) {
-				AVB_LOG_ERROR("Uncmp Audio Mapper only supports packingFactor 1");
-				pPvtData->packingFactor = 1;
-			}
 		}
 		else if (strcmp(name, "map_nv_audio_mcr") == 0) {
 			char *pEnd;
