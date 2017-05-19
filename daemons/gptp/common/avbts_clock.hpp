@@ -61,6 +61,9 @@
    adjustment is performed */
 #define PHASE_ERROR_MAX_COUNT (6)
 
+/* Value returned by calcMasterLocalClockRateDifference() to indicate
+   detection of negative time jump in follow_up message */
+#define NEGATIVE_TIME_JUMP 0.0
 
 /**
  * @brief Provides the clock quality abstraction.

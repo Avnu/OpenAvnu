@@ -1013,6 +1013,18 @@ void PTPMessageFollowUp::processMessage( EtherPort *port )
 	if( correction > 0 )
 	  TIMESTAMP_ADD_NS( preciseOriginTimestamp, correction );
 	else TIMESTAMP_SUB_NS( preciseOriginTimestamp, -correction );
+
+	local_clock_adjustment =
+	  port->getClock()->
+	  calcMasterLocalClockRateDifference
+	  ( preciseOriginTimestamp, sync_arrival );
+
+	if( local_clock_adjustment == NEGATIVE_TIME_JUMP )
+	{
+		GPTP_LOG_VERBOSE("Received Follow Up but preciseOrigintimestamp indicates negative time jump");
+		goto done;
+	}
+
 	scalar_offset  = TIMESTAMP_TO_NS( sync_arrival );
 	scalar_offset -= TIMESTAMP_TO_NS( preciseOriginTimestamp );
 
@@ -1021,6 +1033,7 @@ void PTPMessageFollowUp::processMessage( EtherPort *port )
 		 delay);
 	GPTP_LOG_VERBOSE
 		("FollowUp Scalar = %lld", scalar_offset);
+
 
 	/* Otherwise synchronize clock with approximate time from Sync message */
 	uint32_t local_clock, nominal_clock_rate;
@@ -1041,11 +1054,6 @@ void PTPMessageFollowUp::processMessage( EtherPort *port )
 		 "Device Time: %u,%u",
 	     system_time.seconds_ls, system_time.nanoseconds,
 	     device_time.seconds_ls, device_time.nanoseconds);
-
-	local_clock_adjustment =
-	  port->getClock()->
-	  calcMasterLocalClockRateDifference
-	  ( preciseOriginTimestamp, sync_arrival );
 
 	/*Update information on local status structure.*/
 	scaledLastGmFreqChange = (int32_t)((1.0/local_clock_adjustment -1.0) * (1ULL << 41));
