@@ -498,8 +498,7 @@ public:
 	 * @param  frequency_offset Frequency offset
 	 * @return false
 	 */
-	virtual bool HWTimestamper_adjclockrate
-	( float frequency_offset ) const
+	virtual bool HWTimestamper_adjclockrate( float frequency_offset )
 	{ return false; }
 
 	/**
