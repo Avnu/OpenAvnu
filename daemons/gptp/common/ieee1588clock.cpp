@@ -436,7 +436,7 @@ void IEEE1588Clock::setMasterOffset
 			if (port->getTestMode()) {
 				GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
 			}
-			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
+			if( !port->adjustClockRate( _ppm )) {
 				GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 			}
 		}
