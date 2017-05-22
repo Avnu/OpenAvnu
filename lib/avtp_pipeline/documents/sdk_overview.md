@@ -4,7 +4,7 @@ EAVB SDK Overview {#sdk_overview}
 
 Introduction {#sdk_overview_introduction}
 ============
-Symphony Teleca Corporation (OPENAVB) has developed a software Protocol Stack to 
+Harman International Industries, Inc. has developed a software Protocol Stack to 
 support Ethernet Audio Video Bridging (EAVB or AVB) on a variety of platforms. 
 The software includes explicit Operating System and Hardware Abstraction Layers 
 (OSAL and HAL) to facilitate rapid and efficient porting of the generic stack to 
@@ -97,8 +97,6 @@ interface modules and mapping modules communicate.
 
 **SRP:** Stream Reservation Protocol
 
-**OPENAVB:** Symphony Teleca Corporation
-
 **Stream:** A series of AVTP data packets
 
 **Talker:** Takes an audio or video source and transmits it as an AVTP stream on 
@@ -135,7 +133,7 @@ Linux reference implementation.
 @image latex fig1.png "AVB Components" width=15cm
 
 As shown above the AVTP component of AVB is present in the application task.
-The libopenavbAVBStack library gets initialized and loaded via the APIs exposed and
+The AVB stack library gets initialized and loaded via the APIs exposed and
 documented here. This static library implements that AVTP functionality as well
 as controlling talker and listener initialization and life cycle. The PTP task
 initialization is handled during stack initialization.

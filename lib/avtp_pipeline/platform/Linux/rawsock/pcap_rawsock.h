@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -38,6 +39,7 @@ typedef struct {
 	base_rawsock_t base;
 	pcap_t* handle;
 	U8 txBuffer[1518];
+	struct pcap_pkthdr *rxHeader;
 } pcap_rawsock_t;
 
 void *pcapRawsockOpen(pcap_rawsock_t* rawsock, const char *ifname, bool rx_mode, bool tx_mode, U16 ethertype, U32 frame_size, U32 num_frames);
@@ -48,7 +50,11 @@ U8 *pcapRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len);
 
 bool pcapRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec);
 
+int pcapRawsockSend(void *pvRawsock);
+
 U8 *pcapRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, unsigned int *len);
+
+int pcapRawsockRxParseHdr(void* pvRawsock, U8* pBuffer, hdr_info_t* pInfo);
 
 bool pcapRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 addr[ETH_ALEN]);
 

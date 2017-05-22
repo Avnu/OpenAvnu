@@ -41,6 +41,7 @@
 #include <avbts_ostimer.hpp>
 #include <avbts_oslock.hpp>
 #include <avbts_osnet.hpp>
+#include <unordered_map>
 
 #include <math.h>
 
@@ -194,6 +195,9 @@ public:
 	}
 };
 
+class phy_delay_spec_t;
+typedef std::unordered_map<uint32_t, phy_delay_spec_t> phy_delay_map_t;
+
 /**
  * @brief Structure for initializing the port class
  */
@@ -205,7 +209,7 @@ typedef struct {
 	uint16_t index;
 
 	/* timestamper Hardware timestamper instance */
-	HWTimestamper * timestamper;
+	CommonTimestamper * timestamper;
 
 	/* net_label Network label */
 	InterfaceLabel *net_label;
@@ -248,6 +252,15 @@ typedef struct {
 
 	/* lock_factory OSLockFactory instance */
 	OSLockFactory * lock_factory;
+
+	/* phy delay */
+	phy_delay_map_t const *phy_delay;
+
+	/* sync receipt threshold */
+	unsigned int syncReceiptThreshold;
+
+	/* neighbor delay threshold */
+	int64_t neighborPropDelayThreshold;
 } PortInit_t;
 
 
@@ -273,7 +286,6 @@ typedef struct {
 	int32_t ieee8021AsPortStatTxAnnounce;
 } PortCounters_t;
 
-
 /**
  * @brief Port functionality common to all network media
  */
@@ -287,6 +299,8 @@ private:
 	   physical interface number that object represents */
 	uint16_t ifindex;
 
+	/* Link speed in kb/sec */
+	uint32_t link_speed;
 
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
@@ -296,7 +310,6 @@ private:
 	InterfaceLabel *net_label;
 
 	OSNetworkInterface *net_iface;
-	int phy_delay[4];
 
 	PortState port_state;
 	bool testMode;
@@ -336,30 +349,31 @@ private:
 	OSLock *announceIntervalTimerLock;
 
 protected:
-	static const unsigned int DEFAULT_SYNC_RECEIPT_THRESH = 5;
 	static const int64_t INVALID_LINKDELAY = 3600000000000;
 	static const int64_t ONE_WAY_DELAY_DEFAULT = INVALID_LINKDELAY;
-	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
 
 	OSThreadFactory const * const thread_factory;
 	OSTimerFactory const * const timer_factory;
 	OSLockFactory const * const lock_factory;
 	OSConditionFactory const * const condition_factory;
-	HWTimestamper * const _hw_timestamper;
+	CommonTimestamper * const _hw_timestamper;
 	IEEE1588Clock * const clock;
 	const bool isGM;
 
+	phy_delay_map_t const * const phy_delay;
+
 public:
+	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
+	static const unsigned int DEFAULT_SYNC_RECEIPT_THRESH = 5;
+
 	CommonPort( PortInit_t *portInit );
 	virtual ~CommonPort();
 
 	/**
 	 * @brief Global media dependent port initialization
-	 * @param [in] phy_delay array representing delays introduced by the
-	 * device PHY
 	 * @return true on success
 	 */
-	bool init_port( int phy_delay[4] );
+	bool init_port( void );
 
 	/**
 	 * @brief Media specific port initialization
@@ -570,22 +584,14 @@ public:
 	 * @brief  Gets the hardware timestamper version
 	 * @return HW timestamper version
 	 */
-	int getTimestampVersion() {
-		return _hw_timestamper->getVersion();
-	}
+	int getTimestampVersion();
 
 	/**
 	 * @brief  Adjusts the clock frequency.
 	 * @param  freq_offset Frequency offset
 	 * @return TRUE if adjusted. FALSE otherwise.
 	 */
-	bool _adjustClockRate( FrequencyRatio freq_offset ) {
-		if( _hw_timestamper ) {
-			return _hw_timestamper->HWTimestamper_adjclockrate
-				((float) freq_offset );
-		}
-		return false;
-	}
+	bool _adjustClockRate( FrequencyRatio freq_offset );
 
 	/**
 	 * @brief  Adjusts the clock frequency.
@@ -597,17 +603,18 @@ public:
 	}
 
 	/**
+	 * @brief  Adjusts the clock phase.
+	 * @param  phase_adjust phase offset in ns
+	 * @return TRUE if adjusted. FALSE otherwise.
+	 */
+	bool adjustClockPhase( int64_t phase_adjust );
+
+	/**
 	 * @brief  Gets extended error message from hardware timestamper
 	 * @param  msg [out] Extended error message
 	 * @return void
 	 */
-	void getExtendedError(char *msg) {
-		if (_hw_timestamper) {
-			_hw_timestamper->HWTimestamper_get_extderror(msg);
-		} else {
-			*msg = '\0';
-		}
-	}
+	void getExtendedError(char *msg);
 
 	/**
 	 * @brief  Increment IEEE Port counter:
@@ -983,17 +990,21 @@ public:
 	/**
 	 * @brief Receive frame
 	 */
-	net_result recv( LinkLayerAddress *addr, uint8_t *payload,
-			 size_t &length, struct phy_delay *delay )
+	net_result recv
+	( LinkLayerAddress *addr, uint8_t *payload, size_t &length,
+	  uint32_t &link_speed )
 	{
-		return net_iface->nrecv( addr, payload, length, delay );
+		net_result result = net_iface->nrecv( addr, payload, length );
+		link_speed = this->link_speed;
+		return result;
 	}
 
 	/**
 	 * @brief Send frame
 	 */
-	net_result send( LinkLayerAddress *addr, uint16_t etherType,
-			 uint8_t *payload, size_t length, bool timestamp )
+	net_result send
+	( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload,
+	  size_t length, bool timestamp )
 	{
 		return net_iface->send
 		( addr, etherType, payload, length, timestamp );
@@ -1339,6 +1350,106 @@ public:
 	virtual void sendGeneralPort
 	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
 	 PortIdentity * destIdentity) = 0;
+
+	/**
+	 * @brief Sets link speed
+	 */
+	void setLinkSpeed( uint32_t link_speed )
+	{
+		this->link_speed = link_speed;
+	}
+
+	/**
+	 * @brief Returns link speed
+	 */
+	uint32_t getLinkSpeed( void )
+	{
+		return link_speed;
+	}
+
+	/**
+	 * @brief Returns TX PHY delay
+	 */
+	Timestamp getTxPhyDelay( uint32_t link_speed ) const;
+
+	/**
+	 * @brief Returns RX PHY delay
+	 */
+	Timestamp getRxPhyDelay( uint32_t link_speed ) const;
+};
+
+/**
+ * @brief Specifies a RX/TX PHY compensation pair
+ */
+class phy_delay_spec_t
+{
+private:
+	uint16_t tx_delay;
+	uint16_t rx_delay;
+public:
+	/**
+	 * Constructor setting PHY compensation
+	 */
+	phy_delay_spec_t(
+		uint16_t tx_delay,
+		uint16_t rx_delay )
+	{
+		this->tx_delay = tx_delay;
+		this->rx_delay = rx_delay;
+	}
+
+	/**
+	 * Default constructor sets 0 PHY compensation
+	 */
+	phy_delay_spec_t()
+	{
+		phy_delay_spec_t( 0, 0 );
+	}
+
+	/**
+	 * @brief sets PHY compensation
+	 */
+	void set_delay(
+		uint16_t tx_delay,
+		uint16_t rx_delay )
+	{
+		this->tx_delay = tx_delay;
+		this->rx_delay = rx_delay;
+	}
+
+	/**
+	 * @brief sets RX PHY compensation
+	 */
+	void set_tx_delay(
+		uint16_t tx_delay )
+	{
+		this->tx_delay = tx_delay;
+	}
+
+	/**
+	 * @brief sets TX PHY compensation
+	 */
+	void set_rx_delay(
+		uint16_t rx_delay )
+	{
+		this->rx_delay = rx_delay;
+	}
+
+	/**
+	 * @brief gets TX PHY compensation
+	 */
+	uint16_t get_tx_delay() const
+	{
+		return tx_delay;
+	}
+
+	/**
+	 * @brief gets RX PHY compensation
+	 */
+	uint16_t get_rx_delay() const
+	{
+		return rx_delay;
+	}
 };
 
 #endif/*COMMON_PORT_HPP*/

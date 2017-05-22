@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -73,6 +74,12 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 		return;
 	}
 
+	// If not a listener, ignore this callback.
+	if (pTLState->cfg.role != AVB_ROLE_LISTENER) {
+		AVB_LOG_DEBUG("Ignoring Listener callback");
+		return;
+	}
+
 	AVB_LOGF_DEBUG("%s streaming=%d, tlkrDecl=%d", __FUNCTION__, pTLState->bStreaming, tlkrDecl);
 
 	if (!pTLState->bStreaming
@@ -82,7 +89,11 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 		bool rc = openavbEptClntAttachStream(pTLState->endpointHandle, streamID, openavbSrp_LDSt_Ready);
 		if (rc) {
 			// Save data provided by endpoint/SRP
-			strncpy(pListenerData->ifname, ifname, IFNAMSIZ);
+			if (!pCfg->ifname[0]) {
+				strncpy(pListenerData->ifname, ifname, IFNAMSIZ);
+			} else {
+				strncpy(pListenerData->ifname, pCfg->ifname, IFNAMSIZ);
+			}
 			memcpy(&pListenerData->streamID, streamID, sizeof(AVBStreamID_t));
 			if (memcmp(destAddr, emptyMAC, ETH_ALEN) != 0) {
 				memcpy(&pListenerData->destAddr, destAddr, ETH_ALEN);
@@ -97,10 +108,8 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 				}
 				else {
 					memcpy(&pListenerData->destAddr, &pCfg->dest_addr.mac->ether_addr_octet, ETH_ALEN);
-					AVB_LOGF_INFO("  Listener configured dest_addr is %02x:%02x:%02x:%02x:%02x:%02x",
-						pListenerData->destAddr[0], pListenerData->destAddr[1],
-						pListenerData->destAddr[2], pListenerData->destAddr[3],
-						pListenerData->destAddr[4], pListenerData->destAddr[5]);
+					AVB_LOGF_INFO("  Listener configured dest_addr is " ETH_FORMAT,
+						ETH_OCTETS(pListenerData->destAddr));
 				}
 				if ((!pCfg->max_interval_frames) || (!pCfg->max_frame_size)) {
 					AVB_LOG_ERROR("  Configuration Error - both max_interval_frames and max_frame_size required in listener config file");

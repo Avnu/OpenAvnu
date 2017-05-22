@@ -158,7 +158,7 @@ struct rx_ring {
 struct adapter {
 	struct e1000_hw hw;
 
-	sem_t *memlock;
+	pthread_mutex_t *memlock;
 
 	int ldev; /* file descriptor to igb */
 
@@ -185,6 +185,7 @@ struct adapter {
 	struct nettime_compare compare;
 	struct hwtstamp_ctrl hwtstamp;
 #endif
+	int active;
 };
 
 /*

@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -29,7 +30,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /*
-* MODULE SUMMARY : Reads the .ini file for an enpoint and
+* MODULE SUMMARY : Reads the .ini file for an endpoint
 */
 
 #include <unistd.h>
@@ -155,6 +156,25 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 					pCfg->bypassAsCapableCheck = TRUE;
 				else
 					pCfg->bypassAsCapableCheck = FALSE;
+			}
+		}
+		else {
+			// unmatched item, fail
+			AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
+			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+			return 0;
+		}
+	}
+	else if (MATCH(section, "maap"))
+	{
+		if (MATCH(name, "port")) {
+			errno = 0;
+			unsigned temp = strtoul(value, &pEnd, 10);
+			if (*pEnd == '\0' && errno == 0) {
+				if (temp >= 1 && temp <= 65535) {
+					pCfg->maapPort = temp;
+					valOK = TRUE;
+				}
 			}
 		}
 		else {

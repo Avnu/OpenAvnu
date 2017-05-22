@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -53,8 +54,9 @@ typedef struct {
 	unsigned	nsr_kbit;
 	unsigned	mtu;
 	unsigned	fqtss_mode;
-	bool        noSrp;
-	bool        bypassAsCapableCheck;
+	bool		noSrp;
+	unsigned	maapPort;
+	bool		bypassAsCapableCheck;
 } openavb_endpoint_cfg_t;
 
 int openavbReadConfig(const char *inifile, openavb_endpoint_cfg_t *pCfg);

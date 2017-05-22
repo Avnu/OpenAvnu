@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -41,6 +42,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_avtp.h"
 #include "openavb_talker.h"
 #include "openavb_time.h"
+#include "openavb_avdecc_msg.h"
 
 // DEBUG Uncomment to turn on logging for just this module.
 //#define AVB_LOG_ON	1
@@ -71,14 +73,26 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 		return;
 	}
 
+	// If not a talker, ignore this callback.
+	if (pTLState->cfg.role != AVB_ROLE_TALKER) {
+		AVB_LOG_DEBUG("Ignoring Talker callback");
+		return;
+	}
+
 	AVB_LOGF_DEBUG("%s streaming=%d, lsnrDecl=%d", __FUNCTION__, pTLState->bStreaming, lsnrDecl);
+
+	openavb_tl_cfg_t *pCfg = &pTLState->cfg;
 
 	if (!pTLState->bStreaming) {
 		if (lsnrDecl == openavbSrp_LDSt_Ready
 			|| lsnrDecl == openavbSrp_LDSt_Ready_Failed) {
 
 			// Save the data provided by endpoint/SRP
-			strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+			if (!pCfg->ifname[0]) {
+				strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+			} else {
+				strncpy(pTalkerData->ifname, pCfg->ifname, IFNAMSIZ);
+			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
 			pTalkerData->classRate = classRate;
@@ -92,7 +106,11 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 		}
 		else if (lsnrDecl == openavbSrp_LDSt_Stream_Info) {
 			// Stream information is available does NOT mean listener is ready. Stream not started yet.
-			strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+			if (!pCfg->ifname[0]) {
+				strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+			} else {
+				strncpy(pTalkerData->ifname, pCfg->ifname, IFNAMSIZ);
+			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
 			pTalkerData->classRate = classRate;
@@ -110,6 +128,14 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 		}
 	}
 
+	// Let the AVDECC Msg server know our current stream ID, in case it was updated by MAAP.
+	if (pTLState->avdeccMsgHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
+		if (!openavbAvdeccMsgClntTalkerStreamID(pTLState->avdeccMsgHandle,
+				pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
+				pTalkerData->destAddr, pTalkerData->vlanID)) {
+			AVB_LOG_ERROR("openavbAvdeccMsgClntTalkerStreamID() failed");
+		}
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }

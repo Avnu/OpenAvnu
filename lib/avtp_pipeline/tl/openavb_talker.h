@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -60,6 +61,7 @@ typedef struct {
 	U64 			intervalNS;
 	U64 			nextReportNS;
 	U64				nextSecondNS;
+	unsigned long	lastReportFrames;
 	talker_stats_t	stats;
 } talker_data_t;
 

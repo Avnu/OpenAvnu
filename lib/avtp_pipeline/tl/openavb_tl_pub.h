@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -75,23 +76,38 @@ typedef enum {
 /// Maximum size of interface name
 #define IFNAMSIZE 16
 
-/// Indicatates that VLAN ID is not set in configuration
+/// Maximum size of the friendly name
+#define FRIENDLY_NAME_SIZE 64
+
+/// Indicates that VLAN ID is not set in configuration
 #define VLAN_NULL UINT16_MAX
+
+/// Initial talker/listener state
+typedef enum {
+	/// Unspecified
+	TL_INIT_STATE_UNSPECIFIED,
+	/// Stopped
+	TL_INIT_STATE_STOPPED,
+	/// Running
+	TL_INIT_STATE_RUNNING,
+} tl_init_state_t;
 
 /// Structure containing configuration of the host
 typedef struct {
 	/// Role of the host
 	avb_role_t role;
+	/// Initial Talker/Listener state
+	tl_init_state_t initial_state;
 	/// Structure with callbacks to mapping
 	openavb_map_cb_t map_cb;
-	/// Structure with callbacks to inteface
+	/// Structure with callbacks to interface
 	openavb_intf_cb_t intf_cb;
 	/// MAC address of destination - multicast (talker only if SRP is enabled)
 	cfg_mac_t dest_addr;
 	/// MAC address of the source
 	cfg_mac_t stream_addr;
 	/// Stream UID (has to be unique)
-	S32 stream_uid;
+	U16 stream_uid;
 	/// Maximum number of packets sent during one interval (talker only)
 	U32 max_interval_frames;
 	/// Maximum size of the frame
@@ -111,15 +127,17 @@ typedef struct {
 	U32 batch_factor;
 	/// Statistics reporting frequency
 	U32 report_seconds;
+	/// Statistics reporting frequency in frames
+	U32 report_frames;
 	/// Start paused
 	bool start_paused;
-	/// Class in which host will operatea ::SRClassIdx_t (talker only)
+	/// Class in which host will operate ::SRClassIdx_t (talker only)
 	U8 sr_class;
 	/// Rank of the stream #SR_RANK_REGULAR or #SR_RANK_EMERGENCY (talker only)
 	U8 sr_rank;
 	/// Number of raw TX buffers that should be used (talker only)
 	U32 raw_tx_buffers;
-	/// Number of raw rx buffers (listener only)
+	/// Number of raw RX buffers (listener only)
 	U32 raw_rx_buffers;
 	/// Is the interface module blocking in the TX CB.
 	bool tx_blocking_in_intf;
@@ -131,10 +149,14 @@ typedef struct {
 	bool rx_signal_mode;
 	/// Enable fixed timestamping in interface
 	U32 fixed_timestamp;
+	/// Wait for next observation interval by spinning rather than sleeping
+	bool spin_wait;
 	/// Bit mask used for CPU pinning
 	U32 thread_affinity;
 	/// Real time priority of thread.
 	U32 thread_rt_priority;
+	/// Friendly name for this configuration
+	char friendly_name[FRIENDLY_NAME_SIZE];
 
 	/// Initialization function in mapper
 	openavb_map_initialize_fn_t pMapInitFn;
@@ -319,6 +341,13 @@ bool openavbTLIsStreaming(tl_handle_t handle);
  * \return The current role
  */
 avb_role_t openavbTLGetRole(tl_handle_t handle);
+
+/** Return the specified initial state of the talker or listener.
+ *
+ * \param handle The handle return from openavbTLOpen()
+ * \return The initial state requested
+ */
+tl_init_state_t openavbTLGetInitialState(tl_handle_t handle);
 
 /** Allows pulling current stat counters for a running stream.
  *

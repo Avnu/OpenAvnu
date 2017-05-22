@@ -40,6 +40,7 @@
 #include <avbts_oslock.hpp>
 #include <avbts_osnet.hpp>
 #include <avbts_oscondition.hpp>
+#include <ether_tstamper.hpp>
 
 #include <gptp_log.hpp>
 
@@ -208,35 +209,53 @@ void EtherPort::startSyncRateIntervalTimer()
 	}
 }
 
+void EtherPort::processMessage
+( char *buf, int length, LinkLayerAddress *remote, uint32_t link_speed )
+{
+	GPTP_LOG_VERBOSE("Processing network buffer");
+
+	PTPMessageCommon *msg =
+		buildPTPMessage( buf, (int)length, remote, this );
+
+	if (msg == NULL)
+	{
+		GPTP_LOG_ERROR("Discarding invalid message");
+		return;
+	}
+	GPTP_LOG_VERBOSE("Processing message");
+
+	if( msg->isEvent() )
+	{
+		Timestamp rx_timestamp = msg->getTimestamp();
+		Timestamp phy_compensation = getRxPhyDelay( link_speed );
+		GPTP_LOG_DEBUG( "RX PHY compensation: %s sec",
+			 phy_compensation.toString().c_str() );
+		phy_compensation._version = rx_timestamp._version;
+		rx_timestamp = rx_timestamp - phy_compensation;
+		msg->setTimestamp( rx_timestamp );
+	}
+
+	msg->processMessage(this);
+	if (msg->garbage())
+		delete msg;
+}
+
 void *EtherPort::openPort( EtherPort *port )
 {
 	port_ready_condition->signal();
-	struct phy_delay get_delay = { 0, 0, 0, 0 };
-	if(port->_hw_timestamper)
-		port->_hw_timestamper->get_phy_delay(&get_delay);
 
 	while (1) {
-		PTPMessageCommon *msg;
 		uint8_t buf[128];
 		LinkLayerAddress remote;
 		net_result rrecv;
 		size_t length = sizeof(buf);
+		uint32_t link_speed;
 
-		if ((rrecv = recv(&remote, buf, length,&get_delay))
-		    == net_succeed)
+		if ( ( rrecv = recv( &remote, buf, length, link_speed ))
+		     == net_succeed )
 		{
-			GPTP_LOG_VERBOSE("Processing network buffer");
-			msg = buildPTPMessage((char *)buf, (int)length, &remote,
-					    this);
-			if (msg != NULL) {
-				GPTP_LOG_VERBOSE("Processing message");
-				msg->processMessage(this);
-				if (msg->garbage()) {
-					delete msg;
-				}
-			} else {
-				GPTP_LOG_ERROR("Discarding invalid message");
-			}
+			processMessage
+				((char *)buf, (int)length, &remote, link_speed );
 		} else if (rrecv == net_fatal) {
 			GPTP_LOG_ERROR("read from network interface failed");
 			this->processEvent(FAULT_DETECTED);
@@ -271,13 +290,18 @@ net_result EtherPort::port_send
 }
 
 void EtherPort::sendEventPort
-( uint16_t etherType, uint8_t * buf, int size, MulticastType mcast_type,
-  PortIdentity * destIdentity)
+( uint16_t etherType, uint8_t *buf, int size, MulticastType mcast_type,
+  PortIdentity *destIdentity, uint32_t *link_speed )
 {
-	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, true);
-	if (rtx != net_succeed) {
+	net_result rtx = port_send
+		( etherType, buf, size, mcast_type, destIdentity, true );
+	if( rtx != net_succeed )
+	{
 		GPTP_LOG_ERROR("sendEventPort(): failure");
+		return;
 	}
+
+	*link_speed = this->getLinkSpeed();
 
 	return;
 }
@@ -471,12 +495,7 @@ bool EtherPort::_processEvent( Event e )
 	case PDELAY_INTERVAL_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("PDELAY_INTERVAL_TIMEOUT_EXPIRES occured");
 		{
-			int ts_good;
 			Timestamp req_timestamp;
-			int iter = TX_TIMEOUT_ITER;
-			long req = TX_TIMEOUT_BASE;
-			unsigned req_timestamp_counter_value;
-			long long wait_time = 0;
 
 			PTPMessagePathDelayReq *pdelay_req =
 			    new PTPMessagePathDelayReq(this);
@@ -498,47 +517,7 @@ bool EtherPort::_processEvent( Event e )
 			getTxLock();
 			pdelay_req->sendPort(this, NULL);
 			GPTP_LOG_DEBUG("*** Sent PDelay Request message");
-
-			OSTimer *timer = timer_factory->createTimer();
-
-			ts_good = getTxTimestamp
-				(pdelay_req, req_timestamp, req_timestamp_counter_value, false);
-			while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
-				timer->sleep(req);
-				wait_time += req;
-				if (ts_good != GPTP_EC_EAGAIN && iter < 1)
-					GPTP_LOG_ERROR(
-						 "Error (TX) timestamping PDelay request "
-						 "(Retrying-%d), error=%d", iter, ts_good);
-				ts_good =
-				    getTxTimestamp
-					(pdelay_req, req_timestamp,
-					 req_timestamp_counter_value, iter == 0);
-				req *= 2;
-			}
-			delete timer;
 			putTxLock();
-
-			if (ts_good == GPTP_EC_SUCCESS) {
-				pdelay_req->setTimestamp(req_timestamp);
-				GPTP_LOG_DEBUG(
-					"PDelay Request message, Timestamp %u (sec) %u (ns), seqID %u",
-					req_timestamp.seconds_ls, req_timestamp.nanoseconds,
-					pdelay_req->getSequenceId());
-			} else {
-			  Timestamp failed = INVALID_TIMESTAMP;
-			  pdelay_req->setTimestamp(failed);
-			  GPTP_LOG_ERROR( "Invalid TX" );
-			}
-
-			if (ts_good != GPTP_EC_SUCCESS) {
-				char msg
-				    [HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
-				getExtendedError(msg);
-				GPTP_LOG_ERROR(
-					"Error (TX) timestamping PDelay request, error=%d\t%s",
-					ts_good, msg);
-			}
 
 			{
 				long long timeout;
@@ -546,20 +525,19 @@ bool EtherPort::_processEvent( Event e )
 
 				timeout = PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER *
 					((long long)
-					 (pow((double)2,getPDelayInterval())*1000000000.0)) -
-					wait_time*1000;
+					 (pow((double)2,getPDelayInterval())*1000000000.0));
+
 				timeout = timeout > EVENT_TIMER_GRANULARITY ?
 					timeout : EVENT_TIMER_GRANULARITY;
 				clock->addEventTimerLocked
 					(this, PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES, timeout );
 				GPTP_LOG_DEBUG("Schedule PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES, "
-					"PDelay interval %d, wait_time %lld, timeout %lld",
-					getPDelayInterval(), wait_time, timeout);
+					"PDelay interval %d, timeout %lld",
+					getPDelayInterval(), timeout);
 
 				interval =
 					((long long)
-					 (pow((double)2,getPDelayInterval())*1000000000.0)) -
-					wait_time*1000;
+					 (pow((double)2,getPDelayInterval())*1000000000.0));
 				interval = interval > EVENT_TIMER_GRANULARITY ?
 					interval : EVENT_TIMER_GRANULARITY;
 				startPDelayIntervalTimer(interval);
@@ -574,10 +552,11 @@ bool EtherPort::_processEvent( Event e )
 			// Send a sync message and then a followup to broadcast
 			PTPMessageSync *sync = new PTPMessageSync(this);
 			PortIdentity dest_id;
+			bool tx_succeed;
 			getPortIdentity(dest_id);
 			sync->setPortIdentity(&dest_id);
 			getTxLock();
-			sync->sendPort(this, NULL);
+			tx_succeed = sync->sendPort(this, NULL);
 			GPTP_LOG_DEBUG("Sent SYNC message");
 
 			if ( automotive_profile &&
@@ -598,44 +577,10 @@ bool EtherPort::_processEvent( Event e )
 					}
 				}
 			}
-
-			int ts_good;
-			Timestamp sync_timestamp;
-			unsigned sync_timestamp_counter_value;
-			int iter = TX_TIMEOUT_ITER;
-			long req = TX_TIMEOUT_BASE;
-
-			OSTimer *timer = timer_factory->createTimer();
-
-			ts_good = getTxTimestamp( sync, sync_timestamp,
-						  sync_timestamp_counter_value,
-						  false );
-			while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
-				timer->sleep(req);
-
-				if (ts_good != GPTP_EC_EAGAIN && iter < 1)
-					GPTP_LOG_ERROR(
-						"Error (TX) timestamping Sync (Retrying), "
-						"error=%d", ts_good);
-				ts_good =
-					getTxTimestamp
-					(sync, sync_timestamp,
-					 sync_timestamp_counter_value, iter == 0);
-				req *= 2;
-			}
-			delete timer;
 			putTxLock();
 
-			if (ts_good != GPTP_EC_SUCCESS) {
-				char msg [HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
-				getExtendedError(msg);
-				GPTP_LOG_ERROR(
-					"Error (TX) timestamping Sync, error="
-					"%d\n%s",
-					ts_good, msg );
-			}
-
-			if (ts_good == GPTP_EC_SUCCESS) {
+			if ( tx_succeed )
+			{
 				GPTP_LOG_VERBOSE("Successful Sync timestamp");
 				GPTP_LOG_VERBOSE("Seconds: %u",
 						 sync_timestamp.seconds_ls);
@@ -647,8 +592,10 @@ bool EtherPort::_processEvent( Event e )
 			}
 
 			PTPMessageFollowUp *follow_up;
-			if (ts_good == GPTP_EC_SUCCESS) {
-
+			if ( tx_succeed )
+			{
+				Timestamp sync_timestamp =
+					sync->getTimestamp();
 				follow_up =
 					new PTPMessageFollowUp(this);
 				PortIdentity dest_id;
@@ -657,7 +604,8 @@ bool EtherPort::_processEvent( Event e )
 				follow_up->setClockSourceTime(getClock()->getFUPInfo());
 				follow_up->setPortIdentity(&dest_id);
 				follow_up->setSequenceId(sync->getSequenceId());
-				follow_up->setPreciseOriginTimestamp(sync_timestamp);
+				follow_up->setPreciseOriginTimestamp
+					(sync_timestamp);
 				follow_up->sendPort(this, NULL);
 				delete follow_up;
 			} else {
@@ -842,10 +790,13 @@ int EtherPort::getTxTimestamp
 (PortIdentity *sourcePortIdentity, PTPMessageId messageId,
  Timestamp &timestamp, unsigned &counter_value, bool last )
 {
-	if (_hw_timestamper) {
-		return _hw_timestamper->HWTimestamper_txtimestamp
-			(sourcePortIdentity, messageId, timestamp, counter_value,
-		     last);
+	EtherTimestamper *timestamper =
+		dynamic_cast<EtherTimestamper *>(_hw_timestamper);
+	if (timestamper)
+	{
+		return timestamper->HWTimestamper_txtimestamp
+			( sourcePortIdentity, messageId, timestamp,
+			  counter_value, last );
 	}
 	timestamp = clock->getSystemTime();
 	return 0;
@@ -855,8 +806,11 @@ int EtherPort::getRxTimestamp
 ( PortIdentity * sourcePortIdentity, PTPMessageId messageId,
   Timestamp &timestamp, unsigned &counter_value, bool last )
 {
-	if (_hw_timestamper) {
-		return _hw_timestamper->HWTimestamper_rxtimestamp
+	EtherTimestamper *timestamper =
+		dynamic_cast<EtherTimestamper *>(_hw_timestamper);
+	if (timestamper)
+	{
+		return timestamper->HWTimestamper_rxtimestamp
 		    (sourcePortIdentity, messageId, timestamp, counter_value,
 		     last);
 	}

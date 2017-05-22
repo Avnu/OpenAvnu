@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -230,8 +231,9 @@ bool openavbEptSrvrRegisterStream(int h,
 	ps->latency = latency;
 	ps->fwmark = INVALID_FWMARK;
 
-	if (memcmp(ps->destAddr, destAddr, ETH_ALEN) == 0) {
-		// no client-supplied address, use MAAP
+	// If MAAP is available, or no client-supplied address, allocate an address.
+	if (openavbMaapDaemonAvailable() ||
+			memcmp(ps->destAddr, destAddr, ETH_ALEN) == 0) {
 		struct ether_addr addr;
 		ps->hndMaap = openavbMaapAllocate(1, &addr);
 		if (ps->hndMaap) {

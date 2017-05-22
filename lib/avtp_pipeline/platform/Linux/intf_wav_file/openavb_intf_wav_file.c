@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -102,6 +103,12 @@ typedef struct {
 
 	// intf_nv_number_of_data_bytes
 	U32 numberOfDataBytes;
+
+	//total number of data bytes stored in file so far
+	U32 numOfStoredDataBytes;
+
+	//set when writing to file is finished
+	bool fileReady;
 
 } pvt_data_t;
 
@@ -580,17 +587,15 @@ bool openavbIntfWavFileRxCB(media_q_t *pMediaQ)
 
         bool moreData = TRUE;
         size_t written;
-        static U32 numOfStoredDataBytes = 0;       //total number of data bytes stored in file so far
-        static bool fileReady = FALSE;             //set when writing to file is finished
         bool expectedNumberOfDataReceived = FALSE; //set when expected number of data bytes has been received
 
         while (moreData) {
             media_q_item_t *pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
-            if ((pMediaQItem) && (fileReady == FALSE)) {
+            if ((pMediaQItem) && (pPvtData->fileReady == FALSE)) {
                 if (pPvtData->pFile && pMediaQItem->dataLen > 0) {
                     if (expectedNumberOfDataReceived == FALSE) {
-                        if ((numOfStoredDataBytes + pMediaQItem->dataLen ) > pPvtData->numberOfDataBytes) {
-                            pMediaQItem->dataLen = pPvtData->numberOfDataBytes - numOfStoredDataBytes;
+                        if ((pPvtData->numOfStoredDataBytes + pMediaQItem->dataLen ) > pPvtData->numberOfDataBytes) {
+                            pMediaQItem->dataLen = pPvtData->numberOfDataBytes - pPvtData->numOfStoredDataBytes;
                             expectedNumberOfDataReceived = TRUE;
                         }
                     }
@@ -606,9 +611,9 @@ bool openavbIntfWavFileRxCB(media_q_t *pMediaQ)
                     }
                     else {
                         pMediaQItem->dataLen = 0;
-                        numOfStoredDataBytes += written;
+                        pPvtData->numOfStoredDataBytes += written;
                         if (expectedNumberOfDataReceived == TRUE) {
-                            fileReady = TRUE;
+                        	pPvtData->fileReady = TRUE;
                             AVB_LOG_INFO("Wav file ready.");
                         }
                     }
@@ -691,6 +696,8 @@ extern DLL_EXPORT bool openavbIntfWavFileInitialize(media_q_t *pMediaQ, openavb_
 		pPvtData->audioEndian = AVB_AUDIO_ENDIAN_LITTLE;		//wave file default
 
 		pPvtData->intervalCounter = 0;
+		pPvtData->numOfStoredDataBytes = 0;
+		pPvtData->fileReady = FALSE;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);

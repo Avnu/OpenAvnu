@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -270,8 +271,8 @@ void openavbEptClntNotifyLstnrOfSrpCb(int                 h,
 
 
 // A talker can withdraw its stream registration at any time;
-// a listener can withdraw its stream attachement at any time;
-// in ether case, endpoint communication is from client to server
+// a listener can withdraw its stream attachment at any time;
+// in either case, endpoint communication is from client to server
 bool openavbEptClntStopStream(int h, AVBStreamID_t *streamID);
 bool openavbEptSrvrStopStream(int h, AVBStreamID_t *streamID);
 

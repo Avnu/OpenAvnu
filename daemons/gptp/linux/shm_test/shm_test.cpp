@@ -97,12 +97,36 @@ int main(int argc, char *argv[])
     fprintf(stdout, "ml freq offset %Lf\n", ptpData->ml_freqoffset);
     fprintf(stdout, "ls phoffset %ld\n", ptpData->ls_phoffset);
     fprintf(stdout, "ls freq offset %Lf\n", ptpData->ls_freqoffset);
-    fprintf(stdout, "local time %llu\n", ptpData->local_time);
+    fprintf(stdout, "local time %llu\n\n", (unsigned long long) ptpData->local_time);
+
+    fprintf(stdout, "gptp grandmaster id %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+            (unsigned int) ptpData->gptp_grandmaster_id[0], (unsigned int) ptpData->gptp_grandmaster_id[1],
+            (unsigned int) ptpData->gptp_grandmaster_id[2], (unsigned int) ptpData->gptp_grandmaster_id[3],
+            (unsigned int) ptpData->gptp_grandmaster_id[4], (unsigned int) ptpData->gptp_grandmaster_id[5],
+            (unsigned int) ptpData->gptp_grandmaster_id[6], (unsigned int) ptpData->gptp_grandmaster_id[7]);
+    fprintf(stdout, "gptp domain number %u\n\n", (unsigned int) ptpData->gptp_domain_number);
+
+    fprintf(stdout, "clock identity %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+            (unsigned int) ptpData->clock_identity[0], (unsigned int) ptpData->clock_identity[1],
+            (unsigned int) ptpData->clock_identity[2], (unsigned int) ptpData->clock_identity[3],
+            (unsigned int) ptpData->clock_identity[4], (unsigned int) ptpData->clock_identity[5],
+            (unsigned int) ptpData->clock_identity[6], (unsigned int) ptpData->clock_identity[7]);
+    fprintf(stdout, "priority1 %u\n", (unsigned int) ptpData->priority1);
+    fprintf(stdout, "clock_class %u\n", (unsigned int) ptpData->clock_class);
+    fprintf(stdout, "offset_scaled_log_variance %d\n", (int) ptpData->offset_scaled_log_variance);
+    fprintf(stdout, "clock_accuracy %u\n", (unsigned int) ptpData->clock_accuracy);
+    fprintf(stdout, "priority2 %u\n", (unsigned int) ptpData->priority2);
+    fprintf(stdout, "domain_number %u\n", (unsigned int) ptpData->domain_number);
+    fprintf(stdout, "log_sync_interval %d\n", (int) ptpData->log_sync_interval);
+    fprintf(stdout, "log_announce_interval %d\n", (int) ptpData->log_announce_interval);
+    fprintf(stdout, "log_pdelay_interval %d\n", (int) ptpData->log_pdelay_interval);
+    fprintf(stdout, "port_number %u\n\n", (unsigned int) ptpData->port_number);
+
     fprintf(stdout, "sync count %u\n", ptpData->sync_count);
     fprintf(stdout, "pdelay count %u\n", ptpData->pdelay_count);
     fprintf(stdout, "asCapable %s\n", ptpData->asCapable ? "True" : "False");
     fprintf(stdout, "Port State %d\n", (int)ptpData->port_state);
-    fprintf(stdout, "process_id %d\n", (int)ptpData->process_id);
+    fprintf(stdout, "process_id %d\n\n", (int)ptpData->process_id);
 
     return 0;
 }
