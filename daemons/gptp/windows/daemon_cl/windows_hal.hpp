@@ -46,6 +46,7 @@
 #include "avbts_osthread.hpp"
 #include "packet.hpp"
 #include "ieee1588.hpp"
+#include "ether_tstamper.hpp"
 #include "iphlpapi.h"
 #include "windows_ipc.hpp"
 #include "tsc.hpp"
@@ -90,7 +91,8 @@ public:
 	 * @param  delay [in] Specifications for PHY input and output delays in nanoseconds
 	 * @return net_result structure
 	 */
-	virtual net_result nrecv(LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay) {
+	virtual net_result nrecv( LinkLayerAddress *addr, uint8_t *payload, size_t &length )
+	{
 		packet_addr_t dest;
 		packet_error_t pferror = recvFrame( handle, &dest, payload, length );
 		if( pferror != PACKET_NO_ERROR && pferror != PACKET_RECVTIMEOUT_ERROR ) return net_fatal;
@@ -146,7 +148,7 @@ public:
 	 * @param  timestamper [in] HWTimestamper instance
 	 * @return TRUE success; FALSE error
 	 */
-	virtual bool createInterface( OSNetworkInterface **net_iface, InterfaceLabel *label, HWTimestamper *timestamper ) {
+	virtual bool createInterface( OSNetworkInterface **net_iface, InterfaceLabel *label, CommonTimestamper *timestamper ) {
 		WindowsPCAPNetworkInterface *net_iface_l = new WindowsPCAPNetworkInterface();
 		LinkLayerAddress *addr = dynamic_cast<LinkLayerAddress *>(label);
 		if( addr == NULL ) goto error_nofree;
@@ -603,6 +605,9 @@ typedef struct
 	char *device_desc;
 } DeviceClockRateMapping;
 
+/**
+* @brief Maps network device type to device clock rate
+*/
 static DeviceClockRateMapping DeviceClockRateMap[] =
 {
 	{ 1000000000, I217_DESC	},
@@ -610,24 +615,10 @@ static DeviceClockRateMapping DeviceClockRateMap[] =
 	{ 0, NULL },
 };
 
-typedef struct
-{
-	struct phy_delay delay;
-	char *device_desc;
-} DevicePhyDelayMapping;
-
-static DevicePhyDelayMapping DevicePhyDelayMap[] =
-{
-	{{ -1, -1, 6950, 8050, },	I217_DESC	},
-	{{ -1, -1, 6700, 7750, },	I219_DESC	},
-	{{ -1, -1, -1, -1 }, NULL },
-};
-
-
 /**
  * @brief Windows HWTimestamper implementation
  */
-class WindowsTimestamper : public HWTimestamper {
+class WindowsTimestamper : public EtherTimestamper {
 private:
     // No idea whether the underlying implementation is thread safe
 	HANDLE miniport;
@@ -723,10 +714,6 @@ public:
 		DWORD returned = 0;
 		uint64_t tx_r,tx_s;
 		DWORD result;
-		struct phy_delay delay_val;
-
-		get_phy_delay(&delay_val);//gets the phy delay
-		Timestamp latency(delay_val.gb_tx_phy_delay, 0, 0);
 
 		while(( result = readOID( OID_INTEL_GET_TXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
@@ -738,7 +725,7 @@ public:
 		if( returned != sizeof(buf_tmp) ) return GPTP_EC_EAGAIN;
 		tx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		tx_s = scaleNativeClockToNanoseconds( tx_r );
-		timestamp = nanoseconds64ToTimestamp( tx_s ) + latency;
+		timestamp = nanoseconds64ToTimestamp( tx_s );
 		timestamp._version = version;
 
 		return GPTP_EC_SUCCESS;
@@ -760,10 +747,6 @@ public:
 		uint64_t rx_r,rx_s;
 		DWORD result;
 		uint16_t packet_sequence_id;
-		struct phy_delay delay_val;
-
-		get_phy_delay(&delay_val);//gets the phy delay
-		Timestamp latency(delay_val.gb_rx_phy_delay, 0, 0);
 
 		while(( result = readOID( OID_INTEL_GET_RXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
@@ -774,7 +757,7 @@ public:
 		if (PLAT_ntohs(packet_sequence_id) != messageId.getSequenceId()) return GPTP_EC_EAGAIN;
 		rx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		rx_s = scaleNativeClockToNanoseconds( rx_r );
-		timestamp = nanoseconds64ToTimestamp( rx_s ) - latency;
+		timestamp = nanoseconds64ToTimestamp( rx_s );
 		timestamp._version = version;
 
 		return GPTP_EC_SUCCESS;

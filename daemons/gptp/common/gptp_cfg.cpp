@@ -48,6 +48,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include "gptp_cfg.hpp"
 
+uint32_t findSpeedByName( const char *name, const char **end );
+
 GptpIniParser::GptpIniParser(std::string filename)
 {
     _error = ini_parse(filename.c_str(), iniCallBack, this);
@@ -156,7 +158,7 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
             int phdly = strtoul(value, &pEnd, 10);
             if( *pEnd == '\0' && errno == 0) {
                 valOK = true;
-                parser->_config.phyDelay.gb_tx_phy_delay = phdly;
+                parser->_config.phy_delay[LINKSPEED_1G].set_tx_delay( phdly );
             }
         }
 
@@ -167,7 +169,7 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
             int phdly = strtoul(value, &pEnd, 10);
             if( *pEnd == '\0' && errno == 0) {
                 valOK = true;
-                parser->_config.phyDelay.gb_rx_phy_delay = phdly;
+                parser->_config.phy_delay[LINKSPEED_1G].set_rx_delay( phdly );
             }
         }
 
@@ -178,7 +180,8 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
             int phdly = strtoul(value, &pEnd, 10);
             if( *pEnd == '\0' && errno == 0) {
                 valOK = true;
-                parser->_config.phyDelay.mb_tx_phy_delay = phdly;
+                parser->_config.phy_delay[LINKSPEED_100MB].
+			set_tx_delay( phdly );
             }
         }
 
@@ -189,7 +192,28 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
             int phdly = strtoul(value, &pEnd, 10);
             if( *pEnd == '\0' && errno == 0) {
                 valOK = true;
-                parser->_config.phyDelay.mb_rx_phy_delay = phdly;
+                parser->_config.phy_delay[LINKSPEED_100MB].
+			set_rx_delay( phdly );
+            }
+        }
+
+        else if( parseMatch(name, "phy_delay") )
+        {
+            errno = 0;
+            char *pEnd;
+            const char *c_pEnd;
+	    uint32_t speed = findSpeedByName( value, &c_pEnd );
+	    if( speed == INVALID_LINKSPEED )
+	    {
+		    speed = strtoul( value, &pEnd, 10 );
+		    c_pEnd = pEnd;
+	    }
+            int ph_tx_dly = strtoul(c_pEnd, &pEnd, 10);
+            int ph_rx_dly = strtoul(pEnd, &pEnd, 10);
+            if( *pEnd == '\0' && errno == 0) {
+                valOK = true;
+                parser->_config.phy_delay[speed].
+			set_delay( ph_tx_dly, ph_rx_dly );
             }
         }
     }
@@ -209,5 +233,92 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
 bool GptpIniParser::parseMatch(const char *s1, const char *s2)
 {
     return strcasecmp(s1, s2) == 0;
+}
+
+#define PHY_DELAY_DESC_LEN 21
+
+void GptpIniParser::print_phy_delay( void )
+{
+
+	phy_delay_map_t map = this->getPhyDelay();
+	for( phy_delay_map_t::const_iterator i = map.cbegin();
+	     i != map.cend(); ++i )
+	{
+		uint32_t speed;
+		uint16_t tx, rx;
+		const char *speed_name;
+		char phy_delay_desc[PHY_DELAY_DESC_LEN+1];
+
+		speed = (*i).first;
+		tx = i->second.get_tx_delay();
+		rx = i->second.get_rx_delay();
+
+		snprintf( phy_delay_desc, PHY_DELAY_DESC_LEN+1,
+			  "TX: %hu | RX: %hu", tx, rx );
+
+		speed_name = findNameBySpeed( speed );
+		if( speed_name != NULL )
+			GPTP_LOG_INFO( "%s - PHY delay\n\t\t\t%s",
+				       speed_name, phy_delay_desc );
+		else
+			GPTP_LOG_INFO( "link speed %u - PHY delay\n\t\t\t%s",
+				       speed, phy_delay_desc );
+	}
+}
+
+
+#define DECLARE_SPEED_NAME_MAP( name )	\
+	{ name, #name }
+
+typedef struct
+{
+	const uint32_t speed;
+	const char *name;
+} speed_name_map_t;
+
+speed_name_map_t speed_name_map[] =
+{
+	DECLARE_SPEED_NAME_MAP( LINKSPEED_10G ),
+	DECLARE_SPEED_NAME_MAP( LINKSPEED_2_5G ),
+	DECLARE_SPEED_NAME_MAP( LINKSPEED_1G ),
+	DECLARE_SPEED_NAME_MAP( LINKSPEED_100MB ),
+	DECLARE_SPEED_NAME_MAP( INVALID_LINKSPEED )
+};
+
+const char *findNameBySpeed( uint32_t speed )
+{
+	speed_name_map_t *iter = speed_name_map;
+
+	while( iter->speed != INVALID_LINKSPEED )
+	{
+		if( iter->speed == speed )
+		{
+			break;
+		}
+		++iter;
+	}
+
+	if( iter->speed != INVALID_LINKSPEED )
+		return iter->name;
+
+	return NULL;
+}
+
+uint32_t findSpeedByName( const char *name, const char **end )
+{
+	speed_name_map_t *iter = speed_name_map;
+	*end = name;
+
+	while( iter->speed != INVALID_LINKSPEED )
+	{
+		if( strncmp( name, iter->name, strlen( iter->name )) == 0 )
+		{
+			*end = name + strlen( iter->name );
+			break;
+		}
+		++iter;
+	}
+
+	return iter->speed;
 }
 

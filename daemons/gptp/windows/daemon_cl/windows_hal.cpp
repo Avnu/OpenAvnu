@@ -75,7 +75,6 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 	PIP_ADAPTER_INFO pAdapterInfo;
 	IP_ADAPTER_INFO AdapterInfo[32];       // Allocate information for up to 32 NICs
 	DWORD dwBufLen = sizeof(AdapterInfo);  // Save memory size of buffer
-	struct phy_delay delay_val;
 
 	DWORD dwStatus = GetAdaptersInfo( AdapterInfo, &dwBufLen );
 	if( dwStatus != ERROR_SUCCESS ) return false;
@@ -87,8 +86,6 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 	}
 
 	if( pAdapterInfo == NULL ) return false;
-
-	get_phy_delay(&delay_val);
 
 	DeviceClockRateMapping *rate_map = DeviceClockRateMap;
 	while (rate_map->device_desc != NULL)
@@ -103,42 +100,6 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 	else {
 		GPTP_LOG_ERROR("Unable to determine clock rate for interface %s", pAdapterInfo->Description);
 		return false;
-	}
-
-	DevicePhyDelayMapping *phy_map = DevicePhyDelayMap;
-	while (phy_map->device_desc != NULL)
-	{
-		if (strstr(pAdapterInfo->Description, phy_map->device_desc) != NULL)
-			break;
-		++phy_map;
-	}
-	if (phy_map->device_desc != NULL) {
-		if(delay_val.gb_rx_phy_delay == -1)
-			delay_val.gb_rx_phy_delay = phy_map->delay.gb_rx_phy_delay;
-		if (delay_val.gb_tx_phy_delay == -1)
-			delay_val.gb_tx_phy_delay = phy_map->delay.gb_tx_phy_delay;
-		if (delay_val.mb_rx_phy_delay == -1)
-			delay_val.mb_rx_phy_delay = phy_map->delay.mb_rx_phy_delay;
-		if (delay_val.mb_tx_phy_delay == -1)
-			delay_val.mb_tx_phy_delay = phy_map->delay.mb_tx_phy_delay;
-		set_phy_delay(&delay_val);
-	}
-
-	if (delay_val.gb_rx_phy_delay == -1) {
-		GPTP_LOG_ERROR("Warning: Gbit receive PHY delay is unknown using 0");
-		delay_val.gb_rx_phy_delay = 0;
-	}
-	if (delay_val.gb_tx_phy_delay == -1) {
-		GPTP_LOG_ERROR("Warning: Gbit transmit PHY delay is unknown using 0");
-		delay_val.gb_tx_phy_delay = 0;
-	}
-	if (delay_val.mb_rx_phy_delay == -1) {
-		GPTP_LOG_ERROR("Warning: Mbit receive PHY delay is unknown using 0");
-		delay_val.mb_rx_phy_delay = 0;
-	}
-	if (delay_val.mb_tx_phy_delay == -1) {
-		GPTP_LOG_ERROR("Warning: Mbit transmit PHY delay is unknown using 0");
-		delay_val.gb_tx_phy_delay = 0;
 	}
 
 	GPTP_LOG_INFO( "Adapter UID: %s\n", pAdapterInfo->AdapterName );

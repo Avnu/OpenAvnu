@@ -44,6 +44,8 @@
 #include "avbts_osthread.hpp"
 #include "avbts_osipc.hpp"
 #include "ieee1588.hpp"
+#include <ether_tstamper.hpp>
+#include <linux/ethtool.h>
 
 #include <list>
 
@@ -123,7 +125,7 @@ private:
  * @brief LinuxTimestamper: Provides a generic hardware
  * timestamp interface for linux based systems.
  */
-class LinuxTimestamper : public HWTimestamper {
+class LinuxTimestamper : public EtherTimestamper {
 public:
 	/**
 	 * @brief Destructor
@@ -177,7 +179,7 @@ public:
 	 * an error on the transmit side, net_fatal if error on reception
 	 */
 	virtual net_result nrecv
-	( LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay );
+	( LinkLayerAddress *addr, uint8_t *payload, size_t &length );
 
 	/**
 	 * @brief  Disables rx socket descriptor rx queue
@@ -199,6 +201,15 @@ public:
 	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
 		*addr = local_addr;
 	}
+
+	/**
+	 * @brief Get speed of network link
+	 *
+	 * @param [in] sd	Open socket descriptor
+	 * @param [out] speed	Link speed in kb/sec
+	 * @return false on error
+	 */
+	bool getLinkSpeed( int sd, uint32_t *speed );
 
 	/**
 	 * @brief Watch for net link changes.
@@ -573,7 +584,7 @@ public:
 	 */
 	virtual bool createInterface
 	( OSNetworkInterface **net_iface, InterfaceLabel *label,
-	  HWTimestamper *timestamper );
+	  CommonTimestamper *timestamper );
 };
 
 /**
