@@ -36,6 +36,7 @@
 #include <avbts_message.hpp>
 #include <ether_port.hpp>
 #include <avbts_ostimer.hpp>
+#include <ether_tstamper.hpp>
 
 #include <stdio.h>
 #include <string.h>
@@ -139,8 +140,8 @@ PTPMessageCommon *buildPTPMessage
 			req *= 2;
 		}
 		if (ts_good != GPTP_EC_SUCCESS) {
-			char msg[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
-			port->getExtendedError(msg);
+			char err_msg[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
+			port->getExtendedError(err_msg);
 			GPTP_LOG_ERROR
 			    ("*** Received an event packet but cannot retrieve timestamp, discarding. messageType=%u,error=%d\n%s",
 			     messageType, ts_good, msg);
@@ -542,6 +543,50 @@ abort:
 	return NULL;
 }
 
+bool PTPMessageCommon::getTxTimestamp( EtherPort *port, uint32_t link_speed )
+{
+	OSTimer *timer = port->getTimerFactory()->createTimer();
+	int ts_good;
+	Timestamp tx_timestamp;
+	uint32_t unused;
+	unsigned req = TX_TIMEOUT_BASE;
+	int iter = TX_TIMEOUT_ITER;
+
+	ts_good = port->getTxTimestamp
+		( this, tx_timestamp, unused, false );
+	while( ts_good != GPTP_EC_SUCCESS && iter-- != 0 )
+	{
+		timer->sleep(req);
+		if (ts_good != GPTP_EC_EAGAIN && iter < 1)
+			GPTP_LOG_ERROR(
+				"Error (TX) timestamping PDelay request "
+				"(Retrying-%d), error=%d", iter, ts_good);
+		ts_good = port->getTxTimestamp
+			( this, tx_timestamp, unused , iter == 0 );
+		req *= 2;
+	}
+
+	if( ts_good == GPTP_EC_SUCCESS )
+	{
+		Timestamp phy_compensation = port->getTxPhyDelay( link_speed );
+		GPTP_LOG_DEBUG( "TX PHY compensation: %s sec",
+				phy_compensation.toString().c_str() );
+		phy_compensation._version = tx_timestamp._version;
+		_timestamp = tx_timestamp + phy_compensation;
+	} else
+	{
+		char msg[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
+		port->getExtendedError(msg);
+		GPTP_LOG_ERROR(
+			"Error (TX) timestamping PDelay request, error=%d\t%s",
+			ts_good, msg);
+		_timestamp = INVALID_TIMESTAMP;
+	}
+
+	delete timer;
+	return ts_good == GPTP_EC_SUCCESS;
+}
+
 void PTPMessageCommon::processMessage( EtherPort *port )
 {
 	_gc = true;
@@ -681,13 +726,15 @@ PTPMessageSync::PTPMessageSync( EtherPort *port ) :
 	return;
 }
 
-void PTPMessageSync::sendPort
+bool PTPMessageSync::sendPort
 ( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
 	unsigned char tspec_msg_t = 0x0;
 	Timestamp originTimestamp_BE;
+	uint32_t link_speed;
+
 	memset(buf_t, 0, 256);
 	// Create packet in buf
 	// Copy in common header
@@ -711,10 +758,12 @@ void PTPMessageSync::sendPort
 	       &(originTimestamp_BE.nanoseconds),
 	       sizeof(originTimestamp.nanoseconds));
 
-	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
+	port->sendEventPort
+		( PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER,
+		  destIdentity, &link_speed );
 	port->incCounter_ieee8021AsPortStatTxSyncCount();
 
-	return;
+	return getTxTimestamp( port, link_speed );
 }
 
 PTPMessageAnnounce::PTPMessageAnnounce( CommonPort *port ) :
@@ -743,7 +792,7 @@ PTPMessageAnnounce::PTPMessageAnnounce( CommonPort *port ) :
 	return;
 }
 
-void PTPMessageAnnounce::sendPort
+bool PTPMessageAnnounce::sendPort
 ( CommonPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
@@ -786,7 +835,7 @@ void PTPMessageAnnounce::sendPort
 	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
 	port->incCounter_ieee8021AsPortStatTxAnnounce();
 
-	return;
+	return true;
 }
 
 void PTPMessageAnnounce::processMessage( EtherPort *port )
@@ -874,7 +923,7 @@ PTPMessageFollowUp::PTPMessageFollowUp( EtherPort *port ) :
 	return;
 }
 
-void PTPMessageFollowUp::sendPort
+bool PTPMessageFollowUp::sendPort
 ( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
@@ -931,7 +980,7 @@ void PTPMessageFollowUp::sendPort
 
 	port->incCounter_ieee8021AsPortStatTxFollowUpCount();
 
-	return;
+	return true;
 }
 
 void PTPMessageFollowUp::processMessage( EtherPort *port )
@@ -1130,12 +1179,6 @@ void PTPMessagePathDelayReq::processMessage( EtherPort *port )
 	PortIdentity resp_id;
 	PTPMessagePathDelayRespFollowUp *resp_fwup;
 
-	int ts_good;
-	Timestamp resp_timestamp;
-	unsigned resp_timestamp_counter_value;
-	unsigned req = TX_TIMEOUT_BASE;
-	int iter = TX_TIMEOUT_ITER;
-
 	if (port->getPortState() == PTP_DISABLED) {
 		// Do nothing all messages should be ignored when in this state
 		goto done;
@@ -1166,41 +1209,15 @@ void PTPMessagePathDelayReq::processMessage( EtherPort *port )
 	this->getPortIdentity(&requestingPortIdentity_p);
 	resp->setRequestingPortIdentity(&requestingPortIdentity_p);
 	resp->setRequestReceiptTimestamp(_timestamp);
+
 	port->getTxLock();
 	resp->sendPort(port, sourcePortIdentity);
-
 	GPTP_LOG_DEBUG("*** Sent PDelay Response message");
-
-	GPTP_LOG_VERBOSE("Start TS Read");
-	ts_good = port->getTxTimestamp
-		(resp, resp_timestamp, resp_timestamp_counter_value, false);
-
-	GPTP_LOG_VERBOSE("Done TS Read");
-
-	while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
-		timer->sleep(req);
-		if (ts_good == GPTP_EC_EAGAIN && iter < 1)
-			GPTP_LOG_ERROR( "Error (TX) timestamping PDelay Response "
-						 "(Retrying-%d), error=%d", iter, ts_good);
-		ts_good = port->getTxTimestamp
-			(resp, resp_timestamp, resp_timestamp_counter_value, iter == 0);
-		req *= 2;
-	}
 	port->putTxLock();
 
-	if (ts_good != GPTP_EC_SUCCESS) {
-		char msg[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
-		port->getExtendedError(msg);
-		GPTP_LOG_ERROR
-			( "Error (TX) timestamping PDelay Response, error=%d\t%s",
-			  ts_good, msg);
-		delete resp;
-		goto done;
-	}
-
-	if( resp_timestamp._version != _timestamp._version ) {
+	if( resp->getTimestamp()._version != _timestamp._version ) {
 		GPTP_LOG_ERROR("TX timestamp version mismatch: %u/%u",
-			    resp_timestamp._version, _timestamp._version);
+			       resp->getTimestamp()._version, _timestamp._version);
 #if 0 // discarding the request could lead to the peer setting the link to non-asCapable
 		delete resp;
 		goto done;
@@ -1212,16 +1229,17 @@ void PTPMessagePathDelayReq::processMessage( EtherPort *port )
 	resp_fwup->setPortIdentity(&resp_fwup_id);
 	resp_fwup->setSequenceId(sequenceId);
 	resp_fwup->setRequestingPortIdentity(sourcePortIdentity);
-	resp_fwup->setResponseOriginTimestamp(resp_timestamp);
+	resp_fwup->setResponseOriginTimestamp(resp->getTimestamp());
 	long long turnaround;
-	turnaround =
-	    (resp_timestamp.seconds_ls - _timestamp.seconds_ls) * 1000000000LL;
+	turnaround = (resp->getTimestamp().seconds_ls - _timestamp.seconds_ls)
+		* 1000000000LL;
 
-	GPTP_LOG_VERBOSE("Response Depart(sec): %u", resp_timestamp.seconds_ls);
+	GPTP_LOG_VERBOSE("Response Depart(sec): %u",
+			 resp->getTimestamp().seconds_ls);
 	GPTP_LOG_VERBOSE("Request Arrival(sec): %u", _timestamp.seconds_ls);
 	GPTP_LOG_VERBOSE("#1 Correction Field: %Ld", turnaround);
 
-	turnaround += resp_timestamp.nanoseconds;
+	turnaround += resp->getTimestamp().nanoseconds;
 
 	GPTP_LOG_VERBOSE("#2 Correction Field: %Ld", turnaround);
 
@@ -1243,11 +1261,13 @@ done:
 	return;
 }
 
-void PTPMessagePathDelayReq::sendPort
+bool PTPMessagePathDelayReq::sendPort
 ( EtherPort *port, PortIdentity *destIdentity )
 {
+	uint32_t link_speed;
+
 	if(port->pdelayHalted())
-		return;
+		return false;
 
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
@@ -1258,9 +1278,12 @@ void PTPMessagePathDelayReq::sendPort
 	messageLength = PTP_COMMON_HDR_LENGTH + PTP_PDELAY_REQ_LENGTH;
 	tspec_msg_t |= messageType & 0xF;
 	buildCommonHeader(buf_ptr);
-	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	port->sendEventPort
+		( PTP_ETHERTYPE, buf_t, messageLength, MCAST_PDELAY,
+		  destIdentity, &link_speed );
 	port->incCounter_ieee8021AsPortStatTxPdelayRequest();
-	return;
+
+	return getTxTimestamp( port, link_speed );
 }
 
 PTPMessagePathDelayResp::PTPMessagePathDelayResp
@@ -1361,13 +1384,15 @@ bypass_verify_duplicate:
 	return;
 }
 
-void PTPMessagePathDelayResp::sendPort
+bool PTPMessagePathDelayResp::sendPort
 ( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
 	uint8_t *buf_ptr = buf_t + port->getPayloadOffset();
 	unsigned char tspec_msg_t = 0;
 	Timestamp requestReceiptTimestamp_BE;
+	uint32_t link_speed;
+
 	memset(buf_t, 0, 256);
 	// Create packet in buf
 	// Copy in common header
@@ -1403,9 +1428,12 @@ void PTPMessagePathDelayResp::sendPort
 		   requestReceiptTimestamp.seconds_ls,
 		   requestReceiptTimestamp.nanoseconds);
 
-	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_PDELAY, destIdentity);
+	port->sendEventPort
+		( PTP_ETHERTYPE, buf_t, messageLength, MCAST_PDELAY,
+		  destIdentity, &link_speed );
 	port->incCounter_ieee8021AsPortStatTxPdelayResponse();
-	return;
+
+	return getTxTimestamp( port, link_speed );
 }
 
 void PTPMessagePathDelayResp::setRequestingPortIdentity
@@ -1633,6 +1661,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage
 	/* Subtract turn-around time from link delay after rate adjustment */
 	link_delay -= turn_around;
 	link_delay /= 2;
+	GPTP_LOG_DEBUG( "Link delay: %ld ns", link_delay );
 
 	{
 		uint64_t mine_elapsed;
@@ -1682,7 +1711,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage
 	return;
 }
 
-void PTPMessagePathDelayRespFollowUp::sendPort
+bool PTPMessagePathDelayRespFollowUp::sendPort
 ( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
@@ -1729,7 +1758,8 @@ void PTPMessagePathDelayRespFollowUp::sendPort
 
 	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_PDELAY, destIdentity);
 	port->incCounter_ieee8021AsPortStatTxPdelayResponseFollowUp();
-	return;
+
+	return true;
 }
 
 void PTPMessagePathDelayRespFollowUp::setRequestingPortIdentity
@@ -1767,7 +1797,7 @@ void PTPMessageSignalling::setintervals(int8_t linkDelayInterval, int8_t timeSyn
 	tlv.setAnnounceInterval(announceInterval);
 }
 
-void PTPMessageSignalling::sendPort
+bool PTPMessageSignalling::sendPort
 ( EtherPort *port, PortIdentity *destIdentity )
 {
 	uint8_t buf_t[256];
@@ -1787,6 +1817,8 @@ void PTPMessageSignalling::sendPort
 	tlv.toByteString(buf_ptr + PTP_COMMON_HDR_LENGTH + PTP_SIGNALLING_LENGTH);
 
 	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, MCAST_OTHER, destIdentity);
+
+	return true;
 }
 
 void PTPMessageSignalling::processMessage( EtherPort *port )

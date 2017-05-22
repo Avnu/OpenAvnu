@@ -34,6 +34,8 @@
 
 #include <common_port.hpp>
 #include <avbts_clock.hpp>
+#include <common_tstamper.hpp>
+#include <gptp_cfg.hpp>
 
 CommonPort::CommonPort( PortInit_t *portInit ) :
 	thread_factory( portInit->thread_factory ),
@@ -42,16 +44,16 @@ CommonPort::CommonPort( PortInit_t *portInit ) :
 	condition_factory( portInit->condition_factory ),
 	_hw_timestamper( portInit->timestamper ),
 	clock( portInit->clock ),
-	isGM( portInit->isGM )
+	isGM( portInit->isGM ),
+	phy_delay( portInit->phy_delay )
 {
 	one_way_delay = ONE_WAY_DELAY_DEFAULT;
-	neighbor_prop_delay_thresh = NEIGHBOR_PROP_DELAY_THRESH;
+	neighbor_prop_delay_thresh = portInit->neighborPropDelayThreshold;
 	net_label = portInit->net_label;
 	link_thread = thread_factory->createThread();
 	listening_thread = thread_factory->createThread();
-	sync_receipt_thresh = DEFAULT_SYNC_RECEIPT_THRESH;
+	sync_receipt_thresh = portInit->syncReceiptThreshold;
 	wrongSeqIDCounter = 0;
-	memset(phy_delay, 0, sizeof(phy_delay));
 	_peer_rate_offset = 1.0;
 	_peer_offset_init = false;
 	ifindex = portInit->index;
@@ -66,6 +68,7 @@ CommonPort::CommonPort( PortInit_t *portInit ) :
 	log_mean_announce_interval = 0;
 	pdelay_count = 0;
 	asCapable = false;
+	link_speed = INVALID_LINKSPEED;
 }
 
 CommonPort::~CommonPort()
@@ -73,7 +76,7 @@ CommonPort::~CommonPort()
 	delete qualified_announce;
 }
 
-bool CommonPort::init_port( int phy_delay[4] )
+bool CommonPort::init_port( void )
 {
 	log_mean_sync_interval = initialLogSyncInterval;
 
@@ -84,7 +87,6 @@ bool CommonPort::init_port( int phy_delay[4] )
 
 	this->net_iface->getLinkLayerAddress(&local_addr);
 	clock->setClockIdentity(&local_addr);
-	memcpy(this->phy_delay, phy_delay, sizeof(this->phy_delay));
 
 	this->timestamper_init();
 
@@ -102,7 +104,6 @@ void CommonPort::timestamper_init( void )
 {
 	if( _hw_timestamper != NULL )
 	{
-		_hw_timestamper->init_phy_delay(this->phy_delay);
 		if( !_hw_timestamper->HWTimestamper_init
 		    ( net_label, net_iface ))
 		{
@@ -118,7 +119,6 @@ void CommonPort::timestamper_reset( void )
 {
 	if( _hw_timestamper != NULL )
 	{
-		_hw_timestamper->init_phy_delay(this->phy_delay);
 		_hw_timestamper->HWTimestamper_reset();
 	}
 }
@@ -706,4 +706,58 @@ void CommonPort::getDeviceTime
 void CommonPort::startAnnounce()
 {
 	startAnnounceIntervalTimer(16000000);
+}
+
+int CommonPort::getTimestampVersion()
+{
+	return _hw_timestamper->getVersion();
+}
+
+bool CommonPort::_adjustClockRate( FrequencyRatio freq_offset )
+{
+	if( _hw_timestamper )
+	{
+		return _hw_timestamper->HWTimestamper_adjclockrate
+			((float) freq_offset );
+	}
+
+	return false;
+}
+
+void CommonPort::getExtendedError( char *msg )
+{
+	if (_hw_timestamper)
+	{
+		_hw_timestamper->HWTimestamper_get_extderror(msg);
+		return;
+	}
+
+	*msg = '\0';
+}
+
+bool CommonPort::adjustClockPhase( int64_t phase_adjust )
+{
+	if( _hw_timestamper )
+		return _hw_timestamper->
+			HWTimestamper_adjclockphase( phase_adjust );
+
+	return false;
+}
+
+Timestamp CommonPort::getTxPhyDelay( uint32_t link_speed ) const
+{
+	if( phy_delay->count( link_speed ) != 0 )
+		return Timestamp
+			( phy_delay->at(link_speed).get_tx_delay(), 0, 0 );
+
+	return Timestamp(0, 0, 0);
+}
+
+Timestamp CommonPort::getRxPhyDelay( uint32_t link_speed ) const
+{
+	if( phy_delay->count( link_speed ) != 0 )
+		return Timestamp
+			( phy_delay->at(link_speed).get_rx_delay(), 0, 0 );
+
+	return Timestamp(0, 0, 0);
 }

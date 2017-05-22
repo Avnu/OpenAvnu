@@ -52,7 +52,8 @@
 #define RX_PHY_TIME 382
 
 net_result LinuxNetworkInterface::nrecv
-( LinkLayerAddress *addr, uint8_t *payload, size_t &length,struct phy_delay *delay ) {
+( LinkLayerAddress *addr, uint8_t *payload, size_t &length )
+{
 	fd_set readfds;
 	int err;
 	struct msghdr msg;
@@ -136,13 +137,11 @@ net_result LinuxNetworkInterface::nrecv
 			if
 				( cmsg->cmsg_level == SOL_SOCKET &&
 				  cmsg->cmsg_type == SO_TIMESTAMPING ) {
-				Timestamp latency( delay->gb_rx_phy_delay, 0, 0 );
 				struct timespec *ts_device, *ts_system;
 				Timestamp device, system;
 				ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
 				system = tsToTimestamp( ts_system );
 				ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
-				device = device - latency;
 				gtimestamper->pushRXTimestamp( &device );
 				break;
 			}
@@ -278,7 +277,8 @@ void LinuxTimestamperGeneric::HWTimestamper_reset()
 
 int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 ( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
-  unsigned &clock_value, bool last ) {
+  unsigned &clock_value, bool last )
+{
 	int err;
 	int ret = GPTP_EC_EAGAIN;
 	struct msghdr msg;
@@ -289,10 +289,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-    struct phy_delay delay_val;
-	get_phy_delay (&delay_val);//gets the phy delay
 
-	Timestamp latency( delay_val.gb_tx_phy_delay, 0, 0 );
     if( sd == -1 ) return -1;
 	memset( &msg, 0, sizeof( msg ));
 
@@ -331,7 +328,6 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 			system = tsToTimestamp( ts_system );
 			ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
 			system._version = version;
-			device = device + latency;
 			device._version = version;
 			timestamp = device;
 			ret = 0;

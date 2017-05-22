@@ -79,8 +79,8 @@ void ClockIdentity::set(LinkLayerAddress * addr)
 
 IEEE1588Clock::IEEE1588Clock
 ( bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
-  HWTimestamper *timestamper, OSTimerQueueFactory *timerq_factory,
-  OS_IPC *ipc, OSLockFactory *lock_factory )
+  OSTimerQueueFactory *timerq_factory, OS_IPC *ipc,
+  OSLockFactory *lock_factory )
 {
 	this->priority1 = priority1;
 	priority2 = 248;
@@ -106,7 +106,6 @@ IEEE1588Clock::IEEE1588Clock
 
 	_master_local_freq_offset_init = false;
 	_local_system_freq_offset_init = false;
-	_timestamper = timestamper;
 
 	this->ipc = ipc;
 
@@ -401,20 +400,17 @@ void IEEE1588Clock::setMasterOffset
 		if( _new_syntonization_set_point || _phase_error_violation > PHASE_ERROR_MAX_COUNT ) {
 			_new_syntonization_set_point = false;
 			_phase_error_violation = 0;
-			if( _timestamper ) {
-				/* Make sure that there are no transmit operations
-				   in progress */
-				getTxLockAll();
-				if (port->getTestMode()) {
-					GPTP_LOG_STATUS("Adjust clock phase offset:%lld", -master_local_offset);
-				}
-				_timestamper->HWTimestamper_adjclockphase
-					( -master_local_offset );
-				_master_local_freq_offset_init = false;
-				restartPDelayAll();
-				putTxLockAll();
-				master_local_offset = 0;
+			/* Make sure that there are no transmit operations
+			   in progress */
+			getTxLockAll();
+			if (port->getTestMode()) {
+				GPTP_LOG_STATUS("Adjust clock phase offset:%lld", -master_local_offset);
 			}
+			port->adjustClockPhase( -master_local_offset );
+			_master_local_freq_offset_init = false;
+			restartPDelayAll();
+			putTxLockAll();
+			master_local_offset = 0;
 		}
 
 		// Adjust for frequency offset
@@ -432,13 +428,11 @@ void IEEE1588Clock::setMasterOffset
 
 		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
 		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
-		if( _timestamper ) {
-			if (port->getTestMode()) {
-				GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
-			}
-			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
-				GPTP_LOG_ERROR( "Failed to adjust clock rate" );
-			}
+		if (port->getTestMode()) {
+			GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
+		}
+		if( !port->adjustClockRate( _ppm )) {
+			GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 		}
 	}
 

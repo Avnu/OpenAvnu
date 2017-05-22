@@ -231,6 +231,17 @@ protected:
 	void recoverPort(void);
 
 	/**
+	 * @brief Message processing logic on receipt
+	 * @param [in] buf buffer containing message
+	 * @param [in] length buffer length
+	 * @param [in] remote address of sender
+	 * @param [in] link_speed of the receiving device
+	 */
+	void processMessage
+	( char *buf, int length, LinkLayerAddress *remote,
+	  uint32_t link_speed );
+
+	/**
 	 * @brief Receives messages from the network interface
 	 * @return Its an infinite loop. Returns NULL in case of error.
 	 */
@@ -242,11 +253,12 @@ protected:
 	 * @param  len Size of the message
 	 * @param  mcast_type Enumeration MulticastType (pdlay, none or other). Depracated.
 	 * @param  destIdentity Destination port identity
+	 * @param  [out] link_speed indicates link speed
 	 * @return void
 	 */
 	void sendEventPort
 	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
-	 PortIdentity * destIdentity);
+	 PortIdentity * destIdentity, uint32_t *link_speed );
 
 	/**
 	 * @brief Sends a general message to a port. No timestamps

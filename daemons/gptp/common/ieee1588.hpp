@@ -48,6 +48,7 @@
 #include <ptptypes.hpp>
 
 #include <gptp_log.hpp>
+#include <limits.h>
 
 #define MAX_PORTS 32	/*!< Maximum number of EtherPort instances */
 
@@ -107,14 +108,6 @@ typedef struct {
 	CommonPort *port;	//!< Media Dependent Ether Port
 	Event event;	//!< Event enumeration
 } event_descriptor_t;
-
-struct phy_delay
-{
-   int mb_tx_phy_delay;
-   int mb_rx_phy_delay;
-   int gb_tx_phy_delay;
-   int gb_rx_phy_delay;
-};
 
 /**
  * @brief Provides a generic InterfaceLabel class
@@ -235,14 +228,12 @@ class ClockIdentity {
 
 #define INVALID_TIMESTAMP_VERSION 0xFF		/*!< Value defining invalid timestamp version*/
 #define MAX_NANOSECONDS 1000000000			/*!< Maximum value of nanoseconds (1 second)*/
-#define MAX_TIMESTAMP_STRLEN 28				/*!< Maximum size of timestamp strlen*/
+#define MAX_TSTAMP_STRLEN 25				/*!< Maximum size of timestamp strlen*/
 
 /**
  * @brief Provides a Timestamp interface
  */
 class Timestamp {
-private:
-	char output_string[MAX_TIMESTAMP_STRLEN];
 public:
 	/**
 	 * @brief  Creates a Timestamp instance
@@ -264,7 +255,7 @@ public:
 	 * the private parameters
 	 */
 	Timestamp() {
-		output_string[0] = '\0';
+		Timestamp( 0, 0, 0 );
 	}
 	uint32_t nanoseconds;	//!< 32 bit nanoseconds value
 	uint32_t seconds_ls;	//!< 32 bit seconds LSB value
@@ -274,14 +265,17 @@ public:
 	/**
 	 * @brief Copies the timestamp to the internal string in the following format:
 	 * seconds_ms seconds_ls nanoseconds
-	 * @return Formated string (as a char *)
+	 * @return STL string containing timestamp
 	 */
-	char *toString() {
+	std::string toString() const
+	{
+		char output_string[MAX_TSTAMP_STRLEN+1];
+
 		PLAT_snprintf
-			( output_string, 28, "%hu %u %u", seconds_ms, seconds_ls
-			  ,
-			  nanoseconds );
-		return output_string;
+			( output_string, MAX_TSTAMP_STRLEN+1, "%hu %u.%09u",
+			  seconds_ms, seconds_ls, nanoseconds );
+
+		return std::string( output_string );
 	}
 
 	/**
@@ -457,213 +451,6 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
 	   ts.seconds_ls = (uint32_t)(secs & LS_SEC_MAX);
 	   ts.nanoseconds = (uint32_t)nanos;
 }
-
-#define HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE 4096	/*!< Maximum size of HWTimestamper extended message */
-
-/**
- * @brief Provides a generic interface for hardware timestamping
- */
-class HWTimestamper {
-
-protected:
-	uint8_t version; //!< HWTimestamper version
-	struct phy_delay delay;
-public:
-	/**
-	 * @brief Initializes the hardware timestamp unit
-	 * @param iface_label [in] Interface label
-	 * @param iface [in] Network interface
-	 * @return true
-	 */
-	virtual bool HWTimestamper_init
-		( InterfaceLabel *iface_label, OSNetworkInterface *iface )
-		{ return true; }
-
-	/**
-	 * @brief Reset the hardware timestamp unit
-	 * @return void
-	 */
-	virtual void HWTimestamper_reset(void) {
-	}
-
-	/**
-	 * @brief  This method is called before the object is de-allocated.
-	 * @return void
-	 */
-	virtual void HWTimestamper_final(void) {
-	}
-
-	/**
-	 * @brief  Adjusts the hardware clock frequency
-	 * @param  frequency_offset Frequency offset
-	 * @return false
-	 */
-	virtual bool HWTimestamper_adjclockrate
-	( float frequency_offset ) const
-	{ return false; }
-
-	/**
-	 * @brief  Adjusts the hardware clock phase
-	 * @param  phase_adjust Phase offset
-	 * @return false
-	 */
-	virtual bool HWTimestamper_adjclockphase( int64_t phase_adjust )
-	{ return false; }
-
-	/**
-	 * @brief  Get the cross timestamping information.
-	 * The gPTP subsystem uses these samples to calculate
-	 * ratios which can be used to translate or extrapolate
-	 * one clock into another clock reference. The gPTP service
-	 * uses these supplied cross timestamps to perform internal
-	 * rate estimation and conversion functions.
-	 * @param  system_time [out] System time
-	 * @param  device_time [out] Device time
-	 * @param  local_clock [out] Local clock
-	 * @param  nominal_clock_rate [out] Nominal clock rate
-	 * @return True in case of success. FALSE in case of error
-	 */
-	virtual bool HWTimestamper_gettime(Timestamp * system_time,
-			Timestamp * device_time,
-			uint32_t * local_clock,
-			uint32_t * nominal_clock_rate) const = 0;
-
-	/**
-	 * @brief  Gets the tx timestamp from hardware
-	 * @param  identity PTP port identity
-	 * @param  PTPMessageId Message ID
-	 * @param  timestamp [out] Timestamp value
-	 * @param  clock_value [out] Clock value
-	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
-	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
-	 */
-	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
-			PTPMessageId messageId,
-			Timestamp & timestamp,
-			unsigned &clock_value,
-			bool last) = 0;
-
-	/**
-	 * @brief  Get rx timestamp
-	 * @param  identity PTP port identity
-	 * @param  messageId Message ID
-	 * @param  timestamp [out] Timestamp value
-	 * @param  clock_value [out] Clock value
-	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
-	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
-	 */
-	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
-			PTPMessageId messageId,
-			Timestamp & timestamp,
-			unsigned &clock_value,
-			bool last) = 0;
-
-	/**
-	 * @brief  Get external clock offset
-	 * @param  local_time [inout] Local time
-	 * @param  clk_offset [inout] clock offset
-	 * @param  ppt_freq_offset [inout] Frequency offset in ppts
-	 * @return false
-	 * @todo  This code should be removed.  It was a hack to get a specific board
-	 * working.
-	 */
-	virtual bool HWTimestamper_get_extclk_offset(Timestamp * local_time,
-			int64_t * clk_offset,
-			int32_t *
-			ppt_freq_offset) {
-		return false;
-	}
-
-	/**
-	 * @brief  Gets a string with the error from the hardware timestamp block
-	 * @param  msg [out] String error
-	 * @return void
-	 * @todo There is no current implementation for this method.
-	 */
-	virtual void HWTimestamper_get_extderror(char *msg) const
-	{
-		*msg = '\0';
-	}
-
-	/**
-	 * @brief  Starts the PPS (pulse per second) interface
-	 * @return false
-	 */
-	virtual bool HWTimestamper_PPS_start() { return false; };
-
-	/**
-	 * @brief  Stops the PPS (pulse per second) interface
-	 * @return true
-	 */
-	virtual bool HWTimestamper_PPS_stop() { return true; };
-
-	/**
-	 * @brief  Gets the HWTimestamper version
-	 * @return version (signed integer)
-	 */
-	int getVersion() const
-	{
-		return version;
-	}
-	/**
-	 * @brief Initializes the PHY delay for TX and RX
-	 * @param [input] mb_tx_phy_delay, mb_rx_phy_delay, gb_tx_phy_delay, gb_rx_phy_delay
-	 * @return 0
-	 **/
-
-	 int init_phy_delay(int phy_delay[4])
-	 {
-		delay.gb_tx_phy_delay = phy_delay[0];
-		delay.gb_rx_phy_delay = phy_delay[1];
-		delay.mb_tx_phy_delay = phy_delay[2];
-		delay.mb_rx_phy_delay = phy_delay[3];
-
-
-		return 0;
-	 }
-
-	 /**
-	  * @brief Returns the the PHY delay for TX and RX
-	  * @param [input] struct phy_delay  pointer
-	  * @return 0
-	  **/
-
-	 int get_phy_delay (struct phy_delay *get_delay) const
-	 {
-		get_delay->mb_tx_phy_delay = delay.mb_tx_phy_delay;
-		get_delay->mb_rx_phy_delay = delay.mb_rx_phy_delay;
-		get_delay->gb_tx_phy_delay = delay.gb_tx_phy_delay;
-		get_delay->gb_rx_phy_delay = delay.gb_rx_phy_delay;
-
-		return 0;
-	 }
-
-	 /**
-	 * @brief Sets the the PHY delay for TX and RX
-	 * @param [input] struct phy_delay  pointer
-	 * @return 0
-	 **/
-
-	 int set_phy_delay(struct phy_delay *set_delay)
-	 {
-		 delay.mb_tx_phy_delay = set_delay->mb_tx_phy_delay;
-		 delay.mb_rx_phy_delay = set_delay->mb_rx_phy_delay;
-		 delay.gb_tx_phy_delay = set_delay->gb_tx_phy_delay;
-		 delay.gb_rx_phy_delay = set_delay->gb_rx_phy_delay;
-
-		 return 0;
-	 }
-
-	 /**
-	 * @brief Default constructor. Sets version to zero.
-	 */
-	HWTimestamper() { version = 0; }
-
-	 /**
-	 * @brief Deletes HWtimestamper object
-	 */
-	virtual ~HWTimestamper() { }
-};
 
 /**
  * @brief  Builds a PTP message

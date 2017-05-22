@@ -59,6 +59,8 @@
 #include <netinet/in.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <linux/sockios.h>
+#include <gptp_cfg.hpp>
 
 Timestamp tsToTimestamp(struct timespec *ts)
 {
@@ -255,6 +257,55 @@ static void x_initLinkUpStatus( EtherPort *pPort, int ifindex )
 	close(inetSocket);
 }
 
+
+bool LinuxNetworkInterface::getLinkSpeed( int sd, uint32_t *speed )
+{
+	struct ifreq ifr;
+	struct ethtool_cmd edata;
+
+	ifr.ifr_ifindex = ifindex;
+	if( ioctl( sd, SIOCGIFNAME, &ifr ) == -1 )
+	{
+		GPTP_LOG_ERROR
+			( "%s: SIOCGIFNAME failed: %s", __PRETTY_FUNCTION__,
+			  strerror( errno ));
+		return false;
+	}
+
+	ifr.ifr_data = (char *) &edata;
+	edata.cmd = ETHTOOL_GSET;
+	if( ioctl( sd, SIOCETHTOOL, &ifr ) == -1 )
+	{
+		GPTP_LOG_ERROR
+			( "%s: SIOCETHTOOL failed: %s", __PRETTY_FUNCTION__,
+			  strerror( errno ));
+		return false;
+	}
+
+	switch (ethtool_cmd_speed(&edata))
+	{
+	default:
+		GPTP_LOG_ERROR( "%s: Unknown/Unsupported Speed!",
+				__PRETTY_FUNCTION__ );
+		return false;
+	case SPEED_100:
+		*speed = LINKSPEED_100MB;
+		break;
+	case SPEED_1000:
+		*speed = LINKSPEED_1G;
+		break;
+	case SPEED_2500:
+		*speed = LINKSPEED_2_5G;
+		break;
+	case SPEED_10000:
+		*speed = LINKSPEED_10G;
+		break;
+	}
+	GPTP_LOG_STATUS( "Link Speed: %d kb/sec", *speed );
+
+	return true;
+}
+
 void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 {
 	fd_set netLinkFD;
@@ -287,6 +338,15 @@ void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 	}
 
 	x_initLinkUpStatus(pPort, ifindex);
+	if( pPort->getLinkUpState() )
+	{
+		uint32_t link_speed;
+		getLinkSpeed( netLinkSocket, &link_speed );
+		pPort->setLinkSpeed((int32_t) link_speed );
+	} else
+	{
+		pPort->setLinkSpeed( INVALID_LINKSPEED );
+	}
 
 	while (1) {
 		FD_ZERO(&netLinkFD);
@@ -298,7 +358,21 @@ void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 		if (retval == -1)
 			; // Error on select. We will ignore and keep going
 		else if (retval) {
+			bool prev_link_up = pPort->getLinkUpState();
 			x_readEvent(netLinkSocket, pPort, ifindex);
+
+			// Don't do anything else if link state is the same
+			if( prev_link_up == pPort->getLinkUpState() )
+				continue;
+			if( pPort->getLinkUpState() )
+			{
+				uint32_t link_speed;
+				getLinkSpeed( netLinkSocket, &link_speed );
+				pPort->setLinkSpeed((int32_t) link_speed );
+			} else
+			{
+				pPort->setLinkSpeed( INVALID_LINKSPEED );
+			}
 		}
 		else {
 			; // Would be timeout but Won't happen because we wait forever
@@ -929,7 +1003,7 @@ void LinuxSharedMemoryIPC::stop() {
 
 bool LinuxNetworkInterfaceFactory::createInterface
 ( OSNetworkInterface **net_iface, InterfaceLabel *label,
-  HWTimestamper *timestamper ) {
+  CommonTimestamper *timestamper ) {
 	struct ifreq device;
 	int err;
 	struct sockaddr_ll ifsock_addr;
