@@ -334,7 +334,7 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 	}
 
 	if( master_time_ns < prev_master_time_ns ) {
-		GPTP_LOG_ERROR("Negative time jump detected - inter_master_time: %lld, inter_sync_time: %lld, icorrect ppt_offset: %Lf",
+		GPTP_LOG_ERROR("Negative time jump detected - inter_master_time: %lld, inter_sync_time: %lld, incorrect ppt_offset: %Lf",
 					   inter_master_time, inter_sync_time, ppt_offset);
 		_master_local_freq_offset_init = false;
 
@@ -428,10 +428,10 @@ void IEEE1588Clock::setMasterOffset
 
 		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
 		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
-		if (port->getTestMode()) {
+		if ( port->getTestMode() ) {
 			GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
 		}
-		if( !port->adjustClockRate( _ppm )) {
+		if( !port->adjustClockRate( _ppm ) ) {
 			GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 		}
 	}
