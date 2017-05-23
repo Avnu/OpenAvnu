@@ -581,23 +581,15 @@ bool EtherPort::_processEvent( Event e )
 
 			if ( tx_succeed )
 			{
+				Timestamp sync_timestamp = sync->getTimestamp();
+
 				GPTP_LOG_VERBOSE("Successful Sync timestamp");
 				GPTP_LOG_VERBOSE("Seconds: %u",
 						 sync_timestamp.seconds_ls);
 				GPTP_LOG_VERBOSE("Nanoseconds: %u",
 						 sync_timestamp.nanoseconds);
-			} else {
-				GPTP_LOG_ERROR
-					("*** Unsuccessful Sync timestamp");
-			}
 
-			PTPMessageFollowUp *follow_up;
-			if ( tx_succeed )
-			{
-				Timestamp sync_timestamp =
-					sync->getTimestamp();
-				follow_up =
-					new PTPMessageFollowUp(this);
+				PTPMessageFollowUp *follow_up = new PTPMessageFollowUp(this);
 				PortIdentity dest_id;
 				getPortIdentity(dest_id);
 
@@ -609,9 +601,10 @@ bool EtherPort::_processEvent( Event e )
 				follow_up->sendPort(this, NULL);
 				delete follow_up;
 			} else {
+				GPTP_LOG_ERROR
+					("*** Unsuccessful Sync timestamp");
 			}
 			delete sync;
-
 		}
 		break;
 	case FAULT_DETECTED:
