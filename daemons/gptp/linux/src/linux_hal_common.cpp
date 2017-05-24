@@ -310,6 +310,7 @@ void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 {
 	fd_set netLinkFD;
 	int netLinkSocket;
+	int inetSocket;
 	struct sockaddr_nl addr;
 
 	EtherPort *pPort =
@@ -334,6 +335,20 @@ void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 
 	if (bind (netLinkSocket, (struct sockaddr *) &addr, sizeof (addr)) < 0) {
 		GPTP_LOG_ERROR("Socket bind failed");
+		close (netLinkSocket);
+		return;
+	}
+
+	/*
+	 * Open an INET family socket to be passed to getLinkSpeed() which calls
+	 * ioctl() because NETLINK sockets do not support ioctl(). Since we will
+	 * enter an infinite loop, there are no apparent close() calls for the
+	 * open sockets, but they will be closed on process termination.
+	 */
+	inetSocket = socket (AF_INET, SOCK_STREAM, 0);
+	if (inetSocket < 0) {
+		GPTP_LOG_ERROR("watchNetLink error opening socket: %s", strerror(errno));
+		close (netLinkSocket);
 		return;
 	}
 
@@ -341,7 +356,7 @@ void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 	if( pPort->getLinkUpState() )
 	{
 		uint32_t link_speed;
-		getLinkSpeed( netLinkSocket, &link_speed );
+		getLinkSpeed( inetSocket, &link_speed );
 		pPort->setLinkSpeed((int32_t) link_speed );
 	} else
 	{
@@ -367,7 +382,7 @@ void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 			if( pPort->getLinkUpState() )
 			{
 				uint32_t link_speed;
-				getLinkSpeed( netLinkSocket, &link_speed );
+				getLinkSpeed( inetSocket, &link_speed );
 				pPort->setLinkSpeed((int32_t) link_speed );
 			} else
 			{
