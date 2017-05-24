@@ -250,7 +250,7 @@ static void x_initLinkUpStatus( EtherPort *pPort, int ifindex )
 		close(inetSocket);
 		return;
 	}
-	if (device.ifr_flags && IFF_RUNNING) {
+	if (device.ifr_flags & IFF_RUNNING) {
 		GPTP_LOG_DEBUG("Interface %s is up", device.ifr_name);
 		pPort->setLinkUpState(true);
 	} //linkUp == false by default
