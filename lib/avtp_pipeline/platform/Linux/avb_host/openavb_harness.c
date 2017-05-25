@@ -73,12 +73,13 @@ extern bool openavbIntfViewerInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *p
 
 // Linux interface modules
 extern bool openavbIntfAlsaInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
-extern bool openavbIntfMjpegGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfMpeg2tsFileInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
-extern bool openavbIntfMpeg2tsGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfWavFileInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
+#ifdef AVB_FEATURE_GSTREAMER
+extern bool openavbIntfMpeg2tsGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
+extern bool openavbIntfMjpegGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfH264RtpGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
-
+#endif
 
 
 /***********************************************
@@ -196,15 +197,16 @@ int main(int argc, char *argv[])
 	registerStaticIntfModule(openavbIntfCtrlInitialize);
 	registerStaticIntfModule(openavbIntfLoggerInitialize);
 	registerStaticIntfModule(openavbIntfNullInitialize);
-	//registerStaticIntfModule(openavbIntfToneGenInitialize);
+	registerStaticIntfModule(openavbIntfToneGenInitialize);
 	registerStaticIntfModule(openavbIntfViewerInitialize);
 	registerStaticIntfModule(openavbIntfAlsaInitialize);
-	registerStaticIntfModule(openavbIntfMjpegGstInitialize);
 	registerStaticIntfModule(openavbIntfMpeg2tsFileInitialize);
-	registerStaticIntfModule(openavbIntfMpeg2tsGstInitialize);
 	registerStaticIntfModule(openavbIntfWavFileInitialize);
+#ifdef AVB_FEATURE_GSTREAMER
+	registerStaticIntfModule(openavbIntfMjpegGstInitialize);
+	registerStaticIntfModule(openavbIntfMpeg2tsGstInitialize);
 	registerStaticIntfModule(openavbIntfH264RtpGstInitialize);
-
+#endif
 	// Process command line
 	programName = strrchr(argv[0], '/');
 	programName = programName ? programName + 1 : argv[0];

@@ -46,14 +46,11 @@
 
 #include <pci/pci.h>
 
-#include "igb.h"
 #include "talker_mrp_client.h"
+#include "avb.h"
 
 #define VERSION_STR "1.0"
 
-#define SHM_SIZE (4 * 8 + sizeof(pthread_mutex_t)) /* 3 - 64 bit and 2 - 32 bits */
-#define SHM_NAME  "/ptp"
-#define MAX_SAMPLE_VALUE ((1U << ((sizeof(int32_t) * 8) -1)) -1)
 #define SRC_CHANNELS (2)
 #define GAIN (0.5)
 #define L16_PAYLOAD_TYPE (96) /* for layer 4 transport - should be negotiated via RTSP */
@@ -64,7 +61,6 @@
 #define CHANNELS (2)
 #define RTP_SUBNS_SCALE_NUM (20000000)
 #define RTP_SUBNS_SCALE_DEN (4656613)
-#define IGB_BIND_NAMESZ (24)
 #define XMIT_DELAY (200000000) /* us */
 #define RENDER_DELAY (XMIT_DELAY+2000000)	/* us */
 #define L2_PACKET_IPG (125000) /* (1) packet every 125 usec */
@@ -74,57 +70,6 @@
 
 typedef long double FrequencyRatio;
 volatile int *halt_tx_sig;//Global variable for signal handler
-
-typedef struct {
-	int64_t ml_phoffset;
-	int64_t ls_phoffset;
-	FrequencyRatio ml_freqoffset;
-	FrequencyRatio ls_freqoffset;
-	uint64_t local_time;
-} gPtpTimeData;
-
-typedef struct __attribute__ ((packed)) {
-	uint64_t subtype:7;
-	uint64_t cd_indicator:1;
-	uint64_t timestamp_valid:1;
-	uint64_t gateway_valid:1;
-	uint64_t reserved0:1;
-	uint64_t reset:1;
-	uint64_t version:3;
-	uint64_t sid_valid:1;
-	uint64_t seq_number:8;
-	uint64_t timestamp_uncertain:1;
-	uint64_t reserved1:7;
-	uint64_t stream_id;
-	uint64_t timestamp:32;
-	uint64_t gateway_info:32;
-	uint64_t length:16;
-} seventeen22_header;
-
-/* 61883 CIP with SYT Field */
-typedef struct __attribute__ ((packed)) {
-	uint16_t packet_channel:6;
-	uint16_t format_tag:2;
-	uint16_t app_control:4;
-	uint16_t packet_tcode:4;
-	uint16_t source_id:6;
-	uint16_t reserved0:2;
-	uint16_t data_block_size:8;
-	uint16_t reserved1:2;
-	uint16_t source_packet_header:1;
-	uint16_t quadlet_padding_count:3;
-	uint16_t fraction_number:2;
-	uint16_t data_block_continuity:8;
-	uint16_t format_id:6;
-	uint16_t eoh:2;
-	uint16_t format_dependent_field:8;
-	uint16_t syt;
-} six1883_header;
-
-typedef struct __attribute__ ((packed)) {
-	uint8_t label;
-	uint8_t value[3];
-} six1883_sample;
 
 typedef struct __attribute__ ((packed)) {
 	uint8_t version_length;
@@ -257,66 +202,6 @@ static inline uint64_t ST_rdtsc(void)
 	return ret;
 }
 
-int gptpinit(int *igb_shm_fd, char **igb_mmap)
-{
-	if (NULL == igb_shm_fd)
-		return -1;
-
-	*igb_shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	if (*igb_shm_fd == -1) {
-		perror("shm_open()");
-		return -1;
-	}
-	*igb_mmap = (char *)mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE,
-				MAP_SHARED, *igb_shm_fd, 0);
-	if (*igb_mmap == (char *)-1) {
-		perror("mmap()");
-		*igb_mmap = NULL;
-		shm_unlink(SHM_NAME);
-		return -1;
-	}
-
-	return 0;
-}
-
-int gptpdeinit(int *igb_shm_fd, char **igb_mmap)
-{
-	if (NULL == igb_shm_fd)
-		return -1;
-
-	if (igb_mmap != NULL) {
-		munmap(*igb_mmap, SHM_SIZE);
-		*igb_mmap = NULL;
-	}
-	if (*igb_shm_fd != -1) {
-		close(*igb_shm_fd);
-		*igb_shm_fd = -1;
-	}
-
-	return 0;
-}
-
-int gptpscaling(const char *igb_mmap, gPtpTimeData *td)
-{
-	if (NULL == td)
-		return -1;
-
-	(void) pthread_mutex_lock((pthread_mutex_t *) igb_mmap);
-	{
-		memcpy(td, igb_mmap + sizeof(pthread_mutex_t), sizeof(*td));
-	}
-	(void) pthread_mutex_unlock((pthread_mutex_t *) igb_mmap);
-
-	fprintf(stderr, "local_time = %" PRIu64 "\n",
-			td->local_time);
-	fprintf(stderr, "ml_phoffset = %" PRId64 ", ls_phoffset = %" PRId64 "\n",
-			td->ml_phoffset, td->ls_phoffset);
-	fprintf(stderr, "ml_freqffset = %Lf, ls_freqoffset = %Lf\n",
-		td->ml_freqoffset, td->ls_freqoffset);
-
-	return 0;
-}
-
 void gensine32(int32_t * buf, unsigned count)
 {
 	long double interval = (2 * ((long double)M_PI)) / count;
@@ -354,45 +239,6 @@ void sigint_handler(int signum)
 {
 	printf("got SIGINT\n");
 	*halt_tx_sig = signum;
-}
-
-int pci_connect(device_t *igb_dev)
-{
-	struct pci_access *pacc;
-	struct pci_dev *dev;
-	int err;
-	char devpath[IGB_BIND_NAMESZ];
-	memset(igb_dev, 0, sizeof(device_t));
-	pacc = pci_alloc();
-	pci_init(pacc);
-	pci_scan_bus(pacc);
-	for (dev = pacc->devices; dev; dev = dev->next) {
-		pci_fill_info(dev,
-			      PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
-		igb_dev->pci_vendor_id = dev->vendor_id;
-		igb_dev->pci_device_id = dev->device_id;
-		igb_dev->domain = dev->domain;
-		igb_dev->bus = dev->bus;
-		igb_dev->dev = dev->dev;
-		igb_dev->func = dev->func;
-		snprintf(devpath, IGB_BIND_NAMESZ, "%04x:%02x:%02x.%d",
-			 dev->domain, dev->bus, dev->dev, dev->func);
-		err = igb_probe(igb_dev);
-		if (err) {
-			continue;
-		}
-		printf("attaching to %s\n", devpath);
-		err = igb_attach(devpath, igb_dev);
-		if ( err || igb_attach_tx( igb_dev )) {
-			printf("attach failed! (%s)\n", strerror(errno));
-			continue;
-		}
-		goto out;
-	}
-	pci_cleanup(pacc);
-	return ENXIO;
- out:	pci_cleanup(pacc);
-	return 0;
 }
 
 void l3_to_l2_multicast( unsigned char *l2, unsigned char *l3 ) {

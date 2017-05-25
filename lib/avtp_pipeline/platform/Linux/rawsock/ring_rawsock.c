@@ -324,7 +324,7 @@ bool ringRawsockRelTxFrame(void *pvRawsock, U8 *pBuffer)
 }
 
 // Release a TX frame, and mark it as ready to send
-bool ringRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
+bool ringRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
 	ring_rawsock_t *rawsock = (ring_rawsock_t*)pvRawsock;
@@ -334,6 +334,11 @@ bool ringRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 		return FALSE;
 	}
+
+	if (timeNsec) {
+		IF_LOG_INTERVAL(1000) AVB_LOG_WARNING("launch time is unsupported in ring_rawsock");
+	}
+
 
 	volatile struct tpacket2_hdr *pHdr = (struct tpacket2_hdr*)(pBuffer - rawsock->bufHdrSize);
 	AVB_LOGF_VERBOSE("pBuffer=%p, pHdr=%p szFrame=%d, len=%d", pBuffer, pHdr, rawsock->base.frameSize, len);

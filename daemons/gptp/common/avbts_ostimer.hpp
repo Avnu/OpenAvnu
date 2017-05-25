@@ -37,7 +37,7 @@
 /**@file*/
 
 /**
- * OSTimer generic interface
+ * @brief OSTimer generic interface
  */
 class OSTimer {
 public:
@@ -57,7 +57,7 @@ public:
 inline OSTimer::~OSTimer() {}
 
 /**
- * Provides factory design patter for OSTimer class
+ * @brief Provides factory design patter for OSTimer class
  */
 class OSTimerFactory {
 public:
@@ -65,7 +65,7 @@ public:
 	 * @brief Creates the OSTimer
 	 * @return Pointer to OSTimer object
 	 */
-	virtual OSTimer * createTimer() = 0;
+	virtual OSTimer *createTimer() const = 0;
 
 	/*
 	 * Destroys the OSTimer previsouly created

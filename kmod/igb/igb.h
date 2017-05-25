@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2015 Intel Corporation.
+  Copyright(c) 2007-2016 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -514,6 +514,9 @@ struct hwmon_buff {
 	unsigned int n_hwmon;
 	};
 #endif /* IGB_HWMON */
+#define IGB_N_EXTTS	2
+#define IGB_N_PEROUT	2
+#define IGB_N_SDP	4
 #ifdef ETHTOOL_GRXFHINDIR
 #define IGB_RETA_SIZE	128
 #endif /* ETHTOOL_GRXFHINDIR */
@@ -575,8 +578,8 @@ struct igb_adapter {
 	/* OS defined structs */
 	struct pci_dev *pdev;
 	/* user-dma specific variables */
-	struct igb_user_page	*userpages;
-	u32	uring_init;
+	u32	uring_tx_init;
+	u32	uring_rx_init;
 #ifndef HAVE_NETDEV_STATS_IN_NETDEV
 	struct net_device_stats net_stats;
 #endif
@@ -659,6 +662,14 @@ struct igb_adapter {
 	struct timecounter tc;
 	u32 tx_hwtstamp_timeouts;
 	u32 rx_hwtstamp_cleared;
+
+#ifdef HAVE_PTP_1588_CLOCK_PINS
+	struct ptp_pin_desc sdp_config[IGB_N_SDP];
+#endif /* HAVE_PTP_1588_CLOCK_PINS */
+	struct {
+		struct timespec64 start;
+		struct timespec64 period;
+	} perout[IGB_N_PEROUT];
 #endif /* HAVE_PTP_1588_CLOCK */
 
 #ifdef HAVE_I2C_SUPPORT
@@ -676,6 +687,7 @@ struct igb_adapter {
 	u32 rss_indir_tbl_init;
 	u8 rss_indir_tbl[IGB_RETA_SIZE];
 #endif
+	struct mutex lock;
 };
 
 #ifdef CONFIG_IGB_VMDQ_NETDEV
@@ -859,10 +871,14 @@ void igb_procfs_topdir_exit(void);
 #define IGB_BIND       _IOW('E', 200, int)
 #define IGB_UNBIND     _IOW('E', 201, int)
 #define IGB_MAPRING    _IOW('E', 202, int)
+#define IGB_MAP_TX_RING    IGB_MAPRING
 #define IGB_UNMAPRING  _IOW('E', 203, int)
+#define IGB_UNMAP_TX_RING  IGB_UNMAPRING
 #define IGB_MAPBUF     _IOW('E', 204, int)
 #define IGB_UNMAPBUF   _IOW('E', 205, int)
 #define IGB_LINKSPEED  _IOW('E', 206, int)
+#define IGB_MAP_RX_RING    _IOW('E', 207, int)
+#define IGB_UNMAP_RX_RING  _IOW('E', 208, int)
 
 #define IGB_BIND_NAMESZ	24
 
@@ -887,6 +903,15 @@ struct igb_link_cmd {
 	u32		up;
 	u32		speed;
 	u32		duplex;
+};
+
+struct igb_private_data {
+	struct igb_adapter *adapter;
+	/* user-dma specific variable for buffer */
+	struct igb_user_page *userpages;
+	/* user-dma specific variable for TX and RX */
+	u32	uring_tx_init;
+	u32	uring_rx_init;
 };
 
 #endif /* _IGB_H_ */

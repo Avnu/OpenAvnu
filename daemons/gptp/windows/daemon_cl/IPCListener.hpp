@@ -42,14 +42,14 @@ POSSIBILITY OF SUCH DAMAGE.
 /**@file */
 
 /**
- * Provides an interface for offset with lock
+ * @brief Provides an interface for offset with lock
  */
 class LockableOffset : public Lockable, public Offset {
 private:
 	bool ready;
 public:
 	/**
-	 * Default constructor. Initializes internal variables
+	 * @brief Default constructor. Initializes internal variables
 	 */
 	LockableOffset() {
 		ml_phoffset = 0;
@@ -57,6 +57,21 @@ public:
 		ls_phoffset = 0;
 		ls_freqoffset = 0.0;
 		local_time = 0;
+
+		memset(gptp_grandmaster_id, 0, sizeof(gptp_grandmaster_id));
+		gptp_domain_number = 0;
+
+		memset(clock_identity, 0, sizeof(clock_identity));
+		priority1 = 0xFF;
+		clock_class = 0xFF;
+		offset_scaled_log_variance = 0x0000;
+		clock_accuracy = 0xFF;
+		priority2 = 0xFF;
+		domain_number = 0;
+		log_sync_interval = 0;
+		log_announce_interval = 0;
+		log_pdelay_interval = 0;
+		port_number = 0x0000;
 	}
 	/**
 	 * @brief  Get Internal ready flag
@@ -71,7 +86,7 @@ public:
 };
 
 /**
- * Provides an interface for the IPC shared data
+ * @brief Provides an interface for the IPC shared data
  */
 class IPCSharedData {
 public:
@@ -80,7 +95,7 @@ public:
 };
 
 /**
- * Provides an interface for the IPC Listener
+ * @brief Provides an interface for the IPC Listener
  */
 class IPCListener : public Stoppable {
 private:
@@ -112,7 +127,7 @@ public:
 		else return false;
 	}
 	/**
-	 * Destroys the IPC listener interface
+	 * @brief Destroys the IPC listener interface
 	 */
 	~IPCListener() {}
 };

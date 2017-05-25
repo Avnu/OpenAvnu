@@ -7,6 +7,7 @@ SET (SRC_FILES ${SRC_FILES}
    ${AVB_SRC_DIR}/util/openavb_log.c
    ${AVB_SRC_DIR}/util/openavb_queue.c
    ${AVB_SRC_DIR}/util/openavb_time.c
+   ${AVB_OSAL_DIR}/openavb_time_osal.c
    ${AVB_SRC_DIR}/util/openavb_timestamp.c
    ${AVB_SRC_DIR}/util/openavb_printbuf.c
 	PARENT_SCOPE

@@ -327,6 +327,11 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		attrib = mmrp_lookup(rattrib);
 
 		if (NULL == attrib) {
+			/* ignore rMT! if attribute does not already exist */
+			if (MRP_EVENT_RMT == event) {
+				free(rattrib);
+				return 0;
+			}
 			mmrp_add(rattrib);
 			attrib = rattrib;
 		} else {
@@ -1809,6 +1814,7 @@ void mmrp_reset(void)
 		sattrib = sattrib->next;
 		free(free_sattrib);
 	}
+	mrp_client_remove_all(&MMRP_db->mrp_db.clients);
 	free(MMRP_db);
 }
 

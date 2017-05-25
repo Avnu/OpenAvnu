@@ -36,7 +36,7 @@
 #include <windows_hal.hpp>
 #include <IPCListener.hpp>
 #include <PeerList.hpp>
-#include <debugout.hpp>
+#include <gptp_log.hpp>
 
 DWORD WINAPI OSThreadCallback( LPVOID input ) {
 	OSThreadArg *arg = (OSThreadArg*) input;
@@ -75,7 +75,6 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 	PIP_ADAPTER_INFO pAdapterInfo;
 	IP_ADAPTER_INFO AdapterInfo[32];       // Allocate information for up to 32 NICs
 	DWORD dwBufLen = sizeof(AdapterInfo);  // Save memory size of buffer
-	struct phy_delay delay_val;
 
 	DWORD dwStatus = GetAdaptersInfo( AdapterInfo, &dwBufLen );
 	if( dwStatus != ERROR_SUCCESS ) return false;
@@ -88,8 +87,6 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 
 	if( pAdapterInfo == NULL ) return false;
 
-	get_phy_delay(&delay_val);
-
 	DeviceClockRateMapping *rate_map = DeviceClockRateMap;
 	while (rate_map->device_desc != NULL)
 	{
@@ -101,47 +98,11 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 		netclock_hz.QuadPart = rate_map->clock_rate;
 	}
 	else {
-		XPTPD_ERROR("Unable to determine clock rate for interface %s", pAdapterInfo->Description);
+		GPTP_LOG_ERROR("Unable to determine clock rate for interface %s", pAdapterInfo->Description);
 		return false;
 	}
 
-	DevicePhyDelayMapping *phy_map = DevicePhyDelayMap;
-	while (phy_map->device_desc != NULL)
-	{
-		if (strstr(pAdapterInfo->Description, phy_map->device_desc) != NULL)
-			break;
-		++phy_map;
-	}
-	if (phy_map->device_desc != NULL) {
-		if(delay_val.gb_rx_phy_delay == -1)
-			delay_val.gb_rx_phy_delay = phy_map->delay.gb_rx_phy_delay;
-		if (delay_val.gb_tx_phy_delay == -1)
-			delay_val.gb_tx_phy_delay = phy_map->delay.gb_tx_phy_delay;
-		if (delay_val.mb_rx_phy_delay == -1)
-			delay_val.mb_rx_phy_delay = phy_map->delay.mb_rx_phy_delay;
-		if (delay_val.mb_tx_phy_delay == -1)
-			delay_val.mb_tx_phy_delay = phy_map->delay.mb_tx_phy_delay;
-		set_phy_delay(&delay_val);
-	}
-
-	if (delay_val.gb_rx_phy_delay == -1) {
-		XPTPD_ERROR("Warning: Gbit receive PHY delay is unknown using 0");
-		delay_val.gb_rx_phy_delay = 0;
-	}
-	if (delay_val.gb_tx_phy_delay == -1) {
-		XPTPD_ERROR("Warning: Gbit transmit PHY delay is unknown using 0");
-		delay_val.gb_tx_phy_delay = 0;
-	}
-	if (delay_val.mb_rx_phy_delay == -1) {
-		XPTPD_ERROR("Warning: Mbit receive PHY delay is unknown using 0");
-		delay_val.mb_rx_phy_delay = 0;
-	}
-	if (delay_val.mb_tx_phy_delay == -1) {
-		XPTPD_ERROR("Warning: Mbit transmit PHY delay is unknown using 0");
-		delay_val.gb_tx_phy_delay = 0;
-	}
-
-	XPTPD_INFO( "Adapter UID: %s\n", pAdapterInfo->AdapterName );
+	GPTP_LOG_INFO( "Adapter UID: %s\n", pAdapterInfo->AdapterName );
 	PLAT_strncpy( network_card_id, NETWORK_CARD_ID_PREFIX, 63 );
 	PLAT_strncpy( network_card_id+strlen(network_card_id), pAdapterInfo->AdapterName, 63-strlen(network_card_id) );
 
@@ -166,19 +127,26 @@ bool WindowsNamedPipeIPC::init(OS_IPC_ARG *arg) {
 	ipclistener = new IPCListener();
 	// Start IPC listen thread
 	if (!ipclistener->start(ipcdata)) {
-		XPTPD_ERROR("Starting IPC listener thread failed");
+		GPTP_LOG_ERROR("Starting IPC listener thread failed");
 	}
 	else {
-		XPTPD_INFO("Starting IPC listener thread succeeded");
+		GPTP_LOG_INFO("Starting IPC listener thread succeeded");
 	}
 
 	return true;
 }
 
-bool WindowsNamedPipeIPC::update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-	uint32_t sync_count, uint32_t pdelay_count, PortState port_state, bool asCapable) {
-
-
+bool WindowsNamedPipeIPC::update(
+	int64_t ml_phoffset,
+	int64_t ls_phoffset,
+	FrequencyRatio ml_freqoffset,
+	FrequencyRatio ls_freq_offset,
+	uint64_t local_time,
+	uint32_t sync_count,
+	uint32_t pdelay_count,
+	PortState port_state,
+	bool asCapable )
+{
 	lOffset_.get();
 	lOffset_.local_time = local_time;
 	lOffset_.ml_freqoffset = ml_freqoffset;
@@ -191,8 +159,52 @@ bool WindowsNamedPipeIPC::update(int64_t ml_phoffset, int64_t ls_phoffset, Frequ
 	return true;
 }
 
+bool WindowsNamedPipeIPC::update_grandmaster(
+	uint8_t gptp_grandmaster_id[],
+	uint8_t gptp_domain_number )
+{
+	lOffset_.get();
+	memcpy(lOffset_.gptp_grandmaster_id, gptp_grandmaster_id, PTP_CLOCK_IDENTITY_LENGTH);
+	lOffset_.gptp_domain_number = gptp_domain_number;
 
-void WindowsPCAPNetworkInterface::watchNetLink(IEEE1588Port *pPort)
+	if (!lOffset_.isReady()) lOffset_.setReady(true);
+	lOffset_.put();
+	return true;
+}
+
+bool WindowsNamedPipeIPC::update_network_interface(
+	uint8_t  clock_identity[],
+	uint8_t  priority1,
+	uint8_t  clock_class,
+	int16_t  offset_scaled_log_variance,
+	uint8_t  clock_accuracy,
+	uint8_t  priority2,
+	uint8_t  domain_number,
+	int8_t   log_sync_interval,
+	int8_t   log_announce_interval,
+	int8_t   log_pdelay_interval,
+	uint16_t port_number )
+{
+	lOffset_.get();
+	memcpy(lOffset_.clock_identity, clock_identity, PTP_CLOCK_IDENTITY_LENGTH);
+	lOffset_.priority1 = priority1;
+	lOffset_.clock_class = clock_class;
+	lOffset_.offset_scaled_log_variance = offset_scaled_log_variance;
+	lOffset_.clock_accuracy = clock_accuracy;
+	lOffset_.priority2 = priority2;
+	lOffset_.domain_number = domain_number;
+	lOffset_.log_sync_interval = log_sync_interval;
+	lOffset_.log_announce_interval = log_announce_interval;
+	lOffset_.log_pdelay_interval = log_pdelay_interval;
+	lOffset_.port_number = port_number;
+
+	if (!lOffset_.isReady()) lOffset_.setReady(true);
+	lOffset_.put();
+	return true;
+}
+
+
+void WindowsPCAPNetworkInterface::watchNetLink( CommonPort *pPort)
 {
 	/* ToDo add link up/down detection, Google MIB_IPADDR_DISCONNECTED */
 }

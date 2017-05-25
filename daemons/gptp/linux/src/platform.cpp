@@ -33,6 +33,7 @@
 
 #include <platform.hpp>
 #include <arpa/inet.h>
+#include <time.h>
 
 uint16_t PLAT_htons( uint16_t s ) {
 	return htons( s );
@@ -53,4 +54,12 @@ uint64_t PLAT_htonll(uint64_t x)
 uint64_t PLAT_ntohll(uint64_t x)
 {
 	return( (ntohl(1) == 1) ? x : ((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32) );
+}
+int PLAT_localtime(const time_t * inTime, struct tm * outTm)
+{
+  if (localtime_r(inTime, outTm)) {
+    return 0;
+  } else {
+    return -1;
+  }
 }

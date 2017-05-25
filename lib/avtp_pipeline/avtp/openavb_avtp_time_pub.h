@@ -123,6 +123,16 @@ void openavbAvtpTimeSetToTimestamp(avtp_time_t *pAvtpTime, U32 timestamp);
  */
 void openavbAvtpTimeSetToTimespec(avtp_time_t *pAvtpTime, timespec_t* timestamp);
 
+/** Set to nanosecond timestamp.
+ *
+ * Set the time in the avtp_time_t structure to the value of U64
+ * timeNS.
+ *
+ * \param pAvtpTime A pointer to the avtp_time_t structure.
+ * \param timeNS A U64 timestamp in nanoseconds.
+ */
+void openavbAvtpTimeSetToTimestampNS(avtp_time_t *pAvtpTime, U64 timeNS);
+
 /** Push a timestamp, for use in Media Clock Recovery (MCR).
  * \note Not available in all platforms.
  *

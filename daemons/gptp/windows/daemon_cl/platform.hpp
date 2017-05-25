@@ -39,11 +39,11 @@
 #include <stdio.h>
 
 /**
- * Provides strncpy
+ * @brief Provides strncpy
  */
 errno_t PLAT_strncpy( char *dest, const char *src, rsize_t max );
 /**
- * provides snprintf
+ * @brief provides snprintf
  */
 #define PLAT_snprintf(buffer,count,...) _snprintf_s(buffer,count,count,__VA_ARGS__);
 
@@ -92,5 +92,13 @@ uint64_t PLAT_htonll(uint64_t x);
  * @return Converted value
  */
 uint64_t PLAT_ntohll(uint64_t x);
+
+/**
+ * @brief  Converts a time_t structure into a tm structure
+ * @param[in]  inTime  The time_t to be converted
+ * @param[out] outTm   The tm to store the converted value in
+ * @return  An error code
+ */
+errno_t PLAT_localtime(const time_t * inTime, struct tm * outTm);
 
 #endif

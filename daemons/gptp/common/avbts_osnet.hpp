@@ -42,11 +42,13 @@
 
 /**@file*/
 
+class CommonTimestamper;
+
 #define FACTORY_NAME_LENGTH 48		/*!< Factory name maximum length */
 #define DEFAULT_TIMEOUT 1			/*!< Default timeout in milliseconds*/
 
 /**
- * LinkLayerAddress Class
+ * @brief LinkLayerAddress Class
  * Provides methods for initializing and comparing ethernet addresses.
  */
 class LinkLayerAddress:public InterfaceLabel {
@@ -55,38 +57,37 @@ class LinkLayerAddress:public InterfaceLabel {
 	uint8_t addr[ETHER_ADDR_OCTETS];
  public:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	LinkLayerAddress() {
 	};
 
 	/**
-	 * Receives a 64bit scalar
-	 * address and initializes its internal octet array with
-	 * the first 48 bits.
+	 * @brief Receives a 64bit scalar address and initializes its internal octet
+	 * array with the first 48 bits.
 	 * @param address_scalar 64 bit address
 	 */
 	LinkLayerAddress(uint64_t address_scalar) {
 		uint8_t *ptr;
 		address_scalar <<= 16;
-        if(addr == NULL)
-            return;
+		if(addr == NULL)
+			return;
 
-        for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS; ++ptr) {
+		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS; ++ptr) {
 			*ptr = (address_scalar & 0xFF00000000000000ULL) >> 56;
 			address_scalar <<= 8;
 		}
 	}
 
 	/**
-	 * Receives an address as an array of octets
+	 * @brief Receives an address as an array of octets
 	 * and copies the first 6 over the internal ethernet address.
 	 * @param address_octet_array Array of octets containing the address
 	 */
 	LinkLayerAddress(uint8_t * address_octet_array) {
 		uint8_t *ptr;
-        if( addr == NULL || address_octet_array == NULL)
-            return;
+		if( addr == NULL || address_octet_array == NULL)
+			return;
 
 		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS;
 		     ++ptr, ++address_octet_array)
@@ -128,7 +129,7 @@ class LinkLayerAddress:public InterfaceLabel {
 	 */
 	bool operator>(const LinkLayerAddress & cmp)const {
 		return memcmp
-			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) < 0 ? true : false;
+			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) > 0 ? true : false;
 	}
 
 	/**
@@ -140,8 +141,8 @@ class LinkLayerAddress:public InterfaceLabel {
 	 */
 	void toOctetArray(uint8_t * address_octet_array) {
 		uint8_t *ptr;
-        if(addr == NULL || address_octet_array == NULL)
-            return;
+		if(addr == NULL || address_octet_array == NULL)
+			return;
 		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS;
 		     ++ptr, ++address_octet_array)
 		{
@@ -151,8 +152,7 @@ class LinkLayerAddress:public InterfaceLabel {
 };
 
 /**
- * Class InterfaceName
- * Provides methods for dealing with the network interface name
+ * @brief Provides methods for dealing with the network interface name
  * @todo: Destructor doesnt delete this->name.
  */
 class InterfaceName: public InterfaceLabel {
@@ -161,11 +161,11 @@ class InterfaceName: public InterfaceLabel {
 	char *name;
  public:
 	/**
-	 * Default constructor
+	 * @brief Default constructor
 	 */
 	InterfaceName() { }
 	/**
-	 * Initializes Interface name with name and size lenght+1
+	 * @brief Initializes Interface name with name and size lenght+1
 	 * @param name [in] String with the interface name
 	 * @param length Size of name
 	 */
@@ -173,9 +173,9 @@ class InterfaceName: public InterfaceLabel {
 		this->name = new char[length + 1];
 		PLAT_strncpy(this->name, name, length);
 	}
-    ~InterfaceName() {
-        delete(this->name);
-    }
+	~InterfaceName() {
+		delete(this->name);
+	}
 
 	/**
 	 * @brief  Operator '==' overloading method.
@@ -204,7 +204,7 @@ class InterfaceName: public InterfaceLabel {
 	 * @return TRUE if the interface name is found to be greater than cmd. FALSE otherwise
 	 */
 	bool operator>(const InterfaceName & cmp)const {
-		return strcmp(name, cmp.name) < 0 ? true : false;
+		return strcmp(name, cmp.name) > 0 ? true : false;
 	}
 
 	/**
@@ -214,8 +214,8 @@ class InterfaceName: public InterfaceLabel {
 	 * @return TRUE if length is greater than size of interface name plus one. FALSE otherwise.
 	 */
 	bool toString(char *string, size_t length) {
-        if(string == NULL)
-            return false;
+		if(string == NULL)
+			return false;
 
 		if (length >= strlen(name) + 1) {
 			PLAT_strncpy(string, name, length);
@@ -226,8 +226,7 @@ class InterfaceName: public InterfaceLabel {
 };
 
 /**
- * factory_name_t class
- * Provides a generic class to be used as a key to create factory maps.
+ * @brief Provides a generic class to be used as a key to create factory maps.
  */
 class factory_name_t {
  private:
@@ -236,7 +235,7 @@ class factory_name_t {
 	factory_name_t();
  public:
 	/**
-	 * Assign a name to the factory_name
+	 * @brief Assign a name to the factory_name
 	 * @param name_a [in] Name to be assigned to the object
 	 */
 	factory_name_t(const char *name_a) {
@@ -275,7 +274,7 @@ class factory_name_t {
 };
 
 /**
- * Enumeration net_result:
+ * @brief Enumeration net_result:
  * 	- net_trfail
  * 	- net_fatal
  * 	- net_succeed
@@ -284,27 +283,28 @@ typedef enum { net_trfail, net_fatal, net_succeed } net_result;
 
 
 /**
- * Enumeration net_link_event:
+ * @brief Enumeration net_link_event:
  * 	- net_linkup
  * 	- net_linkdown
  */
 typedef enum { NET_LINK_EVENT_DOWN, NET_LINK_EVENT_UP, NET_LINK_EVENT_FAIL } net_link_event;
 
 /**
- * Provides a generic network interface
+ * @brief Provides a generic network interface
  */
 class OSNetworkInterface {
  public:
 	 /**
 	  * @brief Sends a packet to a remote address
 	  * @param addr [in] Remote link layer address
+	  * @param etherType [in] The EtherType of the message
 	  * @param payload [in] Data buffer
 	  * @param length Size of data buffer
 	  * @param timestamp TRUE if to use the event socket with the PTP multicast address. FALSE if to use
 	  * a general socket.
 	  */
 	 virtual net_result send
-		 (LinkLayerAddress * addr, uint8_t * payload, size_t length,
+		(LinkLayerAddress * addr, uint16_t etherType, uint8_t * payload, size_t length,
 		  bool timestamp) = 0;
 
 	 /**
@@ -315,7 +315,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecv
-		 (LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
+	 ( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) = 0;
 
 	 /**
 	  * @brief Get Link Layer address (mac address)
@@ -327,7 +327,7 @@ class OSNetworkInterface {
 	 /**
 	  * @brief Watch for netlink changes.
 	  */
-	 virtual void watchNetLink(IEEE1588Port *pPort) = 0;
+	 virtual void watchNetLink( CommonPort *pPort ) = 0;
 
 	 /**
 	  * @brief  Provides generic method for getting the payload offset
@@ -335,7 +335,7 @@ class OSNetworkInterface {
 	 virtual unsigned getPayloadOffset() = 0;
 
 	 /**
-	  * Native support for polimorphic destruction
+	  * @brief Native support for polimorphic destruction
 	  */
 	 virtual ~OSNetworkInterface() = 0;
 };
@@ -345,12 +345,12 @@ inline OSNetworkInterface::~OSNetworkInterface() {}
 class OSNetworkInterfaceFactory;
 
 /**
- * Provides a map for the OSNetworkInterfaceFactory::registerFactory method
+ * @brief Provides a map for the OSNetworkInterfaceFactory::registerFactory method
  */
 typedef std::map < factory_name_t, OSNetworkInterfaceFactory * >FactoryMap_t;
 
 /**
- * Builds and registers a network interface
+ * @brief Builds and registers a network interface
  */
 class OSNetworkInterfaceFactory {
  public:
@@ -374,12 +374,12 @@ class OSNetworkInterfaceFactory {
 	 * @param iface [out] Pointer to interface name
 	 * @param id Factory name index
 	 * @param iflabel Interface label
-	 * @param timestamper HWTimestamper class pointer
+	 * @param timestamper CommonTimestamper class pointer
 	 * @return TRUE ok, FALSE error.
 	 */
 	static bool buildInterface
 	(OSNetworkInterface ** iface, factory_name_t id, InterfaceLabel * iflabel,
-	 HWTimestamper * timestamper) {
+	 CommonTimestamper * timestamper) {
 		return factoryMap[id]->createInterface
 			(iface, iflabel, timestamper);
 	}
@@ -387,7 +387,7 @@ class OSNetworkInterfaceFactory {
 private:
 	virtual bool createInterface
 	(OSNetworkInterface ** iface, InterfaceLabel * iflabel,
-	 HWTimestamper * timestamper) = 0;
+	 CommonTimestamper * timestamper) = 0;
 	static FactoryMap_t factoryMap;
 };
 

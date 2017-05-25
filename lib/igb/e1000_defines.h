@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation
+  Copyright (c) 2001-2016, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -60,6 +60,7 @@
 #define E1000_WUFC_ARP	0x00000020 /* ARP Request Packet Wakeup Enable */
 #define E1000_WUFC_IPV4	0x00000040 /* Directed IPv4 Packet Wakeup Enable */
 #define E1000_WUFC_IPV6	0x00000080 /* Directed IPv6 Packet Wakeup Enable */
+#define E1000_WUFC_FLEX_HQ	0x00004000 /* Flex Filters Host Queuing  (AVB) */
 #define E1000_WUFC_IGNORE_TCO	0x00008000 /* Ignore WakeOn TCO packets */
 #define E1000_WUFC_FLX0		0x00010000 /* Flexible Filter 0 Enable */
 #define E1000_WUFC_FLX1		0x00020000 /* Flexible Filter 1 Enable */

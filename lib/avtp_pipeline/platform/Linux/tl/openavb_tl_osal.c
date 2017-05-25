@@ -297,11 +297,8 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 		}
 	}
 	else if (MATCH(name, "ifname")) {
-		if_info_t ifinfo;
-		if (openavbCheckInterface(value, &ifinfo)) {
-			strncpy(pCfg->ifname, value, IFNAMSIZ - 1);
-			valOK = TRUE;
-		}
+		strncpy(pCfg->ifname, value, IFNAMSIZ - 1);
+		valOK = TRUE;
 	}
 	else if (MATCH(name, "vlan_id")) {
 		errno = 0;
@@ -312,6 +309,42 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 			&& tmp >= 0x0
 			&& tmp <= 0xFFF) {
 			pCfg->vlan_id = tmp;
+			valOK = TRUE;
+		}
+	}
+	else if (MATCH(name, "fixed_timestamp")) {
+		errno = 0;
+		long tmp;
+		tmp = strtol(value, &pEnd, 0);
+		if (*pEnd == '\0' && errno == 0) {
+			pCfg->fixed_timestamp = tmp;
+			valOK = TRUE;
+		}
+	}
+	else if (MATCH(name, "tx_blocking_in_intf")) {
+		errno = 0;
+		long tmp;
+		tmp = strtol(value, &pEnd, 0);
+		if (*pEnd == '\0' && errno == 0) {
+			pCfg->tx_blocking_in_intf = tmp;
+			valOK = TRUE;
+		}
+	}
+	else if (MATCH(name, "thread_rt_priority")) {
+		errno = 0;
+		long tmp;
+		tmp = strtol(value, &pEnd, 0);
+		if (*pEnd == '\0' && errno == 0) {
+			pCfg->thread_rt_priority = tmp;
+			valOK = TRUE;
+		}
+	}
+	else if (MATCH(name, "thread_affinity")) {
+		errno = 0;
+		unsigned long tmp;
+		tmp = strtoul(value, &pEnd, 0);
+		if (*pEnd == '\0' && errno == 0) {
+			pCfg->thread_affinity = tmp;
 			valOK = TRUE;
 		}
 	}
@@ -405,6 +438,13 @@ EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char
 	parseIniData.pNVCfg = pNVCfg;
 
 	int result = ini_parse(fileName, openavbTLCfgCallback, &parseIniData);
+	if (result == 0) {
+		if_info_t ifinfo;
+		if (!openavbCheckInterface(parseIniData.pCfg->ifname, &ifinfo)) {
+			AVB_LOGF_ERROR("Invalid value: name=%s, value=%s", "ifname", parseIniData.pCfg->ifname);
+			return FALSE;
+		}
+	}
 	if (result < 0) {
 		AVB_LOGF_ERROR("Couldn't parse INI file: %s", fileName);
 		return FALSE;

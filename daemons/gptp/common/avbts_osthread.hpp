@@ -37,19 +37,20 @@
 /**@file*/
 
 /**
- * thread exit codes. Possible values are:
+ * @brief thread exit codes. Possible values are:
  * 	- osthread_ok;
  * 	- osthread_error;
  */
 typedef enum { osthread_ok, osthread_error } OSThreadExitCode;
 
 /**
- * Provides the OSThreadExitCode callback format
+ * @brief Provides the OSThreadExitCode callback format
  */
 typedef OSThreadExitCode(*OSThreadFunction) (void *);
+typedef void *OSThreadFunctionArg;
 
 /**
- * Provides a generic interface for threads
+ * @brief Provides a generic interface for threads
  */
 class OSThread {
 public:
@@ -73,7 +74,7 @@ public:
 inline OSThread::~OSThread() {}
 
 /**
- * Provides factory design pattern for OSThread class
+ * @brief Provides factory design pattern for OSThread class
  */
 class OSThreadFactory {
 public:
@@ -81,10 +82,10 @@ public:
 	 * @brief Creates a new thread
 	 * @return Pointer to OSThread object
 	 */
-	virtual OSThread * createThread() = 0;
+	virtual OSThread * createThread() const = 0;
 
 	/**
-	 * Destroys the new thread
+	 * @brief Destroys the new thread
 	 */
 	virtual ~OSThreadFactory() = 0;
 };

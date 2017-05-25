@@ -37,7 +37,7 @@
 #include <windows.h>
 #include <stdint.h>
 #include <minwinbase.h>
-#include <debugout.hpp>
+#include <gptp_log.hpp>
 
 #include "ipcdef.hpp"
 
@@ -49,7 +49,7 @@
 #pragma pack(push,1)
 
 /**
- * Enumeration named pipe message type. Possible values are:
+ * @brief Enumeration named pipe message type. Possible values are:
  *  - BASE_MSG;
  *  - CTRL_MSG;
  *  - QUERY_MSG;
@@ -58,7 +58,7 @@
 typedef enum { BASE_MSG = 0, CTRL_MSG, QUERY_MSG, OFFSET_MSG } NPIPE_MSG_TYPE;
 
 /**
- * Provides a windows named pipe interface
+ * @brief Provides a windows named pipe interface
  */
 class WindowsNPipeMessage {
     protected:
@@ -90,7 +90,7 @@ class WindowsNPipeMessage {
             if( last_error == ERROR_SUCCESS || last_error == ERROR_PIPE_LISTENING ) {
                 return true;
             }
-            XPTPD_ERROR( "Failed to write to named pipe: %u", last_error );
+            GPTP_LOG_ERROR( "Failed to write to named pipe: %u", last_error );
             return false;
         }
         /**
@@ -117,7 +117,7 @@ class WindowsNPipeMessage {
             if( ReadFile( pipe, ((char *)this)+offs, ol_read_req, &bytes_read, lol ) == 0 ) {
                 int err = GetLastError();
                 if( err != ERROR_IO_PENDING ) {
-                    XPTPD_ERROR( "Failed to read %d bytes from named pipe: %u", ol_read_req, err );
+                    GPTP_LOG_ERROR( "Failed to read %d bytes from named pipe: %u", ol_read_req, err );
                 }
                 return err == ERROR_IO_PENDING ? 0 : -1;
             }
@@ -152,20 +152,43 @@ class WindowsNPipeMessage {
         NPIPE_MSG_TYPE getType() { return type; }
 };
 
+#ifndef PTP_CLOCK_IDENTITY_LENGTH
+#define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS-2011 Clause 8.5.2.4*/
+#endif
+
 /**
- * Provides an interface for the phase/frequency offsets
+ * @brief Provides an interface for the phase/frequency offsets
  */
 class Offset {
     public:
-        int64_t ml_phoffset;	/*!< Master to local phase offset */
-        FrequencyRatio ml_freqoffset;	/*!< Master to local frequency offset */
-        int64_t ls_phoffset;	/*!< Local to system phase offset */
-        FrequencyRatio ls_freqoffset;	/*!< Local to system frequency offset*/
-        uint64_t local_time;	/*!< Local time*/
+        int64_t ml_phoffset;                                    //!< Master to local phase offset
+        FrequencyRatio ml_freqoffset;                           //!< Master to local frequency offset
+        int64_t ls_phoffset;                                    //!< Local to system phase offset
+        FrequencyRatio ls_freqoffset;                           //!< Local to system frequency offset
+        uint64_t local_time;                                    //!< Local time
+
+        /* Current grandmaster information */
+        /* Referenced by the IEEE Std 1722.1-2013 AVDECC Discovery Protocol Data Unit (ADPDU) */
+        uint8_t gptp_grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH]; //!< Current grandmaster id (all 0's if no grandmaster selected)
+        uint8_t gptp_domain_number;                             //!< gPTP domain number
+
+        /* Grandmaster support for the network interface */
+        /* Referenced by the IEEE Std 1722.1-2013 AVDECC AVB_INTERFACE descriptor */
+        uint8_t  clock_identity[PTP_CLOCK_IDENTITY_LENGTH];     //!< The clock identity of the interface
+        uint8_t  priority1;                                     //!< The priority1 field of the grandmaster functionality of the interface, or 0xFF if not supported
+        uint8_t  clock_class;                                   //!< The clockClass field of the grandmaster functionality of the interface, or 0xFF if not supported
+        int16_t  offset_scaled_log_variance;                    //!< The offsetScaledLogVariance field of the grandmaster functionality of the interface, or 0x0000 if not supported
+        uint8_t  clock_accuracy;                                //!< The clockAccuracy field of the grandmaster functionality of the interface, or 0xFF if not supported
+        uint8_t  priority2;                                     //!< The priority2 field of the grandmaster functionality of the interface, or 0xFF if not supported
+        uint8_t  domain_number;                                 //!< The domainNumber field of the grandmaster functionality of the interface, or 0 if not supported
+        int8_t   log_sync_interval;                             //!< The currentLogSyncInterval field of the grandmaster functionality of the interface, or 0 if not supported
+        int8_t   log_announce_interval;                         //!< The currentLogAnnounceInterval field of the grandmaster functionality of the interface, or 0 if not supported
+        int8_t   log_pdelay_interval;                           //!< The currentLogPDelayReqInterval field of the grandmaster functionality of the interface, or 0 if not supported
+        uint16_t port_number;                                   //!< The portNumber field of the interface, or 0x0000 if not supported
 };
 
 /**
- * Provides an interface to update the Offset information
+ * @brief Provides an interface to update the Offset information
  */
 class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
     private:
@@ -186,23 +209,6 @@ class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
         void init() {
             _init();
             memset( &this->offset, 0, sizeof( this->offset ));
-        }
-        /**
-         * @brief  Initializes the interface with specific values
-         * @param  ml_phoffset Master to local phase offset in nano-seconds
-         * @param  ml_freqoffset Master to local frequency offset in the ::FrequencyRatio format
-         * @param  ls_phoffset Local to system phase offset in nano-seconds
-         * @param  ls_freqoffset Local to system frequency offset in the ::FrequencyRatio format
-         * @param  local_time Local time in nanoseconds
-         * @return void
-         */
-        void init( int64_t ml_phoffset, FrequencyRatio ml_freqoffset, int64_t ls_phoffset, FrequencyRatio ls_freqoffset, uint64_t local_time ) {
-            _init();
-            this->offset.ml_phoffset = ml_phoffset;
-            this->offset.ml_freqoffset = ml_freqoffset;
-            this->offset.ls_phoffset = ls_phoffset;
-            this->offset.ls_freqoffset = ls_freqoffset;
-            this->offset.local_time = local_time;
         }
         /**
          * @brief  Initializes the interface based on the Offset structure
@@ -241,13 +247,13 @@ class WinNPipeOffsetUpdateMessage : public WindowsNPipeMessage {
 };
 
 /**
- * Enumeration CtrlWhich. It can assume the following values:
+ * @brief Enumeration CtrlWhich. It can assume the following values:
  *  - ADD_PEER;
  *  - REMOVE_PEER;
  */
 typedef enum { ADD_PEER, REMOVE_PEER } CtrlWhich;
 /**
- * Enumeration AddrWhich. It can assume the following values:
+ * @brief Enumeration AddrWhich. It can assume the following values:
  *  - MAC_ADDR;
  *  - IP_ADDR;
  *  - INVALID_ADDR;
@@ -255,13 +261,13 @@ typedef enum { ADD_PEER, REMOVE_PEER } CtrlWhich;
 typedef enum { MAC_ADDR, IP_ADDR, INVALID_ADDR } AddrWhich;
 
 /**
- * Provides an interface for Peer addresses
+ * @brief Provides an interface for Peer addresses
  */
 class PeerAddr {
     public:
         AddrWhich which;	/*!< Peer address */
         /**
-         * shared memory between mac and ip addresses
+         * @brief shared memory between mac and ip addresses
          */
         union {
             uint8_t mac[ETHER_ADDR_OCTETS];	/*!< Link Layer address */
@@ -310,7 +316,7 @@ class PeerAddr {
 };
 
 /**
- * Provides an interface for named pipe control messages
+ * @brief Provides an interface for named pipe control messages
  */
 class WinNPipeCtrlMessage : public WindowsNPipeMessage {
     private:
@@ -319,7 +325,7 @@ class WinNPipeCtrlMessage : public WindowsNPipeMessage {
         uint16_t flags;
     public:
         /**
-         * @brief  Initializes interace's internal variables.
+         * @brief  Initializes interface's internal variables.
          * @return void
          */
         void init() {
@@ -370,7 +376,7 @@ class WinNPipeCtrlMessage : public WindowsNPipeMessage {
 };
 
 /**
- * WindowsNPipeQueryMessage is sent from the client to gPTP daemon to query the
+ * @brief WindowsNPipeQueryMessage is sent from the client to gPTP daemon to query the
  * offset of type ::NPIPE_MSG_TYPE.  The daemon sends WindowsNPipeMessage in response.
  * Currently there is no data associated with this message.
  */
@@ -384,7 +390,7 @@ class WinNPipeQueryMessage : public WindowsNPipeMessage {
 };
 
 /**
- * Provides the client's named pipe interface
+ * @brief Provides the client's named pipe interface
  * @todo Not in use and should be removed.
  */
 typedef union {
@@ -393,7 +399,7 @@ typedef union {
 } WindowsNPipeMsgClient;
 
 /**
- * Provides the server's named pipe interface
+ * @brief Provides the server's named pipe interface
  * @todo Not in use and should be removed.
  */
 typedef union {

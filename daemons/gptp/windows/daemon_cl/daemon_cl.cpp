@@ -31,6 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
 
+#include <winsock2.h>
 #include <Windows.h>
 #include <winnt.h>
 #include "ieee1588.hpp"
@@ -38,16 +39,27 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "avbts_osnet.hpp"
 #include "avbts_oslock.hpp"
 #include "windows_hal.hpp"
+#include "avbts_message.hpp"
+#include "gptp_cfg.hpp"
 #include <tchar.h>
+#include <iphlpapi.h>
+
+#define PHY_DELAY_GB_TX		7750	//1G delay
+#define PHY_DELAY_GB_RX		7750	//1G delay
+#define PHY_DELAY_MB_TX		27500	//100M delay
+#define PHY_DELAY_MB_RX		27500	//100M delay
 
 #define MACSTR_LENGTH 17
+
+uint32_t findLinkSpeed(LinkLayerAddress *local_addr);
 
 static bool exit_flag;
 
 void print_usage( char *arg0 ) {
 	fprintf( stderr,
 		"%s "
-		"[-R <priority 1>] <network interface>\n",
+		"[-R <priority 1>] <network interface>\n"
+		"where <network interface> is a MAC address entered as xx-xx-xx-xx-xx-xx\n",
 		arg0 );
 }
 
@@ -78,8 +90,33 @@ int parseMacAddr( _TCHAR *macstr, uint8_t *octet_string ) {
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	bool force_slave = false;
-	int32_t offset = 0;
+	PortInit_t portInit;
+
+	phy_delay_map_t ether_phy_delay;
+	ether_phy_delay[LINKSPEED_1G].set
+	(PHY_DELAY_GB_TX, PHY_DELAY_GB_RX);
+	ether_phy_delay[LINKSPEED_100MB].set
+	(PHY_DELAY_MB_TX, PHY_DELAY_MB_RX);
+
+
+	portInit.clock = NULL;
+	portInit.index = 1;
+	portInit.timestamper = NULL;
+	portInit.net_label = NULL;
+	portInit.automotive_profile = false;
+	portInit.isGM = false;
+	portInit.testMode = false;
+	portInit.initialLogSyncInterval = LOG2_INTERVAL_INVALID;
+	portInit.initialLogPdelayReqInterval = LOG2_INTERVAL_INVALID;
+	portInit.operLogPdelayReqInterval = LOG2_INTERVAL_INVALID;
+	portInit.operLogSyncInterval = LOG2_INTERVAL_INVALID;
+	portInit.condition_factory = NULL;
+	portInit.thread_factory = NULL;
+	portInit.timer_factory = NULL;
+	portInit.lock_factory = NULL;
+	portInit.neighborPropDelayThreshold =
+		CommonPort::NEIGHBOR_PROP_DELAY_THRESH;
+
 	bool syntonize = false;
 	uint8_t priority1 = 248;
 	int i;
@@ -90,19 +127,27 @@ int _tmain(int argc, _TCHAR* argv[])
 	OSNetworkInterfaceFactory::registerFactory( factory_name_t( "default" ), default_factory );
 
 	// Create thread, lock, timer, timerq factories
-	WindowsThreadFactory *thread_factory = new WindowsThreadFactory();
-	WindowsTimerQueueFactory *timerq_factory = new WindowsTimerQueueFactory();
-	WindowsLockFactory *lock_factory = new WindowsLockFactory();
-	WindowsTimerFactory *timer_factory = new WindowsTimerFactory();
-	WindowsConditionFactory *condition_factory = new WindowsConditionFactory();
+	portInit.thread_factory = new WindowsThreadFactory();
+	portInit.lock_factory = new WindowsLockFactory();
+	portInit.timer_factory = new WindowsTimerFactory();
+	portInit.condition_factory = new WindowsConditionFactory();
 	WindowsNamedPipeIPC *ipc = new WindowsNamedPipeIPC();
+	WindowsTimerQueueFactory *timerq_factory = new WindowsTimerQueueFactory();
+
 	if( !ipc->init() ) {
 		delete ipc;
 		ipc = NULL;
 	}
 
+	// If there are no arguments, output usage
+	if (1 == argc) {
+		print_usage(argv[0]);
+		return -1;
+	}
+
+
 	/* Process optional arguments */
-	for( i = 1; i < argc-1; ++i ) {
+	for( i = 1; i < argc; ++i ) {
 		if( ispunct(argv[i][0]) ) {
 			if( toupper( argv[i][1] ) == 'H' ) {
 				print_usage( argv[0] );
@@ -125,23 +170,23 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 	}
 
+	// the last argument is supposed to be a MAC address, so decrement argv index to read it
+	i--;
+
 	// Create Low level network interface object
 	uint8_t local_addr_ostr[ETHER_ADDR_OCTETS];
-	if( i >= argc ) {
-		print_usage( argv[0] );
-		return -1;
-	}
 	parseMacAddr( argv[i], local_addr_ostr );
 	LinkLayerAddress local_addr(local_addr_ostr);
-
+	portInit.net_label = &local_addr;
 	// Create HWTimestamper object
-	HWTimestamper *timestamper = new WindowsTimestamper();
+	portInit.timestamper = new WindowsTimestamper();
 	// Create Clock object
-	IEEE1588Clock *clock = new IEEE1588Clock( false, false, priority1, timestamper, timerq_factory, ipc, lock_factory );  // Do not force slave
+	portInit.clock = new IEEE1588Clock( false, false, priority1, timerq_factory, ipc, portInit.lock_factory );  // Do not force slave
 	// Create Port Object linked to clock and low level
-	IEEE1588Port *port = new IEEE1588Port( clock, 1, false, 0, timestamper, 0, &local_addr,
-		condition_factory, thread_factory, timer_factory, lock_factory );
-	if (!port->init_port(phy_delays)) {
+	portInit.phy_delay = &ether_phy_delay;
+	EtherPort *port = new EtherPort( &portInit );
+	port->setLinkSpeed(findLinkSpeed(&local_addr));
+	if ( !port->init_port() ) {
 		printf( "Failed to initialize port\n" );
 		return -1;
 	}
@@ -160,3 +205,47 @@ int _tmain(int argc, _TCHAR* argv[])
 	return 0;
 }
 
+#define WIN_LINKSPEED_MULT (1000/*1 Kbit*/)
+
+uint32_t findLinkSpeed( LinkLayerAddress *local_addr )
+{
+	ULONG ret_sz;
+	char *buffer;
+	PIP_ADAPTER_ADDRESSES pAddr;
+	ULONG err;
+	uint32_t ret;
+
+	buffer = (char *) malloc((size_t)15000);
+	ret_sz = 15000;
+	pAddr = (PIP_ADAPTER_ADDRESSES)buffer;
+	err = GetAdaptersAddresses( AF_UNSPEC, 0, NULL, pAddr, &ret_sz );
+	for (; pAddr != NULL; pAddr = pAddr->Next)
+	{
+		//fprintf(stderr, "** here : %p\n", pAddr);
+		if (pAddr->PhysicalAddressLength == ETHER_ADDR_OCTETS &&
+			*local_addr == LinkLayerAddress(pAddr->PhysicalAddress))
+		{
+			break;
+		}
+	}
+
+	if (pAddr == NULL)
+		return INVALID_LINKSPEED;
+
+	switch ( pAddr->ReceiveLinkSpeed / WIN_LINKSPEED_MULT )
+	{
+	default:
+		GPTP_LOG_ERROR("Can't find link speed, %llu", pAddr->ReceiveLinkSpeed);
+		ret = INVALID_LINKSPEED;
+		break;
+	case LINKSPEED_1G:
+		ret = LINKSPEED_1G;
+		break;
+	case LINKSPEED_100MB:
+		ret = LINKSPEED_100MB;
+		break;
+	}
+
+	delete buffer;
+	return ret;
+}
