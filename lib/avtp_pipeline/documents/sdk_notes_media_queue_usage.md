@@ -9,6 +9,7 @@ and are hidden from interface module implemented. There are also some
 simplifications to make description as straightforward as possible. 
 
 <br>
+
 # Workflow
 
 The following work flow steps will be described.
@@ -22,6 +23,7 @@ and listener streams
 the Media Queue 
 
 <br>
+
 Starting {#media_queue_usage_start}
 ========
 
@@ -53,6 +55,7 @@ Now the listener/talker stream is running. See next steps below for details of
 Media Queue interaction for the talker and listener. 
 
 <br>
+
 Talker specific flow  {#media_queue_usage_talker}
 ====================
 
@@ -71,6 +74,7 @@ function additionally unlocks the head so the @ref openavbMediaQHeadUnlock call 
 not needed 
 
 <br>
+
 Listener specific flow    {#media_queue_usage_listener}
 ======================
 
@@ -90,6 +94,7 @@ additionally unlocks tail, so it is not necessary to call @ref
 openavbMediaQTailUnlock. 
 
 <br>
+
 Stopping     {#media_queue_usage_stop}
 ========
 
@@ -101,6 +106,7 @@ During the stopping process following action are taken
 the memory taken by all internal structures of Media Queue
 
 <br>
+
 Guidelines    {#media_queue_usage_rules}
 ==========
 
