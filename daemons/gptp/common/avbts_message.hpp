@@ -686,10 +686,19 @@ class scaledNs {
 	/**
 	 * @brief  Gets scaledNs in a byte string format
 	 * @param  byte_str [out] scaledNs value
-	 * @return void
+	 * @return 0 in case of success, -1 if an error occurs(invalid size)
 	 */
-	void toByteString(uint8_t * byte_str) {
-		memcpy(byte_str, this, sizeof(*this));
+	int toByteString(uint8_t * byte_str, size_t sizeof_byte_str_array) {
+
+		if(sizeof_byte_str_array >= sizeof(*this))
+		{
+			memcpy(byte_str, this, sizeof(*this));
+			return 0;
+		} else
+		{
+			/*the size is invalid, method returns an error*/
+			return -1;
+		}
 	}
 
 	/**
@@ -760,9 +769,19 @@ class FollowUpTLV {
 	/**
 	 * @brief  Gets FollowUpTLV information in a byte string format
 	 * @param  byte_str [out] FollowUpTLV values
+	 * @return 0 in case of success, -1 if an error occurs(invalid size)
 	 */
-	void toByteString(uint8_t * byte_str) {
-		memcpy(byte_str, this, sizeof(*this));
+	int toByteString(uint8_t * byte_str, size_t sizeof_byte_str_array) {
+
+		if(sizeof_byte_str_array >= sizeof(*this))
+		{
+			memcpy(byte_str, this, sizeof(*this));
+			return 0;
+		} else
+		{
+			/*the size is invalid, method returns an error*/
+			return -1;
+		}
 	}
 
 	/**
@@ -1163,9 +1182,19 @@ class SignallingTLV {
 	 * @brief  Gets Msg Interval Request TLV information in a byte
 	 *         string format
 	 * @param  byte_str [out] Msg Interval Request TLV values
+	 * @return 0 in case of success, -1 if an error occurs(invalid size)
 	 */
-	void toByteString(uint8_t * byte_str) {
-		memcpy(byte_str, this, sizeof(*this));
+	int toByteString(uint8_t * byte_str, size_t sizeof_byte_str_array) {
+
+		if(sizeof_byte_str_array >= sizeof(*this))
+		{
+			memcpy(byte_str, this, sizeof(*this));
+			return 0;
+		} else
+		{
+			/*the size is invalid, method returns an error*/
+			return -1;
+		}
 	}
 
 	/**
