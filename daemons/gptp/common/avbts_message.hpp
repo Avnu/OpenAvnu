@@ -1011,12 +1011,14 @@ class PTPMessageDelayReq : public PTPMessageCommon {
 	 */
 	void processMessage(IEEE1588Port * port);
 
+#ifdef APTP
 	/**
 	 * @brief  Build the common header with tweaks for the Apple Vendor PTP Profile
 	 * @param  buf [out] uint8_t
 	 * @return void
 	 */
 	void buildCommonHeader(uint8_t * buf);
+#endif
 
 	/**
 	 * @brief  Gets origin timestamp value
@@ -1119,13 +1121,15 @@ public:
 	 */
 	void getTargetPortIdentity(std::shared_ptr<PortIdentity> identity);
 
+#ifdef APTP
 	/**
 	 * @brief  Overload of base buildCommonHeader member function
 	 * @param  buf [out] Buffer holding the header values.
 	 * @return void
 	 */
 	void buildCommonHeader(uint8_t * buf);
-
+#endif
+	
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
 };
