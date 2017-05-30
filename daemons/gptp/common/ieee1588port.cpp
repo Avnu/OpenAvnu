@@ -44,9 +44,7 @@
 #include <gptp_log.hpp>
 
 #include <stdio.h>
-
 #include <math.h>
-
 #include <stdlib.h>
 
 LinkLayerAddress IEEE1588Port::other_multicast(OTHER_MULTICAST);
@@ -84,10 +82,16 @@ IEEE1588Port::~IEEE1588Port()
 
 IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 {
+	peer_identity = std::make_shared<PortIdentity>();
+	port_identity = std::make_shared<PortIdentity>();
+
+	last_sync = nullptr;
+
 	sync_sequence_id = 0;
 
 	clock = portInit->clock;
 	ifindex = portInit->index;
+
 	clock->registerPort(this, ifindex);
 
 	forceSlave = portInit->forceSlave;
@@ -100,6 +104,7 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	initialLogPdelayReqInterval = portInit->initialLogPdelayReqInterval;
 	operLogPdelayReqInterval = portInit->operLogPdelayReqInterval;
 	operLogSyncInterval = portInit->operLogSyncInterval;
+
 
 	if (automotive_profile) {
 		asCapable = true;
@@ -138,29 +143,32 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	duplicate_resp_counter = 0;
 	last_invalid_seqid = 0;
 
-	/*TODO: Add intervals below to a config interface*/
-	log_mean_sync_interval = initialLogSyncInterval;
-	log_mean_announce_interval = 0;
-	log_min_mean_pdelay_req_interval = initialLogPdelayReqInterval;
-
+	if (iniParser.hasIniValues())
+	{
+		log_mean_sync_interval = iniParser.getInitialLogSyncInterval();
+		log_mean_announce_interval = iniParser.getInitialLogAnnounceInterval();
+	}
+	else
+	{
+		log_mean_sync_interval = initialLogSyncInterval;
+		log_min_mean_pdelay_req_interval = initialLogPdelayReqInterval;
+		log_mean_announce_interval = 0;
+	}
 	_current_clock_offset = _initial_clock_offset = portInit->offset;
 
 	rate_offset_array = NULL;
 
 	_hw_timestamper = portInit->timestamper;
 
-	one_way_delay = ONE_WAY_DELAY_DEFAULT;
+	one_way_delay = 0; //ONE_WAY_DELAY_DEFAULT;
 	neighbor_prop_delay_thresh = NEIGHBOR_PROP_DELAY_THRESH;
 	sync_receipt_thresh = DEFAULT_SYNC_RECEIPT_THRESH;
 	wrongSeqIDCounter = 0;
 
 	_peer_rate_offset = 1.0;
-
-	last_sync = NULL;
 	last_pdelay_req = NULL;
 	last_pdelay_resp = NULL;
 	last_pdelay_resp_fwup = NULL;
-
 	qualified_announce = NULL;
 
 	this->net_label = portInit->net_label;
@@ -235,8 +243,10 @@ bool IEEE1588Port::init_port(int delay[4])
 	announceIntervalTimerLock = lock_factory->createLock(oslock_recursive);
 	pDelayIntervalTimerLock = lock_factory->createLock(oslock_recursive);
 
-	port_identity.setClockIdentity(clock->getClockIdentity());
-	port_identity.setPortNumber(&ifindex);
+	port_identity->setClockIdentity(clock->getClockIdentity());
+	port_identity->setPortNumber(&ifindex);
+
+	GPTP_LOG_VERBOSE("IEEE1588Port::init_port   clockId:%s", port_identity->getClockIdentity().getIdentityString().c_str());
 
 	port_ready_condition = condition_factory->createCondition();
 
@@ -425,29 +435,18 @@ void *IEEE1588Port::openPort(IEEE1588Port *port)
 	if(port->_hw_timestamper)
 		port->_hw_timestamper->get_phy_delay(&get_delay);
 
-	while (1) {
-		PTPMessageCommon *msg;
-		uint8_t buf[128];
-		LinkLayerAddress remote;
-		net_result rrecv;
-		size_t length = sizeof(buf);
-
-		if ((rrecv = net_iface->nrecv(&remote, buf, length,&get_delay)) == net_succeed) {
-			GPTP_LOG_VERBOSE("Processing network buffer");
-			msg = buildPTPMessage((char *)buf, (int)length, &remote,
-					    this);
-			if (msg != NULL) {
-				GPTP_LOG_VERBOSE("Processing message");
-				msg->processMessage(this);
-				if (msg->garbage()) {
-					delete msg;
-				}
-			} else {
-				GPTP_LOG_ERROR("Discarding invalid message");
+	while (1)
+	{
+		// Check for event and then general messages and process them
+		if (maybeProcessMessage(true, get_delay) != net_fatal)
+		{
+			if (net_fatal == maybeProcessMessage(false, get_delay))
+			{
+				break;
 			}
-		} else if (rrecv == net_fatal) {
-			GPTP_LOG_ERROR("read from network interface failed");
-			this->processEvent(FAULT_DETECTED);
+		}
+		else
+		{
 			break;
 		}
 	}
@@ -455,9 +454,49 @@ void *IEEE1588Port::openPort(IEEE1588Port *port)
 	return NULL;
 }
 
+net_result IEEE1588Port::maybeProcessMessage(bool checkEventMessage, phy_delay& delay)
+{
+	PTPMessageCommon *msg;
+	uint8_t buf[128];
+	LinkLayerAddress remote;
+	net_result rrecv;
+	size_t length = sizeof(buf);
+	
+	rrecv = checkEventMessage
+	 ? net_iface->nrecvEvent(&remote, buf, length, &delay)
+	 : net_iface->nrecvGeneral(&remote, buf, length,&delay);
+
+	if (net_succeed == rrecv)
+	{
+		GPTP_LOG_VERBOSE("Processing network buffer");
+		msg = buildPTPMessage((char *)buf, (int)length, &remote,
+				    this);
+		if (msg != NULL)
+		{
+			GPTP_LOG_VERBOSE("Processing message");
+			GPTP_LOG_VERBOSE("IEEE1588Port::maybeProcessMessage   clockId:%s", port_identity->getClockIdentity().getIdentityString().c_str());
+			msg->processMessage(this);
+			if (msg->garbage())
+			{
+				delete msg;
+			}
+		} 
+		else
+		{
+			GPTP_LOG_ERROR("Discarding invalid message");
+		}
+	}
+	else if (rrecv == net_fatal)
+	{
+		GPTP_LOG_ERROR("read from network interface failed");
+		this->processEvent(FAULT_DETECTED);
+	}
+	return rrecv;
+}
+
 net_result IEEE1588Port::port_send(uint16_t etherType, uint8_t * buf, int size,
 				   MulticastType mcast_type,
-				   PortIdentity * destIdentity, bool timestamp)
+				   std::shared_ptr<PortIdentity> destIdentity, bool timestamp, uint16_t port)
 {
 	LinkLayerAddress dest;
 
@@ -473,6 +512,11 @@ net_result IEEE1588Port::port_send(uint16_t etherType, uint8_t * buf, int size,
 		}
 	} else {
 		mapSocketAddr(destIdentity, &dest);
+		dest.Port(port);
+		uint8_t debugOctets[6];
+		dest.toOctetArray(debugOctets);
+		GPTP_LOG_VERBOSE("dest: %d %d %d %d %d %d", debugOctets[0],debugOctets[1],debugOctets[2],debugOctets[3],
+			debugOctets[4],debugOctets[5]);
 	}
 
 	return net_iface->send(&dest, etherType, (uint8_t *) buf, size, timestamp);
@@ -485,9 +529,9 @@ unsigned IEEE1588Port::getPayloadOffset()
 
 void IEEE1588Port::sendEventPort(uint16_t etherType, uint8_t * buf, int size,
 				 MulticastType mcast_type,
-				 PortIdentity * destIdentity)
+				 std::shared_ptr<PortIdentity> destIdentity)
 {
-	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, true);
+	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, true, 319);
 	if (rtx != net_succeed) {
 		GPTP_LOG_ERROR("sendEventPort(): failure");
 	}
@@ -497,9 +541,9 @@ void IEEE1588Port::sendEventPort(uint16_t etherType, uint8_t * buf, int size,
 
 void IEEE1588Port::sendGeneralPort(uint16_t etherType, uint8_t * buf, int size,
 				   MulticastType mcast_type,
-				   PortIdentity * destIdentity)
+				   std::shared_ptr<PortIdentity> destIdentity)
 {
-	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, false);
+	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, false, 320);
 	if (rtx != net_succeed) {
 		GPTP_LOG_ERROR("sendGeneralPort(): failure");
 	}
@@ -557,6 +601,7 @@ void IEEE1588Port::processEvent(Event e)
 				return;
 			}
 
+			GPTP_LOG_VERBOSE("Starting port thread");
 			listening_thread = thread_factory->createThread();
 			if (!listening_thread->
 				start (openPortWrapper, (void *)this))
@@ -582,6 +627,7 @@ void IEEE1588Port::processEvent(Event e)
 				}
 			}
 			if (!isGM) {
+				GPTP_LOG_VERBOSE("Sending initial signalling message");
 				// Send an initial signalling message
 				PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
 				if (sigMsg) {
@@ -600,6 +646,8 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case STATE_CHANGE_EVENT:
+		GPTP_LOG_DEBUG("Received STATE CHANGE event");
+
 		if (!automotive_profile) {       // BMCA is not active with Automotive Profile
 			if ( clock->getPriority1() != 255 ) {
 				int number_ports, j;
@@ -712,6 +760,8 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case LINKUP:
+		GPTP_LOG_DEBUG("Received LINKUP event");
+
 		haltPdelay(false);
 		startPDelay();
 		if (automotive_profile) {
@@ -773,6 +823,7 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case LINKDOWN:
+		GPTP_LOG_DEBUG("Received LINKDOWN event");
 		stopPDelay();
 		if (automotive_profile) {
 			GPTP_LOG_EXCEPTION("LINK DOWN");
@@ -790,9 +841,11 @@ void IEEE1588Port::processEvent(Event e)
 	case SYNC_RECEIPT_TIMEOUT_EXPIRES:
 		{
 			if (e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES) {
+				GPTP_LOG_DEBUG("Received ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES event");
 				incCounter_ieee8021AsPortStatAnnounceReceiptTimeouts();
 			}
 			else if (e == SYNC_RECEIPT_TIMEOUT_EXPIRES) {
+				GPTP_LOG_DEBUG("Received SYNC_RECEIPT_TIMEOUT_EXPIRES event");
 				incCounter_ieee8021AsPortStatRxSyncReceiptTimeouts();
 			}
 			if (!automotive_profile) {
@@ -814,6 +867,7 @@ void IEEE1588Port::processEvent(Event e)
 					}
 				}
 
+#ifndef APTP
 				if (port_state == PTP_INITIALIZING
 				    || port_state == PTP_UNCALIBRATED
 				    || port_state == PTP_SLAVE
@@ -860,7 +914,7 @@ void IEEE1588Port::processEvent(Event e)
 					}
 					startAnnounce();
 				}
-
+#endif // ifndef APTP
 			}
 			else {
 				// Automotive Profile
@@ -877,6 +931,7 @@ void IEEE1588Port::processEvent(Event e)
 		}
 
 		break;
+#ifndef APTP
 	case PDELAY_INTERVAL_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("PDELAY_INTERVAL_TIMEOUT_EXPIRES occured");
 		{
@@ -889,9 +944,9 @@ void IEEE1588Port::processEvent(Event e)
 
 			PTPMessagePathDelayReq *pdelay_req =
 			    new PTPMessagePathDelayReq(this);
-			PortIdentity dest_id;
+			std::shared_ptr<PortIdentity> dest_id;
 			getPortIdentity(dest_id);
-			pdelay_req->setPortIdentity(&dest_id);
+			pdelay_req->setPortIdentity(dest_id);
 
 			{
 				Timestamp pending =
@@ -975,6 +1030,7 @@ void IEEE1588Port::processEvent(Event e)
 			}
 		}
 		break;
+#endif // ifndef APTP
 	case SYNC_INTERVAL_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("SYNC_INTERVAL_TIMEOUT_EXPIRES occured");
 		{
@@ -989,11 +1045,15 @@ void IEEE1588Port::processEvent(Event e)
 			uint32_t local_clock, nominal_clock_rate;
 
 			// Send a sync message and then a followup to broadcast
-			if (asCapable) {
+#ifndef APTP
+			// The aPTP profile can't support asCapable
+			if (asCapable)
+#endif
+			{
 				PTPMessageSync *sync = new PTPMessageSync(this);
-				PortIdentity dest_id;
+				std::shared_ptr<PortIdentity> dest_id;
 				getPortIdentity(dest_id);
-				sync->setPortIdentity(&dest_id);
+				sync->setPortIdentity(dest_id);
 				getTxLock();
 				sync->sendPort(this, NULL);
 				GPTP_LOG_DEBUG("Sent SYNC message");
@@ -1069,11 +1129,11 @@ void IEEE1588Port::processEvent(Event e)
 
 					follow_up =
 						new PTPMessageFollowUp(this);
-					PortIdentity dest_id;
+					std::shared_ptr<PortIdentity> dest_id;
 					getPortIdentity(dest_id);
 
 					follow_up->setClockSourceTime(getClock()->getFUPInfo());
-					follow_up->setPortIdentity(&dest_id);
+					follow_up->setPortIdentity(dest_id);
 					follow_up->setSequenceId(sync->getSequenceId());
 					follow_up->setPreciseOriginTimestamp(sync_timestamp);
 					follow_up->sendPort(this, NULL);
@@ -1116,13 +1176,14 @@ void IEEE1588Port::processEvent(Event e)
 		if (asCapable) {
 			// Send an announce message
 			PTPMessageAnnounce *annc = new PTPMessageAnnounce(this);
-			PortIdentity dest_id;
-			PortIdentity gmId;
+			std::shared_ptr<PortIdentity> dest_id;
+			std::shared_ptr<PortIdentity> gmId;
 			ClockIdentity clock_id = clock->getClockIdentity();
-			gmId.setClockIdentity(clock_id);
+			gmId->setClockIdentity(clock_id);
 			getPortIdentity(dest_id);
-			annc->setPortIdentity(&dest_id);
+			annc->setPortIdentity(dest_id);
 			annc->sendPort(this, NULL);
+			//!!! Add aPTP TLV signal !!!
 			delete annc;
 		}
 		startAnnounceIntervalTimer((uint64_t)(pow((double)2, getAnnounceInterval()) * 1000000000.0));
@@ -1133,6 +1194,7 @@ void IEEE1588Port::processEvent(Event e)
 			setAsCapable(false);
 		}
 		break;
+#ifndef APTP
 	case PDELAY_DEFERRED_PROCESSING:
 		GPTP_LOG_DEBUG("PDELAY_DEFERRED_PROCESSING occured");
 		pdelay_rx_lock->lock();
@@ -1148,6 +1210,7 @@ void IEEE1588Port::processEvent(Event e)
 		pdelay_rx_lock->unlock();
 		break;
 	case PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES:
+		GPTP_LOG_DEBUG("Received PDELAY_RESP_RECEIPT_TIMEOUT_EXPIRES event");
 		if (!automotive_profile) {
 			GPTP_LOG_EXCEPTION("PDelay Response Receipt Timeout");
 			setAsCapable(false);
@@ -1156,6 +1219,7 @@ void IEEE1588Port::processEvent(Event e)
 		break;
 
 	case PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES:
+		GPTP_LOG_DEBUG("Received PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES event");
 		GPTP_LOG_EXCEPTION("PDelay Resp Peer Misbehaving timeout expired! Restarting PDelay");
 
 		haltPdelay(false);
@@ -1164,6 +1228,7 @@ void IEEE1588Port::processEvent(Event e)
 			startPDelay();
 		}
 		break;
+#endif // ifndef APTP
 	case SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED:
 		{
 			GPTP_LOG_INFO("SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED occured");
@@ -1323,16 +1388,16 @@ void IEEE1588Port::recommendState
  }
 
 void IEEE1588Port::mapSocketAddr
-(PortIdentity * destIdentity, LinkLayerAddress * remote)
+(std::shared_ptr<PortIdentity> destIdentity, LinkLayerAddress * remote)
 {
-	*remote = identity_map[*destIdentity];
+	*remote = identity_map[destIdentity];
 	return;
 }
 
 void IEEE1588Port::addSockAddrMap
-(PortIdentity * destIdentity, LinkLayerAddress * remote)
+(std::shared_ptr<PortIdentity> destIdentity, LinkLayerAddress * remote)
 {
-	identity_map[*destIdentity] = *remote;
+	identity_map[destIdentity] = *remote;
 	return;
 }
 
@@ -1340,22 +1405,22 @@ int IEEE1588Port::getTxTimestamp
 (PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,
  bool last)
 {
-	PortIdentity identity;
-	msg->getPortIdentity(&identity);
+	std::shared_ptr<PortIdentity> identity;
+	msg->getPortIdentity(identity);
 	return getTxTimestamp
-		(&identity, msg->getMessageId(), timestamp, counter_value, last);
+		(identity, msg->getMessageId(), timestamp, counter_value, last);
 }
 
 int IEEE1588Port::getRxTimestamp(PTPMessageCommon * msg, Timestamp & timestamp,
 				 unsigned &counter_value, bool last)
 {
-	PortIdentity identity;
-	msg->getPortIdentity(&identity);
+	std::shared_ptr<PortIdentity> identity;
+	msg->getPortIdentity(identity);
 	return getRxTimestamp
-		(&identity, msg->getMessageId(), timestamp, counter_value, last);
+		(identity, msg->getMessageId(), timestamp, counter_value, last);
 }
 
-int IEEE1588Port::getTxTimestamp(PortIdentity * sourcePortIdentity,
+int IEEE1588Port::getTxTimestamp(std::shared_ptr<PortIdentity> sourcePortIdentity,
 				 PTPMessageId messageId, Timestamp & timestamp,
 				 unsigned &counter_value, bool last)
 {
@@ -1368,7 +1433,7 @@ int IEEE1588Port::getTxTimestamp(PortIdentity * sourcePortIdentity,
 	return 0;
 }
 
-int IEEE1588Port::getRxTimestamp(PortIdentity * sourcePortIdentity,
+int IEEE1588Port::getRxTimestamp(std::shared_ptr<PortIdentity> sourcePortIdentity,
 				 PTPMessageId messageId, Timestamp & timestamp,
 				 unsigned &counter_value, bool last)
 {
@@ -1378,6 +1443,7 @@ int IEEE1588Port::getRxTimestamp(PortIdentity * sourcePortIdentity,
 		     last);
 	}
 	timestamp = clock->getSystemTime();
+	GPTP_LOG_VERBOSE("getRxTimestamp timestamp = %d,%d,%d", timestamp.seconds_ms, timestamp.seconds_ls, timestamp.nanoseconds );
 	return 0;
 }
 

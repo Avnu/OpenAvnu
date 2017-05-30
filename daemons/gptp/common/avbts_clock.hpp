@@ -517,7 +517,7 @@ public:
    * @return The offset in ppt (parts per trillion)
    */
   FrequencyRatio calcMasterLocalClockRateDifference
-	  ( Timestamp master_time, Timestamp sync_time );
+	  (const Timestamp& master_time, const Timestamp& sync_time );
 
   /**
    * @brief  Calculates the local to system clock rate difference
@@ -526,7 +526,7 @@ public:
    * @return The offset in ppt (parts per trillion)
    */
   FrequencyRatio calcLocalSystemClockRateDifference
-	  ( Timestamp local_time, Timestamp system_time );
+	  (const Timestamp& local_time, const Timestamp& system_time );
 
   /**
    * @brief  Sets the master offset, sintonyze and adjusts the frequency offset
@@ -553,10 +553,20 @@ public:
         bool asCapable );
 
   /**
+   * @brief  Sets the master offset, sintonyze and adjusts the frequency offset
+   * @param  master_local_offset Master to local phase offset
+   * @param  master_local_freq_offset Master to local frequency offset
+   * @param  local_system_offset Local time to system time phase offset
+   */
+  void setMasterOffset(IEEE1588Port * port, int64_t master_local_offset,
+   FrequencyRatio master_local_freq_offset,
+   FrequencyRatio local_system_freq_offset);
+
+  /**
    * @brief  Get the IEEE1588Clock identity value
    * @return clock identity
    */
-  ClockIdentity getClockIdentity() {
+  const ClockIdentity& getClockIdentity() {
 	  return clock_identity;
   }
 

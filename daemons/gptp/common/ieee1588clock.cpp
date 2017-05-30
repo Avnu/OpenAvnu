@@ -47,7 +47,7 @@
 
 #include <math.h>
 
-std::string ClockIdentity::getIdentityString()
+const std::string ClockIdentity::getIdentityString() const
 {
 	uint8_t cid[PTP_CLOCK_IDENTITY_LENGTH];
 	getIdentityString(cid);
@@ -222,7 +222,9 @@ bool IEEE1588Clock::restoreSerializedState( void *buf, off_t *count ) {
 
 Timestamp IEEE1588Clock::getSystemTime(void)
 {
-	return (Timestamp(0, 0, 0));
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	return Timestamp(ts);
 }
 
 void timerq_handler(void *arg)
@@ -267,7 +269,9 @@ void IEEE1588Clock::deleteEventTimerLocked(IEEE1588Port * target, Event event)
     if( putTimerQLock() == oslock_fail ) return;
 }
 
-FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp local_time, Timestamp system_time ) {
+FrequencyRatio 
+IEEE1588Clock::calcLocalSystemClockRateDifference(const Timestamp& local_time, const Timestamp& system_time ) 
+{
 	unsigned long long inter_system_time;
 	unsigned long long inter_local_time;
 	FrequencyRatio ppt_offset;
@@ -302,7 +306,9 @@ FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp loca
 
 
 
-FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp master_time, Timestamp sync_time ) {
+FrequencyRatio
+IEEE1588Clock::calcMasterLocalClockRateDifference(const Timestamp& master_time, const Timestamp& sync_time )
+{
 	unsigned long long inter_sync_time;
 	unsigned long long inter_master_time;
 	FrequencyRatio ppt_offset;
@@ -335,42 +341,39 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 	return ppt_offset;
 }
 
-void IEEE1588Clock::setMasterOffset
-( IEEE1588Port * port, int64_t master_local_offset, Timestamp local_time,
-  FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
-  Timestamp system_time, FrequencyRatio local_system_freq_offset,
-  unsigned sync_count, unsigned pdelay_count, PortState port_state, bool asCapable )
+void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
+ int64_t master_local_offset,
+ FrequencyRatio master_local_freq_offset,
+ FrequencyRatio local_system_freq_offset)
 {
+	GPTP_LOG_INFO("IEEE1588Clock::setMasterOffset");
+
 	_master_local_freq_offset = master_local_freq_offset;
 	_local_system_freq_offset = local_system_freq_offset;
 
-	if (port->getTestMode()) {
-		GPTP_LOG_STATUS("Clock offset:%lld   Clock rate ratio:%Lf   Sync Count:%u   PDelay Count:%u", 
-						master_local_offset, master_local_freq_offset, sync_count, pdelay_count);
-	}
-
-	if( ipc != NULL ) ipc->update
-		( master_local_offset, local_system_offset, master_local_freq_offset,
-		  local_system_freq_offset, TIMESTAMP_TO_NS(local_time), sync_count,
-		  pdelay_count, port_state, asCapable );
-
-	if( master_local_offset == 0 && master_local_freq_offset == 1.0 ) {
+	if (master_local_offset == 0 && master_local_freq_offset == 1.0)
+	{
+		GPTP_LOG_INFO("IEEE1588Clock::setMasterOffset  localoffset == 0 and freqoffset == 1.0 RETURNING");
 		return;
 	}
 
-	if( _syntonize ) {
-		if( _new_syntonization_set_point || _phase_error_violation > PHASE_ERROR_MAX_COUNT ) {
+	if (_syntonize)
+	{
+		if (_new_syntonization_set_point || _phase_error_violation > PHASE_ERROR_MAX_COUNT )
+		{
 			_new_syntonization_set_point = false;
 			_phase_error_violation = 0;
-			if( _timestamper ) {
+			if (_timestamper)
+			{
 				/* Make sure that there are no transmit operations
 				   in progress */
 				getTxLockAll();
-				if (port->getTestMode()) {
-					GPTP_LOG_STATUS("Adjust clock phase offset:%lld", -master_local_offset);
+				if (port->getTestMode()) 
+				{
+					GPTP_LOG_STATUS("Adjust clock phase offset:%lld", 
+						-master_local_offset);
 				}
-				_timestamper->HWTimestamper_adjclockphase
-					( -master_local_offset );
+				_timestamper->HWTimestamper_adjclockphase(-master_local_offset);
 				_master_local_freq_offset_init = false;
 				restartPDelayAll();
 				putTxLockAll();
@@ -380,30 +383,69 @@ void IEEE1588Clock::setMasterOffset
 
 		// Adjust for frequency offset
 		long double phase_error = (long double) -master_local_offset;
-		if( fabsl(phase_error) > PHASE_ERROR_THRESHOLD ) {
+		if (fabsl(phase_error) > PHASE_ERROR_THRESHOLD)
+		{
 			++_phase_error_violation;
-		} else {
+		}
+		else
+		{
 			_phase_error_violation = 0;
 
 			float syncPerSec = (float)(1.0 / pow((float)2, port->getSyncInterval()));
-			_ppm += (float) ((INTEGRAL * syncPerSec * phase_error) + PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
+			_ppm += (float) ((INTEGRAL * syncPerSec * phase_error) + 
+				PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
 
 			GPTP_LOG_DEBUG("phase_error = %Lf, ppm = %f", phase_error, _ppm );
 		}
 
-		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
-		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
-		if( _timestamper ) {
-			if (port->getTestMode()) {
+		if (_ppm < LOWER_FREQ_LIMIT)
+		{
+			_ppm = LOWER_FREQ_LIMIT;
+		}
+		if (_ppm > UPPER_FREQ_LIMIT)
+		{
+			_ppm = UPPER_FREQ_LIMIT;
+		}
+		if (_timestamper)
+		{
+			if (port->getTestMode())
+			{
 				GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
 			}
-			if( !_timestamper->HWTimestamper_adjclockrate( _ppm )) {
-				GPTP_LOG_ERROR( "Failed to adjust clock rate" );
+			GPTP_LOG_INFO("IEEE1588Clock::setMasterOffset before HWTimestamper_adjclockrate _ppm:%f", _ppm);
+			if (!_timestamper->HWTimestamper_adjclockrate(_ppm))
+			{
+				GPTP_LOG_ERROR("Failed to adjust clock rate");
 			}
 		}
 	}
+}
 
-	return;
+void IEEE1588Clock::setMasterOffset
+(IEEE1588Port * port, int64_t master_local_offset, Timestamp local_time,
+  FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
+  Timestamp system_time, FrequencyRatio local_system_freq_offset,
+  unsigned sync_count, unsigned pdelay_count, PortState port_state, bool asCapable)
+{
+	if (port->getTestMode())
+	{
+		GPTP_LOG_STATUS("Clock offset:%lld   "
+			"Clock rate ratio:%Lf   "
+			"Sync Count:%u   "
+			"PDelay Count:%u", master_local_offset, master_local_freq_offset,
+			sync_count, pdelay_count);
+	}
+
+	if (ipc != NULL)
+	{
+		ipc->update(master_local_offset, local_system_offset,
+		 master_local_freq_offset, local_system_freq_offset,
+		 TIMESTAMP_TO_NS(local_time), sync_count, pdelay_count, port_state,
+		 asCapable);
+	}
+
+	setMasterOffset(port, master_local_offset, master_local_freq_offset,
+	 local_system_freq_offset);
 }
 
 /* Get current time from system clock */

@@ -44,6 +44,7 @@ bool LinuxTimestamperGeneric::resetFrequencyAdjustment() {
 	tx.modes = ADJ_FREQUENCY;
 	tx.freq = 0;
 
+	GPTP_LOG_INFO("LinuxTimestamperGeneric::resetFrequencyAdjustment  Before adjust...");
 	return Adjust(&tx);
 }
 
@@ -79,7 +80,12 @@ bool LinuxTimestamperGeneric::HWTimestamper_adjclockphase( int64_t phase_adjust 
 		tx.time.tv_usec = (phase_adjust % 1000000000LL)+1000000000;
 	}
 
-	if( !Adjust( &tx )) {
+	GPTP_LOG_INFO("LinuxTimestamperGeneric::HWTimestamper_adjclockphase  Before adjust...  tx.time.tv_sec:%d  tx.time.tv_usec:%d", tx.time.tv_sec, tx.time.tv_usec);
+	// Causes strange behaviors on the RPI...
+#ifndef RPI
+	if( !Adjust( &tx )) 
+#endif
+	{
 		ret = false;
 	}
 		
@@ -100,5 +106,6 @@ bool LinuxTimestamperGeneric::HWTimestamper_adjclockrate( float freq_offset ) {
 	tx.freq  = long(freq_offset) << 16;
 	tx.freq += long(fmodf( freq_offset, 1.0 )*65536.0);
 
+	GPTP_LOG_INFO("LinuxTimestamperGeneric::HWTimestamper_adjclockrate  Before adjust...freq:%d", tx.freq);
 	return Adjust(&tx);
 }

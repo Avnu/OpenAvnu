@@ -111,6 +111,14 @@ public:
 	 * @brief Deletes the object and private structures.
 	 */
 	~TicketingLock();
+
+	void LogState()
+	{
+		GPTP_LOG_VERBOSE("init_flag:%d "
+			" in_use:%d"
+			" cond_ticket_issue:%d"
+			" cond_ticket_serving:%d", init_flag, in_use, cond_ticket_issue, cond_ticket_serving);
+	}
 private:
 	bool init_flag;
 	TicketingLockPrivate_t _private;
@@ -179,6 +187,12 @@ public:
 	virtual net_result nrecv
 	( LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay );
 
+	virtual net_result nrecvEvent(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
+	 struct phy_delay *delay);
+
+	virtual net_result nrecvGeneral(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
+	 struct phy_delay *delay);
+
 	/**
 	 * @brief  Disables rx socket descriptor rx queue
 	 * @return void
@@ -216,11 +230,21 @@ public:
 	 * @brief Destroys the network interface
 	 */
 	~LinuxNetworkInterface();
+
+	void LogLockState()
+	{
+		net_lock.LogState();
+	}
+
 protected:
 	/**
 	 * @brief Default constructor
 	 */
 	LinuxNetworkInterface() {};
+
+private:
+	net_result receive(LinkLayerAddress *addr, uint8_t *payload, 
+	 size_t &length,struct phy_delay *delay, uint16_t port);
 };
 
 /**
@@ -554,6 +578,14 @@ class LinuxThreadFactory:public OSThreadFactory {
 	 OSThread * createThread() {
 		 return new LinuxThread();
 	 }
+
+#ifdef RPI
+	std::shared_ptr<OSThread> create()
+	{
+		return std::shared_ptr<OSThread>(new LinuxThread());
+	}
+#endif	
+
 };
 
 /**

@@ -47,12 +47,58 @@
 #include <linux/ptp_clock.h>
 #include <syscall.h>
 #include <limits.h>
+#include <sys/timex.h>
+#include <arpa/inet.h>
 
 #define TX_PHY_TIME 184
 #define RX_PHY_TIME 382
 
-net_result LinuxNetworkInterface::nrecv
-( LinkLayerAddress *addr, uint8_t *payload, size_t &length,struct phy_delay *delay ) {
+net_result gLockErrorStatus = net_succeed;
+
+class ALockKeeper
+{
+public:
+	ALockKeeper(TicketingLock *l) : fStatus(net_succeed), fLock(l) 
+	{
+		bool gotLock;
+		if (!l->lock(&gotLock)) 
+		{
+	      GPTP_LOG_ERROR("ALockKeeper Failed to lock mutex");
+	      fStatus = net_fatal;
+	    }
+
+		if (!gotLock)
+		{
+			//GPTP_LOG_ERROR("A Failed to get a lock mutex");
+			fStatus = net_trfail;
+		}
+	}
+	~ALockKeeper()
+	{
+		if (!fLock->unlock())
+		{
+			GPTP_LOG_ERROR("A Failed to unlock");
+			gLockErrorStatus = net_fatal;
+		}
+		else
+		{
+			gLockErrorStatus = net_succeed;
+		}
+	}
+
+	net_result GetStatus() const
+	{
+		return fStatus;
+	}
+
+private:
+	net_result fStatus;
+	TicketingLock *fLock;
+};
+
+net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *payload, 
+	size_t &length,struct phy_delay *delay, uint16_t portNum)
+{
 	fd_set readfds;
 	int err;
 	struct msghdr msg;
@@ -61,105 +107,164 @@ net_result LinuxNetworkInterface::nrecv
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-	struct sockaddr_ll remote;
+	struct sockaddr_in remote;
 	struct iovec sgentry;
 	net_result ret = net_succeed;
-	bool got_net_lock;
+
+	const uint16_t kEventPort = 319;
+	const uint16_t kGeneralPort = 320;
+
+	int fileDesc = 0;
+	if (kEventPort == portNum)
+	{
+		fileDesc = sd_event;
+	}
+	else if (kGeneralPort == portNum)
+	{
+		fileDesc = sd_general;
+	}
+	else
+	{
+		GPTP_LOG_ERROR("Invalid port number %d must be %d or %d.", portNum,
+			kEventPort, kGeneralPort);
+    	return net_fatal;
+    }
 
 	LinuxTimestamperGeneric *gtimestamper;
 
 	struct timeval timeout = { 0, 16000 }; // 16 ms
 
-	if( !net_lock.lock( &got_net_lock )) {
-		GPTP_LOG_ERROR("A Failed to lock mutex");
-		return net_fatal;
-	}
-	if( !got_net_lock ) {
-		return net_trfail;
-	}
+	{
+		ALockKeeper keeper(&net_lock);
+		ret = keeper.GetStatus();
+		if (net_succeed == ret)
+		{
+			FD_ZERO(&readfds);
+			FD_SET(fileDesc, &readfds);
 
-	FD_ZERO( &readfds );
-	FD_SET( sd_event, &readfds );
-
-	err = select( sd_event+1, &readfds, NULL, NULL, &timeout );
-	if( err == 0 ) {
-		ret = net_trfail;
-		goto done;
-	} else if( err == -1 ) {
-		if( err == EINTR ) {
-			// Caught signal
-			GPTP_LOG_ERROR("select() recv signal");
-			ret = net_trfail;
-			goto done;
-		} else {
-			GPTP_LOG_ERROR("select() failed");
-			ret = net_fatal;
-			goto done;
-    }
-	} else if( !FD_ISSET( sd_event, &readfds )) {
-		ret = net_trfail;
-		goto done;
-	}
-
-	memset( &msg, 0, sizeof( msg ));
-
-	msg.msg_iov = &sgentry;
-	msg.msg_iovlen = 1;
-
-	sgentry.iov_base = payload;
-	sgentry.iov_len = length;
-
-	memset( &remote, 0, sizeof(remote));
-	msg.msg_name = (caddr_t) &remote;
-	msg.msg_namelen = sizeof( remote );
-	msg.msg_control = &control;
-	msg.msg_controllen = sizeof(control);
-
-	err = recvmsg( sd_event, &msg, 0 );
-	if( err < 0 ) {
-		if( errno == ENOMSG ) {
-			GPTP_LOG_ERROR("Got ENOMSG: %s:%d", __FILE__, __LINE__);
-			ret = net_trfail;
-			goto done;
-		}
-		GPTP_LOG_ERROR("recvmsg() failed: %s", strerror(errno));
-		ret = net_fatal;
-		goto done;
-	}
-	*addr = LinkLayerAddress( remote.sll_addr );
-
-	gtimestamper = dynamic_cast<LinuxTimestamperGeneric *>(timestamper);
-	if( err > 0 && !(payload[0] & 0x8) && gtimestamper != NULL ) {
-		/* Retrieve the timestamp */
-		cmsg = CMSG_FIRSTHDR(&msg);
-		while( cmsg != NULL ) {
-			if
-				( cmsg->cmsg_level == SOL_SOCKET &&
-				  cmsg->cmsg_type == SO_TIMESTAMPING ) {
-				Timestamp latency( delay->gb_rx_phy_delay, 0, 0 );
-				struct timespec *ts_device, *ts_system;
-				Timestamp device, system;
-				ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
-				system = tsToTimestamp( ts_system );
-				ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
-				device = device - latency;
-				gtimestamper->pushRXTimestamp( &device );
-				break;
+			err = select(fileDesc+1, &readfds, NULL, NULL, &timeout);
+			if (err == 0) 
+			{
+				// GPTP_LOG_VERBOSE("LinuxNetworkInterface::nrecv  err == 0 after select"
+				//  "   fileDesc:%d  timeout.tv_sec: %d timeout.tv_usec: %d", fileDesc, 
+				//  timeout.tv_sec, timeout.tv_usec);
+				ret = net_trfail;
 			}
-			cmsg = CMSG_NXTHDR(&msg,cmsg);
+			else if (err == -1) 
+			{
+				if (errno == EINTR)
+				{
+					// Caught signal
+					GPTP_LOG_ERROR("select() recv signal");
+					ret = net_trfail;
+				} 
+				else
+				{
+					GPTP_LOG_ERROR("select() failed");
+					ret = net_fatal;
+		    	}
+			} 
+			else if (!FD_ISSET(fileDesc, &readfds)) 
+			{
+				GPTP_LOG_VERBOSE("LinuxNetworkInterface::nrecv  FD_ISSET  failed");
+				ret = net_trfail;
+			}
+			else
+			{
+				memset(&msg, 0, sizeof(msg));
+
+				msg.msg_iov = &sgentry;
+				msg.msg_iovlen = 1;
+
+				sgentry.iov_base = payload;
+				sgentry.iov_len = length;
+
+				memset(&remote, 0, sizeof(remote));
+
+				msg.msg_name = &remote;
+				msg.msg_namelen = sizeof(remote);
+				msg.msg_control = &control;
+				msg.msg_controllen = sizeof(control);
+
+				err = recvmsg(fileDesc, &msg, 0);
+				GPTP_LOG_VERBOSE("After call to recvmsg err:%d", err);
+				if (err < 0) 
+				{
+					if (errno == ENOMSG)
+					{
+						GPTP_LOG_ERROR("Got ENOMSG: %s:%d", __FILE__, __LINE__);
+						ret = net_trfail;
+					}
+					else
+					{
+						GPTP_LOG_ERROR("recvmsg() failed: %s", strerror(errno));
+						ret = net_fatal;
+					}
+				}
+				else
+				{
+					*addr = LinkLayerAddress(remote);
+
+					gtimestamper = dynamic_cast<LinuxTimestamperGeneric *>(timestamper);
+					if (err > 0 && !(payload[0] & 0x8) && gtimestamper != NULL)
+					{
+						GPTP_LOG_VERBOSE("LinuxNetworkInterface::nrecv  getting timestamp");
+
+						/* Retrieve the timestamp */
+						cmsg = CMSG_FIRSTHDR(&msg);
+						while( cmsg != NULL )
+						{
+							if (cmsg->cmsg_level == SOL_SOCKET &&
+							 cmsg->cmsg_type == SO_TIMESTAMPING) 
+							{
+								Timestamp latency( delay->gb_rx_phy_delay, 0, 0 );
+								struct timespec *ts_device, *ts_system;
+								Timestamp device, system;
+								ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
+								system = tsToTimestamp( ts_system );
+								ts_device = ts_system + 1; 
+								device = tsToTimestamp( ts_device );
+								device = device - latency;
+								gtimestamper->pushRXTimestamp( &device );
+								break;
+							}
+							cmsg = CMSG_NXTHDR(&msg,cmsg);
+						}
+					}
+				}
+			}
 		}
 	}
-
 	length = err;
 
- done:
-	if( !net_lock.unlock()) {
-		GPTP_LOG_ERROR("A Failed to unlock, %d", err);
-		return net_fatal;
+	if (gLockErrorStatus != net_succeed)
+	{
+		ret = gLockErrorStatus;
 	}
 
-	return ret;
+	return ret;	
 }
+
+// Providing an implementation for this but it should never be invoked for the
+// LinuxNetworkInterface.
+net_result LinuxNetworkInterface::nrecv(LinkLayerAddress *addr, uint8_t *payload, 
+	size_t &length,struct phy_delay *delay ) 
+{
+	return receive(addr, payload, length, delay, 319);
+}
+
+net_result LinuxNetworkInterface::nrecvEvent(LinkLayerAddress *addr,
+	uint8_t *payload, size_t &length,struct phy_delay *delay) 
+{
+	return receive(addr, payload, length, delay, 319);
+}
+
+net_result LinuxNetworkInterface::nrecvGeneral(LinkLayerAddress *addr, 
+	uint8_t *payload, size_t &length,struct phy_delay *delay) 
+{
+	return receive(addr, payload, length, delay, 320);
+}
+
 
 int findPhcIndex( InterfaceLabel *iface_label ) {
 	int sd;
@@ -191,6 +296,7 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 
 	close(sd);
 
+	GPTP_LOG_INFO("findPTPIndex:  info.phc_index: %d", info.phc_index);
 	return info.phc_index;
 }
 
@@ -209,13 +315,70 @@ LinuxTimestamperGeneric::LinuxTimestamperGeneric() {
 	sd = -1;
 }
 
-bool LinuxTimestamperGeneric::Adjust( void *tmx ) {
-	if( syscall(__NR_clock_adjtime, _private->clockid, tmx ) != 0 ) {
-		GPTP_LOG_ERROR("Failed to adjust PTP clock rate");
+bool LinuxTimestamperGeneric::Adjust( void *tmx )
+{
+	if (nullptr == tmx)
+	{
+		GPTP_LOG_INFO("Time adjustment tmx is nullptr");
 		return false;
 	}
+
+	// Log time before adjustment
+	logCurrentTime("1");
+
+	// This system call works
+	if (-1 == adjtimex(static_cast<timex *>(tmx)))
+	{
+	   return false;
+	}
+
+	// Log time after adjustment
+	logCurrentTime("2");
+
+	{
+		struct timeval tv = static_cast<timex *>(tmx)->time;
+		time_t theTime;
+		struct tm *theTimeTm;
+		char tmbuf[64], buf[64];
+
+		gettimeofday(&tv, NULL);
+		theTime = tv.tv_sec;
+		theTimeTm = localtime(&theTime);
+		strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S", theTimeTm);
+		snprintf(buf, sizeof buf, "%s.%06ld", tmbuf, tv.tv_usec);	
+		GPTP_LOG_INFO("Time adjustment:%s", buf);
+	}
+
+	GPTP_LOG_INFO("tmx->modes:%d", static_cast<timex *>(tmx)->modes);
+	GPTP_LOG_INFO("tmx->offset:%d", static_cast<timex *>(tmx)->offset);
+	GPTP_LOG_INFO("tmx->freq:%d", static_cast<timex *>(tmx)->freq);
+	GPTP_LOG_INFO("tmx->maxerror:%d", static_cast<timex *>(tmx)->maxerror);
+	GPTP_LOG_INFO("tmx->esterror:%d", static_cast<timex *>(tmx)->esterror);
+	GPTP_LOG_INFO("tmx->status:%d", static_cast<timex *>(tmx)->status);
+
+	// This system call doesnt work on ubuntu
+	// if( syscall(__NR_clock_adjtime, _private->clockid, tmx ) != 0 ) {
+	// 	GPTP_LOG_ERROR("Failed to adjust PTP clock rate");
+	// 	return false;
+	// }
 	return true;
 }
+
+void LinuxTimestamperGeneric::logCurrentTime(const char * msg)
+{
+	struct timeval tv;
+	time_t nowtime;
+	struct tm *nowtm;
+	char tmbuf[64], buf[64];
+
+	gettimeofday(&tv, NULL);
+	nowtime = tv.tv_sec;
+	nowtm = localtime(&nowtime);
+	strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S", nowtm);
+	snprintf(buf, sizeof buf, "%s.%06ld", tmbuf, tv.tv_usec);
+	GPTP_LOG_INFO("Current time(%s):%s", msg, buf);
+}		
+
 
 bool LinuxTimestamperGeneric::HWTimestamper_init
 ( InterfaceLabel *iface_label, OSNetworkInterface *iface ) {
@@ -277,7 +440,7 @@ void LinuxTimestamperGeneric::HWTimestamper_reset()
 }
 
 int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
-( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
+( std::shared_ptr<PortIdentity> identity, PTPMessageId messageId, Timestamp &timestamp,
   unsigned &clock_value, bool last ) {
 	int err;
 	int ret = GPTP_EC_EAGAIN;

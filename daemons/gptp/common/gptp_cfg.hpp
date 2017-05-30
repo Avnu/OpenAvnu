@@ -33,6 +33,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  * MODULE SUMMARY : Reads the .ini file and parses it into information
  * to be used on daemon_cl
  */
+#pragma once
 
 #include <string>
 
@@ -56,6 +57,8 @@ class GptpIniParser
             unsigned char priority1;
 
             /*port data set*/
+            int8_t initialLogAnnounceInterval;
+            int8_t initialLogSyncInterval;
             unsigned int announceReceiptTimeout;
             unsigned int syncReceiptTimeout;
             unsigned int syncReceiptThresh;		//!< Number of wrong sync messages that will trigger a switch to master
@@ -63,6 +66,7 @@ class GptpIniParser
             unsigned int seqIdAsCapableThresh;
             uint16_t lostPdelayRespThresh;
             PortState port_state;
+            PortType delayMechanism;
 
             /*ethernet adapter data set*/
             std::string ifname;
@@ -70,7 +74,8 @@ class GptpIniParser
         } gptp_cfg_t;
 
         /*public methods*/
-        GptpIniParser(std::string ini_path);
+        GptpIniParser();
+        GptpIniParser(const std::string& ini_path);
         ~GptpIniParser();
 
         /**
@@ -78,16 +83,36 @@ class GptpIniParser
          * @param  void
          * @return Parser Error
          */
-        int parserError(void);
+        int parserError();
 
         /**
          * @brief  Reads priority1 config value
          * @param  void
          * @return priority1
          */
-        unsigned char getPriority1(void)
+        unsigned char getPriority1() const
         {
             return _config.priority1;
+        }
+
+        /**
+         * @brief  Reads initialLogAnnounceInterval config value
+         * @param  void
+         * @return initialLogAnnounceInterval
+         */
+        int8_t getInitialLogAnnounceInterval() const
+        { 
+            return _config.initialLogAnnounceInterval;
+        }
+        
+        /**
+         * @brief  Reads initialLogSyncInterval config value
+         * @param  void
+         * @return initialLogSyncInterval
+         */
+        int8_t getInitialLogSyncInterval() const
+        {
+            return _config.initialLogSyncInterval;
         }
 
         /**
@@ -95,7 +120,7 @@ class GptpIniParser
          * @param  void
          * @return announceRecepitTimeout value from .ini file
          */
-        unsigned int getAnnounceReceiptTimeout(void)
+        unsigned int getAnnounceReceiptTimeout() const
         {
             return _config.announceReceiptTimeout;
         }
@@ -105,7 +130,7 @@ class GptpIniParser
          * @param  void
          * @return syncRecepitTimeout value from the .ini file
          */
-        unsigned int getSyncReceiptTimeout(void)
+        unsigned int getSyncReceiptTimeout() const
         {
             return _config.syncReceiptTimeout;
         }
@@ -115,7 +140,7 @@ class GptpIniParser
          * @param  void
          * @return gb_tx_phy_delay value from the .ini file
          */
-        int getPhyDelayGbTx(void)
+        int getPhyDelayGbTx() const
         {
             return _config.phyDelay.gb_tx_phy_delay;
         }
@@ -125,7 +150,7 @@ class GptpIniParser
          * @param  void
          * @return gb_rx_phy_delay value from the .ini file
          */
-        int getPhyDelayGbRx(void)
+        int getPhyDelayGbRx() const
         {
             return _config.phyDelay.gb_rx_phy_delay;
         }
@@ -135,7 +160,7 @@ class GptpIniParser
          * @param  void
          * @return mb_tx_phy_delay value from the .ini file
          */
-        int getPhyDelayMbTx(void)
+        int getPhyDelayMbTx() const
         {
             return _config.phyDelay.mb_tx_phy_delay;
         }
@@ -145,7 +170,7 @@ class GptpIniParser
          * @param  void
          * @return mb_rx_phy_delay value from the .ini file
          */
-        int getPhyDelayMbRx(void)
+        int getPhyDelayMbRx() const
         {
             return _config.phyDelay.mb_rx_phy_delay;
         }
@@ -155,7 +180,7 @@ class GptpIniParser
          * @param  void
          * @return neighborPropDelayThresh value from the .ini file
          */
-        int64_t getNeighborPropDelayThresh(void)
+        int64_t getNeighborPropDelayThresh() const
         {
             return _config.neighborPropDelayThresh;
         }
@@ -164,14 +189,26 @@ class GptpIniParser
          * @brief  Reads the sync receipt threshold from the configuration file
          * @return syncRecepitThresh value from the .ini file
          */
-        unsigned int getSyncReceiptThresh(void)
+        unsigned int getSyncReceiptThresh() const
         {
             return _config.syncReceiptThresh;
+        }
+
+        PortType getDelayMechanism() const
+        {
+            return _config.delayMechanism;
+        }
+
+        bool hasIniValues() const
+        {
+            return sHasIniValues;
         }
 
     private:
         int _error;
         gptp_cfg_t _config;
+
+        static bool sHasIniValues;
 
         static int iniCallBack(void *user, const char *section, const char *name, const char *value);
         static bool parseMatch(const char *s1, const char *s2);

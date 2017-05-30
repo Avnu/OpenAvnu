@@ -105,6 +105,13 @@ else ifeq ($(ARCH),IntelCE)
 	HEADER_FILES += $(SRC_DIR)/linux_hal_intelce.hpp
 	OBJ_FILES += $(OBJ_DIR)/linux_hal_intelce.o
 	CXX = $(TARGETCXX)
+else ifeq ($(ARCH),RPI)
+	CFLAGS_G += -DRPI -DAPTP
+	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
+		$(OBJ_DIR)/linux_hal_generic_adj.o \
+		$(OBJ_DIR)/linux_hal_rpi3.o
+	HEADER_FILES += $(SRC_DIR)/linux_hal_generic.hpp
+	LDFLAGS_G += -lwiringPi
 else
 	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
 		$(OBJ_DIR)/linux_hal_generic_adj.o
@@ -145,6 +152,9 @@ $(OBJ_DIR)/linux_hal_generic_adj.o: $(SRC_DIR)/linux_hal_generic_adj.cpp $(HEADE
 
 $(OBJ_DIR)/linux_hal_i210.o: $(SRC_DIR)/linux_hal_i210.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_i210.cpp -o $(OBJ_DIR)/linux_hal_i210.o
+
+$(OBJ_DIR)/linux_hal_rpi3.o: $(SRC_DIR)/linux_hal_rpi3.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_rpi3.cpp -o $(OBJ_DIR)/linux_hal_rpi3.o
 
 $(OBJ_DIR)/linux_hal_intelce.o: $(SRC_DIR)/linux_hal_intelce.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_intelce.cpp -o $(OBJ_DIR)/linux_hal_intelce.o

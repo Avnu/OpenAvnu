@@ -83,6 +83,10 @@ public:
 	 */
 	virtual OSThread * createThread() = 0;
 
+#ifdef RPI
+	virtual std::shared_ptr<OSThread> create() = 0;
+#endif	
+
 	/**
 	 * @brief Destroys the new thread
 	 */

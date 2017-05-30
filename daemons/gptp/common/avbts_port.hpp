@@ -51,6 +51,10 @@
 #include <map>
 #include <list>
 
+
+#include "gptp_cfg.hpp"
+
+
 /**@file*/
 
 #define GPTP_MULTICAST 0x0180C200000EULL		/*!< GPTP multicast adddress */
@@ -64,15 +68,6 @@
 
 #define LOG2_INTERVAL_INVALID -127	/* Simple out of range Log base 2 value used for Sync and PDelay msg internvals */
 
-/**
- * @brief PortType enumeration. Selects between delay request-response (E2E) mechanism
- * or PTPV1 or PTPV2 P2P (peer delay) mechanism.
- */
-typedef enum {
-	V1,
-	V2_E2E,
-	V2_P2P
-} PortType;
 
 /**
  * @brief PortIdentity interface
@@ -88,6 +83,11 @@ public:
 	 */
 	PortIdentity() { };
 
+	PortIdentity(const PortIdentity& other)
+	{
+		assign(other);
+	}
+
 	/**
 	 * @brief  Constructs PortIdentity interface.
 	 * @param  clock_id Clock ID value as defined at IEEE 802.1AS Clause 8.5.2.2
@@ -99,12 +99,28 @@ public:
 		this->clock_id.set(clock_id);
 	}
 
+	PortIdentity& operator=(const PortIdentity& other)
+	{
+		return assign(other);
+	}
+
+	PortIdentity& assign(const PortIdentity& other)
+	{
+		if (this != &other && this && &other)
+		{
+			clock_id.set(other.clock_id);
+			portNumber = other.portNumber;
+		}
+		return *this;
+	}
+
 	/**
 	 * @brief  Implements the operator '!=' overloading method. Compares clock_id and portNumber.
 	 * @param  cmp Constant PortIdentity value to be compared against.
 	 * @return TRUE if the comparison value differs from the object's PortIdentity value. FALSE otherwise.
 	 */
-	bool operator!=(const PortIdentity & cmp) const {
+	bool operator!=(const PortIdentity & cmp) const
+	{
 		return
 			!(this->clock_id == cmp.clock_id) ||
 			this->portNumber != cmp.portNumber ? true : false;
@@ -116,9 +132,14 @@ public:
 	 * @return TRUE if the comparison value equals to the object's PortIdentity value. FALSE otherwise.
 	 */
 	bool operator==(const PortIdentity & cmp)const {
-		return
-			this->clock_id == cmp.clock_id &&
-			this->portNumber == cmp.portNumber ? true : false;
+		// For low level debugging...
+		// std::string thisClockid = clock_id.getIdentityString();
+		// std::string otherClockid = cmp.clock_id.getIdentityString();
+		// GPTP_LOG_VERBOSE("this->clock_id:%s", thisClockid.c_str());
+		// GPTP_LOG_VERBOSE("cmp.clock_id:%s", otherClockid.c_str());
+		// GPTP_LOG_VERBOSE("this->portNumber:%d", portNumber);
+		// GPTP_LOG_VERBOSE("cmp.portNumber:%d", portNumber);
+		return this->clock_id == cmp.clock_id && this->portNumber == cmp.portNumber;
 	}
 
 	/**
@@ -145,6 +166,11 @@ public:
 			this->portNumber > cmp.portNumber ? true : false;
 	}
 
+	bool sameClocks(std::shared_ptr<PortIdentity> other)
+	{
+		return other != nullptr && clock_id == other->getClockIdentity();
+	}
+
 	/**
 	 * @brief  Gets the ClockIdentity string
 	 * @param  id [out] Pointer to an array of octets.
@@ -159,7 +185,7 @@ public:
 	 * @param  clock_id Clock Identity to be set.
 	 * @return void
 	 */
-	void setClockIdentity(ClockIdentity clock_id) {
+	void setClockIdentity(const ClockIdentity& clock_id) {
 		this->clock_id = clock_id;
 	}
 
@@ -167,7 +193,7 @@ public:
 	 * @brief  Gets the clockIdentity value
 	 * @return A copy of Clock identity value.
 	 */
-	ClockIdentity getClockIdentity( void ) {
+	const ClockIdentity& getClockIdentity( void ) {
 		return this->clock_id;
 	}
 
@@ -204,7 +230,7 @@ public:
 /**
  * @brief Provides a map for the identityMap member of IEEE1588Port class
  */
-typedef std::map < PortIdentity, LinkLayerAddress > IdentityMap_t;
+typedef std::map<std::shared_ptr<PortIdentity>, LinkLayerAddress> IdentityMap_t;
 
 /**
  * @brief Structure for initializing the IEEE1588 class
@@ -271,6 +297,8 @@ typedef struct {
 	int32_t ieee8021AsPortStatRxFollowUpCount;
 	int32_t ieee8021AsPortStatRxPdelayRequest;
 	int32_t ieee8021AsPortStatRxPdelayResponse;
+	int32_t ieee8021AsPortStatRxDelayRequest;
+	int32_t ieee8021AsPortStatRxDelayResponse;
 	int32_t ieee8021AsPortStatRxPdelayResponseFollowUp;
 	int32_t ieee8021AsPortStatRxAnnounce;
 	int32_t ieee8021AsPortStatRxPTPPacketDiscard;
@@ -282,6 +310,8 @@ typedef struct {
 	int32_t ieee8021AsPortStatTxPdelayRequest;
 	int32_t ieee8021AsPortStatTxPdelayResponse;
 	int32_t ieee8021AsPortStatTxPdelayResponseFollowUp;
+	int32_t ieee8021AsPortStatTxDelayRequest;
+	int32_t ieee8021AsPortStatTxDelayResponse;
 	int32_t ieee8021AsPortStatTxAnnounce;
 } IEEE1588PortCounters_t;
 
@@ -294,9 +324,9 @@ class IEEE1588Port {
 	static LinkLayerAddress pdelay_multicast;
 	static LinkLayerAddress test_status_multicast;
 
-	PortIdentity port_identity;
+	std::shared_ptr<PortIdentity> port_identity;
 	/* directly connected node */
-	PortIdentity peer_identity;
+	std::shared_ptr<PortIdentity> peer_identity;
 
 	OSNetworkInterface *net_iface;
 	LinkLayerAddress local_addr;
@@ -307,8 +337,11 @@ class IEEE1588Port {
 	// set to 0 when asCapable is false, increment for each pdelay recvd
 	unsigned pdelay_count;
 
+	unsigned delay_count;
+
 	/* Port Configuration */
-	unsigned char delay_mechanism;
+	PortType delay_mechanism;
+
 	PortState port_state;
 	char log_mean_unicast_sync_interval;
 	char log_mean_sync_interval;
@@ -324,6 +357,8 @@ class IEEE1588Port {
 
 	unsigned int duplicate_resp_counter;
 	uint16_t last_invalid_seqid;
+
+	FrequencyRatio fMeanPathDelay;
 
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
@@ -390,6 +425,11 @@ class IEEE1588Port {
 	PTPMessagePathDelayResp *last_pdelay_resp;
 	PTPMessagePathDelayRespFollowUp *last_pdelay_resp_fwup;
 
+	uint16_t delay_sequence_id;
+	PTPMessageFollowUp last_fwup;
+	PTPMessageDelayReq last_delay_req;
+	PTPMessageDelayResp last_delay_resp;
+
 	/* Network socket description
 	   physical interface number that object represents */
 	uint16_t ifindex;
@@ -405,21 +445,19 @@ class IEEE1588Port {
 	OSCondition *port_ready_condition;
 
 	OSLock *pdelay_rx_lock;
+	OSLock *delay_rx_lock;
 	OSLock *port_tx_lock;
 
 	OSLock *syncReceiptTimerLock;
 	OSLock *syncIntervalTimerLock;
 	OSLock *announceIntervalTimerLock;
 	OSLock *pDelayIntervalTimerLock;
+	OSLock *delayIntervalTimerLock;
 
 	OSThreadFactory *thread_factory;
 	OSTimerFactory *timer_factory;
 
 	HWTimestamper *_hw_timestamper;
-
-	net_result port_send
-	(uint16_t etherType, uint8_t * buf, int size, MulticastType mcast_type,
-	 PortIdentity * destIdentity, bool timestamp);
 
 	InterfaceLabel *net_label;
 
@@ -433,6 +471,15 @@ class IEEE1588Port {
 	uint16_t lastGmTimeBaseIndicator;
 
 	IEEE1588PortCounters_t counters;
+
+	GptpIniParser iniParser;
+
+ private:
+	net_result port_send(uint16_t etherType, uint8_t * buf, int size,
+	 MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity,
+	 bool timestamp, uint16_t port);
+
+	net_result maybeProcessMessage(bool checkEventMessage, phy_delay& delay);
 
  public:
 	bool forceSlave;	//!< Forces port to be slave. Added for testing.
@@ -681,7 +728,7 @@ class IEEE1588Port {
 	 */
 	void sendEventPort
 	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
-	 PortIdentity * destIdentity);
+	 std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief Sends a general message to a port. No timestamps
@@ -693,7 +740,7 @@ class IEEE1588Port {
 	 */
 	void sendGeneralPort
 	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
-	 PortIdentity * destIdentity);
+	 std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Process all events for a IEEE1588Port
@@ -872,8 +919,13 @@ class IEEE1588Port {
 	 * @param  identity [out] Reference to PortIdentity
 	 * @return void
 	 */
-	void getPortIdentity(PortIdentity & identity) {
-		identity = this->port_identity;
+	void getPortIdentity(std::shared_ptr<PortIdentity> identity) {
+		*identity = *port_identity;
+	}
+
+	std::shared_ptr<PortIdentity> getPortIdentity() const
+	{
+		return port_identity;
 	}
 
 	/**
@@ -917,6 +969,14 @@ class IEEE1588Port {
 	}
 
 	/**
+	 * @brief  Increments Delay sequence ID and returns.
+	 * @return Next Delay sequence id.
+	 */
+	uint16_t getNextDelaySequenceId(void) {
+		return delay_sequence_id++;
+	}
+
+	/**
 	 * @brief  Gets last sync sequence number from parent
 	 * @return Parent last sync sequence number
 	 * @todo Not currently implemented.
@@ -950,7 +1010,7 @@ class IEEE1588Port {
 	 * @brief  Gets last sync message
 	 * @return PTPMessageSync last sync
 	 */
-	PTPMessageSync *getLastSync(void) {
+	PTPMessageSync* getLastSync(void) {
 		return last_sync;
 	}
 
@@ -979,6 +1039,29 @@ class IEEE1588Port {
 	}
 
 	/**
+	 * @brief  Locks Delay RX
+	 * @return TRUE if acquired the lock. FALSE otherwise
+	 */
+	bool getDelayRxLock() {
+		return delay_rx_lock->lock() == oslock_ok;
+	}
+
+	/**
+	 * @brief  Do a trylock on the Delay RX
+	 * @return TRUE if acquired the lock. FALSE otherwise.
+	 */
+	bool tryDelayRxLock() {
+		return delay_rx_lock->trylock() == oslock_ok;
+	}
+
+	/**
+	 * @brief  Unlocks Delay RX.
+	 * @return TRUE if success. FALSE otherwise
+	 */
+	bool putDelayRxLock() {
+		return delay_rx_lock->unlock() == oslock_ok;
+	}
+	/**
 	 * @brief  Locks the TX port
 	 * @return TRUE if success. FALSE otherwise.
 	 */
@@ -998,8 +1081,9 @@ class IEEE1588Port {
 	 * @brief  Gets the hardware timestamper version
 	 * @return HW timestamper version
 	 */
-	int getTimestampVersion() {
-		return _hw_timestamper->getVersion();
+	int getTimestampVersion() 
+	{
+		return _hw_timestamper ? _hw_timestamper->getVersion() : 0;
 	}
 
 	/**
@@ -1054,6 +1138,68 @@ class IEEE1588Port {
 	}
 
 	/**
+	 * @brief  Sets the last PTPMessageFollowUp message
+	 * @param  msg [in] last follow up
+	 * @return void
+	 */
+	void setLastFollowUp(PTPMessageFollowUp *msg) 
+	{
+		last_fwup = *msg;
+	}
+
+	/**
+	 * @brief  Gets the last PTPMessageFollowUp message
+	 * @return last follow up
+	 */
+	const PTPMessageFollowUp& getLastFollowUp() const
+	{
+		return last_fwup;
+	}
+
+	/**
+	 * @brief  Sets the last_delay_req message
+	 * @param  msg [in] PTPMessageDelayReq message to set
+	 * @return void
+	 */
+	void setLastDelayReq(PTPMessageDelayReq *msg)
+	{
+		last_delay_req = *msg;
+	}
+
+	void setLastDelayReq(const PTPMessageDelayReq &msg)
+	{
+		last_delay_req = msg;
+	}
+
+	/**
+	 * @brief  Gets the last PTPMessageDelayReq message
+	 * @return Last delay request
+	 */
+	const PTPMessageDelayReq& getLastDelayReq() const
+	{
+		return last_delay_req;
+	}
+
+	/**
+	 * @brief  Sets the last PTPMessageDelayResp message
+	 * @param  msg [in] Last delay response
+	 * @return void
+	 */
+	void setLastDelayResp(PTPMessageDelayResp *msg)
+	{
+		last_delay_resp = *msg;
+	}
+
+	/**
+	 * @brief  Gets the last PTPMessageDelayResp message
+	 * @return Last delay response
+	 */
+	const PTPMessageDelayResp& getLastDelayResp() const
+	{
+		return last_delay_resp;
+	}
+
+	/**
 	 * @brief  Gets the Peer rate offset. Used to calculate neighbor rate ratio.
 	 * @return FrequencyRatio peer rate offset
 	 */
@@ -1099,11 +1245,11 @@ class IEEE1588Port {
 	 * @param  freq_offset Frequency offset
 	 * @return TRUE if adjusted. FALSE otherwise.
 	 */
-	bool _adjustClockRate( FrequencyRatio freq_offset ) {
-		if( _hw_timestamper ) {
-			return _hw_timestamper->HWTimestamper_adjclockrate((float) freq_offset );
-		}
-		return false;
+	bool _adjustClockRate( FrequencyRatio freq_offset )
+	{
+		return _hw_timestamper 
+		 ? _hw_timestamper->HWTimestamper_adjclockrate((float)freq_offset)
+		 : false;
 	}
 
 	/**
@@ -1149,7 +1295,7 @@ class IEEE1588Port {
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getRxTimestamp
-	(PortIdentity * sourcePortIdentity, PTPMessageId messageId,
+	(std::shared_ptr<PortIdentity> sourcePortIdentity, PTPMessageId messageId,
 	 Timestamp & timestamp, unsigned &counter_value, bool last);
 
 	/**
@@ -1162,7 +1308,7 @@ class IEEE1588Port {
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getTxTimestamp
-	(PortIdentity * sourcePortIdentity, PTPMessageId messageId,
+	(std::shared_ptr<PortIdentity>  sourcePortIdentity, PTPMessageId messageId,
 	 Timestamp & timestamp, unsigned &counter_value, bool last);
 
 	/**
@@ -1211,6 +1357,7 @@ class IEEE1588Port {
 	 * @return one way delay if delay > 0, or zero otherwise.
 	 */
 	uint64_t getLinkDelay(void) {
+		GPTP_LOG_INFO("getLinkDelay  one_way_delay:%d", one_way_delay);
 		return one_way_delay > 0LL ? one_way_delay : 0LL;
 	}
 
@@ -1256,6 +1403,16 @@ class IEEE1588Port {
 	void setSyncReceiptThresh(unsigned int th)
 	{
 		sync_receipt_thresh = th;
+	}
+
+	void setDelayMechanism(PortType mechanism)
+	{
+		delay_mechanism = mechanism;
+	}
+
+	PortType getDelayMechanism()
+	{
+		return delay_mechanism;
 	}
 
 	/**
@@ -1386,7 +1543,7 @@ class IEEE1588Port {
 	 * @return void
 	 */
 	void mapSocketAddr
-	(PortIdentity * destIdentity, LinkLayerAddress * remote);
+	(std::shared_ptr<PortIdentity>  destIdentity, LinkLayerAddress * remote);
 
 	/**
 	 * @brief  Adds New sock addr map
@@ -1395,7 +1552,7 @@ class IEEE1588Port {
 	 * @return void
 	 */
 	void addSockAddrMap
-	(PortIdentity * destIdentity, LinkLayerAddress * remote);
+	(std::shared_ptr<PortIdentity> destIdentity, LinkLayerAddress * remote);
 
 	/**
 	 * @brief  Sets current pdelay count value.
@@ -1421,6 +1578,45 @@ class IEEE1588Port {
 	 */
 	unsigned getPdelayCount() {
 		return pdelay_count;
+	}
+
+	/**
+	 * @brief  Sets current delay count value.
+	 * @param  cnt [in] delay count value
+	 * @return void
+	 */
+	void setDelayCount(unsigned int cnt) 
+	{
+		delay_count = cnt;
+	}
+
+	/**
+	 * @brief  Increments Pdelay count
+	 * @return void
+	 */
+	void incDelayCount() 
+	{
+		++delay_count;
+	}
+
+	/**
+	 * @brief  Gets current delay count value. It is set to zero
+	 * when asCapable is false.
+	 * @return delay count
+	 */
+	unsigned getDelayCount() const
+	{
+		return delay_count;
+	}
+
+	FrequencyRatio meanPathDelay() const
+	{
+		return fMeanPathDelay;
+	}
+
+	void meanPathDelay(FrequencyRatio delay)
+	{
+		fMeanPathDelay = delay;
 	}
 
 	/**
@@ -1565,6 +1761,24 @@ class IEEE1588Port {
 
 	/**
 	 * @brief  Increment IEEE Port counter:
+	 *         ieee8021AsPortStatRxDelayRequest
+	 * @return void
+	 */
+	void incCounter_ieee8021AsPortStatRxDelayRequest(void) {
+		counters.ieee8021AsPortStatRxDelayRequest++;
+	}
+
+	/**
+	 * @brief  Increment IEEE Port counter:
+	 *         ieee8021AsPortStatRxDelayResponse
+	 * @return void
+	 */
+	void incCounter_ieee8021AsPortStatRxDelayResponse(void) {
+		counters.ieee8021AsPortStatRxDelayResponse++;
+	}
+
+	/**
+	 * @brief  Increment IEEE Port counter:
 	 *         ieee8021AsPortStatRxAnnounce
 	 * @return void
 	 */
@@ -1657,6 +1871,24 @@ class IEEE1588Port {
 
 	/**
 	 * @brief  Increment IEEE Port counter:
+	 *         ieee8021AsPortStatTxDelayRequest
+	 * @return void
+	 */
+	void incCounter_ieee8021AsPortStatTxDelayRequest(void) {
+		counters.ieee8021AsPortStatTxDelayRequest++;
+	}
+
+	/**
+	 * @brief  Increment IEEE Port counter:
+	 *         ieee8021AsPortStatTxDelayResponse
+	 * @return void
+	 */
+	void incCounter_ieee8021AsPortStatTxDelayResponse(void) {
+		counters.ieee8021AsPortStatTxDelayResponse++;
+	}
+
+	/**
+	 * @brief  Increment IEEE Port counter:
 	 *         ieee8021AsPortStatTxAnnounce
 	 * @return void
 	 */
@@ -1674,6 +1906,8 @@ class IEEE1588Port {
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxPdelayRequest : %u", counters.ieee8021AsPortStatRxPdelayRequest);
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxPdelayResponse : %u", counters.ieee8021AsPortStatRxPdelayResponse);
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxPdelayResponseFollowUp : %u", counters.ieee8021AsPortStatRxPdelayResponseFollowUp);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxDelayRequest : %u", counters.ieee8021AsPortStatRxDelayRequest);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxDelayResponse : %u", counters.ieee8021AsPortStatRxDelayResponse);
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxAnnounce : %u", counters.ieee8021AsPortStatRxAnnounce);
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxPTPPacketDiscard : %u", counters.ieee8021AsPortStatRxPTPPacketDiscard);
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxSyncReceiptTimeouts : %u", counters.ieee8021AsPortStatRxSyncReceiptTimeouts);
@@ -1684,7 +1918,14 @@ class IEEE1588Port {
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxPdelayRequest : %u", counters.ieee8021AsPortStatTxPdelayRequest);
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxPdelayResponse : %u", counters.ieee8021AsPortStatTxPdelayResponse);
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxPdelayResponseFollowUp : %u", counters.ieee8021AsPortStatTxPdelayResponseFollowUp);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxDelayRequest : %u", counters.ieee8021AsPortStatTxDelayRequest);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxDelayResponse : %u", counters.ieee8021AsPortStatTxDelayResponse);
 		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxAnnounce : %u", counters.ieee8021AsPortStatTxAnnounce);
+	}
+
+	void setIniParser(const GptpIniParser& parser)
+	{
+		iniParser = parser;
 	}
 };
 

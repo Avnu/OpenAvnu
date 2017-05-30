@@ -35,6 +35,7 @@
 #define LINUX_HAL_GENERIC_HPP
 
 #include <linux_hal_common.hpp>
+#include <memory>
 
 /**@file*/
 
@@ -65,6 +66,11 @@ private:
 #ifdef PTP_HW_CROSSTSTAMP
 	bool precise_timestamp_enabled;
 #endif
+
+#ifdef RPI
+	std::shared_ptr<LinuxThreadFactory> fPulseThreadFactory;
+	std::shared_ptr<OSThread> fPulseThread;
+#endif	
 
 	TicketingLock *net_lock;
 
@@ -150,12 +156,12 @@ public:
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp
-	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
+	( std::shared_ptr<PortIdentity> identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last );
 
 	/**
 	 * @brief  Gets the RX timestamp from the hardware interface. This
-	 * Currently the RX timestamp is retrieved at LinuxNetworkInterface::nrecv method.
+	 * Currently the RX timestamp is retrieved at LinuxNetworkInterface::nrecv* method.
 	 * @param  identity PTP port identity
 	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] Timestamp value
@@ -164,7 +170,7 @@ public:
      * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp
-	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
+	( std::shared_ptr<PortIdentity>  identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last ) {
 		/* This shouldn't happen. Ever. */
 		if( rxTimestampList.empty() ) return GPTP_EC_EAGAIN;
@@ -188,7 +194,7 @@ public:
 	 */
 	virtual bool HWTimestamper_adjclockrate( float freq_offset );
 
-#ifdef WITH_IGBLIB
+#if  defined(WITH_IGBLIB) || defined(RPI)
 	bool HWTimestamper_PPS_start( );
 	bool HWTimestamper_PPS_stop();
 #endif
@@ -197,7 +203,20 @@ public:
 	 * @brief deletes LinuxTimestamperGeneric object
 	 */
 	virtual ~LinuxTimestamperGeneric();
-};
 
+	void logCurrentTime(const char * msg);
+
+#ifdef RPI
+	void PulseThreadFactory(std::shared_ptr<LinuxThreadFactory> factory)
+	{
+		fPulseThreadFactory = factory;
+	}
+	std::shared_ptr<LinuxThreadFactory>	PulseThreadFactory() const
+	{
+		return fPulseThreadFactory;
+	}
+#endif
+
+};
 
 #endif/*LINUX_HAL_GENERIC_HPP*/

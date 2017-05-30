@@ -36,6 +36,7 @@
 
 /** @file */
 
+#include <memory>
 #include <string>
 
 #include <stdint.h>
@@ -141,22 +142,43 @@ class ClockIdentity {
 		memset( id, 0, PTP_CLOCK_IDENTITY_LENGTH );
 	}
 
+	ClockIdentity(const ClockIdentity& other)
+	{
+		assign(other);
+	}
+
+	ClockIdentity& operator=(const ClockIdentity& other)
+	{
+		return assign(other);
+	}
+
+	ClockIdentity& assign(const ClockIdentity& other)
+	{
+		if (this != &other)
+		{
+			memcpy(id, other.id, PTP_CLOCK_IDENTITY_LENGTH);
+		}
+		return *this;
+	}
+
 	/**
 	 * @brief  Constructs the object and sets its ID
 	 * @param  id [in] clock id as an octet array
 	 */
-		ClockIdentity( uint8_t *id ) {
-			set(id);
-		}
+	ClockIdentity(uint8_t *id)
+	{
+		set(id);
+	}
 
-		/**
-		 * @brief  Implements the operator '==' overloading method.
-		 * @param  cmp Reference to the ClockIdentity comparing value
-		 * @return TRUE if cmp equals to the object's clock identity. FALSE otherwise
-		 */
-		bool operator==(const ClockIdentity & cmp) const {
-			return memcmp(this->id, cmp.id,
-			      PTP_CLOCK_IDENTITY_LENGTH) == 0 ? true : false;
+	/**
+	 * @brief  Implements the operator '==' overloading method.
+	 * @param  cmp Reference to the ClockIdentity comparing value
+	 * @return TRUE if cmp equals to the object's clock identity. FALSE otherwise
+	 */
+	bool operator==(const ClockIdentity & cmp) const
+	{
+		//GPTP_LOG_INFO("ClockIdentity::==  this->id:%s  cmp.id:%s", getIdentityString().c_str(), cmp.getIdentityString().c_str());
+		return 0 == memcmp(this->id, cmp.id, PTP_CLOCK_IDENTITY_LENGTH);
 	}
 
 	/**
@@ -192,15 +214,16 @@ class ClockIdentity {
 	 * @brief  Gets the identity string from the ClockIdentity object
 	 * @return String containing the clock identity
 	 */
-	std::string getIdentityString();
+	const std::string getIdentityString() const;
 
 	/**
 	 * @brief  Gets the identity string from the ClockIdentity object
 	 * @param  id [out] Value copied from the object ClockIdentity. Needs to be at least ::PTP_CLOCK_IDENTITY_LENGTH long.
 	 * @return void
 	 */
-	void getIdentityString(uint8_t *id) {
-		memcpy(id, this->id, PTP_CLOCK_IDENTITY_LENGTH);
+	void getIdentityString(uint8_t *otherid) const 
+	{
+		memcpy(otherid, id, PTP_CLOCK_IDENTITY_LENGTH);
 	}
 
 	/**
@@ -208,8 +231,13 @@ class ClockIdentity {
 	 * @param  id [in] Value to be set
 	 * @return void
 	 */
-	void set(uint8_t * id) {
+	void set(const uint8_t * id) {
 		memcpy(this->id, id, PTP_CLOCK_IDENTITY_LENGTH);
+	}
+
+	void set(const ClockIdentity& other)
+	{
+		set(other.id);
 	}
 
 	/**
@@ -260,17 +288,53 @@ public:
 		seconds_ms = s_m;
 		_version = ver;
 	}
+
+	Timestamp(const timespec& ts)
+	{
+		seconds_ls = ts.tv_sec;
+		// Constructing a unit64_t with the ts.tv_sec value to
+		// normalize the size - on some linux flavors ts.tv_sec
+		// is not a 32 bit value.
+		seconds_ms = uint16_t(uint64_t(ts.tv_sec) >> 32);
+		nanoseconds = ts.tv_nsec;
+	}
+	
 	/*
 	 * Default constructor. Initializes
 	 * the private parameters
 	 */
 	Timestamp() {
 		output_string[0] = '\0';
+		_version = 1;
 	}
+
+	Timestamp(const Timestamp& other)
+	{
+		assign(other);
+	}
+
+	Timestamp& operator=(const Timestamp& other)
+	{
+		return assign(other);
+	}
+
 	uint32_t nanoseconds;	//!< 32 bit nanoseconds value
 	uint32_t seconds_ls;	//!< 32 bit seconds LSB value
 	uint16_t seconds_ms;	//!< 32 bit seconds MSB value
 	uint8_t _version;		//!< 8 bit version value
+
+	Timestamp& assign(const Timestamp& other)
+	{
+		if (this != &other)
+		{
+		    memcpy(output_string, other.output_string, MAX_TIMESTAMP_STRLEN);
+		    nanoseconds = other.nanoseconds;
+			seconds_ls = other.seconds_ls;
+			seconds_ms = other.seconds_ms;
+			_version = other._version;
+		}
+		return *this;		
+	}
 
 	/**
 	 * @brief Copies the timestamp to the internal string in the following format:
@@ -380,7 +444,7 @@ public:
 #define INVALID_TIMESTAMP (Timestamp( 0xC0000000, 0, 0 ))	/*!< Defines an invalid timestamp using a Timestamp instance and a fixed value*/
 #define PDELAY_PENDING_TIMESTAMP (Timestamp( 0xC0000001, 0, 0 ))	/*!< PDelay is pending timestamp */
 
-static inline uint64_t TIMESTAMP_TO_NS(Timestamp &ts)
+static inline uint64_t TIMESTAMP_TO_NS(const Timestamp &ts)
 {
 	return (((static_cast<long long int>(ts.seconds_ms) << sizeof(ts.seconds_ls)*8) +
 			      ts.seconds_ls)*1000000000LL + ts.nanoseconds)	;	/*!< Converts timestamp value into nanoseconds value*/
@@ -537,7 +601,7 @@ public:
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
-	virtual int HWTimestamper_txtimestamp(PortIdentity * identity,
+	virtual int HWTimestamper_txtimestamp(std::shared_ptr<PortIdentity> identity,
 			PTPMessageId messageId,
 			Timestamp & timestamp,
 			unsigned &clock_value,
@@ -552,7 +616,7 @@ public:
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
-	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
+	virtual int HWTimestamper_rxtimestamp(std::shared_ptr<PortIdentity>  identity,
 			PTPMessageId messageId,
 			Timestamp & timestamp,
 			unsigned &clock_value,
@@ -655,7 +719,7 @@ public:
 	 /**
 	 * @brief Default constructor. Sets version to zero.
 	 */
-	HWTimestamper() { version = 0; }
+	HWTimestamper() { version = 1; }
 
 	 /**
 	 * @brief Deletes HWtimestamper object

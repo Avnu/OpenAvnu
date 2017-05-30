@@ -34,11 +34,14 @@
 #ifndef AVBTS_OSNET_HPP
 #define AVBTS_OSNET_HPP
 
+#include <cstdlib>
 #include <stdint.h>
 #include <string.h>
 #include <map>
 #include <ieee1588.hpp>
 #include <ptptypes.hpp>
+#include <arpa/inet.h>
+#include <sstream>
 
 /**@file*/
 
@@ -53,6 +56,8 @@ class LinkLayerAddress:public InterfaceLabel {
  private:
 	//!< Ethernet address
 	uint8_t addr[ETHER_ADDR_OCTETS];
+	uint16_t port;
+
  public:
 	/**
 	 * @brief Default constructor
@@ -75,6 +80,38 @@ class LinkLayerAddress:public InterfaceLabel {
 			*ptr = (address_scalar & 0xFF00000000000000ULL) >> 56;
 			address_scalar <<= 8;
 		}
+	}
+
+	LinkLayerAddress(const sockaddr_in &other)
+	{
+		char buf[INET6_ADDRSTRLEN];
+		inet_ntop(other.sin_family, &other.sin_addr, buf, sizeof(buf));
+		GPTP_LOG_VERBOSE("LinkLayerAddress ctor   addrStr:%s  sin_port:%d  "
+			"sin_family:%d", buf, other.sin_port, other.sin_family);
+
+		memset(addr, 0, sizeof(addr));
+		uint8_t *ptr = addr;
+		size_t pos = 0;
+		std::string s(buf);
+		std::string token;
+		while ((pos = s.find('.')) != std::string::npos && 
+			ptr < addr + ETHER_ADDR_OCTETS)
+		{
+		   token = s.substr(0, pos);
+		   s.erase(0, pos + 1);
+		   //GPTP_LOG_VERBOSE("LinkLayerAddress ctor   token:%s", token.c_str());
+		   *ptr++ = atoi(token.c_str());
+		}
+		//GPTP_LOG_VERBOSE("LinkLayerAddress ctor   token:%s", s.c_str());
+		if (!s.empty() && ptr < addr + ETHER_ADDR_OCTETS)
+		{
+			*ptr = atoi(s.c_str());
+		}
+		// std::stringstream debug;
+		// for (pos = 0; pos < ETHER_ADDR_OCTETS; ++pos)
+		// {
+		// 	GPTP_LOG_VERBOSE("LinkLayerAddress ctor   addr:%d", addr[pos]);
+		// }
 	}
 
 	/**
@@ -146,6 +183,36 @@ class LinkLayerAddress:public InterfaceLabel {
 		{
 			*address_octet_array = *ptr;
 		}
+	}
+
+	void getAddress(in_addr *dest)
+	{
+		// Convert the raw values to a string for use with inet_pton
+		std::string address;
+		std::string val;
+		const size_t kIpv4Groups = 4;
+		const size_t kMax = kIpv4Groups < ETHER_ADDR_OCTETS
+		 ? kIpv4Groups : ETHER_ADDR_OCTETS;
+		for (size_t i = 0; i < kMax; ++i)
+		{
+			val = std::to_string(addr[i]);
+			address += address.empty() ? val : '.' + val;
+		}
+
+		GPTP_LOG_VERBOSE("address:%s", address.c_str());
+
+		// Convert the ipv4 address eg "192.168.0.189"
+		inet_pton(AF_INET, address.c_str(), dest);
+	}
+
+	uint16_t Port() const
+	{
+		return port;
+	}
+
+	void Port(uint16_t number)
+	{
+		port = number;
 	}
 };
 
@@ -316,6 +383,26 @@ class OSNetworkInterface {
 		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
 
 	 /**
+	  * @brief  Receives data from port 319
+	  * @param  addr [out] Destination Mac Address
+	  * @param  payload [out] Payload received
+	  * @param  length [out] Received length
+	  * @return net_result enumeration
+	  */
+	 virtual net_result nrecvEvent
+		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
+
+	 /**
+	  * @brief  Receives data from port 320
+	  * @param  addr [out] Destination Mac Address
+	  * @param  payload [out] Payload received
+	  * @param  length [out] Received length
+	  * @return net_result enumeration
+	  */
+	 virtual net_result nrecvGeneral
+		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
+
+	 /**
 	  * @brief Get Link Layer address (mac address)
 	  * @param addr [out] Link Layer address
 	  * @return void
@@ -336,6 +423,8 @@ class OSNetworkInterface {
 	  * @brief Native support for polimorphic destruction
 	  */
 	 virtual ~OSNetworkInterface() = 0;
+
+	 virtual void LogLockState() {}
 };
 
 inline OSNetworkInterface::~OSNetworkInterface() {}

@@ -48,6 +48,21 @@ typedef long double FrequencyRatio; /*!< Frequency Ratio */
 #define PTP_ETHERTYPE 0x88F7		/*!< PTP ethertype */
 #define AVTP_ETHERTYPE 0x22F0   /*!< AVTP ethertype used for Test Status Message */
 
+// Port numbers for PTP event and general messages
+#define EVENT_PORT 319
+#define GENERAL_PORT 320
+
+/**
+ * @brief PortType enumeration. Selects between delay request-response (E2E) mechanism
+ * or PTPV1 or PTPV2 P2P (peer delay) mechanism.
+ */
+enum PortType 
+{
+  V1,
+  V2_E2E,
+  V2_P2P
+};
+
 /**
  * @brief PortState enumeration
  */

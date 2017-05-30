@@ -34,6 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  * to be used on daemon_cl
  */
 
+#include <algorithm>
 #include <iostream>
 
 /* need Microsoft version for strcasecmp() from GCC strings.h */
@@ -45,11 +46,20 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include <errno.h>
 #include <stdlib.h>
+#include <map>
 
 #include "gptp_cfg.hpp"
 
-GptpIniParser::GptpIniParser(std::string filename)
+bool GptpIniParser::sHasIniValues = false;
+
+GptpIniParser::GptpIniParser()
 {
+    sHasIniValues = false;
+}
+
+GptpIniParser::GptpIniParser(const std::string& filename)
+{
+    sHasIniValues = false;
     _error = ini_parse(filename.c_str(), iniCallBack, this);
 }
 
@@ -66,7 +76,8 @@ int GptpIniParser::parserError(void)
 
 /****************************************************************************/
 
-int GptpIniParser::iniCallBack(void *user, const char *section, const char *name, const char *value)
+int GptpIniParser::iniCallBack(void *user, const char *section,
+ const char *name, const char *value)
 {
     GptpIniParser *parser = (GptpIniParser*)user;
     bool valOK = false;
@@ -86,7 +97,28 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
     }
     else if( parseMatch(section, "port") )
     {
-        if( parseMatch(name, "announceReceiptTimeout") )
+
+        if (parseMatch(name, "initialLogAnnounceInterval"))
+        {
+            errno = 0;
+            char *pEnd;
+            int8_t ilai = strtoul(value, &pEnd, 10);
+            if( *pEnd == '\0' && errno == 0) {
+                valOK = true;
+                parser->_config.initialLogAnnounceInterval = ilai;
+            }
+        }
+        else if (parseMatch(name, "initialLogSyncInterval"))
+        {
+            errno = 0;
+            char *pEnd;
+            int8_t ilsi = strtoul(value, &pEnd, 10);
+            if( *pEnd == '\0' && errno == 0) {
+                valOK = true;
+                parser->_config.initialLogSyncInterval = ilsi;
+            }
+        }
+        else if( parseMatch(name, "announceReceiptTimeout") )
         {
             errno = 0;
             char *pEnd;
@@ -146,6 +178,19 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
                 parser->_config.lostPdelayRespThresh = lostpdelayth;
             }
         }
+        else if (parseMatch(name, "delayMechanism"))
+        {
+            std::string toCompare = value;
+            std::transform(toCompare.begin(), toCompare.end(),
+                toCompare.begin(), ::tolower);
+            std::map<std::string, PortType> nameMap = {
+             {"e2e", V2_E2E}, 
+             {"p2p", V2_P2P}};
+            auto it = nameMap.find(toCompare);
+            parser->_config.delayMechanism = it == nameMap.end() 
+                ? V2_P2P : it->second;
+            valOK = true;
+        }
     }
     else if( parseMatch(section, "eth") )
     {
@@ -194,7 +239,11 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
         }
     }
 
-    if(!valOK)
+    if(valOK)
+    {
+        sHasIniValues = true;
+    }
+    else
     {
         std::cerr << "Unrecognized configuration item: section=" << section << ", name=" << name << std::endl;
         return 0;

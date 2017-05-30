@@ -169,6 +169,7 @@ int main(int argc, char **argv)
 	LinuxTimerFactory *timer_factory = new LinuxTimerFactory();
 	LinuxConditionFactory *condition_factory = new LinuxConditionFactory();
 	LinuxSharedMemoryIPC *ipc = new LinuxSharedMemoryIPC();
+
 	/* Create Low level network interface object */
 	if( argc < 2 ) {
 		printf( "Interface name required\n" );
@@ -176,6 +177,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 	ifname = new InterfaceName( argv[1], strlen(argv[1]) );
+
 
 	/* Process optional arguments */
 	for( i = 2; i < argc; ++i ) {
@@ -320,7 +322,14 @@ int main(int argc, char **argv)
 	HWTimestamper *timestamper = new LinuxTimestamperIntelCE();
 #else
 	HWTimestamper *timestamper = new LinuxTimestamperGeneric();
+	#ifdef RPI
+		std::shared_ptr<LinuxThreadFactory> pulseThreadFactory = 
+	 	 std::make_shared<LinuxThreadFactory>();
+		LinuxTimestamperGeneric* ts = static_cast<LinuxTimestamperGeneric*>(timestamper);
+		ts->PulseThreadFactory(pulseThreadFactory);
+	#endif
 #endif
+
 
 	sigemptyset(&set);
 	sigaddset(&set, SIGINT);
@@ -361,12 +370,15 @@ int main(int argc, char **argv)
 	if(use_config_file)
 	{
 		GptpIniParser iniParser(config_file_path);
+		pPort->setIniParser(iniParser);
 
 		if (iniParser.parserError() < 0) {
 			GPTP_LOG_ERROR("Cant parse ini file. Aborting file reading.");
 		}
 		else
 		{
+			GPTP_LOG_INFO("E2E delay mechansm: %d", V2_E2E);
+			GPTP_LOG_INFO("delay_mechansm: %d", iniParser.getDelayMechanism());
 			GPTP_LOG_INFO("priority1 = %d", iniParser.getPriority1());
 			GPTP_LOG_INFO("announceReceiptTimeout: %d", iniParser.getAnnounceReceiptTimeout());
 			GPTP_LOG_INFO("syncReceiptTimeout: %d", iniParser.getSyncReceiptTimeout());
@@ -377,14 +389,19 @@ int main(int argc, char **argv)
 			GPTP_LOG_INFO("neighborPropDelayThresh: %ld", iniParser.getNeighborPropDelayThresh());
 			GPTP_LOG_INFO("syncReceiptThreshold: %d", iniParser.getSyncReceiptThresh());
 
+#ifndef APTP
 			/* If using config file, set the neighborPropDelayThresh.
 			 * Otherwise it will use its default value (800ns) */
 			pPort->setNeighPropDelayThresh(iniParser.getNeighborPropDelayThresh());
+#endif
 
 			/* If using config file, set the syncReceiptThreshold, otherwise
 			 * it will use the default value (SYNC_RECEIPT_THRESH)
 			 */
 			pPort->setSyncReceiptThresh(iniParser.getSyncReceiptThresh());
+
+			// Set the delay_mechanism from the ini file valid values are E2E or P2P
+			pPort->setDelayMechanism(V2_E2E);
 
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
 			if(!input_delay)

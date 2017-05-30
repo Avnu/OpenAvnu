@@ -60,6 +60,8 @@
 #include <netinet/in.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <arpa/inet.h>
+
 
 Timestamp tsToTimestamp(struct timespec *ts)
 {
@@ -84,30 +86,33 @@ LinuxNetworkInterface::~LinuxNetworkInterface() {
 
 net_result LinuxNetworkInterface::send
 ( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length, bool timestamp ) {
-	sockaddr_ll *remote = NULL;
+	struct sockaddr_in remote;
 	int err;
-	remote = new struct sockaddr_ll;
-	memset( remote, 0, sizeof( *remote ));
-	remote->sll_family = AF_PACKET;
-	remote->sll_protocol = PLAT_htons( etherType );
-	remote->sll_ifindex = ifindex;
-	remote->sll_halen = ETH_ALEN;
-	addr->toOctetArray( remote->sll_addr );
 
-	if( timestamp ) {
+	memset(&remote, 0, sizeof(remote));
+	remote.sin_family = AF_INET;
+	remote.sin_port = htons(addr->Port());
+
+	// Extract the remote address from the passed LinkLayerAddress
+	addr->getAddress(&remote.sin_addr);
+		
+	if (timestamp) 
+	{
 #ifndef ARCH_INTELCE
 		net_lock.lock();
 #endif
-		err = sendto
-			( sd_event, payload, length, 0, (sockaddr *) remote,
-			  sizeof( *remote ));
-	} else {
-		err = sendto
-			( sd_general, payload, length, 0, (sockaddr *) remote,
-			  sizeof( *remote ));
-  }
-	delete remote;
-	if( err == -1 ) {
+		GPTP_LOG_VERBOSE("sendto  sd_event");
+		err = sendto(sd_event, payload, length, 0, (sockaddr *)&remote, sizeof(remote));
+	} 
+	else
+	{
+		GPTP_LOG_VERBOSE("sendto  sd_general");
+		err = sendto(sd_general, payload, length, 0, (sockaddr *)&remote, sizeof(remote));
+  	}
+	
+	
+	if (err == -1)
+	{
 		GPTP_LOG_ERROR( "Failed to send: %s(%d)", strerror(errno), errno );
 		return net_fatal;
 	}
@@ -116,56 +121,20 @@ net_result LinuxNetworkInterface::send
 
 
 void LinuxNetworkInterface::disable_rx_queue() {
-	struct packet_mreq mr_8021as;
-	int err;
-
-	if( !net_lock.lock() ) {
+	if (!net_lock.lock())
+	{
 		fprintf( stderr, "D rx lock failed\n" );
 		_exit(0);
 	}
-
-	memset( &mr_8021as, 0, sizeof( mr_8021as ));
-	mr_8021as.mr_ifindex = ifindex;
-	mr_8021as.mr_type = PACKET_MR_MULTICAST;
-	mr_8021as.mr_alen = 6;
-	memcpy( mr_8021as.mr_address, P8021AS_MULTICAST, mr_8021as.mr_alen );
-	err = setsockopt
-		( sd_event, SOL_PACKET, PACKET_DROP_MEMBERSHIP, &mr_8021as,
-		  sizeof( mr_8021as ));
-	if( err == -1 ) {
-		GPTP_LOG_ERROR
-			( "Unable to add PTP multicast addresses to port id: %u",
-			  ifindex );
-		return;
-	}
-
-	return;
 }
 
 void LinuxNetworkInterface::clear_reenable_rx_queue() {
-	struct packet_mreq mr_8021as;
 	char buf[256];
-	int err;
 
 	while( recvfrom( sd_event, buf, 256, MSG_DONTWAIT, NULL, 0 ) != -1 );
 
-	memset( &mr_8021as, 0, sizeof( mr_8021as ));
-	mr_8021as.mr_ifindex = ifindex;
-	mr_8021as.mr_type = PACKET_MR_MULTICAST;
-	mr_8021as.mr_alen = 6;
-	memcpy( mr_8021as.mr_address, P8021AS_MULTICAST, mr_8021as.mr_alen );
-	err = setsockopt
-		( sd_event, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr_8021as,
-		  sizeof( mr_8021as ));
-	if( err == -1 ) {
-		GPTP_LOG_ERROR
-			( "Unable to add PTP multicast addresses to port id: %u",
-			  ifindex );
-		return;
-	}
-
 	if( !net_lock.unlock() ) {
-		fprintf( stderr, "D failed unlock rx lock, %d\n", err );
+		fprintf( stderr, "D failed unlock rx lock\n");
 	}
 }
 
@@ -258,7 +227,6 @@ void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 		}
 	}
 }
-
 
 struct LinuxTimerQueuePrivate {
 	pthread_t signal_thread;
@@ -464,28 +432,35 @@ bool TicketingLock::lock( bool *got ) {
 	if( !init_flag ) return false;
 
 	if( pthread_mutex_lock( &_private->cond_lock ) != 0 ) {
-		ret = false;
+		GPTP_LOG_VERBOSE("TicketingLock::lock Not LOCKed");
+		ret = false;	
 		goto done;
 	}
 	// Take a ticket
 	ticket = cond_ticket_issue++;
 	while( ticket != cond_ticket_serving ) {
-		if( got != NULL ) {
+		if( got != NULL ) {			
 			*got = false;
 			--cond_ticket_issue;
 			yield = true;
 			goto unlock;
 		}
 		if( pthread_cond_wait( &_private->condition, &_private->cond_lock ) != 0 ) {
+			GPTP_LOG_VERBOSE("TicketingLock::lock Waiting");
 			ret = false;
 			goto unlock;
 		}
 	}
 
-	if( got != NULL ) *got = true;
+	if( got != NULL )
+	{
+		*got = true;
+		//GPTP_LOG_VERBOSE("TicketingLock::lock LOCKED!!!  ticket:%d  cond_ticket_serving:%d", ticket, cond_ticket_serving);
+	}
 
  unlock:
 	if( pthread_mutex_unlock( &_private->cond_lock ) != 0 ) {
+		GPTP_LOG_VERBOSE("TicketingLock::lock UNLOCKed");
 		ret = false;
 		goto done;
 	}
@@ -499,19 +474,23 @@ bool TicketingLock::lock( bool *got ) {
 bool TicketingLock::unlock() {
 	bool ret = true;
 	if( !init_flag ) return false;
-
+    //GPTP_LOG_VERBOSE("TicketingLock::unlock");
 	if( pthread_mutex_lock( &_private->cond_lock ) != 0 ) {
+		GPTP_LOG_VERBOSE("TicketingLock::unlock LOCKed");
 		ret = false;
 		goto done;
 	}
 	++cond_ticket_serving;
+	//GPTP_LOG_VERBOSE("TicketingLock::unlock CALLED  cond_ticket_serving:%d", cond_ticket_serving);
 	if( pthread_cond_broadcast( &_private->condition ) != 0 ) {
+		GPTP_LOG_VERBOSE("TicketingLock::unlock Cond Broadcast");
 		ret = false;
 		goto unlock;
 	}
 
  unlock:
 	if( pthread_mutex_unlock( &_private->cond_lock ) != 0 ) {
+		GPTP_LOG_VERBOSE("TicketingLock::unlock UNLOCKed");
 		ret = false;
 		goto done;
 	}
@@ -525,7 +504,6 @@ bool TicketingLock::init() {
 	if( init_flag ) return false;  // Don't do this more than once
 	_private = new TicketingLockPrivate;
 	if( _private == NULL ) return false;
-
 	err = pthread_mutex_init( &_private->cond_lock, NULL );
 	if( err != 0 ) return false;
 	err = pthread_cond_init( &_private->condition, NULL );
@@ -541,6 +519,8 @@ bool TicketingLock::init() {
 TicketingLock::TicketingLock() {
 	init_flag = false;
 	_private = NULL;
+	cond_ticket_issue = 0;
+	cond_ticket_serving = 0;
 }
 
 TicketingLock::~TicketingLock() {
@@ -585,13 +565,19 @@ OSLockResult LinuxLock::lock() {
 		fprintf( stderr, "LinuxLock: lock failed %d\n", lock_c );
 		return oslock_fail;
 	}
+	//GPTP_LOG_VERBOSE("LinuxLock::lock   LOCKED");
 	return oslock_ok;
 }
 
 OSLockResult LinuxLock::trylock() {
 	int lock_c;
 	lock_c = pthread_mutex_trylock(&_private->mutex);
-	if(lock_c != 0) return oslock_fail;
+	if(lock_c != 0)
+	{
+		GPTP_LOG_VERBOSE("LinuxLock::trylock   Try lock FAILED");
+		return oslock_fail;
+	}
+	//GPTP_LOG_VERBOSE("LinuxLock::trylock   Try LOCK");
 	return oslock_ok;
 }
 
@@ -602,6 +588,7 @@ OSLockResult LinuxLock::unlock() {
 		fprintf( stderr, "LinuxLock: unlock failed %d\n", lock_c );
 		return oslock_fail;
 	}
+	//GPTP_LOG_VERBOSE("LinuxLock::unlock   UnLOCKED");
 	return oslock_ok;
 }
 
@@ -631,20 +618,26 @@ bool LinuxCondition::initialize() {
 bool LinuxCondition::wait_prelock() {
 	pthread_mutex_lock(&_private->port_lock);
 	up();
+	//GPTP_LOG_VERBOSE("LinuxCondition::wait_prelock   LOCKED");
 	return true;
 }
 
 bool LinuxCondition::wait() {
 	pthread_cond_wait(&_private->port_ready_signal, &_private->port_lock);
+	//GPTP_LOG_VERBOSE("LinuxCondition::wait   WAIT");
 	down();
 	pthread_mutex_unlock(&_private->port_lock);
+	//GPTP_LOG_VERBOSE("LinuxCondition::wait   UNLOCK");
 	return true;
 }
 
 bool LinuxCondition::signal() {
 	pthread_mutex_lock(&_private->port_lock);
 	if (waiting())
+	{
 		pthread_cond_broadcast(&_private->port_ready_signal);
+		//GPTP_LOG_VERBOSE("LinuxCondition::signal   BROADCAST");
+	}
 	pthread_mutex_unlock(&_private->port_lock);
 	return true;
 }
@@ -819,7 +812,6 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	struct ifreq device;
 	int err;
 	struct sockaddr_ll ifsock_addr;
-	struct packet_mreq mr_8021as;
 	LinkLayerAddress addr;
 	int ifindex;
 
@@ -836,12 +828,16 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		return false;
 	}
 
-	net_iface_l->sd_general = socket( PF_PACKET, SOCK_DGRAM, 0 );
+
+	net_iface_l->sd_general = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if( net_iface_l->sd_general == -1 ) {
 		GPTP_LOG_ERROR( "failed to open general socket: %s", strerror(errno));
 		return false;
 	}
-	net_iface_l->sd_event = socket( PF_PACKET, SOCK_DGRAM, 0 );
+	net_iface_l->sd_event = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+	GPTP_LOG_VERBOSE("createInterface  net_iface_l->sd_event: %d", net_iface_l->sd_event);
+
 	if( net_iface_l->sd_event == -1 ) {
 		GPTP_LOG_ERROR
 			( "failed to open event socket: %s ", strerror(errno));
@@ -850,12 +846,22 @@ bool LinuxNetworkInterfaceFactory::createInterface
 
 	memset( &device, 0, sizeof(device));
 	ifname->toString( device.ifr_name, IFNAMSIZ - 1 );
+	
+	GPTP_LOG_VERBOSE("device.ifr_name: %s", device.ifr_name);
+
 	err = ioctl( net_iface_l->sd_event, SIOCGIFHWADDR, &device );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR
 			( "Failed to get interface address: %s", strerror( errno ));
 		return false;
 	}
+
+	GPTP_LOG_VERBOSE("device.ifr_hwaddr.sa_data: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", device.ifr_hwaddr.sa_data[0],
+		device.ifr_hwaddr.sa_data[1],device.ifr_hwaddr.sa_data[2],device.ifr_hwaddr.sa_data[3],device.ifr_hwaddr.sa_data[4],
+		device.ifr_hwaddr.sa_data[5],device.ifr_hwaddr.sa_data[6],device.ifr_hwaddr.sa_data[7],device.ifr_hwaddr.sa_data[8],
+		device.ifr_hwaddr.sa_data[9],device.ifr_hwaddr.sa_data[10],device.ifr_hwaddr.sa_data[11],device.ifr_hwaddr.sa_data[12],
+		device.ifr_hwaddr.sa_data[13]);
+
 
 	addr = LinkLayerAddress( (uint8_t *)&device.ifr_hwaddr.sa_data );
 	net_iface_l->local_addr = addr;
@@ -867,30 +873,28 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	}
 	ifindex = device.ifr_ifindex;
 	net_iface_l->ifindex = ifindex;
-	memset( &mr_8021as, 0, sizeof( mr_8021as ));
-	mr_8021as.mr_ifindex = ifindex;
-	mr_8021as.mr_type = PACKET_MR_MULTICAST;
-	mr_8021as.mr_alen = 6;
-	memcpy( mr_8021as.mr_address, P8021AS_MULTICAST, mr_8021as.mr_alen );
-	err = setsockopt
-		( net_iface_l->sd_event, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
-		  &mr_8021as, sizeof( mr_8021as ));
+
+	GPTP_LOG_VERBOSE("createInterface  ifindex: %d", ifindex);
+
+	memset( &ifsock_addr, 0, sizeof( ifsock_addr ));
+
+	sockaddr_in evntAddr;
+	memset(&evntAddr, 0, sizeof(evntAddr ));
+	evntAddr.sin_port = htons(EVENT_PORT);
+	evntAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	err = bind(net_iface_l->sd_event, (sockaddr *)&evntAddr, sizeof(evntAddr));
 	if( err == -1 ) {
-		GPTP_LOG_ERROR
-			( "Unable to add PTP multicast addresses to port id: %u",
-			  ifindex );
+		GPTP_LOG_ERROR( "Call to bind() for sd_event failed (%d): %s", errno, strerror(errno) );
 		return false;
 	}
 
-	memset( &ifsock_addr, 0, sizeof( ifsock_addr ));
-	ifsock_addr.sll_family = AF_PACKET;
-	ifsock_addr.sll_ifindex = ifindex;
-	ifsock_addr.sll_protocol = PLAT_htons( PTP_ETHERTYPE );
-	err = bind
-		( net_iface_l->sd_event, (sockaddr *) &ifsock_addr,
-		  sizeof( ifsock_addr ));
+	sockaddr_in genAddr;
+	memset(&genAddr, 0, sizeof(genAddr));
+	genAddr.sin_port = htons(GENERAL_PORT);
+	genAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	err = bind(net_iface_l->sd_general, (sockaddr *)&genAddr, sizeof(genAddr));	
 	if( err == -1 ) {
-		GPTP_LOG_ERROR( "Call to bind() failed: %s", strerror(errno) );
+		GPTP_LOG_ERROR( "Call to bind() for sd_general failed (%d): %s", errno, strerror(errno) );
 		return false;
 	}
 
@@ -900,12 +904,17 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		GPTP_LOG_ERROR( "timestamper == NULL" );
 		return false;
 	}
+
+#ifndef RPI
 	if( !net_iface_l->timestamper->post_init
 		( ifindex, net_iface_l->sd_event, &net_iface_l->net_lock )) {
 		GPTP_LOG_ERROR( "post_init failed\n" );
 		return false;
 	}
+#endif
+
 	*net_iface = net_iface_l;
 
 	return true;
 }
+

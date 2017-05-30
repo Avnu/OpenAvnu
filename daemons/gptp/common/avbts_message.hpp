@@ -40,6 +40,7 @@
 
 #include <list>
 #include <algorithm>
+#include <memory>
 
 /** @file **/
 
@@ -88,6 +89,20 @@
 #define PTP_FOLLOWUP_SEC_MS(x) x	/*!< Gets the followup seconds MSB offset */
 #define PTP_FOLLOWUP_SEC_LS(x) x+2	/*!< Gets the followup seconds LSB offset */
 #define PTP_FOLLOWUP_NSEC(x) x+6	/*!< Gets tne followup nanoseconds offset */
+
+#define PTP_DELAY_REQ_OFFSET 34		/*!< PTP PDELAY REQUEST base offset */
+#define PTP_DELAY_REQ_LENGTH 20		/*!< PTP PDELAY REQUEST length in bytes */
+#define PTP_DELAY_REQ_SEC_MS(x) x		/*!< Gets the pdelay request seconds MSB offset */
+#define PTP_DELAY_REQ_SEC_LS(x) x+2	/*!< Gets the pdelay request seconds LSB offset */
+#define PTP_DELAY_REQ_NSEC(x) x+6		/*!< Gets the pdelay request nanoseconds offset */
+
+#define PTP_DELAY_RESP_OFFSET 34				/*!< PDELAY RESPONSE base offset */
+#define PTP_DELAY_RESP_LENGTH 10				/*!< PDELAY RESPONSE length in bytes */
+#define PTP_DELAY_RESP_SEC_MS(x) x				/*!< Gets the pdelay response seconds MSB offset */
+#define PTP_DELAY_RESP_SEC_LS(x) x+2			/*!< Gets the pdelay response seconds LSB offset */
+#define PTP_DELAY_RESP_NSEC(x) x+6				/*!< Gets the pdelay nanoseconds offset */
+#define PTP_DELAY_RESP_REQ_CLOCK_ID(x) x+10	/*!< Gets the pdelay response request clock id offset */
+#define PTP_DELAY_RESP_REQ_PORT_ID(x) x+18		/*!< Gets the pdelay response request port id offset */
 
 #define PTP_PDELAY_REQ_OFFSET 34		/*!< PTP PDELAY REQUEST base offset */
 #define PTP_PDELAY_REQ_LENGTH 20		/*!< PTP PDELAY REQUEST length in bytes */
@@ -213,7 +228,7 @@ protected:
 	uint16_t versionNetwork;	/*!< Network version */
 	MessageType messageType;	/*!< MessageType to be built */
 
-	PortIdentity *sourcePortIdentity;	/*!< PortIdentity from source*/
+	std::shared_ptr<PortIdentity> sourcePortIdentity;	/*!< PortIdentity from source*/
 
 	uint16_t sequenceId;		/*!< PTP message sequence ID*/
 	LegacyMessageType control;	/*!< Control message type of LegacyMessageType */
@@ -226,13 +241,20 @@ protected:
 
 	Timestamp _timestamp;	/*!< PTP message timestamp */
 	unsigned _timestamp_counter_value;	/*!< PTP timestamp counter value */
+
+	// TODO: replace this with std::shared_ptr
 	bool _gc;	/*!< Garbage collection flag */
 
 	/**
 	 * @brief Default constructor
 	 */
-	PTPMessageCommon(void) { };
+	PTPMessageCommon(void) : sourcePortIdentity(nullptr) { };
+
  public:
+ 	PTPMessageCommon(const PTPMessageCommon& other)
+ 	{
+ 		assign(other);
+ 	}
 	/**
 	 * @brief Creates the PTPMessageCommon interface
 	 * @param port IEEE1588Port where the message interface is connected to.
@@ -242,6 +264,14 @@ protected:
 	 * @brief Destroys PTPMessageCommon interface
 	 */
 	virtual ~PTPMessageCommon(void);
+
+	PTPMessageCommon& operator=(const PTPMessageCommon& other)
+	{
+		assign(other);
+		return *this;
+	}
+
+	PTPMessageCommon& assign(const PTPMessageCommon& other);
 
 	/**
 	 * @brief  Gets a pointer to the flags field within the PTP message.
@@ -307,13 +337,16 @@ protected:
 	 * @param  identity [out] Source port identity
 	 * @return void
 	 */
-	void getPortIdentity(PortIdentity * identity);
+	void getPortIdentity(std::shared_ptr<PortIdentity> identity);
+
+	std::shared_ptr<PortIdentity> getPortIdentity() const;
+
 	/**
 	 * @brief  Sets PortIdentity value
 	 * @param  identity [in] Source port identity value to be set.
 	 * @return void
 	 */
-	void setPortIdentity(PortIdentity * identity);
+	void setPortIdentity(std::shared_ptr<PortIdentity> identity);
 
 	/**
 	 * @brief  Gets the current Timestamp value from the PTP message
@@ -334,7 +367,7 @@ protected:
 	 * @param  timestamp [in] Reference to Timestamp value
 	 * @return void
 	 */
-	void setTimestamp(Timestamp & timestamp) {
+	void setTimestamp(const Timestamp & timestamp) {
 		_timestamp = timestamp;
 	}
 
@@ -352,7 +385,7 @@ protected:
 	 * @param  portIdentity PortIdentity value
 	 * @return TRUE if sender equals to internal PTPCommon values, FALSE otherwise.
 	 */
-	bool isSenderEqual(PortIdentity portIdentity);
+	bool isSenderEqual(const PortIdentity& portIdentity);
 
 	/**
 	 * @brief  Generic interface for processing PTP message
@@ -367,6 +400,18 @@ protected:
 	 * @return void
 	 */
 	void buildCommonHeader(uint8_t * buf);
+
+	MessageType GetMessageType(const char *buf)
+	{
+		unsigned char rawMessage;
+		memcpy(&rawMessage,
+		 buf + PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(PTP_COMMON_HDR_OFFSET),
+	       sizeof(rawMessage));
+		MessageType messageType = MessageType(rawMessage & 0xF);
+		return messageType;
+	}
+
+	void logCommonHeader();
 
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
@@ -584,7 +629,7 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	 * @param  destIdentity [in] Destination PortIdentity
 	 * @return void
 	 */
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
 
 	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
 						 LinkLayerAddress * remote,
@@ -598,8 +643,9 @@ class PTPMessageSync : public PTPMessageCommon {
  private:
 	Timestamp originTimestamp;
 
-	PTPMessageSync();
  public:
+	PTPMessageSync();
+
 	/**
 	 * @brief Default constructor. Creates PTPMessageSync
 	 * @param port IEEE1588Port
@@ -610,6 +656,18 @@ class PTPMessageSync : public PTPMessageCommon {
 	 * @brief Destroys PTPMessageSync interface
 	 */
 	~PTPMessageSync();
+
+	PTPMessageSync(const PTPMessageSync& other)
+	{
+		assign(other);
+	}
+
+	PTPMessageSync& operator=(const PTPMessageSync& other)
+	{
+		return assign(other);
+	}
+
+	PTPMessageSync& assign(const PTPMessageSync& other);
 
 	/**
 	 * @brief  Processes PTP messages
@@ -632,7 +690,7 @@ class PTPMessageSync : public PTPMessageCommon {
 	 * @param  destIdentity [in] Destination PortIdentity
 	 * @return void
 	 */
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
 
 	friend PTPMessageCommon *buildPTPMessage
 	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
@@ -836,12 +894,26 @@ private:
 
 	FollowUpTLV tlv;
 
-	PTPMessageFollowUp(void) { }
 public:
+
+	PTPMessageFollowUp(void) { }
+
 	/**
 	 * @brief Builds the PTPMessageFollowUP object
 	 */
 	PTPMessageFollowUp(IEEE1588Port * port);
+
+	PTPMessageFollowUp(const PTPMessageFollowUp& other)
+	{
+		assign(other);
+	}
+
+	PTPMessageFollowUp& operator=(const PTPMessageFollowUp& other)
+	{
+		return assign(other);
+	}
+
+	PTPMessageFollowUp& assign(const PTPMessageFollowUp& other);
 
 	/**
 	 * @brief  Assembles PTPMessageFollowUp message on the IEEE1588Port payload
@@ -849,7 +921,7 @@ public:
 	 * @param  destIdentity [in] Destination PortIdentity
 	 * @return void
 	 */
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
@@ -891,6 +963,174 @@ public:
 };
 
 /**
+ * @brief Provides a class for building the PTP Delay Request message
+ */
+class PTPMessageDelayReq : public PTPMessageCommon {
+ private:
+	Timestamp originTimestamp;
+
+
+ public:
+	/**
+	 * @brief Destroys the PTPMessageDelayReq object
+	 */
+	~PTPMessageDelayReq() {
+	}
+
+	PTPMessageDelayReq(const MessageType type = DELAY_REQ_MESSAGE)
+	{
+	}
+
+	/**
+	 * @brief Builds the PTPMessageDelayReq message
+	 */
+	PTPMessageDelayReq(IEEE1588Port * port);
+
+	PTPMessageDelayReq(const PTPMessagePathDelayReq& other)
+	{
+		assign(other);
+	}
+	PTPMessageDelayReq& operator=(const PTPMessageDelayReq& other)
+	{
+		return assign(other);
+	}
+	PTPMessageDelayReq& assign(const PTPMessageDelayReq& other);
+	
+	/**
+	 * @brief  Assembles PTPMessageDelayReq message on the IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
+	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+
+	/**
+	 * @brief  Processes PTP messages
+	 * @param  port [in] IEEE1588Port
+	 * @return void
+	 */
+	void processMessage(IEEE1588Port * port);
+
+	/**
+	 * @brief  Build the common header with tweaks for the Apple Vendor PTP Profile
+	 * @param  buf [out] uint8_t
+	 * @return void
+	 */
+	void buildCommonHeader(uint8_t * buf);
+
+	/**
+	 * @brief  Gets origin timestamp value
+	 * @return Origin Timestamp
+	 */
+	Timestamp getOriginTimestamp(void) {
+		return originTimestamp;
+	}
+
+	void setOriginTimestamp(const Timestamp& timestamp)
+	{
+		originTimestamp = timestamp;
+	}
+
+	friend PTPMessageCommon *buildPTPMessage
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+};
+
+/**
+ * @brief Provides a class for building the PTP Delay Response message.
+ */
+class PTPMessageDelayResp:public PTPMessageCommon {
+private:
+	std::shared_ptr<PortIdentity> requestingPortIdentity;
+	Timestamp requestReceiptTimestamp;
+
+
+public:
+	PTPMessageDelayResp(const MessageType type = DELAY_RESP_MESSAGE) :
+		requestingPortIdentity(nullptr)
+	{
+	}
+
+	PTPMessageDelayResp(const PTPMessageDelayResp& other)
+	{
+		assign(other);
+	}
+
+	/**
+	 * @brief Destroys the PTPMessageDelayResp object
+	 */
+	~PTPMessageDelayResp();
+
+	/**
+	 * @brief Builds the PTPMessageDelayResp object
+	 */
+	PTPMessageDelayResp(IEEE1588Port * port);
+
+	PTPMessageDelayResp& operator=(const PTPMessageDelayResp& other)
+	{
+		assign(other);
+		return *this;
+	}
+
+
+	PTPMessageDelayResp& assign(const PTPMessageDelayResp& other);
+
+	/**
+	 * @brief  Assembles PTPMessageDelayResp message on the IEEE1588Port payload
+	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  destIdentity [in] Destination PortIdentity
+	 * @return void
+	 */
+	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+
+	/**
+	 * @brief  Processes PTP messages
+	 * @param  port [in] IEEE1588Port
+	 * @return void
+	 */
+	void processMessage(IEEE1588Port * port);
+
+	/**
+	 * @brief  Sets the request receipt timestamp
+	 * @param  timestamp Timestamp to be set
+	 * @return void
+	 */
+	void setRequestReceiptTimestamp(Timestamp timestamp) {
+		requestReceiptTimestamp = timestamp;
+	}
+	/**
+	 * @brief  Gets the request receipt timestamp
+	 * @return requestReceiptTimestamp
+	 */
+	Timestamp getRequestReceiptTimestamp(void) {
+		return requestReceiptTimestamp;
+	}
+
+	/**
+	 * @brief  Sets target port identity
+	 * @param  identity [in] PortIdentity to be set
+	 * @return void
+	 */
+	void setTargetPortIdentity(std::shared_ptr<PortIdentity> identity);
+
+	/**
+	 * @brief  Gets target port identity
+	 * @param  identity [out] Requested PortIdentity
+	 * @return void
+	 */
+	void getTargetPortIdentity(std::shared_ptr<PortIdentity> identity);
+
+	/**
+	 * @brief  Overload of base buildCommonHeader member function
+	 * @param  buf [out] Buffer holding the header values.
+	 * @return void
+	 */
+	void buildCommonHeader(uint8_t * buf);
+
+	friend PTPMessageCommon *buildPTPMessage
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+};
+
+/**
  * @brief Provides a class for building the PTP Path Delay Request message
  */
 class PTPMessagePathDelayReq : public PTPMessageCommon {
@@ -918,7 +1158,7 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 	 * @param  destIdentity [in] Destination PortIdentity
 	 * @return void
 	 */
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
@@ -944,7 +1184,7 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
  */
 class PTPMessagePathDelayResp:public PTPMessageCommon {
 private:
-	PortIdentity * requestingPortIdentity;
+	std::shared_ptr<PortIdentity> requestingPortIdentity;
 	Timestamp requestReceiptTimestamp;
 
 	PTPMessagePathDelayResp(void) {
@@ -965,7 +1205,7 @@ public:
 	 * @param  destIdentity [in] Destination PortIdentity
 	 * @return void
 	 */
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
@@ -988,13 +1228,13 @@ public:
 	 * @param  identity [in] PortIdentity to be set
 	 * @return void
 	 */
-	void setRequestingPortIdentity(PortIdentity * identity);
+	void setRequestingPortIdentity(std::shared_ptr<PortIdentity> identity);
 	/**
 	 * @brief  Gets requesting port identity
 	 * @param  identity [out] Requested PortIdentity
 	 * @return void
 	 */
-	void getRequestingPortIdentity(PortIdentity * identity);
+	void getRequestingPortIdentity(std::shared_ptr<PortIdentity> identity);
 
 	/**
 	 * @brief  Gets the request receipt timestamp
@@ -1014,7 +1254,7 @@ public:
 class PTPMessagePathDelayRespFollowUp:public PTPMessageCommon {
  private:
 	Timestamp responseOriginTimestamp;
-	PortIdentity *requestingPortIdentity;
+	std::shared_ptr<PortIdentity> requestingPortIdentity;
 
 	PTPMessagePathDelayRespFollowUp(void) { }
 
@@ -1035,7 +1275,7 @@ public:
 	 * @param  destIdentity [in] Destination PortIdentity
 	 * @return void
 	 */
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
@@ -1057,7 +1297,7 @@ public:
 	 * @param  identity [in] PortIdentity to be set
 	 * @return void
 	 */
-	void setRequestingPortIdentity(PortIdentity * identity);
+	void setRequestingPortIdentity(std::shared_ptr<PortIdentity> identity);
 
 	/**
 	 * @brief  Gets the response origin timestamp
@@ -1070,7 +1310,7 @@ public:
 	 * @brief Gets the requesting port identity
 	 * @return Pointer to requesting PortIdentity object
 	 */
-	PortIdentity *getRequestingPortIdentity(void) {
+	std::shared_ptr<PortIdentity> getRequestingPortIdentity(void) {
 		return requestingPortIdentity;
 	}
 
@@ -1221,7 +1461,7 @@ public:
 	 * @param  destIdentity [in] Destination PortIdentity
 	 * @return void
 	 */
-	void sendPort(IEEE1588Port * port, PortIdentity * destIdentity);
+	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
