@@ -129,9 +129,9 @@ class AGPioPinger
       int fPinNumber;
 };
 
-// Create a rpi GPIO pinger for GPIO physical pin 15
-// NOTE: physical_pin_number_15 == GPIO22 == wiringPi_pin_3
-static AGPioPinger sPinger(3);
+// Create a rpi GPIO pinger for GPIO physical pin 11
+// NOTE: physical_pin_number_11 == GPIO17 == wiringPi_pin_0
+static AGPioPinger sPinger(0);
 
 OSThreadExitCode runPinger(void *arg)
 {
