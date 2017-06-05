@@ -93,10 +93,10 @@ int _tmain(int argc, _TCHAR* argv[])
 	PortInit_t portInit;
 
 	phy_delay_map_t ether_phy_delay;
-	ether_phy_delay[LINKSPEED_1G].set
-	(PHY_DELAY_GB_TX, PHY_DELAY_GB_RX);
-	ether_phy_delay[LINKSPEED_100MB].set
-	(PHY_DELAY_MB_TX, PHY_DELAY_MB_RX);
+	ether_phy_delay[LINKSPEED_1G] =
+		phy_delay_spec_t(PHY_DELAY_GB_TX, PHY_DELAY_GB_RX);
+	ether_phy_delay[LINKSPEED_100MB] =
+		phy_delay_spec_t(PHY_DELAY_MB_TX, PHY_DELAY_MB_RX);
 
 
 	portInit.clock = NULL;
