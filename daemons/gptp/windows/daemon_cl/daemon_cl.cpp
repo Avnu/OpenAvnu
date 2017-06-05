@@ -44,10 +44,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <tchar.h>
 #include <iphlpapi.h>
 
-#define PHY_DELAY_GB_TX		7750	//1G delay
-#define PHY_DELAY_GB_RX		7750	//1G delay
-#define PHY_DELAY_MB_TX		27500	//100M delay
-#define PHY_DELAY_MB_RX		27500	//100M delay
+#define PHY_DELAY_GB_TX_I20 184 //1G delay
+#define PHY_DELAY_GB_RX_I20 382 //1G delay
+#define PHY_DELAY_MB_TX_I20 1044//100M delay
+#define PHY_DELAY_MB_RX_I20 2133//100M delay
 
 #define MACSTR_LENGTH 17
 
@@ -93,10 +93,10 @@ int _tmain(int argc, _TCHAR* argv[])
 	PortInit_t portInit;
 
 	phy_delay_map_t ether_phy_delay;
-	ether_phy_delay[LINKSPEED_1G].set
-	(PHY_DELAY_GB_TX, PHY_DELAY_GB_RX);
-	ether_phy_delay[LINKSPEED_100MB].set
-	(PHY_DELAY_MB_TX, PHY_DELAY_MB_RX);
+	ether_phy_delay[LINKSPEED_1G].set_delay
+	(PHY_DELAY_GB_TX_I20, PHY_DELAY_GB_RX_I20);
+	ether_phy_delay[LINKSPEED_100MB].set_delay
+	(PHY_DELAY_MB_TX_I20, PHY_DELAY_MB_RX_I20);
 
 
 	portInit.clock = NULL;
