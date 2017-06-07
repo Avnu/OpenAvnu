@@ -34,7 +34,7 @@
 #include <linux_hal_common.hpp>
 #include <sys/types.h>
 #include <avbts_clock.hpp>
-#include <avbts_port.hpp>
+#include <ether_port.hpp>
 
 #include <pthread.h>
 #include <linux_ipc.hpp>
@@ -59,6 +59,8 @@
 #include <netinet/in.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <linux/sockios.h>
+#include <gptp_cfg.hpp>
 
 Timestamp tsToTimestamp(struct timespec *ts)
 {
@@ -104,7 +106,7 @@ net_result LinuxNetworkInterface::send
 		err = sendto
 			( sd_general, payload, length, 0, (sockaddr *) remote,
 			  sizeof( *remote ));
-  }
+	}
 	delete remote;
 	if( err == -1 ) {
 		GPTP_LOG_ERROR( "Failed to send: %s(%d)", strerror(errno), errno );
@@ -168,7 +170,8 @@ void LinuxNetworkInterface::clear_reenable_rx_queue() {
 	}
 }
 
-static void x_readEvent(int sockint, IEEE1588Port *pPort, int ifindex)
+static void x_readEvent
+( int sockint, EtherPort *pPort, int ifindex )
 {
 	int status;
 	char buf[4096];
@@ -223,7 +226,7 @@ static void x_readEvent(int sockint, IEEE1588Port *pPort, int ifindex)
 	return;
 }
 
-static void x_initLinkUpStatus(IEEE1588Port *pPort, int ifindex)
+static void x_initLinkUpStatus( EtherPort *pPort, int ifindex )
 {
 	struct ifreq device;
 	memset(&device, 0, sizeof(device));
@@ -247,18 +250,76 @@ static void x_initLinkUpStatus(IEEE1588Port *pPort, int ifindex)
 		close(inetSocket);
 		return;
 	}
-	if (device.ifr_flags && IFF_RUNNING) {
+	if (device.ifr_flags & IFF_RUNNING) {
 		GPTP_LOG_DEBUG("Interface %s is up", device.ifr_name);
 		pPort->setLinkUpState(true);
 	} //linkUp == false by default
 	close(inetSocket);
 }
 
-void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
+
+bool LinuxNetworkInterface::getLinkSpeed( int sd, uint32_t *speed )
+{
+	struct ifreq ifr;
+	struct ethtool_cmd edata;
+
+	ifr.ifr_ifindex = ifindex;
+	if( ioctl( sd, SIOCGIFNAME, &ifr ) == -1 )
+	{
+		GPTP_LOG_ERROR
+			( "%s: SIOCGIFNAME failed: %s", __PRETTY_FUNCTION__,
+			  strerror( errno ));
+		return false;
+	}
+
+	ifr.ifr_data = (char *) &edata;
+	edata.cmd = ETHTOOL_GSET;
+	if( ioctl( sd, SIOCETHTOOL, &ifr ) == -1 )
+	{
+		GPTP_LOG_ERROR
+			( "%s: SIOCETHTOOL failed: %s", __PRETTY_FUNCTION__,
+			  strerror( errno ));
+		return false;
+	}
+
+	switch (ethtool_cmd_speed(&edata))
+	{
+	default:
+		GPTP_LOG_ERROR( "%s: Unknown/Unsupported Speed!",
+				__PRETTY_FUNCTION__ );
+		return false;
+	case SPEED_100:
+		*speed = LINKSPEED_100MB;
+		break;
+	case SPEED_1000:
+		*speed = LINKSPEED_1G;
+		break;
+	case SPEED_2500:
+		*speed = LINKSPEED_2_5G;
+		break;
+	case SPEED_10000:
+		*speed = LINKSPEED_10G;
+		break;
+	}
+	GPTP_LOG_STATUS( "Link Speed: %d kb/sec", *speed );
+
+	return true;
+}
+
+void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 {
 	fd_set netLinkFD;
 	int netLinkSocket;
+	int inetSocket;
 	struct sockaddr_nl addr;
+
+	EtherPort *pPort =
+		dynamic_cast<EtherPort *>(iPort);
+	if( pPort == NULL )
+	{
+		GPTP_LOG_ERROR("NETLINK socket open error");
+		return;
+	}
 
 	netLinkSocket = socket (AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (netLinkSocket < 0) {
@@ -274,10 +335,33 @@ void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 
 	if (bind (netLinkSocket, (struct sockaddr *) &addr, sizeof (addr)) < 0) {
 		GPTP_LOG_ERROR("Socket bind failed");
+		close (netLinkSocket);
+		return;
+	}
+
+	/*
+	 * Open an INET family socket to be passed to getLinkSpeed() which calls
+	 * ioctl() because NETLINK sockets do not support ioctl(). Since we will
+	 * enter an infinite loop, there are no apparent close() calls for the
+	 * open sockets, but they will be closed on process termination.
+	 */
+	inetSocket = socket (AF_INET, SOCK_STREAM, 0);
+	if (inetSocket < 0) {
+		GPTP_LOG_ERROR("watchNetLink error opening socket: %s", strerror(errno));
+		close (netLinkSocket);
 		return;
 	}
 
 	x_initLinkUpStatus(pPort, ifindex);
+	if( pPort->getLinkUpState() )
+	{
+		uint32_t link_speed;
+		getLinkSpeed( inetSocket, &link_speed );
+		pPort->setLinkSpeed((int32_t) link_speed );
+	} else
+	{
+		pPort->setLinkSpeed( INVALID_LINKSPEED );
+	}
 
 	while (1) {
 		FD_ZERO(&netLinkFD);
@@ -289,7 +373,21 @@ void LinuxNetworkInterface::watchNetLink(IEEE1588Port *pPort)
 		if (retval == -1)
 			; // Error on select. We will ignore and keep going
 		else if (retval) {
+			bool prev_link_up = pPort->getLinkUpState();
 			x_readEvent(netLinkSocket, pPort, ifindex);
+
+			// Don't do anything else if link state is the same
+			if( prev_link_up == pPort->getLinkUpState() )
+				continue;
+			if( pPort->getLinkUpState() )
+			{
+				uint32_t link_speed;
+				getLinkSpeed( inetSocket, &link_speed );
+				pPort->setLinkSpeed((int32_t) link_speed );
+			} else
+			{
+				pPort->setLinkSpeed( INVALID_LINKSPEED );
+			}
 		}
 		else {
 			; // Would be timeout but Won't happen because we wait forever
@@ -365,7 +463,7 @@ void *LinuxTimerQueueHandler( void *arg ) {
 void LinuxTimerQueue::LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg ) {
 	arg->func( arg->inner_arg );
 
-    return;
+	return;
 }
 
 OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
@@ -462,10 +560,10 @@ bool LinuxTimerQueue::cancelEvent( int type, unsigned *event ) {
 
 
 void* OSThreadCallback( void* input ) {
-    OSThreadArg *arg = (OSThreadArg*) input;
+	OSThreadArg *arg = (OSThreadArg*) input;
 
-    arg->ret = arg->func( arg->arg );
-    return 0;
+	arg->ret = arg->func( arg->arg );
+	return 0;
 }
 
 bool LinuxTimestamper::post_init( int ifindex, int sd, TicketingLock *lock ) {
@@ -475,8 +573,10 @@ bool LinuxTimestamper::post_init( int ifindex, int sd, TicketingLock *lock ) {
 LinuxTimestamper::~LinuxTimestamper() {}
 
 unsigned long LinuxTimer::sleep(unsigned long micros) {
-	struct timespec req = { 0, (long int)(micros * 1000) };
+	struct timespec req;
 	struct timespec rem;
+	req.tv_sec = micros / 1000000;
+	req.tv_nsec = micros % 1000000 * 1000;
 	int ret = nanosleep( &req, &rem );
 	while( ret == -1 && errno == EINTR ) {
 		req = rem;
@@ -586,7 +686,7 @@ TicketingLock::~TicketingLock() {
 }
 
 struct LinuxLockPrivate {
-    pthread_t thread_id;
+	pthread_t thread_id;
 	pthread_mutexattr_t mta;
 	pthread_mutex_t mutex;
 	pthread_cond_t port_ready_signal;
@@ -815,10 +915,17 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	return false;
 }
 
-bool LinuxSharedMemoryIPC::update
-(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
- FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
- uint32_t pdelay_count, PortState port_state, bool asCapable ) {
+bool LinuxSharedMemoryIPC::update(
+	int64_t ml_phoffset,
+	int64_t ls_phoffset,
+	FrequencyRatio ml_freqoffset,
+	FrequencyRatio ls_freqoffset,
+	uint64_t local_time,
+	uint32_t sync_count,
+	uint32_t pdelay_count,
+	PortState port_state,
+	bool asCapable )
+{
 	int buf_offset = 0;
 	pid_t process_id = getpid();
 	char *shm_buffer = master_offset_buffer;
@@ -835,9 +942,67 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->local_time = local_time;
 		ptimedata->sync_count   = sync_count;
 		ptimedata->pdelay_count = pdelay_count;
-        ptimedata->asCapable = asCapable;
+		ptimedata->asCapable = asCapable;
 		ptimedata->port_state   = port_state;
 		ptimedata->process_id   = process_id;
+		/* unlock */
+		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
+	}
+	return true;
+}
+
+bool LinuxSharedMemoryIPC::update_grandmaster(
+	uint8_t gptp_grandmaster_id[],
+	uint8_t gptp_domain_number )
+{
+	int buf_offset = 0;
+	char *shm_buffer = master_offset_buffer;
+	gPtpTimeData *ptimedata;
+	if( shm_buffer != NULL ) {
+		/* lock */
+		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
+		buf_offset += sizeof(pthread_mutex_t);
+		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
+		memcpy(ptimedata->gptp_grandmaster_id, gptp_grandmaster_id, PTP_CLOCK_IDENTITY_LENGTH);
+		ptimedata->gptp_domain_number = gptp_domain_number;
+		/* unlock */
+		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
+	}
+	return true;
+}
+
+bool LinuxSharedMemoryIPC::update_network_interface(
+	uint8_t  clock_identity[],
+	uint8_t  priority1,
+	uint8_t  clock_class,
+	int16_t  offset_scaled_log_variance,
+	uint8_t  clock_accuracy,
+	uint8_t  priority2,
+	uint8_t  domain_number,
+	int8_t   log_sync_interval,
+	int8_t   log_announce_interval,
+	int8_t   log_pdelay_interval,
+	uint16_t port_number )
+{
+	int buf_offset = 0;
+	char *shm_buffer = master_offset_buffer;
+	gPtpTimeData *ptimedata;
+	if( shm_buffer != NULL ) {
+		/* lock */
+		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
+		buf_offset += sizeof(pthread_mutex_t);
+		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
+		memcpy(ptimedata->clock_identity, clock_identity, PTP_CLOCK_IDENTITY_LENGTH);
+		ptimedata->priority1 = priority1;
+		ptimedata->clock_class = clock_class;
+		ptimedata->offset_scaled_log_variance = offset_scaled_log_variance;
+		ptimedata->clock_accuracy = clock_accuracy;
+		ptimedata->priority2 = priority2;
+		ptimedata->domain_number = domain_number;
+		ptimedata->log_sync_interval = log_sync_interval;
+		ptimedata->log_announce_interval = log_announce_interval;
+		ptimedata->log_pdelay_interval = log_pdelay_interval;
+		ptimedata->port_number   = port_number;
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 	}
@@ -853,7 +1018,7 @@ void LinuxSharedMemoryIPC::stop() {
 
 bool LinuxNetworkInterfaceFactory::createInterface
 ( OSNetworkInterface **net_iface, InterfaceLabel *label,
-  HWTimestamper *timestamper ) {
+  CommonTimestamper *timestamper ) {
 	struct ifreq device;
 	int err;
 	struct sockaddr_ll ifsock_addr;

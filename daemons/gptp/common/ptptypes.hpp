@@ -38,15 +38,17 @@
 
 #if defined(__clang__) &&  defined(__x86_64__)
 // Clang/llvm has incompatible long double (fp128) for x86_64.
-typedef double FrequencyRatio; /*!< Frequency Ratio */
+typedef double FrequencyRatio;		/*!< Frequency Ratio */
 #else
-typedef long double FrequencyRatio; /*!< Frequency Ratio */
+typedef long double FrequencyRatio;	/*!< Frequency Ratio */
 #endif
 
 #define ETHER_ADDR_OCTETS	6		/*!< Number of octets in a link layer address*/
 #define IP_ADDR_OCTETS		4		/*!< Number of octets in a ip address*/
 #define PTP_ETHERTYPE 0x88F7		/*!< PTP ethertype */
-#define AVTP_ETHERTYPE 0x22F0   /*!< AVTP ethertype used for Test Status Message */
+#define AVTP_ETHERTYPE 0x22F0		/*!< AVTP ethertype used for Test Status Message */
+
+#define PTP_CLOCK_IDENTITY_LENGTH 8	/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS-2011 Clause 8.5.2.4*/
 
 /**
  * @brief PortState enumeration

@@ -1,22 +1,35 @@
+AVBLIB_DIR = ../../lib/common
+AVBLIB_OBJS = avb_avtp.o avb_gptp.o avb_igb.o
+AVBLIB_TARGETS = $(addprefix $(AVBLIB_DIR)/,$(AVBLIB_OBJS))
+
+MRPCLIENT_DIR = ../common
+MRPTALKER_OBJS = talker_mrp_client.o
+MRPTALKER_TARGETS = $(addprefix $(MRPCLIENT_DIR)/,$(MRPTALKER_OBJS))
+
+IGBLIB_DIR = ../../lib/igb
+DAEMONS_DIR = ../../daemons
+
 CC?=gcc
 OPT=-O2 -g
-CFLAGS=$(OPT) -Wall -Wextra -Wno-parentheses
-INCFLAGS=-I../../lib/igb -I../../daemons/mrpd -I../common -I../../lib/common -I../../daemons/common
+WARN=-Wall -Wextra -Wno-parentheses
+CFLAGS=$(OPT) $(WARN)
+CPPFLAGS=-I$(IGBLIB_DIR) -I$(DAEMONS_DIR)/mrpd -I$(MRPCLIENT_DIR) -I$(AVBLIB_DIR) -I$(DAEMONS_DIR)/common
 LDLIBS=-ligb -lpci -lrt -lm -pthread
-LDFLAGS=-L../../lib/igb
+LDFLAGS=-L$(IGBLIB_DIR)
+
+.PHONY: all clean
 
 all: simple_talker
 
-simple_talker: simple_talker.o ../common/talker_mrp_client.o ../../lib/common/avb.o
+simple_talker: simple_talker.o $(MRPTALKER_TARGETS) $(AVBLIB_TARGETS)
 
 simple_talker.o: simple_talker.c
-	$(CC) $(CFLAGS) $(INCFLAGS) -c simple_talker.c
 
-../../lib/common/avb.o: ../../lib/common/avb.h ../../lib/common/avb.c
-	make -C ../../lib/common/ avb.o
+$(AVBLIB_DIR)/%.o: $(AVBLIB_DIR)/%.h $(AVBLIB_DIR)/%.c
+	make -C $(AVBLIB_DIR) $@
 
-../common/talker_mrp_client.o: ../common/talker_mrp_client.c ../common/talker_mrp_client.h
-	make -C ../common/ talker_mrp_client.o
+$(MRPCLIENT_DIR)/%.o: $(MRPCLIENT_DIR)/%.c $(MRPCLIENT_DIR)/%.h
+	make -C $(MRPCLIENT_DIR) $@
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@

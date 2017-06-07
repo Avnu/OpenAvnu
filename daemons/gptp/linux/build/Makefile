@@ -56,7 +56,8 @@ OBJ_DIR = obj
 OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/ap_message.o\
 		 $(OBJ_DIR)/avbts_osnet.o\
-		 $(OBJ_DIR)/ieee1588port.o\
+		 $(OBJ_DIR)/ether_port.o\
+		 $(OBJ_DIR)/common_port.o\
 		 $(OBJ_DIR)/ieee1588clock.o \
 		 $(OBJ_DIR)/linux_hal_common.o\
 		 $(OBJ_DIR)/linux_hal_persist_file.o\
@@ -65,7 +66,8 @@ OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/ini.o \
 		 $(OBJ_DIR)/gptp_cfg.o
 
-HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
+HEADER_FILES = $(COMMON_DIR)/ether_port.hpp\
+		$(COMMON_DIR)/common_port.hpp\
 		$(COMMON_DIR)/avbts_ostimerq.hpp\
 		$(COMMON_DIR)/avbts_ostimer.hpp\
 		$(COMMON_DIR)/avbts_osthread.hpp\
@@ -118,6 +120,13 @@ ifeq ($(GENIVI_DLT),1)
 	LDFLAGS_G += -ldlt -L$(GENIVI_DLT_LIB_PATH)
 endif
 
+ifeq ($(SYSTEMD_WATCHDOG),1)
+	CFLAGS_G += -DSYSTEMD_WATCHDOG
+	LDFLAGS_G += -lsystemd
+	OBJ_FILES += $(OBJ_DIR)/watchdog.o
+	HEADER_FILES += $(SRC_DIR)/watchdog.hpp
+endif
+
 LDFLAGS_G += -lpthread -lrt
 
 CFLAGS = $(CFLAGS_G)
@@ -149,8 +158,11 @@ $(OBJ_DIR)/linux_hal_i210.o: $(SRC_DIR)/linux_hal_i210.cpp $(HEADER_FILES)
 $(OBJ_DIR)/linux_hal_intelce.o: $(SRC_DIR)/linux_hal_intelce.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_intelce.cpp -o $(OBJ_DIR)/linux_hal_intelce.o
 
-$(OBJ_DIR)/ieee1588port.o: $(COMMON_DIR)/ieee1588port.cpp $(HEADER_FILES)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ieee1588port.cpp -o $(OBJ_DIR)/ieee1588port.o
+$(OBJ_DIR)/ether_port.o: $(COMMON_DIR)/ether_port.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/common_port.o: $(COMMON_DIR)/common_port.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/ieee1588clock.o: $(COMMON_DIR)/ieee1588clock.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ieee1588clock.cpp -o $(OBJ_DIR)/ieee1588clock.o
@@ -176,6 +188,8 @@ $(OBJ_DIR)/gptp_cfg.o: $(COMMON_DIR)/gptp_cfg.cpp $(HEADER_FILES)
 $(OBJ_DIR)/ini.o: $(COMMON_DIR)/ini.c $(HEADER_FILES)
 	$(CC) $(CFLAGS) -c $(COMMON_DIR)/ini.c -o $(OBJ_DIR)/ini.o
 
+$(OBJ_DIR)/watchdog.o: $(SRC_DIR)/watchdog.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/watchdog.cpp -o $(OBJ_DIR)/watchdog.o
 clean:
 	$(RM) *~ $(OBJ_DIR)/*.o  $(OBJ_DIR)/daemon_cl
 

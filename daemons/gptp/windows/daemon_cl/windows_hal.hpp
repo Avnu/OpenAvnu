@@ -46,6 +46,7 @@
 #include "avbts_osthread.hpp"
 #include "packet.hpp"
 #include "ieee1588.hpp"
+#include "ether_tstamper.hpp"
 #include "iphlpapi.h"
 #include "windows_ipc.hpp"
 #include "tsc.hpp"
@@ -90,7 +91,8 @@ public:
 	 * @param  delay [in] Specifications for PHY input and output delays in nanoseconds
 	 * @return net_result structure
 	 */
-	virtual net_result nrecv(LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay) {
+	virtual net_result nrecv( LinkLayerAddress *addr, uint8_t *payload, size_t &length )
+	{
 		packet_addr_t dest;
 		packet_error_t pferror = recvFrame( handle, &dest, payload, length );
 		if( pferror != PACKET_NO_ERROR && pferror != PACKET_RECVTIMEOUT_ERROR ) return net_fatal;
@@ -110,7 +112,7 @@ public:
 	/**
 	* @brief Watch for netlink changes.
 	*/
-	virtual void watchNetLink(IEEE1588Port *pPort);
+	virtual void watchNetLink( CommonPort *pPort );
 
 	/**
 	 * @brief  Gets the offset to the start of data in the Layer 2 Frame
@@ -146,7 +148,7 @@ public:
 	 * @param  timestamper [in] HWTimestamper instance
 	 * @return TRUE success; FALSE error
 	 */
-	virtual bool createInterface( OSNetworkInterface **net_iface, InterfaceLabel *label, HWTimestamper *timestamper ) {
+	virtual bool createInterface( OSNetworkInterface **net_iface, InterfaceLabel *label, CommonTimestamper *timestamper ) {
 		WindowsPCAPNetworkInterface *net_iface_l = new WindowsPCAPNetworkInterface();
 		LinkLayerAddress *addr = dynamic_cast<LinkLayerAddress *>(label);
 		if( addr == NULL ) goto error_nofree;
@@ -258,7 +260,7 @@ public:
 	 * @param  type Lock type - OSLockType
 	 * @return New lock on OSLock format
 	 */
-	OSLock *createLock( OSLockType type ) {
+	OSLock *createLock( OSLockType type ) const {
 		WindowsLock *lock = new WindowsLock();
 		if( !lock->initialize( type )) {
 			delete lock;
@@ -327,7 +329,7 @@ public:
  */
 class WindowsConditionFactory : public OSConditionFactory {
 public:
-	OSCondition *createCondition() {
+	OSCondition *createCondition() const {
 		WindowsCondition *result = new WindowsCondition();
 		return result->initialize() ? result : NULL;
 	}
@@ -514,7 +516,7 @@ public:
 	 * @brief  Creates a new timer
 	 * @return New windows OSTimer
 	 */
-    virtual OSTimer *createTimer() {
+    virtual OSTimer *createTimer() const {
         return new WindowsTimer();
     }
 };
@@ -583,7 +585,7 @@ public:
 	 * @brief  Creates a new windows thread
 	 * @return New thread of type OSThread
 	 */
-	OSThread *createThread() {
+	OSThread *createThread() const {
 		return new WindowsThread();
 	}
 };
@@ -603,6 +605,9 @@ typedef struct
 	char *device_desc;
 } DeviceClockRateMapping;
 
+/**
+* @brief Maps network device type to device clock rate
+*/
 static DeviceClockRateMapping DeviceClockRateMap[] =
 {
 	{ 1000000000, I217_DESC	},
@@ -610,30 +615,16 @@ static DeviceClockRateMapping DeviceClockRateMap[] =
 	{ 0, NULL },
 };
 
-typedef struct
-{
-	struct phy_delay delay;
-	char *device_desc;
-} DevicePhyDelayMapping;
-
-static DevicePhyDelayMapping DevicePhyDelayMap[] =
-{
-	{{ -1, -1, 6950, 8050, },	I217_DESC	},
-	{{ -1, -1, 6700, 7750, },	I219_DESC	},
-	{{ -1, -1, -1, -1 }, NULL },
-};
-
-
 /**
  * @brief Windows HWTimestamper implementation
  */
-class WindowsTimestamper : public HWTimestamper {
+class WindowsTimestamper : public EtherTimestamper {
 private:
     // No idea whether the underlying implementation is thread safe
 	HANDLE miniport;
 	LARGE_INTEGER tsc_hz;
 	LARGE_INTEGER netclock_hz;
-	DWORD readOID( NDIS_OID oid, void *output_buffer, DWORD size, DWORD *size_returned ) {
+	DWORD readOID( NDIS_OID oid, void *output_buffer, DWORD size, DWORD *size_returned ) const {
 		NDIS_OID oid_l = oid;
 		DWORD rc = DeviceIoControl(
 			miniport,
@@ -647,19 +638,19 @@ private:
 		if( rc == 0 ) return GetLastError();
 		return ERROR_SUCCESS;
 	}
-	Timestamp nanoseconds64ToTimestamp( uint64_t time ) {
+	Timestamp nanoseconds64ToTimestamp( uint64_t time ) const {
 		Timestamp timestamp;
 		timestamp.nanoseconds = time % 1000000000;
 		timestamp.seconds_ls = (time / 1000000000) & 0xFFFFFFFF;
 		timestamp.seconds_ms = (uint16_t)((time / 1000000000) >> 32);
 		return timestamp;
 	}
-	uint64_t scaleNativeClockToNanoseconds( uint64_t time ) {
+	uint64_t scaleNativeClockToNanoseconds( uint64_t time ) const {
 		long double scaled_output = ((long double)netclock_hz.QuadPart)/1000000000;
 		scaled_output = ((long double) time)/scaled_output;
 		return (uint64_t) scaled_output;
 	}
-	uint64_t scaleTSCClockToNanoseconds( uint64_t time ) {
+	uint64_t scaleTSCClockToNanoseconds( uint64_t time ) const {
 		long double scaled_output = ((long double)tsc_hz.QuadPart)/1000000000;
 		scaled_output = ((long double) time)/scaled_output;
 		return (uint64_t) scaled_output;
@@ -686,7 +677,7 @@ public:
 	 * @return True in case of success. FALSE in case of error
 	 */
 	virtual bool HWTimestamper_gettime( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
-					    uint32_t *nominal_clock_rate ) {
+					    uint32_t *nominal_clock_rate ) const {
 		DWORD buf[6];
 		DWORD returned;
 		uint64_t now_net, now_tsc;
@@ -723,10 +714,6 @@ public:
 		DWORD returned = 0;
 		uint64_t tx_r,tx_s;
 		DWORD result;
-		struct phy_delay delay_val;
-
-		get_phy_delay(&delay_val);//gets the phy delay
-		Timestamp latency(delay_val.gb_tx_phy_delay, 0, 0);
 
 		while(( result = readOID( OID_INTEL_GET_TXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
@@ -738,7 +725,7 @@ public:
 		if( returned != sizeof(buf_tmp) ) return GPTP_EC_EAGAIN;
 		tx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		tx_s = scaleNativeClockToNanoseconds( tx_r );
-		timestamp = nanoseconds64ToTimestamp( tx_s ) + latency;
+		timestamp = nanoseconds64ToTimestamp( tx_s );
 		timestamp._version = version;
 
 		return GPTP_EC_SUCCESS;
@@ -760,10 +747,6 @@ public:
 		uint64_t rx_r,rx_s;
 		DWORD result;
 		uint16_t packet_sequence_id;
-		struct phy_delay delay_val;
-
-		get_phy_delay(&delay_val);//gets the phy delay
-		Timestamp latency(delay_val.gb_rx_phy_delay, 0, 0);
 
 		while(( result = readOID( OID_INTEL_GET_RXSTAMP, buf_tmp, sizeof(buf_tmp), &returned )) == ERROR_SUCCESS ) {
 			memcpy( buf, buf_tmp, sizeof( buf ));
@@ -774,7 +757,7 @@ public:
 		if (PLAT_ntohs(packet_sequence_id) != messageId.getSequenceId()) return GPTP_EC_EAGAIN;
 		rx_r = (((uint64_t)buf[1]) << 32) | buf[0];
 		rx_s = scaleNativeClockToNanoseconds( rx_r );
-		timestamp = nanoseconds64ToTimestamp( rx_s ) - latency;
+		timestamp = nanoseconds64ToTimestamp( rx_s );
 		timestamp._version = version;
 
 		return GPTP_EC_SUCCESS;
@@ -795,6 +778,7 @@ public:
 	 * @brief Default constructor. Initializes the IPC interface
 	 */
 	WindowsNamedPipeIPC() : pipe_(INVALID_HANDLE_VALUE) { };
+
 	/**
 	 * @brief Destroys the IPC interface
 	 */
@@ -802,27 +786,81 @@ public:
 		if (pipe_ != 0 && pipe_ != INVALID_HANDLE_VALUE)
 			::CloseHandle(pipe_);
 	}
+
 	/**
 	 * @brief  Initializes the IPC arguments
 	 * @param  arg [in] IPC arguments. Not in use
 	 * @return Always returns TRUE.
 	 */
 	virtual bool init(OS_IPC_ARG *arg = NULL);
+
 	/**
 	 * @brief  Updates IPC interface values
+	 *
 	 * @param  ml_phoffset Master to local phase offset
 	 * @param  ls_phoffset Local to system phase offset
 	 * @param  ml_freqoffset Master to local frequency offset
 	 * @param  ls_freq_offset Local to system frequency offset
 	 * @param  local_time Local time
-	 * @param  sync_count Counts of sync mesasges
+	 * @param  sync_count Counts of sync messages
 	 * @param  pdelay_count Counts of pdelays
 	 * @param  port_state PortState information
-     * @param  asCapable asCapable flag
-	 * @return TRUE if sucess; FALSE if error
+	 * @param  asCapable asCapable flag
+	 *
+	 * @return TRUE if success; FALSE if error
 	 */
-	virtual bool update(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset, FrequencyRatio ls_freq_offset, uint64_t local_time,
-		uint32_t sync_count, uint32_t pdelay_count, PortState port_state, bool asCapable);
+	virtual bool update(
+		int64_t ml_phoffset,
+		int64_t ls_phoffset,
+		FrequencyRatio ml_freqoffset,
+		FrequencyRatio ls_freq_offset,
+		uint64_t local_time,
+		uint32_t sync_count,
+		uint32_t pdelay_count,
+		PortState port_state,
+		bool asCapable );
+
+	/**
+	 * @brief  Updates grandmaster IPC interface values
+	 *
+	 * @param  gptp_grandmaster_id Current grandmaster id (all 0's if no grandmaster selected)
+	 * @param  gptp_domain_number gPTP domain number
+	 *
+	 * @return TRUE if success; FALSE if error
+	 */
+	virtual bool update_grandmaster(
+		uint8_t gptp_grandmaster_id[],
+		uint8_t gptp_domain_number );
+
+	/**
+	 * @brief Updates network interface IPC interface values
+	 *
+	 * @param  clock_identity  The clock identity of the interface
+	 * @param  priority1  The priority1 field of the grandmaster functionality of the interface, or 0xFF if not supported
+	 * @param  clock_class  The clockClass field of the grandmaster functionality of the interface, or 0xFF if not supported
+	 * @param  offset_scaled_log_variance  The offsetScaledLogVariance field of the grandmaster functionality of the interface, or 0x0000 if not supported
+	 * @param  clock_accuracy  The clockAccuracy field of the grandmaster functionality of the interface, or 0xFF if not supported
+	 * @param  priority2  The priority2 field of the grandmaster functionality of the interface, or 0xFF if not supported
+	 * @param  domain_number  The domainNumber field of the grandmaster functionality of the interface, or 0 if not supported
+	 * @param  log_sync_interval  The currentLogSyncInterval field of the grandmaster functionality of the interface, or 0 if not supported
+	 * @param  log_announce_interval  The currentLogAnnounceInterval field of the grandmaster functionality of the interface, or 0 if not supported
+	 * @param  log_pdelay_interval  The currentLogPDelayReqInterval field of the grandmaster functionality of the interface, or 0 if not supported
+	 * @param  port_number  The portNumber field of the interface, or 0x0000 if not supported
+	 *
+	 * @return TRUE if success; FALSE if error
+	 */
+	virtual bool update_network_interface(
+		uint8_t  clock_identity[],
+		uint8_t  priority1,
+		uint8_t  clock_class,
+		int16_t  offset_scaled_log_variance,
+		uint8_t  clock_accuracy,
+		uint8_t  priority2,
+		uint8_t  domain_number,
+		int8_t   log_sync_interval,
+		int8_t   log_announce_interval,
+		int8_t   log_pdelay_interval,
+		uint16_t port_number );
 };
 
 #endif

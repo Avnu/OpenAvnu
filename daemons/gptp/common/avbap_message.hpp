@@ -88,9 +88,9 @@ class APMessageTestStatus {
  public:
 	/**
 	 * @brief Default constructor. Creates APMessageTestStatus
-	 * @param port IEEE1588Port
+	 * @param port EtherPort
 	 */
-	APMessageTestStatus(IEEE1588Port * port);
+	APMessageTestStatus( EtherPort *port );
 
 	/**
 	 * @brief Destroys APMessageTestStatus interface
@@ -99,11 +99,11 @@ class APMessageTestStatus {
 
 	/**
 	 * @brief  Assembles APMessageTestStatus message on the
-	 *  	   IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 *  	   EtherPort payload
+	 * @param  port EtherPort where the message will be assembled
 	 * @return void
 	 */
-	void sendPort(IEEE1588Port * port);
+	void sendPort( EtherPort *port );
 };
 
 

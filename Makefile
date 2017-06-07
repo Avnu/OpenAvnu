@@ -59,10 +59,10 @@ gptp_clean:
 	$(call descend,daemons/gptp/linux/build/,clean)
 
 maap:
-	$(call descend,daemons/$@/linux/)
+	$(call descend,daemons/$@/linux/build/)
 
 maap_clean:
-	$(call descend,daemons/maap/linux/,clean)
+	$(call descend,daemons/maap/linux/build/,clean)
 
 daemons_all: mrpd maap gptp
 

@@ -37,7 +37,20 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <string>
 
 #include "ini.h"
-#include "ieee1588.hpp"
+#include <limits.h>
+#include <common_port.hpp>
+
+const uint32_t LINKSPEED_10G =		10000000;
+const uint32_t LINKSPEED_2_5G =		2500000;
+const uint32_t LINKSPEED_1G =		1000000;
+const uint32_t LINKSPEED_100MB =	100000;
+const uint32_t INVALID_LINKSPEED =	UINT_MAX;
+
+/**
+ * @brief Returns name given numeric link speed
+ * @return NULL if speed/name isn't found
+ */
+const char *findNameBySpeed( uint32_t speed );
 
 /**
  * @brief Provides the gptp interface for
@@ -65,8 +78,8 @@ class GptpIniParser
             PortState port_state;
 
             /*ethernet adapter data set*/
-            std::string ifname;
-            struct phy_delay phyDelay;
+	    std::string ifname;
+		phy_delay_map_t phy_delay;
         } gptp_cfg_t;
 
         /*public methods*/
@@ -111,43 +124,13 @@ class GptpIniParser
         }
 
         /**
-         * @brief  Reads the TX PHY DELAY GB value from the configuration file
+         * @brief  Reads the PHY DELAY values from the configuration file
          * @param  void
-         * @return gb_tx_phy_delay value from the .ini file
+         * @return PHY delay map structure
          */
-        int getPhyDelayGbTx(void)
+        const phy_delay_map_t getPhyDelay(void)
         {
-            return _config.phyDelay.gb_tx_phy_delay;
-        }
-
-        /**
-         * @brief  Reads the RX PHY DELAY GB value from the configuration file
-         * @param  void
-         * @return gb_rx_phy_delay value from the .ini file
-         */
-        int getPhyDelayGbRx(void)
-        {
-            return _config.phyDelay.gb_rx_phy_delay;
-        }
-
-        /**
-         * @brief  Reads the TX PHY DELAY MB value from the configuration file
-         * @param  void
-         * @return mb_tx_phy_delay value from the .ini file
-         */
-        int getPhyDelayMbTx(void)
-        {
-            return _config.phyDelay.mb_tx_phy_delay;
-        }
-
-        /**
-         * @brief  Reads the RX PHY DELAY MB valye from the configuration file
-         * @param  void
-         * @return mb_rx_phy_delay value from the .ini file
-         */
-        int getPhyDelayMbRx(void)
-        {
-            return _config.phyDelay.mb_rx_phy_delay;
+            return _config.phy_delay;
         }
 
         /**
@@ -168,6 +151,11 @@ class GptpIniParser
         {
             return _config.syncReceiptThresh;
         }
+
+	/**
+	 * @brief Dump PHY delays to screen
+	 */
+	void print_phy_delay( void );
 
     private:
         int _error;

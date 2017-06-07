@@ -33,11 +33,15 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "simple_rawsock.h"
 #include "ring_rawsock.h"
 
-#define IGB
+#if AVB_FEATURE_IGB
+#include "igb_rawsock.h"
+#define DEFAULT_PROTO "igb"
+#else
+#define DEFAULT_PROTO "simple"
+#endif
 
 #if AVB_FEATURE_PCAP
 #include "pcap_rawsock.h"
-#include "igb_rawsock.h"
 #endif
 
 #include "openavb_trace.h"
@@ -73,7 +77,7 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK);
 
 	const char* ifname = ifname_uri;
-	char proto[IF_NAMESIZE] = "igb";
+	char proto[IF_NAMESIZE] = DEFAULT_PROTO;
 	char *colon = strchr(ifname_uri, ':');
 	if (colon) {
 		ifname = colon + 1;
@@ -125,7 +129,7 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 
 		// call constructor
 		pvRawsock = pcapRawsockOpen(rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
-#ifdef IGB
+#if AVB_FEATURE_IGB
 	} else if (strcmp(proto, "igb") == 0) {
 
 		AVB_LOG_INFO("Using *igb* implementation");
