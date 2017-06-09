@@ -667,7 +667,10 @@ int main (int argc, char *argv[])
 	while (!exit_received)
 	{
 		FD_ZERO(&read_fds);
-		FD_SET(STDIN_FILENO, &read_fds);
+		if (!daemonize)
+		{
+			FD_SET(STDIN_FILENO, &read_fds);
+		}
 		FD_SET(socketfd, &read_fds);
 		fdmax = socketfd;
 		for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i)
