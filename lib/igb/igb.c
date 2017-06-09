@@ -46,6 +46,7 @@
 #include <sys/resource.h>
 #include <sys/mman.h>
 #include <sys/user.h>
+#include <sys/stat.h>
 #include <stdint.h>
 #include <semaphore.h>
 #include <pthread.h>
@@ -1694,7 +1695,7 @@ int igb_refresh_buffers(device_t *dev, u_int32_t idx,
  *  processing the packet then return the linked list of associated resources.
  *
  **********************************************************************/
-int igb_receive(device_t *dev, unsigned int queue_index, 
+int igb_receive(device_t *dev, unsigned int queue_index,
 					struct igb_packet **received_packets, u_int32_t *count)
 {
 	struct adapter *adapter;
@@ -1752,10 +1753,10 @@ int igb_receive(device_t *dev, unsigned int queue_index,
 		if (i%2)
 			printf("\033[2A");
 
-		printf("desc.status_error=%x desc.length=%x desc.vlan=%x desc.rss=%x desc.pkt_info=%x desc.hdr_info=%x\n", 
-				cur->wb.upper.status_error, 
-				cur->wb.upper.length, 
-				cur->wb.upper.vlan, 
+		printf("desc.status_error=%x desc.length=%x desc.vlan=%x desc.rss=%x desc.pkt_info=%x desc.hdr_info=%x\n",
+				cur->wb.upper.status_error,
+				cur->wb.upper.length,
+				cur->wb.upper.vlan,
 				cur->wb.lower.hi_dword.rss,
 				cur->wb.lower.lo_dword.hs_rss.pkt_info,
 				cur->wb.lower.lo_dword.hs_rss.hdr_info);

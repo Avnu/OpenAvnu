@@ -91,7 +91,7 @@ public:
 	 * the struct timex
 	 * @return TRUE if ok, FALSE if error.
 	 */
-	bool Adjust( void *tmx );
+	bool Adjust( void *tmx ) const;
 
 	/**
 	 * @brief  Initializes the Hardware timestamp interface
@@ -186,7 +186,7 @@ public:
 	 * @param  freq_offset Frequency adjustment
 	 * @return TRUE in case of sucess, FALSE if error.
 	 */
-	virtual bool HWTimestamper_adjclockrate( float freq_offset );
+	virtual bool HWTimestamper_adjclockrate( float freq_offset ) const;
 
 #ifdef WITH_IGBLIB
 	bool HWTimestamper_PPS_start( );
