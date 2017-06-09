@@ -208,7 +208,7 @@ LinuxTimestamperGeneric::LinuxTimestamperGeneric() {
 	sd = -1;
 }
 
-bool LinuxTimestamperGeneric::Adjust( void *tmx ) {
+bool LinuxTimestamperGeneric::Adjust( void *tmx ) const {
 	if( syscall(__NR_clock_adjtime, _private->clockid, tmx ) != 0 ) {
 		GPTP_LOG_ERROR("Failed to adjust PTP clock rate");
 		return false;
