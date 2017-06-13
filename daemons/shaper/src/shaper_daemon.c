@@ -68,13 +68,14 @@ typedef struct stream_da
 
 stream_da *head = NULL;
 int sr_classa=0, sr_classb=0;
-int classa_48=0, classa_44=0, classb_48=0;
-int classa_bw_48=0, classa_bw_44=0, classb_bw_48=0;
+int classa_48=0, classa_44=0, classb_48=0, classb_44=0;
+int classa_bw_48=0, classa_bw_44=0, classb_bw_48=0, classb_bw_44=0;
 int daemonize=0,c=0;
 int filterhandle_classa=1,filterhandle_classb=20;
 char classid_a_48[]="2:10";
 char classid_a_44[]="2:20";
 char classid_b_48[]="3:30";
+char classid_b_44[]="3:40";
 char interface[IFNAMSIZ] = {0};
 int bandwidth = 0;
 int classa_parent = 2, classb_parent=3;
@@ -83,6 +84,11 @@ void log_client_error_message(int sockfd, const char *fmt, ...)
 {
 	static char error_msg[200], combined_error_msg[250];
 	va_list args;
+
+	if (SHAPER_LOG_LEVEL_ERROR > SHAPER_LOG_LEVEL)
+	{
+		return;
+	}
 
 	/* Get the error message. */
 	va_start(args, fmt);
@@ -103,6 +109,38 @@ void log_client_error_message(int sockfd, const char *fmt, ...)
 		/* Send the error message to the client. */
 		sprintf(combined_error_msg, "ERROR: %s\n", error_msg);
 		send(sockfd, combined_error_msg, strlen(combined_error_msg), 0);
+	}
+}
+
+void log_client_debug_message(int sockfd, const char *fmt, ...)
+{
+	static char debug_msg[200], combined_debug_msg[250];
+	va_list args;
+
+	if (SHAPER_LOG_LEVEL_DEBUG > SHAPER_LOG_LEVEL)
+	{
+		return;
+	}
+
+	/* Get the debug message. */
+	va_start(args, fmt);
+	vsprintf(debug_msg, fmt, args);
+	va_end(args);
+
+	if (sockfd < 0)
+	{
+		/* Received from stdin.  Just log this message. */
+		SHAPER_LOG_DEBUG(debug_msg);
+	}
+	else
+	{
+		/* Log this as a remote client message. */
+		sprintf(combined_debug_msg, "Client %d: %s", sockfd, debug_msg);
+		SHAPER_LOG_DEBUG(combined_debug_msg);
+
+		/* Send the message to the client. */
+		sprintf(combined_debug_msg, "DEBUG: %s\n", debug_msg);
+		send(sockfd, combined_debug_msg, strlen(combined_debug_msg), 0);
 	}
 }
 
@@ -341,7 +379,8 @@ cmd_ip parse_cmd(char command[])
 void tc_class_command(int sockfd, char command[],char class_id[],char interface[], int bandwidth, int cburst)
 {
 	char tc_command[1000]={0};
-	sprintf(tc_command, "tc class %s dev %s classid %s htb rate %dkbit cburst %d",command, interface, class_id, bandwidth, cburst);
+	sprintf(tc_command, "tc class %s dev %s classid %s htb rate %dbps cburst %d",command, interface, class_id, bandwidth, cburst);
+	log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 	if (system(tc_command) < 0)
 	{
 		log_client_error_message(sockfd, "command(\"%s\") failed", tc_command);
@@ -352,6 +391,7 @@ void add_filter(int sockfd, char interface[], int parent, int filter_handle, cha
 {
 	char tc_command[1000]={0};
 	sprintf(tc_command, "tc filter add dev %s prio 1 handle 800::%d parent %d: u32 classid %s  match ether dst %s", interface,filter_handle,parent,class_id,dest_addr );
+	log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 	if (system(tc_command) < 0)
 	{
 		log_client_error_message(sockfd, "command(\"%s\") failed", tc_command);
@@ -408,12 +448,15 @@ int process_command(int sockfd, char command[])
 			{
 				//delete qdisc
 				sprintf(tc_command, "tc qdisc del dev %s root handle 1:", interface);
+				log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 				if (system(tc_command) < 0)
 				{
 					log_client_error_message(sockfd, "command(\"%s\") failed", tc_command);
 				}
 			}
-			sr_classa = sr_classb = classa_48 = classa_44 = classb_48 = classa_bw_48 = classa_bw_44 = classb_bw_48 = 0;
+			sr_classa = sr_classb = 0;
+			classa_48 = classa_44 = classb_48 = classb_44 = 0;
+			classa_bw_48 = classa_bw_44 = classb_bw_48 = classb_bw_44 = 0;
 		}
 
 		if (input.quit == 1)
@@ -435,6 +478,7 @@ int process_command(int sockfd, char command[])
 			return -1;
 		}
 		sprintf(tc_command, "tc qdisc add dev %s root handle 1: mqprio num_tc 4 map 0 1 2 3 2 0 0 1 1 1 1 1 3 3 3 3 queues 1@0 1@1 1@2 1@3 hw 0", input.interface);
+		log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 		if (system(tc_command) < 0)
 		{
 			log_client_error_message(sockfd, "command(\"%s\") failed", tc_command);
@@ -445,7 +489,7 @@ int process_command(int sockfd, char command[])
 
 	if (input.unreserve_bw || input.reserve_bw)
 	{
-		bandwidth = ceil(((1/(input.measurement_interval*pow(10,-6))) * (input.max_frame_size*8) * input.max_frame_interval)/1000);
+		bandwidth = ceil(((1/(input.measurement_interval*pow(10,-6))) * (input.max_frame_size*8) * input.max_frame_interval) / 8);
 		maxburst = input.max_frame_size*input.max_frame_interval*2;
 	}
 
@@ -462,6 +506,7 @@ int process_command(int sockfd, char command[])
 				sr_classa=1;
 				//Create qdisc for Class A traffic
 				sprintf(tc_command, "tc qdisc add dev %s handle %d:  parent 1:5 htb", interface, classa_parent);
+				log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 				if (system(tc_command) < 0)
 				{
 					log_client_error_message(sockfd, "command(\"%s\") failed", tc_command);
@@ -504,13 +549,14 @@ int process_command(int sockfd, char command[])
 				filterhandle_classa++;
 			}
 		}
-		else if (input.measurement_interval == 250)
+		else if (input.measurement_interval == 250 || input.measurement_interval == 272)
 		{
 			if (sr_classb == 0)
 			{
 				sr_classb = 1;
 				//Create qdisc for Class B traffic
 				sprintf(tc_command, "tc qdisc add dev %s handle %d:  parent 1:6 htb", interface, classb_parent);
+				log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 				if (system(tc_command) < 0)
 				{
 					log_client_error_message(sockfd, "command(\"%s\") failed", tc_command);
@@ -518,23 +564,44 @@ int process_command(int sockfd, char command[])
 				}
 			}
 
-			classb_bw_48 = classb_bw_48 + bandwidth;
-			if (classb_48 == 0)
+			if (input.measurement_interval == 250)
 			{
-				classb_48 = 1;
-				tc_class_command(sockfd, "add",classid_b_48,interface,classb_bw_48, maxburst);
+				classb_bw_48 = classb_bw_48 + bandwidth;
+				if (classb_48 == 0)
+				{
+					classb_48 = 1;
+					tc_class_command(sockfd, "add",classid_b_48,interface,classb_bw_48, maxburst);
+				}
+				else
+				{
+					tc_class_command(sockfd, "change",classid_b_48, interface,classb_bw_48, maxburst);
+				}
+				add_filter(sockfd, interface, classb_parent, filterhandle_classb, classid_b_48, input.stream_da );
+				insert_stream_da(sockfd, input.stream_da, bandwidth, classid_b_48, filterhandle_classb);
+				filterhandle_classb++;
 			}
 			else
 			{
-				tc_class_command(sockfd, "change",classid_b_48, interface,classb_bw_48, maxburst);
+				classb_bw_44 = classb_bw_44 + bandwidth;
+				if (classb_44 == 0)
+				{
+					classb_44 = 1;
+					tc_class_command(sockfd, "add",classid_b_44,interface,classb_bw_44, maxburst);
+				}
+				else
+				{
+					tc_class_command(sockfd, "change",classid_b_44, interface,classb_bw_44, maxburst);
+				}
+				add_filter(sockfd, interface, classb_parent, filterhandle_classb, classid_b_44, input.stream_da );
+				insert_stream_da(sockfd, input.stream_da, bandwidth, classid_b_44, filterhandle_classb);
+				filterhandle_classb++;
 			}
-			add_filter(sockfd, interface, classb_parent, filterhandle_classb, classid_b_48, input.stream_da );
-			insert_stream_da(sockfd, input.stream_da, bandwidth, classid_b_48, filterhandle_classb);
-			filterhandle_classb++;
 		}
 		else
 		{
-			log_client_error_message(sockfd, "Measurement Interval doesn't match that of Class A(125 or 136) or Class B(250) traffic. Enter a valid measurement interval");
+			log_client_error_message(sockfd, "Measurement Interval (%d) doesn't match that of Class A (125 or 136) or Class B (250 or 272) traffic. "
+					"Enter a valid measurement interval",
+					input.measurement_interval);
 			return -1;
 		}
 	}
@@ -567,6 +634,7 @@ int process_command(int sockfd, char command[])
 			char parent[3]={0};
 			strncpy(parent,remove_stream->class_id,2);
 			sprintf(tc_command, "tc filter del dev %s parent %s handle 800::%d prio 1 protocol all u32",interface,parent,remove_stream->filter_handle);
+			log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 			if (system(tc_command) < 0)
 			{
 				log_client_error_message(sockfd, "command(\"%s\") failed", tc_command);
