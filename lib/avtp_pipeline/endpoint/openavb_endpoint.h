@@ -95,7 +95,7 @@ typedef struct {
 // Server messages parameters
 //////////////////////////////
 typedef struct {
-	char		ifname[IFNAMSIZ];
+	char		ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	U8 			destAddr[ETH_ALEN];
 	openavbSrpLsnrDeclSubtype_t lsnrDecl;
 	U32			classRate;
@@ -106,7 +106,7 @@ typedef struct {
 
 typedef struct {
 	openavbSrpAttribType_t tlkrDecl;
-	char		ifname[IFNAMSIZ];
+	char		ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	U8 			destAddr[ETH_ALEN];
 	AVBTSpec_t	tSpec;
 	U8			srClass;

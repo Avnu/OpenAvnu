@@ -58,7 +58,7 @@ typedef struct {
 #endif
 	int mode;
 	int ifindex;
-	char ifname[IFNAMSIZ];
+	char ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	U32 linkKbit;
 	U32 nsrKbit;
 	U32 linkMTU;
