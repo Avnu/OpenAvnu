@@ -184,6 +184,25 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 			return 0;
 		}
 	}
+	else if (MATCH(section, "shaper"))
+	{
+		if (MATCH(name, "port")) {
+			errno = 0;
+			unsigned temp = strtoul(value, &pEnd, 10);
+			if (*pEnd == '\0' && errno == 0) {
+				if (temp >= 1 && temp <= 65535) {
+					pCfg->shaperPort = temp;
+					valOK = TRUE;
+				}
+			}
+		}
+		else {
+			// unmatched item, fail
+			AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
+			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+			return 0;
+		}
+	}
 	else {
 		// unmatched item, fail
 		AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);

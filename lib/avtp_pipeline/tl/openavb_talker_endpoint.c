@@ -175,13 +175,19 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	// Tell endpoint to register our stream.
 	// SRP will send out talker declarations on the LAN.
 	// If there are listeners, we'll get callback (above.)
+	U32 transmitInterval = pTalkerData->classRate;
+	if (pCfg->map_cb.map_transmit_interval_cb(pTLState->pMediaQ)) {
+		// Override the class observation interval with the one provided by the mapping module.
+		transmitInterval = pCfg->map_cb.map_transmit_interval_cb(pTLState->pMediaQ);
+	}
 	return (openavbEptClntRegisterStream(pTLState->endpointHandle,
 	                                                &streamID,
 	                                                pCfg->dest_addr.mac->ether_addr_octet,
 	                                                &pTalkerData->tSpec,
 	                                                pCfg->sr_class,
 	                                                pCfg->sr_rank,
-	                                                pCfg->internal_latency));
+	                                                pCfg->internal_latency,
+													transmitInterval));
 }
 
 void openavbTLRunTalkerFinish(tl_state_t *pTLState)

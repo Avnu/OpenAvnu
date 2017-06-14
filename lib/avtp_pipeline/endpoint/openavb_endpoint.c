@@ -60,6 +60,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_avtp.h"
 #include "openavb_qmgr.h"
 #include "openavb_maap.h"
+#include "openavb_shaper.h"
 
 #define	AVB_LOG_COMPONENT	"Endpoint"
 #include "openavb_pub.h"
@@ -255,6 +256,12 @@ bool x_talkerDeregister(clientStream_t *ps)
 		ps->hndMaap = NULL;
 	}
 		
+	// Finish Shaping
+	if (ps->hndShaper) {
+		openavbShaperRelease(ps->hndShaper);
+		ps->hndShaper = NULL;
+	}
+
 	// remove record
 	delStream(ps);
 
@@ -478,6 +485,13 @@ int avbEndpointLoop(void)
 			break;
 		}
 
+		if (!openavbShaperInitialize(x_cfg.ifname, x_cfg.shaperPort)) {
+			AVB_LOG_ERROR("Failed to initialize Shaper");
+			openavbMaapFinalize();
+			openavbQmgrFinalize();
+			break;
+		}
+
 		if(!x_cfg.noSrp) {
 			// Initialize SRP
 			rc = openavbSrpInitialize(strmAttachCb, strmRegCb, x_cfg.ifname, x_cfg.link_kbit, x_cfg.bypassAsCapableCheck);
@@ -494,6 +508,7 @@ int avbEndpointLoop(void)
 
 		if (!IS_OPENAVB_SUCCESS(rc)) {
 			AVB_LOG_ERROR("Failed to initialize SRP");
+			openavbShaperFinalize();
 			openavbMaapFinalize();
 			openavbQmgrFinalize();
 			break;
@@ -515,6 +530,7 @@ int avbEndpointLoop(void)
 			openavbSrpShutdown();
 		}
 
+		openavbShaperFinalize();
 		openavbMaapFinalize();
 		openavbQmgrFinalize();
 

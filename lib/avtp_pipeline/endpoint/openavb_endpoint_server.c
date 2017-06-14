@@ -57,6 +57,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_log.h"
 #include "openavb_qmgr.h"  // for INVALID_FWMARK
 #include "openavb_maap.h"
+#include "openavb_shaper.h"
 
 // forward declarations
 static bool openavbEptSrvrReceiveFromClient(int h, openavbEndpointMessage_t *msg);
@@ -87,7 +88,8 @@ static bool openavbEptSrvrReceiveFromClient(int h, openavbEndpointMessage_t *msg
 			                               &msg->params.talkerRegister.tSpec,
 			                               msg->params.talkerRegister.srClass,
 			                               msg->params.talkerRegister.srRank,
-			                               msg->params.talkerRegister.latency);
+			                               msg->params.talkerRegister.latency,
+			                               msg->params.talkerRegister.txRate);
 			break;
 		case OPENAVB_ENDPOINT_LISTENER_ATTACH:
 			AVB_LOGF_DEBUG("ListenerAttach from client uid=%d", msg->streamID.uniqueID);
@@ -204,7 +206,8 @@ bool openavbEptSrvrRegisterStream(int h,
                               AVBTSpec_t *tSpec,
                               U8 srClass,
                               U8 srRank,
-                              U32 latency)
+                              U32 latency,
+                              U32 txRate)
 {
 	openavbRC rc = OPENAVB_SUCCESS;
 
@@ -229,6 +232,7 @@ bool openavbEptSrvrRegisterStream(int h,
 	ps->srClass = (SRClassIdx_t)srClass;
 	ps->srRank  = srRank;
 	ps->latency = latency;
+	ps->txRate = txRate;
 	ps->fwmark = INVALID_FWMARK;
 
 	// If MAAP is available, or no client-supplied address, allocate an address.
@@ -253,11 +257,23 @@ bool openavbEptSrvrRegisterStream(int h,
 		ps->hndMaap = NULL;
 	}
 
+	// If the Shaper is available, enable it.
+	if (openavbShaperDaemonAvailable()) {
+		ps->hndShaper = openavbShaperHandle(
+			MICROSECONDS_PER_SECOND / ps->txRate,
+			tSpec->maxFrameSize + 14,
+			1,
+			ps->destAddr);
+		if (!ps->hndShaper) {
+			AVB_LOG_ERROR("Unable to start Shaping");
+		}
+	}
+
 	// Do SRP talker register
-	AVB_LOGF_DEBUG("REGISTER: ps=%p, streamID=%d, tspec=%d,%d, srClass=%d, srRank=%d, latency=%d, da="ETH_FORMAT"",
+	AVB_LOGF_DEBUG("REGISTER: ps=%p, streamID=%d, tspec=%d,%d, srClass=%d, srRank=%d, latency=%d, tsRate=%d, da="ETH_FORMAT"",
 				   ps, streamID->uniqueID,
 				   tSpec->maxFrameSize, tSpec->maxIntervalFrames,
-				   ps->srClass, ps->srRank, ps->latency,
+				   ps->srClass, ps->srRank, ps->latency, ps->txRate,
 				   ETH_OCTETS(ps->destAddr));
 
 
@@ -275,6 +291,8 @@ bool openavbEptSrvrRegisterStream(int h,
 		if (!IS_OPENAVB_SUCCESS(rc)) {
 			if (ps->hndMaap)
 				openavbMaapRelease(ps->hndMaap);
+			if (ps->hndShaper)
+				openavbShaperRelease(ps->hndShaper);
 			delStream(ps);
 		}
 	}
