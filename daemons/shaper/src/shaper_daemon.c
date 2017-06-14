@@ -477,7 +477,7 @@ int process_command(int sockfd, char command[])
 			usage(sockfd);
 			return -1;
 		}
-		sprintf(tc_command, "tc qdisc add dev %s root handle 1: mqprio num_tc 4 map 0 1 2 3 2 0 0 1 1 1 1 1 3 3 3 3 queues 1@0 1@1 1@2 1@3 hw 0", input.interface);
+		sprintf(tc_command, "tc qdisc add dev %s root handle 1: mqprio num_tc 4 map 3 3 1 0 2 2 2 2 2 2 2 2 2 2 2 2 queues 1@0 1@1 1@2 1@3 hw 0", input.interface);
 		log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 		if (system(tc_command) < 0)
 		{

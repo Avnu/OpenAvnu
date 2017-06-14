@@ -260,8 +260,8 @@ bool openavbEptSrvrRegisterStream(int h,
 	// If the Shaper is available, enable it.
 	if (openavbShaperDaemonAvailable()) {
 		ps->hndShaper = openavbShaperHandle(
-			MICROSECONDS_PER_SECOND / ps->txRate,
-			tSpec->maxFrameSize + 14,
+			MICROSECONDS_PER_SECOND / ps->txRate, /* Note that division rounds down, which is what we want. */
+			tSpec->maxFrameSize + 18 /* Header size */,
 			1,
 			ps->destAddr);
 		if (!ps->hndShaper) {
