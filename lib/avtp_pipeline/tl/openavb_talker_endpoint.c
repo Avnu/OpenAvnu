@@ -187,7 +187,7 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	                                                pCfg->sr_class,
 	                                                pCfg->sr_rank,
 	                                                pCfg->internal_latency,
-													transmitInterval));
+                                                    transmitInterval));
 }
 
 void openavbTLRunTalkerFinish(tl_state_t *pTLState)
