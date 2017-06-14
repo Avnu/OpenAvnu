@@ -181,13 +181,13 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 		transmitInterval = pCfg->map_cb.map_transmit_interval_cb(pTLState->pMediaQ);
 	}
 	return (openavbEptClntRegisterStream(pTLState->endpointHandle,
-	                                                &streamID,
-	                                                pCfg->dest_addr.mac->ether_addr_octet,
-	                                                &pTalkerData->tSpec,
-	                                                pCfg->sr_class,
-	                                                pCfg->sr_rank,
-	                                                pCfg->internal_latency,
-                                                    transmitInterval));
+			&streamID,
+			pCfg->dest_addr.mac->ether_addr_octet,
+			&pTalkerData->tSpec,
+			pCfg->sr_class,
+			pCfg->sr_rank,
+			pCfg->internal_latency,
+			transmitInterval));
 }
 
 void openavbTLRunTalkerFinish(tl_state_t *pTLState)
