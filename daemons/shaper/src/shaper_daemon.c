@@ -621,10 +621,15 @@ int process_command(int sockfd, char command[])
 				classa_bw_44 = classa_bw_44 - remove_stream->bandwidth;
 				class_bw = classa_bw_44;
 			}
-			else
+			else if (!strcmp(remove_stream->class_id,classid_b_48))
 			{
 				classb_bw_48 = classb_bw_48 - remove_stream->bandwidth;
 				class_bw = classb_bw_48;
+			}
+			else
+			{
+				classb_bw_44 = classb_bw_44 - remove_stream->bandwidth;
+				class_bw = classb_bw_44;
 			}
 			if (class_bw == 0)
 			{
