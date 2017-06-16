@@ -49,13 +49,14 @@ typedef struct cmd_ip
 	int reserve_bw;
 	int unreserve_bw;
 	char interface[IFNAMSIZ];
+	int class_a, class_b;
 	int measurement_interval;//usec
 	int max_frame_size;
 	int max_frame_interval;
 	char stream_da[STREAMDA_LENGTH];
 	int delete_qdisc;
 	int quit;
-}cmd_ip;
+} cmd_ip;
 
 typedef struct stream_da
 {
@@ -64,7 +65,7 @@ typedef struct stream_da
 	char class_id[5];
 	int filter_handle;
 	struct stream_da *next;
-}stream_da;
+} stream_da;
 
 stream_da *head = NULL;
 int sr_classa=0, sr_classb=0;
@@ -253,6 +254,7 @@ void usage (int sockfd)
 			"	-r	Reserve Bandwidth\n"
 			"	-u	Unreserve Bandwidth\n"
 			"	-i	Interface\n"
+			"	-c	Class ('A' or 'B')\n"
 			"	-s	Measurement interval (in microseconds)\n"
 			"	-b	Maximum frame size (in bytes)\n"
 			"	-f	Maximum frame interval\n"
@@ -260,7 +262,7 @@ void usage (int sockfd)
 			"	-d	Delete qdisc\n"
 			"	-q	Quit Application\n"
 			"Reserving Bandwidth Example:\n"
-			"	-ri eth2 -s 125 -b 74 -f 1 -a ff:ff:ff:ff:ff:11\n"
+			"	-ri eth2 -c A -s 125 -b 74 -f 1 -a ff:ff:ff:ff:ff:11\n"
 			"Unreserving Bandwidth Example:\n"
 			"	-ua ff:ff:ff:ff:ff:11\n"
 			"Quit Example:\n"
@@ -310,11 +312,25 @@ cmd_ip parse_cmd(char command[])
 			inputs.interface[k] = '\0';
 		}
 
+		if (command[i] == 'c')
+		{
+			i = i+2;
+			if (command[i] == 'A' || command[i] == 'a')
+			{
+				inputs.class_a = 1;
+			}
+			else if (command[i] == 'B' || command[i] == 'b')
+			{
+				inputs.class_b = 1;
+			}
+			i++;
+		}
+
 		if (command[i] == 's')
 		{
 			int k=0;
 			i = i+2;
-			while (command[i]  != ' ' && k < (int) sizeof(temp)-1)
+			while (command[i] != ' ' && k < (int) sizeof(temp)-1)
 			{
 				temp[k] = command[i];
 				k++;i++;
@@ -376,10 +392,11 @@ cmd_ip parse_cmd(char command[])
 	return inputs;
 }
 
-void tc_class_command(int sockfd, char command[],char class_id[],char interface[], int bandwidth, int cburst)
+void tc_class_command(int sockfd, char command[], char class_id[], char interface[], int bandwidth, int cburst)
 {
 	char tc_command[1000]={0};
-	sprintf(tc_command, "tc class %s dev %s classid %s htb rate %dbps cburst %d",command, interface, class_id, bandwidth, cburst);
+	sprintf(tc_command, "tc class %s dev %s classid %s htb rate %dbps cburst %d",
+		command, interface, class_id, bandwidth, cburst);
 	log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 	if (system(tc_command) < 0)
 	{
@@ -390,7 +407,8 @@ void tc_class_command(int sockfd, char command[],char class_id[],char interface[
 void add_filter(int sockfd, char interface[], int parent, int filter_handle, char class_id[], char dest_addr[])
 {
 	char tc_command[1000]={0};
-	sprintf(tc_command, "tc filter add dev %s prio 1 handle 800::%d parent %d: u32 classid %s  match ether dst %s", interface,filter_handle,parent,class_id,dest_addr );
+	sprintf(tc_command, "tc filter add dev %s prio 1 handle 800::%d parent %d: u32 classid %s  match ether dst %s",
+		interface, filter_handle, parent, class_id, dest_addr);
 	log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 	if (system(tc_command) < 0)
 	{
@@ -415,9 +433,17 @@ int process_command(int sockfd, char command[])
 
 	if (input.reserve_bw)
 	{
-		if (input.max_frame_size == 0 || input.measurement_interval == 0 || input.max_frame_interval == 0)
+		if (input.max_frame_size == 0 || input.measurement_interval == 0 || input.max_frame_interval == 0 ||
+			(!input.class_a && !input.class_b))
 		{
-			log_client_error_message(sockfd, "max_frame_size, measurement_interval and max_frame_interval are mandatory inputs");
+			log_client_error_message(sockfd, "class, max_frame_size, measurement_interval and max_frame_interval are mandatory inputs");
+			usage(sockfd);
+			return -1;
+		}
+
+		if (input.class_a && input.class_b)
+		{
+			log_client_error_message(sockfd, "Cannot reserve for both class A and class B");
 			usage(sockfd);
 			return -1;
 		}
@@ -499,11 +525,11 @@ int process_command(int sockfd, char command[])
 		{
 			return 1;
 		}
-		if (input.measurement_interval == 125 || input.measurement_interval == 136)
+		if (input.class_a)
 		{
 			if (sr_classa == 0)
 			{
-				sr_classa=1;
+				sr_classa = 1;
 				//Create qdisc for Class A traffic
 				sprintf(tc_command, "tc qdisc add dev %s handle %d:  parent 1:5 htb", interface, classa_parent);
 				log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
@@ -520,36 +546,43 @@ int process_command(int sockfd, char command[])
 				if (classa_48 == 0)
 				{
 					classa_48 = 1;
-					tc_class_command(sockfd, "add",classid_a_48,interface,classa_bw_48, maxburst);
+					tc_class_command(sockfd, "add", classid_a_48, interface, classa_bw_48, maxburst);
 				}
 				else
 				{
-					tc_class_command(sockfd, "change",classid_a_48, interface,classa_bw_48, maxburst);
+					tc_class_command(sockfd, "change", classid_a_48, interface, classa_bw_48, maxburst);
 				}
 
-				add_filter(sockfd, interface, classa_parent, filterhandle_classa, classid_a_48, input.stream_da );
+				add_filter(sockfd, interface, classa_parent, filterhandle_classa, classid_a_48, input.stream_da);
 				insert_stream_da(sockfd, input.stream_da, bandwidth, classid_a_48, filterhandle_classa );
 				filterhandle_classa++;
 			}
-			else
+			else if (input.measurement_interval == 136)
 			{
 				classa_bw_44 = classa_bw_44 + bandwidth;
 				if (classa_44 == 0)
 				{
 					classa_44 = 1;
-					tc_class_command(sockfd, "add",classid_a_44,interface,classa_bw_44, maxburst);
+					tc_class_command(sockfd, "add", classid_a_44, interface, classa_bw_44, maxburst);
 				}
 				else
 				{
-					tc_class_command(sockfd, "change",classid_a_44, interface,classa_bw_44, maxburst);
+					tc_class_command(sockfd, "change", classid_a_44, interface, classa_bw_44, maxburst);
 				}
 
-				add_filter(sockfd, interface, classa_parent, filterhandle_classa, classid_a_44, input.stream_da );
+				add_filter(sockfd, interface, classa_parent, filterhandle_classa, classid_a_44, input.stream_da);
 				insert_stream_da(sockfd, input.stream_da, bandwidth, classid_a_44, filterhandle_classa);
 				filterhandle_classa++;
 			}
+			else
+			{
+				log_client_error_message(sockfd, "Measurement Interval (%d) doesn't match that of Class A (125 or 136) traffic. "
+						"Enter a valid measurement interval",
+						input.measurement_interval);
+				return -1;
+			}
 		}
-		else if (input.measurement_interval == 250 || input.measurement_interval == 272)
+		else
 		{
 			if (sr_classb == 0)
 			{
@@ -570,39 +603,39 @@ int process_command(int sockfd, char command[])
 				if (classb_48 == 0)
 				{
 					classb_48 = 1;
-					tc_class_command(sockfd, "add",classid_b_48,interface,classb_bw_48, maxburst);
+					tc_class_command(sockfd, "add", classid_b_48, interface, classb_bw_48, maxburst);
 				}
 				else
 				{
-					tc_class_command(sockfd, "change",classid_b_48, interface,classb_bw_48, maxburst);
+					tc_class_command(sockfd, "change", classid_b_48, interface, classb_bw_48, maxburst);
 				}
-				add_filter(sockfd, interface, classb_parent, filterhandle_classb, classid_b_48, input.stream_da );
+				add_filter(sockfd, interface, classb_parent, filterhandle_classb, classid_b_48, input.stream_da);
 				insert_stream_da(sockfd, input.stream_da, bandwidth, classid_b_48, filterhandle_classb);
 				filterhandle_classb++;
 			}
-			else
+			else if (input.measurement_interval == 272)
 			{
 				classb_bw_44 = classb_bw_44 + bandwidth;
 				if (classb_44 == 0)
 				{
 					classb_44 = 1;
-					tc_class_command(sockfd, "add",classid_b_44,interface,classb_bw_44, maxburst);
+					tc_class_command(sockfd, "add", classid_b_44, interface, classb_bw_44, maxburst);
 				}
 				else
 				{
-					tc_class_command(sockfd, "change",classid_b_44, interface,classb_bw_44, maxburst);
+					tc_class_command(sockfd, "change", classid_b_44, interface, classb_bw_44, maxburst);
 				}
-				add_filter(sockfd, interface, classb_parent, filterhandle_classb, classid_b_44, input.stream_da );
+				add_filter(sockfd, interface, classb_parent, filterhandle_classb, classid_b_44, input.stream_da);
 				insert_stream_da(sockfd, input.stream_da, bandwidth, classid_b_44, filterhandle_classb);
 				filterhandle_classb++;
 			}
-		}
-		else
-		{
-			log_client_error_message(sockfd, "Measurement Interval (%d) doesn't match that of Class A (125 or 136) or Class B (250 or 272) traffic. "
-					"Enter a valid measurement interval",
-					input.measurement_interval);
-			return -1;
+			else
+			{
+				log_client_error_message(sockfd, "Measurement Interval (%d) doesn't match that of Class B (250 or 272) traffic. "
+						"Enter a valid measurement interval",
+						input.measurement_interval);
+				return -1;
+			}
 		}
 	}
 	else if (input.unreserve_bw==1)
@@ -611,34 +644,35 @@ int process_command(int sockfd, char command[])
 		if (remove_stream != NULL)
 		{
 			int class_bw = 0;
-			if (!strcmp(remove_stream->class_id,classid_a_48))
+			if (!strcmp(remove_stream->class_id, classid_a_48))
 			{
 				classa_bw_48 = classa_bw_48 - remove_stream->bandwidth;
 				class_bw = classa_bw_48;
 			}
-			else if (!strcmp(remove_stream->class_id,classid_a_44))
+			else if (!strcmp(remove_stream->class_id, classid_a_44))
 			{
 				classa_bw_44 = classa_bw_44 - remove_stream->bandwidth;
 				class_bw = classa_bw_44;
 			}
-			else if (!strcmp(remove_stream->class_id,classid_b_48))
+			else if (!strcmp(remove_stream->class_id, classid_b_48))
 			{
 				classb_bw_48 = classb_bw_48 - remove_stream->bandwidth;
 				class_bw = classb_bw_48;
 			}
-			else
+			else if (!strcmp(remove_stream->class_id, classid_b_44))
 			{
 				classb_bw_44 = classb_bw_44 - remove_stream->bandwidth;
 				class_bw = classb_bw_44;
 			}
 			if (class_bw == 0)
 			{
-				class_bw=1;
+				class_bw = 1;
 			}
-			tc_class_command(sockfd, "change",remove_stream->class_id, interface,class_bw, maxburst);
-			char parent[3]={0};
+			tc_class_command(sockfd, "change", remove_stream->class_id, interface, class_bw, maxburst);
+			char parent[3] = {0};
 			strncpy(parent,remove_stream->class_id,2);
-			sprintf(tc_command, "tc filter del dev %s parent %s handle 800::%d prio 1 protocol all u32",interface,parent,remove_stream->filter_handle);
+			sprintf(tc_command, "tc filter del dev %s parent %s handle 800::%d prio 1 protocol all u32",
+				interface, parent, remove_stream->filter_handle);
 			log_client_debug_message(sockfd, "tc command:  \"%s\"", tc_command);
 			if (system(tc_command) < 0)
 			{
@@ -748,16 +782,16 @@ int main (int argc, char *argv[])
 		fdmax = socketfd;
 		for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i)
 		{
-			if (clientfd[i]>0)
+			if (clientfd[i] > 0)
 			{
-				FD_SET(clientfd[i],&read_fds);
-				if (clientfd[i]>fdmax)
+				FD_SET(clientfd[i], &read_fds);
+				if (clientfd[i] > fdmax)
 				{
 					fdmax = clientfd[i];
 				}
 			}
 		}
-		int n = select(fdmax+1,&read_fds,NULL,NULL,NULL);
+		int n = select(fdmax+1, &read_fds, NULL, NULL, NULL);
 		if(n == -1)
 		{
 			SHAPER_LOGF_ERROR("select() error %d (%s)", errno, strerror(errno));
@@ -794,7 +828,7 @@ int main (int argc, char *argv[])
 				}
 			}
 
-			if (FD_ISSET(socketfd,&read_fds))
+			if (FD_ISSET(socketfd, &read_fds))
 			{
 				newfd = accept(socketfd, (struct sockaddr*)NULL, NULL);
 				if (clientfd[nextclientindex] != -1)

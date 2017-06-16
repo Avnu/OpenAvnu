@@ -64,6 +64,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 typedef struct shaper_reservation
 {
 	int in_use;
+	SRClassIdx_t sr_class;
 	int measurement_interval; // microseconds
 	int max_frame_size; // bytes
 	int max_frames_per_interval; // number of frames per measurement_interval
@@ -321,7 +322,7 @@ bool openavbShaperDaemonAvailable(void)
 	return FALSE;
 }
 
-void* openavbShaperHandle(int measurement_interval_usec, int max_frame_size_bytes, int max_frames_per_interval, const unsigned char * stream_da)
+void* openavbShaperHandle(SRClassIdx_t sr_class, int measurement_interval_usec, int max_frame_size_bytes, int max_frames_per_interval, const unsigned char * stream_da)
 {
 	// If the daemon is not available, abort!
 	if (socketfd == -1 || !openavbShaperDaemonAvailable())
@@ -347,16 +348,18 @@ void* openavbShaperHandle(int measurement_interval_usec, int max_frame_size_byte
 
 	// Fill in the information.
 	shaperReservationList[i].in_use = TRUE;
+	shaperReservationList[i].sr_class = sr_class;
 	shaperReservationList[i].measurement_interval = measurement_interval_usec;
 	shaperReservationList[i].max_frame_size = max_frame_size_bytes;
 	shaperReservationList[i].max_frames_per_interval = max_frames_per_interval;
 	memcpy(shaperReservationList[i].stream_da, stream_da, ETH_ALEN);
 
 	// Send the information to the Shaper daemon.
-	// Reserving Bandwidth Example:  -ri eth2 -s 125 -b 74 -f 1 -a ff:ff:ff:ff:ff:11\n
+	// Reserving Bandwidth Example:  -ri eth2 -c A -s 125 -b 74 -f 1 -a ff:ff:ff:ff:ff:11\n
 	char szCommand[200];
-	sprintf(szCommand, "-ri %s -s %u -b %u -f %u -a %02x:%02x:%02x:%02x:%02x:%02x",
+	sprintf(szCommand, "-ri %s -c %c -s %u -b %u -f %u -a %02x:%02x:%02x:%02x:%02x:%02x",
 		interfaceOnly,
+		( shaperReservationList[i].sr_class == SR_CLASS_A ? 'A' : 'B' ),
 		shaperReservationList[i].measurement_interval,
 		shaperReservationList[i].max_frame_size,
 		shaperReservationList[i].max_frames_per_interval,

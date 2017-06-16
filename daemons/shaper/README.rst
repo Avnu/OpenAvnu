@@ -29,6 +29,10 @@ features.
 Future Updates
 --------------
 
-- Verify that tc is installed
-- Verify that the kernel is configured for traffic shaping
+- Have the daemon verify that tc is installed
+- Have the daemon verify that the kernel is configured to support Hierarchy
+  Token Bucket traffic shaping
+- Add a method to interlace frames from multiple streams of the same class
+  (perhaps using multiple layers of queues)
+- Add updates to support IEEE 802.1Qcc configurable classes
 

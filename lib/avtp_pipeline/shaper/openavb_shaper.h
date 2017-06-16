@@ -41,7 +41,7 @@ bool openavbShaperDaemonAvailable(void);
 
 // Tell the Shaper to shape outgoing packets.
 // Use the returned value for the call to openavbShapingRelease().
-void* openavbShaperHandle(int measurement_interval_usec, int max_frame_size_bytes, int max_frames_per_interval, const unsigned char * stream_da);
+void* openavbShaperHandle(SRClassIdx_t sr_class, int measurement_interval_usec, int max_frame_size_bytes, int max_frames_per_interval, const unsigned char * stream_da);
 
 // Have the Shaper stop shaping outgoing packets.
 void openavbShaperRelease(void* handle);
