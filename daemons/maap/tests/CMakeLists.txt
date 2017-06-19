@@ -1,0 +1,38 @@
+cmake_minimum_required (VERSION 2.8) 
+project (maap_test)
+enable_testing()
+
+set (CPPUTEST_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../thirdparty/cpputest" )
+set (SRC_DIR "../common" )
+set (TEST_DIR "../test" )
+add_definitions(-DMRP_CPPUTEST)
+
+include_directories( . "${CMAKE_CURRENT_LIST_DIR}/../common/" ${CPPUTEST_DIR}/include )
+file(GLOB CPPUTEST_SRC *.cpp)
+file(GLOB MAAP_SRC ${SRC_DIR}/intervals.c ${SRC_DIR}/maap.c ${SRC_DIR}/maap_log_queue.c ${SRC_DIR}/maap_net.c ${SRC_DIR}/maap_packet.c ${SRC_DIR}/maap_parse.c)
+file(GLOB MAAP_TEST_SRC ${TEST_DIR}/maap_log_dummy.c ${TEST_DIR}/maap_timer_dummy.c)
+
+if(APPLE)
+  include_directories( include ${SRC_DIR} ${CPPUTEST_DIR}/include/Platforms/Gcc )
+  link_directories(${CPPUTEST_DIR}/src/CppUTest ${CPPUTEST_DIR}/src/CppUTestExt )
+  add_executable (maap_test ${MAAP_SRC} ${MAAP_TEST_SRC} ${CPPUTEST_SRC} )
+  target_link_libraries(maap_test CppUTest CppUTestExt)
+elseif(UNIX)
+  include_directories( include ${SRC_DIR} ${CPPUTEST_DIR}/include/Platforms/Gcc )
+  link_directories(${CPPUTEST_DIR}/src/CppUTest ${CPPUTEST_DIR}/src/CppUTestExt )
+  add_executable (maap_test ${MAAP_SRC} ${MAAP_TEST_SRC} ${CPPUTEST_SRC} )
+  target_link_libraries(maap_test CppUTest CppUTestExt)
+elseif(WIN32)
+  if( CMAKE_SIZEOF_VOID_P EQUAL 8 )
+    link_directories($ENV{WPCAP_DIR}/Lib/x64 ${CPPUTEST_DIR}/src/CppUTest ${CPPUTEST_DIR}/src/CppUTestExt)
+  elseif( CMAKE_SIZEOF_VOID_P EQUAL 4 )
+    link_directories($ENV{WPCAP_DIR}/Lib ${CPPUTEST_DIR}/src/CppUTest ${CPPUTEST_DIR}/src/CppUTestExt)
+  endif()
+
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+  add_executable (maap_test ${MAAP_SRC} ${MAAP_TEST_SRC} ${CPPUTEST_SRC} )
+  target_link_libraries(maap_test CppUTest CppUTestExt Ws2_32 Winmm)
+endif()
+
+add_test( maap_test maap_test )
+

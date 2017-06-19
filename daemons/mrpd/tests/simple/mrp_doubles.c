@@ -42,6 +42,8 @@ TRACE
 	memset(test_state.tx_PDU, 0, MAX_FRAME_SIZE);
 	test_state.sent_count = 0;
 
+	test_state.sent_ctl_msg_count = 0;
+
 	memset(test_state.msrp_event_counts, 0, sizeof test_state.msrp_event_counts);
 	memset(test_state.msrp_event_counts_per_type, 0, sizeof test_state.msrp_event_counts_per_type);
 	test_state.forward_msrp_events = 1;
@@ -168,6 +170,7 @@ TRACE
 
 	(void)client_addr; /* unused */
 	memcpy(test_state.ctl_msg_data, notify_data, notify_len);
+	test_state.sent_ctl_msg_count++;
 
         return notify_len;
 }

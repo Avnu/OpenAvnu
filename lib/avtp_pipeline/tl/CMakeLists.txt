@@ -13,6 +13,7 @@ if(AVB_FEATURE_ENDPOINT)
 		${AVB_SRC_DIR}/tl/openavb_tl_endpoint.c
 		${AVB_SRC_DIR}/tl/openavb_talker_endpoint.c
 		${AVB_SRC_DIR}/tl/openavb_listener_endpoint.c
+		${AVB_OSAL_DIR}/openavb_osal_endpoint.c
 	    )
 else()
 	#Additional Files for No Endpoint
@@ -21,6 +22,7 @@ else()
 		${AVB_SRC_DIR}/tl/openavb_tl_no_endpoint.c
 		${AVB_SRC_DIR}/tl/openavb_talker_no_endpoint.c
 		${AVB_SRC_DIR}/tl/openavb_listener_no_endpoint.c
+		${AVB_OSAL_DIR}/openavb_osal.c
 	    )
 endif()
 

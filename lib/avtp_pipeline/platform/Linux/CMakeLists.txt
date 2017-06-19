@@ -1,6 +1,6 @@
-cmake_minimum_required ( VERSION 2.6 ) 
+cmake_minimum_required ( VERSION 2.6 )
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-project ( AVB ) 
+project ( AVB )
 
 # Some CMake voodoo to set the default build type
 IF(NOT CMAKE_BUILD_TYPE)
@@ -20,7 +20,7 @@ STRING ( TOUPPER "${CMAKE_BUILD_TYPE}_BUILD" BUILD_TYPE_STRING )
 SET ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${BUILD_TYPE_STRING}" )
 
 # CMake automatically adds some compiler flags based on CMAKE_BUILD_TYPE
-#  for Debug:		"-g" 
+#  for Debug:		"-g"
 #  for RelWithDebInfo: 	"-O2 -g"
 #  for Release:		"-03 -DNDEBUG"
 #  for MinSizeRel:	"-0s -DNDEBUG"
@@ -69,7 +69,7 @@ set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -Wall" )
 # Set default visibility of symbols (requires GCC version > 4)
 set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden" )
 
-# Need this to use pthread attributes 
+# Need this to use pthread attributes
 set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE" )
 
 # Increase ini parser's max line length
@@ -92,6 +92,9 @@ endif ()
 if (NOT DEFINED AVB_FEATURE_ENDPOINT)
   set ( AVB_FEATURE_ENDPOINT 0 )
 endif ()
+if (NOT DEFINED AVB_FEATURE_IGB)
+  set ( AVB_FEATURE_IGB 1 )
+endif ()
 
 # Default launchtime feature
 if (NOT DEFINED IGB_LAUNCHTIME_ENABLED)
@@ -111,6 +114,11 @@ if (AVB_FEATURE_GSTREAMER)
 endif ()
 if (AVB_FEATURE_ENDPOINT)
   set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_ENDPOINT=1" )
+endif ()
+if (AVB_FEATURE_IGB)
+  set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_IGB=1" )
+else ()
+  set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_IGB=0" )
 endif ()
 
 #Export Platform defines
@@ -140,13 +148,13 @@ if (NOT DEFINED SDK_DOC_ONLY)
 
   if (NOT DEFINED ARCH)
   MESSAGE ( FATAL_ERROR "Aborting: ARCH not set" )
-  endif ()     
+  endif ()
   if (NOT DEFINED LINUX_KERNEL_DIR)
   MESSAGE ( FATAL_ERROR "Aborting: LINUX_KERNEL_DIR not set" )
-  endif ()     
+  endif ()
   if (NOT DEFINED GLIB_PKG_INCLUDE_DIRS OR NOT DEFINED GLIB_PKG_LIBRARIES)
   MESSAGE ( FATAL_ERROR "Aborting: glib-2.0 library not found" )
-  endif ()     
+  endif ()
   if (AVB_FEATURE_GSTREAMER)
     if (NOT DEFINED GST_PKG_INCLUDE_DIRS OR NOT DEFINED GST_PKG_LIBRARIES)
       MESSAGE ( FATAL_ERROR "Aborting: gstreamer library not found" )
@@ -154,7 +162,7 @@ if (NOT DEFINED SDK_DOC_ONLY)
   endif ()
   if (NOT DEFINED ALSA_INCLUDE_DIRS)
   MESSAGE ( FATAL_ERROR "Aborting: alsa library not found" )
-  endif ()     
+  endif ()
 endif()
 
 # Add /usr/lib to library search path
@@ -166,8 +174,8 @@ set ( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PLATFORM_SPECIFIC_LINK
 include_directories ( ${PLATFORM_INCLUDE_DIRECTORIES} )
 link_directories ( ${PLATFORM_LINK_DIRECTORIES} )
 
-find_library(TEMP NAMES ${PLATFORM_LINK_LIBRARIES} PATHS ${PLATFORM_LINK_DIRECTORIES} )
-set ( PLATFORM_LINK_LIBRARIES ${TEMP} )
+#find_library(TEMP NAMES ${PLATFORM_LINK_LIBRARIES} PATHS ${PLATFORM_LINK_DIRECTORIES} )
+#set ( PLATFORM_LINK_LIBRARIES ${TEMP} )
 
 # Add our include directories
 #
@@ -180,17 +188,16 @@ set ( PLATFORM_LINK_LIBRARIES ${TEMP} )
 #    These should be cleaned up to limit the dependencies
 #    across components.
 #
-include_directories( 
+include_directories(
 		${AVB_TCAL_DIR}
 		${AVB_HAL_DIR}
 		${AVB_HAL_DIR}/mcr
 		${AVB_OSAL_DIR}
 		${AVB_OSAL_DIR}/include
-		${AVB_OSAL_DIR}/fqtss/include
 		${AVB_SRC_DIR}/include
 		${AVB_OSAL_DIR}/avtp
 		${AVB_OSAL_DIR}/tl
-		${AVB_SRC_DIR}/avtp 
+		${AVB_SRC_DIR}/avtp
 		${AVB_SRC_DIR}/endpoint
 		${AVB_SRC_DIR}/srp
 		${AVB_SRC_DIR}/maap
@@ -208,10 +215,9 @@ include_directories(
 		${AVB_SRC_DIR}/mediaq
 		${AVB_SRC_DIR}/rawsock
 		${AVB_SRC_DIR}/qmgr
-		${AVB_SRC_DIR}/tl 
+		${AVB_SRC_DIR}/tl
 		${AVB_SRC_DIR}/util
 		${AVB_OSAL_DIR}/endpoint
-		${AVB_OSAL_DIR}/fqtss/qmgr
 		${AVB_SRC_DIR}/../common
 		${AVB_SRC_DIR}/mcs
 		)
@@ -222,48 +228,38 @@ link_directories(${GLIB_PKG_LIBRARY_DIRS})
 
 # AVB Core Library
 SET ( SRC_FILES "" )
-add_subdirectory ( avtp )
-add_subdirectory ( tl )
-add_subdirectory ( util )
-add_subdirectory ( mediaq )
-add_subdirectory ( inih )
-add_subdirectory ( rawsock ) 
-add_subdirectory ( qmgr ) 
-add_subdirectory ( mcs )
-if (AVB_FEATURE_ENDPOINT)
-	add_subdirectory ( endpoint )
-	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal_endpoint.c )
-else()
-	SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_osal.c )
-endif()
-SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/openavb_rawsock.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/simple_rawsock.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/ring_rawsock.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/rawsock/igb_rawsock.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_OSAL_DIR}/openavb_time_osal.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/openavb_ether_hal.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/openavb_time_hal.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_HAL_DIR}/mcr/openavb_mcr_hal.c )
-
-# OpenAVB Common (support) files
-SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/../common/avb.c )
-SET ( SRC_FILES ${SRC_FILES} ${AVB_SRC_DIR}/openavb_common/mrp_client.c )
 
 if ( AVB_FEATURE_PCAP )
   find_package ( PCAP REQUIRED )
   set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_PCAP" )
   include_directories ( ${PCAP_INCLUDE_DIR} )
-  list ( APPEND SRC_FILES ${AVB_OSAL_DIR}/rawsock/pcap_rawsock.c )
+  if ( AVB_FEATURE_IGB )
+    set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_IGB" )
+  endif ()
+endif ()
+
+add_subdirectory ( util )
+add_subdirectory ( inih )
+add_subdirectory ( rawsock )
+add_subdirectory ( openavb_common )
+
+add_subdirectory ( avtp )
+add_subdirectory ( mediaq )
+add_subdirectory ( mcr )
+add_subdirectory ( mcs )
+add_subdirectory ( tl )
+add_subdirectory ( qmgr )
+if (AVB_FEATURE_ENDPOINT)
+  add_subdirectory ( endpoint )
 endif ()
 
 add_library ( avbTl ${SRC_FILES} )
 target_link_libraries ( avbTl dl m )
-
-install ( TARGETS avbTl ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
-
 if ( AVB_FEATURE_PCAP )
    target_link_libraries ( avbTl ${PCAP_LIBRARY} )
 endif ()
+
+install ( TARGETS avbTl ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
 
 # avb_host (openavb_host and openavb_harness)
 add_subdirectory ( ${AVB_OSAL_DIR}/avb_host )
@@ -291,7 +287,7 @@ macro (add_intf_mod INTF_NAME)
 	add_library ( ${INTF_NAME} ${SRC_FILES} )
 	install ( TARGETS ${INTF_NAME} ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
 	install ( DIRECTORY "${AVB_SRC_DIR}/${INTF_NAME}/" DESTINATION ${AVB_INSTALL_BIN_DIR} FILES_MATCHING PATTERN "*.ini" )
-endmacro() 
+endmacro()
 add_intf_mod ( "intf_ctrl" )
 add_intf_mod ( "intf_echo" )
 add_intf_mod ( "intf_logger" )
@@ -338,7 +334,7 @@ target_link_libraries (rawsock_tx avbTl ${GLIB_PKG_LIBRARIES} pthread rt pci ${P
 install ( TARGETS rawsock_tx RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
 
 # Copy additional installation files
-install ( FILES ${AVB_SRC_DIR}/endpoint/endpoint.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
-install ( PROGRAMS ${AVB_SRC_DIR}/endpoint/shutdown_openavb_endpoint.sh DESTINATION ${AVB_INSTALL_BIN_DIR} )
-
-
+if (AVB_FEATURE_ENDPOINT)
+  install ( FILES ${AVB_SRC_DIR}/endpoint/endpoint.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
+  install ( PROGRAMS ${AVB_SRC_DIR}/endpoint/shutdown_openavb_endpoint.sh DESTINATION ${AVB_INSTALL_BIN_DIR} )
+endif ()

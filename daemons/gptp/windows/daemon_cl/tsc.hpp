@@ -38,11 +38,6 @@
 
 #include <intrin.h>
 #include <stdint.h>
-#include <VersionHelpers.h>
-
-#define WIN10_MAJOR 0x0A
-#define WIN10_MINOR 0x00
-#define WIN10_SVC   0x00
 
 /**
  * @brief  Gets the processor timestamp
@@ -106,6 +101,7 @@ inline uint32_t FindFrequencyByModel(uint8_t model_query) {
 inline uint64_t getTSCFrequency( unsigned millis ) {
 	int max_cpuid_level;
 	int tmp[4];
+	BOOL is_windows_10;
 
 	// Find the max cpuid level, and if possible find clock info
 	__cpuid(tmp, 0);
@@ -113,11 +109,22 @@ inline uint64_t getTSCFrequency( unsigned millis ) {
 	if (max_cpuid_level >= CLOCK_INFO_CPUID_LEAF)
 		__cpuid(tmp, CLOCK_INFO_CPUID_LEAF);
 
+	// Determine if the OS is Windows 10 or later.
+	{
+		OSVERSIONINFOEXW osvi = { sizeof(osvi), 0, 0, 0, 0, {0}, 0, 0 };
+		DWORDLONG        const dwlConditionMask = VerSetConditionMask(0, VER_MAJORVERSION, VER_GREATER_EQUAL);
+		osvi.dwMajorVersion = 10;
+
+		// NOTE:  VerifyVersionInfo returns false when called by applications that do not have a compatibility manifest for Windows 10,
+		//  even when the current operating system version is Windows 10.
+		is_windows_10 = VerifyVersionInfoW(&osvi, VER_MAJORVERSION, dwlConditionMask) != FALSE;
+	}
+
 	// For pre-Win10 on 6th Generation or greater Intel CPUs the raw hardware
 	// clock will be returned, *else* use QPC for everything else
 	//
 	// EAX (tmp[0]) must be >= 1, See Intel SDM 17.15.4 "Invariant Time-keeping"
-	if (!IsWindowsVersionOrGreater(WIN10_MAJOR, WIN10_MINOR, WIN10_SVC) && 
+	if (is_windows_10 &&
 		max_cpuid_level >= CLOCK_INFO_CPUID_LEAF &&
 		tmp[0] >= 1) {
 		SYSTEM_INFO info;
