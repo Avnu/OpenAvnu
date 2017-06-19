@@ -515,11 +515,14 @@ EXTERN_DLL_EXPORT bool openavbTLRun(tl_handle_t handle)
 		if (pTLState->cfg.role == AVB_ROLE_TALKER) {
 			THREAD_CREATE_TALKER();
 
-			THREAD_SET_RT_PRIORITY(pTLState->TLThread, pTLState->cfg.thread_rt_priority);
-			THREAD_PIN(pTLState->TLThread, pTLState->cfg.thread_affinity);
+			if (pTLState->cfg.thread_rt_priority != 0) { THREAD_SET_RT_PRIORITY(pTLState->TLThread, pTLState->cfg.thread_rt_priority); }
+			if (pTLState->cfg.thread_affinity != 0xFFFFFFFF) { THREAD_PIN(pTLState->TLThread, pTLState->cfg.thread_affinity); }
 		}
 		else if (pTLState->cfg.role == AVB_ROLE_LISTENER) {
 			THREAD_CREATE_LISTENER();
+
+			if (pTLState->cfg.thread_rt_priority != 0) { THREAD_SET_RT_PRIORITY(pTLState->TLThread, pTLState->cfg.thread_rt_priority); }
+			if (pTLState->cfg.thread_affinity != 0xFFFFFFFF) { THREAD_PIN(pTLState->TLThread, pTLState->cfg.thread_affinity); }
 		}
 
 		retVal = TRUE;
