@@ -470,7 +470,7 @@ int process_command(int sockfd, char command[])
 		{
 			//delete all the Stream DAs in list
 			delete_streamda_list();
-			if (strlen(interface)!=0)
+			if (strlen(interface) != 0)
 			{
 				//delete qdisc
 				sprintf(tc_command, "tc qdisc del dev %s root handle 1:", interface);
