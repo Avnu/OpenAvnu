@@ -79,6 +79,7 @@ typedef struct {
 	U8			srClass;
 	U8	        srRank;
 	U32			latency;
+	U32			txRate;
 } openavbEndpointParams_TalkerRegister_t;
 
 typedef struct {
@@ -95,7 +96,7 @@ typedef struct {
 // Server messages parameters
 //////////////////////////////
 typedef struct {
-	char		ifname[IFNAMSIZ];
+	char		ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	U8 			destAddr[ETH_ALEN];
 	openavbSrpLsnrDeclSubtype_t lsnrDecl;
 	U32			classRate;
@@ -106,7 +107,7 @@ typedef struct {
 
 typedef struct {
 	openavbSrpAttribType_t tlkrDecl;
-	char		ifname[IFNAMSIZ];
+	char		ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	U8 			destAddr[ETH_ALEN];
 	AVBTSpec_t	tSpec;
 	U8			srClass;
@@ -134,6 +135,7 @@ typedef struct clientStream_t {
 	SRClassIdx_t	srClass;			// AVB class
 	U8 				srRank;				// AVB rank
 	U32				latency;			// internal latency
+	U32				txRate;				// frames per second
 	
 	// Information provided by SRP
 	U8				priority;			// AVB priority to use for stream
@@ -143,6 +145,9 @@ typedef struct clientStream_t {
 	// Information provided by MAAP
 	void			*hndMaap;			// handle for MAAP address allocation
 	U8				destAddr[ETH_ALEN];	// destination MAC address (from config or MAAP)
+
+	// Information provided by Shaper
+	void			*hndShaper;			// handle for Shaping configuration
 
 	// Information provided by QMgr
 	int				fwmark;				// mark to identify packets of this stream
@@ -207,14 +212,16 @@ bool openavbEptClntRegisterStream(int            h,
                               AVBTSpec_t    *tSpec,
                               U8             srClass,
                               U8             srRank,
-                              U32            latency);
+                              U32            latency,
+                              U32            txRate);
 bool openavbEptSrvrRegisterStream(int             h,
                               AVBStreamID_t  *streamID,
                               U8              destAddr[],
                               AVBTSpec_t     *tSpec,
                               U8              srClass,
                               U8              srRank,
-                              U32             latency);
+                              U32             latency,
+                              U32             txRate);
 
 // Each lister attaches to the stream it wants to receive;
 // specifically the listener indicates interest / declaration to SRP.

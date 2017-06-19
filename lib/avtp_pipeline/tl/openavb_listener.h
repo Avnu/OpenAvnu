@@ -47,7 +47,7 @@ typedef struct {
 
 typedef struct {
 	// Data from callback
-	char			ifname[IFNAMSIZ];
+	char			ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	AVBStreamID_t 	streamID;
 	U8				destAddr[ETH_ALEN];
 	AVBTSpec_t		tSpec;

@@ -227,6 +227,7 @@ include_directories(
 		${AVB_SRC_DIR}/endpoint
 		${AVB_SRC_DIR}/srp
 		${AVB_SRC_DIR}/maap
+		${AVB_SRC_DIR}/shaper
 		${AVB_SRC_DIR}/inih
 		${AVB_SRC_DIR}/map_mjpeg
 		${AVB_SRC_DIR}/map_mpeg2ts

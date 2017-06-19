@@ -9,10 +9,11 @@ help:
 	@echo ''
 	@echo '  lib               - igb library'
 	@echo ''
-	@echo '  daemons_all       - build all daemons (mrpd gptp maap)'
+	@echo '  daemons_all       - build all daemons (mrpd gptp maap shaper)'
 	@echo '  mrpd              - mrpd daemon'
 	@echo '  gptp              - gptp daemon for linux'
 	@echo '  maap              - maap daemon'
+	@echo '  shaper            - shaper daemon for linux'
 	@echo ''
 	@echo '  avtp_pipeline     - AVTP pipeline'
 	@echo '  avtp_pipeline_doc - AVTP pipeline doc'
@@ -66,9 +67,15 @@ maap:
 maap_clean:
 	$(call descend,daemons/maap/linux/build/,clean)
 
-daemons_all: mrpd maap gptp
+shaper:
+	$(call descend,daemons/$@)
 
-daemons_all_clean: mrpd_clean gptp_clean maap_clean
+shaper_clean:
+	$(call descend,daemons/shaper/,clean)
+
+daemons_all: mrpd maap gptp shaper
+
+daemons_all_clean: mrpd_clean gptp_clean maap_clean shaper_clean
 
 examples_common:
 	$(call descend,examples/common)
