@@ -21,12 +21,23 @@ before_install:
   - sudo update-alternatives --set c++ /usr/bin/g++
 compiler:
   - gcc
-env: BUILD_KERNEL=4.4.0-75-generic
+env:
+  - BUILD_KERNEL=4.4.0-75-generic
+  - DEPS_DIR=${TRAVIS_BUILD_DIR}/deps
 install:
   - sudo apt-get update -qq
-  - sudo apt-get install -y libpcap-dev libpci-dev libsndfile1-dev libjack-dev linux-headers-4.4.0-75-generic cmake
+  - sudo apt-get install -y libpcap-dev libpci-dev libsndfile1-dev libjack-dev linux-headers-4.4.0-75-generic
   - sudo apt-get install -y libgstreamer0.10-dev libgstreamer-plugins-base0.10-dev libasound2-dev
   - sudo cp /usr/src/linux-headers-4.4.0-75/include/uapi/linux/ethtool.h /usr/include/linux
   - sudo cp /usr/src/linux-headers-4.4.0-75/include/uapi/linux/ptp_clock.h /usr/include/linux
+  - |
+    if [[ ${TRAVIS_OS_NAME} == "linux" ]]; then
+      CMAKE_URL="http://www.cmake.org/files/v3.4/cmake-3.4.3-Linux-x86_64.tar.gz"
+      mkdir -p ${DEPS_DIR}/cmake
+      travis_retry wget --no-check-certificate --quiet -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C ${DEPS_DIR}/cmake
+      export PATH=${DEPS_DIR}/cmake/bin:${PATH}
+    fi
+
+
 script: ./travis.sh
 
