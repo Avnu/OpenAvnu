@@ -72,7 +72,7 @@ bool startEndpoint(int mode, int ifindex, const char* ifname, unsigned mtu, unsi
 	x_cfg.link_kbit = link_kbit;
 	x_cfg.nsr_kbit = nsr_kbit;
 
-	openavbReadConfig(DEFAULT_INI_FILE, &x_cfg);
+	openavbReadConfig(DEFAULT_INI_FILE, DEFAULT_SAVE_INI_FILE, &x_cfg);
 
 	if_info_t ifinfo;
 	if (ifname && openavbCheckInterface(ifname, &ifinfo)) {
