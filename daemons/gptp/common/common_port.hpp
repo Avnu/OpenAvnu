@@ -230,16 +230,16 @@ typedef struct {
 	bool linkUp;
 
 	/* gPTP 10.2.4.4 */
-	char initialLogSyncInterval;
+	signed char initialLogSyncInterval;
 
 	/* gPTP 11.5.2.2 */
-	char initialLogPdelayReqInterval;
+	signed char initialLogPdelayReqInterval;
 
 	/* CDS 6.2.1.5 */
-	char operLogPdelayReqInterval;
+	signed char operLogPdelayReqInterval;
 
 	/* CDS 6.2.1.6 */
-	char operLogSyncInterval;
+	signed char operLogSyncInterval;
 
 	/* condition_factory OSConditionFactory instance */
 	OSConditionFactory * condition_factory;
