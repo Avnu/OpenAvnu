@@ -96,9 +96,9 @@ class EtherPort : public CommonPort
 	bool linkUp;
 
 	/* Port Configuration */
-	char log_mean_unicast_sync_interval;
-	char log_min_mean_delay_req_interval;
-	char log_min_mean_pdelay_req_interval;
+	signed char log_mean_unicast_sync_interval;
+	signed char log_min_mean_delay_req_interval;
+	signed char log_min_mean_pdelay_req_interval;
 
 	unsigned int duplicate_resp_counter;
 	uint16_t last_invalid_seqid;
@@ -107,9 +107,9 @@ class EtherPort : public CommonPort
 	// port_state : already defined as port_state
 	bool isGM;
 	// asCapable : already defined as asCapable
-	char operLogPdelayReqInterval;
-	char operLogSyncInterval;
-	char initialLogPdelayReqInterval;
+	signed char operLogPdelayReqInterval;
+	signed char operLogSyncInterval;
+	signed char initialLogPdelayReqInterval;
 	bool automotive_profile;
 
 	// Test Status variables
@@ -306,7 +306,7 @@ protected:
 	 * @brief  Gets the pDelay minimum interval
 	 * @return PDelay interval
 	 */
-	char getPDelayInterval(void) {
+	signed char getPDelayInterval(void) {
 		return log_min_mean_pdelay_req_interval;
 	}
 
@@ -315,7 +315,7 @@ protected:
 	 * @param  val time interval
 	 * @return none
 	 */
-	void setPDelayInterval(char val) {
+	void setPDelayInterval(signed char val) {
 		log_min_mean_pdelay_req_interval = val;
 	}
 
