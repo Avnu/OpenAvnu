@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <netinet/in.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #define SHAPER_LOG_COMPONENT "Main"
 #include "shaper_log.h"
@@ -80,6 +81,27 @@ char classid_b_44[]="3:40";
 char interface[IFNAMSIZ] = {0};
 int bandwidth = 0;
 int classa_parent = 2, classb_parent=3;
+int exit_received = 0;
+
+static void signal_handler(int signal)
+{
+	if (signal == SIGINT || signal == SIGTERM) {
+		if (!exit_received) {
+			SHAPER_LOG_INFO("Shutdown signal received");
+			exit_received = 1;
+		}
+		else {
+			// Force shutdown
+			exit(2);
+		}
+	}
+	else if (signal == SIGUSR1) {
+		SHAPER_LOG_DEBUG("Waking up streaming thread");
+	}
+	else {
+		SHAPER_LOG_ERROR("Unexpected signal");
+	}
+}
 
 void log_client_error_message(int sockfd, const char *fmt, ...)
 {
@@ -735,7 +757,6 @@ int main (int argc, char *argv[])
 	fd_set read_fds;
 	int fdmax;
 	int recvbytes;
-	int exit_received = 0;
 
 	shaperLogInit();
 
@@ -761,6 +782,38 @@ int main (int argc, char *argv[])
 		shaperLogExit();
 		return 1;
 	}
+
+	// Setup signal handler
+	// We catch SIGINT and shutdown cleanly
+	int err;
+	struct sigaction sa;
+	sa.sa_handler = signal_handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	err = sigaction(SIGINT, &sa, NULL);
+	if (err)
+	{
+		SHAPER_LOG_ERROR("Failed to setup SIGINT handler");
+		shaperLogExit();
+		return 1;
+	}
+	err = sigaction(SIGTERM, &sa, NULL);
+	if (err)
+	{
+		SHAPER_LOG_ERROR("Failed to setup SIGTERM handler");
+		shaperLogExit();
+		return 1;
+	}
+	err = sigaction(SIGUSR1, &sa, NULL);
+	if (err)
+	{
+		SHAPER_LOG_ERROR("Failed to setup SIGUSR1 handler");
+		shaperLogExit();
+		return 1;
+	}
+
+	// Ignore SIGPIPE signals.
+	signal(SIGPIPE, SIG_IGN);
 
 	for (i = 0; i < MAX_CLIENT_CONNECTIONS; ++i)
 	{
@@ -794,8 +847,17 @@ int main (int argc, char *argv[])
 		int n = select(fdmax+1, &read_fds, NULL, NULL, NULL);
 		if(n == -1)
 		{
-			SHAPER_LOGF_ERROR("select() error %d (%s)", errno, strerror(errno));
-			break;
+			if (exit_received)
+			{
+				// Assume the app received a signal to quit.
+				// Process the quit command.
+				process_command(-1, "-q");
+			}
+			else
+			{
+				SHAPER_LOGF_ERROR("select() error %d (%s)", errno, strerror(errno));
+				break;
+			}
 		}
 		else
 		{

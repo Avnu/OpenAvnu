@@ -36,7 +36,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 typedef void (openavbMaapRestartCb_t)(void *handle, struct ether_addr *addr);
 
 // MAAP library lifecycle
-bool openavbMaapInitialize(const char *ifname, unsigned int maapPort, openavbMaapRestartCb_t* cbfn);
+bool openavbMaapInitialize(const char *ifname, unsigned int maapPort, struct ether_addr *maapPrefAddr, openavbMaapRestartCb_t* cbfn);
 void openavbMaapFinalize();
 
 bool openavbMaapDaemonAvailable(void);

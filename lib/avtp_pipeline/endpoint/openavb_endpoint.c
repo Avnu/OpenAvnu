@@ -479,7 +479,7 @@ int avbEndpointLoop(void)
 			break;
 		}
 
-		if (!openavbMaapInitialize(x_cfg.ifname, x_cfg.maapPort, maapRestartCallback)) {
+		if (!openavbMaapInitialize(x_cfg.ifname, x_cfg.maapPort, &(x_cfg.maap_preferred), maapRestartCallback)) {
 			AVB_LOG_ERROR("Failed to initialize MAAP");
 			openavbQmgrFinalize();
 			break;
