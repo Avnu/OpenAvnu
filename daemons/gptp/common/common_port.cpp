@@ -467,8 +467,18 @@ bool CommonPort::processStateChange( Event e )
 
 bool CommonPort::processSyncAnnounceTimeout( Event e )
 {
+	// We're Grandmaster, set grandmaster info to me
+	ClockIdentity clock_identity;
+	unsigned char priority1;
+	unsigned char priority2;
+	ClockQuality clock_quality;
+
+	Timestamp system_time;
+	Timestamp device_time;
+	uint32_t local_clock, nominal_clock_rate;
+
 	// Nothing to do
-	if( clock->getPriority1() != 255 )
+	if( clock->getPriority1() == 255 )
 		return true;
 
 	// Restart timer
@@ -487,57 +497,38 @@ bool CommonPort::processSyncAnnounceTimeout( Event e )
 			   1000000000.0)));
 	}
 
-	if ( getPortState() == PTP_INITIALIZING ||
-	     getPortState() == PTP_UNCALIBRATED ||
-	     getPortState() == PTP_SLAVE ||
-	     getPortState() == PTP_PRE_MASTER )
-	{
-		GPTP_LOG_STATUS(
-			"*** %s Timeout Expired - Becoming Master",
-			e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES ? "Announce" :
-			"Sync" );
-		{
-			// We're Grandmaster, set grandmaster info to me
-			ClockIdentity clock_identity;
-			unsigned char priority1;
-			unsigned char priority2;
-			ClockQuality clock_quality;
+	if( getPortState() == PTP_MASTER )
+		return true;
 
-			clock_identity = getClock()->getClockIdentity();
-			getClock()->setGrandmasterClockIdentity
-				( clock_identity );
-			priority1 = getClock()->getPriority1();
-			getClock()->setGrandmasterPriority1( priority1 );
-			priority2 = getClock()->getPriority2();
-			getClock()->setGrandmasterPriority2( priority2 );
-			clock_quality = getClock()->getClockQuality();
-			getClock()->setGrandmasterClockQuality
-				( clock_quality );
-		}
-		setPortState( PTP_MASTER );
-		Timestamp system_time;
-		Timestamp device_time;
+	GPTP_LOG_STATUS(
+		"*** %s Timeout Expired - Becoming Master",
+		e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES ? "Announce" :
+		"Sync" );
 
-		uint32_t local_clock, nominal_clock_rate;
+	clock_identity = getClock()->getClockIdentity();
+	getClock()->setGrandmasterClockIdentity( clock_identity );
+	priority1 = getClock()->getPriority1();
+	getClock()->setGrandmasterPriority1( priority1 );
+	priority2 = getClock()->getPriority2();
+	getClock()->setGrandmasterPriority2( priority2 );
+	clock_quality = getClock()->getClockQuality();
+	getClock()->setGrandmasterClockQuality( clock_quality );
 
-		getDeviceTime(system_time, device_time,
-			      local_clock, nominal_clock_rate);
+	setPortState( PTP_MASTER );
 
-		(void) clock->calcLocalSystemClockRateDifference
-			( device_time, system_time );
+	getDeviceTime( system_time, device_time,
+		       local_clock, nominal_clock_rate );
 
-		setQualifiedAnnounce( NULL );
+	(void) clock->calcLocalSystemClockRateDifference
+		( device_time, system_time );
 
-		// Add timers for Announce and Sync, this is as close to
-		// immediately as we get
-		if( clock->getPriority1() != 255)
-		{
-			clock->addEventTimerLocked
-				( this, SYNC_INTERVAL_TIMEOUT_EXPIRES,
-				  16000000 );
-		}
-		startAnnounce();
-	}
+	setQualifiedAnnounce( NULL );
+
+	clock->addEventTimerLocked
+		( this, SYNC_INTERVAL_TIMEOUT_EXPIRES,
+		  16000000 );
+
+	startAnnounce();
 
 	return true;
 }

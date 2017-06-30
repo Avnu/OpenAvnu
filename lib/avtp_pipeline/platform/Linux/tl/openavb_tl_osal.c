@@ -63,7 +63,7 @@ typedef struct {
 	openavb_tl_cfg_name_value_t *pNVCfg;
 } parse_ini_data_t;
 
-bool parse_mac(const char *str, cfg_mac_t *mac)
+static bool parse_mac(const char *str, cfg_mac_t *mac)
 {
 	memset(&mac->buffer, 0, sizeof(struct ether_addr));
 

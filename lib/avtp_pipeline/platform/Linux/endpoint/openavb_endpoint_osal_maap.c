@@ -43,6 +43,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_list.h"
 #include "openavb_rawsock.h"
 
+// These are used to support saving the MAAP Address
+#include "openavb_endpoint_cfg.h"
+extern openavb_endpoint_cfg_t x_cfg;
+
 #define	AVB_LOG_COMPONENT	"Endpoint MAAP"
 //#define AVB_LOG_LEVEL AVB_LOG_LEVEL_DEBUG
 #include "openavb_pub.h"
@@ -63,6 +67,7 @@ typedef struct {
 
 static maapAlloc_t maapAllocList[MAX_AVB_STREAMS];
 static openavbMaapRestartCb_t *maapRestartCallback = NULL;
+static struct ether_addr *maapPreferredAddress = NULL;
 
 static bool maapRunning = FALSE;
 static pthread_t maapThreadHandle;
@@ -86,6 +91,16 @@ static char maapDaemonPort[6] = {0};
 static MUTEX_HANDLE(maapMutex);
 #define MAAP_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(maapMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
 #define MAAP_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(maapMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
+
+static unsigned long long MaapMacAddrToLongLong(const struct ether_addr *addr)
+{
+	unsigned long long nAddress = 0ull;
+	int i;
+	for (i = 0; i < ETH_ALEN; ++i) {
+		nAddress = (nAddress << 8) | addr->ether_addr_octet[i];
+	}
+	return nAddress;
+}
 
 static void MaapResultToMacAddr(unsigned long long nAddress, struct ether_addr *destAddr)
 {
@@ -139,12 +154,16 @@ static void process_maap_notify(Maap_Notify *mn, int socketfd)
 				(unsigned int) mn->count);
 
 			// We successfully initialized.  Reserve a block of addresses.
-			// AVDECC_TODO:  Suggest the addresses from the previous time this application was run.
 			Maap_Cmd maapcmd;
 			memset(&maapcmd, 0, sizeof(Maap_Cmd));
 			maapcmd.kind = MAAP_CMD_RESERVE;
 			maapcmd.start = 0; // No preferred address
 			maapcmd.count = MAX_AVB_STREAMS;
+			if (maapPreferredAddress != NULL) {
+				// Suggest the addresses from the previous time this application was run.
+				maapcmd.start = MaapMacAddrToLongLong(maapPreferredAddress);
+				AVB_LOGF_DEBUG("MAAP Preferred Address:  0x%012llx", maapcmd.start);
+			}
 			if (send(socketfd, (char *) &maapcmd, sizeof(Maap_Cmd), 0) < 0)
 			{
 				/* Something went wrong.  Abort! */
@@ -194,6 +213,17 @@ static void process_maap_notify(Maap_Notify *mn, int socketfd)
 				}
 			}
 			MAAP_UNLOCK();
+
+			// Save the address so we can request it in the future.
+			if (maapPreferredAddress != NULL) {
+				struct ether_addr assignedAddress;
+				MaapResultToMacAddr((unsigned long long) mn->start, &assignedAddress);
+				if (memcmp(maapPreferredAddress, &assignedAddress, sizeof(struct ether_addr)) != 0) {
+					// Save the updated settings.  Done immediately, so they won't get lost on device reboot.
+					memcpy(maapPreferredAddress, &assignedAddress, sizeof(struct ether_addr));
+					openavbSaveConfig(DEFAULT_SAVE_INI_FILE, &x_cfg);
+				}
+			}
 
 			// We now have addresses we can use.
 			maapReservationId = mn->id;
@@ -420,12 +450,13 @@ static void* maapThread(void *arg)
 	return NULL;
 }
 
-bool openavbMaapInitialize(const char *ifname, unsigned int maapPort, openavbMaapRestartCb_t* cbfn)
+bool openavbMaapInitialize(const char *ifname, unsigned int maapPort, struct ether_addr *maapPrefAddr, openavbMaapRestartCb_t* cbfn)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_MAAP);
 
 	// Save the supplied callback function.
 	maapRestartCallback = cbfn;
+	maapPreferredAddress = maapPrefAddr;
 
 	MUTEX_ATTR_HANDLE(mta);
 	MUTEX_ATTR_INIT(mta);
@@ -469,6 +500,7 @@ void openavbMaapFinalize()
 	AVB_TRACE_ENTRY(AVB_TRACE_MAAP);
 
 	maapRestartCallback = NULL;
+	maapPreferredAddress = NULL;
 
 	if (maapRunning) {
 		// Stop the MAAP thread.
