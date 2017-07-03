@@ -65,6 +65,7 @@ typedef enum {
 	OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_TX_TIMEOUT,
 } openavb_acmp_sm_listener_state_t;
 
+extern openavb_avdecc_cfg_t gAvdeccCfg;
 extern openavb_acmp_sm_global_vars_t openavbAcmpSMGlobalVars;
 
 static openavb_acmp_ACMPCommandResponse_t rcvdCmdResp;
@@ -504,6 +505,15 @@ void openavbAcmpSMListenerStateMachine()
 						openavbAcmpSMListener_cancelTimeout(pRcvdCmdResp);
 						openavbAcmpSMListener_removeInflight(pRcvdCmdResp);
 						openavbAcmpSMListener_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, &response, status);
+
+						// Save the state for this connection, so it can potentially be fast connected later.
+						if (gAvdeccCfg.bFastConnectSupported && status == OPENAVB_ACMP_STATUS_SUCCESS) {
+							U16 configIdx = openavbAemGetConfigIdx();
+							openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, pRcvdCmdResp->listener_unique_id);
+							if (pDescriptorStreamInput != NULL && pDescriptorStreamInput->stream != NULL) {
+								openavbAvdeccSaveState(pDescriptorStreamInput->stream, pRcvdCmdResp->talker_entity_id, pRcvdCmdResp->controller_entity_id);
+							}
+						}
 					}
 					state = OPENAVB_ACMP_SM_LISTENER_STATE_WAITING;
 				}
@@ -543,6 +553,15 @@ void openavbAcmpSMListenerStateMachine()
 						}
 						else {
 							openavbAcmpSMListener_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_DISCONNECT_RX_RESPONSE, &response, status);
+						}
+
+						// Clear the saved state for this connection, so it won't be fast connected later.
+						if (gAvdeccCfg.bFastConnectSupported) {
+							U16 configIdx = openavbAemGetConfigIdx();
+							openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, pRcvdCmdResp->listener_unique_id);
+							if (pDescriptorStreamInput != NULL && pDescriptorStreamInput->stream != NULL) {
+								openavbAvdeccClearSavedState(pDescriptorStreamInput->stream);
+							}
 						}
 					}
 					else {

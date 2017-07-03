@@ -148,4 +148,32 @@ typedef struct openavb_tl_data_cfg openavb_tl_data_cfg_t;
  */
 bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg);
 
+
+/** Save the connection to the saved state
+ *
+ * If fast connect support is enabled, this function is used to save the state
+ * of the connection by a Listener when a connection is successfully made to
+ * a Talker for possible fast connect support later.
+ * #openavbAvdeccClearSavedState() should be called when the connection is closed.
+ *
+ * \param pListener Pointer to configuration for the Listener
+ * \param talker_entity_id The binary entity id for the Talker
+ * \param controller_entity_id The binary entity id for the Controller that initiated the connection
+ *
+ * \return TRUE on success or FALSE on failure
+ */
+bool openavbAvdeccSaveState(const openavb_tl_data_cfg_t *pListener, const U8 talker_entity_id[8], const U8 controller_entity_id[8]);
+
+/** Delete a connection with saved state
+ *
+ * If fast connect support is enabled, this function is used to clear previously
+ * saved state information (from a previous call to #openavbAvdeccSaveState).
+ * This function should be called from the Listener when a Talker/Listener connection is closed.
+ *
+ * \param pListener Pointer to configuration for the Listener
+ *
+ * \return TRUE on success or FALSE on failure
+ */
+bool openavbAvdeccClearSavedState(const openavb_tl_data_cfg_t *pListener);
+
 #endif  // OPENAVB_AVDECC_READ_INI_PUB_H

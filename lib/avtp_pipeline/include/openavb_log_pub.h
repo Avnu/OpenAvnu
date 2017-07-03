@@ -173,6 +173,9 @@ typedef enum {
 #define STREAMID_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x/%d"
 #define STREAMID_ARGS(s)   (s)->addr[0],(s)->addr[1],(s)->addr[2],(s)->addr[3],(s)->addr[4],(s)->addr[5],(s)->uniqueID
 
+#define ENTITYID_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
+#define ENTITYID_ARGS(a)   (a)[0],(a)[1],(a)[2],(a)[3],(a)[4],(a)[5],(a)[6],(a)[7]
+
 void avbLogInitEx(FILE *file);
 
 void avbLogInit(void);

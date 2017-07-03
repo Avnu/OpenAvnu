@@ -197,7 +197,7 @@ void openavbAcmpSMController_removeInflight(openavb_acmp_ACMPCommandResponse_t *
 void openavbAcmpSMController_processResponse(openavb_acmp_ACMPCommandResponse_t *commandResponse)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
-	// AVDECC_TODO:  Is there anything we need to do here?
+	// AVDECC_TODO:  Is there anything we need to do here, such as updating the saved state?
 	AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 }
 
