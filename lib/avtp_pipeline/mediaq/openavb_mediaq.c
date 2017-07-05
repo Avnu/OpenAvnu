@@ -337,7 +337,7 @@ bool openavbMediaQAllocItemMapData(media_q_t *pMediaQ, int itemPubMapSize, int i
 							}
 						}
 						else {
-							AVB_LOG_ERROR("Attemping to reallocate public map data");
+							AVB_LOG_ERROR("Attempting to reallocate public map data");
 							AVB_TRACE_EXIT(AVB_TRACE_MEDIAQ);
 							return FALSE;
 						}
@@ -351,7 +351,7 @@ bool openavbMediaQAllocItemMapData(media_q_t *pMediaQ, int itemPubMapSize, int i
 							}
 						}
 						else {
-							AVB_LOG_ERROR("Attemping to reallocate private map data");
+							AVB_LOG_ERROR("Attempting to reallocate private map data");
 							AVB_TRACE_EXIT(AVB_TRACE_MEDIAQ);
 							return FALSE;
 						}
@@ -387,7 +387,7 @@ bool openavbMediaQAllocItemIntfData(media_q_t *pMediaQ, int itemIntfSize)
 						}
 					}
 					else {
-						AVB_LOG_ERROR("Attemping to reallocate private interface data");
+						AVB_LOG_ERROR("Attempting to reallocate private interface data");
 						AVB_TRACE_EXIT(AVB_TRACE_MEDIAQ);
 						return FALSE;
 					}
