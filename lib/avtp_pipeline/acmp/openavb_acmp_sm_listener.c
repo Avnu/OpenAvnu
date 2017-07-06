@@ -180,19 +180,21 @@ void openavbAcmpSMListener_txCommand(U8 messageType, openavb_acmp_ACMPCommandRes
 				if (pInFlightCommand) {
 
 					memcpy(&pInFlightCommand->command, command, sizeof(pInFlightCommand->command));
+					pInFlightCommand->command.message_type = messageType;
 					pInFlightCommand->retried = FALSE;
 					pInFlightCommand->original_sequence_id = command->sequence_id;	// AVDECC_TODO - is this correct?
 
 					CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &pInFlightCommand->timer);
 					switch (messageType) {
-						case OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_COMMAND:
+						case OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND:
+							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_CONNECT_TX_COMMAND * MICROSECONDS_PER_MSEC);
+							break;
+						case OPENAVB_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND:
+							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_DISCONNECT_TX_COMMAND * MICROSECONDS_PER_MSEC);
+							break;
+						default:
+							AVB_LOGF_ERROR("Unsupported command %u in openavbAcmpSMListener_txCommand", messageType);
 							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_CONNECT_RX_COMMAND * MICROSECONDS_PER_MSEC);
-							break;
-						case OPENAVB_ACMP_MESSAGE_TYPE_DISCONNECT_RX_COMMAND:
-							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_DISCONNECT_RX_COMMAND * MICROSECONDS_PER_MSEC);
-							break;
-						case OPENAVB_ACMP_MESSAGE_TYPE_GET_RX_STATE_COMMAND:
-							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_GET_RX_STATE_COMMAND * MICROSECONDS_PER_MSEC);
 							break;
 					}
 				}
@@ -208,14 +210,15 @@ void openavbAcmpSMListener_txCommand(U8 messageType, openavb_acmp_ACMPCommandRes
 
 					CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &pInFlightCommand->timer);
 					switch (messageType) {
-						case OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_COMMAND:
+						case OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND:
+							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_CONNECT_TX_COMMAND * MICROSECONDS_PER_MSEC);
+							break;
+						case OPENAVB_ACMP_MESSAGE_TYPE_DISCONNECT_TX_COMMAND:
+							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_DISCONNECT_TX_COMMAND * MICROSECONDS_PER_MSEC);
+							break;
+						default:
+							AVB_LOGF_ERROR("Unsupported command %u in openavbAcmpSMListener_txCommand", messageType);
 							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_CONNECT_RX_COMMAND * MICROSECONDS_PER_MSEC);
-							break;
-						case OPENAVB_ACMP_MESSAGE_TYPE_DISCONNECT_RX_COMMAND:
-							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_DISCONNECT_RX_COMMAND * MICROSECONDS_PER_MSEC);
-							break;
-						case OPENAVB_ACMP_MESSAGE_TYPE_GET_RX_STATE_COMMAND:
-							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_GET_RX_STATE_COMMAND * MICROSECONDS_PER_MSEC);
 							break;
 					}
 				}
@@ -429,6 +432,10 @@ void openavbAcmpSMListenerStateMachine()
 										state = OPENAVB_ACMP_SM_LISTENER_STATE_DISCONNECT_TX_TIMEOUT;
 										pInflightActive = pInflight;
 									}
+									else {
+										AVB_LOGF_ERROR("Unrecognized listener timeout command %u", pInflight->command.message_type);
+										bRunning = FALSE;
+									}
 									break;
 								}
 								node = openavbListIterNext(openavbAcmpSMListenerVars.inflight);
@@ -494,7 +501,7 @@ void openavbAcmpSMListenerStateMachine()
 						else {
 							status = pRcvdCmdResp->status;
 						}
-						
+
 						// Save the state for this connection, so it can potentially be fast connected later.
 						// TODO:  Add fast connect support for STREAMING_WAIT connections by handling START_STREAMING and STOP_STREAMING commands.
 						if (gAvdeccCfg.bFastConnectSupported &&
@@ -612,11 +619,21 @@ void openavbAcmpSMListenerStateMachine()
 
 					if (pInflightActive) {
 						if (pInflightActive->retried) {
-							openavb_acmp_ACMPCommandResponse_t response;
-							memcpy(&response, &pInflightActive->command, sizeof(response));
-							response.sequence_id = pInflightActive->original_sequence_id;
-							openavbAcmpSMListener_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, &response, OPENAVB_ACMP_STATUS_LISTENER_TALKER_TIMEOUT);
-							openavbAcmpSMListener_removeInflight(&pInflightActive->command);
+							if ((pInflightActive->command.flags & OPENAVB_ACMP_FLAG_FAST_CONNECT) != 0) {
+								// Special handling for Fast Connect CONNECT_TX_COMMAND failures.
+								// Wait another CONNECT_TX_COMMAND timeout period before trying again.
+								AVB_LOG_DEBUG("Fast Connect timeout handling");
+								pInflightActive->retried = FALSE;
+								openavbTimeTimespecAddUsec(&pInflightActive->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_CONNECT_TX_COMMAND * MICROSECONDS_PER_MSEC);
+							}
+							else {
+								// Standard handling.  Notify the AVDECC controller.
+								openavb_acmp_ACMPCommandResponse_t response;
+								memcpy(&response, &pInflightActive->command, sizeof(response));
+								response.sequence_id = pInflightActive->original_sequence_id;
+								openavbAcmpSMListener_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, &response, OPENAVB_ACMP_STATUS_LISTENER_TALKER_TIMEOUT);
+								openavbAcmpSMListener_removeInflight(&pInflightActive->command);
+							}
 						}
 						else {
 							openavbAcmpSMListener_txCommand(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_COMMAND, &pInflightActive->command, TRUE);

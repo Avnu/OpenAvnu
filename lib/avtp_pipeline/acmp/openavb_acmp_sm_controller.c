@@ -107,6 +107,7 @@ void openavbAcmpSMController_txCommand(U8 messageType, openavb_acmp_ACMPCommandR
 				if (pInFlightCommand) {
 
 					memcpy(&pInFlightCommand->command, command, sizeof(pInFlightCommand->command));
+					pInFlightCommand->command.message_type = messageType;
 					pInFlightCommand->retried = FALSE;
 					pInFlightCommand->original_sequence_id = command->sequence_id;	// AVDECC_TODO - is this correct?
 
@@ -126,6 +127,10 @@ void openavbAcmpSMController_txCommand(U8 messageType, openavb_acmp_ACMPCommandR
 							break;
 						case OPENAVB_ACMP_MESSAGE_TYPE_GET_TX_CONNECTION_RESPONSE:
 							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_GET_TX_CONNECTION_COMMAND * MICROSECONDS_PER_MSEC);
+							break;
+						default:
+							AVB_LOGF_ERROR("Unsupported command %u in openavbAcmpSMController_txCommand", messageType);
+							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_CONNECT_RX_COMMAND * MICROSECONDS_PER_MSEC);
 							break;
 					}
 				}
@@ -155,6 +160,10 @@ void openavbAcmpSMController_txCommand(U8 messageType, openavb_acmp_ACMPCommandR
 							break;
 						case OPENAVB_ACMP_MESSAGE_TYPE_GET_TX_CONNECTION_RESPONSE:
 							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_GET_TX_CONNECTION_COMMAND * MICROSECONDS_PER_MSEC);
+							break;
+						default:
+							AVB_LOGF_ERROR("Unsupported command %u in openavbAcmpSMController_txCommand", messageType);
+							openavbTimeTimespecAddUsec(&pInFlightCommand->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_CONNECT_RX_COMMAND * MICROSECONDS_PER_MSEC);
 							break;
 					}
 				}
