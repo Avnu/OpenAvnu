@@ -47,6 +47,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 struct openavb_saved_state {
 	char listener_friendly_name[FRIENDLY_NAME_SIZE];
+	U16 flags;
+	U16 talker_unique_id;
 	U8 talker_entity_id[8];
 	U8 controller_entity_id[8];
 };
@@ -59,7 +61,7 @@ const openavb_saved_state_t * openavbAvdeccGetSavedState(int index);
 
 // Add a saved state to the list of saved states.
 // Returns the index for the new saved state, or -1 if an error occurred.
-int openavbAvdeccAddSavedState(const char listener_friendly_name[FRIENDLY_NAME_SIZE], const U8 talker_entity_id[8], const U8 controller_entity_id[8]);
+int openavbAvdeccAddSavedState(const char listener_friendly_name[FRIENDLY_NAME_SIZE], U16 flags, U16 talker_unique_id, const U8 talker_entity_id[8], const U8 controller_entity_id[8]);
 
 // Delete the saved state information at the specified index.
 // Returns TRUE if successfully deleted, FALSE otherwise.

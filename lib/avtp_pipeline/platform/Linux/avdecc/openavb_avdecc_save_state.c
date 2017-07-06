@@ -89,6 +89,8 @@ static bool get_saved_state_info(const char *ini_file)
 
 	FILE* file;
 	char temp_buffer[FRIENDLY_NAME_SIZE + 10];
+	long temp_int;
+	char *pEnd;
 
 	s_nNumSavedStates = -1;
 
@@ -147,6 +149,44 @@ static bool get_saved_state_info(const char *ini_file)
 			break;
 		}
 
+		// Extract the flags.
+		if (fgets(temp_buffer, sizeof(temp_buffer), file) == NULL) {
+			AVB_LOGF_ERROR("Error reading from INI file: %s", ini_file);
+			fclose(file);
+			free(pvtFilename);
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return false;
+		}
+		errno = 0;
+		temp_int = strtol(temp_buffer, &pEnd, 10);
+		if (*pEnd != '\n' || errno != 0 || temp_int < 0 || temp_int > 0xFFFF) {
+			AVB_LOGF_ERROR("Error getting Flags from INI file: %s", ini_file);
+			fclose(file);
+			free(pvtFilename);
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return false;
+		}
+		s_sSavedStateInfo[s_nNumSavedStates].flags = (U16) temp_int;
+
+		// Extract the talker_unique_id.
+		if (fgets(temp_buffer, sizeof(temp_buffer), file) == NULL) {
+			AVB_LOGF_ERROR("Error reading from INI file: %s", ini_file);
+			fclose(file);
+			free(pvtFilename);
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return false;
+		}
+		errno = 0;
+		temp_int = strtol(temp_buffer, &pEnd, 10);
+		if (*pEnd != '\n' || errno != 0 || temp_int < 0 || temp_int > 0xFFFF) {
+			AVB_LOGF_ERROR("Error getting Talker Unique ID from INI file: %s", ini_file);
+			fclose(file);
+			free(pvtFilename);
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return false;
+		}
+		s_sSavedStateInfo[s_nNumSavedStates].talker_unique_id = (U16) temp_int;
+
 		// Extract the Talker Entity ID.
 		if (fgets(temp_buffer, sizeof(temp_buffer), file) == NULL) {
 			AVB_LOGF_ERROR("Error reading from INI file: %s", ini_file);
@@ -189,7 +229,7 @@ static bool get_saved_state_info(const char *ini_file)
 	fclose(file);
 	free(pvtFilename);
 
-	AVB_LOGF_DEBUG("Extraced %d saved states from INI file: %s", s_nNumSavedStates, ini_file);
+	AVB_LOGF_DEBUG("Extracted %d saved states from INI file: %s", s_nNumSavedStates, ini_file);
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 
 	return true;
@@ -221,8 +261,10 @@ static bool write_saved_state_info(const char *ini_file)
 	}
 
 	for (i = 0; i < s_nNumSavedStates; ++i) {
-		if (fprintf(file, "%s\n" ENTITYID_FORMAT "\n" ENTITYID_FORMAT "\n\n",
+		if (fprintf(file, "%s\n%u\n%u\n" ENTITYID_FORMAT "\n" ENTITYID_FORMAT "\n\n",
 				s_sSavedStateInfo[i].listener_friendly_name,
+				s_sSavedStateInfo[i].flags,
+				s_sSavedStateInfo[i].talker_unique_id,
 				ENTITYID_ARGS(s_sSavedStateInfo[i].talker_entity_id),
 				ENTITYID_ARGS(s_sSavedStateInfo[i].controller_entity_id)) < 0) {
 			AVB_LOGF_ERROR("Error writing to INI file: %s", ini_file);
@@ -263,7 +305,7 @@ const openavb_saved_state_t * openavbAvdeccGetSavedState(int index)
 
 // Add a saved state to the list of saved states.
 // Returns the index for the new saved state, or -1 if an error occurred.
-int openavbAvdeccAddSavedState(const char listener_friendly_name[FRIENDLY_NAME_SIZE], const U8 talker_entity_id[8], const U8 controller_entity_id[8])
+int openavbAvdeccAddSavedState(const char listener_friendly_name[FRIENDLY_NAME_SIZE], U16 flags, U16 talker_unique_id, const U8 talker_entity_id[8], const U8 controller_entity_id[8])
 {
 	// Load the file data, if needed.
 	if (s_nNumSavedStates < 0 && !get_saved_state_info(DEFAULT_AVDECC_SAVE_INI_FILE)) {
@@ -278,6 +320,8 @@ int openavbAvdeccAddSavedState(const char listener_friendly_name[FRIENDLY_NAME_S
 	// Append the supplied state to the list of states.
 	strncpy(s_sSavedStateInfo[s_nNumSavedStates].listener_friendly_name, listener_friendly_name, FRIENDLY_NAME_SIZE);
 	s_sSavedStateInfo[s_nNumSavedStates].listener_friendly_name[FRIENDLY_NAME_SIZE - 1] = '\0';
+	s_sSavedStateInfo[s_nNumSavedStates].flags = flags;
+	s_sSavedStateInfo[s_nNumSavedStates].talker_unique_id = talker_unique_id;
 	memcpy(s_sSavedStateInfo[s_nNumSavedStates].talker_entity_id, talker_entity_id, 8);
 	memcpy(s_sSavedStateInfo[s_nNumSavedStates].controller_entity_id, controller_entity_id, 8);
 	s_nNumSavedStates++;
@@ -323,7 +367,7 @@ bool openavbAvdeccDeleteSavedState(int index)
 
 // Save the connection to the saved state
 //
-bool openavbAvdeccSaveState(const openavb_tl_data_cfg_t *pListener, const U8 talker_entity_id[8], const U8 controller_entity_id[8])
+bool openavbAvdeccSaveState(const openavb_tl_data_cfg_t *pListener, U16 flags, U16 talker_unique_id, const U8 talker_entity_id[8], const U8 controller_entity_id[8])
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
@@ -344,7 +388,9 @@ bool openavbAvdeccSaveState(const openavb_tl_data_cfg_t *pListener, const U8 tal
 		}
 
 		if (strcmp(pTest->listener_friendly_name, pListener->friendly_name) == 0) {
-			if (memcmp(pTest->talker_entity_id, talker_entity_id, 8) == 0 &&
+			if (pTest->flags == flags &&
+					pTest->talker_unique_id == talker_unique_id &&
+					memcmp(pTest->talker_entity_id, talker_entity_id, 8) == 0 &&
 					memcmp(pTest->controller_entity_id, controller_entity_id, 8) == 0) {
 				// The supplied data is a match for the existing item.  Do nothing.
 				AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
@@ -358,10 +404,12 @@ bool openavbAvdeccSaveState(const openavb_tl_data_cfg_t *pListener, const U8 tal
 	}
 
 	// Add the supplied state to the list of states.
-	openavbAvdeccAddSavedState(pListener->friendly_name, talker_entity_id, controller_entity_id);
+	openavbAvdeccAddSavedState(pListener->friendly_name, flags, talker_unique_id, talker_entity_id, controller_entity_id);
 
-	AVB_LOGF_DEBUG("New saved state:  listener_id=%s, talker_entity_id=" ENTITYID_FORMAT ", controller_entity_id=" ENTITYID_FORMAT,
+	AVB_LOGF_DEBUG("New saved state:  listener_id=%s, flags=0x%04x, talker_unique_id=0x%04x, talker_entity_id=" ENTITYID_FORMAT ", controller_entity_id=" ENTITYID_FORMAT,
 		pListener->friendly_name,
+		flags,
+		talker_unique_id,
 		ENTITYID_ARGS(talker_entity_id),
 		ENTITYID_ARGS(controller_entity_id));
 
@@ -397,6 +445,54 @@ bool openavbAvdeccClearSavedState(const openavb_tl_data_cfg_t *pListener)
 	}
 
 	AVB_LOGF_WARNING("Unable to find saved state to clear:  listener_id=\"%s\"", pListener->friendly_name);
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+	return false;
+}
+
+// Determine if the connection as a saved state
+bool openavbAvdeccSaveStateInfo(const openavb_tl_data_cfg_t *pListener, U16 *p_flags, U16 *p_talker_unique_id, U8 (*p_talker_entity_id)[8], U8 (*p_controller_entity_id)[8])
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
+
+	int i;
+
+	// Don't return anything from the saved state list if fast connect support is not enabled.
+	if (!gAvdeccCfg.bFastConnectSupported) {
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return false;
+	}
+
+	// If the loaded saved state information matches the Listener supplied, return the information for it.
+	for (i = 0; i < MAX_SAVED_STATES; ++i) {
+		const openavb_saved_state_t * pTest = openavbAvdeccGetSavedState(i);
+		if (!pTest) {
+			break;
+		}
+
+		if (strcmp(pTest->listener_friendly_name, pListener->friendly_name) == 0) {
+			AVB_LOGF_DEBUG("Saved state available for listener_id=%s, flags=0x%04x, talker_unique_id=0x%04x, talker_entity_id=" ENTITYID_FORMAT ", controller_entity_id=" ENTITYID_FORMAT,
+					pListener->friendly_name,
+					pTest->flags,
+					pTest->talker_unique_id,
+					ENTITYID_ARGS(pTest->talker_entity_id),
+					ENTITYID_ARGS(pTest->controller_entity_id));
+			if (p_flags) {
+				*p_flags = pTest->flags;
+			}
+			if (p_talker_unique_id) {
+				*p_talker_unique_id = pTest->talker_unique_id;
+			}
+			if (p_talker_entity_id) {
+				memcpy(*p_talker_entity_id, pTest->talker_entity_id, 8);
+			}
+			if (p_controller_entity_id) {
+				memcpy(*p_controller_entity_id, pTest->controller_entity_id, 8);
+			}
+			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+			return true;
+		}
+	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return false;
 }

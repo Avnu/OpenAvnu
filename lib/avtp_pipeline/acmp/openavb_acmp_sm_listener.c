@@ -495,6 +495,25 @@ void openavbAcmpSMListenerStateMachine()
 							status = pRcvdCmdResp->status;
 						}
 						
+						// Save the state for this connection, so it can potentially be fast connected later.
+						// TODO:  Add fast connect support for STREAMING_WAIT connections by handling START_STREAMING and STOP_STREAMING commands.
+						if (gAvdeccCfg.bFastConnectSupported &&
+								status == OPENAVB_ACMP_STATUS_SUCCESS &&
+								(pRcvdCmdResp->flags & OPENAVB_ACMP_FLAG_STREAMING_WAIT) == 0) {
+							openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, pRcvdCmdResp->listener_unique_id);
+							if (pDescriptorStreamInput != NULL && pDescriptorStreamInput->stream != NULL) {
+								if (openavbAvdeccSaveState(
+										pDescriptorStreamInput->stream,
+										(pRcvdCmdResp->flags & (OPENAVB_ACMP_FLAG_CLASS_B | OPENAVB_ACMP_FLAG_SUPPORTS_ENCRYPTED | OPENAVB_ACMP_FLAG_ENCRYPTED_PDU)),
+										pRcvdCmdResp->talker_unique_id,
+										pRcvdCmdResp->talker_entity_id,
+										pRcvdCmdResp->controller_entity_id)) {
+									// Let the Controller know that the state is saved.
+									response.flags |= OPENAVB_ACMP_FLAG_SAVED_STATE;
+								}
+							}
+						}
+
 						openavb_list_node_t node = openavbAcmpSMListener_findInflightNodeFromCommand(pRcvdCmdResp);
 						if (node) {
 							openavb_acmp_InflightCommand_t *pInFlightCommand = openavbListData(node);
@@ -505,15 +524,6 @@ void openavbAcmpSMListenerStateMachine()
 						openavbAcmpSMListener_cancelTimeout(pRcvdCmdResp);
 						openavbAcmpSMListener_removeInflight(pRcvdCmdResp);
 						openavbAcmpSMListener_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_RESPONSE, &response, status);
-
-						// Save the state for this connection, so it can potentially be fast connected later.
-						if (gAvdeccCfg.bFastConnectSupported && status == OPENAVB_ACMP_STATUS_SUCCESS) {
-							U16 configIdx = openavbAemGetConfigIdx();
-							openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, pRcvdCmdResp->listener_unique_id);
-							if (pDescriptorStreamInput != NULL && pDescriptorStreamInput->stream != NULL) {
-								openavbAvdeccSaveState(pDescriptorStreamInput->stream, pRcvdCmdResp->talker_entity_id, pRcvdCmdResp->controller_entity_id);
-							}
-						}
 					}
 					state = OPENAVB_ACMP_SM_LISTENER_STATE_WAITING;
 				}
@@ -810,5 +820,41 @@ void openavbAcmpSMListenerSet_doTerminate(bool value)
 }
 
 
+void openavbAcmpSMListenerSet_doFastConnect(const openavb_tl_data_cfg_t *pListener, U16 flags, U16 talker_unique_id, const U8 talker_entity_id[8], const U8 controller_entity_id[8])
+{
+	openavb_acmp_ACMPCommandResponse_t command;
 
+	// Create a fake CONNECT_RX_COMMAND to kick off the fast connect process.
+	// The FAST_CONNECT flag is used to indicate internally that the controller didn't initiate this.
+	//
+	// TODO:  IEEE 1722.1-2013 Clause 8.2.1.18 implies that stream_vlan_id should always be 0.  Is that really the case?
+	//
+	memset(&command, 0, sizeof(command));
+	command.message_type = OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_COMMAND;
+	memset(command.stream_id, 0xFF, 8);
+	memcpy(command.controller_entity_id, controller_entity_id, 8);
+	memcpy(command.talker_entity_id, talker_entity_id, 8);
+	memcpy(command.listener_entity_id, openavbAcmpSMGlobalVars.my_id, 8);
+	command.talker_unique_id = talker_unique_id;
+	memset(command.stream_dest_mac, 0xFF, 6);
+	command.flags = flags | OPENAVB_ACMP_FLAG_FAST_CONNECT | OPENAVB_ACMP_FLAG_SAVED_STATE;
 
+	// Determine the listener_unique_id for the supplied listener.
+	U16 listenerUniqueId;
+	for (listenerUniqueId = 0; listenerUniqueId < 0xFFFF; ++listenerUniqueId) {
+		openavb_aem_descriptor_stream_io_t *pDescriptor =openavbAemGetDescriptor(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, listenerUniqueId);
+		if (!pDescriptor) {
+			// Out of listeners to try.  Assume something went wrong.
+			AVB_LOG_ERROR("Unable to find listener_unique_id for fast connect");
+			return;
+		}
+		if (pDescriptor->stream && strcmp(pDescriptor->stream->friendly_name, pListener->friendly_name) == 0) {
+			// We found a match.
+			command.listener_unique_id = listenerUniqueId;
+			break;
+		}
+	}
+
+	// Start processing the faked command.
+	openavbAcmpSMListenerSet_rcvdConnectRXCmd(&command);
+}
