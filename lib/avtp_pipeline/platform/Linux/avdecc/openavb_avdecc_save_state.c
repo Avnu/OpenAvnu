@@ -449,7 +449,7 @@ bool openavbAvdeccClearSavedState(const openavb_tl_data_cfg_t *pListener)
 	return false;
 }
 
-// Determine if the connection as a saved state
+// Determine if the connection has a saved state
 bool openavbAvdeccSaveStateInfo(const openavb_tl_data_cfg_t *pListener, U16 *p_flags, U16 *p_talker_unique_id, U8 (*p_talker_entity_id)[8], U8 (*p_controller_entity_id)[8])
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);

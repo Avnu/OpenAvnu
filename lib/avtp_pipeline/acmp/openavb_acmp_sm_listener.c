@@ -844,7 +844,9 @@ void openavbAcmpSMListenerSet_doFastConnect(const openavb_tl_data_cfg_t *pListen
 	// Create a fake CONNECT_RX_COMMAND to kick off the fast connect process.
 	// The FAST_CONNECT flag is used to indicate internally that the controller didn't initiate this.
 	//
-	// TODO:  IEEE 1722.1-2013 Clause 8.2.1.18 implies that stream_vlan_id should always be 0.  Is that really the case?
+	// TODO:  IEEE 1722.1-2013 Clause 8.2.1.18 implies that stream_vlan_id should always be 0 for CONNECT_RX_COMMAND,
+	//  as it is the Talker that may set a non-zero value in CONNECT_TX_RESPONSE.
+	//  Is that really the case?
 	//
 	memset(&command, 0, sizeof(command));
 	command.message_type = OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_RX_COMMAND;

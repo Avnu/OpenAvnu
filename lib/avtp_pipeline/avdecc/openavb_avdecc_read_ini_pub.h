@@ -178,7 +178,7 @@ bool openavbAvdeccSaveState(const openavb_tl_data_cfg_t *pListener, U16 flags, U
  */
 bool openavbAvdeccClearSavedState(const openavb_tl_data_cfg_t *pListener);
 
-/** Determine if the connection as a saved state
+/** Determine if the connection has a saved state
  *
  * If fast connect support is enabled, this function is used to get the last
  * saved state (from a call to #openavbAvdeccSaveState) for a Listener, if any.
