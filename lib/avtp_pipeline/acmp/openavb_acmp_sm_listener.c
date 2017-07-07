@@ -518,6 +518,9 @@ void openavbAcmpSMListenerStateMachine()
 									// Let the Controller know that the state is saved.
 									response.flags |= OPENAVB_ACMP_FLAG_SAVED_STATE;
 								}
+								if (pDescriptorStreamInput->fast_connect_status >= OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS) {
+									pDescriptorStreamInput->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_SUCCEEDED;
+								}
 							}
 						}
 
@@ -577,6 +580,7 @@ void openavbAcmpSMListenerStateMachine()
 							U16 configIdx = openavbAemGetConfigIdx();
 							openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, pRcvdCmdResp->listener_unique_id);
 							if (pDescriptorStreamInput != NULL && pDescriptorStreamInput->stream != NULL) {
+								pDescriptorStreamInput->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_NOT_AVAILABLE;
 								openavbAvdeccClearSavedState(pDescriptorStreamInput->stream);
 							}
 						}
@@ -621,10 +625,27 @@ void openavbAcmpSMListenerStateMachine()
 						if (pInflightActive->retried) {
 							if ((pInflightActive->command.flags & OPENAVB_ACMP_FLAG_FAST_CONNECT) != 0) {
 								// Special handling for Fast Connect CONNECT_TX_COMMAND failures.
-								// Wait another CONNECT_TX_COMMAND timeout period before trying again.
 								AVB_LOG_DEBUG("Fast Connect timeout handling");
+								openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, pInflightActive->command.listener_unique_id);
+								if (pDescriptorStreamInput != NULL &&
+										pDescriptorStreamInput->fast_connect_status == OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS) {
+									pDescriptorStreamInput->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_TIMED_OUT;
+								}
+#if 0
+								// Wait another CONNECT_TX_COMMAND timeout period and then try again.
+								// This option is described at the end of the second paragraph of IEEE 1722.1-2013 Clause 8.2.2.1.1.
+								//
+								// This feature is currently disabled, as it's not clear all the ramifications
+								// of having an inflight attempt at the same time we might be initiating another
+								// fast connect as a result of the ADP discovery of the Talker,
+								// or of using the state machine to allow retries indefinitely.
+								//
 								pInflightActive->retried = FALSE;
 								openavbTimeTimespecAddUsec(&pInflightActive->timer, OPENAVB_ACMP_COMMAND_TIMEOUT_CONNECT_TX_COMMAND * MICROSECONDS_PER_MSEC);
+#else
+								// Abort this attempt without sending a message the Controller.
+								openavbAcmpSMListener_removeInflight(&pInflightActive->command);
+#endif
 							}
 							else {
 								// Standard handling.  Notify the AVDECC controller.
@@ -837,9 +858,37 @@ void openavbAcmpSMListenerSet_doTerminate(bool value)
 }
 
 
+// Special command to initiate the fast connect support.
 void openavbAcmpSMListenerSet_doFastConnect(const openavb_tl_data_cfg_t *pListener, U16 flags, U16 talker_unique_id, const U8 talker_entity_id[8], const U8 controller_entity_id[8])
 {
 	openavb_acmp_ACMPCommandResponse_t command;
+
+	// Get the descriptor and listener_unique_id for the supplied listener.
+	openavb_aem_descriptor_stream_io_t *pDescriptor;
+	U16 listenerUniqueId;
+	for (listenerUniqueId = 0; listenerUniqueId < 0xFFFF; ++listenerUniqueId) {
+		pDescriptor = openavbAemGetDescriptor(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, listenerUniqueId);
+		if (!pDescriptor) {
+			// Out of listeners to try.  Assume something went wrong.
+			AVB_LOG_ERROR("Unable to find listener_unique_id for fast connect");
+			return;
+		}
+		if (pDescriptor->stream && strcmp(pDescriptor->stream->friendly_name, pListener->friendly_name) == 0) {
+			// We found a match.
+			break;
+		}
+	}
+
+	// Should we attempt to fast connect?
+	if (!gAvdeccCfg.bFastConnectSupported ||
+			(pDescriptor->fast_connect_status != OPENAVB_FAST_CONNECT_STATUS_UNKNOWN &&
+			 pDescriptor->fast_connect_status != OPENAVB_FAST_CONNECT_STATUS_TIMED_OUT)) {
+		return;
+	}
+
+	// Update the descriptor.
+	pDescriptor->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS;
+	memcpy(pDescriptor->fast_connect_talker_entity_id, talker_entity_id, 8);
 
 	// Create a fake CONNECT_RX_COMMAND to kick off the fast connect process.
 	// The FAST_CONNECT flag is used to indicate internally that the controller didn't initiate this.
@@ -855,25 +904,54 @@ void openavbAcmpSMListenerSet_doFastConnect(const openavb_tl_data_cfg_t *pListen
 	memcpy(command.talker_entity_id, talker_entity_id, 8);
 	memcpy(command.listener_entity_id, openavbAcmpSMGlobalVars.my_id, 8);
 	command.talker_unique_id = talker_unique_id;
+	command.listener_unique_id = listenerUniqueId;
 	memset(command.stream_dest_mac, 0xFF, 6);
 	command.flags = flags | OPENAVB_ACMP_FLAG_FAST_CONNECT | OPENAVB_ACMP_FLAG_SAVED_STATE;
 
-	// Determine the listener_unique_id for the supplied listener.
-	U16 listenerUniqueId;
-	for (listenerUniqueId = 0; listenerUniqueId < 0xFFFF; ++listenerUniqueId) {
-		openavb_aem_descriptor_stream_io_t *pDescriptor =openavbAemGetDescriptor(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, listenerUniqueId);
-		if (!pDescriptor) {
-			// Out of listeners to try.  Assume something went wrong.
-			AVB_LOG_ERROR("Unable to find listener_unique_id for fast connect");
-			return;
-		}
-		if (pDescriptor->stream && strcmp(pDescriptor->stream->friendly_name, pListener->friendly_name) == 0) {
-			// We found a match.
-			command.listener_unique_id = listenerUniqueId;
-			break;
-		}
-	}
+	AVB_LOGF_INFO("Listener %s attempting fast connect to flags=0x%04x, talker_unique_id=0x%04x, talker_entity_id=" ENTITYID_FORMAT ", controller_entity_id=" ENTITYID_FORMAT,
+			pListener->friendly_name,
+			flags,
+			talker_unique_id,
+			ENTITYID_ARGS(talker_entity_id),
+			ENTITYID_ARGS(controller_entity_id));
 
 	// Start processing the faked command.
 	openavbAcmpSMListenerSet_rcvdConnectRXCmd(&command);
+}
+
+// Assist function to detect if Talker available for fast connect
+void openavbAcmpSMListenerSet_talkerTestFastConnect(
+	const U8 entity_id[8])
+{
+	//AVB_LOGF_DEBUG("Talker entity discovered:  " ENTITYID_FORMAT, ENTITYID_ARGS(entity_id));
+
+	// Are there any Listeners that have been unsuccessful in a fast connect?
+	openavb_aem_descriptor_stream_io_t *pDescriptor;
+	U16 listenerUniqueId;
+	for (listenerUniqueId = 0; listenerUniqueId < 0xFFFF; ++listenerUniqueId) {
+		pDescriptor = openavbAemGetDescriptor(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, listenerUniqueId);
+		if (!pDescriptor) {
+			// Out of listeners to try.
+			break;
+		}
+
+		if (pDescriptor->stream &&
+				pDescriptor->fast_connect_status == OPENAVB_FAST_CONNECT_STATUS_TIMED_OUT &&
+				memcmp(pDescriptor->fast_connect_talker_entity_id, entity_id, 8) == 0) {
+			// We found a Talker matching the one we have been looking for.
+			// Get the rest of the details we need to connect to it.
+			U16 flags, talker_unique_id;
+			U8 talker_entity_id[8], controller_entity_id[8];
+			bool bAvailable = openavbAvdeccGetSaveStateInfo(pDescriptor->stream, &flags, &talker_unique_id, &talker_entity_id, &controller_entity_id);
+			if (bAvailable && memcmp(entity_id, talker_entity_id, 8) == 0) {
+				AVB_LOGF_DEBUG("Detected talker_entity_id=" ENTITYID_FORMAT ".  Retrying fast connect.", ENTITYID_ARGS(talker_entity_id));
+				openavbAcmpSMListenerSet_doFastConnect(pDescriptor->stream, flags, talker_unique_id, talker_entity_id, controller_entity_id);
+			}
+			else {
+				AVB_LOGF_ERROR("Unexpected fast connect info for talker_entity_id=" ENTITYID_FORMAT, ENTITYID_ARGS(entity_id));
+			}
+
+			break;
+		}
+	}
 }

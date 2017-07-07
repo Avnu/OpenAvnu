@@ -87,4 +87,8 @@ void openavbAcmpSMListenerSet_doFastConnect(
 	const U8 talker_entity_id[8],
 	const U8 controller_entity_id[8]);
 
+// Assist function to detect if Talker available for fast connect
+void openavbAcmpSMListenerSet_talkerTestFastConnect(
+	const U8 entity_id[8]);
+
 #endif // OPENAVB_ACMP_SM_LISTENER_H

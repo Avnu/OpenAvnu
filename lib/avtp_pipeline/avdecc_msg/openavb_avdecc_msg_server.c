@@ -332,13 +332,8 @@ bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, o
 				if (pCfg) {
 					U16 flags, talker_unique_id;
 					U8 talker_entity_id[8], controller_entity_id[8];
-					bool bAvailable = openavbAvdeccSaveStateInfo(pCfg, &flags, &talker_unique_id, &talker_entity_id, &controller_entity_id);
+					bool bAvailable = openavbAvdeccGetSaveStateInfo(pCfg, &flags, &talker_unique_id, &talker_entity_id, &controller_entity_id);
 					if (bAvailable) {
-						AVB_LOGF_INFO("Attempting fast connect to flags=0x%04x, talker_unique_id=0x%04x, talker_entity_id=" ENTITYID_FORMAT ", controller_entity_id=" ENTITYID_FORMAT,
-								flags,
-								talker_unique_id,
-								ENTITYID_ARGS(talker_entity_id),
-								ENTITYID_ARGS(controller_entity_id));
 						openavbAcmpSMListenerSet_doFastConnect(pCfg, flags, talker_unique_id, talker_entity_id, controller_entity_id);
 					}
 				}

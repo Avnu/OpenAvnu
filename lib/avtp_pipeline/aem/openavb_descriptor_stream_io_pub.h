@@ -47,6 +47,15 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #define OPENAVB_DESCRIPTOR_STREAM_IO_MAX_FORMATS (47)
 
+// Possible statuses of the fast connect support for the Listener
+typedef enum {
+	OPENAVB_FAST_CONNECT_STATUS_UNKNOWN = 0, // Still need to determine if something is available
+	OPENAVB_FAST_CONNECT_STATUS_NOT_AVAILABLE, // No fast connects available for the Listener, or is a Talker
+	OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS, // Attempting fast connect
+	OPENAVB_FAST_CONNECT_STATUS_TIMED_OUT, // Talker did not respond to fast connect attempts
+	OPENAVB_FAST_CONNECT_STATUS_SUCCEEDED, // Fast connect was successful; don't need to try again
+} openavb_fast_connect_status_t;
+
 // STREAM IO Descriptor IEEE Std 1722.1-2013 clause 7.2.6
 typedef struct {
 	openavb_descriptor_pvt_ptr_t descriptorPvtPtr;
@@ -71,6 +80,10 @@ typedef struct {
 	U16 avb_interface_index;
 	U32 buffer_length;
 	openavb_aem_stream_format_t stream_formats[OPENAVB_DESCRIPTOR_STREAM_IO_MAX_FORMATS];
+
+	// Current status of the fast connect support for the Listener.
+	openavb_fast_connect_status_t fast_connect_status;
+	U8 fast_connect_talker_entity_id[8];
 
 	// Also save a pointer to the supplied stream information.
 	const openavb_tl_data_cfg_t *stream;

@@ -170,7 +170,8 @@ bool openavbAvdeccSaveState(const openavb_tl_data_cfg_t *pListener, U16 flags, U
  *
  * If fast connect support is enabled, this function is used to clear previously
  * saved state information (from a previous call to #openavbAvdeccSaveState).
- * This function should be called from the Listener when a Talker/Listener connection is closed.
+ * This function should be called from the Listener when a Talker/Listener connection is closed
+ * (and fast connects should no longer be attempted in the future).
  *
  * \param pListener Pointer to configuration for the Listener
  *
@@ -191,6 +192,6 @@ bool openavbAvdeccClearSavedState(const openavb_tl_data_cfg_t *pListener);
  *
  * \return TRUE if there is a saved state, or FALSE otherwise
  */
-bool openavbAvdeccSaveStateInfo(const openavb_tl_data_cfg_t *pListener, U16 *p_flags, U16 *p_talker_unique_id, U8 (*p_talker_entity_id)[8], U8 (*p_controller_entity_id)[8]);
+bool openavbAvdeccGetSaveStateInfo(const openavb_tl_data_cfg_t *pListener, U16 *p_flags, U16 *p_talker_unique_id, U8 (*p_talker_entity_id)[8], U8 (*p_controller_entity_id)[8]);
 
 #endif  // OPENAVB_AVDECC_READ_INI_PUB_H
