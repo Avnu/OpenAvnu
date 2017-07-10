@@ -95,6 +95,8 @@ typedef struct {
 	U16 vlanID;
 	U8 vlanPCP;
 
+	bool bFastConnectSupported; // FAST_CONNECT and SAVED_STATE supported
+
 	U8 valid_time; // Number of 2-second units
 
 	// Information to add to the descriptor.

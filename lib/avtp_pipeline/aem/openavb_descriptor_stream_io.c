@@ -298,6 +298,9 @@ extern DLL_EXPORT openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStream
 	pDescriptor->localized_description.offset = OPENAVB_AEM_NO_STRING_OFFSET;
 	pDescriptor->localized_description.index = OPENAVB_AEM_NO_STRING_INDEX;
 
+	// Will determine the status of this once the Listener has connected to AVDECC.
+	pDescriptor->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_UNKNOWN;
+
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;
 }
@@ -338,6 +341,9 @@ extern DLL_EXPORT openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStream
 	// Default to no localized strings.
 	pDescriptor->localized_description.offset = OPENAVB_AEM_NO_STRING_OFFSET;
 	pDescriptor->localized_description.index = OPENAVB_AEM_NO_STRING_INDEX;
+
+	// Talkers won't attempt to fast connect.
+	pDescriptor->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_NOT_AVAILABLE;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AEM);
 	return pDescriptor;

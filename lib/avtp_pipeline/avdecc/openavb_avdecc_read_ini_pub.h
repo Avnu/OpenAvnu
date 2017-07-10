@@ -148,4 +148,50 @@ typedef struct openavb_tl_data_cfg openavb_tl_data_cfg_t;
  */
 bool openavbReadTlDataIniFile(const char *fileName, openavb_tl_data_cfg_t *pCfg);
 
+
+/** Save the connection to the saved state
+ *
+ * If fast connect support is enabled, this function is used to save the state
+ * of the connection by a Listener when a connection is successfully made to
+ * a Talker for possible fast connect support later.
+ * #openavbAvdeccClearSavedState() should be called when the connection is closed.
+ *
+ * \param pListener Pointer to configuration for the Listener
+ * \param flags The flags used for the connection (CLASS_B, SUPPORTS_ENCRYPTED, ENCRYPTED_PDU)
+ * \param talker_unique_id The unique id for the Talker
+ * \param talker_entity_id The binary entity id for the Talker
+ * \param controller_entity_id The binary entity id for the Controller that initiated the connection
+ *
+ * \return TRUE on success or FALSE on failure
+ */
+bool openavbAvdeccSaveState(const openavb_tl_data_cfg_t *pListener, U16 flags, U16 talker_unique_id, const U8 talker_entity_id[8], const U8 controller_entity_id[8]);
+
+/** Delete a connection with saved state
+ *
+ * If fast connect support is enabled, this function is used to clear previously
+ * saved state information (from a previous call to #openavbAvdeccSaveState).
+ * This function should be called from the Listener when a Talker/Listener connection is closed
+ * (and fast connects should no longer be attempted in the future).
+ *
+ * \param pListener Pointer to configuration for the Listener
+ *
+ * \return TRUE on success or FALSE on failure
+ */
+bool openavbAvdeccClearSavedState(const openavb_tl_data_cfg_t *pListener);
+
+/** Determine if the connection has a saved state
+ *
+ * If fast connect support is enabled, this function is used to get the last
+ * saved state (from a call to #openavbAvdeccSaveState) for a Listener, if any.
+ *
+ * \param pListener Pointer to configuration for the Listener
+ * \param p_flags Optional pointer to the flags used for the connection (CLASS_B, SUPPORTS_ENCRYPTED, ENCRYPTED_PDU)
+ * \param p_talker_unique_id Optional pointer to the unique id for the Talker
+ * \param p_talker_entity_id Optional pointer to the buffer to fill in the binary entity id for the Talker
+ * \param p_controller_entity_id Optional pointer to the buffer to fill in the binary entity id for the Controller that initiated the connection
+ *
+ * \return TRUE if there is a saved state, or FALSE otherwise
+ */
+bool openavbAvdeccGetSaveStateInfo(const openavb_tl_data_cfg_t *pListener, U16 *p_flags, U16 *p_talker_unique_id, U8 (*p_talker_entity_id)[8], U8 (*p_controller_entity_id)[8]);
+
 #endif  // OPENAVB_AVDECC_READ_INI_PUB_H
