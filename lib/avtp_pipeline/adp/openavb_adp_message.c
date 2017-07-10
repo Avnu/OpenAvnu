@@ -51,6 +51,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_srp.h"
 #include "openavb_adp.h"
 #include "openavb_adp_sm_advertise_interface.h"
+#include "openavb_acmp_sm_listener.h"
 
 #ifdef AVB_PTP_AVAILABLE
 #include "openavb_ptp_api.h"
@@ -194,7 +195,9 @@ static void openavbAdpMessageRxFrameParse(U8* payload, int payload_len, hdr_info
 		OCT_B2DMEMCP(pDst->entity_id, pSrc);
 	}
 
-	if (adpHeader.subtype == OPENAVB_ADP_AVTP_SUBTYPE && adpHeader.message_type == OPENAVB_ADP_MESSAGE_TYPE_ENTITY_DISCOVER) {
+	if (adpHeader.subtype == OPENAVB_ADP_AVTP_SUBTYPE &&
+			(adpHeader.message_type == OPENAVB_ADP_MESSAGE_TYPE_ENTITY_DISCOVER ||
+			 (gAvdeccCfg.bFastConnectSupported && adpHeader.message_type == OPENAVB_ADP_MESSAGE_TYPE_ENTITY_AVAILABLE))) {
 		// ADP PDU
 		openavb_adp_data_unit_t *pDst = &adpPdu;
 
@@ -214,9 +217,17 @@ static void openavbAdpMessageRxFrameParse(U8* payload, int payload_len, hdr_info
 		OCT_B2DMEMCP(pDst->association_id, pSrc);
 		OCT_B2DMEMCP(pDst->reserved1, pSrc);
 
-		// Update the interface state machine
-		openavbAdpSMAdvertiseInterfaceSet_entityID(adpHeader.entity_id);
-		openavbAdpSMAdvertiseInterfaceSet_rcvdDiscover(TRUE);
+		if (adpHeader.message_type == OPENAVB_ADP_MESSAGE_TYPE_ENTITY_DISCOVER) {
+			// Update the interface state machine
+			openavbAdpSMAdvertiseInterfaceSet_entityID(adpHeader.entity_id);
+			openavbAdpSMAdvertiseInterfaceSet_rcvdDiscover(TRUE);
+		}
+		else {
+			// See if Fast Connect is waiting for this device to be available.
+			if (adpPdu.talker_stream_sources > 0) {
+				openavbAcmpSMListenerSet_talkerTestFastConnect(adpHeader.entity_id);
+			}
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);

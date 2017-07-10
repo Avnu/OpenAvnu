@@ -79,4 +79,16 @@ void openavbAcmpSMListenerSet_rcvdDisconnectTXResp(openavb_acmp_ACMPCommandRespo
 void openavbAcmpSMListenerSet_rcvdGetRXState(openavb_acmp_ACMPCommandResponse_t *command);
 void openavbAcmpSMListenerSet_doTerminate(bool value);
 
+// Special command to initiate the fast connect support.
+void openavbAcmpSMListenerSet_doFastConnect(
+	const openavb_tl_data_cfg_t *pListener,
+	U16 flags,
+	U16 talker_unique_id,
+	const U8 talker_entity_id[8],
+	const U8 controller_entity_id[8]);
+
+// Assist function to detect if Talker available for fast connect
+void openavbAcmpSMListenerSet_talkerTestFastConnect(
+	const U8 entity_id[8]);
+
 #endif // OPENAVB_ACMP_SM_LISTENER_H

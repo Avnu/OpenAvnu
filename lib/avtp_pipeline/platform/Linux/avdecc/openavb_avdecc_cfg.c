@@ -106,6 +106,21 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 			return 0;
 		}
 	}
+	else if (MATCH(section, "fast_connect"))
+	{
+		if (MATCH(name, "fast_connect")) {
+			errno = 0;
+			pCfg->bFastConnectSupported = (strtoul(value, &pEnd, 10) != 0);
+			if (*pEnd == '\0' && errno == 0)
+				valOK = TRUE;
+		}
+		else {
+			// unmatched item, fail
+			AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
+			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+			return 0;
+		}
+	}
 	else if (MATCH(section, "discovery"))
 	{
 		if (MATCH(name, "valid_time")) {
@@ -149,9 +164,7 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 					pCfg->entity_model_id[i] = (U8) (nTemp & 0xFF);
 					nTemp = (nTemp >> 8);
 				}
-				AVB_LOGF_DEBUG("entity_model_id = %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-					pCfg->entity_model_id[0], pCfg->entity_model_id[1], pCfg->entity_model_id[2], pCfg->entity_model_id[3],
-					pCfg->entity_model_id[4], pCfg->entity_model_id[5], pCfg->entity_model_id[6], pCfg->entity_model_id[7]);
+				AVB_LOGF_DEBUG("entity_model_id = " ENTITYID_FORMAT, ENTITYID_ARGS(pCfg->entity_model_id));
 			}
 		}
 		else if (MATCH(name, "entity_name"))

@@ -55,6 +55,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_avdecc_pub.h"
 #include "openavb_adp.h"
 #include "openavb_acmp_sm_talker.h"
+#include "openavb_acmp_sm_listener.h"
 
 #include "openavb_avdecc_msg_server.h"
 #include "openavb_trace.h"
@@ -322,6 +323,20 @@ bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, o
 			} else if (pState->stream->initial_state != TL_INIT_STATE_RUNNING && pState->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
 				// Have the client not be running if the user didn't explicitly request it to be running.
 				openavbAvdeccMsgSrvrChangeRequest(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+			} else if (gAvdeccCfg.bFastConnectSupported &&
+					!(pState->bTalker) &&
+					pState->lastReportedState == OPENAVB_AVDECC_MSG_STOPPED) {
+				// Listener started as not running, and is not configured to start in the running state.
+				// See if we should do a fast connect using the saved state.
+				openavb_tl_data_cfg_t *pCfg = pState->stream;
+				if (pCfg) {
+					U16 flags, talker_unique_id;
+					U8 talker_entity_id[8], controller_entity_id[8];
+					bool bAvailable = openavbAvdeccGetSaveStateInfo(pCfg, &flags, &talker_unique_id, &talker_entity_id, &controller_entity_id);
+					if (bAvailable) {
+						openavbAcmpSMListenerSet_doFastConnect(pCfg, flags, talker_unique_id, talker_entity_id, controller_entity_id);
+					}
+				}
 			}
 		}
 	}
