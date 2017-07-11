@@ -255,12 +255,12 @@ U8 openavbAcmpSMListener_connectListener(openavb_acmp_ACMPCommandResponse_t *res
 
 	openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo = openavbArrayDataIdx(openavbAcmpSMListenerVars.listenerStreamInfos, response->listener_unique_id);
 	if (pListenerStreamInfo) {
+		memcpy(pListenerStreamInfo->stream_id, response->stream_id, sizeof(pListenerStreamInfo->stream_id));
+		memcpy(pListenerStreamInfo->controller_entity_id, response->controller_entity_id, sizeof(pListenerStreamInfo->controller_entity_id));
 		memcpy(pListenerStreamInfo->talker_entity_id, response->talker_entity_id, sizeof(pListenerStreamInfo->talker_entity_id));
 		pListenerStreamInfo->talker_unique_id = response->talker_unique_id;
-		pListenerStreamInfo->connected = TRUE; 
-		memcpy(pListenerStreamInfo->stream_id, response->stream_id, sizeof(pListenerStreamInfo->stream_id));
 		memcpy(pListenerStreamInfo->stream_dest_mac, response->stream_dest_mac, sizeof(pListenerStreamInfo->stream_dest_mac));
-		memcpy(pListenerStreamInfo->controller_entity_id, response->controller_entity_id, sizeof(pListenerStreamInfo->controller_entity_id));
+		pListenerStreamInfo->connected = TRUE;
 		pListenerStreamInfo->flags = response->flags;
 		pListenerStreamInfo->stream_vlan_id = response->stream_vlan_id;
 
@@ -349,12 +349,13 @@ U8 openavbAcmpSMListener_getState(openavb_acmp_ACMPCommandResponse_t *command)
 	openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo = openavbArrayDataIdx(openavbAcmpSMListenerVars.listenerStreamInfos, command->listener_unique_id);
 	if (pListenerStreamInfo) {
 		memcpy(command->stream_id, pListenerStreamInfo->stream_id, sizeof(command->stream_id));
+		memcpy(command->talker_entity_id, pListenerStreamInfo->talker_entity_id, sizeof(command->talker_entity_id));
+		command->talker_unique_id = pListenerStreamInfo->talker_unique_id;
+		//command->listener_unique_id = command->listener_unique_id;				// Overwriting data in passed in structure
 		memcpy(command->stream_dest_mac, pListenerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
-		command->stream_vlan_id = pListenerStreamInfo->stream_vlan_id;
 		command->connection_count = pListenerStreamInfo->connected ? 1 : 0;			// AVDECC_TODO - questionable information in spec.
 		command->flags = pListenerStreamInfo->flags;
-		memcpy(command->talker_entity_id, pListenerStreamInfo->talker_entity_id, sizeof(command->talker_entity_id));
-		//command->listener_unique_id = command->listener_unique_id;				// Overwriting data in passed in structure
+		command->stream_vlan_id = pListenerStreamInfo->stream_vlan_id;
 		retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
 	}
 
@@ -548,7 +549,7 @@ void openavbAcmpSMListenerStateMachine()
 					openavb_acmp_ACMPCommandResponse_t response;
 					memcpy(&response, pRcvdCmdResp, sizeof(response));
 					if (openavbAcmpSMListener_validListenerUnique(pRcvdCmdResp->listener_unique_id)) {
-						error = openavbAcmpSMListener_getState(pRcvdCmdResp);
+						error = openavbAcmpSMListener_getState(&response);
 					}
 					else {
 						error = OPENAVB_ACMP_STATUS_LISTENER_UNKNOWN_ID;
