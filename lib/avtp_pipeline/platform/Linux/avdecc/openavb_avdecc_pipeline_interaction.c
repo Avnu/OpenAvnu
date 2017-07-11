@@ -272,6 +272,14 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 		ETH_OCTETS(pTalkerStreamInfo->stream_id),
 		(((U16) pTalkerStreamInfo->stream_id[6]) << 8) | (U16) pTalkerStreamInfo->stream_id[7]);
 
+	// Get the VLAN ID.
+	if (pDescriptorStreamOutput->stream->vlan_id == VLAN_NULL) {
+		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid stream vlan_id");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	pTalkerStreamInfo->stream_vlan_id = pDescriptorStreamOutput->stream->vlan_id;
+
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;
 }

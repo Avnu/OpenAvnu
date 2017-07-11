@@ -174,6 +174,18 @@ bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, const U8 stream_src
 		return false;
 	}
 
+	// Verify that the destination address is valid.
+	if (memcmp(stream_dest_mac, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+		AVB_LOG_DEBUG("stream_dest_mac not yet valid.  Not sending to AVDECC Msg Server.");
+		return true;
+	}
+
+	// Verify that the stream_vlan_id is valid.
+	if (stream_vlan_id == VLAN_NULL) {
+		AVB_LOG_DEBUG("stream_vlan_id not yet valid.  Not sending to AVDECC Msg Server.");
+		return true;
+	}
+
 	// Send the stream information to the server.
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
 	msgBuf.type = OPENAVB_AVDECC_MSG_TALKER_STREAM_ID;

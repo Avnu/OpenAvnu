@@ -237,7 +237,7 @@ bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, const
 		ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
 	AVB_LOGF_DEBUG("Talker-supplied dest_addr:  " ETH_FORMAT,
 		ETH_OCTETS(pCfg->dest_addr.buffer.ether_addr_octet));
-	AVB_LOGF_DEBUG("AVDECC-supplied vlan_id:  %u", pCfg->vlan_id);
+	AVB_LOGF_DEBUG("Talker-supplied vlan_id:  %u", pCfg->vlan_id);
 
 	// Notify the state machine that we received this information.
 	openavbAcmpSMTalker_updateStreamInfo(pCfg);
