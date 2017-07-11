@@ -863,6 +863,7 @@ void openavbAcmpSMListenerSet_doTerminate(bool value)
 void openavbAcmpSMListenerSet_doFastConnect(const openavb_tl_data_cfg_t *pListener, U16 flags, U16 talker_unique_id, const U8 talker_entity_id[8], const U8 controller_entity_id[8])
 {
 	openavb_acmp_ACMPCommandResponse_t command;
+	static U16 s_sequence_id = 0;
 
 	// Get the descriptor and listener_unique_id for the supplied listener.
 	openavb_aem_descriptor_stream_io_t *pDescriptor;
@@ -907,6 +908,7 @@ void openavbAcmpSMListenerSet_doFastConnect(const openavb_tl_data_cfg_t *pListen
 	command.talker_unique_id = talker_unique_id;
 	command.listener_unique_id = listenerUniqueId;
 	memset(command.stream_dest_mac, 0xFF, 6);
+	command.sequence_id = ++s_sequence_id;
 	command.flags = flags | OPENAVB_ACMP_FLAG_FAST_CONNECT | OPENAVB_ACMP_FLAG_SAVED_STATE;
 
 	AVB_LOGF_INFO("Listener %s attempting fast connect to flags=0x%04x, talker_unique_id=0x%04x, talker_entity_id=" ENTITYID_FORMAT ", controller_entity_id=" ENTITYID_FORMAT,
