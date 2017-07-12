@@ -42,6 +42,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_endpoint.h"
 #include "openavb_avtp.h"
 #include "openavb_listener.h"
+#include "openavb_avdecc_msg.h"
 
 // DEBUG Uncomment to turn on logging for just this module.
 //#define AVB_LOG_ON	1
@@ -137,6 +138,11 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 
 		// We're still interested in the stream
 		openavbEptClntAttachStream(pTLState->endpointHandle, streamID, openavbSrp_LDSt_Interest);
+
+		// Notify AVDECC that fast connect is desired.
+		if (pTLState->bAvdeccMsgRunning) {
+			openavbAvdeccMsgClntChangeNotification(pTLState->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED_UNEXPECTEDLY);
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);

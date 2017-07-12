@@ -310,6 +310,8 @@ static const char * GetStateString(openavbAvdeccMsgStateType_t state)
 		return "Running";
 	case OPENAVB_AVDECC_MSG_PAUSED:
 		return "Paused";
+	case OPENAVB_AVDECC_MSG_STOPPED_UNEXPECTEDLY:
+		return "Stopped_Unexpectedly";
 	default:
 		return "ERROR";
 	}
@@ -358,6 +360,43 @@ bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, o
 					}
 				}
 			}
+		}
+		else if (currentState == OPENAVB_AVDECC_MSG_STOPPED_UNEXPECTEDLY) {
+			if (previousState != OPENAVB_AVDECC_MSG_STOPPED_UNEXPECTEDLY &&
+					pState->lastRequestedState == OPENAVB_AVDECC_MSG_RUNNING &&
+					gAvdeccCfg.bFastConnectSupported) {
+				// The Talker disappeared.  Use fast connect to assist with reconnecting if it reappears.
+				openavb_tl_data_cfg_t *pCfg = pState->stream;
+				if (pCfg) {
+					U16 flags, talker_unique_id;
+					U8 talker_entity_id[8], controller_entity_id[8];
+					bool bAvailable = openavbAvdeccGetSaveStateInfo(pCfg, &flags, &talker_unique_id, &talker_entity_id, &controller_entity_id);
+					if (bAvailable) {
+						// Set the timed-out status for the Listener's descriptor.
+						// The next time the Talker advertises itself, openavbAcmpSMListenerSet_talkerTestFastConnect() should try to reconnect.
+						openavb_aem_descriptor_stream_io_t *pDescriptor;
+						U16 listenerUniqueId;
+						for (listenerUniqueId = 0; listenerUniqueId < 0xFFFF; ++listenerUniqueId) {
+							pDescriptor = openavbAemGetDescriptor(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, listenerUniqueId);
+							if (pDescriptor && pDescriptor->stream &&
+									strcmp(pDescriptor->stream->friendly_name, pCfg->friendly_name) == 0) {
+								// We found a match.
+								AVB_LOGF_INFO("Listener %s waiting to fast connect to flags=0x%04x, talker_unique_id=0x%04x, talker_entity_id=" ENTITYID_FORMAT ", controller_entity_id=" ENTITYID_FORMAT,
+										pCfg->friendly_name,
+										flags,
+										talker_unique_id,
+										ENTITYID_ARGS(talker_entity_id),
+										ENTITYID_ARGS(controller_entity_id));
+								pDescriptor->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_TIMED_OUT;
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			// Now that we have handled this, treat this state as a normal stop.
+			pState->lastReportedState = OPENAVB_AVDECC_MSG_STOPPED;
 		}
 	}
 
