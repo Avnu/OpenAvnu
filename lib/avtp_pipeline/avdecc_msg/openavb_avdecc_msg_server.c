@@ -299,6 +299,22 @@ bool openavbAvdeccMsgSrvrChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStat
 	return ret;
 }
 
+static const char * GetStateString(openavbAvdeccMsgStateType_t state)
+{
+	switch (state) {
+	case OPENAVB_AVDECC_MSG_UNKNOWN:
+		return "Unknown";
+	case OPENAVB_AVDECC_MSG_STOPPED:
+		return "Stopped";
+	case OPENAVB_AVDECC_MSG_RUNNING:
+		return "Running";
+	case OPENAVB_AVDECC_MSG_PAUSED:
+		return "Paused";
+	default:
+		return "ERROR";
+	}
+}
+
 bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
@@ -312,18 +328,22 @@ bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, o
 
 	// Save the updated state.
 	if (currentState != pState->lastReportedState) {
-		AVB_LOGF_INFO("client %d state changed from %d to %d", avdeccMsgHandle, pState->lastReportedState, currentState);
+		openavbAvdeccMsgStateType_t previousState = pState->lastReportedState;
 		pState->lastReportedState = currentState;
+		AVB_LOGF_INFO("Notified of client %d state change from %s to %s (Last requested:  %s)",
+				avdeccMsgHandle, GetStateString(previousState), GetStateString(currentState), GetStateString(pState->lastRequestedState));
 
 		// If AVDECC did not yet set the client state, set the client state to the desired state.
 		if (pState->lastRequestedState == OPENAVB_AVDECC_MSG_UNKNOWN) {
 			if (pState->stream->initial_state == TL_INIT_STATE_RUNNING && pState->lastReportedState != OPENAVB_AVDECC_MSG_RUNNING) {
 				// Have the client be running if the user explicitly requested it to be running.
 				openavbAvdeccMsgSrvrChangeRequest(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
-			} else if (pState->stream->initial_state != TL_INIT_STATE_RUNNING && pState->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
+			}
+			else if (pState->stream->initial_state != TL_INIT_STATE_RUNNING && pState->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
 				// Have the client not be running if the user didn't explicitly request it to be running.
 				openavbAvdeccMsgSrvrChangeRequest(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
-			} else if (gAvdeccCfg.bFastConnectSupported &&
+			}
+			else if (gAvdeccCfg.bFastConnectSupported &&
 					!(pState->bTalker) &&
 					pState->lastReportedState == OPENAVB_AVDECC_MSG_STOPPED) {
 				// Listener started as not running, and is not configured to start in the running state.
