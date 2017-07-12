@@ -218,14 +218,27 @@ bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, con
 		return false;
 	}
 
-	// Update the stream information supplied by the server.
+	// Determine if the supplied information differs from the current settings.
 	openavb_tl_cfg_t * pCfg = &(pState->pTLState->cfg);
-	memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
-	pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
-	pCfg->stream_uid = stream_uid;
-	memcpy(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6);
-	pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
-	pCfg->vlan_id = stream_vlan_id;
+	if (memcmp(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6) != 0 ||
+			 pCfg->stream_uid != stream_uid ||
+			 memcmp(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6) != 0 ||
+			 pCfg->vlan_id != stream_vlan_id) {
+		// If the Listener is running, stop the Listener before updating the information.
+		if (pState->pTLState->bRunning) {
+			AVB_LOG_DEBUG("Forcing Listener to Stop to change streaming settings");
+			openavbAvdeccMsgClntHndlChangeRequestFromServer(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+		}
+
+		// Update the stream information supplied by the server.
+		memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
+		pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
+		pCfg->stream_uid = stream_uid;
+		memcpy(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6);
+		pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
+		pCfg->vlan_id = stream_vlan_id;
+	 }
+
 	AVB_LOGF_DEBUG("AVDECC-supplied stream_id:  " ETH_FORMAT "/%u",
 		ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
 	AVB_LOGF_DEBUG("AVDECC-supplied dest_addr:  " ETH_FORMAT,

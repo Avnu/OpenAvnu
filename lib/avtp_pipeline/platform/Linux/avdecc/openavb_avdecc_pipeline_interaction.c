@@ -64,17 +64,8 @@ bool openavbAVDECCRunListener(openavb_aem_descriptor_stream_io_t *pDescriptorStr
 		return FALSE;
 	}
 
-	// Stop the Listener if it is currently running.
-	if (pDescriptorStreamInput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
-		if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptorStreamInput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED)) {
-			AVB_LOG_ERROR("Error requesting Listener change to Stopped");
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-			return FALSE;
-		}
-		AVB_LOG_INFO("Listener state change to Stopped requested");
-	}
-
 	// Send the Stream ID to the client.
+	// The client will stop a running Listener if the settings differ from its current values.
 	if (!openavbAvdeccMsgSrvrListenerStreamID(pDescriptorStreamInput->stream->client->avdeccMsgHandle,
 			pListenerStreamInfo->stream_id, /* The first 6 bytes of the steam_id are the source MAC Address */
 			(((U16) pListenerStreamInfo->stream_id[6]) << 8 | (U16) pListenerStreamInfo->stream_id[7]),
