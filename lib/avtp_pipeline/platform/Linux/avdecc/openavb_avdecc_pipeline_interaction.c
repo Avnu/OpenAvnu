@@ -250,7 +250,7 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 	// Get the destination MAC Address.
 	if (!pDescriptorStreamOutput->stream->dest_addr.mac ||
 			memcmp(pDescriptorStreamOutput->stream->dest_addr.buffer.ether_addr_octet, "\x00\x00\x00\x00\x00\x00", ETH_ALEN) == 0) {
-		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid stream dest_addr");
+		AVB_LOG_DEBUG("openavbAVDECCGetTalkerStreamInfo Invalid stream dest_addr");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
