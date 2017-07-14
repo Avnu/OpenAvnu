@@ -127,13 +127,22 @@ U8 openavbAcmpSMTalker_connectTalker(openavb_acmp_ACMPCommandResponse_t *command
 	if (pTalkerStreamInfo) {
 		openavb_list_node_t node = openavbAcmpSMTalker_findListenerPairNodeFromCommand(command);
 		if (node) {
-			// Already connected, so return the current status.
-			memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
-			memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
-			command->stream_vlan_id = pTalkerStreamInfo->stream_vlan_id;
-			command->connection_count = pTalkerStreamInfo->connection_count;
-			openavbAcmpSMTalker_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE, command, OPENAVB_ACMP_STATUS_SUCCESS);
-			retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
+			if (memcmp(pTalkerStreamInfo->stream_id, "\x00\x00\x00\x00\x00\x00\x00\x00", 8) == 0 ||
+					memcmp(pTalkerStreamInfo->stream_dest_mac, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+				// In the process of connecting.  Ignore this, as we don't yet have a response.
+				AVB_LOG_INFO("Ignoring duplicate CONNECT_TX_COMMAND");
+				retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
+			}
+			else {
+				// Already connected, so return the current status.
+				AVB_LOG_DEBUG("Sending immediate response to CONNECT_TX_COMMAND");
+				memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
+				memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
+				command->stream_vlan_id = pTalkerStreamInfo->stream_vlan_id;
+				command->connection_count = pTalkerStreamInfo->connection_count;
+				openavbAcmpSMTalker_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE, command, OPENAVB_ACMP_STATUS_SUCCESS);
+				retStatus = OPENAVB_ACMP_STATUS_SUCCESS;
+			}
 		}
 		else {
 			if (!pTalkerStreamInfo->connected_listeners) {
@@ -152,13 +161,9 @@ U8 openavbAcmpSMTalker_connectTalker(openavb_acmp_ACMPCommandResponse_t *command
 					AVB_TRACE_EXIT(AVB_TRACE_ACMP);
 					return retStatus;
 				}
-				openavbAVDECCGetTalkerStreamInfo(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo);
 
 				if (openavbAVDECCRunTalker(pDescriptorStreamOutput, configIdx, pTalkerStreamInfo)) {
 
-					memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
-					memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
-					command->stream_vlan_id = pTalkerStreamInfo->stream_vlan_id;
 					command->connection_count = pTalkerStreamInfo->connection_count;
 
 					// Wait for the Talker to supply us with updated stream information.

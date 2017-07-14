@@ -237,7 +237,7 @@ bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, const
 		ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
 	AVB_LOGF_DEBUG("Talker-supplied dest_addr:  " ETH_FORMAT,
 		ETH_OCTETS(pCfg->dest_addr.buffer.ether_addr_octet));
-	AVB_LOGF_DEBUG("AVDECC-supplied vlan_id:  %u", pCfg->vlan_id);
+	AVB_LOGF_DEBUG("Talker-supplied vlan_id:  %u", pCfg->vlan_id);
 
 	// Notify the state machine that we received this information.
 	openavbAcmpSMTalker_updateStreamInfo(pCfg);
@@ -299,6 +299,24 @@ bool openavbAvdeccMsgSrvrChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStat
 	return ret;
 }
 
+static const char * GetStateString(openavbAvdeccMsgStateType_t state)
+{
+	switch (state) {
+	case OPENAVB_AVDECC_MSG_UNKNOWN:
+		return "Unknown";
+	case OPENAVB_AVDECC_MSG_STOPPED:
+		return "Stopped";
+	case OPENAVB_AVDECC_MSG_RUNNING:
+		return "Running";
+	case OPENAVB_AVDECC_MSG_PAUSED:
+		return "Paused";
+	case OPENAVB_AVDECC_MSG_STOPPED_UNEXPECTEDLY:
+		return "Stopped_Unexpectedly";
+	default:
+		return "ERROR";
+	}
+}
+
 bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, openavbAvdeccMsgStateType_t currentState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
@@ -312,18 +330,22 @@ bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, o
 
 	// Save the updated state.
 	if (currentState != pState->lastReportedState) {
-		AVB_LOGF_INFO("client %d state changed from %d to %d", avdeccMsgHandle, pState->lastReportedState, currentState);
+		openavbAvdeccMsgStateType_t previousState = pState->lastReportedState;
 		pState->lastReportedState = currentState;
+		AVB_LOGF_INFO("Notified of client %d state change from %s to %s (Last requested:  %s)",
+				avdeccMsgHandle, GetStateString(previousState), GetStateString(currentState), GetStateString(pState->lastRequestedState));
 
 		// If AVDECC did not yet set the client state, set the client state to the desired state.
 		if (pState->lastRequestedState == OPENAVB_AVDECC_MSG_UNKNOWN) {
 			if (pState->stream->initial_state == TL_INIT_STATE_RUNNING && pState->lastReportedState != OPENAVB_AVDECC_MSG_RUNNING) {
 				// Have the client be running if the user explicitly requested it to be running.
 				openavbAvdeccMsgSrvrChangeRequest(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
-			} else if (pState->stream->initial_state != TL_INIT_STATE_RUNNING && pState->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
+			}
+			else if (pState->stream->initial_state != TL_INIT_STATE_RUNNING && pState->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
 				// Have the client not be running if the user didn't explicitly request it to be running.
 				openavbAvdeccMsgSrvrChangeRequest(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
-			} else if (gAvdeccCfg.bFastConnectSupported &&
+			}
+			else if (gAvdeccCfg.bFastConnectSupported &&
 					!(pState->bTalker) &&
 					pState->lastReportedState == OPENAVB_AVDECC_MSG_STOPPED) {
 				// Listener started as not running, and is not configured to start in the running state.
@@ -338,6 +360,43 @@ bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, o
 					}
 				}
 			}
+		}
+		else if (currentState == OPENAVB_AVDECC_MSG_STOPPED_UNEXPECTEDLY) {
+			if (previousState != OPENAVB_AVDECC_MSG_STOPPED_UNEXPECTEDLY &&
+					pState->lastRequestedState == OPENAVB_AVDECC_MSG_RUNNING &&
+					gAvdeccCfg.bFastConnectSupported) {
+				// The Talker disappeared.  Use fast connect to assist with reconnecting if it reappears.
+				openavb_tl_data_cfg_t *pCfg = pState->stream;
+				if (pCfg) {
+					U16 flags, talker_unique_id;
+					U8 talker_entity_id[8], controller_entity_id[8];
+					bool bAvailable = openavbAvdeccGetSaveStateInfo(pCfg, &flags, &talker_unique_id, &talker_entity_id, &controller_entity_id);
+					if (bAvailable) {
+						// Set the timed-out status for the Listener's descriptor.
+						// The next time the Talker advertises itself, openavbAcmpSMListenerSet_talkerTestFastConnect() should try to reconnect.
+						openavb_aem_descriptor_stream_io_t *pDescriptor;
+						U16 listenerUniqueId;
+						for (listenerUniqueId = 0; listenerUniqueId < 0xFFFF; ++listenerUniqueId) {
+							pDescriptor = openavbAemGetDescriptor(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, listenerUniqueId);
+							if (pDescriptor && pDescriptor->stream &&
+									strcmp(pDescriptor->stream->friendly_name, pCfg->friendly_name) == 0) {
+								// We found a match.
+								AVB_LOGF_INFO("Listener %s waiting to fast connect to flags=0x%04x, talker_unique_id=0x%04x, talker_entity_id=" ENTITYID_FORMAT ", controller_entity_id=" ENTITYID_FORMAT,
+										pCfg->friendly_name,
+										flags,
+										talker_unique_id,
+										ENTITYID_ARGS(talker_entity_id),
+										ENTITYID_ARGS(controller_entity_id));
+								pDescriptor->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_TIMED_OUT;
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			// Now that we have handled this, treat this state as a normal stop.
+			pState->lastReportedState = OPENAVB_AVDECC_MSG_STOPPED;
 		}
 	}
 
