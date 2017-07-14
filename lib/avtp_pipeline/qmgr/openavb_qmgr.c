@@ -103,18 +103,20 @@ static qmgrStream_t qmgr_streams[MAX_AVB_STREAMS];
 static bool setupHWQueue(int nClass, unsigned classBytesPerSec)
 {
 	int err = 0;
+#if (AVB_FEATURE_IGB)
 	U32 class_a_bytes_per_sec, class_b_bytes_per_sec;
+#endif
 
 	AVB_TRACE_ENTRY(AVB_TRACE_QUEUE_MANAGER);
 
+#if (AVB_FEATURE_IGB)
 	if (nClass == SR_CLASS_A) {
 		class_a_bytes_per_sec = classBytesPerSec;
-		class_b_bytes_per_sec =  qmgr_classes[SR_CLASS_B].classBytesPerSec;
+		class_b_bytes_per_sec = qmgr_classes[SR_CLASS_B].classBytesPerSec;
 	} else {
-		class_a_bytes_per_sec =  qmgr_classes[SR_CLASS_A].classBytesPerSec;
+		class_a_bytes_per_sec = qmgr_classes[SR_CLASS_A].classBytesPerSec;
 		class_b_bytes_per_sec = classBytesPerSec;
 	}
-#if (AVB_FEATURE_IGB)
 	err = igb_set_class_bandwidth2(qdisc_data.igb_dev, class_a_bytes_per_sec, class_b_bytes_per_sec);
 	if (err)
 		AVB_LOGF_ERROR("Adding stream; igb_set_class_bandwidth failed: %s", strerror(err));

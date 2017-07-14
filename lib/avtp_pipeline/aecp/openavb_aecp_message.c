@@ -67,10 +67,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 extern openavb_avdecc_cfg_t gAvdeccCfg;
 
-extern MUTEX_HANDLE(openavbAecpMutex);
-#define AECP_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAecpMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
-#define AECP_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(openavbAecpMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
-
 static void *rxSock = NULL;
 static void *txSock = NULL;
 static struct ether_addr intfAddr;
@@ -81,8 +77,6 @@ THREAD_TYPE(openavbAecpMessageRxThread);
 THREAD_DEFINITON(openavbAecpMessageRxThread);
 
 static bool bRunning = FALSE;
-
-static openavb_aecp_AEMCommandResponse_t openavbAecpCommandResponse;
 
 void openavbAecpCloseSocket()
 {
@@ -160,12 +154,14 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 #endif
 
 	// Save the source address
-	memcpy(openavbAecpCommandResponse.host, hdr->shost, ETH_ALEN);
+	openavb_aecp_AEMCommandResponse_t * openavbAecpCommandResponse = calloc(1, sizeof(openavb_aecp_AEMCommandResponse_t));
+	if (!openavbAecpCommandResponse) { return; }
+	memcpy(openavbAecpCommandResponse->host, hdr->shost, ETH_ALEN);
 
 	U8 *pSrc = payload;
 	{
 		// AVTP Control Header
-		openavb_aecp_control_header_t *pDst = &openavbAecpCommandResponse.headers;
+		openavb_aecp_control_header_t *pDst = &openavbAecpCommandResponse->headers;
 		BIT_B2DNTOHB(pDst->cd, pSrc, 0x80, 7, 0);
 		BIT_B2DNTOHB(pDst->subtype, pSrc, 0x7f, 0, 1);
 		BIT_B2DNTOHB(pDst->sv, pSrc, 0x80, 7, 0);
@@ -176,26 +172,27 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 		OCT_B2DMEMCP(pDst->target_entity_id, pSrc);
 	}
 
-	if (openavbAecpCommandResponse.headers.subtype == OPENAVB_AECP_AVTP_SUBTYPE) {
+	if (openavbAecpCommandResponse->headers.subtype == OPENAVB_AECP_AVTP_SUBTYPE) {
 		// AECP Common PDU Fields
-		openavb_aecp_common_data_unit_t *pDst = &openavbAecpCommandResponse.commonPdu;
+		openavb_aecp_common_data_unit_t *pDst = &openavbAecpCommandResponse->commonPdu;
 		OCT_B2DMEMCP(pDst->controller_entity_id, pSrc);
 		OCT_B2DNTOHS(pDst->sequence_id, pSrc);
 	}
 	else {
+		free(openavbAecpCommandResponse);
 		return;
 	}
 
-	if (openavbAecpCommandResponse.headers.message_type == OPENAVB_AECP_MESSAGE_TYPE_AEM_COMMAND) {
+	if (openavbAecpCommandResponse->headers.message_type == OPENAVB_AECP_MESSAGE_TYPE_AEM_COMMAND) {
 		// Entity Model PDU Fields
-		openavb_aecp_entity_model_data_unit_t *pDst = &openavbAecpCommandResponse.entityModelPdu;
+		openavb_aecp_entity_model_data_unit_t *pDst = &openavbAecpCommandResponse->entityModelPdu;
 		BIT_B2DNTOHS(pDst->u, pSrc, 0x8000, 15, 0);
 		BIT_B2DNTOHS(pDst->command_type, pSrc, 0x7fff, 0, 2);
 
-		switch (openavbAecpCommandResponse.entityModelPdu.command_type) {
+		switch (openavbAecpCommandResponse->entityModelPdu.command_type) {
 			case OPENAVB_AEM_COMMAND_CODE_ACQUIRE_ENTITY:
 				{
-					openavb_aecp_command_data_acquire_entity_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.acquireEntityCmd;
+					openavb_aecp_command_data_acquire_entity_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.acquireEntityCmd;
 					OCT_B2DNTOHL(pDst->flags, pSrc);
 					OCT_B2DMEMCP(pDst->owner_id, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
@@ -213,7 +210,7 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_READ_DESCRIPTOR:
 				{
-					openavb_aecp_command_data_read_descriptor_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.readDescriptorCmd;
+					openavb_aecp_command_data_read_descriptor_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.readDescriptorCmd;
 					OCT_B2DNTOHS(pDst->configuration_index, pSrc);
 					OCT_B2DNTOHS(pDst->reserved, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
@@ -228,7 +225,7 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_SET_STREAM_FORMAT:
 				{
-					openavb_aecp_commandresponse_data_set_stream_format_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.setStreamFormatCmd;
+					openavb_aecp_commandresponse_data_set_stream_format_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.setStreamFormatCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 					OCT_B2DMEMCP(pDst->stream_format, pSrc);
@@ -236,7 +233,7 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_GET_STREAM_FORMAT:
 				{
-					openavb_aecp_command_data_get_stream_format_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.getStreamFormatCmd;
+					openavb_aecp_command_data_get_stream_format_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.getStreamFormatCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 				}
@@ -263,7 +260,7 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_SET_SAMPLING_RATE:
 				{
-					openavb_aecp_commandresponse_data_set_sampling_rate_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.setSamplingRateCmd;
+					openavb_aecp_commandresponse_data_set_sampling_rate_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.setSamplingRateCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 					OCT_B2DMEMCP(pDst->sampling_rate, pSrc);
@@ -271,14 +268,14 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_GET_SAMPLING_RATE:
 				{
-					openavb_aecp_command_data_get_sampling_rate_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.getSamplingRateCmd;
+					openavb_aecp_command_data_get_sampling_rate_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.getSamplingRateCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 				}
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_SET_CLOCK_SOURCE:
 				{
-					openavb_aecp_commandresponse_data_set_clock_source_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.setClockSourceCmd;
+					openavb_aecp_commandresponse_data_set_clock_source_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.setClockSourceCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 					OCT_B2DNTOHS(pDst->clock_source_index, pSrc);
@@ -287,15 +284,15 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_GET_CLOCK_SOURCE:
 				{
-					openavb_aecp_command_data_get_clock_source_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.getClockSourceCmd;
+					openavb_aecp_command_data_get_clock_source_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.getClockSourceCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 				}
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_SET_CONTROL:
 				{
-					U8 *pSrcEnd = pSrc + openavbAecpCommandResponse.headers.control_data_length;
-					openavb_aecp_commandresponse_data_set_control_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.setControlCmd;
+					U8 *pSrcEnd = pSrc + openavbAecpCommandResponse->headers.control_data_length;
+					openavb_aecp_commandresponse_data_set_control_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.setControlCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 
@@ -366,7 +363,7 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_GET_CONTROL:
 				{
-					openavb_aecp_command_data_get_control_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.getControlCmd;
+					openavb_aecp_command_data_get_control_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.getControlCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 				}
@@ -389,14 +386,14 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_START_STREAMING:
 				{
-					openavb_aecp_commandresponse_data_start_streaming_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.startStreamingCmd;
+					openavb_aecp_commandresponse_data_start_streaming_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.startStreamingCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 				}
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_STOP_STREAMING:
 				{
-					openavb_aecp_commandresponse_data_stop_streaming_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.stopStreamingCmd;
+					openavb_aecp_commandresponse_data_stop_streaming_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.stopStreamingCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 				}
@@ -413,7 +410,7 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_GET_COUNTERS:
 				{
-					openavb_aecp_command_data_get_counters_t *pDst = &openavbAecpCommandResponse.entityModelPdu.command_data.getCountersCmd;
+					openavb_aecp_command_data_get_counters_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.getCountersCmd;
 					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
 					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
 				}
@@ -491,8 +488,8 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 		}
 
 		// Notify the state machine of the command request
-		openavbAecpSMEntityModelEntitySet_rcvdCommand(&openavbAecpCommandResponse);
-		openavbAecpSMEntityModelEntitySet_rcvdAEMCommand(TRUE);
+		// The buffer will be deleted once the request is handled.
+		openavbAecpSMEntityModelEntitySet_rcvdCommand(openavbAecpCommandResponse);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
@@ -582,7 +579,6 @@ void openavbAecpMessageTxFrame(openavb_aecp_AEMCommandResponse_t *AEMCommandResp
 	// Set the destination address
 	memcpy(pBuf, AEMCommandResponse->host, ETH_ALEN);
 
-	AECP_LOCK();
 	U8 *pDst = pBuf + hdrlen;
 	{
 		// AVTP Control Header
@@ -718,7 +714,7 @@ void openavbAecpMessageTxFrame(openavb_aecp_AEMCommandResponse_t *AEMCommandResp
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_SET_CONTROL:
 				{
-					openavb_aecp_commandresponse_data_set_control_t *pSrc = &openavbAecpCommandResponse.entityModelPdu.command_data.setControlRsp;
+					openavb_aecp_commandresponse_data_set_control_t *pSrc = &AEMCommandResponse->entityModelPdu.command_data.setControlRsp;
 					OCT_D2BHTONS(pDst, pSrc->descriptor_type);
 					OCT_D2BHTONS(pDst, pSrc->descriptor_index);
 
@@ -906,7 +902,6 @@ void openavbAecpMessageTxFrame(openavb_aecp_AEMCommandResponse_t *AEMCommandResp
 				break;
 		}
 	}
-	AECP_UNLOCK();
 
 	// Set length into buffer
 	BIT_D2BHTONS(pcontrol_data_length, (pDst - pcontrol_data_length_start_marker), 0, 2);
@@ -982,9 +977,9 @@ openavbRC openavbAecpMessageSendUnsolicitedNotificationIfNeeded(openavb_aecp_AEM
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 	// AVDECC_TODO : Currently not implemented. IEEE Std 1722.1-2013 clause 7.5
-	// The basic idea is to inform interested controllers about a change in state of the Entity Model. Ths change in state
+	// The basic idea is to inform interested controllers about a change in state of the Entity Model. This change in state
 	// could be from a AEM Command or other interfaces into the Entity Model. For AEM Commands this function will check the CommandResponse
-	// for the Success and correct Message Type and set the Unsoliciited flag and sent to interested controllers.
+	// for the Success and correct Message Type and set the Unsolicited flag and sent to interested controllers.
 	AVB_RC_TRACE_RET(OPENAVB_AVDECC_SUCCESS, AVB_TRACE_AECP);
 }
 

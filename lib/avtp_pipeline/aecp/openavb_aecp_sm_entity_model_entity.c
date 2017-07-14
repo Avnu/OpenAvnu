@@ -48,6 +48,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_aecp.h"
 #include "openavb_aecp_message.h"
 #include "openavb_aecp_sm_entity_model_entity.h"
+#include "openavb_list.h"
 
 #include "openavb_avdecc_pipeline_interaction_pub.h"
 #include "openavb_aecp_cmd_get_counters.h"
@@ -61,13 +62,13 @@ typedef enum {
 extern openavb_aecp_sm_global_vars_t openavbAecpSMGlobalVars;
 openavb_aecp_sm_entity_model_entity_vars_t openavbAecpSMEntityModelEntityVars;
 
-extern MUTEX_HANDLE(openavbAecpMutex);
-#define AECP_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAecpMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
-#define AECP_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(openavbAecpMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
-
 extern MUTEX_HANDLE(openavbAemMutex);
 #define AEM_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAemMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
 #define AEM_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(openavbAemMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
+
+MUTEX_HANDLE(openavbAecpQueueMutex);
+#define AECP_QUEUE_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAecpQueueMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
+#define AECP_QUEUE_UNLOCK() { MUTEX_CREATE_ERR(); MUTEX_UNLOCK(openavbAecpQueueMutex); MUTEX_LOG_ERR("Mutex unlock failure"); }
 
 MUTEX_HANDLE(openavbAecpSMMutex);
 #define AECP_SM_LOCK() { MUTEX_CREATE_ERR(); MUTEX_LOCK(openavbAecpSMMutex); MUTEX_LOG_ERR("Mutex lock failure"); }
@@ -78,11 +79,58 @@ THREAD_TYPE(openavbAecpSMEntityModelEntityThread);
 THREAD_DEFINITON(openavbAecpSMEntityModelEntityThread);
 
 
+static openavb_list_t s_commandQueue = NULL;
+
+// Returns 1 if the queue was not empty before adding the new command,
+//  0 if the queue was empty before adding the new command,
+//  or -1 if an error occurred.
+static int addCommandToQueue(openavb_aecp_AEMCommandResponse_t *command)
+{
+	int returnVal;
+
+	if (!s_commandQueue) { return -1; }
+	if (!command) { return -1; }
+
+	AECP_QUEUE_LOCK();
+	// Determine if the queue has something in it.
+	returnVal = (openavbListFirst(s_commandQueue) != NULL ? 1 : 0);
+
+	// Add the command to the end of the linked list.
+	if (openavbListAdd(s_commandQueue, command) == NULL) {
+		returnVal = -1;
+	}
+	AECP_QUEUE_UNLOCK();
+	return (returnVal);
+}
+
+static openavb_aecp_AEMCommandResponse_t * getNextCommandFromQueue(void)
+{
+	openavb_aecp_AEMCommandResponse_t *item = NULL;
+	openavb_list_node_t node;
+
+	if (!s_commandQueue) { return NULL; }
+
+	AECP_QUEUE_LOCK();
+	node = openavbListFirst(s_commandQueue);
+	if (node) {
+		item = openavbListData(node);
+		openavbListDelete(s_commandQueue, node);
+	}
+	AECP_QUEUE_UNLOCK();
+	return item;
+}
+
+
 void acquireEntity()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 
-	openavb_aecp_AEMCommandResponse_t *pCommand = &openavbAecpSMEntityModelEntityVars.rcvdCommand;
+	openavb_aecp_AEMCommandResponse_t *pCommand = openavbAecpSMEntityModelEntityVars.rcvdCommand;
+	if (!pCommand) {
+		AVB_LOG_ERROR("acquireEntity called without command");
+		AVB_TRACE_EXIT(AVB_TRACE_AECP);
+		return;
+	}
 
 	pCommand->headers.message_type = OPENAVB_AECP_MESSAGE_TYPE_AEM_RESPONSE;
 
@@ -126,7 +174,12 @@ void lockEntity()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 
-	openavb_aecp_AEMCommandResponse_t *pCommand = &openavbAecpSMEntityModelEntityVars.rcvdCommand;
+	openavb_aecp_AEMCommandResponse_t *pCommand = openavbAecpSMEntityModelEntityVars.rcvdCommand;
+	if (!pCommand) {
+		AVB_LOG_ERROR("lockEntity called without command");
+		AVB_TRACE_EXIT(AVB_TRACE_AECP);
+		return;
+	}
 
 	pCommand->headers.message_type = OPENAVB_AECP_MESSAGE_TYPE_AEM_RESPONSE;
 	pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_IMPLEMENTED;
@@ -142,7 +195,12 @@ bool processCommandCheckRestriction_CorrectController()
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 	bool bResult = FALSE;
 
-	openavb_aecp_AEMCommandResponse_t *pCommand = &openavbAecpSMEntityModelEntityVars.rcvdCommand;
+	openavb_aecp_AEMCommandResponse_t *pCommand = openavbAecpSMEntityModelEntityVars.rcvdCommand;
+	if (!pCommand) {
+		AVB_LOG_ERROR("processCommandCheckRestriction_CorrectController called without command");
+		AVB_TRACE_EXIT(AVB_TRACE_AECP);
+		return bResult;
+	}
 
 	openavb_avdecc_entity_model_t *pAem = openavbAemGetModel();
 	if (pAem) {
@@ -198,7 +256,12 @@ void processCommand()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 
-	openavb_aecp_AEMCommandResponse_t *pCommand = &openavbAecpSMEntityModelEntityVars.rcvdCommand;
+	openavb_aecp_AEMCommandResponse_t *pCommand = openavbAecpSMEntityModelEntityVars.rcvdCommand;
+	if (!pCommand) {
+		AVB_LOG_ERROR("processCommand called without command");
+		AVB_TRACE_EXIT(AVB_TRACE_AECP);
+		return;
+	}
 
 	// Set message type as response
 	pCommand->headers.message_type = OPENAVB_AECP_MESSAGE_TYPE_AEM_RESPONSE;
@@ -206,7 +269,7 @@ void processCommand()
 	// Set to Not Implemented. Will be overridden by commands that are implemented.
 	pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_IMPLEMENTED;
 
-	switch (openavbAecpSMEntityModelEntityVars.rcvdCommand.entityModelPdu.command_type) {
+	switch (pCommand->entityModelPdu.command_type) {
 		case OPENAVB_AEM_COMMAND_CODE_ACQUIRE_ENTITY:
 			// Implemented in the acquireEntity() function. Should never get here.
 			break;
@@ -862,6 +925,8 @@ void openavbAecpSMEntityModelEntityStateMachine()
 
 	openavb_aecp_sm_entity_model_entity_state_t state = OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING;
 
+	// Lock such that the mutex is held unless waiting for a semaphore. Synchronous processing of command responses.
+	AECP_SM_LOCK();
 	while (bRunning) {
 		switch (state) {
 			case OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING:
@@ -871,8 +936,10 @@ void openavbAecpSMEntityModelEntityStateMachine()
 
 				// Wait for a change in state
 				while (state == OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING && bRunning) {
+					AECP_SM_UNLOCK();
 					SEM_ERR_T(err);
 					SEM_WAIT(openavbAecpSMEntityModelEntityWaitingSemaphore, err);
+					AECP_SM_LOCK();
 
 					if (SEM_IS_ERR_NONE(err)) {
 						if (openavbAecpSMEntityModelEntityVars.doTerminate) {
@@ -881,8 +948,7 @@ void openavbAecpSMEntityModelEntityStateMachine()
 						else if (openavbAecpSMEntityModelEntityVars.doUnsolicited) {
 							state = OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_UNSOLICITED_RESPONSE;
 						}
-						else if (openavbAecpSMEntityModelEntityVars.rcvdAEMCommand &&
-								 !memcmp(openavbAecpSMEntityModelEntityVars.rcvdCommand.headers.target_entity_id, openavbAecpSMGlobalVars.myEntityID, sizeof(openavbAecpSMGlobalVars.myEntityID))) {
+						else if (openavbAecpSMEntityModelEntityVars.rcvdAEMCommand) {
 							state = OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_RECEIVED_COMMAND;
 						}
 					}
@@ -897,15 +963,28 @@ void openavbAecpSMEntityModelEntityStateMachine()
 
 			case OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_RECEIVED_COMMAND:
 				AVB_LOG_DEBUG("State:  OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_RECEIVED_COMMAND");
-				{
-					AECP_SM_LOCK();
-					if (openavbAecpSMEntityModelEntityVars.rcvdCommand.entityModelPdu.command_type == OPENAVB_AEM_COMMAND_CODE_ACQUIRE_ENTITY) {
+
+				while (TRUE) {
+					openavbAecpSMEntityModelEntityVars.rcvdCommand = getNextCommandFromQueue();
+					if (openavbAecpSMEntityModelEntityVars.rcvdCommand == NULL) {
+						break;
+					}
+
+					if (memcmp(openavbAecpSMEntityModelEntityVars.rcvdCommand->headers.target_entity_id,
+							openavbAecpSMGlobalVars.myEntityID,
+							sizeof(openavbAecpSMGlobalVars.myEntityID)) != 0) {
+						// Not intended for us.
+						free(openavbAecpSMEntityModelEntityVars.rcvdCommand);
+						continue;
+					}
+
+					if (openavbAecpSMEntityModelEntityVars.rcvdCommand->entityModelPdu.command_type == OPENAVB_AEM_COMMAND_CODE_ACQUIRE_ENTITY) {
 						acquireEntity();
 					}
-					else if (openavbAecpSMEntityModelEntityVars.rcvdCommand.entityModelPdu.command_type == OPENAVB_AEM_COMMAND_CODE_LOCK_ENTITY) {
+					else if (openavbAecpSMEntityModelEntityVars.rcvdCommand->entityModelPdu.command_type == OPENAVB_AEM_COMMAND_CODE_LOCK_ENTITY) {
 						lockEntity();
 					}
-					else if (openavbAecpSMEntityModelEntityVars.rcvdCommand.entityModelPdu.command_type == OPENAVB_AEM_COMMAND_CODE_ENTITY_AVAILABLE) {
+					else if (openavbAecpSMEntityModelEntityVars.rcvdCommand->entityModelPdu.command_type == OPENAVB_AEM_COMMAND_CODE_ENTITY_AVAILABLE) {
 						// State machine defines just returning the request command. Doing that in the processCommand function for consistency.
 						processCommand();
 					}
@@ -913,9 +992,10 @@ void openavbAecpSMEntityModelEntityStateMachine()
 						processCommand();
 					}
 
-					openavbAecpMessageSend(&openavbAecpSMEntityModelEntityVars.rcvdCommand);
-					AECP_SM_UNLOCK();
+					openavbAecpMessageSend(openavbAecpSMEntityModelEntityVars.rcvdCommand);
+					free(openavbAecpSMEntityModelEntityVars.rcvdCommand);
 				}
+
 				state = OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING;
 				break;
 	
@@ -926,6 +1006,8 @@ void openavbAecpSMEntityModelEntityStateMachine()
 
 		}
 	}
+	AECP_SM_UNLOCK();
+
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 }
 
@@ -940,18 +1022,28 @@ void* openavbAecpSMEntityModelEntityThreadFn(void *pv)
 void openavbAecpSMEntityModelEntityStart()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
-	
+
+	MUTEX_ATTR_HANDLE(mtq);
+	MUTEX_ATTR_INIT(mtq);
+	MUTEX_ATTR_SET_TYPE(mtq, MUTEX_ATTR_TYPE_DEFAULT);
+	MUTEX_ATTR_SET_NAME(mtq, "openavbAecpQueueMutex");
+	MUTEX_CREATE_ERR();
+	MUTEX_CREATE(openavbAecpQueueMutex, mtq);
+	MUTEX_LOG_ERR("Could not create/initialize 'openavbAecpQueueMutex' mutex");
+
 	MUTEX_ATTR_HANDLE(mta);
 	MUTEX_ATTR_INIT(mta);
 	MUTEX_ATTR_SET_TYPE(mta, MUTEX_ATTR_TYPE_DEFAULT);
 	MUTEX_ATTR_SET_NAME(mta, "openavbAecpSMMutex");
-	MUTEX_CREATE_ERR();
 	MUTEX_CREATE(openavbAecpSMMutex, mta);
 	MUTEX_LOG_ERR("Could not create/initialize 'openavbAecpSMMutex' mutex");
 
 	SEM_ERR_T(err);
 	SEM_INIT(openavbAecpSMEntityModelEntityWaitingSemaphore, 1, err);
 	SEM_LOG_ERR(err);
+
+	// Initialize the linked list (queue).
+	s_commandQueue = openavbListNewList();
 
 	// Start the Advertise Entity State Machine
 	bool errResult;
@@ -970,9 +1062,22 @@ void openavbAecpSMEntityModelEntityStop()
 
 	THREAD_JOIN(openavbAecpSMEntityModelEntityThread, NULL);
 
+	// Delete the linked list (queue).
+	openavb_aecp_AEMCommandResponse_t *item;
+	while ((item = getNextCommandFromQueue()) != NULL) {
+		 free(item);
+	}
+	openavbListDeleteList(s_commandQueue);
+
 	SEM_ERR_T(err);
 	SEM_DESTROY(openavbAecpSMEntityModelEntityWaitingSemaphore, err);
 	SEM_LOG_ERR(err);
+
+	MUTEX_CREATE_ERR();
+	MUTEX_DESTROY(openavbAecpQueueMutex);
+	MUTEX_LOG_ERR("Could not destroy 'openavbAecpQueueMutex' mutex");
+	MUTEX_DESTROY(openavbAecpSMMutex);
+	MUTEX_LOG_ERR("Could not destroy 'openavbAecpSMMutex' mutex");
 
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 }
@@ -980,23 +1085,36 @@ void openavbAecpSMEntityModelEntityStop()
 void openavbAecpSMEntityModelEntitySet_rcvdCommand(openavb_aecp_AEMCommandResponse_t *rcvdCommand)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
-	AECP_SM_LOCK();
-	memcpy(&openavbAecpSMEntityModelEntityVars.rcvdCommand, rcvdCommand, sizeof(*rcvdCommand));
-	AECP_SM_UNLOCK();
-	AVB_TRACE_EXIT(AVB_TRACE_AECP);
-}
 
-void openavbAecpSMEntityModelEntitySet_rcvdAEMCommand(bool value)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
-	AECP_SM_LOCK();
-	openavbAecpSMEntityModelEntityVars.rcvdAEMCommand = value;
+	if (memcmp(rcvdCommand->headers.target_entity_id,
+			openavbAecpSMGlobalVars.myEntityID,
+			sizeof(openavbAecpSMGlobalVars.myEntityID)) != 0) {
+		// Not intended for us.
+		free(openavbAecpSMEntityModelEntityVars.rcvdCommand);
+		return;
+	}
 
-	SEM_ERR_T(err);
-	SEM_POST(openavbAecpSMEntityModelEntityWaitingSemaphore, err);
-	SEM_LOG_ERR(err);
+	int result = addCommandToQueue(rcvdCommand);
+	if (result < 0) {
+		AVB_LOG_DEBUG("addCommandToQueue failed");
+		free(rcvdCommand);
+	}
+	else if (result == 0) {
+		// We just added an item to an empty queue.
+		// Notify the machine state thread that something is waiting.
+		AECP_SM_LOCK();
+		openavbAecpSMEntityModelEntityVars.rcvdAEMCommand = TRUE;
 
-	AECP_SM_UNLOCK();
+		SEM_ERR_T(err);
+		SEM_POST(openavbAecpSMEntityModelEntityWaitingSemaphore, err);
+		SEM_LOG_ERR(err);
+		AECP_SM_UNLOCK();
+	}
+	else {
+		// We added an item to a non-empty queue.
+		// Assume it will be handled when the other items in the queue are handled.
+	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 }
 
@@ -1005,15 +1123,7 @@ void openavbAecpSMEntityModelEntitySet_unsolicited(openavb_aecp_AEMCommandRespon
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
 	AECP_SM_LOCK();
 	memcpy(&openavbAecpSMEntityModelEntityVars.unsolicited, unsolicited, sizeof(*unsolicited));
-	AECP_SM_UNLOCK();
-	AVB_TRACE_EXIT(AVB_TRACE_AECP);
-}
-
-void openavbAecpSMEntityModelEntitySet_doUnsolicited(bool value)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
-	AECP_SM_LOCK();
-	openavbAecpSMEntityModelEntityVars.doUnsolicited = value;
+	openavbAecpSMEntityModelEntityVars.doUnsolicited = TRUE;
 
 	SEM_ERR_T(err);
 	SEM_POST(openavbAecpSMEntityModelEntityWaitingSemaphore, err);
@@ -1036,8 +1146,3 @@ void openavbAecpSMEntityModelEntitySet_doTerminate(bool value)
 	AECP_SM_UNLOCK();
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 }
-
-
-
-
-
