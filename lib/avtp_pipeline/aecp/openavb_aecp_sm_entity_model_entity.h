@@ -44,7 +44,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 // State machine vars IEEE Std 1722.1-2013 clause 9.2.2.3.1.2
 typedef struct {
-	openavb_aecp_AEMCommandResponse_t rcvdCommand;
+	openavb_aecp_AEMCommandResponse_t *rcvdCommand;
 	bool rcvdAEMCommand;
 	openavb_aecp_AEMCommandResponse_t unsolicited;
 	bool doUnsolicited;
@@ -63,9 +63,9 @@ void openavbAecpSMEntityModelEntityStop(void);
 
 // Accessors
 void openavbAecpSMEntityModelEntitySet_rcvdCommand(openavb_aecp_AEMCommandResponse_t *rcvdCommand);
-void openavbAecpSMEntityModelEntitySet_rcvdAEMCommand(bool value);
+	// Note:  rcvdAEMCommand is set during the call to openavbAecpSMEntityModelEntitySet_rcvdCommand()
 void openavbAecpSMEntityModelEntitySet_unsolicited(openavb_aecp_AEMCommandResponse_t *unsolicited);
-void openavbAecpSMEntityModelEntitySet_doUnsolicited(bool value);
+	// Note:  doUnsolicited is set during the call to openavbAecpSMEntityModelEntitySet_unsolicited()
 void openavbAecpSMEntityModelEntitySet_doTerminate(bool value);
 
 #endif // OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_H
