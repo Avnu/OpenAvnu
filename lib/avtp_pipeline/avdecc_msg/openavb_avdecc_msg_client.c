@@ -174,6 +174,18 @@ bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, const U8 stream_src
 		return false;
 	}
 
+	// Verify that the destination address is valid.
+	if (memcmp(stream_dest_mac, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+		AVB_LOG_DEBUG("stream_dest_mac not yet valid.  Not sending to AVDECC Msg Server.");
+		return true;
+	}
+
+	// Verify that the stream_vlan_id is valid.
+	if (stream_vlan_id == VLAN_NULL) {
+		AVB_LOG_DEBUG("stream_vlan_id not yet valid.  Not sending to AVDECC Msg Server.");
+		return true;
+	}
+
 	// Send the stream information to the server.
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
 	msgBuf.type = OPENAVB_AVDECC_MSG_TALKER_STREAM_ID;
@@ -206,14 +218,27 @@ bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, con
 		return false;
 	}
 
-	// Update the stream information supplied by the server.
+	// Determine if the supplied information differs from the current settings.
 	openavb_tl_cfg_t * pCfg = &(pState->pTLState->cfg);
-	memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
-	pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
-	pCfg->stream_uid = stream_uid;
-	memcpy(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6);
-	pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
-	pCfg->vlan_id = stream_vlan_id;
+	if (memcmp(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6) != 0 ||
+			 pCfg->stream_uid != stream_uid ||
+			 memcmp(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6) != 0 ||
+			 pCfg->vlan_id != stream_vlan_id) {
+		// If the Listener is running, stop the Listener before updating the information.
+		if (pState->pTLState->bRunning) {
+			AVB_LOG_DEBUG("Forcing Listener to Stop to change streaming settings");
+			openavbAvdeccMsgClntHndlChangeRequestFromServer(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
+		}
+
+		// Update the stream information supplied by the server.
+		memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
+		pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
+		pCfg->stream_uid = stream_uid;
+		memcpy(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6);
+		pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
+		pCfg->vlan_id = stream_vlan_id;
+	 }
+
 	AVB_LOGF_DEBUG("AVDECC-supplied stream_id:  " ETH_FORMAT "/%u",
 		ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
 	AVB_LOGF_DEBUG("AVDECC-supplied dest_addr:  " ETH_FORMAT,
@@ -243,16 +268,16 @@ bool openavbAvdeccMsgClntHndlChangeRequestFromServer(int avdeccMsgHandle, openav
 		if (pState->pTLState->bRunning) {
 			if (openavbTLStop((tl_handle_t) pState->pTLState)) {
 				// NOTE:  openavbTLStop() call will cause client change notification if successful.
-				AVB_LOGF_INFO("Client %d state changed to stopped", avdeccMsgHandle);
+				AVB_LOGF_INFO("Client %d state changed to Stopped", avdeccMsgHandle);
 				ret = true;
 			} else {
 				// Notify server of issues.
-				AVB_LOGF_ERROR("Unable to change client %d state to stopped", avdeccMsgHandle);
+				AVB_LOGF_ERROR("Unable to change client %d state to Stopped", avdeccMsgHandle);
 				openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 			}
 		} else {
 			// Notify server we are already in this state.
-			AVB_LOGF_INFO("Client %d state is already at stopped", avdeccMsgHandle);
+			AVB_LOGF_INFO("Client %d state is already at Stopped", avdeccMsgHandle);
 			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED);
 			ret = true;
 		}
@@ -264,11 +289,11 @@ bool openavbAvdeccMsgClntHndlChangeRequestFromServer(int avdeccMsgHandle, openav
 		if (!(pState->pTLState->bRunning)) {
 			if (openavbTLRun((tl_handle_t) pState->pTLState)) {
 				// NOTE:  openavbTLRun() call will cause client change notification if successful.
-				AVB_LOGF_INFO("Client %d state changed to running", avdeccMsgHandle);
+				AVB_LOGF_INFO("Client %d state changed to Running", avdeccMsgHandle);
 				ret = true;
 			} else {
 				// Notify server of issues.
-				AVB_LOGF_ERROR("Unable to change client %d state to running", avdeccMsgHandle);
+				AVB_LOGF_ERROR("Unable to change client %d state to Running", avdeccMsgHandle);
 				openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 			}
 		}
@@ -276,18 +301,18 @@ bool openavbAvdeccMsgClntHndlChangeRequestFromServer(int avdeccMsgHandle, openav
 			if (pState->pTLState->cfg.role == AVB_ROLE_TALKER) {
 				openavbTLPauseTalker(pState->pTLState, FALSE);
 				// NOTE:  openavbTLPauseTalker() call will cause Talker change notification.
-				AVB_LOGF_INFO("Talker %d state changed from paused to running", avdeccMsgHandle);
+				AVB_LOGF_INFO("Talker %d state changed from Paused to Running", avdeccMsgHandle);
 				ret = true;
 			} else {
 				openavbTLPauseListener(pState->pTLState, FALSE);
 				// NOTE:  openavbTLPauseListener() call will cause Listener change notification.
-				AVB_LOGF_INFO("Listener %d state changed from paused to running", avdeccMsgHandle);
+				AVB_LOGF_INFO("Listener %d state changed from Paused to Running", avdeccMsgHandle);
 				ret = true;
 			}
 		}
 		else {
 			// Notify server we are already in this state.
-			AVB_LOGF_INFO("Client %d state is already at running", avdeccMsgHandle);
+			AVB_LOGF_INFO("Client %d state is already at Running", avdeccMsgHandle);
 			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_RUNNING);
 			ret = true;
 		}
@@ -298,25 +323,25 @@ bool openavbAvdeccMsgClntHndlChangeRequestFromServer(int avdeccMsgHandle, openav
 		AVB_LOGF_DEBUG("Paused state requested for client %d", avdeccMsgHandle);
 		if (!(pState->pTLState->bRunning)) {
 			// Notify server of issues.
-			AVB_LOGF_ERROR("Client %d attempted to pause the stream while not running.", avdeccMsgHandle);
+			AVB_LOGF_ERROR("Client %d attempted to pause the stream while not Running.", avdeccMsgHandle);
 			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_UNKNOWN);
 		}
 		else if (pState->pTLState->bRunning && !(pState->pTLState->bPaused)) {
 			if (pState->pTLState->cfg.role == AVB_ROLE_TALKER) {
 				openavbTLPauseTalker(pState->pTLState, TRUE);
 				// NOTE:  openavbTLPauseTalker() call will cause Talker change notification.
-				AVB_LOGF_INFO("Talker %d state changed from running to paused", avdeccMsgHandle);
+				AVB_LOGF_INFO("Talker %d state changed from Running to Paused", avdeccMsgHandle);
 				ret = true;
 			} else {
 				openavbTLPauseListener(pState->pTLState, TRUE);
 				// NOTE:  openavbTLPauseListener() call will cause Listener change notification.
-				AVB_LOGF_INFO("Listener %d state changed from running to paused", avdeccMsgHandle);
+				AVB_LOGF_INFO("Listener %d state changed from Running to Paused", avdeccMsgHandle);
 				ret = true;
 			}
 		}
 		else {
 			// Notify server we are already in this state.
-			AVB_LOGF_INFO("Client %d state is already at paused", avdeccMsgHandle);
+			AVB_LOGF_INFO("Client %d state is already at Paused", avdeccMsgHandle);
 			openavbAvdeccMsgClntChangeNotification(avdeccMsgHandle, OPENAVB_AVDECC_MSG_PAUSED);
 			ret = true;
 		}

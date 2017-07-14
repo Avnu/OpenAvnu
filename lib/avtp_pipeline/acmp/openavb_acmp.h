@@ -136,7 +136,7 @@ typedef struct {
 typedef struct {
 	U8 talker_entity_id[8];
 	U16 talker_unique_id;
-	U8 connected;
+	U8 connected; // Boolean
 	U8 stream_id[8];
 	U8 stream_dest_mac[6];
 	U8 controller_entity_id[8];

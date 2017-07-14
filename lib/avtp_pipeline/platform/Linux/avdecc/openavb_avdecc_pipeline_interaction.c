@@ -64,17 +64,8 @@ bool openavbAVDECCRunListener(openavb_aem_descriptor_stream_io_t *pDescriptorStr
 		return FALSE;
 	}
 
-	// Stop the Listener if it is currently running.
-	if (pDescriptorStreamInput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
-		if (!openavbAvdeccMsgSrvrChangeRequest(pDescriptorStreamInput->stream->client->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED)) {
-			AVB_LOG_ERROR("Error requesting Listener change to Stopped");
-			AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-			return FALSE;
-		}
-		AVB_LOG_INFO("Listener state change to Stopped requested");
-	}
-
 	// Send the Stream ID to the client.
+	// The client will stop a running Listener if the settings differ from its current values.
 	if (!openavbAvdeccMsgSrvrListenerStreamID(pDescriptorStreamInput->stream->client->avdeccMsgHandle,
 			pListenerStreamInfo->stream_id, /* The first 6 bytes of the steam_id are the source MAC Address */
 			(((U16) pListenerStreamInfo->stream_id[6]) << 8 | (U16) pListenerStreamInfo->stream_id[7]),
@@ -250,7 +241,7 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 	// Get the destination MAC Address.
 	if (!pDescriptorStreamOutput->stream->dest_addr.mac ||
 			memcmp(pDescriptorStreamOutput->stream->dest_addr.buffer.ether_addr_octet, "\x00\x00\x00\x00\x00\x00", ETH_ALEN) == 0) {
-		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid stream dest_addr");
+		AVB_LOG_DEBUG("openavbAVDECCGetTalkerStreamInfo Invalid stream dest_addr");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
@@ -271,6 +262,14 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 	AVB_LOGF_DEBUG("Talker stream_id:  " ETH_FORMAT "/%u",
 		ETH_OCTETS(pTalkerStreamInfo->stream_id),
 		(((U16) pTalkerStreamInfo->stream_id[6]) << 8) | (U16) pTalkerStreamInfo->stream_id[7]);
+
+	// Get the VLAN ID.
+	if (pDescriptorStreamOutput->stream->vlan_id == VLAN_NULL) {
+		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid stream vlan_id");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	pTalkerStreamInfo->stream_vlan_id = pDescriptorStreamOutput->stream->vlan_id;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;
