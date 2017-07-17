@@ -186,6 +186,18 @@ class AGPioPinger
       return unit;      
    }
 
+   int64_t CalculateNextInterval()
+   {
+      using std::chrono::duration_cast;
+      using std::chrono::high_resolution_clock;
+      using std::chrono::nanoseconds;
+
+      time_point<high_resolution_clock> now = high_resolution_clock::now();
+      int64_t timestamp = duration_cast<nanoseconds>(now.time_since_epoch()).count();
+      timestamp -= fTimestamper->MasterOffset();
+      return CalculateNextInterval(timestamp);
+   }
+
    int64_t CalculateNextInterval(int64_t timeStamp)
    {
       int64_t unit = CurrentUnit();
@@ -222,7 +234,14 @@ class AGPioPinger
          if (timeStamp == fLastTimestamp)
          {
             //std::cout << "**********************timeStamp:" << timeStamp << "   fLastTimestamp:" << fLastTimestamp << std::endl;
-            delayMicroseconds(fInterval); 
+            //delayMicroseconds(fInterval);
+            // Calculate the next interval with respect to local time
+            CalculateNextInterval();
+            int64_t sleepInterval = CalculateSleepInterval(fNextInterval);
+            if (sleepInterval > 0)
+            {
+               delayMicroseconds(sleepInterval);   
+            }
          }
          else
          {
