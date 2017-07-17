@@ -891,6 +891,7 @@ void openavbAcmpSMListenerSet_doFastConnect(const openavb_tl_data_cfg_t *pListen
 	// Update the descriptor.
 	pDescriptor->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS;
 	memcpy(pDescriptor->fast_connect_talker_entity_id, talker_entity_id, 8);
+	CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &pDescriptor->fast_connect_start_time);
 
 	// Create a fake CONNECT_RX_COMMAND to kick off the fast connect process.
 	// The FAST_CONNECT flag is used to indicate internally that the controller didn't initiate this.
@@ -941,7 +942,18 @@ void openavbAcmpSMListenerSet_talkerTestFastConnect(
 		if (pDescriptor->stream &&
 				pDescriptor->fast_connect_status == OPENAVB_FAST_CONNECT_STATUS_TIMED_OUT &&
 				memcmp(pDescriptor->fast_connect_talker_entity_id, entity_id, 8) == 0) {
+			//
 			// We found a Talker matching the one we have been looking for.
+			//
+
+			// See if it is time to connect yet.
+			struct timespec currenttime;
+			CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &currenttime);
+			if (openavbTimeTimespecCmp(&currenttime, &pDescriptor->fast_connect_start_time) < 0) {
+				AVB_LOG_DEBUG("Not yet time to do a fast connect");
+				break;
+			}
+
 			// Get the rest of the details we need to connect to it.
 			U16 flags, talker_unique_id;
 			U8 talker_entity_id[8], controller_entity_id[8];
@@ -951,7 +963,8 @@ void openavbAcmpSMListenerSet_talkerTestFastConnect(
 				openavbAcmpSMListenerSet_doFastConnect(pDescriptor->stream, flags, talker_unique_id, talker_entity_id, controller_entity_id);
 			}
 			else {
-				AVB_LOGF_ERROR("Unexpected fast connect info for talker_entity_id=" ENTITYID_FORMAT, ENTITYID_ARGS(entity_id));
+				AVB_LOGF_DEBUG("Fast connect info for talker_entity_id=" ENTITYID_FORMAT " no longer valid", ENTITYID_ARGS(entity_id));
+				memset(pDescriptor->fast_connect_talker_entity_id, 0, 8);
 			}
 
 			break;
