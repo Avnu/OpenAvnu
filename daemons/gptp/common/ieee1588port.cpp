@@ -497,7 +497,7 @@ void *IEEE1588Port::openPort(IEEE1588Port *port)
 						delayRespPortId = port->last_delay_resp.getPortIdentity();
 						syncPortId = sync ? sync->getPortIdentity() : std::make_shared<PortIdentity>();
 						
-						if (*syncPortId == *self)
+						if (syncPortId && *syncPortId == *self)
 						{
 							// We got a sync message from ourself get the next one
 							GPTP_LOG_ERROR(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> SYNC from self detected...getting next sync.");
@@ -505,7 +505,8 @@ void *IEEE1588Port::openPort(IEEE1588Port *port)
 							continue;
 						}
 
-						if (*fwupPortId == *self || *delayRespPortId == *self)
+						if ((fwupPortId && *fwupPortId == *self) ||
+						 (delayRespPortId && *delayRespPortId == *self))
 						{
 							GPTP_LOG_ERROR(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> fwup or delayresp clocks from self.");
 							continue;
