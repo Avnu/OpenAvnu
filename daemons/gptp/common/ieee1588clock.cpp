@@ -346,14 +346,12 @@ void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
  FrequencyRatio master_local_freq_offset,
  FrequencyRatio local_system_freq_offset)
 {
-	GPTP_LOG_INFO("IEEE1588Clock::setMasterOffset");
-
 	_master_local_freq_offset = master_local_freq_offset;
 	_local_system_freq_offset = local_system_freq_offset;
 
 	if (master_local_offset == 0 && master_local_freq_offset == 1.0)
 	{
-		GPTP_LOG_INFO("IEEE1588Clock::setMasterOffset  localoffset == 0 and freqoffset == 1.0 RETURNING");
+		GPTP_LOG_VERBOSE("IEEE1588Clock::setMasterOffset  localoffset == 0 and freqoffset == 1.0 RETURNING");
 		return;
 	}
 
@@ -412,6 +410,7 @@ void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
 			{
 				GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
 			}
+			
 			GPTP_LOG_INFO("IEEE1588Clock::setMasterOffset before HWTimestamper_adjclockrate _ppm:%f", _ppm);
 			if (!_timestamper->HWTimestamper_adjclockrate(_ppm))
 			{

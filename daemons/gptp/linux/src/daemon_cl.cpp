@@ -158,6 +158,7 @@ int main(int argc, char **argv)
 	portInit.thread_factory = NULL;
 	portInit.timer_factory = NULL;
 	portInit.lock_factory = NULL;
+	portInit.smoothRateChange = true;
 
 	LinuxNetworkInterfaceFactory *default_factory =
 		new LinuxNetworkInterfaceFactory;
@@ -292,6 +293,14 @@ int main(int argc, char **argv)
 					fprintf(stderr, "config file must be specified.\n");
 				}
 			}
+			else if (0 == strcmp(argv[i] + 1, "SMOOTH"))
+			{
+				portInit.smoothRateChange = true;
+			}
+			else if (0 == strcmp(argv[i] + 1, "NOSMOOTH"))
+			{
+				portInit.smoothRateChange = false;
+			}
 		}
 	}
 
@@ -367,6 +376,8 @@ int main(int argc, char **argv)
 
 	pPort = new IEEE1588Port(&portInit);
 
+	GPTP_LOG_INFO("smoothRateChange: %s", (pPort->SmoothRateChange() ? "true" : "false"));
+	
 	if(use_config_file)
 	{
 		GptpIniParser iniParser(config_file_path);
@@ -381,6 +392,7 @@ int main(int argc, char **argv)
 			GPTP_LOG_INFO("delay_mechansm: %d", iniParser.getDelayMechanism());
 			GPTP_LOG_INFO("priority1 = %d", iniParser.getPriority1());
 			GPTP_LOG_INFO("announceReceiptTimeout: %d", iniParser.getAnnounceReceiptTimeout());
+			GPTP_LOG_INFO("initialLogSyncInterval: %d", iniParser.getInitialLogSyncInterval());
 			GPTP_LOG_INFO("syncReceiptTimeout: %d", iniParser.getSyncReceiptTimeout());
 			GPTP_LOG_INFO("phy_delay_gb_tx: %d", iniParser.getPhyDelayGbTx());
 			GPTP_LOG_INFO("phy_delay_gb_rx: %d", iniParser.getPhyDelayGbRx());
@@ -400,11 +412,16 @@ int main(int argc, char **argv)
 			 */
 			pPort->setSyncReceiptThresh(iniParser.getSyncReceiptThresh());
 
+			pPort->setSyncInterval(iniParser.getInitialLogSyncInterval());
+			GPTP_LOG_VERBOSE("pPort->getSyncInterval:%d", pPort->getSyncInterval());
+
 			// Set the delay_mechanism from the ini file valid values are E2E or P2P
 			pPort->setDelayMechanism(V2_E2E);
 
+			pPort->UnicastNodes(iniParser.UnicastNodes());
+
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
-			if(!input_delay)
+			if (!input_delay)
 			{
 				phy_delay[0] = iniParser.getPhyDelayGbTx();
 				phy_delay[1] = iniParser.getPhyDelayGbRx();

@@ -38,9 +38,27 @@
 #include <linux_hal_generic.hpp>
 #include <syscall.h>
 #include <math.h>
+#include <iostream>
+
+void InitTimex(timex& tx)
+{
+	tx.modes = 0;
+	tx.offset = 0;
+	tx.freq = 0;
+	tx.maxerror = 0;
+	tx.esterror = 0;
+	tx.status = 0;
+	tx.constant = 0;
+	tx.precision = 0;
+	tx.tolerance = 0;
+	tx.time.tv_sec = 0;
+	tx.time.tv_usec = 0;
+	tx.tick = 0;
+}
 
 bool LinuxTimestamperGeneric::resetFrequencyAdjustment() {
 	struct timex tx;
+	InitTimex(tx);
 	tx.modes = ADJ_FREQUENCY;
 	tx.freq = 0;
 
@@ -50,6 +68,7 @@ bool LinuxTimestamperGeneric::resetFrequencyAdjustment() {
 
 bool LinuxTimestamperGeneric::HWTimestamper_adjclockphase( int64_t phase_adjust ) {
 	struct timex tx;
+	InitTimex(tx);
 	LinuxNetworkInterfaceList::iterator iface_iter;
 	bool ret = true;
 	LinuxTimerFactory factory;
@@ -71,6 +90,8 @@ bool LinuxTimestamperGeneric::HWTimestamper_adjclockphase( int64_t phase_adjust 
 		
 	++version;
 		
+	std::cout << "HWTimestamper_adjclockphase  phase_adjust:" << phase_adjust << std::endl;
+
 	tx.modes = ADJ_SETOFFSET | ADJ_NANO;
 	if( phase_adjust >= 0 ) {
 		tx.time.tv_sec  = phase_adjust / 1000000000LL;
@@ -81,30 +102,51 @@ bool LinuxTimestamperGeneric::HWTimestamper_adjclockphase( int64_t phase_adjust 
 	}
 
 	GPTP_LOG_INFO("LinuxTimestamperGeneric::HWTimestamper_adjclockphase  Before adjust...  tx.time.tv_sec:%d  tx.time.tv_usec:%d", tx.time.tv_sec, tx.time.tv_usec);
-	// Causes strange behaviors on the RPI...
-#ifndef RPI
-	if( !Adjust( &tx )) 
-#endif
+
+	if(!Adjust(tx.time))
 	{
 		ret = false;
 	}
-		
+
 	// Walk list of interfaces re-enabling them
 	iface_iter = iface_list.begin();
 	for( iface_iter = iface_list.begin(); iface_iter != iface_list.end();
 		 ++iface_iter ) {
-		(*iface_iter)->clear_reenable_rx_queue();
+		auto item = *iface_iter;
+	   if (item != nullptr)
+	   {
+	   	item->clear_reenable_rx_queue();
+	   }
 	}
-	  
+	
 	delete timer;
 	return ret;
 }
 	
 bool LinuxTimestamperGeneric::HWTimestamper_adjclockrate( float freq_offset ) {
 	struct timex tx;
-	tx.modes = ADJ_FREQUENCY;
-	tx.freq  = long(freq_offset) << 16;
-	tx.freq += long(fmodf( freq_offset, 1.0 )*65536.0);
+	InitTimex(tx);
+	//tx.modes = ADJ_FREQUENCY;
+	// tx.freq  = long(freq_offset) << 16;
+	// tx.freq += long(fmodf( freq_offset, 1.0 )*65536.0);
+
+   const float kMaxPpb = 500.0;
+
+   /* Clamp to max PPM */
+   if (freq_offset > kMaxPpb)
+   {
+      freq_offset = kMaxPpb;
+   }
+   else if (freq_offset < -kMaxPpb)
+   {
+      freq_offset = -kMaxPpb;
+   }
+
+   tx.modes = MOD_FREQUENCY;
+
+   double freq = freq_offset * ((1 << 16) / 1000.0);
+   tx.freq = (int)round(freq);
+
 
 	GPTP_LOG_INFO("LinuxTimestamperGeneric::HWTimestamper_adjclockrate  Before adjust...freq:%d", tx.freq);
 	return Adjust(&tx);

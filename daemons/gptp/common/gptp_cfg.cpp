@@ -46,6 +46,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include <errno.h>
 #include <stdlib.h>
+#include <sstream>
 #include <map>
 
 #include "gptp_cfg.hpp"
@@ -112,7 +113,7 @@ int GptpIniParser::iniCallBack(void *user, const char *section,
         {
             errno = 0;
             char *pEnd;
-            int8_t ilsi = strtoul(value, &pEnd, 10);
+            int8_t ilsi = strtol(value, &pEnd, 10);
             if( *pEnd == '\0' && errno == 0) {
                 valOK = true;
                 parser->_config.initialLogSyncInterval = ilsi;
@@ -237,6 +238,12 @@ int GptpIniParser::iniCallBack(void *user, const char *section,
                 parser->_config.phyDelay.mb_rx_phy_delay = phdly;
             }
         }
+        else if (parseMatch(name, "unicast_nodes"))
+        {
+            parser->_config.unicastNodes = parser->Split(value);
+            valOK = true;
+        }
+
     }
 
     if(valOK)
@@ -254,6 +261,25 @@ int GptpIniParser::iniCallBack(void *user, const char *section,
 
 
 /****************************************************************************/
+
+const std::list<std::string> GptpIniParser::Split(const std::string& values) const
+{
+    GPTP_LOG_VERBOSE("Split  START");
+    std::list<std::string> nodeList;
+    const char kDelim = ',';
+    std::stringstream ss(values);
+    std::string node;
+    while (std::getline(ss, node, kDelim))
+    {
+        GPTP_LOG_VERBOSE("Split   node:%s", node.c_str());
+       if (!node.empty())
+       {
+            nodeList.push_back(node);
+       }
+    }
+    GPTP_LOG_VERBOSE("Split  END   nodeList.size():%d", nodeList.size());
+    return nodeList;
+}
 
 bool GptpIniParser::parseMatch(const char *s1, const char *s2)
 {

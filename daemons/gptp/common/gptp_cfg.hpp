@@ -35,6 +35,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  */
 #pragma once
 
+#include <list>
 #include <string>
 
 #include "ini.h"
@@ -67,6 +68,7 @@ class GptpIniParser
             uint16_t lostPdelayRespThresh;
             PortState port_state;
             PortType delayMechanism;
+            std::list<std::string> unicastNodes;
 
             /*ethernet adapter data set*/
             std::string ifname;
@@ -84,6 +86,11 @@ class GptpIniParser
          * @return Parser Error
          */
         int parserError();
+
+        std::list<std::string> UnicastNodes() const
+        {
+            return _config.unicastNodes;
+        }
 
         /**
          * @brief  Reads priority1 config value
@@ -203,6 +210,9 @@ class GptpIniParser
         {
             return sHasIniValues;
         }
+
+    private:
+      const std::list<std::string> Split(const std::string& values) const;        
 
     private:
         int _error;

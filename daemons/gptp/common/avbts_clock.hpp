@@ -50,8 +50,8 @@
 #define UPPER_FREQ_LIMIT  250.0		/*!< Upper frequency limit */
 #define LOWER_FREQ_LIMIT -250.0		/*!< Lower frequency limit */
 
-#define UPPER_LIMIT_PPM 250
-#define LOWER_LIMIT_PPM -250
+#define UPPER_LIMIT_PPM 2500
+#define LOWER_LIMIT_PPM -2500
 #define PPM_OFFSET_TO_RATIO(ppm) ((ppm) / ((FrequencyRatio)US_PER_SEC) + 1)
 
 /* This is the threshold in ns for which frequency adjustments will be made */
@@ -177,6 +177,9 @@ private:
 	 * @return void
 	 */
 	void deleteEventTimer(IEEE1588Port * target, Event e);
+private:
+  IEEE1588Clock();
+
 public:
   /**
    * @brief Instantiates a IEEE 1588 Clock

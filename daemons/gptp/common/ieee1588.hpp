@@ -187,7 +187,7 @@ class ClockIdentity {
 	 * @return TRUE if cmp differs from the object's clock identity. FALSE otherwise.
 	 */
     bool operator!=( const ClockIdentity &cmp ) const {
-        return memcmp( this->id, cmp.id, PTP_CLOCK_IDENTITY_LENGTH ) != 0 ? true : false;
+        return memcmp(this->id, cmp.id, PTP_CLOCK_IDENTITY_LENGTH) != 0;
 	}
 
 	/**
@@ -272,6 +272,13 @@ class ClockIdentity {
 class Timestamp {
 private:
 	char output_string[MAX_TIMESTAMP_STRLEN];
+
+public:
+	uint32_t nanoseconds;	//!< 32 bit nanoseconds value
+	uint32_t seconds_ls;	//!< 32 bit seconds LSB value
+	uint16_t seconds_ms;	//!< 32 bit seconds MSB value
+	uint8_t _version;		//!< 8 bit version value
+
 public:
 	/**
 	 * @brief  Creates a Timestamp instance
@@ -318,11 +325,6 @@ public:
 		return assign(other);
 	}
 
-	uint32_t nanoseconds;	//!< 32 bit nanoseconds value
-	uint32_t seconds_ls;	//!< 32 bit seconds LSB value
-	uint16_t seconds_ms;	//!< 32 bit seconds MSB value
-	uint8_t _version;		//!< 8 bit version value
-
 	Timestamp& assign(const Timestamp& other)
 	{
 		if (this != &other)
@@ -355,32 +357,30 @@ public:
 	 * @return Object's timestamp + o.
 	 */
 	Timestamp operator+( const Timestamp& o ) {
-		uint32_t nanoseconds;
+		uint32_t ns;
 		uint32_t seconds_ls;
 		uint16_t seconds_ms;
 		uint8_t version;
 		bool carry;
 
-		nanoseconds  = this->nanoseconds;
-		nanoseconds += o.nanoseconds;
-		carry =
-			nanoseconds < this->nanoseconds ||
-			nanoseconds >= MAX_NANOSECONDS ? true : false;
-		nanoseconds -= carry ? MAX_NANOSECONDS : 0;
+		ns  = this->nanoseconds;
+		ns += o.nanoseconds;
+		carry = ns < this->nanoseconds || ns >= MAX_NANOSECONDS;
+		ns -= carry ? MAX_NANOSECONDS : 0;
 
 		seconds_ls  = this->seconds_ls;
 		seconds_ls += o.seconds_ls;
 		seconds_ls += carry ? 1 : 0;
-		carry = seconds_ls < this->seconds_ls ? true : false;
+		carry = seconds_ls < this->seconds_ls;
 
 		seconds_ms  = this->seconds_ms;
 		seconds_ms += o.seconds_ms;
 		seconds_ms += carry ? 1 : 0;
-		carry = seconds_ms < this->seconds_ms ? true : false;
+		carry = seconds_ms < this->seconds_ms;
 
-		version = this->_version == o._version ? this->_version :
-			INVALID_TIMESTAMP_VERSION;
-		return Timestamp( nanoseconds, seconds_ls, seconds_ms, version );
+		version = this->_version == o._version 
+		 ? this->_version :	INVALID_TIMESTAMP_VERSION;
+		return Timestamp(ns, seconds_ls, seconds_ms, version);
 	}
 
 	/**
@@ -438,6 +438,16 @@ public:
 		nanoseconds = value % 1000000000;
 		seconds_ls = (uint32_t) (value / 1000000000);
 		seconds_ms = (uint16_t)((value / 1000000000) >> 32);
+	}
+
+	uint32_t Seconds() const
+	{
+		return seconds_ls;
+	}
+	
+	uint32_t MicroSeconds() const
+	{
+		return uint32_t(nanoseconds / 1000);
 	}
 };
 
@@ -533,6 +543,9 @@ class HWTimestamper {
 protected:
 	uint8_t version; //!< HWTimestamper version
 	struct phy_delay delay;
+	FrequencyRatio fMasterOffset;
+	FrequencyRatio fAdjustedTime;
+
 public:
 	/**
 	 * @brief Initializes the hardware timestamp unit
@@ -556,6 +569,26 @@ public:
 	 * @return void
 	 */
 	virtual void HWTimestamper_final(void) {
+	}
+
+	void MasterOffset(FrequencyRatio offset)
+	{
+		fMasterOffset = offset;
+	}
+
+	FrequencyRatio MasterOffset() const
+	{
+		return fMasterOffset;
+	}
+
+	void AdjustedTime(FrequencyRatio t)
+	{
+		fAdjustedTime = t;
+	}
+
+	FrequencyRatio AdjustedTime() const
+	{
+		return fAdjustedTime;
 	}
 
 	/**
@@ -737,6 +770,6 @@ public:
  */
 PTPMessageCommon *buildPTPMessage(char *buf, int size,
 		LinkLayerAddress * remote,
-		IEEE1588Port * port);
+		IEEE1588Port * port, const Timestamp& ingressTime);
 
 #endif

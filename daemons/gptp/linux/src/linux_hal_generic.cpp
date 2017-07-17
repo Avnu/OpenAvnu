@@ -49,6 +49,7 @@
 #include <limits.h>
 #include <sys/timex.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 
 #define TX_PHY_TIME 184
 #define RX_PHY_TIME 382
@@ -97,7 +98,7 @@ private:
 };
 
 net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *payload, 
-	size_t &length,struct phy_delay *delay, uint16_t portNum)
+	size_t &length,struct phy_delay *delay, uint16_t portNum, Timestamp& ingressTime)
 {
 	fd_set readfds;
 	int err;
@@ -111,22 +112,19 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 	struct iovec sgentry;
 	net_result ret = net_succeed;
 
-	const uint16_t kEventPort = 319;
-	const uint16_t kGeneralPort = 320;
-
 	int fileDesc = 0;
-	if (kEventPort == portNum)
+	if (EVENT_PORT == portNum)
 	{
 		fileDesc = sd_event;
 	}
-	else if (kGeneralPort == portNum)
+	else if (GENERAL_PORT == portNum)
 	{
 		fileDesc = sd_general;
 	}
 	else
 	{
 		GPTP_LOG_ERROR("Invalid port number %d must be %d or %d.", portNum,
-			kEventPort, kGeneralPort);
+			EVENT_PORT, GENERAL_PORT);
     	return net_fatal;
     }
 
@@ -205,6 +203,10 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 				{
 					*addr = LinkLayerAddress(remote);
 
+					struct timespec ts;
+					clock_gettime(CLOCK_REALTIME, &ts);
+					ingressTime = Timestamp(ts);
+
 					gtimestamper = dynamic_cast<LinuxTimestamperGeneric *>(timestamper);
 					if (err > 0 && !(payload[0] & 0x8) && gtimestamper != NULL)
 					{
@@ -250,21 +252,21 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 net_result LinuxNetworkInterface::nrecv(LinkLayerAddress *addr, uint8_t *payload, 
 	size_t &length,struct phy_delay *delay ) 
 {
-	return receive(addr, payload, length, delay, 319);
+	Timestamp ingressTime;
+	return receive(addr, payload, length, delay, 319, ingressTime);
 }
 
 net_result LinuxNetworkInterface::nrecvEvent(LinkLayerAddress *addr,
-	uint8_t *payload, size_t &length,struct phy_delay *delay) 
+	uint8_t *payload, size_t &length,struct phy_delay *delay, Timestamp& ingressTime) 
 {
-	return receive(addr, payload, length, delay, 319);
+	return receive(addr, payload, length, delay, 319, ingressTime);
 }
 
 net_result LinuxNetworkInterface::nrecvGeneral(LinkLayerAddress *addr, 
-	uint8_t *payload, size_t &length,struct phy_delay *delay) 
+	uint8_t *payload, size_t &length,struct phy_delay *delay, Timestamp& ingressTime) 
 {
-	return receive(addr, payload, length, delay, 320);
+	return receive(addr, payload, length, delay, 320, ingressTime);
 }
-
 
 int findPhcIndex( InterfaceLabel *iface_label ) {
 	int sd;
@@ -315,6 +317,52 @@ LinuxTimestamperGeneric::LinuxTimestamperGeneric() {
 	sd = -1;
 }
 
+bool LinuxTimestamperGeneric::Adjust(const timeval& tm)
+{
+	bool ok = true;
+	struct timeval tv, oldAdjTv;
+
+	tv.tv_sec = tm.tv_sec;
+	tv.tv_usec = tm.tv_usec;
+
+	if (tm.tv_sec < 0)
+	{
+		tv.tv_sec = -tm.tv_sec;
+	}
+	if (tm.tv_usec < 0)
+	{
+		tv.tv_usec = -tm.tv_usec;
+	}
+
+	const time_t kMaxAdjust = (INT_MAX / 1000000 - 2);
+	if (tv.tv_sec > kMaxAdjust)
+	{
+		tv.tv_sec = kMaxAdjust;
+	}
+	if (tv.tv_usec > kMaxAdjust)
+	{
+		tv.tv_usec = kMaxAdjust;
+	}
+
+	GPTP_LOG_INFO("BeforeAdjust...++++++++++++++++++++++++++++++++++++++");
+	GPTP_LOG_INFO("tv.tv_sec:%d", tv.tv_sec);
+	GPTP_LOG_INFO("tv.tv_usec:%d", tv.tv_usec);
+
+	// Log time before adjustment
+	logCurrentTime("1");
+	
+	if (adjtime(&tv, &oldAdjTv) < 0) 
+	{
+		GPTP_LOG_ERROR("adjtime failed(%d): %s", errno, strerror(errno));
+		ok = false;
+	}
+
+	// Log time after adjustment
+	logCurrentTime("2");
+
+	return ok;
+}
+
 bool LinuxTimestamperGeneric::Adjust( void *tmx )
 {
 	if (nullptr == tmx)
@@ -322,26 +370,51 @@ bool LinuxTimestamperGeneric::Adjust( void *tmx )
 		GPTP_LOG_INFO("Time adjustment tmx is nullptr");
 		return false;
 	}
+	timex* t = static_cast<timex *>(tmx);
+
+	GPTP_LOG_INFO("BeforeAdjust...");
+	GPTP_LOG_INFO("tmx->modes:%d", t->modes);
+	GPTP_LOG_INFO("tmx->offset:%d", t->offset);
+	GPTP_LOG_INFO("tmx->freq:%d", t->freq);
+	GPTP_LOG_INFO("tmx->tick:%d", t->tick);
+	GPTP_LOG_INFO("tmx->tolerance:%d", t->tolerance);
+	GPTP_LOG_INFO("tmx->maxerror:%d", t->maxerror);
+	GPTP_LOG_INFO("tmx->esterror:%d", t->esterror);
+	GPTP_LOG_INFO("tmx->status:%d", t->status);
+	GPTP_LOG_INFO("tmx->time.tv_sec:%d", t->time.tv_sec);
+	GPTP_LOG_INFO("tmx->time.tv_usec:%d", t->time.tv_usec);
 
 	// Log time before adjustment
 	logCurrentTime("1");
 
 	// This system call works
-	if (-1 == adjtimex(static_cast<timex *>(tmx)))
+	int adjRet = adjtimex(t);
+	if (-1 == adjRet)
 	{
+		GPTP_LOG_ERROR("Time adjustment failed: %s", strerror(errno));
 	   return false;
 	}
+	GPTP_LOG_INFO("adjtimex adjRet: %d", adjRet);
+
+	// This system call doesnt work on ubuntu
+	// GPTP_LOG_INFO("adjtimex _private->clockid: %d", _private->clockid);
+	// int adjRet = syscall(__NR_clock_adjtime, _private->clockid, tmx);
+	// //int adjRet = sys_clock_adjtime(_private->clockid, tmx);
+	// if (adjRet != 0) {
+	// 	GPTP_LOG_ERROR("Failed to adjust PTP clock rate.  %s", strerror(errno));
+	// 	return false;
+	// }
 
 	// Log time after adjustment
 	logCurrentTime("2");
 
+	
 	{
-		struct timeval tv = static_cast<timex *>(tmx)->time;
+		struct timeval tv = t->time;
 		time_t theTime;
 		struct tm *theTimeTm;
 		char tmbuf[64], buf[64];
 
-		gettimeofday(&tv, NULL);
 		theTime = tv.tv_sec;
 		theTimeTm = localtime(&theTime);
 		strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S", theTimeTm);
@@ -349,18 +422,16 @@ bool LinuxTimestamperGeneric::Adjust( void *tmx )
 		GPTP_LOG_INFO("Time adjustment:%s", buf);
 	}
 
-	GPTP_LOG_INFO("tmx->modes:%d", static_cast<timex *>(tmx)->modes);
-	GPTP_LOG_INFO("tmx->offset:%d", static_cast<timex *>(tmx)->offset);
-	GPTP_LOG_INFO("tmx->freq:%d", static_cast<timex *>(tmx)->freq);
-	GPTP_LOG_INFO("tmx->maxerror:%d", static_cast<timex *>(tmx)->maxerror);
-	GPTP_LOG_INFO("tmx->esterror:%d", static_cast<timex *>(tmx)->esterror);
-	GPTP_LOG_INFO("tmx->status:%d", static_cast<timex *>(tmx)->status);
+	GPTP_LOG_INFO("AfterAdjust...");
+	GPTP_LOG_INFO("tmx->modes:%d", t->modes);
+	GPTP_LOG_INFO("tmx->offset:%d", t->offset);
+	GPTP_LOG_INFO("tmx->freq:%d", t->freq);
+	GPTP_LOG_INFO("tmx->maxerror:%d", t->maxerror);
+	GPTP_LOG_INFO("tmx->esterror:%d", t->esterror);
+	GPTP_LOG_INFO("tmx->status:%d", t->status);
+	GPTP_LOG_INFO("tmx->time.tv_sec:%d", t->time.tv_sec);
+	GPTP_LOG_INFO("tmx->time.tv_usec:%d", t->time.tv_usec);
 
-	// This system call doesnt work on ubuntu
-	// if( syscall(__NR_clock_adjtime, _private->clockid, tmx ) != 0 ) {
-	// 	GPTP_LOG_ERROR("Failed to adjust PTP clock rate");
-	// 	return false;
-	// }
 	return true;
 }
 

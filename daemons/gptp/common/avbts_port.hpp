@@ -63,7 +63,13 @@
 #define TEST_STATUS_MULTICAST 0x011BC50AC000ULL	/*!< AVnu Automotive profile test status msg Multicast value */
 
 #define PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER 3	/*!< PDelay timeout multiplier*/
-#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER 3			/*!< Sync receipt timeout multiplier*/
+
+#ifdef APTP
+#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER  1			/*!< Sync receipt timeout multiplier*/
+#else
+#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER  3			/*!< Sync receipt timeout multiplier*/
+#endif
+
 #define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3		/*!< Announce receipt timeout multiplier*/
 
 #define LOG2_INTERVAL_INVALID -127	/* Simple out of range Log base 2 value used for Sync and PDelay msg internvals */
@@ -121,9 +127,7 @@ public:
 	 */
 	bool operator!=(const PortIdentity & cmp) const
 	{
-		return
-			!(this->clock_id == cmp.clock_id) ||
-			this->portNumber != cmp.portNumber ? true : false;
+		return clock_id != cmp.clock_id || portNumber != cmp.portNumber;
 	}
 
 	/**
@@ -133,6 +137,7 @@ public:
 	 */
 	bool operator==(const PortIdentity & cmp)const {
 		// For low level debugging...
+		// GPTP_LOG_VERBOSE("PortIdentity::operator ==");
 		// std::string thisClockid = clock_id.getIdentityString();
 		// std::string otherClockid = cmp.clock_id.getIdentityString();
 		// GPTP_LOG_VERBOSE("this->clock_id:%s", thisClockid.c_str());
@@ -286,6 +291,8 @@ typedef struct {
 
 	/* lock_factory OSLockFactory instance */
 	OSLockFactory * lock_factory;
+
+	bool smoothRateChange;	
 } IEEE1588PortInit_t;
 
 
@@ -315,11 +322,30 @@ typedef struct {
 	int32_t ieee8021AsPortStatTxAnnounce;
 } IEEE1588PortCounters_t;
 
+struct ALastTimestampKeeper
+{
+	ALastTimestampKeeper(uint64_t t1, uint64_t t2, uint64_t t3, uint64_t t4) :
+	 fT1(t1), fT2(t2), fT3(t3), fT4(t4)
+	{		
+	}
+
+	ALastTimestampKeeper() :
+	 fT1(0), fT2(0), fT3(0), fT4(0)
+	{		
+	}
+
+	uint64_t fT1;
+	uint64_t fT2;
+	uint64_t fT3;
+	uint64_t fT4;
+};
 
 /**
  * @brief Provides the IEEE 1588 port interface
  */
 class IEEE1588Port {
+	const size_t kMaxRateRatioSamples = 2000;
+
 	static LinkLayerAddress other_multicast;
 	static LinkLayerAddress pdelay_multicast;
 	static LinkLayerAddress test_status_multicast;
@@ -344,8 +370,8 @@ class IEEE1588Port {
 
 	PortState port_state;
 	char log_mean_unicast_sync_interval;
-	char log_mean_sync_interval;
-	char log_mean_announce_interval;
+	int8_t log_mean_sync_interval;
+	int8_t log_mean_announce_interval;
 	char log_min_mean_delay_req_interval;
 	char log_min_mean_pdelay_req_interval;
 	bool burst_enabled;
@@ -359,6 +385,15 @@ class IEEE1588Port {
 	uint16_t last_invalid_seqid;
 
 	FrequencyRatio fMeanPathDelay;
+	std::list<FrequencyRatio> fMasterSlaveRatios;
+	std::list<FrequencyRatio> fSlaveMasterRatios;
+	FrequencyRatio fLastRateAverageMasterSlave;
+	FrequencyRatio fLastRateAverageSlaveMaster;
+
+	FrequencyRatio fLastFilteredRateRatioMS;
+	ALastTimestampKeeper fLastTimestamps;
+
+	bool smoothRateChange;
 
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
@@ -430,6 +465,9 @@ class IEEE1588Port {
 	PTPMessageDelayReq last_delay_req;
 	PTPMessageDelayResp last_delay_resp;
 
+	bool fHaveFollowup;
+	bool fHaveDelayResp;
+
 	/* Network socket description
 	   physical interface number that object represents */
 	uint16_t ifindex;
@@ -458,6 +496,8 @@ class IEEE1588Port {
 	OSTimerFactory *timer_factory;
 
 	HWTimestamper *_hw_timestamper;
+	bool fUseHardwareTimestamp;
+
 
 	InterfaceLabel *net_label;
 
@@ -473,6 +513,8 @@ class IEEE1588Port {
 	IEEE1588PortCounters_t counters;
 
 	GptpIniParser iniParser;
+
+	std::list<std::string> fUnicastNodeList;
 
  private:
 	net_result port_send(uint16_t etherType, uint8_t * buf, int size,
@@ -800,7 +842,7 @@ class IEEE1588Port {
 	 * @brief  Gets the sync interval value
 	 * @return Sync Interval
 	 */
-	char getSyncInterval(void) {
+	int8_t getSyncInterval(void) {
 		return log_mean_sync_interval;
 	}
 
@@ -809,8 +851,8 @@ class IEEE1588Port {
 	 * @param  val time interval
 	 * @return none
 	 */
-	void setSyncInterval(char val) {
-		log_mean_sync_interval = val;;
+	void setSyncInterval(int8_t val) {
+		log_mean_sync_interval = val;
 	}
 
 	/**
@@ -818,7 +860,7 @@ class IEEE1588Port {
 	 * @return none
 	 */
 	void setInitSyncInterval(void) {
-		log_mean_sync_interval = initialLogSyncInterval;;
+		log_mean_sync_interval = initialLogSyncInterval;
 	}
 
 	/**
@@ -845,7 +887,7 @@ class IEEE1588Port {
 	 * @brief  Gets the announce interval
 	 * @return Announce interval
 	 */
-	char getAnnounceInterval(void) {
+	int8_t getAnnounceInterval(void) {
 		return log_mean_announce_interval;
 	}
 
@@ -854,7 +896,7 @@ class IEEE1588Port {
 	 * @param  val time interval
 	 * @return none
 	 */
-	void setAnnounceInterval(char val) {
+	void setAnnounceInterval(int8_t val) {
 		log_mean_announce_interval = val;
 	}
 
@@ -1083,7 +1125,8 @@ class IEEE1588Port {
 	 */
 	int getTimestampVersion() 
 	{
-		return _hw_timestamper ? _hw_timestamper->getVersion() : 0;
+		return _hw_timestamper && fUseHardwareTimestamp
+		 ? _hw_timestamper->getVersion() : 0;
 	}
 
 	/**
@@ -1247,7 +1290,7 @@ class IEEE1588Port {
 	 */
 	bool _adjustClockRate( FrequencyRatio freq_offset )
 	{
-		return _hw_timestamper 
+		return _hw_timestamper && fUseHardwareTimestamp
 		 ? _hw_timestamper->HWTimestamper_adjclockrate((float)freq_offset)
 		 : false;
 	}
@@ -1267,7 +1310,7 @@ class IEEE1588Port {
 	 * @return void
 	 */
 	void getExtendedError(char *msg) {
-		if (_hw_timestamper) {
+		if (_hw_timestamper && fUseHardwareTimestamp) {
 			_hw_timestamper->HWTimestamper_get_extderror(msg);
 		} else {
 			*msg = '\0';
@@ -1357,7 +1400,7 @@ class IEEE1588Port {
 	 * @return one way delay if delay > 0, or zero otherwise.
 	 */
 	uint64_t getLinkDelay(void) {
-		GPTP_LOG_INFO("getLinkDelay  one_way_delay:%d", one_way_delay);
+		//GPTP_LOG_INFO("getLinkDelay  one_way_delay:%d", one_way_delay);
 		return one_way_delay > 0LL ? one_way_delay : 0LL;
 	}
 
@@ -1617,6 +1660,142 @@ class IEEE1588Port {
 	void meanPathDelay(FrequencyRatio delay)
 	{
 		fMeanPathDelay = delay;
+	}
+
+	void UnicastNodes(std::list<std::string> nodeList)
+	{
+		fUnicastNodeList = nodeList;
+	}
+
+	const std::list<std::string> UnicastNodes() const
+	{
+		return fUnicastNodeList;
+	}
+
+	void MasterOffset(FrequencyRatio offset)
+	{
+		if (_hw_timestamper)
+		{
+			_hw_timestamper->MasterOffset(offset);
+		}
+		else
+		{
+			GPTP_LOG_ERROR("_hw_timestamper IS NULL!!!!!!!!!!!!!!!!!!!!!!!");
+		}
+	}
+
+	void AdjustedTime(FrequencyRatio t)
+	{
+		if (_hw_timestamper)
+		{
+			_hw_timestamper->AdjustedTime(t);
+		}
+		else
+		{
+			GPTP_LOG_ERROR("_hw_timestamper IS NULL!!!!!!!!!!!!!!!!!!!!!!!");
+		}
+	}
+
+	void PushRateRatio(std::list<FrequencyRatio>& ratioList, FrequencyRatio ratio)
+	{
+		size_t ratioCount = ratioList.size();
+		// if (ratioCount > 0 && 0 == ratioCount % 1000)
+		// {
+		// 	GPTP_LOG_ERROR("/////////////////////////////   Ratio sample size %d.", ratioCount);
+		// }
+		if (ratioCount > kMaxRateRatioSamples)
+		{
+			ratioList.pop_back();
+		}
+		ratioList.push_front(ratio);
+	}
+
+	void PushMasterSlaveRateRatio(FrequencyRatio ratio)
+	{
+		PushRateRatio(fMasterSlaveRatios, ratio);
+	}
+
+	void PushSlaveMasterRateRatio(FrequencyRatio ratio)
+	{
+		PushRateRatio(fSlaveMasterRatios, ratio);
+	}
+
+	FrequencyRatio LastFilteredRateRatioMasterSlave() const
+	{
+		return fLastFilteredRateRatioMS;
+	}
+	void LastFilteredRateRatioMasterSlave(FrequencyRatio filteredRateRatio)
+	{
+		fLastFilteredRateRatioMS = filteredRateRatio;
+	}
+
+	const ALastTimestampKeeper& LastTimestamps() const
+	{
+		return fLastTimestamps;
+	}
+
+	void LastTimestamps(const ALastTimestampKeeper& lastTimestamps)
+	{
+		fLastTimestamps = lastTimestamps;
+	}
+
+	FrequencyRatio RateAverageMasterSlave() const
+	{
+		FrequencyRatio sum = std::accumulate(fMasterSlaveRatios.begin(),
+			fMasterSlaveRatios.end(), 0.0);
+		return sum / fMasterSlaveRatios.size();
+	}
+
+	FrequencyRatio RateAverageSlaveMaster() const
+	{
+		FrequencyRatio sum = std::accumulate(fSlaveMasterRatios.begin(),
+			fSlaveMasterRatios.end(), 0.0);
+		return sum / fSlaveMasterRatios.size();
+	}
+
+	FrequencyRatio LastRateAverageMasterSlave() const
+	{
+		return fLastRateAverageMasterSlave;
+	}
+
+	FrequencyRatio LastRateAverageSlaveMaster() const
+	{
+		return fLastRateAverageSlaveMaster;
+	}
+
+	void LastRateAverageMasterSlave(FrequencyRatio ratio)
+	{
+		fLastRateAverageMasterSlave = ratio;
+	}
+
+	void LastRateAverageSlaveMaster(FrequencyRatio ratio)
+	{
+		fLastRateAverageSlaveMaster = ratio;
+	}
+
+	void HaveDelayResp(bool yesno)
+	{
+		fHaveDelayResp = yesno;
+	}
+
+	bool HaveDelayResp() const
+	{
+		return fHaveDelayResp;
+	}
+
+	void HaveFollowup(bool yesno)
+	{
+		fHaveFollowup = yesno;
+	}
+
+	bool HaveFollowup() const
+	{
+		return fHaveFollowup;
+	}
+
+	bool SmoothRateChange() const
+	{
+		return smoothRateChange;
 	}
 
 	/**

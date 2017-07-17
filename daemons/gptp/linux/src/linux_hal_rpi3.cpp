@@ -31,6 +31,7 @@
 
 ******************************************************************************/
 
+#include <iostream>
 #include <linux_hal_generic.hpp>
 #include <linux_hal_generic_tsprivate.hpp>
 #include <errno.h>
@@ -39,6 +40,14 @@
 #include <ctime>
 #include <chrono>
 #include <wiringPi.h>
+
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
+// For debug logging to a file
+#include <fstream>
+
+using namespace std::chrono;
 
 class AGPioPinger
 {
@@ -54,16 +63,27 @@ class AGPioPinger
    public:
       AGPioPinger(int piPinNumber) :
        fKeepGoing(true),
-       fPinNumber(piPinNumber)
+       fPinNumber(piPinNumber),
+       fInterval(500),
+       fTimestamper(nullptr),
+       fLastTimestamp(0),
+       fRate(kOnePerSecond)
       {
          wiringPiSetup();
          pinMode(piPinNumber, OUTPUT);
+         fDebugLogFile.open("gpiopinger.txt", std::ofstream::out);
       }
 
       ~AGPioPinger()
       {
          // Ensure we set the pin low
          digitalWrite(fPinNumber, LOW) ;
+         fDebugLogFile.close();
+      }
+
+      void TimeStamper(LinuxTimestamperGeneric* ts)
+      {
+         fTimestamper = ts;
       }
 
       bool Start(time_t timeToStart, PulseRate rate = kOnePerSecond)
@@ -87,46 +107,221 @@ class AGPioPinger
    private:
       bool StartGPIOLoop(PulseRate rate)
       {
-         int interval = 500;
+         fRate = rate;
          switch (rate)
          {
             case kOnePerSecond:
-            interval = 500000;
+            fInterval = 500000;
             break;
 
             case kTenPerSecond:
-            interval = 50000;
+            fInterval = 50000;
             break;
 
             case kOneHundredPerSecond:
-            interval = 5000;
+            fInterval = 5000;
             break;
 
             case kOneThousandPerSecond:
-            interval = 500;
+            fInterval = 500;
             break;
 
             default:
-            interval = 500000;
+            fInterval = 500;
             break;
          }
-
+        
          while (fKeepGoing)
          {
-            // Set the GPIO pin high for interval microseconds
-            digitalWrite(fPinNumber, HIGH);
-            delayMicroseconds(interval);
+            // Adjust the pulse rate to be aliggned with the MC adjusted timestamp
+            AdjustToTimestamp();
 
-            // Set the GPIO pin low for interval microseconds
-            digitalWrite(fPinNumber, LOW) ;
-            delayMicroseconds(interval);
+            // Adjust the pulse rate to be aligned with the system clock
+            //AdjustToSystemClock();
+            
+            ActivatePin();
          }
          return true;
       }
 
+   void ActivatePin()
+   {
+      // high_resolution_clock::time_point now = high_resolution_clock::now();
+      // auto delta = duration_cast<nanoseconds>(now - fLastActivate);
+      // fDebugLogFile << duration_cast<nanoseconds>(now.time_since_epoch()).count() << "\t"
+      //  << duration_cast<nanoseconds>(fLastActivate.time_since_epoch()).count() << "\t"
+      //  << delta.count() << std::endl;
+      // fLastActivate = now;
+
+      // Set the GPIO pin high for interval microseconds
+      digitalWrite(fPinNumber, HIGH);
+      delayMicroseconds(fInterval);
+
+      // Set the GPIO pin low for interval microseconds
+      digitalWrite(fPinNumber, LOW) ;
+      //delayMicroseconds(fInterval);
+   }
+
+   int64_t CurrentUnit() const
+   {
+      int64_t unit = kOneSecNano;
+      switch (fRate)
+      {
+         case kOnePerSecond:
+         unit = kOneSecNano;
+         break;
+
+         case kTenPerSecond:
+         unit = kTenthSecNano;
+         break;
+
+         case kOneHundredPerSecond:
+         unit = kHundrethSecNano;
+         break;
+
+         case kOneThousandPerSecond:
+         unit = kThousandthSecNano;
+         break;
+      }
+      return unit;      
+   }
+
+   int64_t CalculateNextInterval(int64_t timeStamp)
+   {
+      int64_t unit = CurrentUnit();
+      fNextInterval = ((timeStamp / unit) + 1) * unit;
+      return fNextInterval;
+   }
+
+   int64_t CalculateSleepInterval(int64_t timeStamp) const
+   {
+      int64_t delta = (fNextInterval - timeStamp) / 1000;
+      // std::cout << "**********************timeStamp:" << timeStamp
+      //  << "   nextInterval:" << nextInterval 
+      //  << "   delta:" << delta << std::endl;
+      return delta;
+   }
+
+   bool AtIntervalBoundary(int64_t timeStamp)
+   {
+      int64_t delta = CalculateSleepInterval(timeStamp);
+      if (delta > fLastDelta || 0 == delta || delta < 0)
+      {
+         GPTP_LOG_INFO("-------------------------AtIntervalBoundary  timeStamp %" PRIu64 "  delta %" PRIu64 "  fLastDelta %" PRIu64, timeStamp, delta, fLastDelta);
+      }
+      bool atBoundary = delta <= 0;
+      fLastDelta = delta;
+      return atBoundary;
+   }
+
+   void AdjustToTimestamp()
+   {
+      if (fTimestamper != nullptr)
+      {
+         int64_t timeStamp = int64_t(fTimestamper->AdjustedTime());
+         if (timeStamp == fLastTimestamp)
+         {
+            //std::cout << "**********************timeStamp:" << timeStamp << "   fLastTimestamp:" << fLastTimestamp << std::endl;
+            delayMicroseconds(fInterval); 
+         }
+         else
+         {
+            //delayMicroseconds(CalculateSleepInterval(timeStamp));            
+            
+            // Calculate when the next interval(second, 1/10 s, etc) should 
+            // occur in master time - it sets member fNextInterval
+            CalculateNextInterval(timeStamp);
+
+            // Convert nextSecond to local time and subtract a slop factor - this 
+            // is how long we sleep
+            FrequencyRatio offsetFromMaster = fTimestamper->MasterOffset();
+            int64_t adjustedNextSecond = int64_t(fNextInterval + offsetFromMaster);
+            //adjustedNextSecond -= int64_t(100000000);
+            int64_t sleepInterval = CalculateSleepInterval(adjustedNextSecond - int64_t(100000000));
+
+            high_resolution_clock::time_point now = high_resolution_clock::now();
+
+            GPTP_LOG_INFO("-------------------------offsetFromMaster: %Le", offsetFromMaster);
+            GPTP_LOG_INFO("-------------------------timeStamp: %" PRIu64, timeStamp);
+            GPTP_LOG_INFO("-------------------------nextInterval: %" PRIu64, fNextInterval);
+            GPTP_LOG_INFO("-------------------------now(1): %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
+            GPTP_LOG_INFO("-------------------------adjustedNextSecond: %" PRIu64, adjustedNextSecond);
+            GPTP_LOG_INFO("-------------------------sleepInterval: %" PRIu64, sleepInterval);
+            GPTP_LOG_INFO("-------------------------OldSleepInterval: %" PRIu64, CalculateSleepInterval(timeStamp));
+
+            // sleep until the the calculated wake up time
+            if (sleepInterval > 0)
+            {
+               delayMicroseconds(sleepInterval);   
+            }
+            
+
+            //GPTP_LOG_INFO("-------------------------WAKE UP");
+            // Poll the master time and see when the time wraps on the interval
+            // (second) boundary
+            timeStamp = int64_t(fTimestamper->AdjustedTime());
+            now = high_resolution_clock::now();
+            
+            //fDebugLogFile << duration_cast<nanoseconds>(now.time_since_epoch()).count()
+
+            while (!AtIntervalBoundary(timeStamp))
+            {
+               timeStamp = int64_t(fTimestamper->AdjustedTime());
+               now = high_resolution_clock::now();
+            }
+            GPTP_LOG_INFO("-------------------------timeStamp: %" PRIu64, timeStamp);
+            GPTP_LOG_INFO("-------------------------now(2): %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
+
+            // raise the GPIO. 
+            // then sleep for short duration 
+            // lower the GPIO
+            // repeat.
+         }
+
+         fLastTimestamp = timeStamp;                 
+      }
+      else
+      {
+         std::cout << "Warning PPS has no timestamper." << std::endl;
+
+         // So that the led will be "off" for fInterval of time
+         delayMicroseconds(fInterval);
+      }
+   }
+
+   void AdjustToSystemClock()
+   {
+      using std::chrono::duration_cast;
+      using std::chrono::high_resolution_clock;
+      using std::chrono::seconds;
+      using std::chrono::microseconds;
+      using std::chrono::time_point;
+
+      time_point<high_resolution_clock> last = high_resolution_clock::now();
+      time_point<high_resolution_clock> cur;
+
+      while (duration_cast<microseconds>(cur - last).count() < fInterval)
+      {
+         cur = high_resolution_clock::now();
+      }
+   }
+
    private:
       bool fKeepGoing;
       int fPinNumber;
+      int fInterval;
+      LinuxTimestamperGeneric* fTimestamper;
+      int64_t fLastTimestamp;
+      PulseRate fRate;
+      int64_t fLastDelta;
+      std::ofstream fDebugLogFile;
+      std::chrono::high_resolution_clock::time_point fLastActivate;
+      int64_t fNextInterval;
+
+      const int64_t kOneSecNano = 1000000000;
+      const int64_t kTenthSecNano = 100000000;
+      const int64_t kHundrethSecNano = 10000000;
+      const int64_t kThousandthSecNano = 1000000;
 };
 
 // Create a rpi GPIO pinger for GPIO physical pin 11
@@ -150,6 +345,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_PPS_start()
 {
    bool ok = true;
    fPulseThread = fPulseThreadFactory->create();
+   sPinger.TimeStamper(this);
    if (!fPulseThread->start(runPinger, static_cast<void *>(&sPinger)))
    {
       GPTP_LOG_ERROR("Error creating port link thread");

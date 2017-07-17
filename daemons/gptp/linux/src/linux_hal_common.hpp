@@ -188,10 +188,10 @@ public:
 	( LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay );
 
 	virtual net_result nrecvEvent(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
-	 struct phy_delay *delay);
+	 struct phy_delay *delay, Timestamp& ingressTime);
 
 	virtual net_result nrecvGeneral(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
-	 struct phy_delay *delay);
+	 struct phy_delay *delay, Timestamp& ingressTime);
 
 	/**
 	 * @brief  Disables rx socket descriptor rx queue
@@ -244,7 +244,7 @@ protected:
 
 private:
 	net_result receive(LinkLayerAddress *addr, uint8_t *payload, 
-	 size_t &length,struct phy_delay *delay, uint16_t port);
+	 size_t &length,struct phy_delay *delay, uint16_t port, Timestamp& ingressTime);
 };
 
 /**

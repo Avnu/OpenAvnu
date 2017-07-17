@@ -91,18 +91,18 @@
 #define PTP_FOLLOWUP_NSEC(x) x+6	/*!< Gets tne followup nanoseconds offset */
 
 #define PTP_DELAY_REQ_OFFSET 34		/*!< PTP PDELAY REQUEST base offset */
-#define PTP_DELAY_REQ_LENGTH 20		/*!< PTP PDELAY REQUEST length in bytes */
+#define PTP_DELAY_REQ_LENGTH 10		/*!< PTP PDELAY REQUEST length in bytes */
 #define PTP_DELAY_REQ_SEC_MS(x) x		/*!< Gets the pdelay request seconds MSB offset */
 #define PTP_DELAY_REQ_SEC_LS(x) x+2	/*!< Gets the pdelay request seconds LSB offset */
 #define PTP_DELAY_REQ_NSEC(x) x+6		/*!< Gets the pdelay request nanoseconds offset */
 
-#define PTP_DELAY_RESP_OFFSET 34				/*!< PDELAY RESPONSE base offset */
-#define PTP_DELAY_RESP_LENGTH 10				/*!< PDELAY RESPONSE length in bytes */
-#define PTP_DELAY_RESP_SEC_MS(x) x				/*!< Gets the pdelay response seconds MSB offset */
-#define PTP_DELAY_RESP_SEC_LS(x) x+2			/*!< Gets the pdelay response seconds LSB offset */
-#define PTP_DELAY_RESP_NSEC(x) x+6				/*!< Gets the pdelay nanoseconds offset */
-#define PTP_DELAY_RESP_REQ_CLOCK_ID(x) x+10	/*!< Gets the pdelay response request clock id offset */
-#define PTP_DELAY_RESP_REQ_PORT_ID(x) x+18		/*!< Gets the pdelay response request port id offset */
+#define PTP_DELAY_RESP_OFFSET 34				/*!< DELAY RESPONSE base offset */
+#define PTP_DELAY_RESP_LENGTH 10				/*!< DELAY RESPONSE length in bytes */
+#define PTP_DELAY_RESP_SEC_MS(x) x				/*!< Gets the delay response seconds MSB offset */
+#define PTP_DELAY_RESP_SEC_LS(x) x+2			/*!< Gets the delay response seconds LSB offset */
+#define PTP_DELAY_RESP_NSEC(x) x+6				/*!< Gets the delay nanoseconds offset */
+#define PTP_DELAY_RESP_REQ_CLOCK_ID(x) x+10	/*!< Gets the delay response request clock id offset */
+#define PTP_DELAY_RESP_REQ_PORT_ID(x) x+18		/*!< Gets the delay response request port id offset */
 
 #define PTP_PDELAY_REQ_OFFSET 34		/*!< PTP PDELAY REQUEST base offset */
 #define PTP_PDELAY_REQ_LENGTH 20		/*!< PTP PDELAY REQUEST length in bytes */
@@ -248,7 +248,7 @@ protected:
 	/**
 	 * @brief Default constructor
 	 */
-	PTPMessageCommon(void) : sourcePortIdentity(nullptr) { };
+	PTPMessageCommon(void) : sourcePortIdentity(nullptr), sequenceId(0), correctionField(0) { };
 
  public:
  	PTPMessageCommon(const PTPMessageCommon& other)
@@ -267,8 +267,7 @@ protected:
 
 	PTPMessageCommon& operator=(const PTPMessageCommon& other)
 	{
-		assign(other);
-		return *this;
+		return assign(other);
 	}
 
 	PTPMessageCommon& assign(const PTPMessageCommon& other);
@@ -414,7 +413,7 @@ protected:
 	void logCommonHeader();
 
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 /*Exact fit. No padding*/
@@ -633,7 +632,7 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 
 	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
 						 LinkLayerAddress * remote,
-						 IEEE1588Port * port);
+						 IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 /**
@@ -693,7 +692,7 @@ class PTPMessageSync : public PTPMessageCommon {
 	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
 
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 /* Exact fit. No padding*/
@@ -959,7 +958,7 @@ public:
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1034,7 +1033,7 @@ class PTPMessageDelayReq : public PTPMessageCommon {
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1108,18 +1107,24 @@ public:
 	}
 
 	/**
-	 * @brief  Sets target port identity
+	 * @brief  Sets requesting port identity
 	 * @param  identity [in] PortIdentity to be set
 	 * @return void
 	 */
-	void setTargetPortIdentity(std::shared_ptr<PortIdentity> identity);
+	void RequestingPortIdentity(std::shared_ptr<PortIdentity> identity)
+	{
+		requestingPortIdentity = identity;
+	}
 
 	/**
-	 * @brief  Gets target port identity
+	 * @brief  Gets requesting port identity
 	 * @param  identity [out] Requested PortIdentity
 	 * @return void
 	 */
-	void getTargetPortIdentity(std::shared_ptr<PortIdentity> identity);
+	std::shared_ptr<PortIdentity> RequestingPortIdentity() const
+	{
+		return requestingPortIdentity;
+	}
 
 #ifdef APTP
 	/**
@@ -1131,7 +1136,7 @@ public:
 #endif
 	
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1180,7 +1185,7 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1249,7 +1254,7 @@ public:
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1319,7 +1324,7 @@ public:
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 /*Exact fit. No padding*/
@@ -1475,7 +1480,7 @@ public:
 	void processMessage(IEEE1588Port * port);
 
 	friend PTPMessageCommon *buildPTPMessage
-	  (char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port);
+	  (char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
 };
 
 #endif

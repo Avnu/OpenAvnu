@@ -99,7 +99,9 @@ net_result LinuxNetworkInterface::send
 	if (timestamp) 
 	{
 #ifndef ARCH_INTELCE
+#ifndef APTP
 		net_lock.lock();
+#endif
 #endif
 		GPTP_LOG_VERBOSE("sendto  sd_event");
 		err = sendto(sd_event, payload, length, 0, (sockaddr *)&remote, sizeof(remote));
@@ -244,6 +246,8 @@ struct LinuxTimerQueueActionArg {
 LinuxTimerQueue::~LinuxTimerQueue() {
 	pthread_join(_private->signal_thread,NULL);
 	if( _private != NULL ) delete _private;
+
+	// Deallocate the timer argument wrappers!!!!
 }
 
 bool LinuxTimerQueue::init() {
@@ -322,9 +326,9 @@ OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
 
 
 
-bool LinuxTimerQueue::addEvent
-( unsigned long micros, int type, ostimerq_handler func,
-  event_descriptor_t * arg, bool rm, unsigned *event) {
+bool LinuxTimerQueue::addEvent(unsigned long micros, int type, 
+ ostimerq_handler func, event_descriptor_t * arg, bool rm, unsigned *event)
+{
 	LinuxTimerQueueActionArg *outer_arg;
 	int err;
 	LinuxTimerQueueMap_t::iterator iter;
@@ -336,7 +340,21 @@ bool LinuxTimerQueue::addEvent
 	outer_arg->func = func;
 	outer_arg->type = type;
 
-	// Find key that we can use
+	// !!! Experimental for reducing the number of per process timers
+	// // Find key that we can use
+	// auto lowerBound = timerQueueMap.lower_bound(type);
+	// if (lowerBound != timerQueueMap.end() && 
+	//  !timerQueueMap.key_comp()(type, lowerBound->first))
+	// {
+	// 	// Update the timer
+	// 	lb->second = outer_arg
+	// }
+	// else
+	// {
+	// 	// Create a new timer
+	// 	timerQueueMap.insert(lb, LinuxTimerQueueMap_t::value_type(type, outer_arg));
+	// }
+
 	while( timerQueueMap.find( key ) != timerQueueMap.end() ) {
 		++key;
 	}

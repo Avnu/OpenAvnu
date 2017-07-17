@@ -65,6 +65,29 @@ class LinkLayerAddress:public InterfaceLabel {
 	LinkLayerAddress() {
 	};
 
+	LinkLayerAddress(const std::string& ip, uint16_t portNumber) :
+	 port(portNumber)
+	{
+		// Parse the ip address into the internal array of uint_8 values
+		size_t start = 0;
+		size_t end = 0;
+		int idx = 0;
+		while (idx < ETHER_ADDR_OCTETS)
+		{
+			end = ip.find(".", start);
+			if (std::string::npos == end)
+			{
+				addr[idx++] = std::stoi(ip.substr(start));
+				break;
+			}
+			else
+			{
+				addr[idx++] = std::stoi(ip.substr(start, end));
+			}
+			start = end + 1;
+		}
+	}
+
 	/**
 	 * @brief Receives a 64bit scalar address and initializes its internal octet
 	 * array with the first 48 bits.
@@ -390,7 +413,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecvEvent
-		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
+		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay, Timestamp& ingressTime) = 0;
 
 	 /**
 	  * @brief  Receives data from port 320
@@ -400,7 +423,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecvGeneral
-		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
+		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay, Timestamp& ingressTime) = 0;
 
 	 /**
 	  * @brief Get Link Layer address (mac address)

@@ -99,6 +99,8 @@ public:
 	 */
 	bool Adjust( void *tmx );
 
+	bool Adjust(const timeval& tm);
+
 	/**
 	 * @brief  Initializes the Hardware timestamp interface
 	 * @param  iface_label [in] Network interface label (used to find the phc index)
