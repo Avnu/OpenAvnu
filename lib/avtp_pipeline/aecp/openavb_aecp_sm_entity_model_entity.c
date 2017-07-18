@@ -323,8 +323,15 @@ void processCommand()
 						if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
 							openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 							if (pDescriptorStreamInput) {
-								memcpy(&pDescriptorStreamInput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamInput->current_format));
-								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+								if (memcmp(&pDescriptorStreamInput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamInput->current_format)) == 0) {
+									// No change needed.
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+								}
+								else {
+									// AVDECC_TODO:  Verify that the stream format is supported, and notify the Listener of the change.
+									//memcpy(&pDescriptorStreamInput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamInput->current_format));
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+								}
 							}
 							else {
 								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
@@ -333,8 +340,15 @@ void processCommand()
 						else if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
 							openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 							if (pDescriptorStreamOutput) {
-								memcpy(&pDescriptorStreamOutput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamOutput->current_format));
-								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+								if (memcmp(&pDescriptorStreamOutput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamOutput->current_format)) == 0) {
+									// No change needed.
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+								}
+								else {
+									// AVDECC_TODO:  Verify that the stream format is supported, and notify the Talker of the change.
+									//memcpy(&pDescriptorStreamOutput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamOutput->current_format));
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+								}
 							}
 							else {
 								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
@@ -415,8 +429,15 @@ void processCommand()
 					if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_AUDIO_UNIT) {
 						openavb_aem_descriptor_audio_unit_t *pDescriptorAudioUnit = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 						if (pDescriptorAudioUnit) {
-							memcpy(&pDescriptorAudioUnit->current_sampling_rate, pCmd->sampling_rate, sizeof(pDescriptorAudioUnit->current_sampling_rate));
-							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+							if (memcmp(&pDescriptorAudioUnit->current_sampling_rate, pCmd->sampling_rate, sizeof(pDescriptorAudioUnit->current_sampling_rate)) == 0) {
+								// No change needed.
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+							}
+							else {
+								// AVDECC_TODO:  Verify that the sample rate is supported, and notify the Talker/Listener of the change.
+								//memcpy(&pDescriptorAudioUnit->current_sampling_rate, pCmd->sampling_rate, sizeof(pDescriptorAudioUnit->current_sampling_rate));
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+							}
 						}
 						else {
 							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
@@ -466,8 +487,15 @@ void processCommand()
 					if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_CLOCK_DOMAIN) {
 						openavb_aem_descriptor_clock_domain_t *pDescriptorClockDomain = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 						if (pDescriptorClockDomain) {
-							pDescriptorClockDomain->clock_source_index = pCmd->clock_source_index;
-							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+							if (pDescriptorClockDomain->clock_source_index == pCmd->clock_source_index) {
+								// No change needed.
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+							}
+							else {
+								// AVDECC_TODO:  Verify that the clock source is supported, and notify the Talker/Listener of the change.
+								//pDescriptorClockDomain->clock_source_index = pCmd->clock_source_index;
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+							}
 						}
 						else {
 							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
@@ -998,9 +1026,9 @@ void openavbAecpSMEntityModelEntityStateMachine()
 
 				state = OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING;
 				break;
-	
+
 			default:
-				AVB_LOG_DEBUG("State:  Unknown");
+				AVB_LOG_ERROR("State:  Unknown");
 				bRunning = FALSE;	// Unexpected
 				break;
 
