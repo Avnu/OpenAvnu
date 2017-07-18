@@ -86,6 +86,9 @@ typedef struct {
 	U8 fast_connect_talker_entity_id[8];
 	struct timespec fast_connect_start_time;
 
+	// OPENAVB_ACMP_FLAG values from CONNECT_TX_RESPONSE or CONNECT_RX_RESPONSE.
+	U16 acmp_flags;
+
 	// Also save a pointer to the supplied stream information.
 	const openavb_tl_data_cfg_t *stream;
 
