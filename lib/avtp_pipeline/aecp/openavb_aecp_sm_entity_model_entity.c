@@ -223,26 +223,20 @@ bool processCommandCheckRestriction_CorrectController()
 }
 
 // Returns TRUE the stream_input or stream_output descriptor is currently not running.
+// NOTE:  This function is using the last reported state from the client, not the state AVDECC last told the client to be in.
 bool processCommandCheckRestriction_StreamNotRunning(U16 descriptor_type, U16 descriptor_index)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
-	bool bResult = FALSE;
+	bool bResult = TRUE;
 
-	if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
+	if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT ||
+			descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
 		U16 configIdx = openavbAemGetConfigIdx();
-		openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, descriptor_type, descriptor_index);
-		if (pDescriptorStreamInput) {
-			if (!openavbAVDECCListenerIsStreaming(pDescriptorStreamInput, configIdx)) {
-				bResult = TRUE;
-			}
-		}
-	}
-	else if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
-		U16 configIdx = openavbAemGetConfigIdx();
-		openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, descriptor_type, descriptor_index);
-		if (pDescriptorStreamOutput) {
-			if (!openavbAVDECCTalkerIsStreaming(pDescriptorStreamOutput, configIdx)) {
-				bResult = TRUE;
+		openavb_aem_descriptor_stream_io_t *pDescriptorStreamIO = openavbAemGetDescriptor(configIdx, descriptor_type, descriptor_index);
+		if (pDescriptorStreamIO) {
+			openavbAvdeccMsgStateType_t state = openavbAVDECCGetStreamingState(pDescriptorStreamIO, configIdx);
+			if (state >= OPENAVB_AVDECC_MSG_RUNNING) {
+				bResult = FALSE;
 			}
 		}
 	}

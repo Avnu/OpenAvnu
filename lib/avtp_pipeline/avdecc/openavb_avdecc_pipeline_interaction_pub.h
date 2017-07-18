@@ -34,6 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include "openavb_acmp.h"
 #include "openavb_descriptor_stream_io_pub.h"
+#include "openavb_avdecc_msg.h"
 
 
 // Run a single talker or listener.
@@ -47,9 +48,11 @@ bool openavbAVDECCStopTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStre
 // Get talker stream details. Structure members in TalkerStrreamInfo will be filled.
 bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput, U16 configIdx, openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo);
 
-// Determine if the talker or listener is streaming.
-bool openavbAVDECCListenerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput, U16 configIdx);
-bool openavbAVDECCTalkerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput, U16 configIdx);
+// Get the streaming state (stopped, running, paused, etc.) AVDECC told the talker or listener to use.
+openavbAvdeccMsgStateType_t openavbAVDECCGetRequestedState(openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput, U16 configIdx);
+
+// Get the streaming state (stopped, running, paused, etc.) last reported by the talker or listener.
+openavbAvdeccMsgStateType_t openavbAVDECCGetStreamingState(openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput, U16 configIdx);
 
 // Pause or resume the stream.
 void openavbAVDECCPauseStream(openavb_aem_descriptor_stream_io_t *pDescriptor, bool bPause);
