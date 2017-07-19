@@ -119,6 +119,7 @@ void openavbEptSrvrNotifyTlkrOfSrpCb(int h,
                                   char                    *ifname,
                                   U8                       destAddr[ETH_ALEN],
                                   openavbSrpLsnrDeclSubtype_t  lsnrDecl,
+                                  U8                       srClass,
                                   U32                      classRate,
                                   U16                      vlanID,
                                   U8                       priority,
@@ -139,6 +140,7 @@ void openavbEptSrvrNotifyTlkrOfSrpCb(int h,
 	strncpy(msgBuf.params.talkerCallback.ifname, ifname, IFNAMSIZ - 1);
 	memcpy(msgBuf.params.talkerCallback.destAddr, destAddr, ETH_ALEN);
 	msgBuf.params.talkerCallback.lsnrDecl = lsnrDecl;
+	msgBuf.params.talkerCallback.srClass = srClass;
 	msgBuf.params.talkerCallback.classRate = classRate;
 	msgBuf.params.talkerCallback.vlanID = vlanID;
 	msgBuf.params.talkerCallback.priority = priority;

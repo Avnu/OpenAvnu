@@ -81,13 +81,14 @@ static bool openavbEptClntReceiveFromServer(int h, openavbEndpointMessage_t *msg
 			                            msg->params.talkerCallback.ifname,
 			                            msg->params.talkerCallback.destAddr,
 			                            msg->params.talkerCallback.lsnrDecl,
+			                            msg->params.talkerCallback.srClass,
 			                            msg->params.talkerCallback.classRate,
 			                            msg->params.talkerCallback.vlanID,
 			                            msg->params.talkerCallback.priority,
 			                            msg->params.talkerCallback.fwmark);
 			break;
 		case OPENAVB_ENDPOINT_LISTENER_CALLBACK:
-			openavbEptClntNotifyLstnrOfSrpCb(h, 
+			openavbEptClntNotifyLstnrOfSrpCb(h,
 			                            &msg->streamID,
 			                             msg->params.listenerCallback.ifname,
 			                             msg->params.listenerCallback.destAddr,

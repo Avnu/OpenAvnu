@@ -109,6 +109,7 @@ typedef struct {
 } openavbAvdeccMsgParams_ClientInitIdentify_t;
 
 typedef struct {
+	U8 sr_class; // SR_CLASS_A or SR_CLASS_B
 	U8 stream_src_mac[6]; // MAC Address for the Talker
 	U16 stream_uid; // Stream ID value
 	U8 stream_dest_mac[6]; // Multicast address for the stream
@@ -127,6 +128,7 @@ typedef struct {
 } openavbAvdeccMsgParams_VersionCallback_t;
 
 typedef struct {
+	U8 sr_class; // SR_CLASS_A or SR_CLASS_B
 	U8 stream_src_mac[6]; // MAC Address for the Talker
 	U16 stream_uid; // Stream ID value
 	U8 stream_dest_mac[6]; // Multicast address for the stream
@@ -172,12 +174,12 @@ bool openavbAvdeccMsgClntInitIdentify(int avdeccMsgHandle, const char * friendly
 bool openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(int avdeccMsgHandle, char * friendly_name, U8 talker);
 
 // Client notify the server of the stream values for the Talker to use.
-bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
-bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
+bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, U8 sr_class, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
+bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, U8 sr_class, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
 
 // Server notify the client of the stream values for the Listener to use.
-bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
-bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
+bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, U8 sr_class, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
+bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, U8 sr_class, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id);
 
 // Server state change requests, and client notifications of state changes.
 bool openavbAvdeccMsgSrvrChangeRequest(int avdeccMsgHandle, openavbAvdeccMsgStateType_t desiredState);

@@ -58,6 +58,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
                                  char                    *ifname,
                                  U8                       destAddr[],
                                  openavbSrpLsnrDeclSubtype_t  lsnrDecl,
+                                 U8                       srClass,
                                  U32                      classRate,
                                  U16                      vlanID,
                                  U8                       priority,
@@ -95,6 +96,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
+			pTalkerData->srClass = srClass;
 			pTalkerData->classRate = classRate;
 			pTalkerData->vlanID = vlanID;
 			pTalkerData->vlanPCP = priority;
@@ -113,6 +115,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
+			pTalkerData->srClass = srClass;
 			pTalkerData->classRate = classRate;
 			pTalkerData->vlanID = vlanID;
 			pTalkerData->vlanPCP = priority;
@@ -131,7 +134,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 	// Let the AVDECC Msg server know our current stream ID, in case it was updated by MAAP.
 	if (pTLState->avdeccMsgHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
 		if (!openavbAvdeccMsgClntTalkerStreamID(pTLState->avdeccMsgHandle,
-				pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
+				pTalkerData->srClass, pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
 				pTalkerData->destAddr, pTalkerData->vlanID)) {
 			AVB_LOG_ERROR("openavbAvdeccMsgClntTalkerStreamID() failed");
 		}

@@ -67,6 +67,7 @@ bool openavbAVDECCRunListener(openavb_aem_descriptor_stream_io_t *pDescriptorStr
 	// Send the Stream ID to the client.
 	// The client will stop a running Listener if the settings differ from its current values.
 	if (!openavbAvdeccMsgSrvrListenerStreamID(pDescriptorStreamInput->stream->client->avdeccMsgHandle,
+			((pListenerStreamInfo->flags & OPENAVB_ACMP_FLAG_CLASS_B) != 0 ? SR_CLASS_B : SR_CLASS_A),
 			pListenerStreamInfo->stream_id, /* The first 6 bytes of the steam_id are the source MAC Address */
 			(((U16) pListenerStreamInfo->stream_id[6]) << 8 | (U16) pListenerStreamInfo->stream_id[7]),
 			pListenerStreamInfo->stream_dest_mac,

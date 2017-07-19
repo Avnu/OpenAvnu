@@ -86,7 +86,7 @@ static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAv
 		case OPENAVB_AVDECC_MSG_LISTENER_STREAM_ID:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_LISTENER_STREAM_ID");
 			openavbAvdeccMsgClntHndlListenerStreamIDFromServer(avdeccMsgHandle,
-				msg->params.listenerStreamID.stream_src_mac, ntohs(msg->params.listenerStreamID.stream_uid),
+				msg->params.listenerStreamID.sr_class, msg->params.listenerStreamID.stream_src_mac, ntohs(msg->params.listenerStreamID.stream_uid),
 				msg->params.listenerStreamID.stream_dest_mac, ntohs(msg->params.listenerStreamID.stream_vlan_id));
 			break;
 		case OPENAVB_AVDECC_MSG_CLIENT_CHANGE_REQUEST:
@@ -162,7 +162,7 @@ bool openavbAvdeccMsgClntInitIdentify(int avdeccMsgHandle, const char * friendly
 	return ret;
 }
 
-bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
+bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, U8 sr_class, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavbAvdeccMessage_t msgBuf;
@@ -191,6 +191,7 @@ bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, const U8 stream_src
 	msgBuf.type = OPENAVB_AVDECC_MSG_TALKER_STREAM_ID;
 	openavbAvdeccMsgParams_TalkerStreamID_t * pParams =
 		&(msgBuf.params.talkerStreamID);
+	pParams->sr_class = sr_class;
 	memcpy(pParams->stream_src_mac, stream_src_mac, 6);
 	pParams->stream_uid = htons(stream_uid);
 	memcpy(pParams->stream_dest_mac, stream_dest_mac, 6);
@@ -201,7 +202,7 @@ bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, const U8 stream_src
 	return ret;
 }
 
-bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
+bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, U8 sr_class, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
@@ -220,10 +221,11 @@ bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, con
 
 	// Determine if the supplied information differs from the current settings.
 	openavb_tl_cfg_t * pCfg = &(pState->pTLState->cfg);
-	if (memcmp(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6) != 0 ||
-			 pCfg->stream_uid != stream_uid ||
-			 memcmp(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6) != 0 ||
-			 pCfg->vlan_id != stream_vlan_id) {
+	if (pCfg->sr_class != sr_class ||
+			memcmp(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6) != 0 ||
+			pCfg->stream_uid != stream_uid ||
+			memcmp(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6) != 0 ||
+			pCfg->vlan_id != stream_vlan_id) {
 		// If the Listener is running, stop the Listener before updating the information.
 		if (pState->pTLState->bRunning) {
 			AVB_LOG_DEBUG("Forcing Listener to Stop to change streaming settings");
@@ -231,6 +233,7 @@ bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, con
 		}
 
 		// Update the stream information supplied by the server.
+		pCfg->sr_class = sr_class;
 		memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
 		pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
 		pCfg->stream_uid = stream_uid;
@@ -239,6 +242,7 @@ bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, con
 		pCfg->vlan_id = stream_vlan_id;
 	 }
 
+	AVB_LOGF_DEBUG("AVDECC-supplied sr_class:  %u", pCfg->sr_class);
 	AVB_LOGF_DEBUG("AVDECC-supplied stream_id:  " ETH_FORMAT "/%u",
 		ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
 	AVB_LOGF_DEBUG("AVDECC-supplied dest_addr:  " ETH_FORMAT,
@@ -413,7 +417,7 @@ void openavbAvdeccMsgRunTalker(avdecc_msg_state_t *pState)
 
 	// Let the AVDECC Msg server know our stream ID.
 	if (!openavbAvdeccMsgClntTalkerStreamID(pState->avdeccMsgHandle,
-			cfg->stream_addr.buffer.ether_addr_octet, cfg->stream_uid,
+			cfg->sr_class, cfg->stream_addr.buffer.ether_addr_octet, cfg->stream_uid,
 			cfg->dest_addr.buffer.ether_addr_octet, cfg->vlan_id)) {
 		AVB_LOG_ERROR("openavbAvdeccMsgClntTalkerStreamID() failed");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);

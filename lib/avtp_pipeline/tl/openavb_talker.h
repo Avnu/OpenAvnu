@@ -44,6 +44,7 @@ typedef struct {
 	AVBStreamID_t 	streamID;
 	U8				destAddr[ETH_ALEN];
 	AVBTSpec_t		tSpec;
+	U8				srClass;
 	U32				classRate;
 	U32				fwmark;
 	U16				vlanID;
