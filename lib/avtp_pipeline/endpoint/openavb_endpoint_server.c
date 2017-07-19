@@ -2,16 +2,16 @@
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -22,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -36,7 +36,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  * "endpoint" process to create a reservation for their traffic.
  *
  * This code implements the endpoint (server) side of the IPC.
- * 
+ *
  * It provides proxy functions for the endpoint to call.  The arguments
  * for those calls are packed into messages, which are unpacked in the
  * streamer processes and then used to call the real functions.
@@ -78,7 +78,7 @@ static bool openavbEptSrvrReceiveFromClient(int h, openavbEndpointMessage_t *msg
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return FALSE;
 	}
-			
+
 	bool ret = FALSE;
 	switch (msg->type) {
 		case OPENAVB_ENDPOINT_TALKER_REGISTER:
@@ -122,7 +122,7 @@ void openavbEptSrvrNotifyTlkrOfSrpCb(int h,
                                   U32                      classRate,
                                   U16                      vlanID,
                                   U8                       priority,
-                                  U16                      fwmark) 
+                                  U16                      fwmark)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 	openavbEndpointMessage_t  msgBuf;
@@ -162,7 +162,7 @@ void openavbEptSrvrNotifyLstnrOfSrpCb(int h,
 	openavbEndpointMessage_t  msgBuf;
 
 	// Check for valid parameters. DestAddr is optional and checked later.
-	if (!streamID || !ifname) {		
+	if (!streamID || !ifname) {
 		AVB_LOG_ERROR("Listener callback; invalid argument passed");
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return;
@@ -172,7 +172,7 @@ void openavbEptSrvrNotifyLstnrOfSrpCb(int h,
 	msgBuf.type = OPENAVB_ENDPOINT_LISTENER_CALLBACK;
 	memcpy(&(msgBuf.streamID), streamID, sizeof(AVBStreamID_t));
 	strncpy(msgBuf.params.listenerCallback.ifname, ifname, IFNAMSIZ - 1);
-	if (destAddr) 
+	if (destAddr)
 		memcpy(msgBuf.params.listenerCallback.destAddr, destAddr, ETH_ALEN);
 	msgBuf.params.listenerCallback.tlkrDecl = tlkrDecl;
 	if (tSpec)
@@ -214,7 +214,7 @@ bool openavbEptSrvrRegisterStream(int h,
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 
 	clientStream_t *ps = findStream(streamID);
-	
+
 	if (ps && ps->clientHandle != h) {
 		AVB_LOGF_ERROR("Error registering talker; multiple clients for stream %d", streamID->uniqueID);
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
@@ -299,7 +299,7 @@ bool openavbEptSrvrRegisterStream(int h,
 	}
 
 	openavbEndPtLogAllStaticStreams();
-	
+
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return IS_OPENAVB_SUCCESS(rc);
 }
@@ -393,7 +393,7 @@ bool openavbEptSrvrHndlVerRqstFromClient(int h)
 	return TRUE;
 }
 
-/* Called if a client closes their end of the IPC 
+/* Called if a client closes their end of the IPC
  */
 void openavbEptSrvrCloseClientConnection(int h)
 {
