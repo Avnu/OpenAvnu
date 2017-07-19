@@ -405,6 +405,71 @@ void processCommand()
 		case OPENAVB_AEM_COMMAND_CODE_SET_STREAM_INFO:
 			break;
 		case OPENAVB_AEM_COMMAND_CODE_GET_STREAM_INFO:
+			{
+				openavb_aecp_command_data_get_stream_info_t *pCmd = &pCommand->entityModelPdu.command_data.getStreamInfoCmd;
+				openavb_aecp_response_data_get_stream_info_t *pRsp = &pCommand->entityModelPdu.command_data.getStreamInfoRsp;
+
+				pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
+
+				if (pRsp->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT ||
+						pRsp->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
+					U16 configIdx = openavbAemGetConfigIdx();
+					openavb_aem_descriptor_stream_io_t *pDescriptorStreamIO = openavbAemGetDescriptor(configIdx, pCmd->descriptor_type, pCmd->descriptor_index);
+					if (pDescriptorStreamIO && pDescriptorStreamIO->stream) {
+						openavbAvdeccMsgStateType_t clientState = openavbAVDECCGetStreamingState(pDescriptorStreamIO, configIdx);
+
+						// Get the flags for the current status.
+						pRsp->flags = 0;
+						if (pDescriptorStreamIO->fast_connect_status >= OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS) {
+							pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_FAST_CONNECT;
+						}
+						if (openavbAvdeccGetSaveStateInfo(pDescriptorStreamIO->stream, NULL, NULL, NULL, NULL)) {
+							pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_SAVED_STATE;
+						}
+						if (clientState >= OPENAVB_AVDECC_MSG_RUNNING) {
+							pRsp->flags |= (pDescriptorStreamIO->acmp_flags &
+									(OPENAVB_ACMP_FLAG_CLASS_B |
+									 OPENAVB_ACMP_FLAG_FAST_CONNECT |
+									 OPENAVB_ACMP_FLAG_SUPPORTS_ENCRYPTED |
+									 OPENAVB_ACMP_FLAG_ENCRYPTED_PDU));
+							pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_CONNECTED;
+							if (clientState == OPENAVB_AVDECC_MSG_PAUSED) {
+								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAMING_WAIT;
+							}
+
+							// Get the Stream ID.
+							memcpy(pRsp->stream_id, pDescriptorStreamIO->acmp_stream_id, 8);
+							if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00\x00\x00", 8) != 0) {
+								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID;
+							}
+
+							// Get the Destination MAC Address.
+							memcpy(pRsp->stream_dest_mac, pDescriptorStreamIO->acmp_dest_addr, 6);
+							if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00", 6) != 0) {
+								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID;
+							}
+
+							// Get the Stream VLAN ID if the other stream identifiers are valid.
+							if (pDescriptorStreamIO->acmp_stream_vlan_id != VLAN_NULL &&
+									(pRsp->flags & (OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) ==
+										(OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) {
+								pRsp->stream_vlan_id = pDescriptorStreamIO->acmp_stream_vlan_id;
+								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID;
+							}
+						}
+						// AVDECC_TODO:  Add TALKER_FAILED flag support.
+
+						// Get the stream format.
+						openavbAemStreamFormatToBuf(&pDescriptorStreamIO->current_format, pRsp->stream_format);
+						pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_FORMAT_VALID;
+
+						// AVDECC_TODO:  Add support for msrp_accumulated_latency
+						// AVDECC_TODO:  Add support for msrp_failure_bridge_id, and msrp_failure_code
+
+						pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+					}
+				}
+			}
 			break;
 		case OPENAVB_AEM_COMMAND_CODE_SET_NAME:
 			break;

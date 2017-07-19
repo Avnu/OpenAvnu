@@ -526,6 +526,11 @@ void openavbAcmpSMListenerStateMachine()
 
 								// Save the response flags for reference later.
 								pDescriptorStreamInput->acmp_flags = response.flags;
+
+								// Save the stream information for reference later.
+								memcpy(pDescriptorStreamInput->acmp_stream_id, pRcvdCmdResp->stream_id, 8);
+								memcpy(pDescriptorStreamInput->acmp_dest_addr, pRcvdCmdResp->stream_dest_mac, 6);
+								pDescriptorStreamInput->acmp_stream_vlan_id = pRcvdCmdResp->stream_vlan_id;
 							}
 						}
 

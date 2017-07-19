@@ -89,6 +89,11 @@ typedef struct {
 	// OPENAVB_ACMP_FLAG values from CONNECT_TX_RESPONSE or CONNECT_RX_RESPONSE.
 	U16 acmp_flags;
 
+	// Streaming values for GET_STREAM_INFO from CONNECT_TX_RESPONSE or CONNECT_RX_RESPONSE.
+	U8 acmp_stream_id[8];
+	U8 acmp_dest_addr[6];
+	U16 acmp_stream_vlan_id;
+
 	// Also save a pointer to the supplied stream information.
 	const openavb_tl_data_cfg_t *stream;
 

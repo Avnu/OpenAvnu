@@ -651,6 +651,11 @@ void openavbAcmpSMTalker_updateStreamInfo(openavb_tl_data_cfg_t *pCfg)
 				// Save the response flags for reference later.
 				pDescriptorStreamOutput->acmp_flags = response->flags;
 
+				// Save the stream information for reference later.
+				memcpy(pDescriptorStreamOutput->acmp_stream_id, response->stream_id, 8);
+				memcpy(pDescriptorStreamOutput->acmp_dest_addr, response->stream_dest_mac, 6);
+				pDescriptorStreamOutput->acmp_stream_vlan_id = response->stream_vlan_id;
+
 				// Send the response.
 				openavbAcmpSMTalker_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE, response, OPENAVB_ACMP_STATUS_SUCCESS);
 				AVB_LOG_DEBUG("Sent a CONNECT_TX_RESPONSE command");

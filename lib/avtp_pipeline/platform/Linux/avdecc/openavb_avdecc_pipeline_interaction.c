@@ -291,7 +291,7 @@ openavbAvdeccMsgStateType_t openavbAVDECCGetRequestedState(openavb_aem_descripto
 		return OPENAVB_AVDECC_MSG_UNKNOWN;
 	}
 	if (!pDescriptorStream->stream->client) {
-		AVB_LOG_ERROR("openavbAVDECCGetRequestedState Invalid stream client pointer");
+		AVB_LOG_DEBUG("openavbAVDECCGetRequestedState Invalid stream client pointer");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return OPENAVB_AVDECC_MSG_UNKNOWN;
 	}
@@ -317,7 +317,7 @@ openavbAvdeccMsgStateType_t openavbAVDECCGetStreamingState(openavb_aem_descripto
 		return OPENAVB_AVDECC_MSG_UNKNOWN;
 	}
 	if (!pDescriptorStream->stream->client) {
-		AVB_LOG_ERROR("openavbAVDECCGetStreamingState Invalid stream client pointer");
+		AVB_LOG_DEBUG("openavbAVDECCGetStreamingState Invalid stream client pointer");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return OPENAVB_AVDECC_MSG_UNKNOWN;
 	}
