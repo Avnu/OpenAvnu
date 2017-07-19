@@ -507,9 +507,15 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 		}
 
-		// Notify the state machine of the command request
-		// The buffer will be deleted once the request is handled.
-		openavbAecpSMEntityModelEntitySet_rcvdCommand(openavbAecpCommandResponse);
+		if (pSrc - payload <= payload_len) {
+			// Notify the state machine of the command request
+			// The buffer will be deleted once the request is handled.
+			openavbAecpSMEntityModelEntitySet_rcvdCommand(openavbAecpCommandResponse);
+		}
+		else {
+			AVB_LOGF_ERROR("Expected packet of size %d, but received one of size %d.  Discarding.", pSrc - payload, payload_len);
+			free(openavbAecpCommandResponse);
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);

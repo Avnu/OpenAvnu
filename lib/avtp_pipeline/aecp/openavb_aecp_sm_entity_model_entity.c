@@ -1191,7 +1191,7 @@ void openavbAecpSMEntityModelEntitySet_rcvdCommand(openavb_aecp_AEMCommandRespon
 			openavbAecpSMGlobalVars.myEntityID,
 			sizeof(openavbAecpSMGlobalVars.myEntityID)) != 0) {
 		// Not intended for us.
-		free(openavbAecpSMEntityModelEntityVars.rcvdCommand);
+		free(rcvdCommand);
 		return;
 	}
 
