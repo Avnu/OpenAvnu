@@ -147,6 +147,7 @@ void acquireEntity()
 		AEM_LOCK();
 		if (pCommand->entityModelPdu.command_data.acquireEntityCmd.flags & OPENAVB_AEM_ACQUIRE_ENTITY_COMMAND_FLAG_RELEASE) {
 			// AVDECC_TODO - need to add mutex for the entity model
+			AVB_LOG_DEBUG("Entity Released");
 			pAem->entityAcquired = FALSE;
 		}
 		else {
@@ -158,10 +159,15 @@ void acquireEntity()
 					memcpy(pCommand->entityModelPdu.command_data.acquireEntityRsp.owner_id, pAem->acquiredControllerId, sizeof(pCommand->commonPdu.controller_entity_id));
 				}
 				else {
-					pAem->entityAcquired = TRUE;
-					memcpy(pAem->acquiredControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->acquiredControllerId));
-					memcpy(pCommand->entityModelPdu.command_data.acquireEntityRsp.owner_id, pCommand->commonPdu.controller_entity_id, sizeof(pCommand->commonPdu.controller_entity_id));
+					// Entity was already acquired by this controller, so indicate a successful acquisition.
+					pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
 				}
+			}
+			else {
+				pAem->entityAcquired = TRUE;
+				memcpy(pAem->acquiredControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->acquiredControllerId));
+				memcpy(pCommand->entityModelPdu.command_data.acquireEntityRsp.owner_id, pCommand->commonPdu.controller_entity_id, sizeof(pCommand->commonPdu.controller_entity_id));
+				AVB_LOGF_DEBUG("Entity Acquired by " ENTITYID_FORMAT, pCommand->entityModelPdu.command_data.acquireEntityRsp.owner_id);
 			}
 		}
 		AEM_UNLOCK();
@@ -193,7 +199,7 @@ void lockEntity()
 bool processCommandCheckRestriction_CorrectController()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
-	bool bResult = FALSE;
+	bool bResult = TRUE;
 
 	openavb_aecp_AEMCommandResponse_t *pCommand = openavbAecpSMEntityModelEntityVars.rcvdCommand;
 	if (!pCommand) {
@@ -209,10 +215,18 @@ bool processCommandCheckRestriction_CorrectController()
 			if (memcmp(pAem->acquiredControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->acquiredControllerId)) == 0) {
 				bResult = TRUE;
 			}
+			else {
+				AVB_LOGF_DEBUG("Access denied to " ENTITYID_FORMAT " as " ENTITYID_FORMAT " already acquired it", pCommand->commonPdu.controller_entity_id, pAem->acquiredControllerId);
+				bResult = FALSE;
+			}
 		}
 		else if (pAem->entityLocked) {
-			if (memcmp(pAem->lockedControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->acquiredControllerId)) == 0) {
+			if (memcmp(pAem->lockedControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->lockedControllerId)) == 0) {
 				bResult = TRUE;
+			}
+			else {
+				AVB_LOGF_DEBUG("Access denied to " ENTITYID_FORMAT " as " ENTITYID_FORMAT " already locked it", pCommand->commonPdu.controller_entity_id, pAem->lockedControllerId);
+				bResult = FALSE;
 			}
 		}
 		AEM_UNLOCK();
