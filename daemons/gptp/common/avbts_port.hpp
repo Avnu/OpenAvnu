@@ -64,12 +64,7 @@
 
 #define PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER 3	/*!< PDelay timeout multiplier*/
 
-#ifdef APTP
-#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER  1			/*!< Sync receipt timeout multiplier*/
-#else
 #define SYNC_RECEIPT_TIMEOUT_MULTIPLIER  3			/*!< Sync receipt timeout multiplier*/
-#endif
-
 #define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3		/*!< Announce receipt timeout multiplier*/
 
 #define LOG2_INTERVAL_INVALID -127	/* Simple out of range Log base 2 value used for Sync and PDelay msg internvals */
@@ -446,6 +441,8 @@ class IEEE1588Port {
 	Timestamp _peer_offset_ts_mine;
 	bool _peer_offset_init;
 
+	FrequencyRatio fMasterOffset;
+	
 	int32_t _initial_clock_offset;
 	int32_t _current_clock_offset;
 
@@ -465,6 +462,7 @@ class IEEE1588Port {
 	PTPMessageDelayReq last_delay_req;
 	PTPMessageDelayResp last_delay_resp;
 
+	bool fFollowupAhead;
 	bool fHaveFollowup;
 	bool fHaveDelayResp;
 
@@ -514,7 +512,8 @@ class IEEE1588Port {
 
 	GptpIniParser iniParser;
 
-	std::list<std::string> fUnicastNodeList;
+	std::list<std::string> fUnicastSendNodeList;
+	std::list<std::string> fUnicastReceiveNodeList;
 
  private:
 	net_result port_send(uint16_t etherType, uint8_t * buf, int size,
@@ -1662,18 +1661,29 @@ class IEEE1588Port {
 		fMeanPathDelay = delay;
 	}
 
-	void UnicastNodes(std::list<std::string> nodeList)
+	void UnicastReceiveNodes(std::list<std::string> nodeList)
 	{
-		fUnicastNodeList = nodeList;
+		fUnicastReceiveNodeList = nodeList;
 	}
 
-	const std::list<std::string> UnicastNodes() const
+	const std::list<std::string> UnicastReceiveNodes() const
 	{
-		return fUnicastNodeList;
+		return fUnicastReceiveNodeList;
+	}
+
+	void UnicastSendNodes(std::list<std::string> nodeList)
+	{
+		fUnicastSendNodeList = nodeList;
+	}
+
+	const std::list<std::string> UnicastSendNodes() const
+	{
+		return fUnicastSendNodeList;
 	}
 
 	void MasterOffset(FrequencyRatio offset)
 	{
+		fMasterOffset = offset;
 		if (_hw_timestamper)
 		{
 			_hw_timestamper->MasterOffset(offset);
@@ -1682,6 +1692,11 @@ class IEEE1588Port {
 		{
 			GPTP_LOG_ERROR("_hw_timestamper IS NULL!!!!!!!!!!!!!!!!!!!!!!!");
 		}
+	}
+
+	FrequencyRatio MasterOffset() const
+	{
+		return fMasterOffset;
 	}
 
 	void AdjustedTime(FrequencyRatio t)
@@ -1771,6 +1786,16 @@ class IEEE1588Port {
 	void LastRateAverageSlaveMaster(FrequencyRatio ratio)
 	{
 		fLastRateAverageSlaveMaster = ratio;
+	}
+
+	void FollowupAhead(bool yesno)
+	{
+		fFollowupAhead = yesno;
+	}
+
+	bool FollowupAhead() const
+	{
+		return fFollowupAhead;
 	}
 
 	void HaveDelayResp(bool yesno)

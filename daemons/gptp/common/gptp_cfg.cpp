@@ -195,6 +195,7 @@ int GptpIniParser::iniCallBack(void *user, const char *section,
     }
     else if( parseMatch(section, "eth") )
     {
+        GPTP_LOG_INFO("ini parse  section eth, name %s", name);
         if( parseMatch(name, "phy_delay_gb_tx") )
         {
             errno = 0;
@@ -238,12 +239,16 @@ int GptpIniParser::iniCallBack(void *user, const char *section,
                 parser->_config.phyDelay.mb_rx_phy_delay = phdly;
             }
         }
-        else if (parseMatch(name, "unicast_nodes"))
+        else if (parseMatch(name, "unicast_send_nodes"))
         {
-            parser->_config.unicastNodes = parser->Split(value);
+            parser->_config.unicastSendNodes = parser->Split(value);
             valOK = true;
         }
-
+        else if (parseMatch(name, "unicast_receive_nodes"))
+        {
+            parser->_config.unicastReceiveNodes = parser->Split(value);
+            valOK = true;
+        }
     }
 
     if(valOK)

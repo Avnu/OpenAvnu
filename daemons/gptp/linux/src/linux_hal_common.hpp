@@ -185,13 +185,13 @@ public:
 	 * an error on the transmit side, net_fatal if error on reception
 	 */
 	virtual net_result nrecv
-	( LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay );
+	( LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay);
 
 	virtual net_result nrecvEvent(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
-	 struct phy_delay *delay, Timestamp& ingressTime);
+	 struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port);
 
 	virtual net_result nrecvGeneral(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
-	 struct phy_delay *delay, Timestamp& ingressTime);
+	 struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port);
 
 	/**
 	 * @brief  Disables rx socket descriptor rx queue
@@ -234,6 +234,32 @@ public:
 	void LogLockState()
 	{
 		net_lock.LogState();
+	}
+
+	bool ValidAddress(LinkLayerAddress *addr, IEEE1588Port* port)
+	{
+		bool isValid = true;
+		std::string toCompare = addr ? addr->AddressString() : "";
+		std::list<std::string> nodeList;
+		if (port != nullptr)
+		{
+			port->UnicastReceiveNodes();
+		}
+		std::for_each(nodeList.begin(), nodeList.end(), [&isValid, toCompare](const std::string& ip)
+		 {
+		 	isValid = isValid && (ip == toCompare);
+		 });
+		return isValid;
+	}
+
+	net_result Filter(net_result result, LinkLayerAddress *addr, IEEE1588Port* port)
+	{
+		net_result ok = result;
+		if (net_succeed == result && !ValidAddress(addr, port))
+		{
+			ok = net_trfail;
+		}
+		return ok;
 	}
 
 protected:

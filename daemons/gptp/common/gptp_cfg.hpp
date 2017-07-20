@@ -68,7 +68,8 @@ class GptpIniParser
             uint16_t lostPdelayRespThresh;
             PortState port_state;
             PortType delayMechanism;
-            std::list<std::string> unicastNodes;
+            std::list<std::string> unicastSendNodes;
+            std::list<std::string> unicastReceiveNodes;
 
             /*ethernet adapter data set*/
             std::string ifname;
@@ -87,11 +88,16 @@ class GptpIniParser
          */
         int parserError();
 
-        std::list<std::string> UnicastNodes() const
+        std::list<std::string> UnicastSendNodes() const
         {
-            return _config.unicastNodes;
+            return _config.unicastSendNodes;
         }
 
+        std::list<std::string> UnicastReceiveNodes() const
+        {
+            return _config.unicastReceiveNodes;
+        }
+        
         /**
          * @brief  Reads priority1 config value
          * @param  void

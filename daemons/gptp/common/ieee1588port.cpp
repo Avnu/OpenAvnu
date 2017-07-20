@@ -108,6 +108,7 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	operLogSyncInterval = portInit->operLogSyncInterval;
 
 	smoothRateChange = portInit->smoothRateChange;
+	fLastFilteredRateRatioMS = 1;
 
 	if (automotive_profile) {
 		asCapable = true;
@@ -151,7 +152,8 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 		GPTP_LOG_VERBOSE("iniParser.hasIniValues");
 		log_mean_sync_interval = iniParser.getInitialLogSyncInterval();
 		log_mean_announce_interval = iniParser.getInitialLogAnnounceInterval();
-		fUnicastNodeList = iniParser.UnicastNodes();
+		fUnicastSendNodeList = iniParser.UnicastSendNodes();
+		fUnicastReceiveNodeList = iniParser.UnicastReceiveNodes();
 	}
 	else
 	{
@@ -167,8 +169,9 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	_hw_timestamper = portInit->timestamper;
 	fUseHardwareTimestamp = true;
 
-	fMeanPathDelay = 999999999.0;
+	fMeanPathDelay = 0.0;
 
+	fFollowupAhead = false;
 	fHaveFollowup = false;
 	fHaveDelayResp = false;
 
@@ -485,6 +488,7 @@ void *IEEE1588Port::openPort(IEEE1588Port *port)
 						maybeProcessMessage(false, get_delay);
 						++safetyNet;
 						sync = port->getLastSync();
+						syncSeqId = sync ? sync->getSequenceId() : 0;
 
 						// Ensure that all sequence Ids match for all messages, if they don't
 						// look for another sync message. Also check for messages from
@@ -522,7 +526,15 @@ void *IEEE1588Port::openPort(IEEE1588Port *port)
 							delete sync;
 							port->setLastSync(NULL);
 
-							if (port->HaveFollowup() && fupSeqId < syncSeqId)
+							if (port->HaveFollowup() && syncSeqId < fupSeqId)
+							{
+								GPTP_LOG_ERROR(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Breaking general loop  syncSeqId < fupSeqId");
+								port->HaveDelayResp(false);
+								port->FollowupAhead(true);
+								maybeProcessMessage(true, get_delay);
+								//break;
+							}
+							else if (port->HaveFollowup() && fupSeqId < syncSeqId)
 							{
 								GPTP_LOG_ERROR(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Getting next General message fupSeqId < syncSeqId");
 								// The general messages got behind the event messages
@@ -539,11 +551,10 @@ void *IEEE1588Port::openPort(IEEE1588Port *port)
 							 (port->HaveDelayResp() && delRespSeqId > syncSeqId))
 							{
 								GPTP_LOG_ERROR(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Getting next sequence");
-								// We got the next followup before the next sync. We need
-								// to get the next sync and start looking for the DelayResp
+								// We got the next followup before the next sync or the next
+								// delay response before the next sync. We need to get the next
+								// sync.
 								maybeProcessMessage(true, get_delay);
-								sync = port->getLastSync();
-								syncSeqId = sync ? sync->getSequenceId() : 0;
 							}
 							else
 							{
@@ -584,8 +595,8 @@ net_result IEEE1588Port::maybeProcessMessage(bool checkEventMessage, phy_delay& 
 	Timestamp ingressTime;
 	
 	rrecv = checkEventMessage
-	 ? net_iface->nrecvEvent(&remote, buf, length, &delay, ingressTime)
-	 : net_iface->nrecvGeneral(&remote, buf, length,&delay, ingressTime);
+	 ? net_iface->nrecvEvent(&remote, buf, length, &delay, ingressTime, this)
+	 : net_iface->nrecvGeneral(&remote, buf, length,&delay, ingressTime, this);
 
 	if (net_succeed == rrecv)
 	{
@@ -636,12 +647,12 @@ net_result IEEE1588Port::port_send(uint16_t etherType, uint8_t * buf, int size,
 	}
 	else
 	{
-		if (!destIdentity && !fUnicastNodeList.empty())
+		if (!destIdentity && !fUnicastSendNodeList.empty())
 		{
 			ok = net_succeed;
 
-			// Use the unicast list if it is present
-			std::for_each(fUnicastNodeList.begin(), fUnicastNodeList.end(), 
+			// Use the unicast send node list if it is present
+			std::for_each(fUnicastSendNodeList.begin(), fUnicastSendNodeList.end(), 
 			 [&](const std::string& address)
 			 {
 			 	 GPTP_LOG_VERBOSE("IEEE1588Port::port_send   address: %s, port:%d", address.c_str(), port);
@@ -756,7 +767,12 @@ void IEEE1588Port::processEvent(Event e)
 			if (e3 != NULL_EVENT)
 				clock->addEventTimerLocked(this, e3, interval3);
 			if (e4 != NULL_EVENT)
+			{
+				       GPTP_LOG_VERBOSE("IEEE1588Port::processEvent (powerup/initialize)  adding "
+        "ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES  announceInterval:%d", getAnnounceInterval());
+
 				clock->addEventTimerLocked(this, e4, interval4);
+			}
 		}
 
 		if (automotive_profile) {
@@ -871,6 +887,7 @@ void IEEE1588Port::processEvent(Event e)
 						EBest = NULL;	// EBest == NULL : we were grandmaster
 						ports[j]->recommendState(PTP_MASTER,
 						                         changed_external_master);
+						GPTP_LOG_VERBOSE("AFTER recommendState  port_state:%d", port_state);
 					} else {
 						if( EBest == ports[j]->calculateERBest() ) {
 							// The "best" Announce was recieved on this port
@@ -881,6 +898,7 @@ void IEEE1588Port::processEvent(Event e)
 
 							ports[j]->recommendState
 							  ( PTP_SLAVE, changed_external_master );
+							GPTP_LOG_VERBOSE("AFTER recommendState  port_state:%d", port_state);
 
 							clock_identity = EBest->getGrandmasterClockIdentity();
 							getClock()->setGrandmasterClockIdentity(clock_identity);
@@ -895,6 +913,7 @@ void IEEE1588Port::processEvent(Event e)
 							   sync'd to a better clock */
 							ports[j]->recommendState
 							  (PTP_MASTER, changed_external_master);
+							GPTP_LOG_VERBOSE("AFTER recommendState  port_state:%d", port_state);
 						}
 					}
 				}
@@ -995,6 +1014,9 @@ void IEEE1588Port::processEvent(Event e)
 
 				if( clock->getPriority1() == 255 ) {
 					// Restart timer
+					       GPTP_LOG_VERBOSE("IEEE1588Port::processEvent (ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES/SYNC) adding "
+        "ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES  announceInterval:%d", getAnnounceInterval());
+
 					if( e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES ) {
 						clock->addEventTimerLocked
 						  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
@@ -1035,6 +1057,7 @@ void IEEE1588Port::processEvent(Event e)
 						getClock()->setGrandmasterClockQuality( clock_quality );
 					}
 					port_state = PTP_MASTER;
+					GPTP_LOG_VERBOSE("port_state SET to MASTER!!!!!");
 					Timestamp system_time;
 					Timestamp device_time;
 
@@ -1316,9 +1339,11 @@ void IEEE1588Port::processEvent(Event e)
 		}
 		break;
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
-		GPTP_LOG_DEBUG("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES occured");
+		GPTP_LOG_DEBUG("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES occured  port_state:%d", port_state);
 #ifndef APTP
 		if (asCapable)
+#else
+		if (port_state != PTP_SLAVE)
 #endif
 		{
 			// Send an announce message
@@ -1327,8 +1352,14 @@ void IEEE1588Port::processEvent(Event e)
 			annc.setPortIdentity(dest_id);
 			annc.sendPort(this, nullptr);
 			//!!! Add aPTP TLV signal !!!
+#ifdef APTP	
+    		startAnnounceIntervalTimer(1000000000);
+#endif		        	
 		}
+
+#ifndef APTP	
 		startAnnounceIntervalTimer((uint64_t)(pow((double)2, getAnnounceInterval()) * 1000000000.0));
+#endif		
 		break;
 	case FAULT_DETECTED:
 		GPTP_LOG_ERROR("Received FAULT_DETECTED event");
@@ -1484,6 +1515,9 @@ void IEEE1588Port::becomeSlave( bool restart_syntonization ) {
 	port_state = PTP_SLAVE;
 
 	if (!automotive_profile) {
+       GPTP_LOG_VERBOSE("IEEE1588Port::becomeSlave  adding "
+        "ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES  announceInterval:%d", getAnnounceInterval());
+
 		clock->addEventTimerLocked
 		  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
 		   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
@@ -1533,7 +1567,7 @@ void IEEE1588Port::recommendState
 		break;
 	}
 	if( reset_sync ) sync_count = 0;
-	return;
+   GPTP_LOG_VERBOSE("IEEE1588Port::recommendState   port_state:%d", port_state);
  }
 
 void IEEE1588Port::mapSocketAddr

@@ -418,7 +418,13 @@ int main(int argc, char **argv)
 			// Set the delay_mechanism from the ini file valid values are E2E or P2P
 			pPort->setDelayMechanism(V2_E2E);
 
-			pPort->UnicastNodes(iniParser.UnicastNodes());
+			std::list<std::string> nodes = iniParser.UnicastSendNodes();
+			for_each(nodes.begin(), nodes.end(), [](const std::string& node)
+				{
+					GPTP_LOG_INFO("Send Node:%s", node.c_str());
+				});
+			pPort->UnicastSendNodes(iniParser.UnicastSendNodes());
+			pPort->UnicastReceiveNodes(iniParser.UnicastReceiveNodes());
 
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
 			if (!input_delay)

@@ -211,16 +211,8 @@ class LinkLayerAddress:public InterfaceLabel {
 	void getAddress(in_addr *dest)
 	{
 		// Convert the raw values to a string for use with inet_pton
-		std::string address;
+		std::string address = AddressString();
 		std::string val;
-		const size_t kIpv4Groups = 4;
-		const size_t kMax = kIpv4Groups < ETHER_ADDR_OCTETS
-		 ? kIpv4Groups : ETHER_ADDR_OCTETS;
-		for (size_t i = 0; i < kMax; ++i)
-		{
-			val = std::to_string(addr[i]);
-			address += address.empty() ? val : '.' + val;
-		}
 
 		GPTP_LOG_VERBOSE("address:%s", address.c_str());
 
@@ -236,6 +228,21 @@ class LinkLayerAddress:public InterfaceLabel {
 	void Port(uint16_t number)
 	{
 		port = number;
+	}
+
+	std::string AddressString() const
+	{
+		std::string address;
+		std::string octet;
+		const size_t kIpv4Groups = 4;
+		const size_t kMax = kIpv4Groups < ETHER_ADDR_OCTETS
+		 ? kIpv4Groups : ETHER_ADDR_OCTETS;
+		for (size_t i = 0; i < kMax; ++i)
+		{
+			octet = std::to_string(addr[i]);
+			address += address.empty() ? octet : '.' + octet;
+		}
+		return address;
 	}
 };
 
@@ -413,7 +420,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecvEvent
-		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay, Timestamp& ingressTime) = 0;
+		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port) = 0;
 
 	 /**
 	  * @brief  Receives data from port 320
@@ -423,7 +430,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecvGeneral
-		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay, Timestamp& ingressTime) = 0;
+		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port) = 0;
 
 	 /**
 	  * @brief Get Link Layer address (mac address)

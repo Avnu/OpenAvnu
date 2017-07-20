@@ -247,25 +247,35 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 	return ret;	
 }
 
+
 // Providing an implementation for this but it should never be invoked for the
 // LinuxNetworkInterface.
 net_result LinuxNetworkInterface::nrecv(LinkLayerAddress *addr, uint8_t *payload, 
-	size_t &length,struct phy_delay *delay ) 
+ size_t &length,struct phy_delay *delay ) 
 {
 	Timestamp ingressTime;
-	return receive(addr, payload, length, delay, 319, ingressTime);
+	//net_trfail
+	net_result result = receive(addr, payload, length, delay, 319, ingressTime);
+	result = Filter(result, addr, 0);
+	return result;
 }
 
 net_result LinuxNetworkInterface::nrecvEvent(LinkLayerAddress *addr,
-	uint8_t *payload, size_t &length,struct phy_delay *delay, Timestamp& ingressTime) 
+ uint8_t *payload, size_t &length,struct phy_delay *delay,
+ Timestamp& ingressTime, IEEE1588Port* port) 
 {
-	return receive(addr, payload, length, delay, 319, ingressTime);
+	net_result result = receive(addr, payload, length, delay, 319, ingressTime);
+	result = Filter(result, addr, port);
+	return result;
 }
 
 net_result LinuxNetworkInterface::nrecvGeneral(LinkLayerAddress *addr, 
-	uint8_t *payload, size_t &length,struct phy_delay *delay, Timestamp& ingressTime) 
+ uint8_t *payload, size_t &length,struct phy_delay *delay, 
+ Timestamp& ingressTime, IEEE1588Port* port) 
 {
-	return receive(addr, payload, length, delay, 320, ingressTime);
+	net_result result = receive(addr, payload, length, delay, 320, ingressTime);
+	result = Filter(result, addr, port);
+	return result;
 }
 
 int findPhcIndex( InterfaceLabel *iface_label ) {
