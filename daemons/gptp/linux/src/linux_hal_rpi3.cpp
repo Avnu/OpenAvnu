@@ -194,7 +194,7 @@ class AGPioPinger
 
       time_point<high_resolution_clock> now = high_resolution_clock::now();
       int64_t timestamp = duration_cast<nanoseconds>(now.time_since_epoch()).count();
-      timestamp -= fTimestamper->MasterOffset();
+      timestamp += fTimestamper->MasterOffset();
       return CalculateNextInterval(timestamp);
    }
 
@@ -238,10 +238,7 @@ class AGPioPinger
             // Calculate the next interval with respect to local time
             CalculateNextInterval();
             int64_t sleepInterval = CalculateSleepInterval(fNextInterval);
-            if (sleepInterval > 0)
-            {
-               delayMicroseconds(sleepInterval);   
-            }
+            delayMicroseconds(sleepInterval > 0 ? sleepInterval : fInterval);
          }
          else
          {
