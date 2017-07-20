@@ -186,17 +186,10 @@ bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, U8 sr_class, const 
 		return false;
 	}
 
-	// Verify that the destination address is valid.
-	if (memcmp(stream_dest_mac, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
-		AVB_LOG_DEBUG("stream_dest_mac not yet valid.  Not sending to AVDECC Msg Server.");
-		return true;
-	}
-
-	// Verify that the stream_vlan_id is valid.
-	if (stream_vlan_id == VLAN_NULL) {
-		AVB_LOG_DEBUG("stream_vlan_id not yet valid.  Not sending to AVDECC Msg Server.");
-		return true;
-	}
+	// Send a default stream_vlan_id value if none specified.
+	if (stream_vlan_id == 0) {
+		stream_vlan_id = 2; // SR Class default VLAN Id values per IEEE 802.1Q-2011 Table 9-2
+ 	}
 
 	// Send the stream information to the server.
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
@@ -340,7 +333,7 @@ bool openavbAvdeccMsgClntHndlTalkerStreamIDFromServer(int avdeccMsgHandle,
 				ETH_OCTETS(pCfg->dest_addr.buffer.ether_addr_octet));
 		}
 	}
-	if (stream_vlan_id_valid && stream_vlan_id != VLAN_NULL) {
+	if (stream_vlan_id_valid) {
 		if (stream_vlan_id == 0) {
 			// Restore from the backup value.
 			if (pCfg->backup_vlan_id_valid) {

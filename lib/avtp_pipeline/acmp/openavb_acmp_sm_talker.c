@@ -630,6 +630,13 @@ void openavbAcmpSMTalker_updateStreamInfo(openavb_tl_data_cfg_t *pCfg)
 			openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, talker_unique_id);
 			if (pDescriptorStreamOutput && pDescriptorStreamOutput->stream == pCfg) {
 
+				// Verify that the destination address is valid.
+				if (pCfg->dest_addr.mac == NULL ||
+						memcmp(pCfg->dest_addr.buffer.ether_addr_octet, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+					AVB_LOG_DEBUG("stream_dest_mac not yet valid.  Continue to wait.");
+					continue;
+				}
+
 				// We will handle the GET_TX_CONNECTION_RESPONSE command response here.
 				AVB_LOGF_DEBUG("Received an update for talker_unique_id %d", talker_unique_id);
 				openavb_acmp_ACMPCommandResponse_t *response = pTalkerStreamInfo->waiting_on_talker;

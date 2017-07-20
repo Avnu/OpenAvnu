@@ -79,9 +79,6 @@ typedef enum {
 /// Maximum size of the friendly name
 #define FRIENDLY_NAME_SIZE 64
 
-/// Indicates that VLAN ID is not set in configuration
-#define VLAN_NULL UINT16_MAX
-
 /// Initial talker/listener state
 typedef enum {
 	/// Unspecified

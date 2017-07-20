@@ -475,7 +475,7 @@ void processCommand()
 									U8 stream_dest_valid = FALSE;
 									U8 stream_dest_mac[6] = {0, 0, 0, 0, 0, 0};
 									U8 stream_vlan_id_valid = FALSE;
-									U16 stream_vlan_id = VLAN_NULL;
+									U16 stream_vlan_id = 0;
 									if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID) != 0) {
 										stream_id_valid = TRUE;
 										memcpy(stream_src_mac, pCmd->stream_format, 6);
@@ -566,9 +566,8 @@ void processCommand()
 								}
 
 								// Get the Stream VLAN ID if the other stream identifiers are valid.
-								if (pDescriptorStreamIO->acmp_stream_vlan_id != VLAN_NULL &&
-										(pRsp->flags & (OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) ==
-											(OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) {
+								if ((pRsp->flags & (OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) ==
+										(OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) {
 									pRsp->stream_vlan_id = pDescriptorStreamIO->acmp_stream_vlan_id;
 									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID;
 								}
@@ -595,8 +594,7 @@ void processCommand()
 							}
 
 							// Get the Stream VLAN ID.
-							if (pDescriptorStreamIO->stream->vlan_id != 0 &&
-									pDescriptorStreamIO->stream->vlan_id != VLAN_NULL) {
+							if (pDescriptorStreamIO->stream->vlan_id != 0) {
 								pRsp->stream_vlan_id = pDescriptorStreamIO->stream->vlan_id;
 								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID;
 							}

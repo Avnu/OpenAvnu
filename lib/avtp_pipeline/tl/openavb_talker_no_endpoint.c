@@ -77,14 +77,14 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	pTalkerData->srClass = pCfg->sr_class;
 	if (pCfg->sr_class == SR_CLASS_A) {
 		pTalkerData->classRate = 8000;
-		pTalkerData->vlanID = pCfg->vlan_id == VLAN_NULL ?
-					SR_CLASS_A_DEFAULT_VID : pCfg->vlan_id;
+		pTalkerData->vlanID = (pCfg->vlan_id == 0 ?
+					SR_CLASS_A_DEFAULT_VID : pCfg->vlan_id);
 		pTalkerData->vlanPCP = SR_CLASS_A_DEFAULT_PRIORITY;
 	}
 	else if (pCfg->sr_class == SR_CLASS_B) {
 		pTalkerData->classRate = 4000;
-		pTalkerData->vlanID = pCfg->vlan_id == VLAN_NULL ?
-					SR_CLASS_B_DEFAULT_VID : pCfg->vlan_id;
+		pTalkerData->vlanID = (pCfg->vlan_id == 0 ?
+					SR_CLASS_B_DEFAULT_VID : pCfg->vlan_id);
 		pTalkerData->vlanPCP = SR_CLASS_B_DEFAULT_PRIORITY;
 	}
 	memcpy(&pTalkerData->destAddr, &pCfg->dest_addr.mac->ether_addr_octet, ETH_ALEN);
