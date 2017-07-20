@@ -47,8 +47,8 @@
 /* These 4 macros are used only when Syntonize mode is enabled */
 #define INTEGRAL 0.0003				/*!< PI controller integral factor*/
 #define PROPORTIONAL 1.0			/*!< PI controller proportional factor*/
-#define UPPER_FREQ_LIMIT  250.0		/*!< Upper frequency limit */
-#define LOWER_FREQ_LIMIT -250.0		/*!< Lower frequency limit */
+#define UPPER_FREQ_LIMIT  2500.0		/*!< Upper frequency limit */
+#define LOWER_FREQ_LIMIT -2500.0		/*!< Lower frequency limit */
 
 #define UPPER_LIMIT_PPM 2500
 #define LOWER_LIMIT_PPM -2500
