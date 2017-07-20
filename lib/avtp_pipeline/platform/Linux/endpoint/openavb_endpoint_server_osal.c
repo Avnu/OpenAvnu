@@ -116,7 +116,7 @@ bool openavbEndpointServerOpen(void)
 	// serverAddr is file static
 	serverAddr.sun_family = AF_UNIX;
 	snprintf(serverAddr.sun_path, UNIX_PATH_MAX, AVB_ENDPOINT_UNIX_PATH);
-
+	unlink(AVB_ENDPOINT_UNIX_PATH);
 	int rslt = bind(lsock, (struct sockaddr*)&serverAddr, sizeof(struct sockaddr_un));
 	if (rslt != 0) {
 		AVB_LOGF_ERROR("Failed to create %s: %s", serverAddr.sun_path, strerror(errno));
