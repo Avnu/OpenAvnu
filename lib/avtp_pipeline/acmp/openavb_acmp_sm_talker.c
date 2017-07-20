@@ -652,6 +652,7 @@ void openavbAcmpSMTalker_updateStreamInfo(openavb_tl_data_cfg_t *pCfg)
 				pDescriptorStreamOutput->acmp_flags = response->flags;
 
 				// Save the stream information for reference later.
+				// (This is currently only used by Listeners, but it doesn't hurt to have it just in case.)
 				memcpy(pDescriptorStreamOutput->acmp_stream_id, response->stream_id, 8);
 				memcpy(pDescriptorStreamOutput->acmp_dest_addr, response->stream_dest_mac, 6);
 				pDescriptorStreamOutput->acmp_stream_vlan_id = response->stream_vlan_id;

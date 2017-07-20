@@ -89,6 +89,18 @@ static bool openavbAvdeccMsgClntReceiveFromServer(int avdeccMsgHandle, openavbAv
 				msg->params.listenerStreamID.sr_class, msg->params.listenerStreamID.stream_src_mac, ntohs(msg->params.listenerStreamID.stream_uid),
 				msg->params.listenerStreamID.stream_dest_mac, ntohs(msg->params.listenerStreamID.stream_vlan_id));
 			break;
+		case OPENAVB_AVDECC_MSG_S2C_TALKER_STREAM_ID:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_S2C_TALKER_STREAM_ID");
+			openavbAvdeccMsgClntHndlTalkerStreamIDFromServer(avdeccMsgHandle,
+				msg->params.s2cTalkerStreamID.sr_class,
+				msg->params.s2cTalkerStreamID.stream_id_valid,
+				msg->params.s2cTalkerStreamID.stream_src_mac,
+				ntohs(msg->params.s2cTalkerStreamID.stream_uid),
+				msg->params.s2cTalkerStreamID.stream_dest_valid,
+				msg->params.s2cTalkerStreamID.stream_dest_mac,
+				msg->params.s2cTalkerStreamID.stream_vlan_id_valid,
+				ntohs(msg->params.s2cTalkerStreamID.stream_vlan_id));
+			break;
 		case OPENAVB_AVDECC_MSG_CLIENT_CHANGE_REQUEST:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_CLIENT_CHANGE_REQUEST");
 			openavbAvdeccMsgClntHndlChangeRequestFromServer(avdeccMsgHandle, (openavbAvdeccMsgStateType_t) msg->params.clientChangeRequest.desired_state);
@@ -188,9 +200,9 @@ bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, U8 sr_class, const 
 
 	// Send the stream information to the server.
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
-	msgBuf.type = OPENAVB_AVDECC_MSG_TALKER_STREAM_ID;
-	openavbAvdeccMsgParams_TalkerStreamID_t * pParams =
-		&(msgBuf.params.talkerStreamID);
+	msgBuf.type = OPENAVB_AVDECC_MSG_C2S_TALKER_STREAM_ID;
+	openavbAvdeccMsgParams_C2S_TalkerStreamID_t * pParams =
+		&(msgBuf.params.c2sTalkerStreamID);
 	pParams->sr_class = sr_class;
 	memcpy(pParams->stream_src_mac, stream_src_mac, 6);
 	pParams->stream_uid = htons(stream_uid);
@@ -242,12 +254,116 @@ bool openavbAvdeccMsgClntHndlListenerStreamIDFromServer(int avdeccMsgHandle, U8 
 		pCfg->vlan_id = stream_vlan_id;
 	 }
 
-	AVB_LOGF_DEBUG("AVDECC-supplied sr_class:  %u", pCfg->sr_class);
-	AVB_LOGF_DEBUG("AVDECC-supplied stream_id:  " ETH_FORMAT "/%u",
+	AVB_LOGF_DEBUG("AVDECC-supplied (Listener) sr_class:  %u", pCfg->sr_class);
+	AVB_LOGF_DEBUG("AVDECC-supplied (Listener) stream_id:  " ETH_FORMAT "/%u",
 		ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
-	AVB_LOGF_DEBUG("AVDECC-supplied dest_addr:  " ETH_FORMAT,
+	AVB_LOGF_DEBUG("AVDECC-supplied (Listener) dest_addr:  " ETH_FORMAT,
 		ETH_OCTETS(pCfg->dest_addr.buffer.ether_addr_octet));
-	AVB_LOGF_DEBUG("AVDECC-supplied vlan_id:  %u", pCfg->vlan_id);
+	AVB_LOGF_DEBUG("AVDECC-supplied (Listener) vlan_id:  %u", pCfg->vlan_id);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return true;
+}
+
+bool openavbAvdeccMsgClntHndlTalkerStreamIDFromServer(int avdeccMsgHandle,
+	U8 sr_class, U8 stream_id_valid, const U8 stream_src_mac[6], U16 stream_uid, U8 stream_dest_valid, const U8 stream_dest_mac[6], U8 stream_vlan_id_valid, U16 stream_vlan_id)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
+
+	if (!pState->pTLState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d state not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
+
+	// Update the stream information supplied by the server.
+	openavb_tl_cfg_t * pCfg = &(pState->pTLState->cfg);
+	pCfg->sr_class = sr_class;
+	AVB_LOGF_DEBUG("AVDECC-supplied (Talker) sr_class:  %u", pCfg->sr_class);
+	if (stream_id_valid) {
+		if (memcmp(stream_src_mac, "\x00\x00\x00\x00\x00\x00", 6) == 0 && stream_uid == 0) {
+			// Restore from the backup value.
+			if (pCfg->backup_stream_id_valid) {
+				memcpy(pCfg->stream_addr.buffer.ether_addr_octet, pCfg->backup_stream_addr, 6);
+				pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
+				pCfg->stream_uid = pCfg->backup_stream_uid;
+				pCfg->backup_stream_id_valid = FALSE;
+				AVB_LOGF_DEBUG("AVDECC-supplied (Talker) reverted to default stream_id:  " ETH_FORMAT "/%u",
+					ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
+			}
+		}
+		else {
+			// Backup the current value.
+			if (!pCfg->backup_stream_id_valid) {
+				memcpy(pCfg->backup_stream_addr, pCfg->stream_addr.buffer.ether_addr_octet, 6);
+				pCfg->backup_stream_uid = pCfg->stream_uid;
+				pCfg->backup_stream_id_valid = TRUE;
+			}
+
+			// Save the new value.
+			memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
+			pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
+			pCfg->stream_uid = stream_uid;
+			AVB_LOGF_DEBUG("AVDECC-supplied (Talker) stream_id:  " ETH_FORMAT "/%u",
+				ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
+		}
+	}
+	if (stream_dest_valid) {
+		if (memcmp(stream_dest_mac, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+			// Restore from the backup value.
+			if (pCfg->backup_dest_addr_valid) {
+				memcpy(pCfg->dest_addr.buffer.ether_addr_octet, pCfg->backup_dest_addr, 6);
+				pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
+				pCfg->backup_dest_addr_valid = FALSE;
+				AVB_LOGF_DEBUG("AVDECC-supplied (Talker) reverted to default dest_addr:  " ETH_FORMAT,
+					ETH_OCTETS(pCfg->dest_addr.buffer.ether_addr_octet));
+			}
+		}
+		else {
+			// Backup the current value.
+			if (!pCfg->backup_dest_addr_valid) {
+				memcpy(pCfg->backup_dest_addr, pCfg->dest_addr.buffer.ether_addr_octet, 6);
+				pCfg->backup_dest_addr_valid = TRUE;
+			}
+
+			// Save the new value.
+			memcpy(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6);
+			pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
+			AVB_LOGF_DEBUG("AVDECC-supplied (Talker) dest_addr:  " ETH_FORMAT,
+				ETH_OCTETS(pCfg->dest_addr.buffer.ether_addr_octet));
+		}
+	}
+	if (stream_vlan_id_valid && stream_vlan_id != VLAN_NULL) {
+		if (stream_vlan_id == 0) {
+			// Restore from the backup value.
+			if (pCfg->backup_vlan_id_valid) {
+				pCfg->vlan_id = pCfg->backup_vlan_id;
+				pCfg->backup_vlan_id_valid = FALSE;
+				AVB_LOGF_DEBUG("AVDECC-supplied (Talker) reverted to default vlan_id:  %u", pCfg->vlan_id);
+			}
+		}
+		else {
+			// Backup the current value.
+			if (!pCfg->backup_vlan_id_valid) {
+				pCfg->backup_vlan_id_valid = pCfg->vlan_id;
+				pCfg->backup_vlan_id_valid = TRUE;
+			}
+
+			// Save the new value.
+			pCfg->vlan_id = stream_vlan_id;
+			AVB_LOGF_DEBUG("AVDECC-supplied (Talker) vlan_id:  %u", pCfg->vlan_id);
+		}
+	}
+
+	// Notify AVDECC of the Talker values to be used after the update.
+	openavbAvdeccMsgClntTalkerStreamID(avdeccMsgHandle, pCfg->sr_class, pCfg->stream_addr.buffer.ether_addr_octet, pCfg->stream_uid, pCfg->dest_addr.buffer.ether_addr_octet, pCfg->vlan_id);
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
 	return true;

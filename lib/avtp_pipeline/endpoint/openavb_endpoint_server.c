@@ -84,12 +84,13 @@ static bool openavbEptSrvrReceiveFromClient(int h, openavbEndpointMessage_t *msg
 		case OPENAVB_ENDPOINT_TALKER_REGISTER:
 			AVB_LOGF_DEBUG("TalkerRegister from client uid=%d", msg->streamID.uniqueID);
 			ret = openavbEptSrvrRegisterStream(h, &msg->streamID,
-			                               msg->params.talkerRegister.destAddr,
-			                               &msg->params.talkerRegister.tSpec,
-			                               msg->params.talkerRegister.srClass,
-			                               msg->params.talkerRegister.srRank,
-			                               msg->params.talkerRegister.latency,
-			                               msg->params.talkerRegister.txRate);
+					msg->params.talkerRegister.destAddr,
+					msg->params.talkerRegister.noMaapAllocate,
+					&msg->params.talkerRegister.tSpec,
+					msg->params.talkerRegister.srClass,
+					msg->params.talkerRegister.srRank,
+					msg->params.talkerRegister.latency,
+					msg->params.talkerRegister.txRate);
 			break;
 		case OPENAVB_ENDPOINT_LISTENER_ATTACH:
 			AVB_LOGF_DEBUG("ListenerAttach from client uid=%d", msg->streamID.uniqueID);
@@ -205,6 +206,7 @@ void openavbEptSrvrSendServerVersionToClient(int h, U32 AVBVersion)
 bool openavbEptSrvrRegisterStream(int h,
                               AVBStreamID_t *streamID,
                               U8 destAddr[],
+                              U8 noMaapAllocation,
                               AVBTSpec_t *tSpec,
                               U8 srClass,
                               U8 srRank,
@@ -238,7 +240,7 @@ bool openavbEptSrvrRegisterStream(int h,
 	ps->fwmark = INVALID_FWMARK;
 
 	// If MAAP is available, or no client-supplied address, allocate an address.
-	if (openavbMaapDaemonAvailable() ||
+	if ((!noMaapAllocation && openavbMaapDaemonAvailable()) ||
 			memcmp(ps->destAddr, destAddr, ETH_ALEN) == 0) {
 		struct ether_addr addr;
 		ps->hndMaap = openavbMaapAllocate(1, &addr);

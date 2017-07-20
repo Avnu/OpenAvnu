@@ -417,6 +417,106 @@ void processCommand()
 		case OPENAVB_AEM_COMMAND_CODE_GET_SENSOR_FORMAT:
 			break;
 		case OPENAVB_AEM_COMMAND_CODE_SET_STREAM_INFO:
+			{
+				openavb_aecp_commandresponse_data_set_stream_info_t *pCmd = &pCommand->entityModelPdu.command_data.setStreamInfoCmd;
+				openavb_aecp_commandresponse_data_set_stream_info_t *pRsp = &pCommand->entityModelPdu.command_data.setStreamInfoRsp;
+
+				if (processCommandCheckRestriction_CorrectController()) {
+					if (processCommandCheckRestriction_StreamNotRunning(pCmd->descriptor_type, pCmd->descriptor_index)) {
+						if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT ||
+								pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
+							openavb_aem_descriptor_stream_io_t *pDescriptorStreamIO = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
+							if (pDescriptorStreamIO) {
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+
+								if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_FORMAT_VALID) != 0) {
+									if (memcmp(&pDescriptorStreamIO->current_format, pCmd->stream_format, sizeof(pDescriptorStreamIO->current_format)) != 0) {
+										// AVDECC_TODO:  Verify that the stream format is supported, and notify the Listener of the change.
+										//memcpy(&pDescriptorStreamInput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamInput->current_format));
+										pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+									}
+								}
+
+								// AVDECC_TODO:  Add support for ENCRYPTED_PDU.
+								if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_ENCRYPTED_PDU) != 0) {
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+								}
+
+								// AVDECC_TODO:  Add support for accumulated latency.
+								// For now, just clear the flags and values.
+								pRsp->flags &= ~OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_MSRP_ACC_LAT_VALID;
+								pRsp->msrp_accumulated_latency = 0;
+								pRsp->flags &= ~OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_MSRP_FAILURE_VALID;
+								pRsp->msrp_failure_code = 0;
+								memset(pRsp->msrp_failure_bridge_id, 0, sizeof(pRsp->msrp_failure_bridge_id));
+
+								if (pCommand->headers.status != OPENAVB_AEM_COMMAND_STATUS_SUCCESS) {
+									// As there are already issues, don't bother trying anything following this.
+								}
+								else if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
+									// If the controller is trying to set the streaming information for the Listener, this is a problem.
+									// The Listener gets this information from the Talker when the connection starts, so setting it here makes no sense.
+									// We also ignore the CLASS_A flag (or absence of it), as the Talker will indicate that value as well.
+									if ((pCmd->flags &
+											(OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID |
+											 OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID |
+											 OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID)) != 0) {
+										AVB_LOG_ERROR("SET_STREAM_INFO cannot set stream parameters for Listener");
+										pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_BAD_ARGUMENTS;
+									}
+								}
+								else {
+									// Get the streaming values to send to the Talker.
+									// Invalid values used to indicate those that should not be changed.
+									U8 sr_class = ((pCmd->flags & OPENAVB_ACMP_FLAG_CLASS_B) != 0 ? SR_CLASS_B : SR_CLASS_A);
+									U8 stream_id_valid = FALSE;
+									U8 stream_src_mac[6] = {0, 0, 0, 0, 0, 0};
+									U16 stream_uid = 0;
+									U8 stream_dest_valid = FALSE;
+									U8 stream_dest_mac[6] = {0, 0, 0, 0, 0, 0};
+									U8 stream_vlan_id_valid = FALSE;
+									U16 stream_vlan_id = VLAN_NULL;
+									if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID) != 0) {
+										stream_id_valid = TRUE;
+										memcpy(stream_src_mac, pCmd->stream_format, 6);
+										stream_uid = ntohs(*(U16*) (pCmd->stream_format + 6));
+										AVB_LOGF_INFO("AVDECC-specified Stream ID " ETH_FORMAT "/%u for Talker", ETH_OCTETS(stream_src_mac), stream_uid);
+									}
+									if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID) != 0) {
+										stream_dest_valid = TRUE;
+										memcpy(stream_dest_mac, pCmd->stream_dest_mac, 6);
+										AVB_LOGF_INFO("AVDECC-specified Stream Dest Addr " ETH_FORMAT " for Talker", ETH_OCTETS(stream_dest_mac));
+									}
+									if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID) != 0) {
+										stream_vlan_id_valid = TRUE;
+										stream_vlan_id = pCmd->stream_vlan_id;
+										AVB_LOGF_INFO("AVDECC-specified Stream VLAN ID %u for Talker", stream_vlan_id);
+									}
+
+									// Pass the values to the Talker.
+									if (!openavbAVDECCSetTalkerStreamInfo(
+											pDescriptorStreamIO, sr_class,
+											stream_id_valid, stream_src_mac, stream_uid,
+											stream_dest_valid, stream_dest_mac,
+											stream_vlan_id_valid, stream_vlan_id)) {
+										AVB_LOG_ERROR("SET_STREAM_INFO error setting stream parameters for Talker");
+										pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+									}
+								}
+							}
+							else {
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
+							}
+						}
+					}
+					else {
+						pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_STREAM_IS_RUNNING;
+					}
+				}
+				else {
+					pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_ENTITY_ACQUIRED;
+				}
+			}
 			break;
 		case OPENAVB_AEM_COMMAND_CODE_GET_STREAM_INFO:
 			{
@@ -451,26 +551,57 @@ void processCommand()
 								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAMING_WAIT;
 							}
 
+							// For the Listener, use the streaming values we received from the current Talker.
+							if (pRsp->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
+								// Get the Stream ID.
+								memcpy(pRsp->stream_id, pDescriptorStreamIO->acmp_stream_id, 8);
+								if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00\x00\x00", 8) != 0) {
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID;
+								}
+
+								// Get the Destination MAC Address.
+								memcpy(pRsp->stream_dest_mac, pDescriptorStreamIO->acmp_dest_addr, 6);
+								if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00", 6) != 0) {
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID;
+								}
+
+								// Get the Stream VLAN ID if the other stream identifiers are valid.
+								if (pDescriptorStreamIO->acmp_stream_vlan_id != VLAN_NULL &&
+										(pRsp->flags & (OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) ==
+											(OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) {
+									pRsp->stream_vlan_id = pDescriptorStreamIO->acmp_stream_vlan_id;
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID;
+								}
+							}
+						}
+
+						// For the Talker, use the values we are or will use for a connection.
+						if (pRsp->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
 							// Get the Stream ID.
-							memcpy(pRsp->stream_id, pDescriptorStreamIO->acmp_stream_id, 8);
-							if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00\x00\x00", 8) != 0) {
-								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID;
+							if (pDescriptorStreamIO->stream->stream_addr.mac != NULL) {
+								memcpy(pRsp->stream_id, pDescriptorStreamIO->stream->stream_addr.buffer.ether_addr_octet, 6);
+								*(U16*)(pRsp->stream_id) = htons(pDescriptorStreamIO->stream->stream_uid);
+								if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00\x00\x00", 8) != 0) {
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID;
+								}
 							}
 
 							// Get the Destination MAC Address.
-							memcpy(pRsp->stream_dest_mac, pDescriptorStreamIO->acmp_dest_addr, 6);
-							if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00", 6) != 0) {
-								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID;
+							if (pDescriptorStreamIO->stream->dest_addr.mac != NULL) {
+								memcpy(pRsp->stream_dest_mac, pDescriptorStreamIO->stream->dest_addr.buffer.ether_addr_octet, 6);
+								if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00", 6) != 0) {
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID;
+								}
 							}
 
-							// Get the Stream VLAN ID if the other stream identifiers are valid.
-							if (pDescriptorStreamIO->acmp_stream_vlan_id != VLAN_NULL &&
-									(pRsp->flags & (OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) ==
-										(OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) {
-								pRsp->stream_vlan_id = pDescriptorStreamIO->acmp_stream_vlan_id;
+							// Get the Stream VLAN ID.
+							if (pDescriptorStreamIO->stream->vlan_id != 0 &&
+									pDescriptorStreamIO->stream->vlan_id != VLAN_NULL) {
+								pRsp->stream_vlan_id = pDescriptorStreamIO->stream->vlan_id;
 								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID;
 							}
 						}
+
 						// AVDECC_TODO:  Add TALKER_FAILED flag support.
 
 						// Get the stream format.

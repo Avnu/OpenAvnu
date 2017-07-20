@@ -113,6 +113,7 @@ static bool openavbEptClntReceiveFromServer(int h, openavbEndpointMessage_t *msg
 bool openavbEptClntRegisterStream(int h,
                               AVBStreamID_t *streamID,
                               U8 destAddr[],
+                              U8 noMaapAllocate,
                               AVBTSpec_t *tSpec,
                               U8 srClass,
                               U8 srRank,
@@ -132,8 +133,10 @@ bool openavbEptClntRegisterStream(int h,
 	memset(&msgBuf, 0, OPENAVB_ENDPOINT_MSG_LEN);
 	msgBuf.type = OPENAVB_ENDPOINT_TALKER_REGISTER;
 	memcpy(&(msgBuf.streamID), streamID, sizeof(AVBStreamID_t));
-	if (destAddr)
+	if (destAddr) {
 		memcpy(msgBuf.params.talkerRegister.destAddr, destAddr, ETH_ALEN);
+		msgBuf.params.talkerRegister.noMaapAllocate = noMaapAllocate;
+	}
 	msgBuf.params.talkerRegister.tSpec.maxFrameSize = tSpec->maxFrameSize;
 	msgBuf.params.talkerRegister.tSpec.maxIntervalFrames = tSpec->maxIntervalFrames;
 	msgBuf.params.talkerRegister.srClass = srClass;

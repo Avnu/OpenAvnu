@@ -45,8 +45,16 @@ bool openavbAVDECCRunTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStrea
 bool openavbAVDECCStopListener(openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput, U16 configIdx, openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo);
 bool openavbAVDECCStopTalker(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput, U16 configIdx, openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo);
 
-// Get talker stream details. Structure members in TalkerStrreamInfo will be filled.
+// Get talker stream details. Structure members in TalkerStreamInfo will be filled.
 bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput, U16 configIdx, openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo);
+
+// Set talker stream details. The settings will be passed to the Talker to use for future connections
+bool openavbAVDECCSetTalkerStreamInfo(
+	openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput,
+	U8 sr_class,
+	U8 stream_id_valid, const U8 stream_src_mac[6], U16 stream_uid,
+	U8 stream_dest_valid, const U8 stream_dest_mac[6],
+	U8 stream_vlan_id_valid, U16 stream_vlan_id);
 
 // Get the streaming state (stopped, running, paused, etc.) AVDECC told the talker or listener to use.
 openavbAvdeccMsgStateType_t openavbAVDECCGetRequestedState(openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput, U16 configIdx);

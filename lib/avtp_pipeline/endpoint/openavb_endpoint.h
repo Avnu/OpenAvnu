@@ -75,6 +75,7 @@ typedef enum {
 //////////////////////////////
 typedef struct {
 	U8 			destAddr[ETH_ALEN];
+	U8 			noMaapAllocate;
 	AVBTSpec_t	tSpec;
 	U8			srClass;
 	U8	        srRank;
@@ -97,7 +98,7 @@ typedef struct {
 //////////////////////////////
 typedef struct {
 	char		ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
-	U8 			destAddr[ETH_ALEN];
+	U8			destAddr[ETH_ALEN];
 	openavbSrpLsnrDeclSubtype_t lsnrDecl;
 	U8			srClass;
 	U32			classRate;
@@ -210,6 +211,7 @@ void openavbEptClntCheckVerMatchesSrvr(int h, U32 AVBVersion);
 bool openavbEptClntRegisterStream(int            h,
                               AVBStreamID_t *streamID,
                               U8             destAddr[],
+                              U8             noMaapAllocation,
                               AVBTSpec_t    *tSpec,
                               U8             srClass,
                               U8             srRank,
@@ -218,6 +220,7 @@ bool openavbEptClntRegisterStream(int            h,
 bool openavbEptSrvrRegisterStream(int             h,
                               AVBStreamID_t  *streamID,
                               U8              destAddr[],
+                              U8              noMaapAllocation,
                               AVBTSpec_t     *tSpec,
                               U8              srClass,
                               U8              srRank,

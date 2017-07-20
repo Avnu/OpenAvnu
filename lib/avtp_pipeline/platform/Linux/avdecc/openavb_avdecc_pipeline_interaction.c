@@ -276,6 +276,40 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 	return TRUE;
 }
 
+bool openavbAVDECCSetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput,
+	U8 sr_class, U8 stream_id_valid, const U8 stream_src_mac[6], U16 stream_uid, U8 stream_dest_valid, const U8 stream_dest_mac[6], U8 stream_vlan_id_valid, U16 stream_vlan_id)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
+
+	// Sanity tests.
+	if (!pDescriptorStreamOutput) {
+		AVB_LOG_ERROR("openavbAVDECCSetTalkerStreamInfo Invalid descriptor");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pDescriptorStreamOutput->stream) {
+		AVB_LOG_ERROR("openavbAVDECCSetTalkerStreamInfo Invalid StreamInput descriptor stream");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+	if (!pDescriptorStreamOutput->stream->client) {
+		AVB_LOG_ERROR("openavbAVDECCSetTalkerStreamInfo Invalid stream client pointer");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+
+	// Send the information to the client.
+	if (!openavbAvdeccMsgSrvrTalkerStreamID(pDescriptorStreamOutput->stream->client->avdeccMsgHandle,
+			sr_class, stream_id_valid, stream_src_mac, stream_uid, stream_dest_valid, stream_dest_mac, stream_vlan_id_valid, stream_vlan_id)) {
+		AVB_LOG_ERROR("Error sending stream info updates to Talker");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return FALSE;
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+	return TRUE;
+}
+
 openavbAvdeccMsgStateType_t openavbAVDECCGetRequestedState(openavb_aem_descriptor_stream_io_t *pDescriptorStream, U16 configIdx)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);

@@ -186,6 +186,7 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	return (openavbEptClntRegisterStream(pTLState->endpointHandle,
 			&streamID,
 			pCfg->dest_addr.mac->ether_addr_octet,
+			pCfg->backup_dest_addr_valid, // If we have a backup dest_addr, then the current one was forced and MAAP should not be used.
 			&pTalkerData->tSpec,
 			pCfg->sr_class,
 			pCfg->sr_rank,

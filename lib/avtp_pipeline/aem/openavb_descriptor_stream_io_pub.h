@@ -90,6 +90,7 @@ typedef struct {
 	U16 acmp_flags;
 
 	// Streaming values for GET_STREAM_INFO from CONNECT_TX_RESPONSE or CONNECT_RX_RESPONSE.
+	// These values are currently only used for the Listener, as the Talker can get them from it's current configuration.
 	U8 acmp_stream_id[8];
 	U8 acmp_dest_addr[6];
 	U16 acmp_stream_vlan_id;
