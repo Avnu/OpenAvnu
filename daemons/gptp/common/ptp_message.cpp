@@ -1071,7 +1071,11 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 	GPTP_LOG_VERBOSE("PTPMessageSync::processMessage  after setLastSync");
 
 	port->HaveDelayResp(false);
-	port->HaveFollowup(false);
+	if (!port->FollowupAhead())
+	{
+		port->HaveFollowup(false);
+	}
+	port->FollowupAhead(false);
 	_gc = false;
 #else
 	if (flags[PTP_ASSIST_BYTE] & (0x1<<PTP_ASSIST_BIT))
@@ -1272,6 +1276,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	scalar_offset -= TIMESTAMP_TO_NS( preciseOriginTimestamp );
 
 	port->MasterOffset(scalar_offset);
+   GPTP_LOG_VERBOSE("Followup  scalar_offset:%d", scalar_offset);
 
 	GPTP_LOG_VERBOSE
 		("Followup Correction Field: %Ld, Link Delay: %lu", correctionField,
@@ -1634,6 +1639,16 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 					uint64_t t3 = TIMESTAMP_TO_NS(req.getTimestamp());
 					uint64_t t4 = TIMESTAMP_TO_NS(resp.getRequestReceiptTimestamp());
 
+					std::cout << "MasterOffset:" << port->MasterOffset() << std::endl;
+					std::cout << "raw t1:" << t1 << std::endl;
+					std::cout << "raw t2:" << t2 << std::endl;
+					std::cout << "raw t3:" << t3 << std::endl;
+					std::cout << "raw t4:" << t4 << std::endl;
+
+					// Convert t2 and t2 to master time
+					t2 -= port->MasterOffset(); 
+					t3 -= port->MasterOffset();
+
 					uint64_t lt1 = tsKeeper.fT1;
 					uint64_t lt2 = tsKeeper.fT2;
 					uint64_t lt3 = tsKeeper.fT3;
@@ -1642,17 +1657,23 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 					// Ensure that  t4 > t1 and t3 > t2 
 					if (t4 > t1 && t3 > t2)
 					{
+						typedef FrequencyRatio FR;
+
+						FR RR1 = 1.0;
+						FR RR2 = 1.0;
 						//FrequencyRatio RR1 = FrequencyRatio(t2 + t3) / 2.0;
 						//FrequencyRatio RR2 = FrequencyRatio(t1 + t4) / 2.0;
 
-						typedef FrequencyRatio FR;
 						//(((t4 - t1) / 2) - ((lt4 - lt1) / 2)) / (((t3 - t2) / 2) - ((lt3 - lt2) / 2))
-						FR denom = ((FR(t3-t2)/2) - (FR(lt3-lt2)/2));
-						FR RR1 = 0 == denom 
-						 ? 0 : ((FR(t4-t1)/2) - (FR(lt4-lt1)/2)) / denom;
-						denom = ((FR(t4-t1)/2) - (FR(lt4-lt1)/2));
-						FR RR2 = 0 == denom
-						 ? 0 : ((FR(t3-t2)/2) - (FR(lt3-lt2)/2)) / denom;
+						if (lt1 > 0 && lt2 > 0 && lt3 > 0 && lt4 > 0)
+						{
+							FR denom = (FR(t3-t2)/FR(2.0)) - (FR(lt3-lt2)/FR(2.0));
+							RR1 = 0 == denom 
+							 ? 0 : ((FR(t4-t1)/FR(2.0)) - (FR(lt4-lt1)/FR(2.0))) / denom;
+							denom = (FR(t4-t1)/FR(2.0)) - (FR(lt4-lt1)/FR(2.0));
+							RR2 = 0 == denom
+							 ? 0 : ((FR(t3-t2)/FR(2.0)) - (FR(lt3-lt2)/FR(2.0))) / denom;
+						}
 
 						// FrequencyRatio RR1 = (FrequencyRatio(t4-t1)/2) / (FrequencyRatio(t3-t2)/2);
 						// FrequencyRatio RR2 = FrequencyRatio(t3-t2) / FrequencyRatio(t4-t1);
@@ -1721,6 +1742,8 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 						GPTP_LOG_INFO("lt4: %" PRIu64, lt4);						
 						GPTP_LOG_INFO("RR1((((t4-t1)/2) - ((lt4-lt1)/2)) / (((t3-t2)/2) - ((lt3-lt2)/2))): %Le", RR1);
 						GPTP_LOG_INFO("RR2((((t3-t2)/2) - ((lt3-lt2)/2)) / (((t4-t1)/2) - ((lt4-lt1)/2))): %Le", RR2);
+						std::cout << "RR1:" << RR1 << std::endl;
+						std::cout << "RR2:" << RR2 << std::endl;
 						GPTP_LOG_INFO("meanPathDelay: %Le", meanPathDelay);							
 						GPTP_LOG_INFO("filteredMeanPathDelay: %Le", filteredMeanPathDelay);							
 						//GPTP_LOG_INFO("offset((t4 - t1 - t3 + t2)/2): %Le", offset);							
