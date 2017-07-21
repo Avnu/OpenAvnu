@@ -1044,8 +1044,7 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 		PTPMessageDelayReq req(port);
 		Timestamp zeroTime;
 		GPTP_LOG_DEBUG("Process Sync Request SeqId: %u\t", sequenceId);
-		req.setOriginTimestamp(zeroTime);
-		req.setTimestamp(port->getClock()->getTime());
+		req.setOriginTimestamp(zeroTime);		
 		req.setSequenceId(sequenceId);
 		
 		std::shared_ptr<PortIdentity> reqPortId = std::make_shared<PortIdentity>();
@@ -1458,6 +1457,7 @@ void PTPMessageDelayReq::sendPort(IEEE1588Port * port,
 
 	// originTimeStamp
 	originTimestamp = port->getClock()->getTime();
+	setTimestamp(originTimestamp);
 	originTimestamp_BE.seconds_ms = PLAT_htons(originTimestamp.seconds_ms);
 	originTimestamp_BE.seconds_ls = PLAT_htonl(originTimestamp.seconds_ls);
 	originTimestamp_BE.nanoseconds =
@@ -1635,24 +1635,28 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 				 syncPortId->sameClocks(fup.getPortIdentity()))
 				{
 					uint64_t t1 = TIMESTAMP_TO_NS(fup.getPreciseOriginTimestamp());
+					uint64_t rawt1 = t1;
 					uint64_t t2 = TIMESTAMP_TO_NS(sync->getTimestamp()); 
 					uint64_t t3 = TIMESTAMP_TO_NS(req.getTimestamp());
 					uint64_t t4 = TIMESTAMP_TO_NS(resp.getRequestReceiptTimestamp());
+					uint64_t rawt4 = t4;
 
-					std::cout << "MasterOffset:" << port->MasterOffset() << std::endl;
-					std::cout << "raw t1:" << t1 << std::endl;
-					std::cout << "raw t2:" << t2 << std::endl;
-					std::cout << "raw t3:" << t3 << std::endl;
-					std::cout << "raw t4:" << t4 << std::endl;
+					// std::cout << "MasterOffset:" << port->MasterOffset() << std::endl;
+					// std::cout << "raw t1:" << t1 << std::endl;
+					// std::cout << "raw t2:" << t2 << std::endl;
+					// std::cout << "raw t3:" << t3 << std::endl;
+					// std::cout << "raw t4:" << t4 << std::endl;
 
-					// Convert t2 and t2 to master time
-					t2 -= port->MasterOffset(); 
-					t3 -= port->MasterOffset();
+					// Convert t1 and t4 to local time
+					t1 = port->ConvertToLocalTime(t1);
+					t4 = port->ConvertToLocalTime(t4);
+					//t2 -= port->MasterOffset(); 
+					//t3 -= port->MasterOffset();
 
-					uint64_t lt1 = tsKeeper.fT1;
+					uint64_t lt1 = port->ConvertToLocalTime(tsKeeper.fT1);
 					uint64_t lt2 = tsKeeper.fT2;
 					uint64_t lt3 = tsKeeper.fT3;
-					uint64_t lt4 = tsKeeper.fT4;
+					uint64_t lt4 = port->ConvertToLocalTime(tsKeeper.fT4);
 
 					// Ensure that  t4 > t1 and t3 > t2 
 					if (t4 > t1 && t3 > t2)
@@ -1685,14 +1689,14 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 							// IIR will differ slightly depending on the physical 
 							// network (wifi vs wired).
 							// when on wifi:
-							// filteredRateRatioMS = (lastRateRatio * 255 / 256) + (RR1 / 256)
+							// filteredRateRatioMS = (lastRateRatio * 255 / 256) + (RR2 / 256)
 							// when wired:
-							// filteredRateRatioMS = (lastRateRatio * 63 / 64) + (RR1 / 64)
-							FR lastRateRatioMS = port->LastFilteredRateRatioMasterSlave();
+							// filteredRateRatioMS = (lastRateRatio * 63 / 64) + (RR2 / 64)
+							FR lastRateRatio = port->LastFilteredRateRatio();
 							// Assume wired for now...
-							//FR filteredRateRatioMS = (FR(lastRateRatioMS * 255) / 256) + (RR1 / 256);
-							FR filteredRateRatioMS = (FR(lastRateRatioMS * 63) / 64) + (RR1 / 64);
-							port->LastFilteredRateRatioMasterSlave(filteredRateRatioMS);
+							//FR filteredRateRatioMS = (FR(lastRateRatio * 255) / 256) + (RR2 / 256);
+							FR filteredRateRatioMS = (FR(lastRateRatio * 63) / 64) + (RR2 / 64);
+							port->LastFilteredRateRatio(filteredRateRatioMS);
 
 							// // averageRate(n) = averageRate(n-1) + α(rateRatio(n) - averageRate(n-1))
 							// // where α is set to .1
@@ -1706,12 +1710,12 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 	 						//[(t4-t1) - RR * (t3-t2)] / 2
 							//FrequencyRatio meanPathDelay = (FrequencyRatio(t4 - t1) + FrequencyRatio(t2Adj - t3))/2.0;
 							meanPathDelay = ((t4-t1) - filteredRateRatioMS * (t3-t2)) / 2.0;						
-							GPTP_LOG_INFO("lastRateRatioMS: %Le", lastRateRatioMS);
+							GPTP_LOG_INFO("lastRateRatio: %Le", lastRateRatio);
 							GPTP_LOG_INFO("filteredRateRatioMS: %Le", filteredRateRatioMS);
 						}
 						else
 						{
-							meanPathDelay = ((t4-t1) - RR1 * (t3-t2)) / 2.0;
+							meanPathDelay = ((t4-t1) - RR2 * (t3-t2)) / 2.0;
 						}
 
 						// Apply IIR filter to the meanPathDelay
@@ -1724,7 +1728,7 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 						//FR offset = FR((t4 - t1) - (t3 + t2))/2;
 						//FR offset = FR((t2 - t1) - (t4 + t3))/2;
 
-						port->LastTimestamps(ALastTimestampKeeper(t1, t2, t3, t4));
+						port->LastTimestamps(ALastTimestampKeeper(rawt1, t2, t3, rawt4));
 
 						//port->MasterOffset(offset);
 						port->meanPathDelay(filteredMeanPathDelay);
@@ -1732,26 +1736,26 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 						port->PushMasterSlaveRateRatio(RR1);
 						port->PushSlaveMasterRateRatio(RR2);
 
-						GPTP_LOG_INFO("t1: %" PRIu64, t1);
-						GPTP_LOG_INFO("t2: %" PRIu64, t2);
-						GPTP_LOG_INFO("t3: %" PRIu64, t3);
-						GPTP_LOG_INFO("t4: %" PRIu64, t4);
-						GPTP_LOG_INFO("lt1: %" PRIu64, lt1);
-						GPTP_LOG_INFO("lt2: %" PRIu64, lt2);
-						GPTP_LOG_INFO("lt3: %" PRIu64, lt3);
-						GPTP_LOG_INFO("lt4: %" PRIu64, lt4);						
-						GPTP_LOG_INFO("RR1((((t4-t1)/2) - ((lt4-lt1)/2)) / (((t3-t2)/2) - ((lt3-lt2)/2))): %Le", RR1);
-						GPTP_LOG_INFO("RR2((((t3-t2)/2) - ((lt3-lt2)/2)) / (((t4-t1)/2) - ((lt4-lt1)/2))): %Le", RR2);
-						std::cout << "RR1:" << RR1 << std::endl;
-						std::cout << "RR2:" << RR2 << std::endl;
-						GPTP_LOG_INFO("meanPathDelay: %Le", meanPathDelay);							
-						GPTP_LOG_INFO("filteredMeanPathDelay: %Le", filteredMeanPathDelay);							
-						//GPTP_LOG_INFO("offset((t4 - t1 - t3 + t2)/2): %Le", offset);							
+						GPTP_LOG_VERBOSE("lt1: %" PRIu64, lt1);
+						GPTP_LOG_VERBOSE("lt2: %" PRIu64, lt2);
+						GPTP_LOG_VERBOSE("lt3: %" PRIu64, lt3);
+						GPTP_LOG_VERBOSE("lt4: %" PRIu64, lt4);
+						GPTP_LOG_VERBOSE("t1: %" PRIu64, t1);
+						GPTP_LOG_VERBOSE("t2: %" PRIu64, t2);
+						GPTP_LOG_VERBOSE("t3: %" PRIu64, t3);
+						GPTP_LOG_VERBOSE("t4: %" PRIu64, t4);
 
+						GPTP_LOG_VERBOSE("RR1((((t4-t1)/2) - ((lt4-lt1)/2)) / (((t3-t2)/2) - ((lt3-lt2)/2))): %Le", RR1);
+						GPTP_LOG_VERBOSE("RR2((((t3-t2)/2) - ((lt3-lt2)/2)) / (((t4-t1)/2) - ((lt4-lt1)/2))): %Le", RR2);
+						GPTP_LOG_VERBOSE("meanPathDelay: %Le", meanPathDelay);							
+						GPTP_LOG_VERBOSE("filteredMeanPathDelay: %Le", filteredMeanPathDelay);							
+						//GPTP_LOG_VERBOSE("offset((t4 - t1 - t3 + t2)/2): %Le", offset);							
+						GPTP_LOG_VERBOSE("correctionFieldSync: %" PRIu64, sync->getCorrectionField());
+						GPTP_LOG_VERBOSE("correctionFieldFollowup: %" PRIu64, fup.getCorrectionField());
+						GPTP_LOG_VERBOSE("correctionFileDelayResp: %" PRIu64, resp.getCorrectionField());						
 
-						GPTP_LOG_INFO("correctionFieldSync: %" PRIu64, sync->getCorrectionField());
-						GPTP_LOG_INFO("correctionFieldFollowup: %" PRIu64, fup.getCorrectionField());
-						GPTP_LOG_INFO("correctionFileDelayResp: %" PRIu64, resp.getCorrectionField());						
+						std::cout << "RR1((((t4-t1)/2) - ((lt4-lt1)/2)) / (((t3-t2)/2) - ((lt3-lt2)/2))):" << RR1 << std::endl;
+						std::cout << "RR2((((t3-t2)/2) - ((lt3-lt2)/2)) / (((t4-t1)/2) - ((lt4-lt1)/2))):" << RR2 << std::endl;
 					}
 					else
 					{
@@ -1759,6 +1763,8 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 						GPTP_LOG_INFO("t2: %" PRIu64, t2);
 						GPTP_LOG_INFO("t3: %" PRIu64, t3);
 						GPTP_LOG_INFO("t4: %" PRIu64, t4);
+
+						GPTP_LOG_INFO("t4 > t1 && t3 > t2  IS FALSE");
 					}
 				}
 				else

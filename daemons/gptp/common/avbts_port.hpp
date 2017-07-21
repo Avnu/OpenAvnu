@@ -385,7 +385,7 @@ class IEEE1588Port {
 	FrequencyRatio fLastRateAverageMasterSlave;
 	FrequencyRatio fLastRateAverageSlaveMaster;
 
-	FrequencyRatio fLastFilteredRateRatioMS;
+	FrequencyRatio fLastFilteredRateRatio;
 	ALastTimestampKeeper fLastTimestamps;
 
 	bool smoothRateChange;
@@ -1661,6 +1661,20 @@ class IEEE1588Port {
 		fMeanPathDelay = delay;
 	}
 
+	int64_t ConvertToLocalTime(int64_t masterTime)
+	{
+		int64_t convertedSlaveTime = 0;
+		if (last_sync != nullptr)
+		{
+			int64_t masterAnchor = TIMESTAMP_TO_NS(last_fwup.getPreciseOriginTimestamp()) +
+			 last_fwup.getCorrectionField() + last_sync->getCorrectionField();
+			int64_t slaveAnchor = TIMESTAMP_TO_NS(last_sync->getTimestamp()) - meanPathDelay(); 
+			convertedSlaveTime = ((masterTime - masterAnchor) * fLastFilteredRateRatio) + 
+			 slaveAnchor;
+		}
+		return convertedSlaveTime;
+	}
+
 	void UnicastReceiveNodes(std::list<std::string> nodeList)
 	{
 		fUnicastReceiveNodeList = nodeList;
@@ -1735,13 +1749,13 @@ class IEEE1588Port {
 		PushRateRatio(fSlaveMasterRatios, ratio);
 	}
 
-	FrequencyRatio LastFilteredRateRatioMasterSlave() const
+	FrequencyRatio LastFilteredRateRatio() const
 	{
-		return fLastFilteredRateRatioMS;
+		return fLastFilteredRateRatio;
 	}
-	void LastFilteredRateRatioMasterSlave(FrequencyRatio filteredRateRatio)
+	void LastFilteredRateRatio(FrequencyRatio filteredRateRatio)
 	{
-		fLastFilteredRateRatioMS = filteredRateRatio;
+		fLastFilteredRateRatio = filteredRateRatio;
 	}
 
 	const ALastTimestampKeeper& LastTimestamps() const

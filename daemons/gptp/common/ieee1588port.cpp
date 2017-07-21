@@ -108,7 +108,7 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	operLogSyncInterval = portInit->operLogSyncInterval;
 
 	smoothRateChange = portInit->smoothRateChange;
-	fLastFilteredRateRatioMS = 1;
+	fLastFilteredRateRatio = 1;
 
 	if (automotive_profile) {
 		asCapable = true;
