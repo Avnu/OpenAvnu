@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -40,6 +41,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_talker.h"
 #include "openavb_qmgr.h"
 #include "openavb_endpoint.h"
+#include "openavb_avdecc_msg.h"
 
 #define	AVB_LOG_COMPONENT	"Talker"
 #include "openavb_log.h"
@@ -127,6 +129,15 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	AVB_LOGF_INFO("Starting stream: "STREAMID_FORMAT, STREAMID_ARGS(&pTalkerData->streamID));
 	talkerStartStream(pTLState);
 	
+	// Let the AVDECC Msg server know our current stream ID, in case it is waiting for an update.
+	if (pTLState->avdeccMsgHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
+		if (!openavbAvdeccMsgClntTalkerStreamID(pTLState->avdeccMsgHandle,
+				pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
+				pTalkerData->destAddr, pTalkerData->vlanID)) {
+			AVB_LOG_ERROR("openavbAvdeccMsgClntTalkerStreamID() failed");
+		}
+	}
+
 	return TRUE;
 }
 

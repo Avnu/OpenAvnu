@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -636,6 +637,8 @@ int ringRawsockRxParseHdr(void *pvRawsock, U8 *pBuffer, hdr_info_t *pInfo)
 	pInfo->shost = pNoTag->shost;
 	pInfo->dhost = pNoTag->dhost;
 	pInfo->ethertype = ntohs(pNoTag->ethertype);
+	pInfo->ts.tv_sec = pHdr->tp_sec;
+	pInfo->ts.tv_nsec = pHdr->tp_nsec;
 
 	if (pInfo->ethertype == ETHERTYPE_8021Q) {
 		pInfo->vlan = TRUE;

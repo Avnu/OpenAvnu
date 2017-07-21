@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -103,22 +104,6 @@ typedef U32(*openavb_map_transmit_interval_cb_t)(media_q_t *pMediaQ);
  */
 typedef void (*openavb_map_gen_init_cb_t)(media_q_t *pMediaQ);
 
-/** AVDECC initialize callback for both a talker or listener.
- *
- * Entity model based configuration can be processed at this time. This
- * callback is optional and only executed when AVDECC is used to connect
- * streams. The descriptorType is expected to be of STREAM_INPUT for listeners
- * and STREAM_OUTPUT for talkers.
- *
- * \param pMediaQ A pointer to the media queue for this stream
- * \param configIdx current configuration descriptor index for the Entity Model
- * \param descriptorType The descriptorType is expected to be of STREAM_INPUT
- *        for listeners and STREAM_OUTPUT for talkers.
- * \param descriptorIdx descriptor index in the Entity Model
- * \see openavb_intf_avdecc_init_cb_t
- */
-typedef void (*openavb_map_avdecc_init_cb_t)(media_q_t *pMediaQ, U16 configIdx, U16 descriptorType, U16 descriptorIdx);
-
 /** A call to this callback indicates that this mapping module will be a talker.
  *
  * Any talker initialization can be done in this function.
@@ -207,8 +192,6 @@ typedef struct {
 	openavb_map_transmit_interval_cb_t	map_transmit_interval_cb;
 	/// General initialize callback.
 	openavb_map_gen_init_cb_t			map_gen_init_cb;
-	/// AVDECC initialize callback.
-	openavb_map_avdecc_init_cb_t		map_avdecc_init_cb;
 	/// Initialize transmit callback.
 	openavb_map_tx_init_cb_t			map_tx_init_cb;
 	/// Transmit callback.

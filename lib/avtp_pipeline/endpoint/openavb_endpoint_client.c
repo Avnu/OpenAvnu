@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -114,7 +115,8 @@ bool openavbEptClntRegisterStream(int h,
                               AVBTSpec_t *tSpec,
                               U8 srClass,
                               U8 srRank,
-                              U32 latency)
+                              U32 latency,
+                              U32 txRate)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 	openavbEndpointMessage_t msgBuf;
@@ -136,6 +138,7 @@ bool openavbEptClntRegisterStream(int h,
 	msgBuf.params.talkerRegister.srClass = srClass;
 	msgBuf.params.talkerRegister.srRank = srRank;
 	msgBuf.params.talkerRegister.latency = latency;
+	msgBuf.params.talkerRegister.txRate = txRate;
 	bool ret = openavbEptClntSendToServer(h, &msgBuf);
 
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);

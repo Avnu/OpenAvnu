@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -56,10 +57,10 @@ S64 openavbTimeTimespecUsecDiff(struct timespec *pTime1, struct timespec *pTime2
 // Compares 2 timespecs and returns -1, 0 or 1 depending on the compare.
 S32 openavbTimeTimespecCmp(struct timespec *pTime1, struct timespec *pTime2);
 
-// Microseconds until Time2 reaches Time1. Returns 0 if Time2 is already past Time1
+// Microseconds until Time1 reaches Time2. Returns 0 if Time1 is already past Time2
 U64 openavbTimeUntilUSec(struct timespec *pTime1, struct timespec *pTime2);
 
-// Milliseconds until Time2 reaches Time1. Returns 0 if Time2 is already past Time1
+// Milliseconds until Time1 reaches Time2. Returns 0 if Time1 is already past Time2
 U32 openavbTimeUntilMSec(struct timespec *pTime1, struct timespec *pTime2);
 
 #endif // OPENAVB_TIME_H

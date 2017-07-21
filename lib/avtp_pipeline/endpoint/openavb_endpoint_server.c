@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -56,6 +57,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_log.h"
 #include "openavb_qmgr.h"  // for INVALID_FWMARK
 #include "openavb_maap.h"
+#include "openavb_shaper.h"
 
 // forward declarations
 static bool openavbEptSrvrReceiveFromClient(int h, openavbEndpointMessage_t *msg);
@@ -86,7 +88,8 @@ static bool openavbEptSrvrReceiveFromClient(int h, openavbEndpointMessage_t *msg
 			                               &msg->params.talkerRegister.tSpec,
 			                               msg->params.talkerRegister.srClass,
 			                               msg->params.talkerRegister.srRank,
-			                               msg->params.talkerRegister.latency);
+			                               msg->params.talkerRegister.latency,
+			                               msg->params.talkerRegister.txRate);
 			break;
 		case OPENAVB_ENDPOINT_LISTENER_ATTACH:
 			AVB_LOGF_DEBUG("ListenerAttach from client uid=%d", msg->streamID.uniqueID);
@@ -203,7 +206,8 @@ bool openavbEptSrvrRegisterStream(int h,
                               AVBTSpec_t *tSpec,
                               U8 srClass,
                               U8 srRank,
-                              U32 latency)
+                              U32 latency,
+                              U32 txRate)
 {
 	openavbRC rc = OPENAVB_SUCCESS;
 
@@ -228,10 +232,12 @@ bool openavbEptSrvrRegisterStream(int h,
 	ps->srClass = (SRClassIdx_t)srClass;
 	ps->srRank  = srRank;
 	ps->latency = latency;
+	ps->txRate = txRate;
 	ps->fwmark = INVALID_FWMARK;
 
-	if (memcmp(ps->destAddr, destAddr, ETH_ALEN) == 0) {
-		// no client-supplied address, use MAAP
+	// If MAAP is available, or no client-supplied address, allocate an address.
+	if (openavbMaapDaemonAvailable() ||
+			memcmp(ps->destAddr, destAddr, ETH_ALEN) == 0) {
 		struct ether_addr addr;
 		ps->hndMaap = openavbMaapAllocate(1, &addr);
 		if (ps->hndMaap) {
@@ -251,11 +257,24 @@ bool openavbEptSrvrRegisterStream(int h,
 		ps->hndMaap = NULL;
 	}
 
+	// If the Shaper is available, enable it.
+	if (openavbShaperDaemonAvailable()) {
+		ps->hndShaper = openavbShaperHandle(
+			ps->srClass,
+			MICROSECONDS_PER_SECOND / ps->txRate, /* Note that division rounds down, which is what we want. */
+			tSpec->maxFrameSize + 18 /* Header size */,
+			1,
+			ps->destAddr);
+		if (!ps->hndShaper) {
+			AVB_LOG_ERROR("Unable to start Shaping");
+		}
+	}
+
 	// Do SRP talker register
-	AVB_LOGF_DEBUG("REGISTER: ps=%p, streamID=%d, tspec=%d,%d, srClass=%d, srRank=%d, latency=%d, da="ETH_FORMAT"",
+	AVB_LOGF_DEBUG("REGISTER: ps=%p, streamID=%d, tspec=%d,%d, srClass=%d, srRank=%d, latency=%d, tsRate=%d, da="ETH_FORMAT"",
 				   ps, streamID->uniqueID,
 				   tSpec->maxFrameSize, tSpec->maxIntervalFrames,
-				   ps->srClass, ps->srRank, ps->latency,
+				   ps->srClass, ps->srRank, ps->latency, ps->txRate,
 				   ETH_OCTETS(ps->destAddr));
 
 
@@ -273,6 +292,8 @@ bool openavbEptSrvrRegisterStream(int h,
 		if (!IS_OPENAVB_SUCCESS(rc)) {
 			if (ps->hndMaap)
 				openavbMaapRelease(ps->hndMaap);
+			if (ps->hndShaper)
+				openavbShaperRelease(ps->hndShaper);
 			delStream(ps);
 		}
 	}

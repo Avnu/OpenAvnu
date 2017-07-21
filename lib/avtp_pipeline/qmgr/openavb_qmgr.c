@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
-
+ 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
-
+ 
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
-
+ 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-Attributions: The inih library portion of the source code is licensed from
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
-Complete license and copyright information can be found at
+ 
+Attributions: The inih library portion of the source code is licensed from 
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
+Complete license and copyright information can be found at 
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -57,14 +58,19 @@ typedef struct {
 #endif
 	int mode;
 	int ifindex;
-	char ifname[IFNAMSIZ];
+	char ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	U32 linkKbit;
 	U32 nsrKbit;
 	U32 linkMTU;
 	int ref;
 } qdisc_data_t;
 
-static qdisc_data_t qdisc_data;
+static qdisc_data_t qdisc_data = {
+#if (AVB_FEATURE_IGB)
+	NULL,
+#endif
+	0, 0, {0}, 0, 0, 0, 0
+};
 
 // We do get accessed from multiple threads, so need a mutex
 pthread_mutex_t qmgr_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -97,18 +103,20 @@ static qmgrStream_t qmgr_streams[MAX_AVB_STREAMS];
 static bool setupHWQueue(int nClass, unsigned classBytesPerSec)
 {
 	int err = 0;
+#if (AVB_FEATURE_IGB)
 	U32 class_a_bytes_per_sec, class_b_bytes_per_sec;
+#endif
 
 	AVB_TRACE_ENTRY(AVB_TRACE_QUEUE_MANAGER);
 
+#if (AVB_FEATURE_IGB)
 	if (nClass == SR_CLASS_A) {
 		class_a_bytes_per_sec = classBytesPerSec;
-		class_b_bytes_per_sec =  qmgr_classes[SR_CLASS_B].classBytesPerSec;
+		class_b_bytes_per_sec = qmgr_classes[SR_CLASS_B].classBytesPerSec;
 	} else {
-		class_a_bytes_per_sec =  qmgr_classes[SR_CLASS_A].classBytesPerSec;
+		class_a_bytes_per_sec = qmgr_classes[SR_CLASS_A].classBytesPerSec;
 		class_b_bytes_per_sec = classBytesPerSec;
 	}
-#if (AVB_FEATURE_IGB)
 	err = igb_set_class_bandwidth2(qdisc_data.igb_dev, class_a_bytes_per_sec, class_b_bytes_per_sec);
 	if (err)
 		AVB_LOGF_ERROR("Adding stream; igb_set_class_bandwidth failed: %s", strerror(err));
@@ -214,7 +222,7 @@ void openavbQmgrRemoveStream(U16 fwmark)
 
 		// update class
 		qmgr_classes[nClass].classBytesPerSec -= qmgr_streams[idx].streamBytesPerSec;
-		AVB_LOGF_DEBUG("Removed strea; classBPS=%u, streamBPS=%u", qmgr_classes[nClass].classBytesPerSec, qmgr_streams[idx].streamBytesPerSec);
+		AVB_LOGF_DEBUG("Removed stream; classBPS=%u, streamBPS=%u", qmgr_classes[nClass].classBytesPerSec, qmgr_streams[idx].streamBytesPerSec);
 		// and stream
 		memset(&qmgr_streams[idx], 0, sizeof(qmgrStream_t));
 	}

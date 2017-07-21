@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -33,7 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 * It includes the SRP and QMgr libraries which handle SRP reservations
 * and TX queuing.
 *
-* The actual AVTP talker/listener work is done in a separate processs.
+* The actual AVTP talker/listener work is done in a separate process.
 * The aim of using separate processes is to (1) reduce the
 * complexity in the central process; and (2) to allow multiple types
 * of children for different AVTP encapsulations and data sources.
@@ -59,6 +60,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_avtp.h"
 #include "openavb_qmgr.h"
 #include "openavb_maap.h"
+#include "openavb_shaper.h"
 
 #define	AVB_LOG_COMPONENT	"Endpoint"
 #include "openavb_pub.h"
@@ -72,7 +74,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 clientStream_t* 				x_streamList;
 // true until we are signalled to stop
 bool endpointRunning = TRUE;
-// data from our configuation file
+// data from our configuration file
 openavb_endpoint_cfg_t 	x_cfg;
 
 /*************************************************************
@@ -254,6 +256,12 @@ bool x_talkerDeregister(clientStream_t *ps)
 		ps->hndMaap = NULL;
 	}
 		
+	// Finish Shaping
+	if (ps->hndShaper) {
+		openavbShaperRelease(ps->hndShaper);
+		ps->hndShaper = NULL;
+	}
+
 	// remove record
 	delStream(ps);
 
@@ -397,7 +405,7 @@ openavbRC strmRegCb(void *pv,
  *
  * A better way to handle this would require SRP and the
  * talkers/listeners to look at destination addresses (in addition
- * to StreamID and talker/listner declaration) and explicitly handle
+ * to StreamID and talker/listener declaration) and explicitly handle
  * destination address changes.
  */
 static void maapRestartCallback(void* handle, struct ether_addr *addr)
@@ -449,7 +457,7 @@ int avbEndpointLoop(void)
 	do {
 
 		if (!x_cfg.bypassAsCapableCheck && (startPTP() < 0)) {
-			// make sure ptp, a seperate process, starts and is using the same interface as endpoint
+			// make sure ptp, a separate process, starts and is using the same interface as endpoint
 			AVB_LOG_ERROR("PTP failed to start - Exiting");
 			break;
 		} else if(x_cfg.bypassAsCapableCheck) {
@@ -457,7 +465,7 @@ int avbEndpointLoop(void)
 			AVB_LOG_WARNING("Configuration 'gptp_asCapable_not_required = 1' is set.");
 			AVB_LOG_WARNING("This configuration bypasses the requirement for gPTP");
 			AVB_LOG_WARNING("and openavb_gptp is not started automatically.");
-			AVB_LOG_WARNING("An appropriate ptp MUST be started seperately.");
+			AVB_LOG_WARNING("An appropriate ptp MUST be started separately.");
 			AVB_LOG_WARNING("Any network which does not use ptp to synchronize time");
 			AVB_LOG_WARNING("on each and every network device is NOT an AVB network.");
 			AVB_LOG_WARNING("Such a network WILL NOT FUNCTION PROPERLY.");
@@ -471,8 +479,15 @@ int avbEndpointLoop(void)
 			break;
 		}
 
-		if (!openavbMaapInitialize(x_cfg.ifname, maapRestartCallback)) {
+		if (!openavbMaapInitialize(x_cfg.ifname, x_cfg.maapPort, &(x_cfg.maap_preferred), maapRestartCallback)) {
 			AVB_LOG_ERROR("Failed to initialize MAAP");
+			openavbQmgrFinalize();
+			break;
+		}
+
+		if (!openavbShaperInitialize(x_cfg.ifname, x_cfg.shaperPort)) {
+			AVB_LOG_ERROR("Failed to initialize Shaper");
+			openavbMaapFinalize();
 			openavbQmgrFinalize();
 			break;
 		}
@@ -493,6 +508,7 @@ int avbEndpointLoop(void)
 
 		if (!IS_OPENAVB_SUCCESS(rc)) {
 			AVB_LOG_ERROR("Failed to initialize SRP");
+			openavbShaperFinalize();
 			openavbMaapFinalize();
 			openavbQmgrFinalize();
 			break;
@@ -500,23 +516,24 @@ int avbEndpointLoop(void)
 
 		if (openavbEndpointServerOpen()) {
 
+			retVal = 0;
+
 			while (endpointRunning) {
 				openavbEptSrvrService();
 			}
 
 			openavbEndpointServerClose();
 		}
-				
+
 		if(!x_cfg.noSrp) {
 			// Shutdown SRP
 			openavbSrpShutdown();
 		}
 
+		openavbShaperFinalize();
 		openavbMaapFinalize();
 		openavbQmgrFinalize();
 
-		retVal = 0;
-	
 	} while (0);
 
 	if (!x_cfg.bypassAsCapableCheck && (stopPTP() < 0)) {

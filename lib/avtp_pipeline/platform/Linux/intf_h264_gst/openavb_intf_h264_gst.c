@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -70,6 +71,8 @@ typedef struct pvt_data_t
 	bool blockingRx;
 
 	gint			nWaiting;
+	bool firstSample;
+	U16 stream_uid;
 } pvt_data_t;
 
 // Each configuration name value pair for this mapping will result in this callback being called.
@@ -143,6 +146,11 @@ static GstFlowReturn sinkNewBufferSample(GstAppSink *sink, gpointer pv)
 {
 	media_q_t *pMediaQ = (media_q_t *)pv;
 	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
+
+	if (pPvtData->firstSample) {
+		AVB_LOGF_WARNING("UID: %d: First sample to send", pPvtData->stream_uid);
+		pPvtData->firstSample = false;
+	}
 
 	g_atomic_int_add(&pPvtData->nWaiting, 1);
 
@@ -251,6 +259,8 @@ void openavbIntfH264RtpGstTxInitCB(media_q_t *pMediaQ)
 		AVB_LOG_ERROR("Private interface module data not allocated.");
 		return;
 	}
+
+	pPvtData->firstSample = true;
 
 	createTxPipeline(pMediaQ);
 
@@ -430,6 +440,8 @@ void openavbIntfH264RtpGstRxInitCB(media_q_t *pMediaQ)
 		return;
 	}
 
+	pPvtData->firstSample = true;
+
 	GError *error = NULL;
 	pPvtData->pipe = gst_parse_launch(pPvtData->pPipelineStr, &error);
 	if (error)
@@ -504,6 +516,12 @@ bool openavbIntfH264RtpGstRxCB(media_q_t *pMediaQ)
 			openavbMediaQTailPull(pMediaQ);
 			continue;
 		}
+
+		if (pPvtData->firstSample) {
+			AVB_LOGF_WARNING("UID: %d: First packet RX", pPvtData->stream_uid);
+			pPvtData->firstSample = false;
+		}
+
 		if (pPvtData->asyncRx)
 		{
 			U32 bufwr = pPvtData->bufwr;
@@ -587,6 +605,19 @@ void openavbIntfH264RtpGstGenEndCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
+void openavbIntfH264RtpGstSetStreamUidCB(media_q_t *pMediaQ, U16 stream_uid)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
+	pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
+	if (!pPvtData)
+	{
+		AVB_LOG_ERROR("Private interface module data not allocated.");
+		return;
+	}
+	pPvtData->stream_uid = stream_uid;
+	AVB_TRACE_EXIT(AVB_TRACE_INTF);
+}
+
 // Main initialization entry point into the interface module
 extern DLL_EXPORT bool openavbIntfH264RtpGstInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
 {
@@ -611,6 +642,7 @@ extern DLL_EXPORT bool openavbIntfH264RtpGstInitialize(media_q_t *pMediaQ, opena
 	pIntfCB->intf_rx_cb = openavbIntfH264RtpGstRxCB;
 	pIntfCB->intf_end_cb = openavbIntfH264RtpGstEndCB;
 	pIntfCB->intf_gen_end_cb = openavbIntfH264RtpGstGenEndCB;
+	pIntfCB->intf_set_stream_uid_cb = openavbIntfH264RtpGstSetStreamUidCB;
 
 	pPvtData->ignoreTimestamp = FALSE;
 

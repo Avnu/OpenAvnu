@@ -1,5 +1,6 @@
 /*************************************************************************************************************
-Copyright (c) 2016, Harman International Industries, Incorporated
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -21,6 +22,11 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
+https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /*
@@ -32,30 +38,40 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "openavb_log_pub.h"
 #include "openavb_mcs.h"
 
-void openavbMcsInit(mcs_t *mediaClockSynth, U64 nsPerAdvance)
+void openavbMcsInit(mcs_t *mediaClockSynth, U64 nsPerAdvance, S32 correctionAmount, U32 correctionInterval)
 {
-  mediaClockSynth->firstTimeSet = FALSE;
-  mediaClockSynth->nsPerAdvance = nsPerAdvance;
-  mediaClockSynth->edgeTime = 0;
+	mediaClockSynth->firstTimeSet = FALSE;
+	mediaClockSynth->nsPerAdvance = nsPerAdvance;
+	mediaClockSynth->correctionAmount = correctionAmount;
+	mediaClockSynth->correctionInterval = correctionInterval;
+	mediaClockSynth->startTime = 0;
+	mediaClockSynth->tickCount = 0;
+	mediaClockSynth->edgeTime = 0;
 }
 
 void openavbMcsAdvance(mcs_t *mediaClockSynth)
 {
-  if (mediaClockSynth->firstTimeSet == FALSE) {
-    CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &mediaClockSynth->edgeTime);
-    if (mediaClockSynth->edgeTime) {
-      mediaClockSynth->firstTimeSet = TRUE;
-    }
-  }
-  else	{
-    mediaClockSynth->edgeTime += mediaClockSynth->nsPerAdvance;
+	if (mediaClockSynth->firstTimeSet == FALSE) {
+		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &mediaClockSynth->edgeTime);
+		if (mediaClockSynth->edgeTime) {
+			mediaClockSynth->firstTimeSet = TRUE;
+			mediaClockSynth->startTime = mediaClockSynth->edgeTime;
+		}
+	}
+	else
+	{
+		mediaClockSynth->edgeTime += mediaClockSynth->nsPerAdvance;
+		mediaClockSynth->tickCount++;
+		if (mediaClockSynth->tickCount % mediaClockSynth->correctionInterval == 0) {
+			mediaClockSynth->edgeTime += mediaClockSynth->correctionAmount;
+		}
 #if !IGB_LAUNCHTIME_ENABLED
-    IF_LOG_INTERVAL(8000) {
-      U64 nowNS;
-      CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
-      S64 fixedRealDelta = mediaClockSynth->edgeTime - nowNS;
-      AVB_LOGF_INFO("Fixed/Real TS Delta: %llu", fixedRealDelta);
-    }
+		IF_LOG_INTERVAL(8000) {
+			U64 nowNS;
+			CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
+			S64 fixedRealDelta = mediaClockSynth->edgeTime - nowNS;
+			AVB_LOGF_INFO("Fixed/Real TS Delta: %lld", fixedRealDelta);
+		}
 #endif
-  }
+	}
 }

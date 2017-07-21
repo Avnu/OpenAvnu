@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -61,9 +62,17 @@ void openavbTimeTimespecAddUsec(struct timespec *pTime, U32 us)
 		return;		// Error case - undefined behavior
 	}
 
-	pTime->tv_nsec += us * NANOSECONDS_PER_USEC;
-    pTime->tv_sec += pTime->tv_nsec / NANOSECONDS_PER_SECOND;
-    pTime->tv_nsec = pTime->tv_nsec % NANOSECONDS_PER_SECOND;
+	/* Handle the seconds provided (to prevent overflowing). */
+	pTime->tv_sec += us / MICROSECONDS_PER_SECOND;
+	us = us % MICROSECONDS_PER_SECOND;
+
+	/* Handle the remaining microseconds provided. */
+	if (us > 0) {
+		pTime->tv_nsec += us * NANOSECONDS_PER_USEC;
+
+		pTime->tv_sec += pTime->tv_nsec / NANOSECONDS_PER_SECOND;
+		pTime->tv_nsec = pTime->tv_nsec % NANOSECONDS_PER_SECOND;
+	}
 }
 
 void openavbTimeTimespecSubUsec(struct timespec *pTime, U32 us)
@@ -72,10 +81,19 @@ void openavbTimeTimespecSubUsec(struct timespec *pTime, U32 us)
 		return;		// Error case - undefined behavior
 	}
 
-	U64 nSec = ((U64)pTime->tv_sec * (U64)NANOSECONDS_PER_SECOND) + (U64)pTime->tv_nsec;
-	nSec -= us * NANOSECONDS_PER_USEC;
-	pTime->tv_sec = nSec / NANOSECONDS_PER_SECOND;
-	pTime->tv_nsec = nSec % NANOSECONDS_PER_SECOND;
+	/* Handle the seconds provided (to prevent overflowing). */
+	pTime->tv_sec -= us / MICROSECONDS_PER_SECOND;
+	us = us % MICROSECONDS_PER_SECOND;
+
+	/* Handle the remaining microseconds provided. */
+	if (us > 0) {
+		pTime->tv_nsec -= us * NANOSECONDS_PER_USEC;
+
+		if (pTime->tv_nsec < 0) {
+			pTime->tv_nsec += NANOSECONDS_PER_SECOND;
+			pTime->tv_sec -= 1;
+		}
+	}
 }
 
 S64 openavbTimeTimespecUsecDiff(struct timespec *pTime1, struct timespec *pTime2)

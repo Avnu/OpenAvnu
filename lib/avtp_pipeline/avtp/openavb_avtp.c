@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -72,9 +73,6 @@ static openavbRC openAvtpSock(avtp_stream_t *pStream)
 	}
 
 	if (pStream->rawsock != NULL) {
-		// Get the socket, so we can poll on it
-		pStream->sock = openavbRawsockGetSocket(pStream->rawsock);
-
 		openavbSetRxSignalMode(pStream->rawsock, pStream->bRxSignalMode);
 		
 		if (!pStream->tx) {
@@ -147,6 +145,9 @@ openavbRC openavbAvtpTxInit(
 
 	pStream->pMapCB->map_tx_init_cb(pStream->pMediaQ);
 	pStream->pIntfCB->intf_tx_init_cb(pStream->pMediaQ);
+	if (pStream->pIntfCB->intf_set_stream_uid_cb) {
+		pStream->pIntfCB->intf_set_stream_uid_cb(pStream->pMediaQ, streamID->uniqueID);
+	}
 
 	// Set the frame length
 	pStream->frameLen = pStream->pMapCB->map_max_data_size_cb(pStream->pMediaQ) + ETH_HDR_LEN_VLAN;
@@ -365,8 +366,9 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			}
 		}
 
-		// If we got data from the mapping module, notifiy the raw sockets.
-		if (txCBResult != TX_CB_RET_PACKET_NOT_READY) {
+		// If we got data from the mapping module and stream is not paused,
+		// notify the raw sockets.
+		if (txCBResult != TX_CB_RET_PACKET_NOT_READY && !pStream->bPause) {
 
 			if (pStream->tsEval) {
 				processTimestampEval(pStream, pAvtpFrame);
@@ -432,6 +434,9 @@ openavbRC openavbAvtpRxInit(
 
 	pStream->pMapCB->map_rx_init_cb(pStream->pMediaQ);
 	pStream->pIntfCB->intf_rx_init_cb(pStream->pMediaQ);
+	if (pStream->pIntfCB->intf_set_stream_uid_cb) {
+		pStream->pIntfCB->intf_set_stream_uid_cb(pStream->pMediaQ, streamID->uniqueID);
+	}
 
 	// Set the frame length
 	pStream->frameLen = pStream->pMapCB->map_max_data_size_cb(pStream->pMediaQ) + ETH_HDR_LEN_VLAN;
@@ -465,7 +470,7 @@ openavbRC openavbAvtpRxInit(
 static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP_DETAIL);
-	AVB_LOGF_DEBUG("pFrame=%p, len=%u", pFrame, frameLen);
+	IF_LOG_INTERVAL(4096) AVB_LOGF_DEBUG("pFrame=%p, len=%u", pFrame, frameLen);
 	U8 subtype, flags, flags2, rxSeq, nLost, avtpVersion;
 	U8 *pRead = pFrame;
 
@@ -490,7 +495,7 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 			else if (pStream->avtp_sequence_num != rxSeq) {
 				nLost = (rxSeq - pStream->avtp_sequence_num)
 					+ (rxSeq < pStream->avtp_sequence_num ? 256 : 0);
-				AVB_LOGF_DEBUG("AVTP sequence mismatch: expected: %u,\tgot: %u,\tlost %d",
+				AVB_LOGF_INFO("AVTP sequence mismatch: expected: %3u,\tgot: %3u,\tlost %3d",
 					pStream->avtp_sequence_num, rxSeq, nLost);
 				pStream->nLost += nLost;
 			}
@@ -499,8 +504,7 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 			pStream->bytes += frameLen;
 
 			flags2 = *pRead++;
-
-			AVB_LOGF_DEBUG("subtype=%u, sv=%u, ver=%u, mr=%u, tv=%u tu=%u",
+			IF_LOG_INTERVAL(4096) AVB_LOGF_DEBUG("subtype=%u, sv=%u, ver=%u, mr=%u, tv=%u tu=%u",
 				subtype, flags & 0x80, avtpVersion,
 				flags & 0x08, flags & 0x01, flags2 & 0x01);
 
@@ -694,10 +698,12 @@ void openavbAvtpPause(void *handle, bool bPause)
 
 	pStream->bPause = bPause;
 
+	// AVDECC_TODO:  Do something with the bPause value!
+
 	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
 }
 
-void openavbAvtpShutdown(void *pv)
+void openavbAvtpShutdownTalker(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP);
 	AVB_LOG_DEBUG("Shutdown");
@@ -712,6 +718,32 @@ void openavbAvtpShutdown(void *pv)
 			openavbRawsockClose(pStream->rawsock);
 			pStream->rawsock = NULL;
 		}
+
+		if (pStream->ifname)
+			free(pStream->ifname);
+
+		// free the malloc'd stream info
+		free(pStream);
+	}
+	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
+	return;
+}
+
+void openavbAvtpShutdownListener(void *pv)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVTP);
+	AVB_LOG_DEBUG("Shutdown");
+
+	avtp_stream_t *pStream = (avtp_stream_t *)pv;
+	if (pStream) {
+		// close the rawsock
+		if (pStream->rawsock) {
+			openavbRawsockClose(pStream->rawsock);
+			pStream->rawsock = NULL;
+		}
+
+		pStream->pIntfCB->intf_end_cb(pStream->pMediaQ);
+		pStream->pMapCB->map_end_cb(pStream->pMediaQ);
 
 		if (pStream->ifname)
 			free(pStream->ifname);

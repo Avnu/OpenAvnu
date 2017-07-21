@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -70,13 +71,22 @@ bool simpleRawsockTxSetHdr(void *pvRawsock, hdr_info_t *pHdr);
 // Release a TX frame, and mark it as ready to send
 bool simpleRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec);
 
+// Send all packets that are ready (i.e. tell kernel to send them)
+int simpleRawsockSend(void *pvRawsock);
+
 // Get a RX frame
 U8* simpleRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, unsigned int *len);
 
 // Setup the rawsock to receive multicast packets
 bool simpleRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 addr[ETH_ALEN]);
 
+// Allows for filtering of AVTP subtypes at the rawsock level for rawsock implementations that aren't able to
+//  delivery the same packet to multiple sockets.
+bool simpleRawsockRxAVTPSubtype(void *rawsock, U8 subtype);
+
 // Get the socket used for this rawsock; can be used for poll/select
 int  simpleRawsockGetSocket(void *pvRawsock);
+
+bool simpleRawsockRelRxFrame(void *pvRawsock, U8 *pFrame);
 
 #endif
