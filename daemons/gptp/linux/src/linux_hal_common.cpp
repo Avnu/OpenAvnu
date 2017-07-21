@@ -712,8 +712,9 @@ LinuxThread::LinuxThread() {
 	_private = NULL;
 };
 
-LinuxThread::~LinuxThread() {
-	if( _private != NULL ) delete _private;
+LinuxThread::~LinuxThread() 
+{
+	delete _private;
 }
 
 LinuxSharedMemoryIPC::~LinuxSharedMemoryIPC() {
@@ -757,10 +758,10 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 		GPTP_LOG_ERROR( "ftruncate()" );
 		goto exit_unlink;
 	}
-	master_offset_buffer = (char *) mmap
-		( NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_LOCKED | MAP_SHARED,
-		  shm_fd, 0 );
-	if( master_offset_buffer == (char *) -1 ) {
+	master_offset_buffer = (char *) mmap(NULL, SHM_SIZE,
+	 PROT_READ | PROT_WRITE, MAP_LOCKED | MAP_SHARED, shm_fd, 0);
+	if (master_offset_buffer == (char *)-1) 
+	{
 		GPTP_LOG_ERROR( "mmap()" );
 		goto exit_unlink;
 	}
@@ -791,7 +792,9 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 bool LinuxSharedMemoryIPC::update
 (int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
  FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
- uint32_t pdelay_count, PortState port_state, bool asCapable ) {
+ uint32_t pdelay_count, PortState port_state, bool asCapable,
+ const std::string& adrRegSocketIp, uint16_t adrRegSocketPort)
+{
 	int buf_offset = 0;
 	pid_t process_id = getpid();
 	char *shm_buffer = master_offset_buffer;
@@ -808,9 +811,15 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->local_time = local_time;
 		ptimedata->sync_count   = sync_count;
 		ptimedata->pdelay_count = pdelay_count;
-        ptimedata->asCapable = asCapable;
+      ptimedata->asCapable = asCapable;
 		ptimedata->port_state   = port_state;
 		ptimedata->process_id   = process_id;
+		if (adrRegSocketIp.length() < kMaxAdrRegIpLen)
+		{
+			adrRegSocketIp.copy(ptimedata->addressRegistrationSocketIp, kMaxAdrRegIpLen);
+		}
+      ptimedata->addressRegistrationSocketPort = adrRegSocketPort;
+
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 	}
@@ -818,8 +827,9 @@ bool LinuxSharedMemoryIPC::update
 }
 
 void LinuxSharedMemoryIPC::stop() {
-	if( master_offset_buffer != NULL ) {
-		munmap( master_offset_buffer, SHM_SIZE );
+	if (master_offset_buffer != NULL)
+	{
+		munmap(master_offset_buffer, SHM_SIZE);
 		shm_unlink( SHM_NAME );
 	}
 }

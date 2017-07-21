@@ -671,7 +671,8 @@ public:
 	/**
 	 * @brief Initializes the internal flags
 	 */
-	LinuxSharedMemoryIPC() {
+	LinuxSharedMemoryIPC()
+	{
 		shm_fd = 0;
 		err = 0;
 		master_offset_buffer = NULL;
@@ -699,12 +700,16 @@ public:
 	 * @param pdelay_count Count of pdelays
 	 * @param port_state Port's state
 	 * @param asCapable asCapable flag
+	 * @param adrRegSocketIp IP address of the socket that listens for adds and
+	 *   deletes of send and receive addresses
+	 * @param adrRegSocketPort Port number for the adrRegSocketIp
 	 * @return TRUE
 	 */
 	virtual bool update
 	(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
 	 FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
-	 uint32_t pdelay_count, PortState port_state, bool asCapable );
+	 uint32_t pdelay_count, PortState port_state, bool asCapable,
+	 const std::string& adrRegSocketIp = "", uint16_t adrRegSocketPort = 0);
 
 	/**
 	 * @brief unmaps and unlink shared memory

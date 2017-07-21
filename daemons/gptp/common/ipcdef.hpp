@@ -62,6 +62,8 @@
 
 #include <ptptypes.hpp>
 
+const size_t kMaxAdrRegIpLen = 45;
+
 /**
  * @brief Provides a data structure for gPTP time
  */
@@ -76,6 +78,8 @@ typedef struct {
     bool asCapable;                 //!< asCapable flag: true = device is AS Capable; false otherwise
     PortState port_state;			//!< gPTP port state. It can assume values defined at ::PortState
     PID_TYPE process_id;			//!< Process id number
+    char addressRegistrationSocketIp[kMaxAdrRegIpLen];
+    uint16_t addressRegistrationSocketPort;
 } gPtpTimeData;
 
 /*

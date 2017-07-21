@@ -71,14 +71,18 @@ public:
 	 * @param sync_count Count of syncs
 	 * @param pdelay_count Count of pdelays
 	 * @param port_state Port's state
-     * @param asCapable asCapable flag
+    * @param asCapable asCapable flag
+    * @param adrRegSocketIp IP address of the socket that listens for adds and
+    *   deletes of send and receive addresses
+    * @param adrRegSocketPort Port number for the adrRegSocketIp
 	 * @return Implementation dependent.
 	 */
     virtual bool update
 	( int64_t  ml_phoffset, int64_t ls_phoffset,
 	  FrequencyRatio  ml_freqoffset, FrequencyRatio ls_freq_offset,
 	  uint64_t local_time, uint32_t sync_count, uint32_t pdelay_count,
-	  PortState port_state, bool asCapable ) = 0;
+	  PortState port_state, bool asCapable,
+     const std::string& adrRegSocketIp = "", uint16_t adrRegSocketPort = 0) = 0;
 
 	/*
 	 * Destroys IPC

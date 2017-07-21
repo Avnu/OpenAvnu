@@ -44,6 +44,9 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #include "linux_ipc.hpp"
 
 static inline uint64_t getCpuFrequency(void)
@@ -91,11 +94,11 @@ int main(int argc, char *argv[])
     gPtpTimeData *ptpData = (gPtpTimeData*)(addr+buf_offset);
     /*TODO: Scale to ns*/
     uint64_t freq = getCpuFrequency();
-    printf("Frequency %lu Hz\n", freq);
+    printf("Frequency %" PRIu64 " Hz\n", freq);
 
-    fprintf(stdout, "ml phoffset %ld\n", ptpData->ml_phoffset);
+    fprintf(stdout, "ml phoffset %" PRIu64 "\n", ptpData->ml_phoffset);
     fprintf(stdout, "ml freq offset %Lf\n", ptpData->ml_freqoffset);
-    fprintf(stdout, "ls phoffset %ld\n", ptpData->ls_phoffset);
+    fprintf(stdout, "ls phoffset %" PRIu64 "\n", ptpData->ls_phoffset);
     fprintf(stdout, "ls freq offset %Lf\n", ptpData->ls_freqoffset);
     fprintf(stdout, "local time %llu\n", ptpData->local_time);
     fprintf(stdout, "sync count %u\n", ptpData->sync_count);
@@ -103,6 +106,8 @@ int main(int argc, char *argv[])
     fprintf(stdout, "asCapable %s\n", ptpData->asCapable ? "True" : "False");
     fprintf(stdout, "Port State %d\n", (int)ptpData->port_state);
     fprintf(stdout, "process_id %d\n", (int)ptpData->process_id);
+    fprintf(stdout, "address reg ip %s\n", ptpData->addressRegistrationSocketIp);
+    fprintf(stdout, "address reg port %d\n", (int)ptpData->addressRegistrationSocketPort);
 
     return 0;
 }

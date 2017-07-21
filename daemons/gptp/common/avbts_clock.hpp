@@ -553,7 +553,8 @@ public:
 		unsigned sync_count,
         unsigned pdelay_count,
         PortState port_state,
-        bool asCapable );
+        bool asCapable,
+        const std::string& adrRegSocketIp, uint16_t adrRegSocketPort);
 
   /**
    * @brief  Sets the master offset, sintonyze and adjusts the frequency offset

@@ -249,6 +249,16 @@ int GptpIniParser::iniCallBack(void *user, const char *section,
             parser->_config.unicastReceiveNodes = parser->Split(value);
             valOK = true;
         }
+        else if (parseMatch(name, "address_registration_socket_ip"))
+        {
+            parser->_config.adrRegSocketIp = value;
+            valOK = true;
+        }
+        else if (parseMatch(name, "address_registration_socket_port"))
+        {
+            parser->_config.adrRegSocketPort = std::stoi(value);
+            valOK = true;
+        }
     }
 
     if(valOK)

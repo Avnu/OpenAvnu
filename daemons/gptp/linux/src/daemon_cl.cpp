@@ -400,6 +400,8 @@ int main(int argc, char **argv)
 			GPTP_LOG_INFO("phy_delay_mb_rx: %d", iniParser.getPhyDelayMbRx());
 			GPTP_LOG_INFO("neighborPropDelayThresh: %ld", iniParser.getNeighborPropDelayThresh());
 			GPTP_LOG_INFO("syncReceiptThreshold: %d", iniParser.getSyncReceiptThresh());
+			GPTP_LOG_INFO("Address reg socket IP: %s", iniParser.AdrRegSocketIp().c_str());
+			GPTP_LOG_INFO("Address reg socket Port: %d", iniParser.AdrRegSocketPort());
 
 #ifndef APTP
 			/* If using config file, set the neighborPropDelayThresh.
@@ -418,13 +420,15 @@ int main(int argc, char **argv)
 			// Set the delay_mechanism from the ini file valid values are E2E or P2P
 			pPort->setDelayMechanism(V2_E2E);
 
-			std::list<std::string> nodes = iniParser.UnicastSendNodes();
-			for_each(nodes.begin(), nodes.end(), [](const std::string& node)
-				{
-					GPTP_LOG_INFO("Send Node:%s", node.c_str());
-				});
+			// Allows for an initial setting of unicast send and receive 
+			// ip addresses if the destination platform doesn't have
+			// socket support for the send and receive address registration api
 			pPort->UnicastSendNodes(iniParser.UnicastSendNodes());
 			pPort->UnicastReceiveNodes(iniParser.UnicastReceiveNodes());
+
+			// Set the address registration api ip and port
+			pPort->AdrRegSocketIp(iniParser.AdrRegSocketIp());
+			pPort->AdrRegSocketPort(iniParser.AdrRegSocketPort());
 
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
 			if (!input_delay)

@@ -1325,7 +1325,8 @@ void IEEE1588Port::processEvent(Event e)
 			clock->setMasterOffset
 			  (this, 0, device_time, 1.0, local_system_offset,
 			   system_time, local_system_freq_offset, sync_count,
-			   pdelay_count, port_state, asCapable );
+			   pdelay_count, port_state, asCapable, fAdrRegSocketIp,
+			   fAdrRegSocketPort);
 
 			syncDone();
 

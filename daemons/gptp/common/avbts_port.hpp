@@ -514,6 +514,8 @@ class IEEE1588Port {
 
 	std::list<std::string> fUnicastSendNodeList;
 	std::list<std::string> fUnicastReceiveNodeList;
+	std::string fAdrRegSocketIp;
+	uint16_t fAdrRegSocketPort;
 
  private:
 	net_result port_send(uint16_t etherType, uint8_t * buf, int size,
@@ -1693,6 +1695,26 @@ class IEEE1588Port {
 	const std::list<std::string> UnicastSendNodes() const
 	{
 		return fUnicastSendNodeList;
+	}
+
+	const std::string AdrRegSocketIp() const
+	{
+		return fAdrRegSocketIp;
+	}
+
+	void AdrRegSocketIp(const std::string& ipadr)
+	{
+		fAdrRegSocketIp = ipadr;
+	}
+
+	uint16_t AdrRegSocketPort() const
+	{
+		return fAdrRegSocketPort;
+	}
+
+	void AdrRegSocketPort(uint16_t port)
+	{
+		fAdrRegSocketPort = port;
 	}
 
 	void MasterOffset(FrequencyRatio offset)
