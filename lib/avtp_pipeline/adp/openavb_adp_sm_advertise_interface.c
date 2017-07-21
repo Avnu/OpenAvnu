@@ -247,7 +247,7 @@ void openavbAdpSMAdvertiseInterfaceStart()
 	bool errResult;
 	THREAD_CREATE(openavbAdpSmAdvertiseInterfaceThread, openavbAdpSmAdvertiseInterfaceThread, NULL, openavbAdpSMAdvertiseInterfaceThreadFn, NULL);
 	THREAD_CHECK_ERROR(openavbAdpSmAdvertiseInterfaceThread, "Thread / task creation failed", errResult);
-	if (errResult);		// Already reported 
+	if (errResult);		// Already reported
 
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 }

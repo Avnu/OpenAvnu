@@ -258,7 +258,7 @@ bool openavbEptSrvrRegisterStream(int h,
 	}
 
 	// If the Shaper is available, enable it.
-	if (openavbShaperDaemonAvailable()) {
+	if (openavbShaperDaemonAvailable() && ps->txRate) {
 		ps->hndShaper = openavbShaperHandle(
 			ps->srClass,
 			MICROSECONDS_PER_SECOND / ps->txRate, /* Note that division rounds down, which is what we want. */
