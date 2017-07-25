@@ -292,7 +292,7 @@ U8 openavbAcmpSMListener_connectListener(openavb_acmp_ACMPCommandResponse_t *res
 U8 openavbAcmpSMListener_disconnectListener(openavb_acmp_ACMPCommandResponse_t *response)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ACMP);
-	U8 retStatus; 
+	U8 retStatus;
 
 	openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo = openavbArrayDataIdx(openavbAcmpSMListenerVars.listenerStreamInfos, response->listener_unique_id);
 	if (pListenerStreamInfo) {
@@ -505,23 +505,32 @@ void openavbAcmpSMListenerStateMachine()
 
 						// Save the state for this connection, so it can potentially be fast connected later.
 						// TODO:  Add fast connect support for STREAMING_WAIT connections by handling START_STREAMING and STOP_STREAMING commands.
-						if (gAvdeccCfg.bFastConnectSupported &&
-								status == OPENAVB_ACMP_STATUS_SUCCESS &&
-								(pRcvdCmdResp->flags & OPENAVB_ACMP_FLAG_STREAMING_WAIT) == 0) {
+						if (status == OPENAVB_ACMP_STATUS_SUCCESS) {
 							openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT, pRcvdCmdResp->listener_unique_id);
 							if (pDescriptorStreamInput != NULL && pDescriptorStreamInput->stream != NULL) {
-								if (openavbAvdeccSaveState(
-										pDescriptorStreamInput->stream,
-										(pRcvdCmdResp->flags & (OPENAVB_ACMP_FLAG_CLASS_B | OPENAVB_ACMP_FLAG_SUPPORTS_ENCRYPTED | OPENAVB_ACMP_FLAG_ENCRYPTED_PDU)),
-										pRcvdCmdResp->talker_unique_id,
-										pRcvdCmdResp->talker_entity_id,
-										pRcvdCmdResp->controller_entity_id)) {
-									// Let the Controller know that the state is saved.
-									response.flags |= OPENAVB_ACMP_FLAG_SAVED_STATE;
+								if (gAvdeccCfg.bFastConnectSupported &&
+										(pRcvdCmdResp->flags & OPENAVB_ACMP_FLAG_STREAMING_WAIT) == 0) {
+									if (openavbAvdeccSaveState(
+											pDescriptorStreamInput->stream,
+											(pRcvdCmdResp->flags & (OPENAVB_ACMP_FLAG_CLASS_B | OPENAVB_ACMP_FLAG_SUPPORTS_ENCRYPTED | OPENAVB_ACMP_FLAG_ENCRYPTED_PDU)),
+											pRcvdCmdResp->talker_unique_id,
+											pRcvdCmdResp->talker_entity_id,
+											pRcvdCmdResp->controller_entity_id)) {
+										// Let the Controller know that the state is saved.
+										response.flags |= OPENAVB_ACMP_FLAG_SAVED_STATE;
+									}
+									if (pDescriptorStreamInput->fast_connect_status >= OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS) {
+										pDescriptorStreamInput->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_SUCCEEDED;
+									}
 								}
-								if (pDescriptorStreamInput->fast_connect_status >= OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS) {
-									pDescriptorStreamInput->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_SUCCEEDED;
-								}
+
+								// Save the response flags for reference later.
+								pDescriptorStreamInput->acmp_flags = response.flags;
+
+								// Save the stream information for reference later.
+								memcpy(pDescriptorStreamInput->acmp_stream_id, pRcvdCmdResp->stream_id, 8);
+								memcpy(pDescriptorStreamInput->acmp_dest_addr, pRcvdCmdResp->stream_dest_mac, 6);
+								pDescriptorStreamInput->acmp_stream_vlan_id = pRcvdCmdResp->stream_vlan_id;
 							}
 						}
 

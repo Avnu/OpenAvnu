@@ -136,6 +136,16 @@ U8 openavbAcmpSMTalker_connectTalker(openavb_acmp_ACMPCommandResponse_t *command
 			else {
 				// Already connected, so return the current status.
 				AVB_LOG_DEBUG("Sending immediate response to CONNECT_TX_COMMAND");
+				U16 configIdx = openavbAemGetConfigIdx();
+				openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, command->talker_unique_id);
+				if (pDescriptorStreamOutput) {
+					command->flags = (pDescriptorStreamOutput->acmp_flags &
+							(OPENAVB_ACMP_FLAG_CLASS_B |
+							 OPENAVB_ACMP_FLAG_FAST_CONNECT |
+							 OPENAVB_ACMP_FLAG_SAVED_STATE |
+							 OPENAVB_ACMP_FLAG_SUPPORTS_ENCRYPTED |
+							 OPENAVB_ACMP_FLAG_ENCRYPTED_PDU));
+				}
 				memcpy(command->stream_id, pTalkerStreamInfo->stream_id, sizeof(command->stream_id));
 				memcpy(command->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(command->stream_dest_mac));
 				command->stream_vlan_id = pTalkerStreamInfo->stream_vlan_id;
@@ -620,6 +630,13 @@ void openavbAcmpSMTalker_updateStreamInfo(openavb_tl_data_cfg_t *pCfg)
 			openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT, talker_unique_id);
 			if (pDescriptorStreamOutput && pDescriptorStreamOutput->stream == pCfg) {
 
+				// Verify that the destination address is valid.
+				if (pCfg->dest_addr.mac == NULL ||
+						memcmp(pCfg->dest_addr.buffer.ether_addr_octet, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+					AVB_LOG_DEBUG("stream_dest_mac not yet valid.  Continue to wait.");
+					continue;
+				}
+
 				// We will handle the GET_TX_CONNECTION_RESPONSE command response here.
 				AVB_LOGF_DEBUG("Received an update for talker_unique_id %d", talker_unique_id);
 				openavb_acmp_ACMPCommandResponse_t *response = pTalkerStreamInfo->waiting_on_talker;
@@ -637,6 +654,15 @@ void openavbAcmpSMTalker_updateStreamInfo(openavb_tl_data_cfg_t *pCfg)
 				memcpy(response->stream_dest_mac, pTalkerStreamInfo->stream_dest_mac, sizeof(response->stream_dest_mac));
 				response->stream_vlan_id = pTalkerStreamInfo->stream_vlan_id;
 				response->connection_count = pTalkerStreamInfo->connection_count;
+
+				// Save the response flags for reference later.
+				pDescriptorStreamOutput->acmp_flags = response->flags;
+
+				// Save the stream information for reference later.
+				// (This is currently only used by Listeners, but it doesn't hurt to have it just in case.)
+				memcpy(pDescriptorStreamOutput->acmp_stream_id, response->stream_id, 8);
+				memcpy(pDescriptorStreamOutput->acmp_dest_addr, response->stream_dest_mac, 6);
+				pDescriptorStreamOutput->acmp_stream_vlan_id = response->stream_vlan_id;
 
 				// Send the response.
 				openavbAcmpSMTalker_txResponse(OPENAVB_ACMP_MESSAGE_TYPE_CONNECT_TX_RESPONSE, response, OPENAVB_ACMP_STATUS_SUCCESS);

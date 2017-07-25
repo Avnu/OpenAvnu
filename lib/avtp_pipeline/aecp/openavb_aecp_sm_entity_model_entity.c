@@ -147,6 +147,7 @@ void acquireEntity()
 		AEM_LOCK();
 		if (pCommand->entityModelPdu.command_data.acquireEntityCmd.flags & OPENAVB_AEM_ACQUIRE_ENTITY_COMMAND_FLAG_RELEASE) {
 			// AVDECC_TODO - need to add mutex for the entity model
+			AVB_LOG_DEBUG("Entity Released");
 			pAem->entityAcquired = FALSE;
 		}
 		else {
@@ -158,10 +159,15 @@ void acquireEntity()
 					memcpy(pCommand->entityModelPdu.command_data.acquireEntityRsp.owner_id, pAem->acquiredControllerId, sizeof(pCommand->commonPdu.controller_entity_id));
 				}
 				else {
-					pAem->entityAcquired = TRUE;
-					memcpy(pAem->acquiredControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->acquiredControllerId));
-					memcpy(pCommand->entityModelPdu.command_data.acquireEntityRsp.owner_id, pCommand->commonPdu.controller_entity_id, sizeof(pCommand->commonPdu.controller_entity_id));
+					// Entity was already acquired by this controller, so indicate a successful acquisition.
+					pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
 				}
+			}
+			else {
+				pAem->entityAcquired = TRUE;
+				memcpy(pAem->acquiredControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->acquiredControllerId));
+				memcpy(pCommand->entityModelPdu.command_data.acquireEntityRsp.owner_id, pCommand->commonPdu.controller_entity_id, sizeof(pCommand->commonPdu.controller_entity_id));
+				AVB_LOGF_DEBUG("Entity Acquired by " ENTITYID_FORMAT, pCommand->entityModelPdu.command_data.acquireEntityRsp.owner_id);
 			}
 		}
 		AEM_UNLOCK();
@@ -193,7 +199,7 @@ void lockEntity()
 bool processCommandCheckRestriction_CorrectController()
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
-	bool bResult = FALSE;
+	bool bResult = TRUE;
 
 	openavb_aecp_AEMCommandResponse_t *pCommand = openavbAecpSMEntityModelEntityVars.rcvdCommand;
 	if (!pCommand) {
@@ -209,10 +215,18 @@ bool processCommandCheckRestriction_CorrectController()
 			if (memcmp(pAem->acquiredControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->acquiredControllerId)) == 0) {
 				bResult = TRUE;
 			}
+			else {
+				AVB_LOGF_DEBUG("Access denied to " ENTITYID_FORMAT " as " ENTITYID_FORMAT " already acquired it", pCommand->commonPdu.controller_entity_id, pAem->acquiredControllerId);
+				bResult = FALSE;
+			}
 		}
 		else if (pAem->entityLocked) {
-			if (memcmp(pAem->lockedControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->acquiredControllerId)) == 0) {
+			if (memcmp(pAem->lockedControllerId, pCommand->commonPdu.controller_entity_id, sizeof(pAem->lockedControllerId)) == 0) {
 				bResult = TRUE;
+			}
+			else {
+				AVB_LOGF_DEBUG("Access denied to " ENTITYID_FORMAT " as " ENTITYID_FORMAT " already locked it", pCommand->commonPdu.controller_entity_id, pAem->lockedControllerId);
+				bResult = FALSE;
 			}
 		}
 		AEM_UNLOCK();
@@ -223,26 +237,20 @@ bool processCommandCheckRestriction_CorrectController()
 }
 
 // Returns TRUE the stream_input or stream_output descriptor is currently not running.
+// NOTE:  This function is using the last reported state from the client, not the state AVDECC last told the client to be in.
 bool processCommandCheckRestriction_StreamNotRunning(U16 descriptor_type, U16 descriptor_index)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AECP);
-	bool bResult = FALSE;
+	bool bResult = TRUE;
 
-	if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
+	if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT ||
+			descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
 		U16 configIdx = openavbAemGetConfigIdx();
-		openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(configIdx, descriptor_type, descriptor_index);
-		if (pDescriptorStreamInput) {
-			if (!openavbAVDECCListenerIsStreaming(pDescriptorStreamInput, configIdx)) {
-				bResult = TRUE;
-			}
-		}
-	}
-	else if (descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
-		U16 configIdx = openavbAemGetConfigIdx();
-		openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(configIdx, descriptor_type, descriptor_index);
-		if (pDescriptorStreamOutput) {
-			if (!openavbAVDECCTalkerIsStreaming(pDescriptorStreamOutput, configIdx)) {
-				bResult = TRUE;
+		openavb_aem_descriptor_stream_io_t *pDescriptorStreamIO = openavbAemGetDescriptor(configIdx, descriptor_type, descriptor_index);
+		if (pDescriptorStreamIO) {
+			openavbAvdeccMsgStateType_t state = openavbAVDECCGetStreamingState(pDescriptorStreamIO, configIdx);
+			if (state >= OPENAVB_AVDECC_MSG_RUNNING) {
+				bResult = FALSE;
 			}
 		}
 	}
@@ -323,8 +331,15 @@ void processCommand()
 						if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
 							openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 							if (pDescriptorStreamInput) {
-								memcpy(&pDescriptorStreamInput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamInput->current_format));
-								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+								if (memcmp(&pDescriptorStreamInput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamInput->current_format)) == 0) {
+									// No change needed.
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+								}
+								else {
+									// AVDECC_TODO:  Verify that the stream format is supported, and notify the Listener of the change.
+									//memcpy(&pDescriptorStreamInput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamInput->current_format));
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+								}
 							}
 							else {
 								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
@@ -333,8 +348,15 @@ void processCommand()
 						else if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
 							openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 							if (pDescriptorStreamOutput) {
-								memcpy(&pDescriptorStreamOutput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamOutput->current_format));
-								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+								if (memcmp(&pDescriptorStreamOutput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamOutput->current_format)) == 0) {
+									// No change needed.
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+								}
+								else {
+									// AVDECC_TODO:  Verify that the stream format is supported, and notify the Talker of the change.
+									//memcpy(&pDescriptorStreamOutput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamOutput->current_format));
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+								}
 							}
 							else {
 								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
@@ -395,8 +417,202 @@ void processCommand()
 		case OPENAVB_AEM_COMMAND_CODE_GET_SENSOR_FORMAT:
 			break;
 		case OPENAVB_AEM_COMMAND_CODE_SET_STREAM_INFO:
+			{
+				openavb_aecp_commandresponse_data_set_stream_info_t *pCmd = &pCommand->entityModelPdu.command_data.setStreamInfoCmd;
+				openavb_aecp_commandresponse_data_set_stream_info_t *pRsp = &pCommand->entityModelPdu.command_data.setStreamInfoRsp;
+
+				if (processCommandCheckRestriction_CorrectController()) {
+					if (processCommandCheckRestriction_StreamNotRunning(pCmd->descriptor_type, pCmd->descriptor_index)) {
+						if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT ||
+								pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
+							openavb_aem_descriptor_stream_io_t *pDescriptorStreamIO = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
+							if (pDescriptorStreamIO) {
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+
+								if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_FORMAT_VALID) != 0) {
+									if (memcmp(&pDescriptorStreamIO->current_format, pCmd->stream_format, sizeof(pDescriptorStreamIO->current_format)) != 0) {
+										// AVDECC_TODO:  Verify that the stream format is supported, and notify the Listener of the change.
+										//memcpy(&pDescriptorStreamInput->current_format, pCmd->stream_format, sizeof(pDescriptorStreamInput->current_format));
+										pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+									}
+								}
+
+								// AVDECC_TODO:  Add support for ENCRYPTED_PDU.
+								if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_ENCRYPTED_PDU) != 0) {
+									pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+								}
+
+								// AVDECC_TODO:  Add support for accumulated latency.
+								// For now, just clear the flags and values.
+								pRsp->flags &= ~OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_MSRP_ACC_LAT_VALID;
+								pRsp->msrp_accumulated_latency = 0;
+								pRsp->flags &= ~OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_MSRP_FAILURE_VALID;
+								pRsp->msrp_failure_code = 0;
+								memset(pRsp->msrp_failure_bridge_id, 0, sizeof(pRsp->msrp_failure_bridge_id));
+
+								if (pCommand->headers.status != OPENAVB_AEM_COMMAND_STATUS_SUCCESS) {
+									// As there are already issues, don't bother trying anything following this.
+								}
+								else if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
+									// If the controller is trying to set the streaming information for the Listener, this is a problem.
+									// The Listener gets this information from the Talker when the connection starts, so setting it here makes no sense.
+									// We also ignore the CLASS_A flag (or absence of it), as the Talker will indicate that value as well.
+									if ((pCmd->flags &
+											(OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID |
+											 OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID |
+											 OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID)) != 0) {
+										AVB_LOG_ERROR("SET_STREAM_INFO cannot set stream parameters for Listener");
+										pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_BAD_ARGUMENTS;
+									}
+								}
+								else {
+									// Get the streaming values to send to the Talker.
+									// Invalid values used to indicate those that should not be changed.
+									U8 sr_class = ((pCmd->flags & OPENAVB_ACMP_FLAG_CLASS_B) != 0 ? SR_CLASS_B : SR_CLASS_A);
+									U8 stream_id_valid = FALSE;
+									U8 stream_src_mac[6] = {0, 0, 0, 0, 0, 0};
+									U16 stream_uid = 0;
+									U8 stream_dest_valid = FALSE;
+									U8 stream_dest_mac[6] = {0, 0, 0, 0, 0, 0};
+									U8 stream_vlan_id_valid = FALSE;
+									U16 stream_vlan_id = 0;
+									if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID) != 0) {
+										stream_id_valid = TRUE;
+										memcpy(stream_src_mac, pCmd->stream_format, 6);
+										stream_uid = ntohs(*(U16*) (pCmd->stream_format + 6));
+										AVB_LOGF_INFO("AVDECC-specified Stream ID " ETH_FORMAT "/%u for Talker", ETH_OCTETS(stream_src_mac), stream_uid);
+									}
+									if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID) != 0) {
+										stream_dest_valid = TRUE;
+										memcpy(stream_dest_mac, pCmd->stream_dest_mac, 6);
+										AVB_LOGF_INFO("AVDECC-specified Stream Dest Addr " ETH_FORMAT " for Talker", ETH_OCTETS(stream_dest_mac));
+									}
+									if ((pCmd->flags & OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID) != 0) {
+										stream_vlan_id_valid = TRUE;
+										stream_vlan_id = pCmd->stream_vlan_id;
+										AVB_LOGF_INFO("AVDECC-specified Stream VLAN ID %u for Talker", stream_vlan_id);
+									}
+
+									// Pass the values to the Talker.
+									if (!openavbAVDECCSetTalkerStreamInfo(
+											pDescriptorStreamIO, sr_class,
+											stream_id_valid, stream_src_mac, stream_uid,
+											stream_dest_valid, stream_dest_mac,
+											stream_vlan_id_valid, stream_vlan_id)) {
+										AVB_LOG_ERROR("SET_STREAM_INFO error setting stream parameters for Talker");
+										pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+									}
+								}
+							}
+							else {
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
+							}
+						}
+					}
+					else {
+						pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_STREAM_IS_RUNNING;
+					}
+				}
+				else {
+					pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_ENTITY_ACQUIRED;
+				}
+			}
 			break;
 		case OPENAVB_AEM_COMMAND_CODE_GET_STREAM_INFO:
+			{
+				openavb_aecp_command_data_get_stream_info_t *pCmd = &pCommand->entityModelPdu.command_data.getStreamInfoCmd;
+				openavb_aecp_response_data_get_stream_info_t *pRsp = &pCommand->entityModelPdu.command_data.getStreamInfoRsp;
+
+				pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
+
+				if (pRsp->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT ||
+						pRsp->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
+					U16 configIdx = openavbAemGetConfigIdx();
+					openavb_aem_descriptor_stream_io_t *pDescriptorStreamIO = openavbAemGetDescriptor(configIdx, pCmd->descriptor_type, pCmd->descriptor_index);
+					if (pDescriptorStreamIO && pDescriptorStreamIO->stream) {
+						openavbAvdeccMsgStateType_t clientState = openavbAVDECCGetStreamingState(pDescriptorStreamIO, configIdx);
+
+						// Get the flags for the current status.
+						pRsp->flags = 0;
+						if (pDescriptorStreamIO->fast_connect_status >= OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS) {
+							pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_FAST_CONNECT;
+						}
+						if (openavbAvdeccGetSaveStateInfo(pDescriptorStreamIO->stream, NULL, NULL, NULL, NULL)) {
+							pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_SAVED_STATE;
+						}
+						if (clientState >= OPENAVB_AVDECC_MSG_RUNNING) {
+							pRsp->flags |= (pDescriptorStreamIO->acmp_flags &
+									(OPENAVB_ACMP_FLAG_CLASS_B |
+									 OPENAVB_ACMP_FLAG_FAST_CONNECT |
+									 OPENAVB_ACMP_FLAG_SUPPORTS_ENCRYPTED |
+									 OPENAVB_ACMP_FLAG_ENCRYPTED_PDU));
+							pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_CONNECTED;
+							if (clientState == OPENAVB_AVDECC_MSG_PAUSED) {
+								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAMING_WAIT;
+							}
+
+							// For the Listener, use the streaming values we received from the current Talker.
+							if (pRsp->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_INPUT) {
+								// Get the Stream ID.
+								memcpy(pRsp->stream_id, pDescriptorStreamIO->acmp_stream_id, 8);
+								if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00\x00\x00", 8) != 0) {
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID;
+								}
+
+								// Get the Destination MAC Address.
+								memcpy(pRsp->stream_dest_mac, pDescriptorStreamIO->acmp_dest_addr, 6);
+								if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00", 6) != 0) {
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID;
+								}
+
+								// Get the Stream VLAN ID if the other stream identifiers are valid.
+								if ((pRsp->flags & (OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) ==
+										(OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID | OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID)) {
+									pRsp->stream_vlan_id = pDescriptorStreamIO->acmp_stream_vlan_id;
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID;
+								}
+							}
+						}
+
+						// For the Talker, use the values we are or will use for a connection.
+						if (pRsp->descriptor_type == OPENAVB_AEM_DESCRIPTOR_STREAM_OUTPUT) {
+							// Get the Stream ID.
+							if (pDescriptorStreamIO->stream->stream_addr.mac != NULL) {
+								memcpy(pRsp->stream_id, pDescriptorStreamIO->stream->stream_addr.buffer.ether_addr_octet, 6);
+								*(U16*)(pRsp->stream_id) = htons(pDescriptorStreamIO->stream->stream_uid);
+								if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00\x00\x00", 8) != 0) {
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_ID_VALID;
+								}
+							}
+
+							// Get the Destination MAC Address.
+							if (pDescriptorStreamIO->stream->dest_addr.mac != NULL) {
+								memcpy(pRsp->stream_dest_mac, pDescriptorStreamIO->stream->dest_addr.buffer.ether_addr_octet, 6);
+								if (memcmp(pRsp->stream_id, "\x00\x00\x00\x00\x00\x00", 6) != 0) {
+									pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_DEST_MAC_VALID;
+								}
+							}
+
+							// Get the Stream VLAN ID.
+							if (pDescriptorStreamIO->stream->vlan_id != 0) {
+								pRsp->stream_vlan_id = pDescriptorStreamIO->stream->vlan_id;
+								pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_VLAN_ID_VALID;
+							}
+						}
+
+						// AVDECC_TODO:  Add TALKER_FAILED flag support.
+
+						// Get the stream format.
+						openavbAemStreamFormatToBuf(&pDescriptorStreamIO->current_format, pRsp->stream_format);
+						pRsp->flags |= OPENAVB_AEM_SET_STREAM_INFO_COMMAND_FLAG_STREAM_FORMAT_VALID;
+
+						// AVDECC_TODO:  Add support for msrp_accumulated_latency
+						// AVDECC_TODO:  Add support for msrp_failure_bridge_id, and msrp_failure_code
+
+						pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+					}
+				}
+			}
 			break;
 		case OPENAVB_AEM_COMMAND_CODE_SET_NAME:
 			break;
@@ -415,8 +631,15 @@ void processCommand()
 					if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_AUDIO_UNIT) {
 						openavb_aem_descriptor_audio_unit_t *pDescriptorAudioUnit = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 						if (pDescriptorAudioUnit) {
-							memcpy(&pDescriptorAudioUnit->current_sampling_rate, pCmd->sampling_rate, sizeof(pDescriptorAudioUnit->current_sampling_rate));
-							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+							if (memcmp(&pDescriptorAudioUnit->current_sampling_rate, pCmd->sampling_rate, sizeof(pDescriptorAudioUnit->current_sampling_rate)) == 0) {
+								// No change needed.
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+							}
+							else {
+								// AVDECC_TODO:  Verify that the sample rate is supported, and notify the Talker/Listener of the change.
+								//memcpy(&pDescriptorAudioUnit->current_sampling_rate, pCmd->sampling_rate, sizeof(pDescriptorAudioUnit->current_sampling_rate));
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+							}
 						}
 						else {
 							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
@@ -466,8 +689,15 @@ void processCommand()
 					if (pCmd->descriptor_type == OPENAVB_AEM_DESCRIPTOR_CLOCK_DOMAIN) {
 						openavb_aem_descriptor_clock_domain_t *pDescriptorClockDomain = openavbAemGetDescriptor(openavbAemGetConfigIdx(), pCmd->descriptor_type, pCmd->descriptor_index);
 						if (pDescriptorClockDomain) {
-							pDescriptorClockDomain->clock_source_index = pCmd->clock_source_index;
-							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+							if (pDescriptorClockDomain->clock_source_index == pCmd->clock_source_index) {
+								// No change needed.
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_SUCCESS;
+							}
+							else {
+								// AVDECC_TODO:  Verify that the clock source is supported, and notify the Talker/Listener of the change.
+								//pDescriptorClockDomain->clock_source_index = pCmd->clock_source_index;
+								pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NOT_SUPPORTED;
+							}
 						}
 						else {
 							pCommand->headers.status = OPENAVB_AEM_COMMAND_STATUS_NO_SUCH_DESCRIPTOR;
@@ -998,9 +1228,9 @@ void openavbAecpSMEntityModelEntityStateMachine()
 
 				state = OPENAVB_AECP_SM_ENTITY_MODEL_ENTITY_STATE_WAITING;
 				break;
-	
+
 			default:
-				AVB_LOG_DEBUG("State:  Unknown");
+				AVB_LOG_ERROR("State:  Unknown");
 				bRunning = FALSE;	// Unexpected
 				break;
 
@@ -1090,7 +1320,7 @@ void openavbAecpSMEntityModelEntitySet_rcvdCommand(openavb_aecp_AEMCommandRespon
 			openavbAecpSMGlobalVars.myEntityID,
 			sizeof(openavbAecpSMGlobalVars.myEntityID)) != 0) {
 		// Not intended for us.
-		free(openavbAecpSMEntityModelEntityVars.rcvdCommand);
+		free(rcvdCommand);
 		return;
 	}
 

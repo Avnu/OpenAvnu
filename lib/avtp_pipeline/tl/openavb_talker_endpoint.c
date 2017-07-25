@@ -2,16 +2,16 @@
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -22,15 +22,15 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /*
-* MODULE SUMMARY : Talker implementation for use with endpoint 
+* MODULE SUMMARY : Talker implementation for use with endpoint
 */
 
 #include <stdlib.h>
@@ -58,6 +58,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
                                  char                    *ifname,
                                  U8                       destAddr[],
                                  openavbSrpLsnrDeclSubtype_t  lsnrDecl,
+                                 U8                       srClass,
                                  U32                      classRate,
                                  U16                      vlanID,
                                  U8                       priority,
@@ -95,6 +96,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
+			pTalkerData->srClass = srClass;
 			pTalkerData->classRate = classRate;
 			pTalkerData->vlanID = vlanID;
 			pTalkerData->vlanPCP = priority;
@@ -113,6 +115,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
+			pTalkerData->srClass = srClass;
 			pTalkerData->classRate = classRate;
 			pTalkerData->vlanID = vlanID;
 			pTalkerData->vlanPCP = priority;
@@ -131,7 +134,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 	// Let the AVDECC Msg server know our current stream ID, in case it was updated by MAAP.
 	if (pTLState->avdeccMsgHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
 		if (!openavbAvdeccMsgClntTalkerStreamID(pTLState->avdeccMsgHandle,
-				pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
+				pTalkerData->srClass, pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
 				pTalkerData->destAddr, pTalkerData->vlanID)) {
 			AVB_LOG_ERROR("openavbAvdeccMsgClntTalkerStreamID() failed");
 		}
@@ -183,6 +186,7 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	return (openavbEptClntRegisterStream(pTLState->endpointHandle,
 			&streamID,
 			pCfg->dest_addr.mac->ether_addr_octet,
+			pCfg->backup_dest_addr_valid, // If we have a backup dest_addr, then the current one was forced and MAAP should not be used.
 			&pTalkerData->tSpec,
 			pCfg->sr_class,
 			pCfg->sr_rank,

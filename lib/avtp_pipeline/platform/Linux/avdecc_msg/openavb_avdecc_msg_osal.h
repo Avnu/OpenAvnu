@@ -46,12 +46,13 @@ typedef struct {
 		// Client-to-Server messages
 		openavbAvdeccMsgParams_VersionRequest_t				versionRequest;
 		openavbAvdeccMsgParams_ClientInitIdentify_t			clientInitIdentify;
-		openavbAvdeccMsgParams_TalkerStreamID_t				talkerStreamID;
+		openavbAvdeccMsgParams_C2S_TalkerStreamID_t			c2sTalkerStreamID;
 		openavbAvdeccMsgParams_ClientChangeNotification_t	clientChangeNotification;
 
 		// Server-to-Client messages
 		openavbAvdeccMsgParams_VersionCallback_t			versionCallback;
 		openavbAvdeccMsgParams_ListenerStreamID_t			listenerStreamID;
+		openavbAvdeccMsgParams_S2C_TalkerStreamID_t			s2cTalkerStreamID;
 		openavbAvdeccMsgParams_ClientChangeRequest_t		clientChangeRequest;
 	} params;
 } openavbAvdeccMessage_t;
