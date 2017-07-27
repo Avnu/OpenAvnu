@@ -74,8 +74,8 @@ typedef enum {
 // Client message parameters
 //////////////////////////////
 typedef struct {
-	U8 			destAddr[ETH_ALEN];
-	U8 			noMaapAllocate;
+	U8			destAddr[ETH_ALEN];
+	U8			noMaapAllocate;
 	AVBTSpec_t	tSpec;
 	U8			srClass;
 	U8	        srRank;

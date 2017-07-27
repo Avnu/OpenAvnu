@@ -189,7 +189,7 @@ bool openavbAvdeccMsgClntTalkerStreamID(int avdeccMsgHandle, U8 sr_class, const 
 	// Send a default stream_vlan_id value if none specified.
 	if (stream_vlan_id == 0) {
 		stream_vlan_id = 2; // SR Class default VLAN Id values per IEEE 802.1Q-2011 Table 9-2
- 	}
+	}
 
 	// Send the stream information to the server.
 	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
