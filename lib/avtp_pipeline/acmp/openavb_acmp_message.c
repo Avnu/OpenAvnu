@@ -252,7 +252,7 @@ static void openavbAcmpMessageRxFrameReceive(U32 timeoutUsec)
 	U8 *pBuf, *pFrame;
 
 	memset(&hdrInfo, 0, sizeof(hdr_info_t));
-	
+
 	pBuf = (U8 *)openavbRawsockGetRxFrame(rxSock, timeoutUsec, &offset, &len);
 	if (pBuf) {
 		pFrame = pBuf + offset;
@@ -368,7 +368,7 @@ void* openavbAcmpMessageRxThreadFn(void *pv)
 
 	AVB_LOG_DEBUG("ACMP Thread Started");
 	while (bRunning) {
-		// Try to get and process an ACMP. 
+		// Try to get and process an ACMP.
 		openavbAcmpMessageRxFrameReceive(MICROSECONDS_PER_SECOND);
 	}
 	AVB_LOG_DEBUG("ACMP Thread Done");
