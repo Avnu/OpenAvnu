@@ -170,7 +170,7 @@ typedef enum {
 #define ETH_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x"
 #define ETH_OCTETS(a) (a)[0],(a)[1],(a)[2],(a)[3],(a)[4],(a)[5]
 
-#define STREAMID_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x/%d"
+#define STREAMID_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x/%u"
 #define STREAMID_ARGS(s)   (s)->addr[0],(s)->addr[1],(s)->addr[2],(s)->addr[3],(s)->addr[4],(s)->addr[5],(s)->uniqueID
 
 #define ENTITYID_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
@@ -206,15 +206,21 @@ void avbLogBuffer(
 
 
 #define avbLogFn2(level, tag, company, component, path, line, fmt, ...) \
-    ({\
+    {\
         if (level <= AVB_LOG_LEVEL) \
             avbLogFn(0, tag, company, component, path, line, fmt, __VA_ARGS__); \
-    })
+    }
 
 #define avbLogRT2(level, bBegin, bItem, bEnd, pFormat, dataType, pVar) \
     {\
         if (level <= AVB_LOG_LEVEL) \
-            avbLogRT(level, bBegin, bItem, bEnd, pFormat, dataType, pVar); \
+            avbLogRT(0, bBegin, bItem, bEnd, pFormat, dataType, pVar); \
+    }
+
+#define avbLogBuffer2(level, pData, dataLen, lineLen, company, component, path, line) \
+    {\
+        if (level <= AVB_LOG_LEVEL) \
+            avbLogBuffer(0, pData, dataLen, lineLen, company, component, path, line); \
     }
 
 #ifdef AVB_LOG_ON
@@ -238,7 +244,7 @@ void avbLogBuffer(
 #define AVB_LOGRT_STATUS(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT2(AVB_LOG_LEVEL_STATUS, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define AVB_LOGRT_DEBUG(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT2(AVB_LOG_LEVEL_DEBUG, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define AVB_LOGRT_VERBOSE(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT2(AVB_LOG_LEVEL_VERBOSE, BEGIN, ITEM, END, FMT, TYPE, VAL)
-#define AVB_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)   avbLogBuffer(LEVEL, DATA, DATALEN, LINELINE, AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__)
+#define AVB_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)   avbLogBuffer2(LEVEL, DATA, DATALEN, LINELINE, AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__)
 #else
 #define AVB_LOGF_DEV(LEVEL, FMT, ...)
 #define AVB_LOGF_ERROR(FMT, ...)
