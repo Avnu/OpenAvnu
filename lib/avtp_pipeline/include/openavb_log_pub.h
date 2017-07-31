@@ -160,11 +160,11 @@ typedef enum {
 #define LOG_VARX(x, y) x ## y
 #define LOG_VAR(x, y) LOG_VARX(x, y)
 
-// Log a message once. Technically once every 4.2 billion attempts. Usage: LOG_ONCE AVB_LOG_INFO(...)
-#define IF_LOG_ONCE() static U32 LOG_VAR(logOnce,__LINE__); if (!LOG_VAR(logOnce,__LINE__)++)
+// Log a message once. Technically once every 4.2 billion attempts. Usage: IF_LOG_ONCE() AVB_LOG_INFO(...)
+#define IF_LOG_ONCE() static U32 LOG_VAR(logOnce,__LINE__) = 0; if (!LOG_VAR(logOnce,__LINE__)++)
 
-// Log a message at an interval. Usage: LOG_INTERVAL(100) AVB_LOG_INFO(...)
-#define IF_LOG_INTERVAL(x) static U32 LOG_VAR(logOnce,__LINE__); if (!(LOG_VAR(logOnce,__LINE__)++ % (x - 1)))
+// Log a message at an interval. Usage: IF_LOG_INTERVAL(100) AVB_LOG_INFO(...)
+#define IF_LOG_INTERVAL(x) static U32 LOG_VAR(logOnce,__LINE__) = 0; if (!(LOG_VAR(logOnce,__LINE__)++ % (x - 1)))
 
 
 #define ETH_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x"
