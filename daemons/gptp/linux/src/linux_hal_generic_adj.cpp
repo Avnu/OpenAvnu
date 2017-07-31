@@ -83,10 +83,12 @@ bool LinuxTimestamperGeneric::HWTimestamper_adjclockphase( int64_t phase_adjust 
 	}
 		
 	rxTimestampList.clear();
-		
+	
+#ifndef APTP		
 	/* Wait 180 ms - This is plenty of time for any time sync frames
 	   to clear the queue */
 	timer->sleep(180000);
+#endif
 		
 	++version;
 		
