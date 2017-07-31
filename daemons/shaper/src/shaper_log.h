@@ -162,11 +162,11 @@ typedef enum {
 #define LOG_VARX(x, y) x ## y
 #define LOG_VAR(x, y) LOG_VARX(x, y)
 
-// Log a message once. Technically once every 4.2 billion attempts. Usage: LOG_ONCE SHAPER_LOG_INFO(...)
-#define IF_LOG_ONCE() static uint32_t LOG_VAR(logOnce,__LINE__); if (!LOG_VAR(logOnce,__LINE__)++)
+// Log a message once. Technically once every 4.2 billion attempts. Usage: IF_LOG_ONCE() SHAPER_LOG_INFO(...)
+#define IF_LOG_ONCE() static uint32_t LOG_VAR(logOnce,__LINE__) = 0; if (!LOG_VAR(logOnce,__LINE__)++)
 
-// Log a message at an interval. Usage: LOG_INTERVAL(100) SHAPER_LOG_INFO(...)
-#define IF_LOG_INTERVAL(x) static uint32_t LOG_VAR(logOnce,__LINE__); if (!(LOG_VAR(logOnce,__LINE__)++ % (x - 1)))
+// Log a message at an interval. Usage: IF_LOG_INTERVAL(100) SHAPER_LOG_INFO(...)
+#define IF_LOG_INTERVAL(x) static uint32_t LOG_VAR(logOnce,__LINE__) = 0; if (!(LOG_VAR(logOnce,__LINE__)++ % (x - 1)))
 
 
 #define ETH_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -203,10 +203,16 @@ void shaperLogBuffer(
 
 
 #define shaperLogFn2(level, tag, company, component, path, line, fmt, ...) \
-    ({\
+    {\
         if (level <= SHAPER_LOG_LEVEL) \
             shaperLogFn(0, tag, company, component, path, line, fmt, __VA_ARGS__); \
-    })
+    }
+
+#define shaperLogBuffer2(level, pData, dataLen, lineLen, company, component, path, line) \
+    {\
+        if (level <= AVB_LOG_LEVEL) \
+            shaperLogBuffer(0, pData, dataLen, lineLen, company, component, path, line); \
+    }
 
 #ifdef SHAPER_LOG_ON
 #define SHAPER_LOGF_DEV(LEVEL, FMT, ...) shaperLogFn2(LEVEL,                 "DEV",     SHAPER_LOG_COMPANY, SHAPER_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
@@ -229,7 +235,7 @@ void shaperLogBuffer(
 #define SHAPER_LOGRT_STATUS(BEGIN, ITEM, END, FMT, TYPE, VAL)	shaperLogRT(SHAPER_LOG_LEVEL_STATUS, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define SHAPER_LOGRT_DEBUG(BEGIN, ITEM, END, FMT, TYPE, VAL)	shaperLogRT(SHAPER_LOG_LEVEL_DEBUG, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define SHAPER_LOGRT_VERBOSE(BEGIN, ITEM, END, FMT, TYPE, VAL)	shaperLogRT(SHAPER_LOG_LEVEL_VERBOSE, BEGIN, ITEM, END, FMT, TYPE, VAL)
-#define SHAPER_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)   shaperLogBuffer(LEVEL, DATA, DATALEN, LINELINE, SHAPER_LOG_COMPANY, SHAPER_LOG_COMPONENT, __FILE__, __LINE__)
+#define SHAPER_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)   shaperLogBuffer2(LEVEL, DATA, DATALEN, LINELINE, SHAPER_LOG_COMPANY, SHAPER_LOG_COMPONENT, __FILE__, __LINE__)
 #else
 #define SHAPER_LOGF_DEV(LEVEL, FMT, ...)
 #define SHAPER_LOGF_ERROR(FMT, ...)
