@@ -103,6 +103,264 @@ bool PTPMessageCommon::isSenderEqual(const PortIdentity& portIdentity)
 {
 	return portIdentity == *sourcePortIdentity;
 }
+ 
+void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
+{
+	if (V2_E2E == port->getDelayMechanism())
+	{
+		GPTP_LOG_DEBUG("*** MaybePerformCalculations--------------------------------------");
+
+		if (PTP_SLAVE == port->getPortState()) 
+		{
+			std::shared_ptr<PortIdentity> respPortIdentity;
+			port->getPortIdentity(respPortIdentity);
+
+			GPTP_LOG_DEBUG("Processing Delay Response as slave.");
+			PTPMessageSync *sync = port->getLastSync();
+			PTPMessageDelayReq req = port->getLastDelayReq();
+			PTPMessageDelayResp resp = port->getLastDelayResp();
+			PTPMessageFollowUp fup = port->getLastFollowUp();
+			ALastTimestampKeeper tsKeeper = port->LastTimestamps();
+
+			if (sync)
+			{
+				// Ensure our last values are from the same "group" of 
+				// sync/followup/delay_req/delay_resp messages from the
+				// same clock.
+				uint16_t syncSeqId = sync->getSequenceId();
+				std::shared_ptr<PortIdentity> syncPortId = sync->getPortIdentity();
+				std::shared_ptr<PortIdentity> slavePortId = std::make_shared<PortIdentity>();
+				port->getPortIdentity(slavePortId);
+				
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   sync clockId:%s", sync->getPortIdentity()->getClockIdentity().getIdentityString().c_str());
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   req clockId:%s", port->getLastDelayReq().getPortIdentity()->getClockIdentity().getIdentityString().c_str());
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   fup clockId:%s", port->getLastFollowUp().getPortIdentity()->getClockIdentity().getIdentityString().c_str());
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   slavePortId clockId:%s", slavePortId->getClockIdentity().getIdentityString().c_str());
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   port->getPortIdentity clockId:%s", port->getPortIdentity()->getClockIdentity().getIdentityString().c_str());
+				
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   req.getSequenceId():%d", req.getSequenceId());
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   resp.getSequenceId():%d", resp.getSequenceId());					
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   fup.getSequenceId():%d", fup.getSequenceId());
+
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   resp check - - - -");
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations  synPortId.sameClocks(resp): %s", (syncPortId->sameClocks(resp.getPortIdentity()) ? "true":"false"));
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   fup check - - - -");
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations  synPortId.sameClocks(fup): %s", (syncPortId->sameClocks(fup.getPortIdentity()) ? "true":"false"));
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   req check - - - -");
+				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations  slavePortId.sameClocks(req): %s", (port->getPortIdentity()->sameClocks(req.getPortIdentity()) ? "true":"false"));
+				
+				uint16_t reqSeqId = req.getSequenceId();
+				uint16_t respSeqId = resp.getSequenceId();
+				uint16_t fupSeqId = fup.getSequenceId();
+
+				if (syncSeqId == reqSeqId &&
+				 syncSeqId == respSeqId && 
+				 syncSeqId == fupSeqId &&
+				 port->getPortIdentity()->sameClocks(req.getPortIdentity()) &&
+				 syncPortId->sameClocks(resp.getPortIdentity()) &&
+				 syncPortId->sameClocks(fup.getPortIdentity()))
+				{
+					uint64_t t1 = TIMESTAMP_TO_NS(fup.getPreciseOriginTimestamp());
+					uint64_t rawt1 = t1;
+					uint64_t t2 = TIMESTAMP_TO_NS(sync->getTimestamp()); 
+					uint64_t t3 = TIMESTAMP_TO_NS(req.getTimestamp());
+					uint64_t t4 = TIMESTAMP_TO_NS(resp.getRequestReceiptTimestamp());
+					uint64_t rawt4 = t4;
+
+               uint64_t fupCorrection = fup.getCorrectionField();
+               uint64_t respCorrection = resp.getCorrectionField();
+
+               // The correction fileds are in 2^16 so correct them by shifting
+               // right 16 bits and ignore the fractional part
+               fupCorrection >>= 16;
+               respCorrection >>= 16;
+
+               // Adjust t1 and t4 by the correction field
+               t1 += fupCorrection;
+               t4 += respCorrection;
+
+					// std::cout << "MasterOffset:" << port->MasterOffset() << std::endl;
+					// std::cout << "raw t1:" << t1 << std::endl;
+					// std::cout << "raw t2:" << t2 << std::endl;
+					// std::cout << "raw t3:" << t3 << std::endl;
+					// std::cout << "raw t4:" << t4 << std::endl;
+
+					uint64_t lt1 = tsKeeper.fT1;
+					uint64_t lt2 = tsKeeper.fT2;
+					uint64_t lt3 = tsKeeper.fT3;
+					uint64_t lt4 = tsKeeper.fT4;
+
+					typedef FrequencyRatio FR;
+
+					FR localtime;
+					FR remote;
+					
+					// Ensure that  t4 >= t1 and t3 >= t2 
+					if (t4 >= t1 && t3 >= t2)
+					{
+						GPTP_LOG_VERBOSE("fupCorrection: %" PRIu64, fupCorrection);
+						GPTP_LOG_VERBOSE("respCorrection: %" PRIu64, respCorrection);
+
+						GPTP_LOG_VERBOSE("t1: %" PRIu64, t1);
+						GPTP_LOG_VERBOSE("rawt1: %" PRIu64, rawt1);
+						GPTP_LOG_VERBOSE("t2: %" PRIu64, t2);
+						GPTP_LOG_VERBOSE("t3: %" PRIu64, t3);
+						GPTP_LOG_VERBOSE("t4: %" PRIu64, t4);
+						GPTP_LOG_VERBOSE("rawt4: %" PRIu64, rawt4);
+
+						int64_t check = ((t4-t1) - (t3-t2))/2;
+						GPTP_LOG_VERBOSE("check: %" PRIu64, check);
+						GPTP_LOG_VERBOSE("(t4-t1): %" PRIu64, (t4-t1));
+						GPTP_LOG_VERBOSE("(t3-t2): %" PRIu64, (t3-t2));
+						GPTP_LOG_VERBOSE("(t4-t1) - (t3-t2): %" PRIu64, (t4-t1) - (t3-t2));
+						GPTP_LOG_VERBOSE("((t4-t1) - (t3-t2))/2: %" PRIu64, ((t4-t1) - (t3-t2)) / 2);
+
+						GPTP_LOG_VERBOSE("correctionFieldSync: %" PRIu64, sync->getCorrectionField());
+						GPTP_LOG_VERBOSE("correctionFieldFollowup: %" PRIu64, fup.getCorrectionField());
+						GPTP_LOG_VERBOSE("correctionFileDelayResp: %" PRIu64, resp.getCorrectionField());
+
+						// check is <= 10 ms
+						if (check <= 10000000)
+						{
+							GPTP_LOG_VERBOSE("$$$$$$$$$$$$$$$$$$$$$$$$$$  check passed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  goodSyncCount:%d", port->GoodSyncCount());
+							// Do this for the 2nd successful sync that has a less than 10 ms check
+							if (port->GoodSyncCount() >= 2)
+							{
+								localtime = FR(t2 + t3) / 2;
+								remote = FR(t4 + t1) / 2;
+
+								FR difflocaltime = localtime - port->LastLocaltime();
+								FR diffRemote = remote - port->LastRemote();
+
+								// Add additional checking 
+								FR remoteDiffLimit = diffRemote / 100;
+								FR remoteDiffUpper = diffRemote + remoteDiffLimit;
+								FR remoteDiffLower = diffRemote - remoteDiffLimit;
+
+								GPTP_LOG_VERBOSE("badDiffCount: %d", port->BadDiffCount());
+								GPTP_LOG_VERBOSE("difflocaltime: %Le", difflocaltime);
+								GPTP_LOG_VERBOSE("remoteDiffUpper: %Le", remoteDiffUpper);
+								GPTP_LOG_VERBOSE("remoteDiffLower: %Le", remoteDiffLower);
+
+
+								// Limit the precision of our floating point values
+								int kLimit = 1000;
+								difflocaltime = ceil(difflocaltime * kLimit) / kLimit;
+								remoteDiffUpper = ceil(remoteDiffUpper * kLimit) / kLimit;
+								remoteDiffLower = ceil(remoteDiffLower * kLimit) / kLimit;
+
+								// Limit to 20 bad diffs otherwise we loose too many
+								if ((difflocaltime <= remoteDiffUpper &&
+									difflocaltime >= remoteDiffLower) ||
+									port->BadDiffCount() > 20)
+								{
+									port->BadDiffCount(0);
+									GPTP_LOG_VERBOSE("Setting badDiffCount  0");
+
+									FR RR1 = 1.0;
+									FR RR2 = 1.0;
+
+									//FrequencyRatio RR1 = FrequencyRatio(t2 + t3) / 2.0;
+									//FrequencyRatio RR2 = FrequencyRatio(t1 + t4) / 2.0;
+
+									//(((t4 - t1) / 2) - ((lt4 - lt1) / 2)) / (((t3 - t2) / 2) - ((lt3 - lt2) / 2))
+									if (lt1 > 0 && lt2 > 0 && lt3 > 0 && lt4 > 0)
+									{
+										FR denom = (FR(t3-t2)/FR(2.0)) - (FR(lt3-lt2)/FR(2.0));
+										RR1 = 0 == denom 
+										 ? 0 : ((FR(t4-t1)/FR(2.0)) - (FR(lt4-lt1)/FR(2.0))) / denom;
+										denom = (FR(t4-t1)/FR(2.0)) - (FR(lt4-lt1)/FR(2.0));
+										RR2 = 0 == denom
+										 ? 0 : ((FR(t3-t2)/FR(2.0)) - (FR(lt3-lt2)/FR(2.0))) / denom;
+									}
+
+									// FrequencyRatio RR1 = (FrequencyRatio(t4-t1)/2) / (FrequencyRatio(t3-t2)/2);
+									// FrequencyRatio RR2 = FrequencyRatio(t3-t2) / FrequencyRatio(t4-t1);
+
+									FrequencyRatio meanPathDelay;
+									if (port->SmoothRateChange())
+									{
+										// We will use an IIR to smooth the rate ratio. The 
+										// IIR will differ slightly depending on the physical 
+										// network (wifi vs wired).
+										// when on wifi:
+										// filteredRateRatioMS = (lastRateRatio * 255 / 256) + (RR2 / 256)
+										// when wired:
+										// filteredRateRatioMS = (lastRateRatio * 63 / 64) + (RR2 / 64)
+										FR lastRateRatio = port->LastFilteredRateRatio();
+										// Assume wired for now...
+										//FR filteredRateRatioMS = (FR(lastRateRatio * 255) / 256) + (RR2 / 256);
+										FR filteredRateRatioMS = (FR(lastRateRatio * 63) / 64) + (RR2 / 64);
+										port->LastFilteredRateRatio(filteredRateRatioMS);
+
+										meanPathDelay = ((t4-t1) - filteredRateRatioMS * (t3-t2)) / 2.0;						
+										GPTP_LOG_INFO("lastRateRatio: %Le", lastRateRatio);
+										GPTP_LOG_INFO("filteredRateRatioMS: %Le", filteredRateRatioMS);
+									}
+									else
+									{
+										meanPathDelay = ((t4-t1) - RR2 * (t3-t2)) / 2.0;
+									}
+
+									// Apply IIR filter to the meanPathDelay
+									FR lastMeanPathDelay = port->meanPathDelay();
+									// Assume wired for now...
+									//FR filteredMeanPathDelay = (FR(lastMeanPathDelay * 255) / 256) + (meanPathDelay / 256);
+									FR filteredMeanPathDelay = (FR(lastMeanPathDelay * 63) / 64) + (meanPathDelay / 64);
+
+									port->LastTimestamps(ALastTimestampKeeper(rawt1, t2, t3, rawt4));
+
+									//port->MasterOffset(offset);
+									port->meanPathDelay(filteredMeanPathDelay);
+
+									port->PushMasterSlaveRateRatio(RR1);
+									port->PushSlaveMasterRateRatio(RR2);
+
+									GPTP_LOG_VERBOSE("lt1: %" PRIu64, lt1);
+									GPTP_LOG_VERBOSE("lt2: %" PRIu64, lt2);
+									GPTP_LOG_VERBOSE("lt3: %" PRIu64, lt3);
+									GPTP_LOG_VERBOSE("lt4: %" PRIu64, lt4);
+
+									GPTP_LOG_VERBOSE("RR1((((t4-t1)/2) - ((lt4-lt1)/2)) / (((t3-t2)/2) - ((lt3-lt2)/2))): %Le", RR1);
+									GPTP_LOG_VERBOSE("RR2((((t3-t2)/2) - ((lt3-lt2)/2)) / (((t4-t1)/2) - ((lt4-lt1)/2))): %Le", RR2);
+									GPTP_LOG_VERBOSE("meanPathDelay: %Le", meanPathDelay);							
+									GPTP_LOG_VERBOSE("filteredMeanPathDelay: %Le", filteredMeanPathDelay);							
+									//GPTP_LOG_VERBOSE("offset((t4 - t1 - t3 + t2)/2): %Le", offset);							
+									GPTP_LOG_VERBOSE("correctionFieldSync: %" PRIu64, sync->getCorrectionField());
+									GPTP_LOG_VERBOSE("correctionFieldFollowup: %" PRIu64, fup.getCorrectionField());
+									GPTP_LOG_VERBOSE("correctionFileDelayResp: %" PRIu64, resp.getCorrectionField());						
+
+									std::cout << "RR1((((t4-t1)/2) - ((lt4-lt1)/2)) / (((t3-t2)/2) - ((lt3-lt2)/2))):" << RR1 << std::endl;
+									std::cout << "RR2((((t3-t2)/2) - ((lt3-lt2)/2)) / (((t4-t1)/2) - ((lt4-lt1)/2))):" << RR2 << std::endl;						
+								}
+								else
+								{
+									port->BadDiffCount(port->BadDiffCount() + 1);
+								}
+							}
+
+							port->LastLocaltime(localtime);
+							port->LastRemote(remote);
+							if (port->GoodSyncCount() < 2)
+							{
+								port->GoodSyncCount(port->GoodSyncCount() + 1);
+							}							
+						}
+					}
+					else
+					{
+						GPTP_LOG_INFO("t1: %" PRIu64, t1);
+						GPTP_LOG_INFO("t2: %" PRIu64, t2);
+						GPTP_LOG_INFO("t3: %" PRIu64, t3);
+						GPTP_LOG_INFO("t4: %" PRIu64, t4);
+
+						GPTP_LOG_INFO("t4 > t1 && t3 > t2  IS FALSE");
+					}
+				}
+			}
+		}
+	}	
+}
 
 PTPMessageCommon *buildPTPMessage
 (char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, 
@@ -235,7 +493,15 @@ PTPMessageCommon *buildPTPMessage
 			memcpy(&(sync_msg->originTimestamp.nanoseconds),
 			       buf + PTP_SYNC_NSEC(PTP_SYNC_OFFSET),
 			       sizeof(sync_msg->originTimestamp.nanoseconds));
+
+			memcpy(&(sync_msg->correctionField),
+	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
+	       sizeof(sync_msg->correctionField));
+
 			msg = sync_msg;
+
+			GPTP_LOG_VERBOSE("Received sync  originTimestamp:%d", sync_msg->originTimestamp.seconds_ms);
+			GPTP_LOG_VERBOSE("Received sync  correctionField:%d", sync_msg->correctionField);
 		}
 	}
 	break;
@@ -287,16 +553,19 @@ PTPMessageCommon *buildPTPMessage
 				sizeof(followup_msg->tlv) );
 
 			followup_msg->sequenceId = sequenceId;
+
+			memcpy(&(followup_msg->correctionField),
+	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
+	       sizeof(followup_msg->correctionField));
+
 			msg = followup_msg;
 			msg->setPortIdentity(sourcePortIdentity);
-
-			memcpy(&(msg->correctionField),
-	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
-	       sizeof(msg->correctionField));
 
 			port->setLastFollowUp(static_cast<PTPMessageFollowUp*>(msg));
 			port->HaveFollowup(true);
 
+			GPTP_LOG_VERBOSE("Received Follow Up  precideOriginTimestamp:%d", followup_msg->preciseOriginTimestamp.seconds_ms);
+			GPTP_LOG_VERBOSE("Received Follow Up  correctionField:%d", followup_msg->correctionField);
 			GPTP_LOG_VERBOSE("Received Follow Up  clockId:%s",msg->getPortIdentity()->getClockIdentity().getIdentityString().c_str());
         }
 		break;
@@ -354,6 +623,8 @@ PTPMessageCommon *buildPTPMessage
 
 			port->setLastDelayResp(resp);
 			port->HaveDelayResp(true);
+			GPTP_LOG_VERBOSE("Received delay resp  requestReceiptTimestamp:%d", resp->requestReceiptTimestamp.seconds_ms);
+			GPTP_LOG_VERBOSE("Received delay resp  correctionField:%d", resp->correctionField);
 		}
 		break;
 #ifndef APTP
@@ -641,6 +912,9 @@ PTPMessageCommon *buildPTPMessage
 	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
 	       sizeof(msg->correctionField));
 	msg->correctionField = PLAT_ntohll(msg->correctionField);
+
+	GPTP_LOG_VERBOSE("Common correctionField: %d", msg->correctionField);
+
 	msg->setPortIdentity(sourcePortIdentity);
 	msg->sequenceId = sequenceId;
 	memcpy(&(msg->control),
@@ -710,6 +984,7 @@ void PTPMessageCommon::buildCommonHeader(uint8_t * buf)
 	       PTP_FLAGS_LENGTH);
 	memcpy(buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
 	       &correctionField_BE, sizeof(correctionField));
+
 	sourcePortIdentity->getClockIdentityString
 	  ((uint8_t *) buf+
 	   PTP_COMMON_HDR_SOURCE_CLOCK_ID(PTP_COMMON_HDR_OFFSET));
@@ -1088,6 +1363,8 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 		_gc = true;
 	}
 #endif
+
+	MaybePerformCalculations(port);	
 }
 
  PTPMessageFollowUp::PTPMessageFollowUp(IEEE1588Port * port):PTPMessageCommon
@@ -1191,8 +1468,11 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	Timestamp sync_arrival;
 	Timestamp system_time(0, 0, 0);
 	Timestamp device_time(0, 0, 0);
+	Timestamp masterTime(0, 0, 0);
 
 	signed long long scalar_offset;
+
+	int64_t convertedCorrection = correctionField >> 16;
 
 	FrequencyRatio local_clock_adjustment;
 	FrequencyRatio local_system_freq_offset;
@@ -1260,28 +1540,27 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	master_local_freq_offset  =  tlv.getRateOffset();
 	master_local_freq_offset /= 1ULL << 41;
 	master_local_freq_offset += 1.0;
-#ifndef APTP	
+
 	master_local_freq_offset /= port->getPeerRateOffset();
-#endif
+	//correctionField /= 1 << 16;
+	correction = (int64_t)((delay * master_local_freq_offset) + convertedCorrection);
 
-	correctionField /= 1 << 16;
-	correction = (int64_t)((delay * master_local_freq_offset) + correctionField );
+	masterTime = preciseOriginTimestamp;
 
-	if( correction > 0 )
-	   TIMESTAMP_ADD_NS( preciseOriginTimestamp, correction );
+	if (correction > 0)
+	   TIMESTAMP_ADD_NS(masterTime, correction);
 	else 
-		TIMESTAMP_SUB_NS( preciseOriginTimestamp, -correction );
-	scalar_offset  = TIMESTAMP_TO_NS( sync_arrival );
-	scalar_offset -= TIMESTAMP_TO_NS( preciseOriginTimestamp );
+		TIMESTAMP_SUB_NS(masterTime, -correction);
+
+	scalar_offset  = TIMESTAMP_TO_NS(sync_arrival);
+	scalar_offset -= TIMESTAMP_TO_NS(masterTime);
 
 	port->MasterOffset(scalar_offset);
    GPTP_LOG_VERBOSE("Followup  scalar_offset:%d", scalar_offset);
 
-	GPTP_LOG_VERBOSE
-		("Followup Correction Field: %Ld, Link Delay: %lu", correctionField,
-		 delay);
-	GPTP_LOG_VERBOSE
-		("FollowUp Scalar = %lld", scalar_offset);
+	GPTP_LOG_VERBOSE("Followup Correction Field: %Ld,  convertedCorrection: %Ld"
+	 " Link Delay: %lu", correctionField, convertedCorrection, delay);
+	GPTP_LOG_VERBOSE("FollowUp Scalar = %lld", scalar_offset);
 
 	/* Otherwise synchronize clock with approximate time from Sync message */
 	uint32_t local_clock, nominal_clock_rate;
@@ -1311,8 +1590,8 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 
 	// adjMaster = std::round(TIMESTAMP_TO_NS(preciseOriginTimestamp) + 
 	//  port->meanPathDelay() + sync->getCorrectionField());
-	adjMaster = TIMESTAMP_TO_NS(preciseOriginTimestamp) + 
-	 port->meanPathDelay() + sync->getCorrectionField();
+	adjMaster = TIMESTAMP_TO_NS(masterTime) + 
+	 port->meanPathDelay() + (sync->getCorrectionField() >> 16);
 
 	correctedMasterEventTimestamp.set64(uint64_t(adjMaster));
 
@@ -1379,6 +1658,8 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 		GPTP_LOG_EXCEPTION("Sync discontinuity");
 	}
 	port->setLastGmTimeBaseIndicator(tlv.getGmTimeBaseIndicator());
+
+	MaybePerformCalculations(port);
 
 done:
 	_gc = true;
@@ -1459,6 +1740,7 @@ void PTPMessageDelayReq::sendPort(IEEE1588Port * port,
 	// originTimeStamp
 	originTimestamp = port->getClock()->getTime();
 	setTimestamp(originTimestamp);
+
 	originTimestamp_BE.seconds_ms = PLAT_htons(originTimestamp.seconds_ms);
 	originTimestamp_BE.seconds_ls = PLAT_htonl(originTimestamp.seconds_ls);
 	originTimestamp_BE.nanoseconds =
@@ -1581,215 +1863,8 @@ void PTPMessageDelayResp::processMessage(IEEE1588Port * port)
 	}
 
 	GPTP_LOG_DEBUG("*** Delay Response processMessage  delayMech:%d",port->getDelayMechanism());
-	if (V2_E2E == port->getDelayMechanism())
-	{
-		GPTP_LOG_DEBUG("*** Delay Response received--------------------------------------");
 
-		if (PTP_SLAVE == port->getPortState()) 
-		{
-			std::shared_ptr<PortIdentity> respPortIdentity;
-			port->getPortIdentity(respPortIdentity);
-
-			GPTP_LOG_DEBUG("Processing Delay Response as slave.");
-			PTPMessageSync *sync = port->getLastSync();
-			PTPMessageDelayReq req = port->getLastDelayReq();
-			PTPMessageDelayResp resp = port->getLastDelayResp();
-			PTPMessageFollowUp fup = port->getLastFollowUp();
-			ALastTimestampKeeper tsKeeper = port->LastTimestamps();
-
-			if (sync)
-			{
-				// Ensure our last values are from the same "group" of 
-				// sync/followup/delay_req/delay_resp messages from the
-				// same clock.
-				uint16_t syncSeqId = sync->getSequenceId();
-				std::shared_ptr<PortIdentity> syncPortId = sync->getPortIdentity();
-				std::shared_ptr<PortIdentity> slavePortId = std::make_shared<PortIdentity>();
-				port->getPortIdentity(slavePortId);
-				
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   sync clockId:%s", sync->getPortIdentity()->getClockIdentity().getIdentityString().c_str());
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   req clockId:%s", port->getLastDelayReq().getPortIdentity()->getClockIdentity().getIdentityString().c_str());
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   fup clockId:%s", port->getLastFollowUp().getPortIdentity()->getClockIdentity().getIdentityString().c_str());
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   slavePortId clockId:%s", slavePortId->getClockIdentity().getIdentityString().c_str());
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   port->getPortIdentity clockId:%s", port->getPortIdentity()->getClockIdentity().getIdentityString().c_str());
-				
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   req.getSequenceId():%d", req.getSequenceId());
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   resp.getSequenceId():%d", resp.getSequenceId());					
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   fup.getSequenceId():%d", fup.getSequenceId());
-
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   resp check - - - -");
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage  synPortId.sameClocks(resp): %s", (syncPortId->sameClocks(resp.getPortIdentity()) ? "true":"false"));
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   fup check - - - -");
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage  synPortId.sameClocks(fup): %s", (syncPortId->sameClocks(fup.getPortIdentity()) ? "true":"false"));
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage   req check - - - -");
-				// GPTP_LOG_VERBOSE("PTPMessageDelayResp::processMessage  slavePortId.sameClocks(req): %s", (port->getPortIdentity()->sameClocks(req.getPortIdentity()) ? "true":"false"));
-				
-				uint16_t reqSeqId = req.getSequenceId();
-				uint16_t respSeqId = resp.getSequenceId();
-				uint16_t fupSeqId = fup.getSequenceId();
-
-				if (syncSeqId == reqSeqId &&
-				 syncSeqId == respSeqId && 
-				 syncSeqId == fupSeqId &&
-				 port->getPortIdentity()->sameClocks(req.getPortIdentity()) &&
-				 syncPortId->sameClocks(resp.getPortIdentity()) &&
-				 syncPortId->sameClocks(fup.getPortIdentity()))
-				{
-					uint64_t t1 = TIMESTAMP_TO_NS(fup.getPreciseOriginTimestamp());
-					uint64_t rawt1 = t1;
-					uint64_t t2 = TIMESTAMP_TO_NS(sync->getTimestamp()); 
-					uint64_t t3 = TIMESTAMP_TO_NS(req.getTimestamp());
-					uint64_t t4 = TIMESTAMP_TO_NS(resp.getRequestReceiptTimestamp());
-					uint64_t rawt4 = t4;
-
-					// std::cout << "MasterOffset:" << port->MasterOffset() << std::endl;
-					// std::cout << "raw t1:" << t1 << std::endl;
-					// std::cout << "raw t2:" << t2 << std::endl;
-					// std::cout << "raw t3:" << t3 << std::endl;
-					// std::cout << "raw t4:" << t4 << std::endl;
-
-					// Convert t1 and t4 to local time
-					t1 = port->ConvertToLocalTime(t1);
-					t4 = port->ConvertToLocalTime(t4);
-					//t2 -= port->MasterOffset(); 
-					//t3 -= port->MasterOffset();
-
-					uint64_t lt1 = port->ConvertToLocalTime(tsKeeper.fT1);
-					uint64_t lt2 = tsKeeper.fT2;
-					uint64_t lt3 = tsKeeper.fT3;
-					uint64_t lt4 = port->ConvertToLocalTime(tsKeeper.fT4);
-
-					// Ensure that  t4 > t1 and t3 > t2 
-					if (t4 > t1 && t3 > t2)
-					{
-						typedef FrequencyRatio FR;
-
-						FR RR1 = 1.0;
-						FR RR2 = 1.0;
-						//FrequencyRatio RR1 = FrequencyRatio(t2 + t3) / 2.0;
-						//FrequencyRatio RR2 = FrequencyRatio(t1 + t4) / 2.0;
-
-						//(((t4 - t1) / 2) - ((lt4 - lt1) / 2)) / (((t3 - t2) / 2) - ((lt3 - lt2) / 2))
-						if (lt1 > 0 && lt2 > 0 && lt3 > 0 && lt4 > 0)
-						{
-							FR denom = (FR(t3-t2)/FR(2.0)) - (FR(lt3-lt2)/FR(2.0));
-							RR1 = 0 == denom 
-							 ? 0 : ((FR(t4-t1)/FR(2.0)) - (FR(lt4-lt1)/FR(2.0))) / denom;
-							denom = (FR(t4-t1)/FR(2.0)) - (FR(lt4-lt1)/FR(2.0));
-							RR2 = 0 == denom
-							 ? 0 : ((FR(t3-t2)/FR(2.0)) - (FR(lt3-lt2)/FR(2.0))) / denom;
-						}
-
-						// FrequencyRatio RR1 = (FrequencyRatio(t4-t1)/2) / (FrequencyRatio(t3-t2)/2);
-						// FrequencyRatio RR2 = FrequencyRatio(t3-t2) / FrequencyRatio(t4-t1);
-
-						FrequencyRatio meanPathDelay;
-						if (port->SmoothRateChange())
-						{
-							// We will use an IIR to smooth the rate ratio. The 
-							// IIR will differ slightly depending on the physical 
-							// network (wifi vs wired).
-							// when on wifi:
-							// filteredRateRatioMS = (lastRateRatio * 255 / 256) + (RR2 / 256)
-							// when wired:
-							// filteredRateRatioMS = (lastRateRatio * 63 / 64) + (RR2 / 64)
-							FR lastRateRatio = port->LastFilteredRateRatio();
-							// Assume wired for now...
-							//FR filteredRateRatioMS = (FR(lastRateRatio * 255) / 256) + (RR2 / 256);
-							FR filteredRateRatioMS = (FR(lastRateRatio * 63) / 64) + (RR2 / 64);
-							port->LastFilteredRateRatio(filteredRateRatioMS);
-
-							// // averageRate(n) = averageRate(n-1) + α(rateRatio(n) - averageRate(n-1))
-							// // where α is set to .1
-							// FrequencyRatio lastRateAverageMS = port->RateAverageMasterSlave();
-							// FrequencyRatio curRateAverageMS = lastRateAverageMS + 0.1 * (RR1 - lastRateAverageMS);
-							// port->LastRateAverageMasterSlave(curRateAverageMS);
-
-							// FrequencyRatio lastRateAverageSM = port->LastRateAverageSlaveMaster();
-							// FrequencyRatio curRateAverageSM = lastRateAverageSM + 0.1 * (RR2 - lastRateAverageSM);
-
-	 						//[(t4-t1) - RR * (t3-t2)] / 2
-							//FrequencyRatio meanPathDelay = (FrequencyRatio(t4 - t1) + FrequencyRatio(t2Adj - t3))/2.0;
-							meanPathDelay = ((t4-t1) - filteredRateRatioMS * (t3-t2)) / 2.0;						
-							GPTP_LOG_INFO("lastRateRatio: %Le", lastRateRatio);
-							GPTP_LOG_INFO("filteredRateRatioMS: %Le", filteredRateRatioMS);
-						}
-						else
-						{
-							meanPathDelay = ((t4-t1) - RR2 * (t3-t2)) / 2.0;
-						}
-
-						// Apply IIR filter to the meanPathDelay
-						FR lastMeanPathDelay = port->meanPathDelay();
-						// Assume wired for now...
-						//FR filteredMeanPathDelay = (FR(lastMeanPathDelay * 255) / 256) + (meanPathDelay / 256);
-						FR filteredMeanPathDelay = (FR(lastMeanPathDelay * 63) / 64) + (meanPathDelay / 64);
-
-						// Calculate the offset from master
-						//FR offset = FR((t4 - t1) - (t3 + t2))/2;
-						//FR offset = FR((t2 - t1) - (t4 + t3))/2;
-
-						port->LastTimestamps(ALastTimestampKeeper(rawt1, t2, t3, rawt4));
-
-						//port->MasterOffset(offset);
-						port->meanPathDelay(filteredMeanPathDelay);
-
-						port->PushMasterSlaveRateRatio(RR1);
-						port->PushSlaveMasterRateRatio(RR2);
-
-						GPTP_LOG_VERBOSE("lt1: %" PRIu64, lt1);
-						GPTP_LOG_VERBOSE("lt2: %" PRIu64, lt2);
-						GPTP_LOG_VERBOSE("lt3: %" PRIu64, lt3);
-						GPTP_LOG_VERBOSE("lt4: %" PRIu64, lt4);
-						GPTP_LOG_VERBOSE("t1: %" PRIu64, t1);
-						GPTP_LOG_VERBOSE("t2: %" PRIu64, t2);
-						GPTP_LOG_VERBOSE("t3: %" PRIu64, t3);
-						GPTP_LOG_VERBOSE("t4: %" PRIu64, t4);
-
-						GPTP_LOG_VERBOSE("RR1((((t4-t1)/2) - ((lt4-lt1)/2)) / (((t3-t2)/2) - ((lt3-lt2)/2))): %Le", RR1);
-						GPTP_LOG_VERBOSE("RR2((((t3-t2)/2) - ((lt3-lt2)/2)) / (((t4-t1)/2) - ((lt4-lt1)/2))): %Le", RR2);
-						GPTP_LOG_VERBOSE("meanPathDelay: %Le", meanPathDelay);							
-						GPTP_LOG_VERBOSE("filteredMeanPathDelay: %Le", filteredMeanPathDelay);							
-						//GPTP_LOG_VERBOSE("offset((t4 - t1 - t3 + t2)/2): %Le", offset);							
-						GPTP_LOG_VERBOSE("correctionFieldSync: %" PRIu64, sync->getCorrectionField());
-						GPTP_LOG_VERBOSE("correctionFieldFollowup: %" PRIu64, fup.getCorrectionField());
-						GPTP_LOG_VERBOSE("correctionFileDelayResp: %" PRIu64, resp.getCorrectionField());						
-
-						std::cout << "RR1((((t4-t1)/2) - ((lt4-lt1)/2)) / (((t3-t2)/2) - ((lt3-lt2)/2))):" << RR1 << std::endl;
-						std::cout << "RR2((((t3-t2)/2) - ((lt3-lt2)/2)) / (((t4-t1)/2) - ((lt4-lt1)/2))):" << RR2 << std::endl;
-					}
-					else
-					{
-						GPTP_LOG_INFO("t1: %" PRIu64, t1);
-						GPTP_LOG_INFO("t2: %" PRIu64, t2);
-						GPTP_LOG_INFO("t3: %" PRIu64, t3);
-						GPTP_LOG_INFO("t4: %" PRIu64, t4);
-
-						GPTP_LOG_INFO("t4 > t1 && t3 > t2  IS FALSE");
-					}
-				}
-				else
-				{
-					if (syncSeqId != reqSeqId)
-					{
-						GPTP_LOG_ERROR("syncSeqId(%d) != reqSeqId(%d)", syncSeqId, reqSeqId);
-					}
-					if (syncSeqId != respSeqId)
-					{
-						GPTP_LOG_ERROR("syncSeqId(%d) != respSeqId(%d)", syncSeqId, respSeqId);
-						port->HaveDelayResp(false);
-					 	GPTP_LOG_INFO("AFTER HaveDelayResp false");
-					}
-					if (syncSeqId != fupSeqId)
-					{
-						GPTP_LOG_ERROR("syncSeqId(%d) != fupSeqId(%d)", syncSeqId, fupSeqId);
-						port->HaveFollowup(false);
-						GPTP_LOG_INFO("AFTER HaveFollowup false");
-					}
-				}
-			}
-		}
-	}
+	MaybePerformCalculations(port);
 }
 
 void PTPMessageDelayResp::sendPort(IEEE1588Port * port,

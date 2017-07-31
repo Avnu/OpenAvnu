@@ -475,10 +475,14 @@ class IEEE1588Port {
 	PTPMessageSync *last_sync;
 
 	OSThread *listening_thread;
+	OSThread *eventThread;
+	OSThread *generalThread;
 
 	OSThread *link_thread;
 
 	OSCondition *port_ready_condition;
+	OSCondition *eventPortReadyCondition;
+	OSCondition *generalPortReadyCondition;
 
 	OSLock *pdelay_rx_lock;
 	OSLock *delay_rx_lock;
@@ -516,6 +520,11 @@ class IEEE1588Port {
 	std::list<std::string> fUnicastReceiveNodeList;
 	std::string fAdrRegSocketIp;
 	uint16_t fAdrRegSocketPort;
+
+	FrequencyRatio fLastLocaltime;
+	FrequencyRatio fLastRemote;
+	int fBadDiffCount;
+	int fGoodSyncCount;
 
  private:
 	net_result port_send(uint16_t etherType, uint8_t * buf, int size,
@@ -754,6 +763,25 @@ class IEEE1588Port {
 	 * @return Its an infinite loop. Returns NULL in case of error.
 	 */
 	void *openPort(IEEE1588Port *port);
+
+	/**
+	 * @brief Receives messages from the network interface on port 319 if isEvent
+	 *        is true, otherwise port 320.
+	 * @return Its an infinite loop. Returns false in case of error.
+	 */
+	bool PortCheck(IEEE1588Port *port, bool isEvent);
+
+	/**
+	 * @brief Thread worker for receiving event messages from port 319.
+	 * @return Its an infinite loop. Returns false in case of error.
+	 */
+	bool OpenEventPort(IEEE1588Port *port);
+
+	/**
+	 * @brief Thread worker for receiving general messages from port 320.
+	 * @return Its an infinite loop. Returns false in case of error.
+	 */
+	bool OpenGeneralPort(IEEE1588Port *port);
 
 	/**
 	 * @brief Get the payload offset inside a packet
@@ -1822,6 +1850,39 @@ class IEEE1588Port {
 	void LastRateAverageSlaveMaster(FrequencyRatio ratio)
 	{
 		fLastRateAverageSlaveMaster = ratio;
+	}
+
+	FrequencyRatio LastLocaltime() const
+	{
+		return fLastLocaltime;
+	}
+	void LastLocaltime(FrequencyRatio value)
+	{
+		fLastLocaltime = value;
+	}
+	FrequencyRatio LastRemote() const
+	{
+		return fLastRemote;
+	}
+	void LastRemote(FrequencyRatio value)
+	{
+		fLastRemote = value;
+	}
+	int BadDiffCount() const
+	{
+		return fBadDiffCount;
+	}
+	void BadDiffCount(int value)
+	{
+		fBadDiffCount = value;
+	}
+	int GoodSyncCount() const
+	{
+		return fGoodSyncCount;
+	}
+	void GoodSyncCount(int value)
+	{
+		fGoodSyncCount = value;
 	}
 
 	void FollowupAhead(bool yesno)

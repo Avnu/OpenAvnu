@@ -270,6 +270,8 @@ protected:
 		return assign(other);
 	}
 
+	void MaybePerformCalculations(IEEE1588Port* port);
+
 	PTPMessageCommon& assign(const PTPMessageCommon& other);
 
 	/**

@@ -64,6 +64,20 @@ OSThreadExitCode watchNetLinkWrapper(void *arg)
 		return osthread_error;
 }
 
+OSThreadExitCode openEventPortWrapper(void *arg)
+{
+	GPTP_LOG_VERBOSE("openEventPortWrapper");
+	IEEE1588Port *port = reinterpret_cast<IEEE1588Port*>(arg);
+	return port->OpenEventPort(port) ? osthread_ok : osthread_error;
+}
+
+OSThreadExitCode openGeneralPortWrapper(void *arg)
+{
+	GPTP_LOG_VERBOSE("openEventPortWrapper");
+	IEEE1588Port *port = reinterpret_cast<IEEE1588Port*>(arg);
+	return port->OpenGeneralPort(port) ? osthread_ok : osthread_error;
+}
+
 OSThreadExitCode openPortWrapper(void *arg)
 {
 	IEEE1588Port *port;
@@ -78,6 +92,9 @@ OSThreadExitCode openPortWrapper(void *arg)
 IEEE1588Port::~IEEE1588Port()
 {
 	delete port_ready_condition;
+	delete eventPortReadyCondition;
+	delete generalPortReadyCondition;
+
 	delete [] rate_offset_array;
 	if( qualified_announce != NULL ) delete qualified_announce;
 }
@@ -109,6 +126,14 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 
 	smoothRateChange = portInit->smoothRateChange;
 	fLastFilteredRateRatio = 1;
+
+	fLastLocaltime = 0;
+	fLastRemote = 0;
+	fBadDiffCount = 0;
+	fGoodSyncCount = 0;
+
+	GPTP_LOG_VERBOSE("IEEE1588Port  ctor  this: %#010x", this);
+
 
 	if (automotive_profile) {
 		asCapable = true;
@@ -266,6 +291,8 @@ bool IEEE1588Port::init_port(int delay[4])
 	GPTP_LOG_VERBOSE("IEEE1588Port::init_port   clockId:%s", port_identity->getClockIdentity().getIdentityString().c_str());
 
 	port_ready_condition = condition_factory->createCondition();
+	eventPortReadyCondition = condition_factory->createCondition();
+	generalPortReadyCondition = condition_factory->createCondition();
 
 	return true;
 }
@@ -439,11 +466,56 @@ bool IEEE1588Port::restoreSerializedState( void *buf, off_t *count ) {
 
 void *IEEE1588Port::watchNetLink(void)
 {
+#ifdef RPI	
+	port_ready_condition->signal();
+#endif	
+
 	// Should never return
 	net_iface->watchNetLink(this);
 
 	return NULL;
 }
+
+bool IEEE1588Port::PortCheck(IEEE1588Port *port, bool isEvent)
+{
+	bool ok = true;
+	const std::string kMessageType = isEvent ? "event" : "general";
+
+	OSCondition *condition = isEvent 
+	 ? eventPortReadyCondition : generalPortReadyCondition;
+	condition->signal();
+	struct phy_delay get_delay = { 0, 0, 0, 0 };
+	if (port->_hw_timestamper && port->fUseHardwareTimestamp)
+	{
+		port->_hw_timestamper->get_phy_delay(&get_delay);
+	}
+	while (1)
+	{
+		// Check for messages and process them
+		if (net_fatal == maybeProcessMessage(isEvent, get_delay))
+		{
+			std::string msg = "net fatal checking for ";
+			msg += kMessageType + " messages.";
+			GPTP_LOG_ERROR(msg.c_str());
+			ok = false;
+			break;
+		}
+	}
+
+	GPTP_LOG_INFO("IEEE1588Port::PortChecker  DONE");
+	return ok;
+}
+
+bool IEEE1588Port::OpenEventPort(IEEE1588Port *port)
+{
+	return PortCheck(port, true);
+}
+
+bool IEEE1588Port::OpenGeneralPort(IEEE1588Port *port)
+{
+	return PortCheck(port, false);
+}
+
 
 void *IEEE1588Port::openPort(IEEE1588Port *port)
 {
@@ -745,6 +817,37 @@ void IEEE1588Port::processEvent(Event e)
 					 pow((double)2,getAnnounceInterval())*1000000000.0);
 			}
 
+#ifdef RPI
+			port_ready_condition->wait_prelock();			
+
+			link_thread = thread_factory->createThread();
+			if(!link_thread->start(watchNetLinkWrapper, (void *)this))
+			{
+				GPTP_LOG_ERROR("Error creating port link thread");
+				return;
+			}
+
+			eventPortReadyCondition->wait_prelock();
+			GPTP_LOG_VERBOSE("Starting event port thread");
+			eventThread = thread_factory->createThread();
+			if (!eventThread->start(openEventPortWrapper, (void *)this))
+			{
+				GPTP_LOG_ERROR("Error creating event port thread");
+				return;
+			}
+
+			generalPortReadyCondition->wait_prelock();
+			GPTP_LOG_VERBOSE("Starting general port thread");
+			generalThread = thread_factory->createThread();
+			if (!generalThread->start(openGeneralPortWrapper, (void *)this))
+			{
+				GPTP_LOG_ERROR("Error creating general port thread");
+				return;
+			}
+			port_ready_condition->wait();
+			eventPortReadyCondition->wait();
+			generalPortReadyCondition->wait();
+#else
 			port_ready_condition->wait_prelock();
 
 			link_thread = thread_factory->createThread();
@@ -756,13 +859,13 @@ void IEEE1588Port::processEvent(Event e)
 
 			GPTP_LOG_VERBOSE("Starting port thread");
 			listening_thread = thread_factory->createThread();
-			if (!listening_thread->
-				start (openPortWrapper, (void *)this))
+			if (!listening_thread->start(openPortWrapper, (void *)this))
 			{
 				GPTP_LOG_ERROR("Error creating port thread");
 				return;
 			}
 			port_ready_condition->wait();
+#endif
 
 			if (e3 != NULL_EVENT)
 				clock->addEventTimerLocked(this, e3, interval3);
@@ -1255,6 +1358,7 @@ void IEEE1588Port::processEvent(Event e)
 								   sync_timestamp_counter_value,
 								   false);
 				while (ts_good != GPTP_EC_SUCCESS && iter-- != 0) {
+					GPTP_LOG_VERBOSE("Sleeping waiting for good TX");					
 					timer->sleep(req);
 					wait_time += req;
 

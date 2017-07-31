@@ -51,9 +51,6 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 
-#define TX_PHY_TIME 184
-#define RX_PHY_TIME 382
-
 net_result gLockErrorStatus = net_succeed;
 
 class ALockKeeper
@@ -78,7 +75,7 @@ public:
 	{
 		if (!fLock->unlock())
 		{
-			GPTP_LOG_ERROR("A Failed to unlock");
+			GPTP_LOG_ERROR("ALockKeeper Failed to unlock");
 			gLockErrorStatus = net_fatal;
 		}
 		else
@@ -461,8 +458,9 @@ void LinuxTimestamperGeneric::logCurrentTime(const char * msg)
 }		
 
 
-bool LinuxTimestamperGeneric::HWTimestamper_init
-( InterfaceLabel *iface_label, OSNetworkInterface *iface ) {
+bool LinuxTimestamperGeneric::HWTimestamper_init(InterfaceLabel *iface_label,
+ OSNetworkInterface *iface)
+{
 	cross_stamp_good = false;
 	int phc_index;
 	char ptp_device[] = PTP_DEVICE;
@@ -605,12 +603,12 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 	this->sd = sd;
 	this->net_lock = lock;
 
-	memset( &device, 0, sizeof(device));
+	memset(&device, 0, sizeof(device));
 	device.ifr_ifindex = ifindex;
 	err = ioctl( sd, SIOCGIFNAME, &device );
-	if( err == -1 ) {
-		GPTP_LOG_ERROR
-			("Failed to get interface name: %s", strerror(errno));
+	if (-1 == err)
+	{
+		GPTP_LOG_ERROR("Failed to get interface name: %s", strerror(errno));
 		return false;
 	}
 
@@ -619,23 +617,35 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 	hwconfig.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 	hwconfig.tx_type = HWTSTAMP_TX_ON;
 	err = ioctl( sd, SIOCSHWTSTAMP, &device );
-	if( err == -1 ) {
-		GPTP_LOG_ERROR
-			("Failed to configure timestamping: %s", strerror(errno));
-		return false;
+	if (-1 == err) 
+	{
+		GPTP_LOG_ERROR("Failed to configure hardware timestamping: %s",
+		 strerror(errno));
+		GPTP_LOG_ERROR("Attempting to configure software timestamping");
+		timestamp_flags |= SOF_TIMESTAMPING_RX_SOFTWARE;
+		timestamp_flags |= SOF_TIMESTAMPING_TX_SOFTWARE;
+
+		err = setsockopt(sd, SOL_SOCKET, SO_TIMESTAMPING, &timestamp_flags,
+			  sizeof(timestamp_flags) );
+		if (-1 == err)
+		{
+			GPTP_LOG_ERROR("Failed to configure software timestamping on socket: %s",
+			 strerror(errno));
+			return false;
+		}
+
 	}
 
 	timestamp_flags |= SOF_TIMESTAMPING_TX_HARDWARE;
 	timestamp_flags |= SOF_TIMESTAMPING_RX_HARDWARE;
 	timestamp_flags |= SOF_TIMESTAMPING_SYS_HARDWARE;
 	timestamp_flags |= SOF_TIMESTAMPING_RAW_HARDWARE;
-	err = setsockopt
-		( sd, SOL_SOCKET, SO_TIMESTAMPING, &timestamp_flags,
-		  sizeof(timestamp_flags) );
-	if( err == -1 ) {
-		GPTP_LOG_ERROR
-			("Failed to configure timestamping on socket: %s",
-			  strerror(errno));
+	err = setsockopt(sd, SOL_SOCKET, SO_TIMESTAMPING, &timestamp_flags,
+	 sizeof(timestamp_flags));
+	if (-1 == err)
+	{
+		GPTP_LOG_ERROR("Failed to configure hardware timestamping on socket: %s",
+		 strerror(errno));
 		return false;
 	}
 

@@ -933,13 +933,11 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		return false;
 	}
 
-#ifndef RPI
 	if( !net_iface_l->timestamper->post_init
 		( ifindex, net_iface_l->sd_event, &net_iface_l->net_lock )) {
 		GPTP_LOG_ERROR( "post_init failed\n" );
 		return false;
 	}
-#endif
 
 	*net_iface = net_iface_l;
 
