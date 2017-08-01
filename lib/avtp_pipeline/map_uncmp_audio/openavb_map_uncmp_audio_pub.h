@@ -60,19 +60,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  */
 #define MapUncmpAudioMediaQDataFormat "UncmpAudio"
 
-/** Defines AAF timestamping mode:
- * - TS_SPARSE_MODE_DISABLED - timestamp is valid in every avtp packet
- * - TS_SPARSE_MODE_ENABLED - timestamp is valid in every 8th avtp packet
- */
-typedef enum {
-	/// Unspecified
-	TS_SPARSE_MODE_UNSPEC		= 0,
-	/// Disabled
-	TS_SPARSE_MODE_DISABLED		= 1,
-	/// Enabled
-	TS_SPARSE_MODE_ENABLED		= 8
-} avb_audio_sparse_mode_t;
-
 /** Contains detailed information of the audio format.
  * \note Interface module has to set during the RX and TX init callbacks:
  * - audioRate,
@@ -80,7 +67,6 @@ typedef enum {
  * - audioBitDepth,
  * - audioEndian,
  * - audioChannels,
- * - sparseMode.
  * \note The rest of fields mapping module will set these during the RX and TX
  * init callbacks. The interface module can use these during the RX and TX
  * callbacks.
@@ -96,8 +82,6 @@ typedef struct {
 	avb_audio_endian_t audioEndian;
 	/// Number of channels
 	avb_audio_channels_t audioChannels;
-	/// Sparse timestamping mode
-	avb_audio_sparse_mode_t sparseMode;
 
 	// The mapping module will set these during the RX and TX init callbacks
 	// The interface module can use these during the RX and TX callbacks.
