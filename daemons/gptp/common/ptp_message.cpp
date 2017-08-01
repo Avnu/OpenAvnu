@@ -244,7 +244,7 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 
 
 								// Limit the precision of our floating point values
-								int kLimit = 1000;
+								int kLimit = 100;
 								difflocaltime = ceil(difflocaltime * kLimit) / kLimit;
 								remoteDiffUpper = ceil(remoteDiffUpper * kLimit) / kLimit;
 								remoteDiffLower = ceil(remoteDiffLower * kLimit) / kLimit;
@@ -308,8 +308,6 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 									//FR filteredMeanPathDelay = (FR(lastMeanPathDelay * 255) / 256) + (meanPathDelay / 256);
 									FR filteredMeanPathDelay = (FR(lastMeanPathDelay * 63) / 64) + (meanPathDelay / 64);
 
-									port->LastTimestamps(ALastTimestampKeeper(rawt1, t2, t3, rawt4));
-
 									//port->MasterOffset(offset);
 									port->meanPathDelay(filteredMeanPathDelay);
 
@@ -346,6 +344,7 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 								port->GoodSyncCount(port->GoodSyncCount() + 1);
 							}							
 						}
+						port->LastTimestamps(ALastTimestampKeeper(rawt1, t2, t3, rawt4));
 					}
 					else
 					{
@@ -1512,22 +1511,22 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	}
 	sync->getPortIdentity(sync_id);
 
-	if (sync->getSequenceId() != sequenceId || 
-	 (sourcePortIdentity != nullptr && sync_id != nullptr &&
-	 *sync_id != *sourcePortIdentity))
-	{
-		unsigned int cnt = 0;
+	// if (sync->getSequenceId() != sequenceId || 
+	//  (sourcePortIdentity != nullptr && sync_id != nullptr &&
+	//  *sync_id != *sourcePortIdentity))
+	// {
+	// 	unsigned int cnt = 0;
 
-		if( !port->incWrongSeqIDCounter(&cnt) )
-		{
-			port->becomeMaster( true );
-			port->setWrongSeqIDCounter(0);
-		}
+	// 	if( !port->incWrongSeqIDCounter(&cnt) )
+	// 	{
+	// 		port->becomeMaster( true );
+	// 		port->setWrongSeqIDCounter(0);
+	// 	}
 
-		GPTP_LOG_ERROR("Received Follow Up %d times but cannot find "
-		 "corresponding Sync", cnt);
-		goto done;
-	}
+	// 	GPTP_LOG_ERROR("Received Follow Up %d times but cannot find "
+	// 	 "corresponding Sync", cnt);
+	// 	goto done;
+	// }
 
 	sync_arrival = sync->getTimestamp();
 
@@ -1588,14 +1587,12 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	// Note that the correctionField of the followup message is added to the 
 	// preciseOriginTimestamp above.
 
-	// adjMaster = std::round(TIMESTAMP_TO_NS(preciseOriginTimestamp) + 
-	//  port->meanPathDelay() + sync->getCorrectionField());
 	adjMaster = TIMESTAMP_TO_NS(masterTime) + 
 	 port->meanPathDelay() + (sync->getCorrectionField() >> 16);
 
 	correctedMasterEventTimestamp.set64(uint64_t(adjMaster));
 
-	port->AdjustedTime(adjMaster);
+	port->AdjustedTime(TIMESTAMP_TO_NS(masterTime));
 
 	// GPTP_LOG_INFO("PTPMessageFollowUp::processMessage  preciseOriginTimestamp.seconds_ls:%d", preciseOriginTimestamp.seconds_ls);
 	// GPTP_LOG_INFO("PTPMessageFollowUp::processMessage  preciseOriginTimestamp.seconds_ms:%d", preciseOriginTimestamp.seconds_ms);

@@ -72,6 +72,8 @@ private:
 	std::shared_ptr<OSThread> fPulseThread;
 #endif	
 
+	IEEE1588Port *fPort;
+
 	TicketingLock *net_lock;
 
 #ifdef WITH_IGBLIB
@@ -101,14 +103,19 @@ public:
 
 	bool Adjust(const timeval& tm);
 
+	IEEE1588Port *Port() const
+	{
+		return fPort;
+	}
+
 	/**
 	 * @brief  Initializes the Hardware timestamp interface
 	 * @param  iface_label [in] Network interface label (used to find the phc index)
 	 * @param  iface [in] Network interface
 	 * @return FALSE in case of error, TRUE if success.
 	 */
-	virtual bool HWTimestamper_init
-	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
+	virtual bool HWTimestamper_init(InterfaceLabel *iface_label,
+	 OSNetworkInterface *iface, IEEE1588Port* port);
 
 	/**
 	 * @brief  Reset the Hardware timestamp interface

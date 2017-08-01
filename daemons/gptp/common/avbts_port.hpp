@@ -380,6 +380,7 @@ class IEEE1588Port {
 	uint16_t last_invalid_seqid;
 
 	FrequencyRatio fMeanPathDelay;
+	bool fMeanPathDelayIsSet;
 	std::list<FrequencyRatio> fMasterSlaveRatios;
 	std::list<FrequencyRatio> fSlaveMasterRatios;
 	FrequencyRatio fLastRateAverageMasterSlave;
@@ -1689,16 +1690,17 @@ class IEEE1588Port {
 	void meanPathDelay(FrequencyRatio delay)
 	{
 		fMeanPathDelay = delay;
+		fMeanPathDelayIsSet = true;
 	}
 
 	int64_t ConvertToLocalTime(int64_t masterTime)
 	{
 		int64_t convertedSlaveTime = 0;
-		if (last_sync != nullptr)
+		if (last_sync != nullptr && fMeanPathDelayIsSet)
 		{
 			int64_t masterAnchor = TIMESTAMP_TO_NS(last_fwup.getPreciseOriginTimestamp()) +
-			 last_fwup.getCorrectionField() + last_sync->getCorrectionField();
-			int64_t slaveAnchor = TIMESTAMP_TO_NS(last_sync->getTimestamp()) - meanPathDelay(); 
+			 (last_fwup.getCorrectionField() >> 16) + (last_sync->getCorrectionField() >> 16);
+			int64_t slaveAnchor = TIMESTAMP_TO_NS(last_sync->getTimestamp()) - fMeanPathDelay; 
 			convertedSlaveTime = ((masterTime - masterAnchor) * fLastFilteredRateRatio) + 
 			 slaveAnchor;
 		}

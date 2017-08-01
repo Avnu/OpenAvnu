@@ -226,19 +226,40 @@ class AGPioPinger
       return atBoundary;
    }
 
+   int64_t ConvertToLocal(int64_t masterTimeToConvert)
+   {
+      int64_t localTime = 0;
+      IEEE1588Port *port = fTimestamper->Port();
+      if (port != nullptr)
+      {
+         localTime = port->ConvertToLocalTime(masterTimeToConvert);
+      }
+      return localTime;
+   }
+
+   void SleepWithLocalClock()
+   {
+      CalculateNextInterval();
+      int64_t sleepInterval = CalculateSleepInterval(fNextInterval);
+      delayMicroseconds(sleepInterval > 0 ? sleepInterval : fInterval);
+   }
+
    void AdjustToTimestamp()
    {
-      if (fTimestamper != nullptr)
+      IEEE1588Port *port = fTimestamper->Port();
+      if (fTimestamper != nullptr && port != nullptr)
       {
-         int64_t timeStamp = int64_t(fTimestamper->AdjustedTime());
+         PTPMessageFollowUp fup = port->getLastFollowUp();
+         //int64_t timeStamp = int64_t(fTimestamper->AdjustedTime());
+         int64_t timeStamp = TIMESTAMP_TO_NS(fup.getPreciseOriginTimestamp());
+         GPTP_LOG_INFO("-------------------------timeStamp: %" PRIu64, timeStamp);
+         GPTP_LOG_INFO("-------------------------fLastTimestamp: %" PRIu64, fLastTimestamp);
          if (timeStamp == fLastTimestamp)
          {
             //std::cout << "**********************timeStamp:" << timeStamp << "   fLastTimestamp:" << fLastTimestamp << std::endl;
             //delayMicroseconds(fInterval);
             // Calculate the next interval with respect to local time
-            CalculateNextInterval();
-            int64_t sleepInterval = CalculateSleepInterval(fNextInterval);
-            delayMicroseconds(sleepInterval > 0 ? sleepInterval : fInterval);
+            SleepWithLocalClock();
          }
          else
          {
@@ -248,50 +269,58 @@ class AGPioPinger
             // occur in master time - it sets member fNextInterval
             CalculateNextInterval(timeStamp);
 
-            // Convert nextSecond to local time and subtract a slop factor - this 
+            // Convert fNextInterval to local time and subtract a slop factor - this 
             // is how long we sleep
-            FrequencyRatio offsetFromMaster = fTimestamper->MasterOffset();
-            int64_t adjustedNextSecond = int64_t(fNextInterval + offsetFromMaster);
-            //adjustedNextSecond -= int64_t(100000000);
-            int64_t sleepInterval = CalculateSleepInterval(adjustedNextSecond - int64_t(100000000));
-
-            high_resolution_clock::time_point now = high_resolution_clock::now();
-
-            GPTP_LOG_INFO("-------------------------offsetFromMaster: %Le", offsetFromMaster);
-            GPTP_LOG_INFO("-------------------------timeStamp: %" PRIu64, timeStamp);
+            int64_t adjustedNextSecond = ConvertToLocal(fNextInterval);
             GPTP_LOG_INFO("-------------------------nextInterval: %" PRIu64, fNextInterval);
-            GPTP_LOG_INFO("-------------------------now(1): %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
             GPTP_LOG_INFO("-------------------------adjustedNextSecond: %" PRIu64, adjustedNextSecond);
-            GPTP_LOG_INFO("-------------------------sleepInterval: %" PRIu64, sleepInterval);
-            GPTP_LOG_INFO("-------------------------OldSleepInterval: %" PRIu64, CalculateSleepInterval(timeStamp));
-
-            // sleep until the the calculated wake up time
-            if (sleepInterval > 0)
+            if (0 == adjustedNextSecond)
             {
-               delayMicroseconds(sleepInterval);   
+               SleepWithLocalClock();
             }
-            
-
-            //GPTP_LOG_INFO("-------------------------WAKE UP");
-            // Poll the master time and see when the time wraps on the interval
-            // (second) boundary
-            timeStamp = int64_t(fTimestamper->AdjustedTime());
-            now = high_resolution_clock::now();
-            
-            //fDebugLogFile << duration_cast<nanoseconds>(now.time_since_epoch()).count()
-
-            while (!AtIntervalBoundary(timeStamp))
+            else
             {
+               //int64_t sleepInterval = adjustedNextSecond - int64_t(100000000);
+               // FrequencyRatio offsetFromMaster = fTimestamper->MasterOffset();
+               // int64_t adjustedNextSecond = int64_t(fNextInterval + offsetFromMaster);
+               //adjustedNextSecond -= int64_t(100000000);
+               int64_t sleepInterval = CalculateSleepInterval(adjustedNextSecond - int64_t(100000000));
+
+               high_resolution_clock::time_point now = high_resolution_clock::now();
+
+               //GPTP_LOG_INFO("-------------------------offsetFromMaster: %Le", offsetFromMaster);
+               //GPTP_LOG_INFO("-------------------------timeStamp: %" PRIu64, timeStamp);
+               GPTP_LOG_INFO("-------------------------now(1): %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
+               GPTP_LOG_INFO("-------------------------sleepInterval: %" PRIu64, sleepInterval);
+               //GPTP_LOG_INFO("-------------------------OldSleepInterval: %" PRIu64, CalculateSleepInterval(timeStamp));
+
+               // sleep until the the calculated wake up time
+               if (sleepInterval > 0)
+               {
+                  delayMicroseconds(sleepInterval);   
+               }
+               
+               //GPTP_LOG_INFO("-------------------------WAKE UP");
+               // Poll the master time and see when the time wraps on the interval
+               // (second) boundary
                timeStamp = int64_t(fTimestamper->AdjustedTime());
                now = high_resolution_clock::now();
-            }
-            GPTP_LOG_INFO("-------------------------timeStamp: %" PRIu64, timeStamp);
-            GPTP_LOG_INFO("-------------------------now(2): %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
+               
+               //fDebugLogFile << duration_cast<nanoseconds>(now.time_since_epoch()).count()
 
-            // raise the GPIO. 
-            // then sleep for short duration 
-            // lower the GPIO
-            // repeat.
+               while (!AtIntervalBoundary(duration_cast<nanoseconds>(now.time_since_epoch()).count()))
+               {
+                  //timeStamp = int64_t(fTimestamper->AdjustedTime());
+                  now = high_resolution_clock::now();
+               }
+               GPTP_LOG_INFO("-------------------------timeStamp: %" PRIu64, timeStamp);
+               GPTP_LOG_INFO("-------------------------now(2): %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
+
+               // raise the GPIO. 
+               // then sleep for short duration 
+               // lower the GPIO
+               // repeat.              
+            }
          }
 
          fLastTimestamp = timeStamp;                 

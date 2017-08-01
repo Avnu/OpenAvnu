@@ -316,7 +316,9 @@ LinuxTimestamperGeneric::~LinuxTimestamperGeneric() {
 #endif
 }
 
-LinuxTimestamperGeneric::LinuxTimestamperGeneric() {
+LinuxTimestamperGeneric::LinuxTimestamperGeneric() :
+	fPort(nullptr)
+{
 	_private = NULL;
 #ifdef WITH_IGBLIB
 	igb_private = NULL;
@@ -459,7 +461,7 @@ void LinuxTimestamperGeneric::logCurrentTime(const char * msg)
 
 
 bool LinuxTimestamperGeneric::HWTimestamper_init(InterfaceLabel *iface_label,
- OSNetworkInterface *iface)
+ OSNetworkInterface *iface, IEEE1588Port *port)
 {
 	cross_stamp_good = false;
 	int phc_index;
@@ -468,6 +470,8 @@ bool LinuxTimestamperGeneric::HWTimestamper_init(InterfaceLabel *iface_label,
 	struct ptp_clock_caps ptp_capability;
 #endif
 	_private = new LinuxTimestamperGenericPrivate;
+
+	fPort = port;
 
 	pthread_mutex_init( &_private->cross_stamp_lock, NULL );
 

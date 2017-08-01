@@ -195,6 +195,7 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	fUseHardwareTimestamp = true;
 
 	fMeanPathDelay = 0.0;
+	fMeanPathDelayIsSet = false;
 
 	fFollowupAhead = false;
 	fHaveFollowup = false;
@@ -243,15 +244,20 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 
 void IEEE1588Port::timestamper_init(void)
 {
-	if( _hw_timestamper != NULL ) {
+	if (_hw_timestamper != nullptr)
+	{
 		_hw_timestamper->init_phy_delay(this->link_delay);
-		if( !_hw_timestamper->HWTimestamper_init( net_label, net_iface )) {
-			GPTP_LOG_ERROR
-				( "Failed to initialize hardware timestamper, "
-				  "falling back to software timestamping" );
+#ifdef APTP		
+		bool ok = _hw_timestamper->HWTimestamper_init(net_label, net_iface, this);
+#else
+		bool ok = _hw_timestamper->HWTimestamper_init(net_label, net_iface);
+#endif
+		if (!ok)
+		{
+			GPTP_LOG_ERROR("Failed to initialize hardware timestamper, "
+			 "falling back to software timestamping");
 			//_hw_timestamper = NULL;
 			fUseHardwareTimestamp = false;
-			return;
 		}
 	}
 }

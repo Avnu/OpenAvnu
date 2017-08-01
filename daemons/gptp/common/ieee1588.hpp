@@ -553,9 +553,11 @@ public:
 	 * @param iface [in] Network interface
 	 * @return true
 	 */
-	virtual bool HWTimestamper_init
-		( InterfaceLabel *iface_label, OSNetworkInterface *iface )
-		{ return true; }
+	virtual bool HWTimestamper_init(InterfaceLabel *iface_label,
+	 OSNetworkInterface *iface, IEEE1588Port *port = nullptr)
+	{
+		return true;
+	}
 
 	/**
 	 * @brief Reset the hardware timestamp unit
