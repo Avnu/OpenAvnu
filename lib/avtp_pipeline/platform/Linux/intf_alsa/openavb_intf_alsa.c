@@ -106,9 +106,6 @@ typedef struct {
 
 	// Use Media Clock Synth module instead of timestamps taken during Tx callback
 	bool fixedTimestampEnabled;
-
-	// How many extra items we have read ahead of schedule
-	S32 surplus;
 } pvt_data_t;
 
 
@@ -586,23 +583,8 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 			return FALSE;
 		}
 
-		//put current wall time into tail item used by AAF mapping module
-		if ((pPubMapUncmpAudioInfo->sparseMode != TS_SPARSE_MODE_UNSPEC)) {
-			pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
-			if ((pMediaQItem) && (pPvtData->intervalCounter % pPubMapUncmpAudioInfo->sparseMode == 0)) {
-				openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
-			}
-			openavbMediaQTailUnlock(pMediaQ);
-			pMediaQItem = NULL;
-		}
-
 		if (pPvtData->intervalCounter++ % pPubMapUncmpAudioInfo->packingFactor != 0) {
 			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-			return TRUE;
-		}
-
-		if (pPvtData->surplus > 0) {
-			pPvtData->surplus--;
 			return TRUE;
 		}
 
@@ -627,7 +609,7 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 						}
 						break;
 					case -EAGAIN:
-						AVB_LOG_DEBUG("snd_pcm_readi() had no data available");
+						{ IF_LOG_INTERVAL(1000) AVB_LOG_DEBUG("snd_pcm_readi() had no data available"); }
 						break;
 					default:
 						AVB_LOGF_ERROR("Unhandled snd_pcm_readi() error: %s", snd_strerror(rslt));
@@ -640,13 +622,12 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 					}
 				}
 
-				pPvtData->surplus++;
-
 				pMediaQItem->dataLen += rslt * pPubMapUncmpAudioInfo->itemFrameSizeBytes;
 				if (pMediaQItem->dataLen != pPubMapUncmpAudioInfo->itemSize) {
 					openavbMediaQHeadUnlock(pMediaQ);
 				}
 				else {
+					// Always get the timestamp.  Protocols such as AAF can choose to ignore them if not needed.
 					if (!pPvtData->fixedTimestampEnabled) {
 						openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
 					} else {
@@ -660,8 +641,6 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 				moreItems = FALSE;
 			}
 		}
-
-		IF_LOG_INTERVAL(1000) AVB_LOGF_DEBUG("Surplus: %d", pPvtData->surplus);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
@@ -1139,7 +1118,6 @@ extern DLL_EXPORT bool openavbIntfAlsaInitialize(media_q_t *pMediaQ, openavb_int
 
 		pPvtData->fixedTimestampEnabled = FALSE;
 		pPvtData->clockSkewPPB = 0;
-		pPvtData->surplus = 0;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);

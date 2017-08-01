@@ -450,16 +450,6 @@ bool openavbIntfWavFileTxCB(media_q_t *pMediaQ)
 			return FALSE;
 		}
 
-		//put current wall time into tail item used by AAF maping module
-		if ((pPubMapUncmpAudioInfo->sparseMode != TS_SPARSE_MODE_UNSPEC)) {
-			pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
-			if ((pMediaQItem) && (pPvtData->intervalCounter % pPubMapUncmpAudioInfo->sparseMode == 0)) {
-				openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
-			}
-			openavbMediaQTailUnlock(pMediaQ);
-			pMediaQItem = NULL;
-		}
-
 		if (pPvtData->intervalCounter++ % pPubMapUncmpAudioInfo->packingFactor != 0)
 			return TRUE;
 

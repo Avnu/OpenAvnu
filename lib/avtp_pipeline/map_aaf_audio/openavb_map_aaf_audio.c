@@ -58,6 +58,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // - 1 Byte - TV bit (timestamp valid)
 #define HIDX_AVTP_HIDE7_TV1			1
 
+// - 1 Byte - Sequence number
+#define HIDX_AVTP_SEQ_NUM			2
+
 // - 1 Byte - TU bit (timestamp uncertain)
 #define HIDX_AVTP_HIDE7_TU1			3
 
@@ -87,6 +90,7 @@ typedef enum {
 	AAF_FORMAT_INT_32,
 	AAF_FORMAT_INT_24,
 	AAF_FORMAT_INT_16,
+	AAF_FORMAT_AES3_32, // AVDECC_TODO:  Implement this
 } aaf_sample_format_t;
 
 typedef enum {
@@ -97,6 +101,13 @@ typedef enum {
 	AAF_7_1_CHANNELS_LAYOUT		= 4,
 	AAF_MAX_CHANNELS_LAYOUT		= 15,
 } aaf_automotive_channels_layout_t;
+
+typedef enum {
+	// Disabled - timestamp is valid in every avtp packet
+	TS_SPARSE_MODE_DISABLED		= 0,
+	// Enabled - timestamp is valid in every 8th avtp packet
+	TS_SPARSE_MODE_ENABLED		= 1
+} avb_audio_sparse_mode_t;
 
 typedef struct {
 	/////////////
@@ -137,7 +148,7 @@ typedef struct {
 
 	U32 intervalCounter;
 
-	U32 sparseMode;
+	avb_audio_sparse_mode_t sparseMode;
 
 	bool mediaQItemSyncTS;
 
@@ -406,13 +417,6 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 		openavbMediaQSetSize(pMediaQ, pPvtData->itemCount, pPubMapInfo->itemSize);
 
 		pPvtData->dataValid = TRUE;
-
-		pPubMapInfo->sparseMode = pPvtData->sparseMode;
-		if (pPubMapInfo->sparseMode == TS_SPARSE_MODE_ENABLED) {
-			AVB_LOG_INFO("Sparse timestamping mode: enabled");
-		} else {
-			AVB_LOG_INFO("Sparse timestamping mode: disabled");
-		}
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
@@ -425,7 +429,7 @@ void openavbMapAVTPAudioTxInitCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
 
-// CORE_TODO: This callback should be updated to work in a similiar way the uncompressed audio mapping. With allowing AVTP packets to be built 
+// CORE_TODO: This callback should be updated to work in a similar way the uncompressed audio mapping. With allowing AVTP packets to be built
 //  from multiple media queue items. This allows interface to set into the media queue blocks of audio frames to properly correspond to
 //  a SYT_INTERVAL. Additionally the public data member sytInterval needs to be set in the same way the uncompressed audio mapping does.
 // This talker callback will be called for each AVB observation interval.
@@ -434,30 +438,68 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 	media_q_item_t *pMediaQItem = NULL;
 	AVB_TRACE_ENTRY(AVB_TRACE_MAP_DETAIL);
 
-	if (!pData || !dataLen) {
-		AVB_LOG_ERROR("Mapping module data or data length argument incorrect.");
+	if (!pMediaQ) {
+		AVB_LOG_ERROR("Mapping module invalid MediaQ");
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 		return TX_CB_RET_PACKET_NOT_READY;
 	}
 
-	if (pMediaQ)
-		pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
+	if (!pData || !dataLen) {
+		AVB_LOG_ERROR("Mapping module data or data length argument incorrect.");
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+		return TX_CB_RET_PACKET_NOT_READY;
+	}
 
-	if (pMediaQItem) {
-		if (pMediaQItem->dataLen > 0) {
+	media_q_pub_map_aaf_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
+
+	U32 bytesNeeded = pPubMapInfo->itemFrameSizeBytes * pPubMapInfo->framesPerPacket;
+	if (!openavbMediaQIsAvailableBytes(pMediaQ, pPubMapInfo->itemFrameSizeBytes * pPubMapInfo->framesPerPacket, TRUE)) {
+		AVB_LOG_VERBOSE("Not enough bytes are ready");
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+		return TX_CB_RET_PACKET_NOT_READY;
+	}
+
+	pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
+	if (!pPvtData) {
+		AVB_LOG_ERROR("Private mapping module data not allocated.");
+		openavbMediaQTailUnlock(pMediaQ);
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+		return TX_CB_RET_PACKET_NOT_READY;
+	}
+
+	if ((*dataLen - TOTAL_HEADER_SIZE) < pPvtData->payloadSize) {
+		AVB_LOG_ERROR("Not enough room in packet for payload");
+		openavbMediaQTailUnlock(pMediaQ);
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+		return TX_CB_RET_PACKET_NOT_READY;
+	}
+
+	U32 bytesProcessed = 0;
+	while (bytesProcessed < bytesNeeded) {
+		pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
+		if (pMediaQItem && pMediaQItem->pPubData && pMediaQItem->dataLen > 0) {
 
 			U32 tmp32;
 			U8 *pHdrV0 = pData;
 			U32 *pHdr = (U32 *)(pData + AVTP_V0_HEADER_SIZE);
 			U8  *pPayload = pData + TOTAL_HEADER_SIZE;
-			media_q_pub_map_aaf_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
-			pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
-			if (!pPvtData) {
-				AVB_LOG_ERROR("Private mapping module data not allocated.");
-				return TX_CB_RET_PACKET_NOT_READY;
-			}
-			// timestamp set in the interface module, here just validate
-			if (openavbAvtpTimeTimestampIsValid(pMediaQItem->pAvtpTime)) {
 
+			// timestamp set in the interface module, here just validate
+			// In sparse mode, the timestamp valid flag should be set every eighth AAF AVPTDU.
+			if (pPvtData->sparseMode == TS_SPARSE_MODE_ENABLED && (pHdrV0[HIDX_AVTP_SEQ_NUM] & 0x07) != 0) {
+				// Skip over this timestamp, as using sparse mode.
+				pHdrV0[HIDX_AVTP_HIDE7_TV1] &= ~0x01;
+				pHdrV0[HIDX_AVTP_HIDE7_TU1] &= ~0x01;
+				*pHdr++ = 0; // Clear the timestamp field
+			}
+			else if (!openavbAvtpTimeTimestampIsValid(pMediaQItem->pAvtpTime)) {
+				// Error getting the timestamp.  Clear timestamp valid flag.
+				AVB_LOG_ERROR("Unable to get the timestamp value");
+				pHdrV0[HIDX_AVTP_HIDE7_TV1] &= ~0x01;
+				pHdrV0[HIDX_AVTP_HIDE7_TU1] &= ~0x01;
+				*pHdr++ = 0; // Clear the timestamp field
+			}
+			else {
 				// Add the max transit time.
 				openavbAvtpTimeAddUSec(pMediaQItem->pAvtpTime, pPvtData->maxTransitUsec);
 
@@ -473,11 +515,6 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 				*pHdr++ = htonl(openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime));
 
 				openavbAvtpTimeSetTimestampValid(pMediaQItem->pAvtpTime, FALSE);
-			}
-			else {
-				// Clear timestamp valid flag
-				pHdrV0[HIDX_AVTP_HIDE7_TV1] &= ~0x01;
-				pHdr++; // Move past the timestamp field
 			}
 
 			// - 4 bytes	format info (format, sample rate, channels per frame, bit depth)
@@ -499,12 +536,6 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 				pHdrV0[HIDX_AVTP_HIDE7_SP] &= ~SP_M0_BIT;
 			}
 
-			if ((*dataLen - TOTAL_HEADER_SIZE) < pPvtData->payloadSize) {
-				AVB_LOG_ERROR("Not enough room in packet for payload");
-				AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
-				return TX_CB_RET_PACKET_NOT_READY;
-			}
-
 			if ((pMediaQItem->dataLen - pMediaQItem->readIdx) < pPvtData->payloadSize) {
 				// This should not happen so we will just toss it away.
 				AVB_LOG_ERROR("Not enough data in media queue item for packet");
@@ -514,6 +545,7 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 			}
 
 			memcpy(pPayload, (uint8_t *)pMediaQItem->pPubData + pMediaQItem->readIdx, pPvtData->payloadSize);
+			bytesProcessed += pPvtData->payloadSize;
 
 			pMediaQItem->readIdx += pPvtData->payloadSize;
 			if (pMediaQItem->readIdx >= pMediaQItem->dataLen) {
@@ -524,23 +556,17 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 				// More to read next interval
 				openavbMediaQTailUnlock(pMediaQ);
 			}
-
-			// Set outbound data length (entire packet length)
-			*dataLen = pPvtData->payloadSize + TOTAL_HEADER_SIZE;
-
-			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
-			return TX_CB_RET_PACKET_READY;
 		}
 		else {
 			openavbMediaQTailPull(pMediaQ);
-			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
-			return TX_CB_RET_PACKET_NOT_READY;  // No payload
 		}
-
 	}
 
+	// Set out bound data length (entire packet length)
+	*dataLen = bytesNeeded + TOTAL_HEADER_SIZE;
+
 	AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
-	return TX_CB_RET_PACKET_NOT_READY;
+	return TX_CB_RET_PACKET_READY;
 }
 
 // A call to this callback indicates that this mapping module will be
@@ -562,12 +588,16 @@ void openavbMapAVTPAudioRxInitCB(media_q_t *pMediaQ)
 			// sparse mode enabled so check packing factor
 			// listener should work correct for packing_factors:
 			// 1, 2, 4, 8, 16, 24, 32, 40, 48, (+8) ...
-			if (pPvtData->packingFactor < 8) {
+			if (pPvtData->packingFactor == 0) {
+				badPckFctrValue = TRUE;
+			}
+			else if (pPvtData->packingFactor < 8) {
 				// check if power of 2
 				if ((pPvtData->packingFactor & (pPvtData->packingFactor - 1)) != 0) {
 					badPckFctrValue = TRUE;
 				}
-			} else {
+			}
+			else {
 				// check if multiple of 8
 				if (pPvtData->packingFactor % 8 != 0) {
 					badPckFctrValue = TRUE;
@@ -649,11 +679,15 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 				AVB_LOGF_ERROR("Listener event field (%d) doesn't match received data (%d)",
 					pPvtData->aaf_event_field, tmp);
 		}
-		if (streamSparseMode != listenerSparseMode) {
-			if (pPvtData->dataValid)
-				AVB_LOGF_ERROR("Listener sparse mode (%d) doesn't match stream sparse mode (%d)",
-					listenerSparseMode, streamSparseMode);
-			dataValid = FALSE;
+		if (streamSparseMode && !listenerSparseMode) {
+			AVB_LOG_INFO("Listener enabling sparse mode to match incoming stream");
+			pPvtData->sparseMode = TS_SPARSE_MODE_ENABLED;
+			listenerSparseMode = TRUE;
+		}
+		if (!streamSparseMode && listenerSparseMode) {
+			AVB_LOG_INFO("Listener disabling sparse mode to match incoming stream");
+			pPvtData->sparseMode = TS_SPARSE_MODE_DISABLED;
+			listenerSparseMode = FALSE;
 		}
 
 		if (dataValid) {
