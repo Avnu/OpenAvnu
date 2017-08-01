@@ -1696,11 +1696,12 @@ class IEEE1588Port {
 	int64_t ConvertToLocalTime(int64_t masterTime)
 	{
 		int64_t convertedSlaveTime = 0;
-		if (last_sync != nullptr && fMeanPathDelayIsSet)
+		if (last_sync != nullptr)
 		{
 			int64_t masterAnchor = TIMESTAMP_TO_NS(last_fwup.getPreciseOriginTimestamp()) +
 			 (last_fwup.getCorrectionField() >> 16) + (last_sync->getCorrectionField() >> 16);
-			int64_t slaveAnchor = TIMESTAMP_TO_NS(last_sync->getTimestamp()) - fMeanPathDelay; 
+			int64_t slaveAnchor = TIMESTAMP_TO_NS(last_sync->getTimestamp()) - 
+			 (fMeanPathDelayIsSet ? fMeanPathDelay : 0); 
 			convertedSlaveTime = ((masterTime - masterAnchor) * fLastFilteredRateRatio) + 
 			 slaveAnchor;
 		}
