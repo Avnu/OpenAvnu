@@ -724,7 +724,6 @@ extern DLL_EXPORT bool openavbMapUncmpAudioInitialize(media_q_t *pMediaQ, openav
 		}
 
 		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
-		media_q_pub_map_uncmp_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
 
 		pMapCB->map_cfg_cb = openavbMapUncmpAudioCfgCB;
 		pMapCB->map_subtype_cb = openavbMapUncmpAudioSubtypeCB;
@@ -745,8 +744,6 @@ extern DLL_EXPORT bool openavbMapUncmpAudioInitialize(media_q_t *pMediaQ, openav
 		pPvtData->maxTransitUsec = inMaxTransitUsec;
 		pPvtData->DBC = 0;
 		pPvtData->audioMcr = AVB_MCR_NONE;
-
-		pPubMapInfo->sparseMode = TS_SPARSE_MODE_UNSPEC;
 
 		openavbMediaQSetMaxLatency(pMediaQ, inMaxTransitUsec);
 	}
