@@ -2,16 +2,16 @@
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -22,19 +22,19 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /*
 * MODULE SUMMARY : wav File interface module. Talker only.
-* 
+*
 * This interface module is narrowly focused to read a common wav file format
 * and send the data samples to mapping modules.
-* 
+*
 */
 
 #include <stdlib.h>
@@ -49,7 +49,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_intf_pub.h"
 
 #define	AVB_LOG_COMPONENT	"Wav File Interface"
-#include "openavb_log_pub.h" 
+#include "openavb_log_pub.h"
 
 typedef struct {
     // RIFF Chunk descriptor
@@ -258,7 +258,7 @@ static void passParamToMapModule(media_q_t *pMediaQ)
     }
 }
 
-// CORE_TODO : this version of convertEndianess is in the commit process but didn't appear to work as expected. 
+// CORE_TODO : this version of convertEndianess is in the commit process but didn't appear to work as expected.
 // As part of a separate merge the function below this one was pulled in which does work as expected.
 #if 0
 // little <-> big endian conversion: copy bytes of each
@@ -306,7 +306,7 @@ static void convertEndianness(uint8_t *pData, U32 dataLen, U32 sampleSize)
 }
 
 // Each configuration name value pair for this mapping will result in this callback being called.
-void openavbIntfWavFileCfgCB(media_q_t *pMediaQ, const char *name, const char *value) 
+void openavbIntfWavFileCfgCB(media_q_t *pMediaQ, const char *name, const char *value)
 {
         AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -382,7 +382,7 @@ void openavbIntfWavFileCfgCB(media_q_t *pMediaQ, const char *name, const char *v
     AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
-void openavbIntfWavFileGenInitCB(media_q_t *pMediaQ) 
+void openavbIntfWavFileGenInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -407,7 +407,7 @@ void openavbIntfWavFileGenInitCB(media_q_t *pMediaQ)
 
 // A call to this callback indicates that this interface module will be
 // a talker. Any talker initialization can be done in this function.
-void openavbIntfWavFileTxInitCB(media_q_t *pMediaQ) 
+void openavbIntfWavFileTxInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -509,7 +509,7 @@ bool openavbIntfWavFileTxCB(media_q_t *pMediaQ)
 
 // A call to this callback indicates that this interface module will be
 // a listener. Any listener initialization can be done in this function.
-void openavbIntfWavFileRxInitCB(media_q_t *pMediaQ) 
+void openavbIntfWavFileRxInitCB(media_q_t *pMediaQ)
 {
     AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -572,7 +572,7 @@ void openavbIntfWavFileRxInitCB(media_q_t *pMediaQ)
 }
 
 // This callback is called when acting as a listener.
-bool openavbIntfWavFileRxCB(media_q_t *pMediaQ) 
+bool openavbIntfWavFileRxCB(media_q_t *pMediaQ)
 {
     AVB_TRACE_ENTRY(AVB_TRACE_INTF_DETAIL);
 
@@ -629,9 +629,9 @@ bool openavbIntfWavFileRxCB(media_q_t *pMediaQ)
     return TRUE;
 }
 
-// This callback will be called when the interface needs to be closed. All shutdown should 
+// This callback will be called when the interface needs to be closed. All shutdown should
 // occur in this function.
-void openavbIntfWavFileEndCB(media_q_t *pMediaQ) 
+void openavbIntfWavFileEndCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -651,7 +651,7 @@ void openavbIntfWavFileEndCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
-void openavbIntfWavFileGenEndCB(media_q_t *pMediaQ) 
+void openavbIntfWavFileGenEndCB(media_q_t *pMediaQ)
 {
     AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
