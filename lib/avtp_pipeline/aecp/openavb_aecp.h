@@ -111,7 +111,7 @@ typedef struct {
 	U8 descriptor_data[508];
 } openavb_aecp_response_data_read_descriptor_t;
 
-// SET_STREAM_FORMAT comamnd and response IEEE Std 1722.1-2013 clause 7.4.9
+// SET_STREAM_FORMAT command and response IEEE Std 1722.1-2013 clause 7.4.9
 typedef struct {
 	U16 descriptor_type;
 	U16 descriptor_index;
@@ -130,6 +130,44 @@ typedef struct {
 	U16 descriptor_index;
 	U8 stream_format[8];		// Stream format sub details aren't needed for this command
 } openavb_aecp_response_data_get_stream_format_t;
+
+// SET_STREAM_INFO command and response IEEE Std 1722.1-2013 clause 7.4.15
+typedef struct {
+	U16 descriptor_type;
+	U16 descriptor_index;
+	U32 flags;
+	U8 stream_format[8];
+	U8 stream_id[8];
+	U32 msrp_accumulated_latency;
+	U8 stream_dest_mac[6];
+	U8 msrp_failure_code;
+	U8 reserved_1;
+	U8 msrp_failure_bridge_id[8];
+	U16 stream_vlan_id;
+	U16 reserved_2;
+} openavb_aecp_commandresponse_data_set_stream_info_t;
+
+// GET_STREAM_INFO command IEEE Std 1722.1-2013 clause 7.4.16
+typedef struct {
+	U16 descriptor_type;
+	U16 descriptor_index;
+} openavb_aecp_command_data_get_stream_info_t;
+
+// GET_STREAM_INFO response IEEE Std 1722.1-2013 clause 7.4.16
+typedef struct {
+	U16 descriptor_type;
+	U16 descriptor_index;
+	U32 flags;
+	U8 stream_format[8];
+	U8 stream_id[8];
+	U32 msrp_accumulated_latency;
+	U8 stream_dest_mac[6];
+	U8 msrp_failure_code;
+	U8 reserved_1;
+	U8 msrp_failure_bridge_id[8];
+	U16 stream_vlan_id;
+	U16 reserved_2;
+} openavb_aecp_response_data_get_stream_info_t;
 
 // SET_SAMPLING_RATE command and response IEEE Std 1722.1-2013 clause 7.4.21
 typedef struct {
@@ -321,6 +359,10 @@ typedef struct {
 		openavb_aecp_commandresponse_data_set_stream_format_t setStreamFormatRsp;
 		openavb_aecp_command_data_get_stream_format_t getStreamFormatCmd;
 		openavb_aecp_response_data_get_stream_format_t getStreamFormatRsp;
+		openavb_aecp_commandresponse_data_set_stream_info_t setStreamInfoCmd;
+		openavb_aecp_commandresponse_data_set_stream_info_t setStreamInfoRsp;
+		openavb_aecp_command_data_get_stream_info_t getStreamInfoCmd;
+		openavb_aecp_response_data_get_stream_info_t getStreamInfoRsp;
 		openavb_aecp_commandresponse_data_set_sampling_rate_t setSamplingRateCmd;
 		openavb_aecp_commandresponse_data_set_sampling_rate_t setSamplingRateRsp;
 		openavb_aecp_command_data_get_sampling_rate_t getSamplingRateCmd;

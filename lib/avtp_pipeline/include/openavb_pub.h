@@ -51,7 +51,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #define AVB_CORE_VER_MAJOR		(0)
 #define AVB_CORE_VER_MINOR		(1)
-#define AVB_CORE_VER_REVISION	(2)
+#define AVB_CORE_VER_REVISION	(3)
 
 // Standard release designations. Uncomment one AVB_RELEASE_TYPE
 #define AVB_CORE_RELEASE_TYPE	"Development"

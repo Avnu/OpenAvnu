@@ -242,7 +242,7 @@ static void openavbAdpMessageRxFrameReceive(U32 timeoutUsec)
 	U8 *pBuf, *pFrame;
 
 	memset(&hdrInfo, 0, sizeof(hdr_info_t));
-	
+
 	pBuf = (U8 *)openavbRawsockGetRxFrame(rxSock, timeoutUsec, &offset, &len);
 	if (pBuf) {
 		pFrame = pBuf + offset;
@@ -370,7 +370,7 @@ void* openavbAdpMessageRxThreadFn(void *pv)
 
 	AVB_LOG_DEBUG("ADP Thread Started");
 	while (bRunning) {
-		// Try to get and process an ADP discovery message. 
+		// Try to get and process an ADP discovery message.
 		openavbAdpMessageRxFrameReceive(MICROSECONDS_PER_SECOND);
 	}
 	AVB_LOG_DEBUG("ADP Thread Done");
@@ -423,12 +423,12 @@ openavbRC openavbAdpMessageSend(U8 messageType)
 
 	// Note: this entire process of the GM ID is not as the 1722.1 spec expects.
 	//  The openavbAdpSMAdvertiseInterfaceSet_advertisedGrandmasterID() should be called when the
-	//  stack detects a GM change that will trigger an advertise. Instead we are detecting 
+	//  stack detects a GM change that will trigger an advertise. Instead we are detecting
 	//  the GM change when we have are sending an advertise message. This means we will not have a timely
 	//  new advertise in the event of a GM change.  Additionally the handling the advertiseInterface var
 	//  of GM ID is not normal since the GM ID is being placed directly into the PDU rather than getting
 	//  pulled from the state machine var.
-	//  AVDECC_TODO: This logic should change to detect GM change else where in the system and call the 
+	//  AVDECC_TODO: This logic should change to detect GM change else where in the system and call the
 	//  expected openavbAdpSMAdvertiseInterfaceSet_advertisedGrandmasterID() to start the advertise process.
 #ifdef AVB_PTP_AVAILABLE
 	openavb_adp_data_unit_t *pPdu = &openavbAdpSMGlobalVars.entityInfo.pdu;
