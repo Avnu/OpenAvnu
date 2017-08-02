@@ -1049,7 +1049,7 @@ void openavbAecpSMEntityModelEntityStart()
 	bool errResult;
 	THREAD_CREATE(openavbAecpSMEntityModelEntityThread, openavbAecpSMEntityModelEntityThread, NULL, openavbAecpSMEntityModelEntityThreadFn, NULL);
 	THREAD_CHECK_ERROR(openavbAecpSMEntityModelEntityThread, "Thread / task creation failed", errResult);
-	if (errResult);		// Already reported 
+	if (errResult);		// Already reported
 
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
 }

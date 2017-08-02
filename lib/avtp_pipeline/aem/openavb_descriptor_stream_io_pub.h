@@ -84,6 +84,7 @@ typedef struct {
 	// Current status of the fast connect support for the Listener.
 	openavb_fast_connect_status_t fast_connect_status;
 	U8 fast_connect_talker_entity_id[8];
+	struct timespec fast_connect_start_time;
 
 	// Also save a pointer to the supplied stream information.
 	const openavb_tl_data_cfg_t *stream;

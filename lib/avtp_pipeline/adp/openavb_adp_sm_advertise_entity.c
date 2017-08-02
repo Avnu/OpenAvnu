@@ -201,7 +201,7 @@ void openavbAdpSMAdvertiseEntityStart()
 	bool errResult;
 	THREAD_CREATE(openavbAdpSmAdvertiseEntityThread, openavbAdpSmAdvertiseEntityThread, NULL, openavbAdpSMAdvertiseEntityThreadFn, NULL);
 	THREAD_CHECK_ERROR(openavbAdpSmAdvertiseEntityThread, "Thread / task creation failed", errResult);
-	if (errResult);		// Already reported 
+	if (errResult);		// Already reported
 
 	AVB_TRACE_EXIT(AVB_TRACE_ADP);
 }
