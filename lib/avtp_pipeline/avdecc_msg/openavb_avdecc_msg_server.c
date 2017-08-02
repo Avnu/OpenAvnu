@@ -388,7 +388,7 @@ bool openavbAvdeccMsgSrvrHndlChangeNotificationFromClient(int avdeccMsgHandle, o
 										ENTITYID_ARGS(talker_entity_id),
 										ENTITYID_ARGS(controller_entity_id));
 								pDescriptor->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_TIMED_OUT;
-								memcpy(pDescriptor->fast_connect_talker_entity_id, talker_entity_id, 8);
+								memcpy(pDescriptor->fast_connect_talker_entity_id, talker_entity_id, sizeof(pDescriptor->fast_connect_talker_entity_id));
 								CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &pDescriptor->fast_connect_start_time);
 								pDescriptor->fast_connect_start_time.tv_sec += 5;	// Give the Talker some time to shutdown or stabilize
 								break;

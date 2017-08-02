@@ -890,7 +890,7 @@ void openavbAcmpSMListenerSet_doFastConnect(const openavb_tl_data_cfg_t *pListen
 
 	// Update the descriptor.
 	pDescriptor->fast_connect_status = OPENAVB_FAST_CONNECT_STATUS_IN_PROGRESS;
-	memcpy(pDescriptor->fast_connect_talker_entity_id, talker_entity_id, 8);
+	memcpy(pDescriptor->fast_connect_talker_entity_id, talker_entity_id, sizeof(pDescriptor->fast_connect_talker_entity_id));
 	CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &pDescriptor->fast_connect_start_time);
 
 	// Create a fake CONNECT_RX_COMMAND to kick off the fast connect process.
@@ -941,7 +941,7 @@ void openavbAcmpSMListenerSet_talkerTestFastConnect(
 
 		if (pDescriptor->stream &&
 				pDescriptor->fast_connect_status == OPENAVB_FAST_CONNECT_STATUS_TIMED_OUT &&
-				memcmp(pDescriptor->fast_connect_talker_entity_id, entity_id, 8) == 0) {
+				memcmp(pDescriptor->fast_connect_talker_entity_id, entity_id, sizeof(pDescriptor->fast_connect_talker_entity_id)) == 0) {
 			//
 			// We found a Talker matching the one we have been looking for.
 			//
@@ -964,7 +964,7 @@ void openavbAcmpSMListenerSet_talkerTestFastConnect(
 			}
 			else {
 				AVB_LOGF_DEBUG("Fast connect info for talker_entity_id=" ENTITYID_FORMAT " no longer valid", ENTITYID_ARGS(entity_id));
-				memset(pDescriptor->fast_connect_talker_entity_id, 0, 8);
+				memset(pDescriptor->fast_connect_talker_entity_id, 0, sizeof(pDescriptor->fast_connect_talker_entity_id));
 			}
 
 			break;
