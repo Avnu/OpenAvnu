@@ -207,7 +207,10 @@ class AGPioPinger
 
    int64_t CalculateSleepInterval(int64_t timeStamp) const
    {
-      int64_t delta = (fNextInterval - timeStamp) / 1000;
+      // !!! This will need to be adjusted when dealing with fInterval that are
+      // less than kMicroSlopFactor
+      int64_t delta = fNextInterval < timeStamp
+       ? fInterval - kMicroSlopFactor : (fNextInterval - timeStamp) / 1000;
       // std::cout << "**********************timeStamp:" << timeStamp
       //  << "   nextInterval:" << nextInterval 
       //  << "   delta:" << delta << std::endl;
@@ -221,7 +224,7 @@ class AGPioPinger
       {
          GPTP_LOG_INFO("-------------------------AtIntervalBoundary  timeStamp %" PRIu64 "  delta %" PRIu64 "  fLastDelta %" PRIu64, timeStamp, delta, fLastDelta);
       }
-      bool atBoundary = delta <= 0;
+      bool atBoundary = delta <= 0 || fNextInterval < timeStamp;
       fLastDelta = delta;
       return atBoundary;
    }
@@ -233,6 +236,10 @@ class AGPioPinger
       if (port != nullptr)
       {
          localTime = port->ConvertToLocalTime(masterTimeToConvert);
+      }
+      else
+      {
+         GPTP_LOG_ERROR("AGPioPinger  port is null.");
       }
       return localTime;
    }
@@ -280,15 +287,15 @@ class AGPioPinger
             // is how long we sleep
             int64_t adjustedNextSecond = ConvertToLocal(fNextInterval);
 
-            GPTP_LOG_INFO("-------------------------nextInterval:       %" PRIu64, fNextInterval);
-            GPTP_LOG_INFO("-------------------------adjustedNextSecond: %" PRIu64, adjustedNextSecond);
+            GPTP_LOG_INFO("-------------------------nextInterval:          %" PRIu64, fNextInterval);
+            GPTP_LOG_INFO("-------------------------adjustedNextSecond:    %" PRIu64, adjustedNextSecond);
             if (0 == adjustedNextSecond)
             {
                SleepWithLocalClock();
             }
             else
             {
-               fNextInterval = adjustedNextSecond - int64_t(100000000);
+               fNextInterval = adjustedNextSecond - kNanoSlopFactor;
 
                //int64_t sleepInterval = adjustedNextSecond - int64_t(100000000);
                // FrequencyRatio offsetFromMaster = fTimestamper->MasterOffset();
@@ -300,22 +307,26 @@ class AGPioPinger
 
                //GPTP_LOG_INFO("-------------------------offsetFromMaster: %Le", offsetFromMaster);
                //GPTP_LOG_INFO("-------------------------timeStamp: %" PRIu64, timeStamp);
-               GPTP_LOG_INFO("-------------------------now(1):          %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
-               GPTP_LOG_INFO("-------------------------sleepInterval:   %" PRIu64, sleepInterval);
+               GPTP_LOG_INFO("---------------------ConvertToLocal(timeStamp): %" PRIu64, ConvertToLocal(timeStamp));
+               GPTP_LOG_INFO("-------------------------nextInterval:          %" PRIu64, fNextInterval);
+               GPTP_LOG_INFO("-------------------------now(1):                %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
+               GPTP_LOG_INFO("-------------------------sleepInterval:         %" PRIu64, sleepInterval);
                //GPTP_LOG_INFO("-------------------------OldSleepInterval: %" PRIu64, CalculateSleepInterval(timeStamp));
 
                // sleep until the the calculated wake up time
                if (sleepInterval > 0)
                {
-                  delayMicroseconds(sleepInterval);   
+                  delayMicroseconds(sleepInterval);
                }
                
-               //GPTP_LOG_INFO("-------------------------WAKE UP");
+               GPTP_LOG_INFO("-------------------------WAKE UP");
                // Poll the master time and see when the time wraps on the interval
                // (second) boundary
-               timeStamp = int64_t(fTimestamper->AdjustedTime());
+               //timeStamp = int64_t(fTimestamper->AdjustedTime());
                now = high_resolution_clock::now();
-               
+
+               fNextInterval = adjustedNextSecond;
+
                //fDebugLogFile << duration_cast<nanoseconds>(now.time_since_epoch()).count()
 
                while (!AtIntervalBoundary(duration_cast<nanoseconds>(now.time_since_epoch()).count()))
@@ -377,6 +388,9 @@ class AGPioPinger
       const int64_t kTenthSecNano = 100000000;
       const int64_t kHundrethSecNano = 10000000;
       const int64_t kThousandthSecNano = 1000000;
+
+      const int64_t kNanoSlopFactor = 125000000;
+      const int64_t kMicroSlopFactor = kNanoSlopFactor / 1000;
 };
 
 // Create a rpi GPIO pinger for GPIO physical pin 11
