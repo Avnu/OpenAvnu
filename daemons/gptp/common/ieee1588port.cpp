@@ -49,6 +49,15 @@
 
 #include <inttypes.h>
 
+#include <mutex>
+
+std::mutex gLastFwupMutex;
+std::mutex gLastDelayReqMutex;
+std::mutex gLastDelayRespMutex;
+std::mutex gLastSyncMutex;
+std::mutex gMeanPathDelayMutex;
+
+
 LinkLayerAddress IEEE1588Port::other_multicast(OTHER_MULTICAST);
 LinkLayerAddress IEEE1588Port::pdelay_multicast(PDELAY_MULTICAST);
 LinkLayerAddress IEEE1588Port::test_status_multicast(TEST_STATUS_MULTICAST);
@@ -1576,6 +1585,96 @@ IEEE1588Clock *IEEE1588Port::getClock(void)
 {
 	return clock;
 }
+
+void IEEE1588Port::setLastSync(PTPMessageSync * msg)
+{
+	std::lock_guard<std::mutex> lock(gLastSyncMutex);
+	last_sync = msg;
+}
+
+PTPMessageSync* IEEE1588Port::getLastSync(void)
+{
+	std::lock_guard<std::mutex> lock(gLastSyncMutex);
+	return last_sync;
+}
+
+void IEEE1588Port::setLastFollowUp(PTPMessageFollowUp *msg) 	
+{
+	std::lock_guard<std::mutex> lock(gLastFwupMutex);
+	last_fwup = *msg;
+}
+
+const PTPMessageFollowUp& IEEE1588Port::getLastFollowUp() const
+{
+	std::lock_guard<std::mutex> lock(gLastFwupMutex);
+	return last_fwup;
+}
+
+void IEEE1588Port::setLastDelayReq(PTPMessageDelayReq *msg)
+{
+	std::lock_guard<std::mutex> lock(gLastDelayReqMutex);
+	last_delay_req = *msg;
+}
+
+void IEEE1588Port::setLastDelayReq(const PTPMessageDelayReq &msg)
+{
+	std::lock_guard<std::mutex> lock(gLastDelayReqMutex);
+	last_delay_req = msg;
+}
+
+const PTPMessageDelayReq& IEEE1588Port::getLastDelayReq() const
+{
+	std::lock_guard<std::mutex> lock(gLastDelayReqMutex);
+	return last_delay_req;
+}
+
+void IEEE1588Port::setLastDelayResp(PTPMessageDelayResp *msg)
+{
+	std::lock_guard<std::mutex> lock(gLastDelayRespMutex);
+	last_delay_resp = *msg;
+}
+
+const PTPMessageDelayResp& IEEE1588Port::getLastDelayResp() const
+{
+	std::lock_guard<std::mutex> lock(gLastDelayRespMutex);
+	return last_delay_resp;
+}
+
+FrequencyRatio IEEE1588Port::meanPathDelay() const
+{
+	std::lock_guard<std::mutex> lock(gMeanPathDelayMutex);
+	return fMeanPathDelay;
+}
+
+void IEEE1588Port::meanPathDelay(FrequencyRatio delay)
+{
+	std::lock_guard<std::mutex> lock(gMeanPathDelayMutex);
+	fMeanPathDelay = delay;
+	fMeanPathDelayIsSet = true;
+}
+
+int64_t IEEE1588Port::ConvertToLocalTime(int64_t masterTime)
+{
+	int64_t convertedSlaveTime = 0;
+	std::lock_guard<std::mutex> lockSync(gLastSyncMutex);
+	std::lock_guard<std::mutex> lockMeanPathDelay(gMeanPathDelayMutex);
+	if (last_sync != nullptr)
+	{
+		std::lock_guard<std::mutex> lockFwup(gLastFwupMutex);
+		int64_t masterAnchor = TIMESTAMP_TO_NS(last_fwup.getPreciseOriginTimestamp()) +
+		 (last_fwup.getCorrectionField() >> 16) + (last_sync->getCorrectionField() >> 16);
+		int64_t slaveAnchor = TIMESTAMP_TO_NS(last_sync->getTimestamp()) - 
+		 (fMeanPathDelayIsSet ? fMeanPathDelay : 0); 
+		convertedSlaveTime = ((masterTime - masterAnchor) * fLastFilteredRateRatio) + 
+		 slaveAnchor;
+	}
+	else
+	{
+		GPTP_LOG_ERROR("IEEE1588Port  last_sync is null.");
+	}
+	return convertedSlaveTime;
+}
+
 
 void IEEE1588Port::getDeviceTime
 (Timestamp & system_time, Timestamp & device_time,

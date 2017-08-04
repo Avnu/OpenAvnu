@@ -724,8 +724,7 @@ class IEEE1588Port {
 	 * @param  timer_factory OSTimerFactory instance
 	 * @param  lock_factory OSLockFactory instance
 	 */
-	IEEE1588Port
-	(IEEE1588Clock * clock, uint16_t index,
+	IEEE1588Port(IEEE1588Clock * clock, uint16_t index,
 	 bool forceSlave,
 	 HWTimestamper * timestamper,
 	 int32_t offset, InterfaceLabel * net_label,
@@ -1074,17 +1073,13 @@ class IEEE1588Port {
 	 * @param  msg [in] PTP sync message
 	 * @return void
 	 */
-	void setLastSync(PTPMessageSync * msg) {
-		last_sync = msg;
-	}
+	void setLastSync(PTPMessageSync * msg);
 
 	/**
 	 * @brief  Gets last sync message
 	 * @return PTPMessageSync last sync
 	 */
-	PTPMessageSync* getLastSync(void) {
-		return last_sync;
-	}
+	PTPMessageSync* getLastSync(void);
 
 	/**
 	 * @brief  Locks PDelay RX
@@ -1215,62 +1210,41 @@ class IEEE1588Port {
 	 * @param  msg [in] last follow up
 	 * @return void
 	 */
-	void setLastFollowUp(PTPMessageFollowUp *msg) 
-	{
-		last_fwup = *msg;
-	}
+	void setLastFollowUp(PTPMessageFollowUp *msg);
 
 	/**
 	 * @brief  Gets the last PTPMessageFollowUp message
 	 * @return last follow up
 	 */
-	const PTPMessageFollowUp& getLastFollowUp() const
-	{
-		return last_fwup;
-	}
+	const PTPMessageFollowUp& getLastFollowUp() const;
 
 	/**
 	 * @brief  Sets the last_delay_req message
 	 * @param  msg [in] PTPMessageDelayReq message to set
 	 * @return void
 	 */
-	void setLastDelayReq(PTPMessageDelayReq *msg)
-	{
-		last_delay_req = *msg;
-	}
+	void setLastDelayReq(PTPMessageDelayReq *msg);
 
-	void setLastDelayReq(const PTPMessageDelayReq &msg)
-	{
-		last_delay_req = msg;
-	}
+	void setLastDelayReq(const PTPMessageDelayReq &msg);
 
 	/**
 	 * @brief  Gets the last PTPMessageDelayReq message
 	 * @return Last delay request
 	 */
-	const PTPMessageDelayReq& getLastDelayReq() const
-	{
-		return last_delay_req;
-	}
+	const PTPMessageDelayReq& getLastDelayReq() const;
 
 	/**
 	 * @brief  Sets the last PTPMessageDelayResp message
 	 * @param  msg [in] Last delay response
 	 * @return void
 	 */
-	void setLastDelayResp(PTPMessageDelayResp *msg)
-	{
-		last_delay_resp = *msg;
-	}
+	void setLastDelayResp(PTPMessageDelayResp *msg);
 
 	/**
 	 * @brief  Gets the last PTPMessageDelayResp message
 	 * @return Last delay response
 	 */
-	const PTPMessageDelayResp& getLastDelayResp() const
-	{
-		return last_delay_resp;
-	}
+	const PTPMessageDelayResp& getLastDelayResp() const;
 
 	/**
 	 * @brief  Gets the Peer rate offset. Used to calculate neighbor rate ratio.
@@ -1682,31 +1656,11 @@ class IEEE1588Port {
 		return delay_count;
 	}
 
-	FrequencyRatio meanPathDelay() const
-	{
-		return fMeanPathDelay;
-	}
+	FrequencyRatio meanPathDelay() const;
 
-	void meanPathDelay(FrequencyRatio delay)
-	{
-		fMeanPathDelay = delay;
-		fMeanPathDelayIsSet = true;
-	}
+	void meanPathDelay(FrequencyRatio delay);
 
-	int64_t ConvertToLocalTime(int64_t masterTime)
-	{
-		int64_t convertedSlaveTime = 0;
-		if (last_sync != nullptr)
-		{
-			int64_t masterAnchor = TIMESTAMP_TO_NS(last_fwup.getPreciseOriginTimestamp()) +
-			 (last_fwup.getCorrectionField() >> 16) + (last_sync->getCorrectionField() >> 16);
-			int64_t slaveAnchor = TIMESTAMP_TO_NS(last_sync->getTimestamp()) - 
-			 (fMeanPathDelayIsSet ? fMeanPathDelay : 0); 
-			convertedSlaveTime = ((masterTime - masterAnchor) * fLastFilteredRateRatio) + 
-			 slaveAnchor;
-		}
-		return convertedSlaveTime;
-	}
+	int64_t ConvertToLocalTime(int64_t masterTime);
 
 	void UnicastReceiveNodes(std::list<std::string> nodeList)
 	{
