@@ -219,12 +219,13 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 						GPTP_LOG_VERBOSE("correctionFieldFollowup: %" PRIu64, fup.getCorrectionField());
 						GPTP_LOG_VERBOSE("correctionFileDelayResp: %" PRIu64, resp.getCorrectionField());
 
-						// check is <= 10 ms
-						if (check <= 10000000)
+						// check is <= 80 ms
+						if (check <= 80000000)
 						{
 							GPTP_LOG_VERBOSE("$$$$$$$$$$$$$$$$$$$$$$$$$$  check passed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  goodSyncCount:%d", port->GoodSyncCount());
-							// Do this for the 2nd successful sync that has a less than 10 ms check
-							if (port->GoodSyncCount() >= 2)
+							// Do this for the 2nd successful sync that has a less than
+							// check value
+							if (port->GoodSyncCount() > 1)
 							{
 								localtime = FR(t2 + t3) / 2;
 								remote = FR(t4 + t1) / 2;
@@ -249,10 +250,10 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 								remoteDiffUpper = ceil(remoteDiffUpper * kLimit) / kLimit;
 								remoteDiffLower = ceil(remoteDiffLower * kLimit) / kLimit;
 
-								// Limit to 20 bad diffs otherwise we loose too many
+								// Limit to 10 bad diffs otherwise we loose too many
 								if ((difflocaltime <= remoteDiffUpper &&
 									difflocaltime >= remoteDiffLower) ||
-									port->BadDiffCount() > 20)
+									port->BadDiffCount() > 10)
 								{
 									port->BadDiffCount(0);
 									GPTP_LOG_VERBOSE("Setting badDiffCount  0");
@@ -268,10 +269,10 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 									{
 										FR denom = (FR(t3-t2)/FR(2.0)) - (FR(lt3-lt2)/FR(2.0));
 										RR1 = 0 == denom 
-										 ? 0 : ((FR(t4-t1)/FR(2.0)) - (FR(lt4-lt1)/FR(2.0))) / denom;
+										 ? 1 : ((FR(t4-t1)/FR(2.0)) - (FR(lt4-lt1)/FR(2.0))) / denom;
 										denom = (FR(t4-t1)/FR(2.0)) - (FR(lt4-lt1)/FR(2.0));
 										RR2 = 0 == denom
-										 ? 0 : ((FR(t3-t2)/FR(2.0)) - (FR(lt3-lt2)/FR(2.0))) / denom;
+										 ? 1 : ((FR(t3-t2)/FR(2.0)) - (FR(lt3-lt2)/FR(2.0))) / denom;
 									}
 
 									// FrequencyRatio RR1 = (FrequencyRatio(t4-t1)/2) / (FrequencyRatio(t3-t2)/2);
@@ -344,7 +345,7 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 								port->GoodSyncCount(port->GoodSyncCount() + 1);
 							}							
 						}
-						port->LastTimestamps(ALastTimestampKeeper(rawt1, t2, t3, rawt4));
+						port->LastTimestamps(ALastTimestampKeeper(t1, t2, t3, t4));
 					}
 					else
 					{
