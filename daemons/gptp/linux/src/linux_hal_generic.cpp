@@ -110,13 +110,16 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 	net_result ret = net_succeed;
 
 	int fileDesc = 0;
+	TicketingLock *netLock = nullptr;
 	if (EVENT_PORT == portNum)
 	{
 		fileDesc = sd_event;
+		netLock = &fNetLockEvent;
 	}
 	else if (GENERAL_PORT == portNum)
 	{
 		fileDesc = sd_general;
+		netLock = &fNetLockGeneral;
 	}
 	else
 	{
@@ -130,7 +133,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 	struct timeval timeout = { 0, 16000 }; // 16 ms
 
 	{
-		ALockKeeper keeper(&net_lock);
+		ALockKeeper keeper(netLock);
 		ret = keeper.GetStatus();
 		if (net_succeed == ret)
 		{

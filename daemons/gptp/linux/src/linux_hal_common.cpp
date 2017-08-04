@@ -850,6 +850,18 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		return false;
 	}
 
+	if (!net_iface_l->fNetLockEvent.init())
+	{
+		GPTP_LOG_ERROR( "Failed to initialize event network lock");
+		return false;
+	}
+
+	if (!net_iface_l->fNetLockGeneral.init())
+	{
+		GPTP_LOG_ERROR( "Failed to initialize general network lock");
+		return false;
+	}
+
 	InterfaceName *ifname = dynamic_cast<InterfaceName *>(label);
 	if( ifname == NULL ){
 		GPTP_LOG_ERROR( "ifname == NULL");

@@ -161,6 +161,9 @@ private:
 	int ifindex;
 
 	TicketingLock net_lock;
+	TicketingLock fNetLockEvent;
+	TicketingLock fNetLockGeneral;
+	
 public:
 	/**
 	 * @brief Sends a packet to a remote address
