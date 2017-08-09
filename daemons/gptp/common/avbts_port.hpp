@@ -50,6 +50,7 @@
 
 #include <map>
 #include <list>
+#include <algorithm>
 
 
 #include "gptp_cfg.hpp"
@@ -1672,12 +1673,35 @@ class IEEE1588Port {
 		return fUnicastReceiveNodeList;
 	}
 
-	void UnicastSendNodes(std::list<std::string> nodeList)
+	void DumpUnicastSendNodes()
+	{
+		std::for_each(fUnicastSendNodeList.begin(), fUnicastSendNodeList.end(), [](const std::string& adr)
+		 {
+		 	 GPTP_LOG_VERBOSE("UnicastSendNode: %s", adr.c_str());
+		 });
+	}
+
+	void AddUnicastSendNode(const std::string& address)
+	{
+		fUnicastSendNodeList.push_back(address);
+	}
+
+	void DeleteUnicastSendNode(const std::string& address)
+	{
+		auto it = std::find(fUnicastSendNodeList.begin(),
+		 fUnicastSendNodeList.end(), address);
+		if (it != fUnicastSendNodeList.end())
+		{
+			fUnicastSendNodeList.erase(it);
+		}
+	}
+
+	void UnicastSendNodes(const std::list<std::string>& nodeList)
 	{
 		fUnicastSendNodeList = nodeList;
 	}
 
-	const std::list<std::string> UnicastSendNodes() const
+	const std::list<std::string>& UnicastSendNodes() const
 	{
 		return fUnicastSendNodeList;
 	}

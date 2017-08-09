@@ -109,8 +109,15 @@ else ifeq ($(ARCH),RPI)
 	CFLAGS_G += -DRPI -DAPTP
 	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
 		$(OBJ_DIR)/linux_hal_generic_adj.o \
-		$(OBJ_DIR)/linux_hal_rpi3.o
-	HEADER_FILES += $(SRC_DIR)/linux_hal_generic.hpp
+		$(OBJ_DIR)/linux_hal_rpi3.o \
+		$(OBJ_DIR)/addressapi.o \
+		$(OBJ_DIR)/socket.o \
+		$(OBJ_DIR)/addressregisterlistener.o
+	HEADER_FILES += $(SRC_DIR)/linux_hal_generic.hpp \
+		$(SRC_DIR)/addressregisterlistener.hpp \
+		$(SRC_DIR)/addressapi.hpp \
+		$(SRC_DIR)/rawpacket.hpp \
+		$(SRC_DIR)/socket.hpp 
 	LDFLAGS_G += -lwiringPi
 else
 	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
@@ -155,6 +162,15 @@ $(OBJ_DIR)/linux_hal_i210.o: $(SRC_DIR)/linux_hal_i210.cpp $(HEADER_FILES)
 
 $(OBJ_DIR)/linux_hal_rpi3.o: $(SRC_DIR)/linux_hal_rpi3.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_rpi3.cpp -o $(OBJ_DIR)/linux_hal_rpi3.o
+
+$(OBJ_DIR)/addressapi.o: $(SRC_DIR)/addressapi.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/addressapi.cpp -o $(OBJ_DIR)/addressapi.o
+
+$(OBJ_DIR)/socket.o: $(SRC_DIR)/socket.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/socket.cpp -o $(OBJ_DIR)/socket.o
+
+$(OBJ_DIR)/addressregisterlistener.o: $(SRC_DIR)/addressregisterlistener.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/addressregisterlistener.cpp -o $(OBJ_DIR)/addressregisterlistener.o
 
 $(OBJ_DIR)/linux_hal_intelce.o: $(SRC_DIR)/linux_hal_intelce.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_intelce.cpp -o $(OBJ_DIR)/linux_hal_intelce.o

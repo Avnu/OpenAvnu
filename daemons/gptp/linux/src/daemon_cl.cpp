@@ -45,6 +45,11 @@
 #endif
 
 #include "linux_hal_persist_file.hpp"
+
+#ifdef APTP
+#include "addressregisterlistener.hpp"
+#endif
+
 #include <ctype.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -427,7 +432,6 @@ int main(int argc, char **argv)
 			pPort->UnicastReceiveNodes(iniParser.UnicastReceiveNodes());
 
 			// Set the address registration api ip and port
-			pPort->AdrRegSocketIp(iniParser.AdrRegSocketIp());
 			pPort->AdrRegSocketPort(iniParser.AdrRegSocketPort());
 
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
@@ -478,6 +482,16 @@ int main(int argc, char **argv)
 		}
 	}
 
+#ifdef APTP
+	// Start the address api listener
+	AAddressRegisterListener adrListener("eth0", pPort);
+	std::shared_ptr<LinuxThreadFactory> addressApiThreadFactory =
+	 std::make_shared<LinuxThreadFactory>();
+	adrListener.ThreadFactory(addressApiThreadFactory);
+	adrListener.Start();
+	//std::thread addressApiListenerThread(openAddressApiPortWrapper, std::ref(adrListener));
+#endif
+
 	// Configure persistent write
 	if (pGPTPPersist) {
 		off_t len = 0;
@@ -514,6 +528,10 @@ int main(int argc, char **argv)
 			pPort->logIEEEPortCounters();
 		}
 	} while (sig == SIGHUP || sig == SIGUSR2);
+
+#ifdef APTP
+	adrListener.Stop();
+#endif
 
 	GPTP_LOG_ERROR("Exiting on %d", sig);
 

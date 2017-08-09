@@ -161,11 +161,11 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 				 syncPortId->sameClocks(fup.getPortIdentity()))
 				{
 					uint64_t t1 = TIMESTAMP_TO_NS(fup.getPreciseOriginTimestamp());
-					uint64_t rawt1 = t1;
+					//uint64_t rawt1 = t1;
 					uint64_t t2 = TIMESTAMP_TO_NS(sync->getTimestamp()); 
 					uint64_t t3 = TIMESTAMP_TO_NS(req.getTimestamp());
 					uint64_t t4 = TIMESTAMP_TO_NS(resp.getRequestReceiptTimestamp());
-					uint64_t rawt4 = t4;
+					//uint64_t rawt4 = t4;
 
                uint64_t fupCorrection = fup.getCorrectionField();
                uint64_t respCorrection = resp.getCorrectionField();
@@ -202,11 +202,11 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 						GPTP_LOG_VERBOSE("respCorrection: %" PRIu64, respCorrection);
 
 						GPTP_LOG_VERBOSE("t1: %" PRIu64, t1);
-						GPTP_LOG_VERBOSE("rawt1: %" PRIu64, rawt1);
+						//GPTP_LOG_VERBOSE("rawt1: %" PRIu64, rawt1);
 						GPTP_LOG_VERBOSE("t2: %" PRIu64, t2);
 						GPTP_LOG_VERBOSE("t3: %" PRIu64, t3);
 						GPTP_LOG_VERBOSE("t4: %" PRIu64, t4);
-						GPTP_LOG_VERBOSE("rawt4: %" PRIu64, rawt4);
+						//GPTP_LOG_VERBOSE("rawt4: %" PRIu64, rawt4);
 
 						int64_t check = ((t4-t1) - (t3-t2))/2;
 						GPTP_LOG_VERBOSE("check: %" PRIu64, check);
