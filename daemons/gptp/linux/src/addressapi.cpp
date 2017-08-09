@@ -144,15 +144,12 @@ AAddAddressMessage::~AAddAddressMessage()
 
 void AAddAddressMessage::Process()
 {
-	//std::cout << "DEBUG AAddAddressMessage::Process." << std::endl;
 }
 
 void AAddAddressMessage::Process(const AAddressMessage& data, IEEE1588Port *port)
 {
-	std::cout << "AAddAddressMessage::Process data, port" << std::endl;
 	if (port != nullptr)
 	{
-		std::cout << "AAddAddressMessage::Process data, port   before AddUnicastSendNode" << std::endl;
 		port->AddUnicastSendNode(data.Address());
 	}
 }
@@ -181,15 +178,12 @@ ADeleteAddressMessage::~ADeleteAddressMessage()
 
 void ADeleteAddressMessage::Process()
 {
-	//std::cout << "DEBUG ADeleteAddressMessage::Process." << std::endl;
 }
 
 void ADeleteAddressMessage::Process(const AAddressMessage& data, IEEE1588Port *port)
 {
-	std::cout << "ADeleteAddressMessage::Process data, port" << std::endl;
 	if (port != nullptr)
 	{
-		std::cout << "ADeleteAddressMessage::Process data, port   before DeleteUnicastSendNode" << std::endl;
 		port->DeleteUnicastSendNode(data.Address());
 	}
 }
