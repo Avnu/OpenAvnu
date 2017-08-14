@@ -146,7 +146,9 @@ public:
 	 * @param  timestamper [in] HWTimestamper instance
 	 * @return TRUE success; FALSE error
 	 */
-	virtual bool createInterface( OSNetworkInterface **net_iface, InterfaceLabel *label, HWTimestamper *timestamper ) {
+	virtual bool createInterface( OSNetworkInterface **net_iface,
+	 InterfaceLabel *label, HWTimestamper *timestamper, int ipVersion)
+	{
 		WindowsPCAPNetworkInterface *net_iface_l = new WindowsPCAPNetworkInterface();
 		LinkLayerAddress *addr = dynamic_cast<LinkLayerAddress *>(label);
 		if( addr == NULL ) goto error_nofree;

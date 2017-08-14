@@ -288,7 +288,8 @@ typedef struct {
 	/* lock_factory OSLockFactory instance */
 	OSLockFactory * lock_factory;
 
-	bool smoothRateChange;	
+	bool smoothRateChange;
+	int ipVersion;
 } IEEE1588PortInit_t;
 
 
@@ -391,6 +392,7 @@ class IEEE1588Port {
 	ALastTimestampKeeper fLastTimestamps;
 
 	bool smoothRateChange;
+	int fIpVersion;
 
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
@@ -1899,6 +1901,16 @@ class IEEE1588Port {
 	bool SmoothRateChange() const
 	{
 		return smoothRateChange;
+	}
+
+	int IpVersion() const
+	{
+		return fIpVersion;
+	}
+
+	void IpVersion(int version)
+	{
+		fIpVersion = version;
 	}
 
 	/**

@@ -106,7 +106,6 @@ int main(int argc, char *argv[])
     fprintf(stdout, "asCapable %s\n", ptpData->asCapable ? "True" : "False");
     fprintf(stdout, "Port State %d\n", (int)ptpData->port_state);
     fprintf(stdout, "process_id %d\n", (int)ptpData->process_id);
-    fprintf(stdout, "address reg ip %s\n", ptpData->addressRegistrationSocketIp);
     fprintf(stdout, "address reg port %d\n", (int)ptpData->addressRegistrationSocketPort);
 
     return 0;

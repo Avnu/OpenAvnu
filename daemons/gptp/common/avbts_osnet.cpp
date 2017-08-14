@@ -32,7 +32,29 @@
 ******************************************************************************/
 
 #include <avbts_osnet.hpp>
+#include <regex>
 
-std::map
-< factory_name_t, OSNetworkInterfaceFactory * >
+std::map<factory_name_t, OSNetworkInterfaceFactory *>
 OSNetworkInterfaceFactory::factoryMap;
+
+LinkLayerAddress::LinkLayerAddress(const std::string& ip, uint16_t portNumber) :
+ fPort(portNumber)
+{
+   GPTP_LOG_VERBOSE("LinkLayerAddress::LinkLayerAddress  ip:%s  portNumber:%d", (ip.empty() ? "EMPTY" : ip.c_str()), portNumber);
+
+   std::regex ipv4Re(R"(\b(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\b)");
+   if (std::regex_search(ip, ipv4Re))
+   {
+      fIpVersion = 4;
+      memset(fIpv4Addr, 0, sizeof(fIpv4Addr));
+      ParseIpAddress(ip, fIpv4Addr, ETHER_ADDR_OCTETS, ".");
+   }
+   else
+   {
+      // Assume ipv6
+      // !!! Add ipv6 regex check
+      fIpVersion = 6;
+      memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+      inet_pton(AF_INET6, ip.c_str(), fIpv6Addr);
+   }
+}

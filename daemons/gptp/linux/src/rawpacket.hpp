@@ -82,6 +82,13 @@ class ARawPacket
 			fRemoteAddress = std::string(buf);
 		}
 
+		void RemoteAddress(const sockaddr_in6& other)
+		{
+			char buf[INET6_ADDRSTRLEN];
+			inet_ntop(other.sin6_family, &other.sin6_addr, buf, sizeof(buf));
+			fRemoteAddress = std::string(buf);
+		}
+
 		const std::string& RemoteAddress() const
 		{
 			return fRemoteAddress;

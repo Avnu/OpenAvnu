@@ -70,8 +70,8 @@ class GptpIniParser
             PortType delayMechanism;
             std::list<std::string> unicastSendNodes;
             std::list<std::string> unicastReceiveNodes;
-            std::string adrRegSocketIp;
             uint16_t adrRegSocketPort;
+            int ipVersion;
 
             /*ethernet adapter data set*/
             std::string ifname;
@@ -100,16 +100,16 @@ class GptpIniParser
             return _config.unicastReceiveNodes;
         }
         
-        std::string AdrRegSocketIp() const
-        {
-            return _config.adrRegSocketIp;
-        }
-
         uint16_t AdrRegSocketPort() const
         {
             return _config.adrRegSocketPort;
         }
 
+        int IpVersion() const
+        {
+           return _config.ipVersion;
+        }
+        
         /**
          * @brief  Reads priority1 config value
          * @param  void

@@ -23,7 +23,7 @@ class AAddressRegisterListener : public ASocket
 	public:
 		AAddressRegisterListener(const std::string& interfaceName,
 		 IEEE1588Port *ptpPort) :
-		 ASocket(interfaceName, ptpPort->AdrRegSocketPort()),
+		 ASocket(interfaceName, ptpPort->AdrRegSocketPort(), ptpPort->IpVersion()),
 		 fPtpPort(ptpPort)
 		{
 			// Intentionally empty

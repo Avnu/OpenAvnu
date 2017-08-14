@@ -164,6 +164,7 @@ int main(int argc, char **argv)
 	portInit.timer_factory = NULL;
 	portInit.lock_factory = NULL;
 	portInit.smoothRateChange = true;
+	portInit.ipVersion = 4;
 
 	LinuxNetworkInterfaceFactory *default_factory =
 		new LinuxNetworkInterfaceFactory;
@@ -307,6 +308,17 @@ int main(int argc, char **argv)
 				portInit.smoothRateChange = false;
 			}
 		}
+		else
+		{
+			if (0 == strcmp(argv[i], "ipv4"))
+			{
+				portInit.ipVersion = 4;
+			}
+			else if (0 == strcmp(argv[i], "ipv6"))
+			{
+				portInit.ipVersion = 6;
+			}			
+		}
 	}
 
 	if (!input_delay)
@@ -379,6 +391,11 @@ int main(int argc, char **argv)
 	portInit.timer_factory = timer_factory;
 	portInit.lock_factory = lock_factory;
 
+	if (0 == portInit.ipVersion)
+	{
+		portInit.ipVersion = 4;
+	}
+
 	pPort = new IEEE1588Port(&portInit);
 
 	GPTP_LOG_INFO("smoothRateChange: %s", (pPort->SmoothRateChange() ? "true" : "false"));
@@ -405,8 +422,8 @@ int main(int argc, char **argv)
 			GPTP_LOG_INFO("phy_delay_mb_rx: %d", iniParser.getPhyDelayMbRx());
 			GPTP_LOG_INFO("neighborPropDelayThresh: %ld", iniParser.getNeighborPropDelayThresh());
 			GPTP_LOG_INFO("syncReceiptThreshold: %d", iniParser.getSyncReceiptThresh());
-			GPTP_LOG_INFO("Address reg socket IP: %s", iniParser.AdrRegSocketIp().c_str());
 			GPTP_LOG_INFO("Address reg socket Port: %d", iniParser.AdrRegSocketPort());
+			GPTP_LOG_INFO("IP version: %d", iniParser.IpVersion());
 
 #ifndef APTP
 			/* If using config file, set the neighborPropDelayThresh.
@@ -434,6 +451,13 @@ int main(int argc, char **argv)
 			// Set the address registration api ip and port
 			pPort->AdrRegSocketPort(iniParser.AdrRegSocketPort());
 
+			// Set the ip version if one was specified in a config file
+			int ipVersion = iniParser.IpVersion();
+			if (ipVersion > 0)
+			{
+				pPort->IpVersion(ipVersion);
+			}
+
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
 			if (!input_delay)
 			{
@@ -444,6 +468,12 @@ int main(int argc, char **argv)
 			}
 		}
 
+	}
+
+	// If no ip version is explicitly set default to ipv4
+	if (0 == pPort->IpVersion())
+	{
+		pPort->IpVersion(4);
 	}
 
 	if (!pPort->init_port(phy_delay)) {

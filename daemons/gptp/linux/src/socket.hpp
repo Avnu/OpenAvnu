@@ -17,7 +17,8 @@ class ASocket
 		static const size_t kReceiveBufferSize = 128;
 
 	public:
-		ASocket(const std::string& interfaceName, uint16_t port = 0);
+		ASocket(const std::string& interfaceName, uint16_t port = 0,
+		 int ipVersion = 4);
 		virtual ~ASocket();
 
    public:
@@ -27,6 +28,8 @@ class ASocket
 
 		bool Send(std::mutex& keeper, const std::string& ipAddress, int port,
 		const ARawPacket& packet);
+
+		void IpVersion(int version);
 
 		// To be implemented by derrived classes, received data is passed into
 		// this member function.
@@ -47,4 +50,5 @@ class ASocket
 		fd_set fReadfds;
 		int64_t fIngressTimeNano;
 		bool fContinue;
+		int fIpVersion;
 };

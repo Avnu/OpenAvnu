@@ -159,6 +159,7 @@ private:
 	int sd_general;
 	LinuxTimestamper *timestamper;
 	int ifindex;
+	int fIpVersion;
 
 	TicketingLock net_lock;
 	TicketingLock fNetLockEvent;
@@ -195,6 +196,16 @@ public:
 
 	virtual net_result nrecvGeneral(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
 	 struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port);
+
+	virtual int IpVersion() const
+	{
+		return fIpVersion;
+	}
+
+	virtual void IpVersion(int version)
+	{
+		fIpVersion = version;
+	}
 
 	/**
 	 * @brief  Disables rx socket descriptor rx queue
@@ -629,9 +640,8 @@ public:
 	 * @param timestamper [in] Pointer to a hardware timestamp object
 	 * @return TRUE if no error during interface creation, FALSE otherwise
 	 */
-	virtual bool createInterface
-	( OSNetworkInterface **net_iface, InterfaceLabel *label,
-	  HWTimestamper *timestamper );
+	virtual bool createInterface(OSNetworkInterface **net_iface, InterfaceLabel *label,
+	  HWTimestamper *timestamper, int ipVersion);
 };
 
 /**

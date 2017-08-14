@@ -86,16 +86,31 @@ LinuxNetworkInterface::~LinuxNetworkInterface() {
 
 net_result LinuxNetworkInterface::send
 ( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length, bool timestamp ) {
-	struct sockaddr_in remote;
+	struct sockaddr_in remoteIpv4;
+	struct sockaddr_in6 remoteIpv6;
+	sockaddr *remote;
+	size_t remoteSize;
 	int err;
 
-	memset(&remote, 0, sizeof(remote));
-	remote.sin_family = AF_INET;
-	remote.sin_port = htons(addr->Port());
+	if (4 == addr->IpVersion())
+	{
+		memset(&remoteIpv4, 0, sizeof(remoteIpv4));
+		remoteIpv4.sin_family = AF_INET;
+		remoteIpv4.sin_port = htons(addr->Port());
+		addr->getAddress(&remoteIpv4.sin_addr);
+		remote = reinterpret_cast<sockaddr*>(&remoteIpv4);
+		remoteSize = sizeof(remoteIpv4);
+	}
+	else if (6 == addr->IpVersion())
+	{
+		memset(&remoteIpv6, 0, sizeof(remoteIpv6));
+		remoteIpv6.sin6_family = AF_INET6;
+		remoteIpv6.sin6_port = htons(addr->Port());
+		addr->getAddress(&remoteIpv6.sin6_addr);
+		remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
+		remoteSize = sizeof(remoteIpv6);
+	}
 
-	// Extract the remote address from the passed LinkLayerAddress
-	addr->getAddress(&remote.sin_addr);
-		
 	if (timestamp) 
 	{
 #ifndef ARCH_INTELCE
@@ -104,12 +119,12 @@ net_result LinuxNetworkInterface::send
 #endif
 #endif
 		GPTP_LOG_VERBOSE("sendto  sd_event");
-		err = sendto(sd_event, payload, length, 0, (sockaddr *)&remote, sizeof(remote));
+		err = sendto(sd_event, payload, length, 0, remote, remoteSize);
 	} 
 	else
 	{
 		GPTP_LOG_VERBOSE("sendto  sd_general");
-		err = sendto(sd_general, payload, length, 0, (sockaddr *)&remote, sizeof(remote));
+		err = sendto(sd_general, payload, length, 0, remote, remoteSize);
   	}
 	
 	
@@ -814,10 +829,6 @@ bool LinuxSharedMemoryIPC::update
       ptimedata->asCapable = asCapable;
 		ptimedata->port_state   = port_state;
 		ptimedata->process_id   = process_id;
-		if (adrRegSocketIp.length() < kMaxAdrRegIpLen)
-		{
-			adrRegSocketIp.copy(ptimedata->addressRegistrationSocketIp, kMaxAdrRegIpLen);
-		}
       ptimedata->addressRegistrationSocketPort = adrRegSocketPort;
 
 		/* unlock */
@@ -834,9 +845,9 @@ void LinuxSharedMemoryIPC::stop() {
 	}
 }
 
-bool LinuxNetworkInterfaceFactory::createInterface
-( OSNetworkInterface **net_iface, InterfaceLabel *label,
-  HWTimestamper *timestamper ) {
+bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_iface,
+ InterfaceLabel *label, HWTimestamper *timestamper, int ipVersion)
+{
 	struct ifreq device;
 	int err;
 	struct sockaddr_ll ifsock_addr;
@@ -844,6 +855,8 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	int ifindex;
 
 	LinuxNetworkInterface *net_iface_l = new LinuxNetworkInterface();
+
+	net_iface_l->IpVersion(ipVersion);
 
 	if( !net_iface_l->net_lock.init()) {
 		GPTP_LOG_ERROR( "Failed to initialize network lock");
@@ -869,12 +882,13 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	}
 
 
-	net_iface_l->sd_general = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	int domain = 4 == ipVersion ? AF_INET : AF_INET6;
+	net_iface_l->sd_general = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 	if( net_iface_l->sd_general == -1 ) {
 		GPTP_LOG_ERROR( "failed to open general socket: %s", strerror(errno));
 		return false;
 	}
-	net_iface_l->sd_event = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	net_iface_l->sd_event = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 
 	GPTP_LOG_VERBOSE("createInterface  net_iface_l->sd_event: %d", net_iface_l->sd_event);
 
@@ -907,47 +921,89 @@ bool LinuxNetworkInterfaceFactory::createInterface
 	net_iface_l->local_addr = addr;
 	err = ioctl( net_iface_l->sd_event, SIOCGIFINDEX, &device );
 	if( err == -1 ) {
-		GPTP_LOG_ERROR
-			( "Failed to get interface index: %s", strerror( errno ));
+		GPTP_LOG_ERROR("Failed to get interface index: %s", strerror( errno ));
 		return false;
 	}
 	ifindex = device.ifr_ifindex;
 	net_iface_l->ifindex = ifindex;
 
-	GPTP_LOG_VERBOSE("createInterface  ifindex: %d", ifindex);
+	GPTP_LOG_VERBOSE("LinuxNetworkInterfaceFactory::createInterface  ifindex: %d", ifindex);
 
 	memset( &ifsock_addr, 0, sizeof( ifsock_addr ));
 
-	sockaddr_in evntAddr;
-	memset(&evntAddr, 0, sizeof(evntAddr ));
-	evntAddr.sin_port = htons(EVENT_PORT);
-	evntAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	err = bind(net_iface_l->sd_event, (sockaddr *)&evntAddr, sizeof(evntAddr));
-	if( err == -1 ) {
-		GPTP_LOG_ERROR( "Call to bind() for sd_event failed (%d): %s", errno, strerror(errno) );
+	struct sockaddr_in evntIpv4;
+	struct sockaddr_in6 evntIpv6;
+	sockaddr *evntAddr;
+	size_t evntAddrSize;
+	struct sockaddr_in genIpv4;
+	struct sockaddr_in6 genIpv6;
+	sockaddr *genAddr;
+	size_t genAddrSize;
+
+	if (4 == ipVersion)
+	{
+		memset(&evntIpv4, 0, sizeof(evntIpv4));
+		evntIpv4.sin_port = htons(EVENT_PORT);
+		evntIpv4.sin_addr.s_addr = htonl(INADDR_ANY);
+		evntIpv4.sin_family = AF_INET;
+		evntAddrSize = sizeof(evntIpv4);
+		evntAddr = reinterpret_cast<sockaddr*>(&evntIpv4);
+		memset(&genIpv4, 0, sizeof(genIpv4));
+		genIpv4.sin_port = htons(GENERAL_PORT);
+		genIpv4.sin_addr.s_addr = htonl(INADDR_ANY);
+		genIpv4.sin_family = AF_INET;
+		genAddrSize = sizeof(genIpv4);
+		genAddr = reinterpret_cast<sockaddr*>(&genIpv4);
+	}
+	else if (6 == ipVersion)
+	{
+		memset(&evntIpv6, 0, sizeof(evntIpv6));
+		evntIpv6.sin6_port = htons(EVENT_PORT);
+		evntIpv6.sin6_family = AF_INET6;
+		evntIpv6.sin6_addr = in6addr_any;
+		evntAddrSize = sizeof(evntIpv6);
+		evntAddr = reinterpret_cast<sockaddr*>(&evntIpv6);
+		memset(&genIpv6, 0, sizeof(evntIpv6));
+		genIpv6.sin6_port = htons(GENERAL_PORT);
+		genIpv6.sin6_family = AF_INET6;
+		genIpv6.sin6_addr = in6addr_any;
+		genAddrSize = sizeof(genIpv6);
+		genAddr = reinterpret_cast<sockaddr*>(&genIpv6);
+	}
+	else
+	{
+		GPTP_LOG_ERROR("Invalid ip version %d not supported.", ipVersion);
 		return false;
 	}
 
-	sockaddr_in genAddr;
-	memset(&genAddr, 0, sizeof(genAddr));
-	genAddr.sin_port = htons(GENERAL_PORT);
-	genAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	err = bind(net_iface_l->sd_general, (sockaddr *)&genAddr, sizeof(genAddr));	
-	if( err == -1 ) {
-		GPTP_LOG_ERROR( "Call to bind() for sd_general failed (%d): %s", errno, strerror(errno) );
+	GPTP_LOG_VERBOSE("LinuxNetworkInterfaceFactory::createInterface  ipVersion: %d", ipVersion);
+
+	err = bind(net_iface_l->sd_event, evntAddr, evntAddrSize);
+	if (-1 == err)
+	{
+		GPTP_LOG_ERROR("Call to bind() for sd_event failed (%d): %s", errno, strerror(errno) );
+		return false;
+	}
+
+	err = bind(net_iface_l->sd_general, genAddr, genAddrSize);
+	if (-1 == err)
+	{
+		GPTP_LOG_ERROR("Call to bind() for sd_general failed (%d): %s", errno, strerror(errno) );
 		return false;
 	}
 
 	net_iface_l->timestamper =
 		dynamic_cast <LinuxTimestamper *>(timestamper);
-	if(net_iface_l->timestamper == NULL) {
-		GPTP_LOG_ERROR( "timestamper == NULL" );
+	if (nullptr == net_iface_l->timestamper)
+	{
+		GPTP_LOG_ERROR("timestamper == NULL");
 		return false;
 	}
 
-	if( !net_iface_l->timestamper->post_init
-		( ifindex, net_iface_l->sd_event, &net_iface_l->net_lock )) {
-		GPTP_LOG_ERROR( "post_init failed\n" );
+	if (!net_iface_l->timestamper->post_init(ifindex, net_iface_l->sd_event,
+	 &net_iface_l->net_lock ))
+	{
+		GPTP_LOG_ERROR("post_init failed\n");
 		return false;
 	}
 

@@ -82,7 +82,7 @@ OSThreadExitCode openEventPortWrapper(void *arg)
 
 OSThreadExitCode openGeneralPortWrapper(void *arg)
 {
-	GPTP_LOG_VERBOSE("openEventPortWrapper");
+	GPTP_LOG_VERBOSE("openGeneralPortWrapper");
 	IEEE1588Port *port = reinterpret_cast<IEEE1588Port*>(arg);
 	return port->OpenGeneralPort(port) ? osthread_ok : osthread_error;
 }
@@ -134,6 +134,7 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	operLogSyncInterval = portInit->operLogSyncInterval;
 
 	smoothRateChange = portInit->smoothRateChange;
+	fIpVersion = portInit->ipVersion;
 	fLastFilteredRateRatio = 1;
 
 	fLastLocaltime = 0;
@@ -281,9 +282,11 @@ void IEEE1588Port::timestamper_reset(void)
 
 bool IEEE1588Port::init_port(int delay[4])
 {
-	if (!OSNetworkInterfaceFactory::buildInterface
-	    (&net_iface, factory_name_t("default"), net_label, _hw_timestamper))
+	if (!OSNetworkInterfaceFactory::buildInterface(&net_iface,
+	 factory_name_t("default"), net_label, _hw_timestamper, fIpVersion))
+	{
 		return false;
+	}
 
 	this->net_iface = net_iface;
 	this->net_iface->getLinkLayerAddress(&local_addr);
