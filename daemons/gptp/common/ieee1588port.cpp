@@ -1333,10 +1333,7 @@ void IEEE1588Port::processEvent(Event e)
 			   system time offset */
 			Timestamp system_time;
 			Timestamp device_time;
-			FrequencyRatio local_system_freq_offset;
-			int64_t local_system_offset;
 			long long wait_time = 0;
-
 			uint32_t local_clock, nominal_clock_rate;
 
 			// Send a sync message and then a followup to broadcast
@@ -1445,18 +1442,20 @@ void IEEE1588Port::processEvent(Event e)
 				 system_time.seconds_ls, system_time.nanoseconds,
 				 device_time.seconds_ls, device_time.nanoseconds);
 
+#ifndef APTP			
+			FrequencyRatio local_system_freq_offset;
+			int64_t local_system_offset;
 			local_system_offset =
 			    TIMESTAMP_TO_NS(system_time) -
 			    TIMESTAMP_TO_NS(device_time);
 			local_system_freq_offset =
 			    clock->calcLocalSystemClockRateDifference
 			      ( device_time, system_time );
-			clock->setMasterOffset
-			  (this, 0, device_time, 1.0, local_system_offset,
-			   system_time, local_system_freq_offset, sync_count,
-			   pdelay_count, port_state, asCapable, fAdrRegSocketIp,
-			   fAdrRegSocketPort);
 
+			clock->setMasterOffset(this, 0, device_time, 1.0, local_system_offset,
+			   system_time, local_system_freq_offset, sync_count,
+			   pdelay_count, port_state, asCapable, fAdrRegSocketPort);
+#endif
 			syncDone();
 
 			wait_time = ((long long) (pow((double)2, getSyncInterval()) * 1000000000.0));
@@ -1686,13 +1685,12 @@ int64_t IEEE1588Port::ConvertToLocalTime(int64_t masterTime)
 }
 
 
-void IEEE1588Port::getDeviceTime
-(Timestamp & system_time, Timestamp & device_time,
+void IEEE1588Port::getDeviceTime(Timestamp & system_time, Timestamp & device_time,
  uint32_t & local_clock, uint32_t & nominal_clock_rate)
 {
 	if (_hw_timestamper && fUseHardwareTimestamp) {
-		_hw_timestamper->HWTimestamper_gettime
-			(&system_time, &device_time, &local_clock, &nominal_clock_rate);
+		_hw_timestamper->HWTimestamper_gettime(&system_time, &device_time,
+		 &local_clock, &nominal_clock_rate);
 	} else {
 		device_time = system_time = clock->getSystemTime();
 		local_clock = nominal_clock_rate = 0;
