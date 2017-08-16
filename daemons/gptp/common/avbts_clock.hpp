@@ -544,17 +544,12 @@ public:
    * @param  port_state PortState instance
    * @param  asCapable asCapable flag
    */
-  void setMasterOffset
-	  ( IEEE1588Port * port, int64_t master_local_offset, Timestamp local_time,
-		FrequencyRatio master_local_freq_offset,
-		int64_t local_system_offset,
-		Timestamp system_time,
-		FrequencyRatio local_system_freq_offset,
-		unsigned sync_count,
-        unsigned pdelay_count,
-        PortState port_state,
-        bool asCapable,
-        const std::string& adrRegSocketIp, uint16_t adrRegSocketPort);
+  void setMasterOffset(IEEE1588Port * port, int64_t master_local_offset,
+   Timestamp local_time, FrequencyRatio master_local_freq_offset,
+	int64_t local_system_offset, Timestamp system_time,
+   FrequencyRatio local_system_freq_offset, unsigned sync_count,
+   unsigned pdelay_count, PortState port_state, bool asCapable,
+   uint16_t adrRegSocketPort);
 
   /**
    * @brief  Sets the master offset, sintonyze and adjusts the frequency offset

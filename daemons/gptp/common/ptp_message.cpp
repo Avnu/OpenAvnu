@@ -1517,22 +1517,24 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	}
 	sync->getPortIdentity(sync_id);
 
-	// if (sync->getSequenceId() != sequenceId || 
-	//  (sourcePortIdentity != nullptr && sync_id != nullptr &&
-	//  *sync_id != *sourcePortIdentity))
-	// {
-	// 	unsigned int cnt = 0;
+#ifndef APTP
+	if (sync->getSequenceId() != sequenceId || 
+	 (sourcePortIdentity != nullptr && sync_id != nullptr &&
+	 *sync_id != *sourcePortIdentity))
+	{
+		unsigned int cnt = 0;
 
-	// 	if( !port->incWrongSeqIDCounter(&cnt) )
-	// 	{
-	// 		port->becomeMaster( true );
-	// 		port->setWrongSeqIDCounter(0);
-	// 	}
+		if( !port->incWrongSeqIDCounter(&cnt) )
+		{
+			port->becomeMaster( true );
+			port->setWrongSeqIDCounter(0);
+		}
 
-	// 	GPTP_LOG_ERROR("Received Follow Up %d times but cannot find "
-	// 	 "corresponding Sync", cnt);
-	// 	goto done;
-	// }
+		GPTP_LOG_ERROR("Received Follow Up %d times but cannot find "
+		 "corresponding Sync", cnt);
+		goto done;
+	}
+#endif
 
 	sync_arrival = sync->getTimestamp();
 
@@ -1571,8 +1573,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	uint32_t local_clock, nominal_clock_rate;
 	uint32_t device_sync_time_offset;
 
-	port->getDeviceTime(system_time, device_time, local_clock,
-			    nominal_clock_rate);
+	port->getDeviceTime(system_time, device_time, local_clock, nominal_clock_rate);
 	GPTP_LOG_VERBOSE
 		( "Device Time = %llu,System Time = %llu",
 		  TIMESTAMP_TO_NS(device_time), TIMESTAMP_TO_NS(system_time));
@@ -1629,23 +1630,17 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 		   is transitioning to us not being master but the master process
 		   is still running locally */
 		local_system_freq_offset =
-			port->getClock()
-			->calcLocalSystemClockRateDifference
-			( device_time, system_time );
-		TIMESTAMP_SUB_NS
-			( system_time, (uint64_t)
-			  (((FrequencyRatio) device_sync_time_offset)/
-			   local_system_freq_offset) );
+			port->getClock()->calcLocalSystemClockRateDifference(device_time, system_time);
+		TIMESTAMP_SUB_NS(system_time,
+		 (uint64_t)(((FrequencyRatio) device_sync_time_offset)/local_system_freq_offset));
 
 		signed long long local_system_offset =
 			TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(sync_arrival);
 
-		port->getClock()->setMasterOffset
-			( port, scalar_offset, sync_arrival, local_clock_adjustment,
-			  local_system_offset, system_time, local_system_freq_offset,
-			  port->getSyncCount(), port->getPdelayCount(),
-			  port->getPortState(), port->getAsCapable(),
-			  port->AdrRegSocketIp(), port->AdrRegSocketPort());
+		port->getClock()->setMasterOffset(port, scalar_offset, sync_arrival,
+		 local_clock_adjustment, local_system_offset, system_time,
+		 local_system_freq_offset, port->getSyncCount(), port->getPdelayCount(),
+		 port->getPortState(), port->getAsCapable(), port->AdrRegSocketPort());
 
 		port->syncDone();
 		// Restart the SYNC_RECEIPT timer

@@ -71,12 +71,12 @@ typedef struct {
     FrequencyRatio ml_freqoffset;	//!< Master to local frequency offset
     FrequencyRatio ls_freqoffset;	//!< Local to system frequency offset
     uint64_t local_time;			//!< Local time of last update
+    uint16_t addressRegistrationSocketPort;
     uint32_t sync_count;			//!< Sync messages count
     uint32_t pdelay_count;			//!< pdelay messages count
     bool asCapable;                 //!< asCapable flag: true = device is AS Capable; false otherwise
     PortState port_state;			//!< gPTP port state. It can assume values defined at ::PortState
     PID_TYPE process_id;			//!< Process id number
-    uint16_t addressRegistrationSocketPort;
 } gPtpTimeData;
 
 /*

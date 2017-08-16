@@ -820,7 +820,7 @@ bool LinuxSharedMemoryIPC::update
 (int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
  FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
  uint32_t pdelay_count, PortState port_state, bool asCapable,
- const std::string& adrRegSocketIp, uint16_t adrRegSocketPort)
+ uint16_t adrRegSocketPort)
 {
 	int buf_offset = 0;
 	pid_t process_id = getpid();
@@ -836,12 +836,13 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->ml_freqoffset = ml_freqoffset;
 		ptimedata->ls_freqoffset = ls_freqoffset;
 		ptimedata->local_time = local_time;
+      ptimedata->addressRegistrationSocketPort = adrRegSocketPort;
 		ptimedata->sync_count   = sync_count;
 		ptimedata->pdelay_count = pdelay_count;
       ptimedata->asCapable = asCapable;
 		ptimedata->port_state   = port_state;
 		ptimedata->process_id   = process_id;
-      ptimedata->addressRegistrationSocketPort = adrRegSocketPort;
+
 
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
