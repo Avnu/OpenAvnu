@@ -281,17 +281,22 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 									FrequencyRatio meanPathDelay;
 									if (port->SmoothRateChange())
 									{
-										// We will use an IIR to smooth the rate ratio. The 
-										// IIR will differ slightly depending on the physical 
-										// network (wifi vs wired).
-										// when on wifi:
-										// filteredRateRatioMS = (lastRateRatio * 255 / 256) + (RR2 / 256)
-										// when wired:
-										// filteredRateRatioMS = (lastRateRatio * 63 / 64) + (RR2 / 64)
 										FR lastRateRatio = port->LastFilteredRateRatio();
 										// Assume wired for now...
 										//FR filteredRateRatioMS = (FR(lastRateRatio * 255) / 256) + (RR2 / 256);
-										FR filteredRateRatioMS = (FR(lastRateRatio * 63) / 64) + (RR2 / 64);
+										FR filteredRateRatioMS;
+										// We will use an IIR to smooth the rate ratio. The 
+										// IIR will differ slightly depending on the physical 
+										// network (wifi vs wired).
+										if (port->IsWireless())
+										{
+											filteredRateRatioMS = (lastRateRatio * 255 / 256) + (RR2 / 256);
+										}
+										else
+										{
+											filteredRateRatioMS = (lastRateRatio * 63 / 64) + (RR2 / 64);
+										}
+
 										port->LastFilteredRateRatio(filteredRateRatioMS);
 
 										meanPathDelay = ((t4-t1) - filteredRateRatioMS * (t3-t2)) / 2.0;						

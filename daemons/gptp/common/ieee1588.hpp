@@ -125,6 +125,10 @@ class InterfaceLabel {
  public:
 	virtual ~ InterfaceLabel() {
 	};
+	virtual const std::string Name() const
+	{
+		return "";
+	}
 };
 
 /**

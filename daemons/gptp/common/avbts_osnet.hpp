@@ -423,6 +423,11 @@ class InterfaceName: public InterfaceLabel {
 		}
 		return false;
 	}
+
+	const std::string Name() const
+	{
+		return name;
+	}
 };
 
 /**
@@ -567,6 +572,11 @@ class OSNetworkInterface {
 	 virtual int IpVersion() const
 	 {
 	 	return 4;
+	 }
+
+	 virtual bool IsWireless(const std::string& netInterfaceName) const
+	 {
+	 	return false;
 	 }
 };
 

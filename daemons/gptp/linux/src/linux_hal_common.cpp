@@ -62,6 +62,7 @@
 #include <linux/rtnetlink.h>
 #include <arpa/inet.h>
 
+#include <fstream>
 
 Timestamp tsToTimestamp(struct timespec *ts)
 {
@@ -91,7 +92,7 @@ net_result LinuxNetworkInterface::send
 	sockaddr *remote;
 	size_t remoteSize;
 	int err;
-
+#ifdef APTP
 	if (4 == addr->IpVersion())
 	{
 		memset(&remoteIpv4, 0, sizeof(remoteIpv4));
@@ -110,6 +111,17 @@ net_result LinuxNetworkInterface::send
 		remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
 		remoteSize = sizeof(remoteIpv6);
 	}
+#else
+	sockaddr_ll remoteOrig;
+	memset(&remoteOrig, 0, sizeof(remoteOrig));
+	remoteOrig.sll_family = AF_PACKET;
+	remoteOrig.sll_protocol = PLAT_htons(etherType);
+	remoteOrig.sll_ifindex = ifindex;
+	remoteOrig.sll_halen = ETH_ALEN;
+	addr->toOctetArray(remoteOrig.sll_addr);
+	remote = reinterpret_cast<sockaddr*>(&remoteOrig);
+	remoteSize = sizeof(remoteOrig);
+#endif	
 
 	if (timestamp) 
 	{
@@ -850,7 +862,6 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 {
 	struct ifreq device;
 	int err;
-	struct sockaddr_ll ifsock_addr;
 	LinkLayerAddress addr;
 	int ifindex;
 
@@ -883,15 +894,22 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 
 
 	int domain = 4 == ipVersion ? AF_INET : AF_INET6;
+#ifdef APTP
 	net_iface_l->sd_general = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
+#else
+	net_iface_l->sd_general = socket( PF_PACKET, SOCK_DGRAM, 0 );	
+#endif
 	if( net_iface_l->sd_general == -1 ) {
 		GPTP_LOG_ERROR( "failed to open general socket: %s", strerror(errno));
 		return false;
 	}
+#ifdef APTP
 	net_iface_l->sd_event = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
+#else
+	net_iface_l->sd_event = socket( PF_PACKET, SOCK_DGRAM, 0 );
+#endif
 
 	GPTP_LOG_VERBOSE("createInterface  net_iface_l->sd_event: %d", net_iface_l->sd_event);
-
 	if( net_iface_l->sd_event == -1 ) {
 		GPTP_LOG_ERROR
 			( "failed to open event socket: %s ", strerror(errno));
@@ -929,8 +947,6 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 
 	GPTP_LOG_VERBOSE("LinuxNetworkInterfaceFactory::createInterface  ifindex: %d", ifindex);
 
-	memset( &ifsock_addr, 0, sizeof( ifsock_addr ));
-
 	struct sockaddr_in evntIpv4;
 	struct sockaddr_in6 evntIpv6;
 	sockaddr *evntAddr;
@@ -940,6 +956,7 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 	sockaddr *genAddr;
 	size_t genAddrSize;
 
+#if APTP
 	if (4 == ipVersion)
 	{
 		memset(&evntIpv4, 0, sizeof(evntIpv4));
@@ -975,6 +992,33 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 		GPTP_LOG_ERROR("Invalid ip version %d not supported.", ipVersion);
 		return false;
 	}
+#else
+	struct packet_mreq mr_8021as;
+	memset( &mr_8021as, 0, sizeof( mr_8021as ));
+	mr_8021as.mr_ifindex = ifindex;
+	mr_8021as.mr_type = PACKET_MR_MULTICAST;
+	mr_8021as.mr_alen = 6;
+	memcpy( mr_8021as.mr_address, P8021AS_MULTICAST, mr_8021as.mr_alen );
+	err = setsockopt
+		( net_iface_l->sd_event, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
+		  &mr_8021as, sizeof( mr_8021as ));
+	if( err == -1 ) {
+		GPTP_LOG_ERROR
+			( "Unable to add PTP multicast addresses to port id: %u",
+			  ifindex );
+		return false;
+	}
+
+	struct sockaddr_ll ifsock_addr;
+	memset( &ifsock_addr, 0, sizeof( ifsock_addr ));
+	ifsock_addr.sll_family = AF_PACKET;
+	ifsock_addr.sll_ifindex = ifindex;
+	ifsock_addr.sll_protocol = PLAT_htons( PTP_ETHERTYPE );	
+	evntAddrSize = sizeof(ifsock_addr);
+	evntAddr = reinterpret_cast<sockaddr*>(&ifsock_addr);
+	genAddrSize = sizeof(ifsock_addr);
+	genAddr = reinterpret_cast<sockaddr*>(&ifsock_addr);
+#endif
 
 	GPTP_LOG_VERBOSE("LinuxNetworkInterfaceFactory::createInterface  ipVersion: %d", ipVersion);
 
@@ -1010,5 +1054,79 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 	*net_iface = net_iface_l;
 
 	return true;
+}
+
+std::string& StripLeading(std::string& value)
+{
+	using std::string;
+
+   // No need to manipulate empty strings.
+   if (value.empty())
+   {
+      return value;
+   }
+
+   // Iterate from the start of the string
+   // until we hit the first non-space character
+   const string::iterator limit = value.end();
+   string::iterator       p     = value.begin();
+   for (; p != limit && isspace(*p); ++p)
+   { 
+   } // Intentionally empty
+
+   // Remove the spaces
+   value.erase(value.begin(), p);
+
+   return value;
+}
+
+bool LinuxNetworkInterface::IsWireless(const std::string& netInterfaceName) const
+{
+	// Validate the network interface name
+	size_t pos;
+	std::ifstream devStream("/proc/net/dev");
+	std::string line;
+	std::string systemInterface;
+	bool isValidInterfaceName = false;
+	while (std::getline(devStream, line))
+	{
+		pos = line.find(":");
+		if (pos != std::string::npos)
+		{
+			systemInterface = line.substr(0, pos);
+			if (StripLeading(systemInterface) == netInterfaceName)
+			{
+				isValidInterfaceName = true;
+				break;
+			}
+		}
+	}
+
+	bool isWireless = false;
+	if (isValidInterfaceName)
+	{
+		// Determine if the interface is wired or not
+		std::string wirelessInterface;
+		std::ifstream wirelessStream("/proc/net/wireless");
+		while (std::getline(devStream, line))
+		{
+			pos = line.find(":");
+			if (pos != std::string::npos)
+			{
+				wirelessInterface = line.substr(0, pos);
+				if (StripLeading(wirelessInterface) == netInterfaceName)
+				{
+					isWireless = true;
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		GPTP_LOG_ERROR("Invalid network interface name.");
+		isWireless = false;
+	}
+	return isWireless;
 }
 

@@ -216,14 +216,8 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 				}
 				else
 				{
-					if (4 == fIpVersion)
-					{
-						*addr = LinkLayerAddress(remoteIpv4);	
-					}
-					else
-					{
-						*addr = LinkLayerAddress(remoteIpv6);
-					}
+					*addr = 4 == fIpVersion 
+					 ? LinkLayerAddress(remoteIpv4) : LinkLayerAddress(remoteIpv6);	
 
 					struct timespec ts;
 					clock_gettime(CLOCK_REALTIME, &ts);

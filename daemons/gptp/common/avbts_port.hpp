@@ -392,6 +392,7 @@ class IEEE1588Port {
 	ALastTimestampKeeper fLastTimestamps;
 
 	bool smoothRateChange;
+	bool fIsWireless;
 	int fIpVersion;
 
 	/* Signed value allows this to be negative result because of inaccurate
@@ -1901,6 +1902,16 @@ class IEEE1588Port {
 	bool SmoothRateChange() const
 	{
 		return smoothRateChange;
+	}
+
+	const bool IsWireless() const
+	{
+		return fIsWireless;
+	}
+
+	void IsWireless(bool yesno)
+	{
+		fIsWireless = yesno;
 	}
 
 	int IpVersion() const

@@ -134,6 +134,7 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	operLogSyncInterval = portInit->operLogSyncInterval;
 
 	smoothRateChange = portInit->smoothRateChange;
+	fIsWireless = false;
 	fIpVersion = portInit->ipVersion;
 	fLastFilteredRateRatio = 1;
 
@@ -287,6 +288,12 @@ bool IEEE1588Port::init_port(int delay[4])
 	{
 		return false;
 	}
+
+#ifdef APTP
+	fIsWireless = net_iface->IsWireless(net_label->Name());
+#else
+	fIsWireless = false;
+#endif
 
 	this->net_iface = net_iface;
 	this->net_iface->getLinkLayerAddress(&local_addr);

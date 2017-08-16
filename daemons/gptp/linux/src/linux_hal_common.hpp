@@ -207,6 +207,8 @@ public:
 		fIpVersion = version;
 	}
 
+	virtual bool IsWireless(const std::string& netInterfaceName) const;
+
 	/**
 	 * @brief  Disables rx socket descriptor rx queue
 	 * @return void
