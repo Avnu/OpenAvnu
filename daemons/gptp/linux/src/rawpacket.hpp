@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2017 Art and Logic.
  *
- * An abstration for a network data packet that provides a convient interface 
+ * An abstration for a network data packet that provides a convient interface
  * for managing data. It includes an ingress time stamp so that we can preserve
  * the time at which the packet is received in user space.
  */

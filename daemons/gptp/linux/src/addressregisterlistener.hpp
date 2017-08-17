@@ -28,7 +28,7 @@ class AAddressRegisterListener : public ASocket
 		{
 			// Intentionally empty
 		}
-		
+
 		virtual ~AAddressRegisterListener()
 		{
 			// Intentionally empty

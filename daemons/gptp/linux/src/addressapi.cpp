@@ -31,7 +31,7 @@ std::string& StripTrailing(std::string& value)
    const string::reverse_iterator limit = value.rend();
    string::reverse_iterator       p     = value.rbegin();
    for (; p != limit && (isspace(*p) || 0 == *p); ++p)
-   { 
+   {
    } // Intentionally empty
 
    // Remove the spaces
@@ -54,7 +54,7 @@ AAddressMessage::AAddressMessage(const ARawPacket& data)
 	fAddress.assign(begin, end);
 
 	StripTrailing(fAddress);
-	
+
 	if (sizeof(fType) + fAddress.length() > kAddressApiMsgLength)
 	{
 		std::string msg = "Address length exceeds maximum size of " +
@@ -62,7 +62,7 @@ AAddressMessage::AAddressMessage(const ARawPacket& data)
 		GPTP_LOG_ERROR(msg.c_str());
 		//std::cerr << msg << std::endl;
 		throw(std::runtime_error(msg));
-	}			
+	}
 }
 
 AAddressMessage::~AAddressMessage()
@@ -114,7 +114,7 @@ void AAddressMessage::Copy(ARawPacket& packet)
 
 void AAddressMessage::DebugLog()
 {
-	std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl; 
+	std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
 	std::cout << "message type: " << int(fType) << std::endl;
 	std::cout << "address: " << fAddress << std::endl;
 	std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;

@@ -121,9 +121,9 @@ net_result LinuxNetworkInterface::send
 	addr->toOctetArray(remoteOrig.sll_addr, sizeof(remoteOrig.sll_addr));
 	remote = reinterpret_cast<sockaddr*>(&remoteOrig);
 	remoteSize = sizeof(remoteOrig);
-#endif	
+#endif
 
-	if (timestamp) 
+	if (timestamp)
 	{
 #ifndef ARCH_INTELCE
 #ifndef APTP
@@ -132,14 +132,14 @@ net_result LinuxNetworkInterface::send
 #endif
 		GPTP_LOG_VERBOSE("sendto  sd_event");
 		err = sendto(sd_event, payload, length, 0, remote, remoteSize);
-	} 
+	}
 	else
 	{
 		GPTP_LOG_VERBOSE("sendto  sd_general");
 		err = sendto(sd_general, payload, length, 0, remote, remoteSize);
   	}
-	
-	
+
+
 	if (err == -1)
 	{
 		GPTP_LOG_ERROR( "Failed to send: %s(%d)", strerror(errno), errno );
@@ -353,7 +353,7 @@ OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
 
 
 
-bool LinuxTimerQueue::addEvent(unsigned long micros, int type, 
+bool LinuxTimerQueue::addEvent(unsigned long micros, int type,
  ostimerq_handler func, event_descriptor_t * arg, bool rm, unsigned *event)
 {
 	LinuxTimerQueueActionArg *outer_arg;
@@ -370,7 +370,7 @@ bool LinuxTimerQueue::addEvent(unsigned long micros, int type,
 	// !!! Experimental for reducing the number of per process timers
 	// // Find key that we can use
 	// auto lowerBound = timerQueueMap.lower_bound(type);
-	// if (lowerBound != timerQueueMap.end() && 
+	// if (lowerBound != timerQueueMap.end() &&
 	//  !timerQueueMap.key_comp()(type, lowerBound->first))
 	// {
 	// 	// Update the timer
@@ -478,13 +478,13 @@ bool TicketingLock::lock( bool *got ) {
 
 	if( pthread_mutex_lock( &_private->cond_lock ) != 0 ) {
 		GPTP_LOG_VERBOSE("TicketingLock::lock Not LOCKed");
-		ret = false;	
+		ret = false;
 		goto done;
 	}
 	// Take a ticket
 	ticket = cond_ticket_issue++;
 	while( ticket != cond_ticket_serving ) {
-		if( got != NULL ) {			
+		if( got != NULL ) {
 			*got = false;
 			--cond_ticket_issue;
 			yield = true;
@@ -739,7 +739,7 @@ LinuxThread::LinuxThread() {
 	_private = NULL;
 };
 
-LinuxThread::~LinuxThread() 
+LinuxThread::~LinuxThread()
 {
 	delete _private;
 }
@@ -787,7 +787,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 	}
 	master_offset_buffer = (char *) mmap(NULL, SHM_SIZE,
 	 PROT_READ | PROT_WRITE, MAP_LOCKED | MAP_SHARED, shm_fd, 0);
-	if (master_offset_buffer == (char *)-1) 
+	if (master_offset_buffer == (char *)-1)
 	{
 		GPTP_LOG_ERROR( "mmap()" );
 		goto exit_unlink;
@@ -907,7 +907,7 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 #ifdef APTP
 	net_iface_l->sd_general = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
 #else
-	net_iface_l->sd_general = socket( PF_PACKET, SOCK_DGRAM, 0 );	
+	net_iface_l->sd_general = socket( PF_PACKET, SOCK_DGRAM, 0 );
 #endif
 	if( net_iface_l->sd_general == -1 ) {
 		GPTP_LOG_ERROR( "failed to open general socket: %s", strerror(errno));
@@ -928,7 +928,7 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 
 	memset( &device, 0, sizeof(device));
 	ifname->toString( device.ifr_name, IFNAMSIZ - 1 );
-	
+
 	GPTP_LOG_VERBOSE("device.ifr_name: %s", device.ifr_name);
 
 	err = ioctl( net_iface_l->sd_event, SIOCGIFHWADDR, &device );
@@ -1023,7 +1023,7 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 	memset( &ifsock_addr, 0, sizeof( ifsock_addr ));
 	ifsock_addr.sll_family = AF_PACKET;
 	ifsock_addr.sll_ifindex = ifindex;
-	ifsock_addr.sll_protocol = PLAT_htons( PTP_ETHERTYPE );	
+	ifsock_addr.sll_protocol = PLAT_htons( PTP_ETHERTYPE );
 	evntAddrSize = sizeof(ifsock_addr);
 	evntAddr = reinterpret_cast<sockaddr*>(&ifsock_addr);
 	genAddrSize = sizeof(ifsock_addr);
@@ -1081,7 +1081,7 @@ std::string& StripLeading(std::string& value)
    const string::iterator limit = value.end();
    string::iterator       p     = value.begin();
    for (; p != limit && isspace(*p); ++p)
-   { 
+   {
    } // Intentionally empty
 
    // Remove the spaces

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2017 Art and Logic.
  *
- * Implementation for a linux specific socket abstration providing an object 
+ * Implementation for a linux specific socket abstration providing an object
  * based interface for dealing with lower level sockets.
  */
 #include <iostream>
@@ -15,7 +15,7 @@
 
 #include "socket.hpp"
 
-ASocket::ASocket(const std::string& interfaceName, uint16_t port, 
+ASocket::ASocket(const std::string& interfaceName, uint16_t port,
  int ipVersion) :
  fInterfaceName(interfaceName),
  fBindOk(false),
@@ -38,7 +38,7 @@ ASocket::ASocket(const std::string& interfaceName, uint16_t port,
 		struct ifreq device;
 		memset(&device, 0, sizeof(device));
 		interfaceName.copy(device.ifr_name, IFNAMSIZ - 1);
-		
+
 		int err = ioctl(fSocketDescriptor, SIOCGIFHWADDR, &device);
 		if (-1 == err)
 		{
@@ -114,18 +114,18 @@ bool ASocket::Receive(ARawPacket& data, std::mutex& keeper)
 		FD_SET(fSocketDescriptor, &fReadfds);
 
 		int err = select(fSocketDescriptor+1, &fReadfds, NULL, NULL, &timeout);
-		if (0 == err) 
+		if (0 == err)
 		{
 			// Intentionally left blank
 		}
-		else if (-1 == err) 
+		else if (-1 == err)
 		{
 			std::string msg = "select ";
 			msg += (EINTR == errno ? "recv signal" : "failed");
 			//std::cerr << msg << std::endl;
 			throw(std::runtime_error(msg));
-		} 
-		else if (!FD_ISSET(fSocketDescriptor, &fReadfds)) 
+		}
+		else if (!FD_ISSET(fSocketDescriptor, &fReadfds))
 		{
 			std::string msg = "FD_ISSET  failed";
 			//std::cerr << msg << std::endl;
@@ -171,7 +171,7 @@ bool ASocket::Send(std::mutex& keeper, const std::string& ipAddress, int port,
 	{
 		std::string msg = "Invalid ip version " + std::to_string(fIpVersion);
 		throw(std::runtime_error(msg));
-	}	
+	}
 
 	std::lock_guard<std::mutex> guard(keeper);
 
@@ -230,7 +230,7 @@ void ASocket::Bind()
 	else
 	{
 		fBindOk = true;
-	}			
+	}
 }
 
 bool ASocket::ReceiveData(ARawPacket& data, std::mutex& keeper)
@@ -288,7 +288,7 @@ bool ASocket::ReceiveData(ARawPacket& data, std::mutex& keeper)
 	size_t bytesReceived = recvmsg(fSocketDescriptor, &msg, 0);
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
-	if (bytesReceived < 0) 
+	if (bytesReceived < 0)
 	{
 		// if (ENOMSG == errno)
 		// {
@@ -309,13 +309,13 @@ bool ASocket::ReceiveData(ARawPacket& data, std::mutex& keeper)
 		data.Assign(buf, toCopySize);
 		if (4 == fIpVersion)
 		{
-			data.RemoteAddress(remoteIpv4);	
+			data.RemoteAddress(remoteIpv4);
 		}
 		else
 		{
 			data.RemoteAddress(remoteIpv6);
 		}
-		
+
 		haveData = true;
 	}
 	return haveData;

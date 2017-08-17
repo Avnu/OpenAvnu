@@ -46,7 +46,7 @@ void AAddressRegisterListener::ProcessData(ARawPacket& data)
 	}
 
 	// Use an associative collection to map integral message types to
-	// corresponding class instances. Processing of the data is then 
+	// corresponding class instances. Processing of the data is then
 	// delegated to each class instance.
 	static std::map<int, std::shared_ptr<AAddressMessage> > mapper = {
 		{AddressApiAdd, std::make_shared<AAddAddressMessage>()},
