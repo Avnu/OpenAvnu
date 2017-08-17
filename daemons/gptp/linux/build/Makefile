@@ -118,7 +118,6 @@ else ifeq ($(ARCH),RPI)
 		$(SRC_DIR)/addressapi.hpp \
 		$(SRC_DIR)/rawpacket.hpp \
 		$(SRC_DIR)/socket.hpp 
-	LDFLAGS_G += -lwiringPi
 else
 	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
 		$(OBJ_DIR)/linux_hal_generic_adj.o

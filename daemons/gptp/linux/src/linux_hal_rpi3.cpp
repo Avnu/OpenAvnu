@@ -39,7 +39,6 @@
 
 #include <ctime>
 #include <chrono>
-#include <wiringPi.h>
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -48,6 +47,138 @@
 #include <fstream>
 
 using namespace std::chrono;
+
+#include <unistd.h>
+#include <fcntl.h>
+
+class AGpio
+{
+   public:
+      enum Direction {kIn, kOut};
+      enum Binary {kLow = 0, kHigh};
+
+   public:
+      AGpio(int gpioPinNumber, Direction inout) :
+       fGpioPinNumber(gpioPinNumber),
+       fDirection(inout),
+       fIsSetup(false)
+      {
+      }
+
+      ~AGpio()
+      {
+         if (fIsSetup)
+         {
+            int unexportfd = open("/sys/class/gpio/unexport", O_WRONLY|O_SYNC);
+            if (unexportfd < 0)
+            {
+               GPTP_LOG_ERROR("Can't open GPIO unexport device.");
+            }
+
+            std::string toWrite = std::to_string(fGpioPinNumber);
+            if (write(unexportfd, toWrite.c_str(), toWrite.length()) < 0)
+            {
+               GPTP_LOG_ERROR("Can't write to GPIO unexport device.");
+            }
+            
+            if (close(unexportfd) < 0)
+            {
+               GPTP_LOG_ERROR("Can't close GPIO unexport device.");
+            }
+         }
+      }
+
+   public:
+      void Output(Binary value)
+      {
+         if (!fIsSetup)
+         {
+            Setup();
+         }
+         std::string valueDevice = std::string("/sys/class/gpio/gpio") +
+          std::to_string(fGpioPinNumber) + "/value";
+         int valuefd = open(valueDevice.c_str(), O_WRONLY|O_SYNC);
+         if (valuefd < 0)
+         {
+            GPTP_LOG_ERROR("Can't open the GPIO value device.");
+         }
+         else
+         {
+            std::string toWrite = std::to_string(value);
+            if (write(valuefd, toWrite.c_str(), toWrite.length()) < 0)
+            {
+               GPTP_LOG_ERROR("Can't write to the GPIO value device.");
+            }
+            
+            if (close(valuefd) < 0)
+            {
+               GPTP_LOG_ERROR("Can't close the GPIO value device.");
+            }
+         }
+      }
+
+   private:
+      void Setup()
+      {
+         std::string toWrite;
+         int exportfd = open("/sys/class/gpio/export",  O_WRONLY|O_SYNC);
+         if (exportfd < 0)
+         {
+            GPTP_LOG_ERROR("Can't open the GPIO export device.");
+         }
+         else
+         {
+            bool writeOk = false;
+            toWrite = std::to_string(fGpioPinNumber);
+            if (write(exportfd, toWrite.c_str(), toWrite.length()) < 0)
+            {
+               GPTP_LOG_ERROR("Can't write to the GPIO export device.");
+            }
+            else
+            {
+               writeOk = true;
+            }
+            
+            if (close(exportfd) < 0)
+            {
+               GPTP_LOG_ERROR("Can't close the GPIO export device.");
+            }
+
+            if (writeOk)
+            {
+               std::string directionDevicePath ="/sys/class/gpio/gpio" +
+                std::to_string(fGpioPinNumber) + "/direction";
+               int directionfd = open(directionDevicePath.c_str(), O_WRONLY|O_SYNC);
+               if (directionfd < 0)
+               {
+                  GPTP_LOG_ERROR("Can't open the GPIO direction device.");
+               }
+               else
+               {
+                  toWrite = kIn == fDirection ? "in" : "out";
+                  if (write(directionfd, toWrite.c_str(), toWrite.length()) < 0)
+                  {
+                     GPTP_LOG_ERROR("Can't write to the GPIO direction device.");
+                  }
+                  else
+                  {
+                     fIsSetup = true;
+                  }
+               }
+
+               if (close(directionfd) < 0)
+               {
+                  GPTP_LOG_ERROR("Can't close GPIO direction device.");
+               }
+            }
+         }
+      }
+      
+   private:
+      int fGpioPinNumber;
+      Direction fDirection;
+      bool fIsSetup;
+};
 
 class AGPioPinger
 {
@@ -67,17 +198,14 @@ class AGPioPinger
        fInterval(500),
        fTimestamper(nullptr),
        fLastTimestamp(0),
-       fRate(kOnePerSecond)
+       fRate(kOnePerSecond),
+       fGpioPin(piPinNumber, AGpio::kOut)
       {
-         wiringPiSetup();
-         pinMode(piPinNumber, OUTPUT);
          fDebugLogFile.open("gpiopinger.txt", std::ofstream::out);
       }
 
       ~AGPioPinger()
       {
-         // Ensure we set the pin low
-         digitalWrite(fPinNumber, LOW) ;
          fDebugLogFile.close();
       }
 
@@ -92,7 +220,7 @@ class AGPioPinger
          time_t nowTs = system_clock::to_time_t(system_clock::now());
          while (nowTs < timeToStart)
          {
-            delay(1000);
+            usleep(1000000);
             nowTs = system_clock::to_time_t(system_clock::now());
          }
          fKeepGoing = true;
@@ -141,6 +269,10 @@ class AGPioPinger
             
             ActivatePin();
          }
+
+         // Ensure we set the pin low
+         fGpioPin.Output(AGpio::kLow);
+
          return true;
       }
 
@@ -154,12 +286,12 @@ class AGPioPinger
       // fLastActivate = now;
 
       // Set the GPIO pin high for interval microseconds
-      digitalWrite(fPinNumber, HIGH);
-      delayMicroseconds(fInterval);
+      fGpioPin.Output(AGpio::kHigh);
+      usleep(fInterval);
 
       // Set the GPIO pin low for interval microseconds
-      digitalWrite(fPinNumber, LOW) ;
-      //delayMicroseconds(fInterval);
+      fGpioPin.Output(AGpio::kLow);
+      //usleep(fInterval);
    }
 
    int64_t CurrentUnit() const
@@ -255,7 +387,7 @@ class AGPioPinger
 
       CalculateNextInterval();
       int64_t sleepInterval = CalculateSleepInterval(timestamp);
-      delayMicroseconds(sleepInterval > 0 ? sleepInterval : fInterval);
+      usleep(sleepInterval > 0 ? sleepInterval : fInterval);
    }
 
    void AdjustToTimestamp()
@@ -271,13 +403,13 @@ class AGPioPinger
          if (timeStamp == fLastTimestamp)
          {
             //std::cout << "**********************timeStamp:" << timeStamp << "   fLastTimestamp:" << fLastTimestamp << std::endl;
-            //delayMicroseconds(fInterval);
+            //usleep(fInterval);
             // Calculate the next interval with respect to local time
             SleepWithLocalClock();
          }
          else
          {
-            //delayMicroseconds(CalculateSleepInterval(timeStamp));            
+            //usleep(CalculateSleepInterval(timeStamp));            
             
             // Calculate when the next interval(second, 1/10 s, etc) should 
             // occur in master time - it sets member fNextInterval
@@ -316,7 +448,7 @@ class AGPioPinger
                // sleep until the the calculated wake up time
                if (sleepInterval > 0)
                {
-                  delayMicroseconds(sleepInterval);
+                  usleep(sleepInterval);
                }
                
                GPTP_LOG_INFO("-------------------------WAKE UP");
@@ -351,7 +483,7 @@ class AGPioPinger
          std::cout << "Warning PPS has no timestamper." << std::endl;
 
          // So that the led will be "off" for fInterval of time
-         delayMicroseconds(fInterval);
+         usleep(fInterval);
       }
    }
 
@@ -383,6 +515,7 @@ class AGPioPinger
       std::ofstream fDebugLogFile;
       std::chrono::high_resolution_clock::time_point fLastActivate;
       int64_t fNextInterval;
+      AGpio fGpioPin;
 
       const int64_t kOneSecNano = 1000000000;
       const int64_t kTenthSecNano = 100000000;
@@ -395,7 +528,7 @@ class AGPioPinger
 
 // Create a rpi GPIO pinger for GPIO physical pin 11
 // NOTE: physical_pin_number_11 == GPIO17 == wiringPi_pin_0
-static AGPioPinger sPinger(0);
+static AGPioPinger sPinger(17);
 
 OSThreadExitCode runPinger(void *arg)
 {
