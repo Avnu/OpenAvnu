@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2012, Intel Corporation 
+  Copyright (c) 2012, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -80,7 +80,7 @@ class AGpio
             {
                GPTP_LOG_ERROR("Can't write to GPIO unexport device.");
             }
-            
+
             if (close(unexportfd) < 0)
             {
                GPTP_LOG_ERROR("Can't close GPIO unexport device.");
@@ -109,7 +109,7 @@ class AGpio
             {
                GPTP_LOG_ERROR("Can't write to the GPIO value device.");
             }
-            
+
             if (close(valuefd) < 0)
             {
                GPTP_LOG_ERROR("Can't close the GPIO value device.");
@@ -138,7 +138,7 @@ class AGpio
             {
                writeOk = true;
             }
-            
+
             if (close(exportfd) < 0)
             {
                GPTP_LOG_ERROR("Can't close the GPIO export device.");
@@ -173,7 +173,7 @@ class AGpio
             }
          }
       }
-      
+
    private:
       int fGpioPinNumber;
       Direction fDirection;
@@ -258,7 +258,7 @@ class AGPioPinger
             fInterval = 500;
             break;
          }
-        
+
          while (fKeepGoing)
          {
             // Adjust the pulse rate to be aliggned with the MC adjusted timestamp
@@ -266,7 +266,7 @@ class AGPioPinger
 
             // Adjust the pulse rate to be aligned with the system clock
             //AdjustToSystemClock();
-            
+
             ActivatePin();
          }
 
@@ -315,7 +315,7 @@ class AGPioPinger
          unit = kThousandthSecNano;
          break;
       }
-      return unit;      
+      return unit;
    }
 
    int64_t CalculateNextInterval()
@@ -344,7 +344,7 @@ class AGPioPinger
       int64_t delta = fNextInterval < timeStamp
        ? fInterval - kMicroSlopFactor : (fNextInterval - timeStamp) / 1000;
       // std::cout << "**********************timeStamp:" << timeStamp
-      //  << "   nextInterval:" << nextInterval 
+      //  << "   nextInterval:" << nextInterval
       //  << "   delta:" << delta << std::endl;
       return delta;
    }
@@ -409,13 +409,13 @@ class AGPioPinger
          }
          else
          {
-            //usleep(CalculateSleepInterval(timeStamp));            
-            
-            // Calculate when the next interval(second, 1/10 s, etc) should 
+            //usleep(CalculateSleepInterval(timeStamp));
+
+            // Calculate when the next interval(second, 1/10 s, etc) should
             // occur in master time - it sets member fNextInterval
             CalculateNextInterval(timeStamp);
 
-            // Convert fNextInterval to local time and subtract a slop factor - this 
+            // Convert fNextInterval to local time and subtract a slop factor - this
             // is how long we sleep
             int64_t adjustedNextSecond = ConvertToLocal(fNextInterval);
 
@@ -450,7 +450,7 @@ class AGPioPinger
                {
                   usleep(sleepInterval);
                }
-               
+
                GPTP_LOG_INFO("-------------------------WAKE UP");
                // Poll the master time and see when the time wraps on the interval
                // (second) boundary
@@ -469,14 +469,14 @@ class AGPioPinger
                GPTP_LOG_INFO("-------------------------timeStamp:       %" PRIu64, timeStamp);
                GPTP_LOG_INFO("-------------------------now(2):          %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
 
-               // raise the GPIO. 
-               // then sleep for short duration 
+               // raise the GPIO.
+               // then sleep for short duration
                // lower the GPIO
-               // repeat.              
+               // repeat.
             }
          }
 
-         fLastTimestamp = timeStamp;                 
+         fLastTimestamp = timeStamp;
       }
       else
       {
@@ -537,13 +537,13 @@ OSThreadExitCode runPinger(void *arg)
    AGPioPinger *p = static_cast<AGPioPinger *>(arg);
 
    system_clock::time_point now = system_clock::now();
- 
+
    // Edges must be second aligned
    return p->Start(system_clock::to_time_t(now), AGPioPinger::kOnePerSecond)
     ? osthread_ok : osthread_error;
 }
 
-bool LinuxTimestamperGeneric::HWTimestamper_PPS_start() 
+bool LinuxTimestamperGeneric::HWTimestamper_PPS_start()
 {
    bool ok = true;
    fPulseThread = fPulseThreadFactory->create();
@@ -556,7 +556,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_PPS_start()
 	return ok;
 }
 
-bool LinuxTimestamperGeneric::HWTimestamper_PPS_stop() 
+bool LinuxTimestamperGeneric::HWTimestamper_PPS_stop()
 {
    sPinger.Stop();
 	return true;
