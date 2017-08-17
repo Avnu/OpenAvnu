@@ -105,7 +105,6 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-	struct sockaddr_in remoteIpv4;
 	struct sockaddr_in6 remoteIpv6;
 
 	struct iovec sgentry;
@@ -179,23 +178,10 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 				sgentry.iov_base = payload;
 				sgentry.iov_len = length;
 
-				if (4 == fIpVersion)
-				{
-					memset(&remoteIpv4, 0, sizeof(remoteIpv4));
-					msg.msg_name = &remoteIpv4;
-					msg.msg_namelen = sizeof(remoteIpv4);
-				}
-				else if (6 == fIpVersion)
-				{
-					memset(&remoteIpv6, 0, sizeof(remoteIpv6));
-					msg.msg_name = &remoteIpv6;
-					msg.msg_namelen = sizeof(remoteIpv6);
-				}
-				else
-				{
-					GPTP_LOG_ERROR("Invalid ip version set when attempting to receive.");
-					ret = net_fatal;
-				}
+				memset(&remoteIpv6, 0, sizeof(remoteIpv6));
+				msg.msg_name = &remoteIpv6;
+				msg.msg_namelen = sizeof(remoteIpv6);
+
 				msg.msg_control = &control;
 				msg.msg_controllen = sizeof(control);
 
@@ -216,8 +202,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 				}
 				else
 				{
-					*addr = 4 == fIpVersion 
-					 ? LinkLayerAddress(remoteIpv4) : LinkLayerAddress(remoteIpv6);	
+					*addr = LinkLayerAddress(remoteIpv6);
 
 					struct timespec ts;
 					clock_gettime(CLOCK_REALTIME, &ts);

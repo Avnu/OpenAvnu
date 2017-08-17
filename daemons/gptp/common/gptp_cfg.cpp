@@ -254,11 +254,6 @@ int GptpIniParser::iniCallBack(void *user, const char *section,
             parser->_config.adrRegSocketPort = std::stoi(value);
             valOK = true;
         }
-        else if (parseMatch(name, "ip_version"))
-        {
-            parser->_config.ipVersion = std::stoi(value);
-            valOK = true;
-        }
     }
 
     if(valOK)

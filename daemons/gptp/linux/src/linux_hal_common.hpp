@@ -159,7 +159,6 @@ private:
 	int sd_general;
 	LinuxTimestamper *timestamper;
 	int ifindex;
-	int fIpVersion;
 
 	TicketingLock net_lock;
 	TicketingLock fNetLockEvent;
@@ -196,16 +195,6 @@ public:
 
 	virtual net_result nrecvGeneral(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
 	 struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port);
-
-	virtual int IpVersion() const
-	{
-		return fIpVersion;
-	}
-
-	virtual void IpVersion(int version)
-	{
-		fIpVersion = version;
-	}
 
 	virtual bool IsWireless(const std::string& netInterfaceName) const;
 
@@ -643,7 +632,7 @@ public:
 	 * @return TRUE if no error during interface creation, FALSE otherwise
 	 */
 	virtual bool createInterface(OSNetworkInterface **net_iface, InterfaceLabel *label,
-	  HWTimestamper *timestamper, int ipVersion);
+	  HWTimestamper *timestamper);
 };
 
 /**

@@ -15,17 +15,14 @@
 
 #include "socket.hpp"
 
-ASocket::ASocket(const std::string& interfaceName, uint16_t port,
- int ipVersion) :
+ASocket::ASocket(const std::string& interfaceName, uint16_t port) :
  fInterfaceName(interfaceName),
  fBindOk(false),
  fIngressTimeNano(0),
- fContinue(true),
- fIpVersion(ipVersion)
+ fContinue(true)
 {
 	fPort = port;
-	int domain = 4 == ipVersion ? AF_INET : AF_INET6;
-	fSocketDescriptor = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
+	fSocketDescriptor = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (-1 == fSocketDescriptor)
 	{
 		std::string msg = "Failed to open socket: ";
@@ -35,6 +32,11 @@ ASocket::ASocket(const std::string& interfaceName, uint16_t port,
 	}
 	else
 	{
+		// Configure the socket to send to and receive from ipv4 or ipv6 addresses
+		int v6OnlyValue = 0;
+		setsockopt(fSocketDescriptor, SOL_SOCKET, IPV6_V6ONLY, &v6OnlyValue,
+		 sizeof(v6OnlyValue));
+
 		struct ifreq device;
 		memset(&device, 0, sizeof(device));
 		interfaceName.copy(device.ifr_name, IFNAMSIZ - 1);
@@ -144,34 +146,16 @@ bool ASocket::Send(std::mutex& keeper, const std::string& ipAddress, int port,
 {
 	bool ok = true;
 
-	struct sockaddr_in remoteIpv4;
 	struct sockaddr_in6 remoteIpv6;
 	sockaddr * remote;
 	size_t remoteSize;
 
-	if (4 == fIpVersion)
-	{
-		memset(&remoteIpv4, 0, sizeof(remoteIpv4));
-		remoteIpv4.sin_port = htons(port);
-		remoteIpv4.sin_family = AF_INET;
-		remote = reinterpret_cast<sockaddr*>(&remoteIpv4);
-		remoteSize = sizeof(remoteIpv4);
-		inet_pton(AF_INET, ipAddress.c_str(), &remoteIpv4.sin_addr);
-	}
-	else if (6 == fIpVersion)
-	{
-		memset(&remoteIpv6, 0, sizeof(remoteIpv6));
-		remoteIpv6.sin6_port = htons(port);
-		remoteIpv6.sin6_family = AF_INET6;
-		remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
-		remoteSize = sizeof(remoteIpv6);
-		inet_pton(AF_INET6, ipAddress.c_str(), &remoteIpv6.sin6_addr);
-	}
-	else
-	{
-		std::string msg = "Invalid ip version " + std::to_string(fIpVersion);
-		throw(std::runtime_error(msg));
-	}
+	memset(&remoteIpv6, 0, sizeof(remoteIpv6));
+	remoteIpv6.sin6_port = htons(port);
+	remoteIpv6.sin6_family = AF_INET6;
+	remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
+	remoteSize = sizeof(remoteIpv6);
+	inet_pton(AF_INET6, ipAddress.c_str(), &remoteIpv6.sin6_addr);
 
 	std::lock_guard<std::mutex> guard(keeper);
 
@@ -186,40 +170,19 @@ bool ASocket::Send(std::mutex& keeper, const std::string& ipAddress, int port,
 	return ok;
 }
 
-void ASocket::IpVersion(int version)
-{
-	fIpVersion = version;
-}
-
 void ASocket::Bind()
 {
-	sockaddr_in addrIpv4;
 	sockaddr_in6 addrIpv6;
 	sockaddr *addr;
 	size_t addrSize;
-	if (4 == fIpVersion)
-	{
-		memset(&addrIpv4, 0, sizeof(addrIpv4));
-		addrIpv4.sin_port = htons(fPort);
-		addrIpv4.sin_addr.s_addr = htonl(INADDR_ANY);
-		addrIpv4.sin_family = AF_INET;
-		addr = reinterpret_cast<sockaddr*>(&addrIpv4);
-		addrSize = sizeof(addrIpv4);
-	}
-	else if (6 == fIpVersion)
-	{
-		memset(&addrIpv6, 0, sizeof(addrIpv6));
-		addrIpv6.sin6_port = htons(fPort);
-		addrIpv6.sin6_addr = in6addr_any;
-		addrIpv6.sin6_family = AF_INET6;
-		addr = reinterpret_cast<sockaddr*>(&addrIpv6);
-		addrSize = sizeof(addrIpv6);
-	}
-	else
-	{
-		std::string msg = "Invalid ip version " + std::to_string(fIpVersion);
-		throw(std::runtime_error(msg));
-	}
+
+	memset(&addrIpv6, 0, sizeof(addrIpv6));
+	addrIpv6.sin6_port = htons(fPort);
+	addrIpv6.sin6_addr = in6addr_any;
+	addrIpv6.sin6_family = AF_INET6;
+	addr = reinterpret_cast<sockaddr*>(&addrIpv6);
+	addrSize = sizeof(addrIpv6);
+
 	int err = bind(fSocketDescriptor, addr, addrSize);
 	if (-1 == err)
 	{
@@ -242,31 +205,16 @@ bool ASocket::ReceiveData(ARawPacket& data, std::mutex& keeper)
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-	struct sockaddr_in remoteIpv4;
+
 	struct sockaddr_in6 remoteIpv6;
 	size_t remoteSize;
 	sockaddr *remote;
-	if (4 == fIpVersion)
-	{
-		memset(&remoteIpv4, 0, sizeof(remoteIpv4));
-		remoteIpv4.sin_port = htons(fPort);
-		remoteIpv4.sin_addr.s_addr = htonl(INADDR_ANY);
-		remote = reinterpret_cast<sockaddr*>(&remoteIpv4);
-		remoteSize = sizeof(remoteIpv4);
-	}
-	else if (6 == fIpVersion)
-	{
-		memset(&remoteIpv6, 0, sizeof(remoteIpv6));
-		remoteIpv6.sin6_port = htons(fPort);
-		remoteIpv6.sin6_addr = in6addr_any;
-		remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
-		remoteSize = sizeof(remoteIpv6);
-	}
-	else
-	{
-		std::string msg = "Invalid ip version " + std::to_string(fIpVersion);
-		throw(std::runtime_error(msg));
-	}
+
+	memset(&remoteIpv6, 0, sizeof(remoteIpv6));
+	remoteIpv6.sin6_port = htons(fPort);
+	remoteIpv6.sin6_addr = in6addr_any;
+	remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
+	remoteSize = sizeof(remoteIpv6);
 
 	struct iovec sgentry;
 
@@ -307,15 +255,7 @@ bool ASocket::ReceiveData(ARawPacket& data, std::mutex& keeper)
 		size_t toCopySize = bytesReceived < kReceiveBufferSize
 		 ? bytesReceived : kReceiveBufferSize;
 		data.Assign(buf, toCopySize);
-		if (4 == fIpVersion)
-		{
-			data.RemoteAddress(remoteIpv4);
-		}
-		else
-		{
-			data.RemoteAddress(remoteIpv6);
-		}
-
+		data.RemoteAddress(remoteIpv6);
 		haveData = true;
 	}
 	return haveData;

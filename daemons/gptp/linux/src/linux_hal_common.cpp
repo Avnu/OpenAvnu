@@ -87,30 +87,17 @@ LinuxNetworkInterface::~LinuxNetworkInterface() {
 
 net_result LinuxNetworkInterface::send
 ( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length, bool timestamp ) {
-	struct sockaddr_in remoteIpv4;
-	struct sockaddr_in6 remoteIpv6;
 	sockaddr *remote;
 	size_t remoteSize;
 	int err;
 #ifdef APTP
-	if (4 == addr->IpVersion())
-	{
-		memset(&remoteIpv4, 0, sizeof(remoteIpv4));
-		remoteIpv4.sin_family = AF_INET;
-		remoteIpv4.sin_port = htons(addr->Port());
-		addr->getAddress(&remoteIpv4.sin_addr);
-		remote = reinterpret_cast<sockaddr*>(&remoteIpv4);
-		remoteSize = sizeof(remoteIpv4);
-	}
-	else if (6 == addr->IpVersion())
-	{
-		memset(&remoteIpv6, 0, sizeof(remoteIpv6));
-		remoteIpv6.sin6_family = AF_INET6;
-		remoteIpv6.sin6_port = htons(addr->Port());
-		addr->getAddress(&remoteIpv6.sin6_addr);
-		remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
-		remoteSize = sizeof(remoteIpv6);
-	}
+	struct sockaddr_in6 remoteIpv6;
+	memset(&remoteIpv6, 0, sizeof(remoteIpv6));
+	remoteIpv6.sin6_family = AF_INET6;
+	remoteIpv6.sin6_port = htons(addr->Port());
+	addr->getAddress(&remoteIpv6.sin6_addr);
+	remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
+	remoteSize = sizeof(remoteIpv6);
 #else
 	sockaddr_ll remoteOrig;
 	memset(&remoteOrig, 0, sizeof(remoteOrig));
@@ -868,7 +855,7 @@ void LinuxSharedMemoryIPC::stop() {
 }
 
 bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_iface,
- InterfaceLabel *label, HWTimestamper *timestamper, int ipVersion)
+ InterfaceLabel *label, HWTimestamper *timestamper)
 {
 	struct ifreq device;
 	int err;
@@ -876,8 +863,6 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 	int ifindex;
 
 	LinuxNetworkInterface *net_iface_l = new LinuxNetworkInterface();
-
-	net_iface_l->IpVersion(ipVersion);
 
 	if( !net_iface_l->net_lock.init()) {
 		GPTP_LOG_ERROR( "Failed to initialize network lock");
@@ -903,9 +888,12 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 	}
 
 
-	int domain = 4 == ipVersion ? AF_INET : AF_INET6;
+
 #ifdef APTP
-	net_iface_l->sd_general = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
+	// Allow for sending or receiving to / from ipv4 or ipv6 addresses
+	net_iface_l->sd_general = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	int v6OnlyValue = 0;
+	setsockopt(net_iface_l->sd_general, SOL_SOCKET, IPV6_V6ONLY, &v6OnlyValue, sizeof(v6OnlyValue));
 #else
 	net_iface_l->sd_general = socket( PF_PACKET, SOCK_DGRAM, 0 );
 #endif
@@ -913,12 +901,14 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 		GPTP_LOG_ERROR( "failed to open general socket: %s", strerror(errno));
 		return false;
 	}
+
 #ifdef APTP
-	net_iface_l->sd_event = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
+	// Allow for sending or receiving to / from ipv4 or ipv6 addresses
+	net_iface_l->sd_event = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	setsockopt(net_iface_l->sd_event, SOL_SOCKET, IPV6_V6ONLY, &v6OnlyValue, sizeof(v6OnlyValue));
 #else
 	net_iface_l->sd_event = socket( PF_PACKET, SOCK_DGRAM, 0 );
 #endif
-
 	GPTP_LOG_VERBOSE("createInterface  net_iface_l->sd_event: %d", net_iface_l->sd_event);
 	if( net_iface_l->sd_event == -1 ) {
 		GPTP_LOG_ERROR
@@ -957,51 +947,28 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 
 	GPTP_LOG_VERBOSE("LinuxNetworkInterfaceFactory::createInterface  ifindex: %d", ifindex);
 
-	struct sockaddr_in evntIpv4;
-	struct sockaddr_in6 evntIpv6;
+
 	sockaddr *evntAddr;
 	size_t evntAddrSize;
-	struct sockaddr_in genIpv4;
-	struct sockaddr_in6 genIpv6;
 	sockaddr *genAddr;
 	size_t genAddrSize;
 
 #if APTP
-	if (4 == ipVersion)
-	{
-		memset(&evntIpv4, 0, sizeof(evntIpv4));
-		evntIpv4.sin_port = htons(EVENT_PORT);
-		evntIpv4.sin_addr.s_addr = htonl(INADDR_ANY);
-		evntIpv4.sin_family = AF_INET;
-		evntAddrSize = sizeof(evntIpv4);
-		evntAddr = reinterpret_cast<sockaddr*>(&evntIpv4);
-		memset(&genIpv4, 0, sizeof(genIpv4));
-		genIpv4.sin_port = htons(GENERAL_PORT);
-		genIpv4.sin_addr.s_addr = htonl(INADDR_ANY);
-		genIpv4.sin_family = AF_INET;
-		genAddrSize = sizeof(genIpv4);
-		genAddr = reinterpret_cast<sockaddr*>(&genIpv4);
-	}
-	else if (6 == ipVersion)
-	{
-		memset(&evntIpv6, 0, sizeof(evntIpv6));
-		evntIpv6.sin6_port = htons(EVENT_PORT);
-		evntIpv6.sin6_family = AF_INET6;
-		evntIpv6.sin6_addr = in6addr_any;
-		evntAddrSize = sizeof(evntIpv6);
-		evntAddr = reinterpret_cast<sockaddr*>(&evntIpv6);
-		memset(&genIpv6, 0, sizeof(evntIpv6));
-		genIpv6.sin6_port = htons(GENERAL_PORT);
-		genIpv6.sin6_family = AF_INET6;
-		genIpv6.sin6_addr = in6addr_any;
-		genAddrSize = sizeof(genIpv6);
-		genAddr = reinterpret_cast<sockaddr*>(&genIpv6);
-	}
-	else
-	{
-		GPTP_LOG_ERROR("Invalid ip version %d not supported.", ipVersion);
-		return false;
-	}
+	struct sockaddr_in6 evntIpv6;
+	struct sockaddr_in6 genIpv6;
+
+	memset(&evntIpv6, 0, sizeof(evntIpv6));
+	evntIpv6.sin6_port = htons(EVENT_PORT);
+	evntIpv6.sin6_family = AF_INET6;
+	evntIpv6.sin6_addr = in6addr_any;
+	evntAddrSize = sizeof(evntIpv6);
+	evntAddr = reinterpret_cast<sockaddr*>(&evntIpv6);
+	memset(&genIpv6, 0, sizeof(evntIpv6));
+	genIpv6.sin6_port = htons(GENERAL_PORT);
+	genIpv6.sin6_family = AF_INET6;
+	genIpv6.sin6_addr = in6addr_any;
+	genAddrSize = sizeof(genIpv6);
+	genAddr = reinterpret_cast<sockaddr*>(&genIpv6);
 #else
 	struct packet_mreq mr_8021as;
 	memset( &mr_8021as, 0, sizeof( mr_8021as ));
@@ -1029,8 +996,6 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 	genAddrSize = sizeof(ifsock_addr);
 	genAddr = reinterpret_cast<sockaddr*>(&ifsock_addr);
 #endif
-
-	GPTP_LOG_VERBOSE("LinuxNetworkInterfaceFactory::createInterface  ipVersion: %d", ipVersion);
 
 	err = bind(net_iface_l->sd_event, evntAddr, evntAddrSize);
 	if (-1 == err)

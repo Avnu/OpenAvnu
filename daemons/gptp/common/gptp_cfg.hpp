@@ -71,7 +71,6 @@ class GptpIniParser
             std::list<std::string> unicastSendNodes;
             std::list<std::string> unicastReceiveNodes;
             uint16_t adrRegSocketPort;
-            int ipVersion;
 
             /*ethernet adapter data set*/
             std::string ifname;
@@ -105,11 +104,6 @@ class GptpIniParser
             return _config.adrRegSocketPort;
         }
 
-        int IpVersion() const
-        {
-           return _config.ipVersion;
-        }
-        
         /**
          * @brief  Reads priority1 config value
          * @param  void

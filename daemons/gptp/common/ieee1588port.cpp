@@ -135,7 +135,6 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 
 	smoothRateChange = portInit->smoothRateChange;
 	fIsWireless = false;
-	fIpVersion = portInit->ipVersion;
 	fLastFilteredRateRatio = 1;
 
 	fLastLocaltime = 0;
@@ -284,7 +283,7 @@ void IEEE1588Port::timestamper_reset(void)
 bool IEEE1588Port::init_port(int delay[4])
 {
 	if (!OSNetworkInterfaceFactory::buildInterface(&net_iface,
-	 factory_name_t("default"), net_label, _hw_timestamper, fIpVersion))
+	 factory_name_t("default"), net_label, _hw_timestamper))
 	{
 		return false;
 	}

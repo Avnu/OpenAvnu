@@ -289,7 +289,6 @@ typedef struct {
 	OSLockFactory * lock_factory;
 
 	bool smoothRateChange;
-	int ipVersion;
 } IEEE1588PortInit_t;
 
 
@@ -393,7 +392,6 @@ class IEEE1588Port {
 
 	bool smoothRateChange;
 	bool fIsWireless;
-	int fIpVersion;
 
 	/* Signed value allows this to be negative result because of inaccurate
 	   timestamp */
@@ -1912,16 +1910,6 @@ class IEEE1588Port {
 	void IsWireless(bool yesno)
 	{
 		fIsWireless = yesno;
-	}
-
-	int IpVersion() const
-	{
-		return fIpVersion;
-	}
-
-	void IpVersion(int version)
-	{
-		fIpVersion = version;
 	}
 
 	/**

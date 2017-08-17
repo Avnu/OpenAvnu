@@ -147,7 +147,7 @@ public:
 	 * @return TRUE success; FALSE error
 	 */
 	virtual bool createInterface( OSNetworkInterface **net_iface,
-	 InterfaceLabel *label, HWTimestamper *timestamper, int ipVersion)
+	 InterfaceLabel *label, HWTimestamper *timestamper)
 	{
 		WindowsPCAPNetworkInterface *net_iface_l = new WindowsPCAPNetworkInterface();
 		LinkLayerAddress *addr = dynamic_cast<LinkLayerAddress *>(label);

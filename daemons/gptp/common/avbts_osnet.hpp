@@ -70,36 +70,36 @@ class LinkLayerAddress : public InterfaceLabel
 	 * array with the first 48 bits.
 	 * @param address_scalar 64 bit address
 	 */
-	LinkLayerAddress(uint64_t address_scalar) {
+	LinkLayerAddress(uint64_t address_scalar)
+	{
 		uint8_t *ptr;
 		address_scalar <<= 16;
-		if (nullptr == fIpv4Addr)
+		if (nullptr == fIpv6Addr)
 		{
 			return;
 		}
 
-		for (ptr = fIpv4Addr; ptr < fIpv4Addr + ETHER_ADDR_OCTETS; ++ptr) {
+		for (ptr = fIpv6Addr; ptr < fIpv6Addr + ETHER_ADDR_OCTETS; ++ptr) {
 			*ptr = (address_scalar & 0xFF00000000000000ULL) >> 56;
 			address_scalar <<= 8;
 		}
 	}
 
-	LinkLayerAddress(const sockaddr_in &other)
-	{
-		char buf[INET_ADDRSTRLEN];
-		fIpVersion = 4;
-		inet_ntop(other.sin_family, &other.sin_addr, buf, sizeof(buf));
-		GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv4  addrStr:%s  sin_port:%d  "
-			"sin_family:%d", buf, other.sin_port, other.sin_family);
+	// LinkLayerAddress(const sockaddr_in &other)
+	// {
+	// 	char buf[INET_ADDRSTRLEN];
+	// 	fIpVersion = 4;
+	// 	inet_ntop(other.sin_family, &other.sin_addr, buf, sizeof(buf));
+	// 	GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv4  addrStr:%s  sin_port:%d  "
+	// 		"sin_family:%d", buf, other.sin_port, other.sin_family);
 
-		memset(fIpv4Addr, 0, sizeof(fIpv4Addr));
-		ParseIpAddress(buf, fIpv4Addr, ETHER_ADDR_OCTETS, ".");
-	}
+	// 	memset(fIpv4Addr, 0, sizeof(fIpv4Addr));
+	// 	ParseIpAddress(buf, fIpv4Addr, ETHER_ADDR_OCTETS, ".");
+	// }
 
 	LinkLayerAddress(const sockaddr_in6 &other)
 	{
 		char buf[INET6_ADDRSTRLEN];
-		fIpVersion = 6;
 		inet_ntop(other.sin6_family, &other.sin6_addr, buf, sizeof(buf));
 		GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv6  addrStr:%s  sin6_port:%d  "
 			"sin6_family:%d", buf, other.sin6_port, other.sin6_family);
@@ -115,7 +115,7 @@ class LinkLayerAddress : public InterfaceLabel
 	 */
 	LinkLayerAddress(uint8_t * address_octet_array)
 	{
-		uint8_t *ptr = 4 == fIpVersion ? fIpv4Addr : fIpv6Addr;
+		uint8_t *ptr = fIpv6Addr;
 		uint8_t *dest = ptr;
 		if (nullptr == address_octet_array)
 		{
@@ -137,8 +137,7 @@ class LinkLayerAddress : public InterfaceLabel
 	 */
 	bool operator==(const LinkLayerAddress & cmp) const 
 	{
-		return cmp.fIpVersion == fIpVersion && 
-			0 == memcmp(fIpv4Addr, cmp.fIpv4Addr, ETHER_ADDR_OCTETS) &&
+		return 
 			0 == memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) &&
 			cmp.fPort == fPort;
 	}
@@ -152,9 +151,7 @@ class LinkLayerAddress : public InterfaceLabel
 	 */
 	bool operator <(const LinkLayerAddress & cmp) const
 	{
-		return 4 == fIpVersion
-		 ? memcmp(fIpv4Addr, cmp.fIpv4Addr, ETHER_ADDR_OCTETS) < 0
-		 : memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) < 0;
+		return memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) < 0;
 	}
 
 	/**
@@ -166,9 +163,7 @@ class LinkLayerAddress : public InterfaceLabel
 	 */
 	bool operator>(const LinkLayerAddress & cmp) const
 	{
-		return 4 == fIpVersion
-		 ? memcmp(fIpv4Addr, cmp.fIpv4Addr, ETHER_ADDR_OCTETS) > 0
-		 : memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) > 0;
+		return memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) > 0;
 	}
 
 	/**
@@ -185,18 +180,8 @@ class LinkLayerAddress : public InterfaceLabel
 			return;
 		}
 
-		uint8_t *begin = nullptr;
-		uint8_t *end = nullptr;
-		if (4 == fIpVersion)
-		{
-			begin = fIpv4Addr;
-			end = fIpv4Addr + ETHER_ADDR_OCTETS;
-		}
-		else
-		{
-			begin = fIpv6Addr;
-			end = fIpv6Addr + IPV6_ADDR_OCTETS;
-		}
+		uint8_t *begin = fIpv6Addr;
+		uint8_t *end = fIpv6Addr + IPV6_ADDR_OCTETS;
 		size_t copied = 0;
 		for (; begin < end && copied < octetSize; ++begin, ++address_octet_array)
 		{
@@ -205,33 +190,26 @@ class LinkLayerAddress : public InterfaceLabel
 		}
 	}
 
-	void getAddress(in_addr *dest)
-	{
-		if (fIpVersion != 4)
-		{
-			GPTP_LOG_ERROR("Invalid coversion...This address is version %d but "
-			 "converting to 4", fIpVersion);
-			return;
-		}
+	// void getAddress(in_addr *dest)
+	// {
+	// 	if (fIpVersion != 4)
+	// 	{
+	// 		GPTP_LOG_ERROR("Invalid coversion...This address is version %d but "
+	// 		 "converting to 4", fIpVersion);
+	// 		return;
+	// 	}
 
-		// Convert the raw values to a string for use with inet_pton
-		std::string address = AddressString();
+	// 	// Convert the raw values to a string for use with inet_pton
+	// 	std::string address = AddressString();
 
-		GPTP_LOG_VERBOSE("address:%s", address.c_str());
+	// 	GPTP_LOG_VERBOSE("address:%s", address.c_str());
 
-		// Convert the address eg "192.168.0.189"
-		inet_pton(AF_INET, address.c_str(), dest);
-	}
+	// 	// Convert the address eg "192.168.0.189"
+	// 	inet_pton(AF_INET, address.c_str(), dest);
+	// }
 
 	void getAddress(in6_addr *dest)
 	{
-		if (fIpVersion != 6)
-		{
-			GPTP_LOG_ERROR("Invalid coversion...This address is version %d but "
-			 "converting to 6", fIpVersion);
-			return;
-		}
-
 		std::string address = AddressString();
 		GPTP_LOG_VERBOSE("address:%s", address.c_str());
 
@@ -239,16 +217,6 @@ class LinkLayerAddress : public InterfaceLabel
 
 		// // Convert the address eg "2001:db8:8714:3a90::12"
 		// inet_pton(AF_INET6, address.c_str(), dest);
-	}
-
-	int IpVersion() const
-	{
-		return fIpVersion;
-	}
-
-	void IpVersion(int version)
-	{
-		fIpVersion = version;
 	}
 
 	uint16_t Port() const
@@ -264,50 +232,33 @@ class LinkLayerAddress : public InterfaceLabel
 	const std::string AddressString()
 	{
 		std::string address;
-		if (4 == fIpVersion)
-		{
-			std::string octet;
-			const size_t kIpv4Groups = 4;
-			const size_t kMax = kIpv4Groups < ETHER_ADDR_OCTETS
-			 ? kIpv4Groups : ETHER_ADDR_OCTETS;
-			for (size_t i = 0; i < kMax; ++i)
-			{
-				octet = std::to_string(fIpv4Addr[i]);
-				address += address.empty() ? octet : '.' + octet;
-			}
-		}
-		else if (6 == fIpVersion)
-		{
-			char buf[INET6_ADDRSTRLEN];
-			sockaddr_in6 other;
-			memcpy(other.sin6_addr.s6_addr, fIpv6Addr, sizeof(fIpv6Addr));
 
-			inet_ntop(AF_INET6, &other.sin6_addr, buf, sizeof(buf));
-			address = buf;
+		char buf[INET6_ADDRSTRLEN];
+		sockaddr_in6 other;
+		memcpy(other.sin6_addr.s6_addr, fIpv6Addr, sizeof(fIpv6Addr));
 
-			// On BSD based platforms, the scope ID is embedded into the address
-			// itself for link local addresses as the second 16 bit word so we need
-			// to remove it - it can't be used on POSIX conformant platforms.
-			// !!!...
-			// This assumes link local addresses, all bets are off for global
-			// addresses.
-			// ...!!!
-			size_t pos = address.find(":");
-			std::string first = address.substr(0, pos);
-			if (pos != std::string::npos && ("fe80" == first || "FE80" == first) &&
-			 address.substr(pos + 1, 1) != ":")
-			{
-				std::string rest = address.substr(address.find(":", pos + 1));
-				address = first + rest;
-				in6_addr dest;
-				inet_pton(AF_INET6, address.c_str(), &dest);
-				memcpy(fIpv6Addr, dest.s6_addr, sizeof(dest.s6_addr));
-			}
-		}
-		else
+		inet_ntop(AF_INET6, &other.sin6_addr, buf, sizeof(buf));
+		address = buf;
+
+		// On BSD based platforms, the scope ID is embedded into the address
+		// itself for link local addresses as the second 16 bit word so we need
+		// to remove it - it can't be used on POSIX conformant platforms.
+		// !!!...
+		// This assumes link local addresses, all bets are off for global
+		// addresses.
+		// ...!!!
+		size_t pos = address.find(":");
+		std::string first = address.substr(0, pos);
+		if (pos != std::string::npos && ("fe80" == first || "FE80" == first) &&
+		 address.substr(pos + 1, 1) != ":")
 		{
-			GPTP_LOG_ERROR("Unsupported ip version '%d' can't convert to string.", fIpVersion);
+			std::string rest = address.substr(address.find(":", pos + 1));
+			address = first + rest;
+			in6_addr dest;
+			inet_pton(AF_INET6, address.c_str(), &dest);
+			memcpy(fIpv6Addr, dest.s6_addr, sizeof(dest.s6_addr));
 		}
+
 		return address;
 	}
 
@@ -347,10 +298,9 @@ private:
 
  private:
 	//!< Ethernet address
-	uint8_t fIpv4Addr[ETHER_ADDR_OCTETS];
+	//uint8_t fIpv4Addr[ETHER_ADDR_OCTETS];
 	uint8_t fIpv6Addr[IPV6_ADDR_OCTETS];
 	uint16_t fPort;
-	int fIpVersion;
 };
 
 /**
@@ -568,14 +518,6 @@ class OSNetworkInterface {
 
 	 virtual void LogLockState() {}
 
-	 virtual void IpVersion(int version)
-	 {}
-
-	 virtual int IpVersion() const
-	 {
-	 	return 4;
-	 }
-
 	 virtual bool IsWireless(const std::string& netInterfaceName) const
 	 {
 	 	return false;
@@ -620,15 +562,15 @@ class OSNetworkInterfaceFactory {
 	 * @return TRUE ok, FALSE error.
 	 */
 	static bool buildInterface(OSNetworkInterface ** iface, factory_name_t id,
-	 InterfaceLabel * iflabel, HWTimestamper * timestamper, int ipVersion = 4)
+	 InterfaceLabel * iflabel, HWTimestamper * timestamper)
 	{
-		return factoryMap[id]->createInterface(iface, iflabel, timestamper, ipVersion);
+		return factoryMap[id]->createInterface(iface, iflabel, timestamper);
 	}
 
 	virtual ~OSNetworkInterfaceFactory() = 0;
 private:
 	virtual bool createInterface(OSNetworkInterface ** iface, 
-	 InterfaceLabel * iflabel, HWTimestamper * timestamper, int ipVersion) = 0;
+	 InterfaceLabel * iflabel, HWTimestamper * timestamper) = 0;
 
 	static FactoryMap_t factoryMap;
 };
