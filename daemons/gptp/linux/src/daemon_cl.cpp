@@ -514,7 +514,7 @@ int main(int argc, char **argv)
 
 #ifdef APTP
 	// Start the address api listener
-	AAddressRegisterListener adrListener("eth0", pPort);
+	AAddressRegisterListener adrListener(ifname->Name(), pPort);
 	std::shared_ptr<LinuxThreadFactory> addressApiThreadFactory =
 	 std::make_shared<LinuxThreadFactory>();
 	adrListener.ThreadFactory(addressApiThreadFactory);
