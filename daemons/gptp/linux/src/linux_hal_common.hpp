@@ -682,6 +682,7 @@ private:
 	int shm_fd;
 	char *master_offset_buffer;
 	int err;
+	FrequencyRatio fLastFreqoffset;
 public:
 	/**
 	 * @brief Initializes the internal flags
@@ -691,6 +692,7 @@ public:
 		shm_fd = 0;
 		err = 0;
 		master_offset_buffer = NULL;
+		fLastFreqoffset = 0.0;
 	};
 	/**
 	 * @brief Destroys and unlinks shared memory
