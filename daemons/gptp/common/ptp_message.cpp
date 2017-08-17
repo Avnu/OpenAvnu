@@ -282,20 +282,12 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 									if (port->SmoothRateChange())
 									{
 										FR lastRateRatio = port->LastFilteredRateRatio();
-										// Assume wired for now...
-										//FR filteredRateRatioMS = (FR(lastRateRatio * 255) / 256) + (RR2 / 256);
-										FR filteredRateRatioMS;
 										// We will use an IIR to smooth the rate ratio. The 
 										// IIR will differ slightly depending on the physical 
 										// network (wifi vs wired).
-										if (port->IsWireless())
-										{
-											filteredRateRatioMS = (lastRateRatio * 255 / 256) + (RR2 / 256);
-										}
-										else
-										{
-											filteredRateRatioMS = (lastRateRatio * 63 / 64) + (RR2 / 64);
-										}
+										FR filteredRateRatioMS = port->IsWireless()
+										 ? (FR(lastRateRatio * 255) / 256) + (RR2 / 256)
+										 : (FR(lastRateRatio * 63) / 64) + (RR2 / 64);
 
 										port->LastFilteredRateRatio(filteredRateRatioMS);
 
@@ -308,11 +300,12 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 										meanPathDelay = ((t4-t1) - RR2 * (t3-t2)) / 2.0;
 									}
 
-									// Apply IIR filter to the meanPathDelay
+									// Apply IIR filter to the meanPathDelay differing
+									// slightly depending on the physical network.
 									FR lastMeanPathDelay = port->meanPathDelay();
-									// Assume wired for now...
-									//FR filteredMeanPathDelay = (FR(lastMeanPathDelay * 255) / 256) + (meanPathDelay / 256);
-									FR filteredMeanPathDelay = (FR(lastMeanPathDelay * 63) / 64) + (meanPathDelay / 64);
+									FR filteredMeanPathDelay = port->IsWireless()
+									 ? (FR(lastMeanPathDelay * 255) / 256) + (meanPathDelay / 256)
+									 : (FR(lastMeanPathDelay * 63) / 64) + (meanPathDelay / 64);
 
 									//port->MasterOffset(offset);
 									port->meanPathDelay(filteredMeanPathDelay);
@@ -937,7 +930,7 @@ PTPMessageCommon *buildPTPMessage
 	uint16_t debugPort;
 	msg->sourcePortIdentity->getPortNumber(&debugPort);
 	uint8_t debugDestAdr[8];
-	remote->toOctetArray(debugDestAdr);
+	remote->toOctetArray(debugDestAdr, sizeof(debugDestAdr));
 	GPTP_LOG_VERBOSE("Added msg port %d  address: %d %d %d %d %d %d",
 	 debugPort, debugDestAdr[0], debugDestAdr[1], debugDestAdr[2],
 	 debugDestAdr[3], debugDestAdr[4], debugDestAdr[5], debugDestAdr[6]);

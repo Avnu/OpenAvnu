@@ -78,7 +78,7 @@ public:
 	 */
 	virtual net_result send( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length, bool timestamp) {
 		packet_addr_t dest;
-		addr->toOctetArray( dest.addr );
+		addr->toOctetArray( dest.addr, sizeof(dest.addr) );
 		if( sendFrame( handle, &dest, etherType, payload, length ) != PACKET_NO_ERROR ) return net_fatal;
 		return net_succeed;
 	}
@@ -154,7 +154,7 @@ public:
 		if( addr == NULL ) goto error_nofree;
 		net_iface_l->local_addr = *addr;
 		packet_addr_t pfaddr;
-		addr->toOctetArray( pfaddr.addr );
+		addr->toOctetArray( pfaddr.addr, sizeof(pfaddr.addr) );
 		if( mallocPacketHandle( &net_iface_l->handle ) != PACKET_NO_ERROR ) goto error_nofree;
 		if( openInterfaceByAddr( net_iface_l->handle, &pfaddr, 1 ) != PACKET_NO_ERROR ) goto error_free_handle;
 		if( packetBind( net_iface_l->handle, PTP_ETHERTYPE ) != PACKET_NO_ERROR ) goto error_free_handle;

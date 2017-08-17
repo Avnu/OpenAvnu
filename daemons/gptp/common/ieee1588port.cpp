@@ -764,7 +764,7 @@ net_result IEEE1588Port::port_send(uint16_t etherType, uint8_t * buf, int size,
 			mapSocketAddr(destIdentity, &dest);
 			dest.Port(port);
 			uint8_t debugOctets[6];
-			dest.toOctetArray(debugOctets);
+			dest.toOctetArray(debugOctets, sizeof(debugOctets));
 			GPTP_LOG_VERBOSE("dest: %d %d %d %d %d %d", debugOctets[0],debugOctets[1],debugOctets[2],debugOctets[3],
 				debugOctets[4],debugOctets[5]);			
 			ok = net_iface->send(&dest, etherType, (uint8_t *) buf, size, timestamp);

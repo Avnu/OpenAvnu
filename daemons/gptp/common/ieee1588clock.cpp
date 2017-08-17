@@ -67,7 +67,7 @@ void ClockIdentity::set(LinkLayerAddress * addr)
 {
 	uint64_t tmp1 = 0;
 	uint32_t tmp2;
-	addr->toOctetArray((uint8_t *) & tmp1);
+	addr->toOctetArray(reinterpret_cast<uint8_t*>(&tmp1), sizeof(tmp1));
 	tmp2 = tmp1 & 0xFFFFFF;
 	tmp1 >>= 24;
 	tmp1 <<= 16;

@@ -172,34 +172,36 @@ class LinkLayerAddress : public InterfaceLabel
 	}
 
 	/**
-	 * @brief  Gets first 6 bytes from ethernet address of
+	 * @brief  Gets bytes from ethernet address of
 	 * object LinkLayerAddress.
 	 * @param  address_octet_array [out] Pointer to store the
 	 * ethernet address information.
 	 * @return void
 	 */
-	void toOctetArray(uint8_t * address_octet_array)
+	void toOctetArray(uint8_t * address_octet_array, size_t octetSize)
 	{
 		if (nullptr == address_octet_array)
 		{
 			return;
 		}
 
-		uint8_t *ptr = nullptr;
+		uint8_t *begin = nullptr;
 		uint8_t *end = nullptr;
 		if (4 == fIpVersion)
 		{
-			ptr = fIpv4Addr;
+			begin = fIpv4Addr;
 			end = fIpv4Addr + ETHER_ADDR_OCTETS;
 		}
 		else
 		{
-			ptr = fIpv6Addr;
+			begin = fIpv6Addr;
 			end = fIpv6Addr + IPV6_ADDR_OCTETS;
 		}
-		for (; ptr < end; ++ptr, ++address_octet_array)
+		size_t copied = 0;
+		for (; begin < end && copied < octetSize; ++begin, ++address_octet_array)
 		{
-			*address_octet_array = *ptr;
+			*address_octet_array = *begin;
+			++copied;
 		}
 	}
 

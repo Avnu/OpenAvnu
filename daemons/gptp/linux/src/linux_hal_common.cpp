@@ -118,7 +118,7 @@ net_result LinuxNetworkInterface::send
 	remoteOrig.sll_protocol = PLAT_htons(etherType);
 	remoteOrig.sll_ifindex = ifindex;
 	remoteOrig.sll_halen = ETH_ALEN;
-	addr->toOctetArray(remoteOrig.sll_addr);
+	addr->toOctetArray(remoteOrig.sll_addr, sizeof(remoteOrig.sll_addr));
 	remote = reinterpret_cast<sockaddr*>(&remoteOrig);
 	remoteSize = sizeof(remoteOrig);
 #endif	
