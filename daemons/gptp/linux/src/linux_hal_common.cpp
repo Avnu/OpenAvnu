@@ -826,14 +826,22 @@ bool LinuxSharedMemoryIPC::update
 	pid_t process_id = getpid();
 	char *shm_buffer = master_offset_buffer;
 	gPtpTimeData *ptimedata;
-	if( shm_buffer != NULL ) {
+
+	if (shm_buffer != nullptr)
+	{
+		typedef FrequencyRatio FR;
+
 		/* lock */
 		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
 		buf_offset += sizeof(pthread_mutex_t);
 		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
+
+		// For now we are filtering the frequency offset until it is better tuned
 		ptimedata->ml_phoffset = ml_phoffset;
+		FrequencyRatio filtered = (FR(fLastFreqoffset * 63) / 64) + (ml_freqoffset / 64);
+		ptimedata->ml_freqoffset = filtered;
+
 		ptimedata->ls_phoffset = ls_phoffset;
-		ptimedata->ml_freqoffset = ml_freqoffset;
 		ptimedata->ls_freqoffset = ls_freqoffset;
 		ptimedata->local_time = local_time;
       ptimedata->addressRegistrationSocketPort = adrRegSocketPort;
@@ -843,6 +851,7 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->port_state   = port_state;
 		ptimedata->process_id   = process_id;
 
+		fLastFreqoffset = filtered;
 
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
