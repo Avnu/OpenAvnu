@@ -32,7 +32,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 /*
  * MODULE SUMMARY : Implementation for AAF mapping module
  *
- * AAF is defined in IEEE 1722-rev1/D12 (still in draft as of Feb 2015).
+ * AAF (AVTP Audio Format) is defined in IEEE 1722-2016 Clause 7.
  */
 
 #include <stdlib.h>
@@ -141,6 +141,7 @@ typedef struct {
 	aaf_sample_format_t			aaf_format;
 	U8							aaf_bit_depth;
 	U32 payloadSize;
+	U32 payloadSizeMax;
 
 	U8 aaf_event_field;
 
@@ -273,13 +274,19 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 
 		// AAF packet size calculations
 		pPubMapInfo->packetFrameSizeBytes = pPubMapInfo->packetSampleSizeBytes * pPubMapInfo->audioChannels;
-		pPvtData->payloadSize = pPubMapInfo->framesPerPacket * pPubMapInfo->packetFrameSizeBytes;
+		pPvtData->payloadSize = pPvtData->payloadSizeMax =
+			pPubMapInfo->framesPerPacket * pPubMapInfo->packetFrameSizeBytes;
 		AVB_LOGF_INFO("packet: sampleSz=%d * channels=%d => frameSz=%d * %d => payloadSz=%d",
 			pPubMapInfo->packetSampleSizeBytes,
 			pPubMapInfo->audioChannels,
 			pPubMapInfo->packetFrameSizeBytes,
 			pPubMapInfo->framesPerPacket,
 			pPvtData->payloadSize);
+		if (pPvtData->aaf_format >= AAF_FORMAT_INT_32 && pPvtData->aaf_format <= AAF_FORMAT_INT_16) {
+			// Determine the largest size we could receive before adjustments.
+			pPvtData->payloadSizeMax = 4 * pPubMapInfo->audioChannels * pPubMapInfo->framesPerPacket;
+			AVB_LOGF_DEBUG("packet: payloadSizeMax=%d", pPvtData->payloadSizeMax);
+		}
 
 		// MediaQ item size calculations
 		pPubMapInfo->packingFactor = pPvtData->packingFactor;
@@ -378,7 +385,7 @@ U16 openavbMapAVTPAudioMaxDataSizeCB(media_q_t *pMediaQ)
 		}
 
 		AVB_TRACE_EXIT(AVB_TRACE_MAP);
-		return pPvtData->payloadSize + TOTAL_HEADER_SIZE;
+		return pPvtData->payloadSizeMax + TOTAL_HEADER_SIZE;
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 	return 0;
@@ -626,8 +633,11 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			return FALSE;
 		}
 
+		aaf_sample_format_t incoming_aaf_format;
+		U8 incoming_bit_depth;
 		int tmp;
 		bool dataValid = TRUE;
+		bool dataConversionEnabled = FALSE;
 
 		U32 timestamp = ntohl(*pHdr++);
 		U32 format_info = ntohl(*pHdr++);
@@ -637,18 +647,26 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 		bool streamSparseMode = (pHdrV0[HIDX_AVTP_HIDE7_SP] & SP_M0_BIT) ? TRUE : FALSE;
 		U16 payloadLen = ntohs(*(U16 *)(&pHdrV0[HIDX_STREAM_DATA_LEN16]));
 
-		if (payloadLen  > dataLen - TOTAL_HEADER_SIZE) {
+		if (payloadLen > dataLen - TOTAL_HEADER_SIZE) {
 			if (pPvtData->dataValid)
 				AVB_LOGF_ERROR("header data len %d > actual data len %d",
 					       payloadLen, dataLen - TOTAL_HEADER_SIZE);
 			dataValid = FALSE;
 		}
 
-		if ((tmp = ((format_info >> 24) & 0xFF)) != pPvtData->aaf_format) {
-			if (pPvtData->dataValid)
-				AVB_LOGF_ERROR("Listener format %d doesn't match received data (%d)",
-					pPvtData->aaf_format, tmp);
-			dataValid = FALSE;
+		if ((incoming_aaf_format = (aaf_sample_format_t) ((format_info >> 24) & 0xFF)) != pPvtData->aaf_format) {
+			// Check if we can convert the incoming data.
+			if (incoming_aaf_format >= AAF_FORMAT_INT_32 && incoming_aaf_format <= AAF_FORMAT_INT_16 &&
+					pPvtData->aaf_format >= AAF_FORMAT_INT_32 && pPvtData->aaf_format <= AAF_FORMAT_INT_16) {
+				// Integer conversion should be supported.
+				dataConversionEnabled = TRUE;
+			}
+			else {
+				if (pPvtData->dataValid)
+					AVB_LOGF_ERROR("Listener format %d doesn't match received data (%d)",
+						pPvtData->aaf_format, incoming_aaf_format);
+				dataValid = FALSE;
+			}
 		}
 		if ((tmp = ((format_info >> 20) & 0x0F)) != pPvtData->aaf_rate) {
 			if (pPvtData->dataValid)
@@ -662,17 +680,29 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 					pPubMapInfo->audioChannels, tmp);
 			dataValid = FALSE;
 		}
-		if ((tmp = (format_info & 0xFF)) != pPvtData->aaf_bit_depth) {
+		if ((incoming_bit_depth = (U8) (format_info & 0xFF)) == 0) {
 			if (pPvtData->dataValid)
-				AVB_LOGF_ERROR("Listener bit depth (%d) doesn't match received data (%d)",
-					pPvtData->aaf_bit_depth, tmp);
+				AVB_LOGF_ERROR("Listener bit depth (%d) not valid",
+					incoming_bit_depth);
 			dataValid = FALSE;
 		}
 		if ((tmp = ((packet_info >> 16) & 0xFFFF)) != pPvtData->payloadSize) {
-			if (pPvtData->dataValid)
-				AVB_LOGF_ERROR("Listener payload size (%d) doesn't match received data (%d)",
-					pPvtData->payloadSize, tmp);
-			dataValid = FALSE;
+			if (!dataConversionEnabled) {
+				if (pPvtData->dataValid)
+					AVB_LOGF_ERROR("Listener payload size (%d) doesn't match received data (%d)",
+						pPvtData->payloadSize, tmp);
+				dataValid = FALSE;
+			}
+			else {
+				int nInSampleLength = 6 - incoming_aaf_format; // Calculate the number of integer bytes per sample received
+				int nOutSampleLength = 6 - pPvtData->aaf_format; // Calculate the number of integer bytes per sample we want
+				if (tmp / nInSampleLength != pPvtData->payloadSize / nOutSampleLength) {
+					if (pPvtData->dataValid)
+						AVB_LOGF_ERROR("Listener payload samples (%d) doesn't match received data samples (%d)",
+							pPvtData->payloadSize / nOutSampleLength, tmp / nInSampleLength);
+					dataValid = FALSE;
+				}
+			}
 		}
 		if ((tmp = ((packet_info >> 8) & 0x0F)) != pPvtData->aaf_event_field) {
 			if (pPvtData->dataValid)
@@ -724,11 +754,53 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 					}
 				}
 				if (dataValid) {
-					if (pPubMapInfo->intf_rx_translate_cb) {
-						pPubMapInfo->intf_rx_translate_cb(pMediaQ, pPayload, pPvtData->payloadSize);
+					if (!dataConversionEnabled) {
+						// Just use the raw incoming data, and ignore the incoming bit_depth.
+						if (pPubMapInfo->intf_rx_translate_cb) {
+							pPubMapInfo->intf_rx_translate_cb(pMediaQ, pPayload, pPvtData->payloadSize);
+						}
+
+						memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, pPayload, pPvtData->payloadSize);
+					}
+					else {
+						static U8 s_audioBuffer[1500];
+						U8 *pInData = pPayload;
+						U8 *pInDataEnd = pPayload + payloadLen;
+						U8 *pOutData = s_audioBuffer;
+						int nInSampleLength = 6 - incoming_aaf_format; // Calculate the number of integer bytes per sample received
+						int nOutSampleLength = 6 - pPvtData->aaf_format; // Calculate the number of integer bytes per sample we want
+						int i;
+						if (nInSampleLength < nOutSampleLength) {
+							// We need to pad the data supplied.
+							while (pInData < pInDataEnd) {
+								for (i = 0; i < nInSampleLength; ++i) {
+									*pOutData++ = *pInData++;
+								}
+								for ( ; i < nOutSampleLength; ++i) {
+									*pOutData++ = 0; // Value specified in Clause 7.3.4.
+								}
+							}
+						}
+						else {
+							// We need to truncate the data supplied.
+							while (pInData < pInDataEnd) {
+								for (i = 0; i < nOutSampleLength; ++i) {
+									*pOutData++ = *pInData++;
+								}
+								pInData += (nInSampleLength - nOutSampleLength);
+							}
+						}
+						if (pOutData - s_audioBuffer != pPvtData->payloadSize) {
+							AVB_LOGF_ERROR("Output not expected size (%d instead of %d)", pOutData - s_audioBuffer, pPvtData->payloadSize);
+						}
+
+						if (pPubMapInfo->intf_rx_translate_cb) {
+							pPubMapInfo->intf_rx_translate_cb(pMediaQ, s_audioBuffer, pPvtData->payloadSize);
+						}
+
+						memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, s_audioBuffer, pPvtData->payloadSize);
 					}
 
-					memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, pPayload, pPvtData->payloadSize);
 					pMediaQItem->dataLen += pPvtData->payloadSize;
 				}
 
