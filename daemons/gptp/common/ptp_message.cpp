@@ -1160,7 +1160,7 @@ void PTPMessageSync::sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity>
 #else
 	MCAST_OTHER;
 #endif
-	GPTP_LOG_VERBOSE("SYNC  before sendEventPort  destIdentity is %s", (destIdentity ? "NOT NULL" : "NULL"));
+	GPTP_LOG_VERBOSE("***  SYNC  before sendEventPort  destIdentity is %s", (destIdentity ? "NOT NULL" : "NULL"));
 	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, broadcastType, destIdentity);
 	port->incCounter_ieee8021AsPortStatTxSyncCount();
 
@@ -2666,6 +2666,7 @@ void PTPMessageSignalling::processMessage(IEEE1588Port * port)
 	char announceInterval = tlv.getAnnounceInterval();
 
 	if (linkDelayInterval == PTPMessageSignalling::sigMsgInterval_Initial) {
+		GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage   linkDelayInterval == sigMsgInterval_Initial");
 		port->setInitPDelayInterval();
 
 		waitTime = ((long long) (pow((double)2, port->getPDelayInterval()) *  1000000000.0));
@@ -2674,43 +2675,52 @@ void PTPMessageSignalling::processMessage(IEEE1588Port * port)
 	}
 	else if (linkDelayInterval == PTPMessageSignalling::sigMsgInterval_NoSend) {
 		// TODO: No send functionality needs to be implemented.
+		GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage   linkDelayInterval == sigMsgInterval_NoSend");
 		GPTP_LOG_WARNING("Signal received to stop sending pDelay messages: Not implemented");
 	}
 	else if (linkDelayInterval == PTPMessageSignalling::sigMsgInterval_NoChange) {
 		// Nothing to do
+		GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage   linkDelayInterval == sigMsgInterval_NoChange");
 	}
 	else {
+		GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage   else (linkDelayInterval)");
+#ifndef APTP
 		port->setPDelayInterval(linkDelayInterval);
-
 		waitTime = ((long long) (pow((double)2, port->getPDelayInterval()) *  1000000000.0));
 		waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
 		port->startPDelayIntervalTimer(waitTime);
+#endif
 	}
 
 	if (timeSyncInterval == PTPMessageSignalling::sigMsgInterval_Initial) {
+		GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage   timeSyncInterval == sigMsgInterval_Initial");
 		port->setInitSyncInterval();
 
 		waitTime = ((long long) (pow((double)2, port->getSyncInterval()) *  1000000000.0));
-#ifndef APTP		
+#ifndef APTP
 		waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
 #endif		
 		port->startSyncIntervalTimer(waitTime);
+		port->SyncIntervalTimeoutExpireCount(0);
 	}
 	else if (timeSyncInterval == PTPMessageSignalling::sigMsgInterval_NoSend) {
+		GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage   timeSyncInterval == sigMsgInterval_NoSend");
 		// TODO: No send functionality needs to be implemented.
 		GPTP_LOG_WARNING("Signal received to stop sending Sync messages: Not implemented");
 	}
 	else if (timeSyncInterval == PTPMessageSignalling::sigMsgInterval_NoChange) {
+		GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage   timeSyncInterval == sigMsgInterval_NoChange");
 		// Nothing to do
 	}
 	else {
 		port->setSyncInterval(timeSyncInterval);
-
 		waitTime = ((long long) (pow((double)2, port->getSyncInterval()) *  1000000000.0));
-#ifndef APTP		
+		GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage   else  timeSyncInterval   waitTime:%d", waitTime);
+#ifndef APTP
 		waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
 #endif		
 		port->startSyncIntervalTimer(waitTime);
+		port->SyncIntervalTimeoutExpireCount(0);
 	}
 
 	if (!port->getAutomotiveProfile()) {
@@ -2729,7 +2739,9 @@ void PTPMessageSignalling::processMessage(IEEE1588Port * port)
 			port->setAnnounceInterval(announceInterval);
 
 			waitTime = ((long long) (pow((double)2, port->getAnnounceInterval()) *  1000000000.0));
+#ifndef APTP
 			waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
+#endif
 			port->startAnnounceIntervalTimer(waitTime);
 		}
 	}

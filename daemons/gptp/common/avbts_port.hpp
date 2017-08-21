@@ -390,6 +390,8 @@ class IEEE1588Port {
 	FrequencyRatio fLastFilteredRateRatio;
 	ALastTimestampKeeper fLastTimestamps;
 
+	int fSyncIntervalTimeoutExpireCount;
+
 	bool smoothRateChange;
 	bool fIsWireless;
 
@@ -1912,6 +1914,11 @@ class IEEE1588Port {
 		fIsWireless = yesno;
 	}
 
+	void SyncIntervalTimeoutExpireCount(int value)
+	{
+		fSyncIntervalTimeoutExpireCount = value;
+	}
+	
 	/**
 	 * @brief  Sets current sync count value.
 	 * @param  cnt [in] sync count value

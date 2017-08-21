@@ -294,6 +294,8 @@ bool IEEE1588Port::init_port(int delay[4])
 	fIsWireless = false;
 #endif
 
+	fSyncIntervalTimeoutExpireCount = 0;
+
 	this->net_iface = net_iface;
 	this->net_iface->getLinkLayerAddress(&local_addr);
 	clock->setClockIdentity(&local_addr);
@@ -1327,6 +1329,9 @@ void IEEE1588Port::processEvent(Event e)
 #endif // ifndef APTP
 	case SYNC_INTERVAL_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("SYNC_INTERVAL_TIMEOUT_EXPIRES occured");
+#ifdef APTP
+		if (fSyncIntervalTimeoutExpireCount > 2)
+#endif
 		{
 			/* Set offset from master to zero, update device vs
 			   system time offset */
@@ -1335,12 +1340,14 @@ void IEEE1588Port::processEvent(Event e)
 			long long wait_time = 0;
 			uint32_t local_clock, nominal_clock_rate;
 
-			// Send a sync message and then a followup to broadcast
-#ifndef APTP
+#ifdef APTP
+			fSyncIntervalTimeoutExpireCount = 0;
+#else
 			// The aPTP profile can't support asCapable
 			if (asCapable)
 #endif
 			{
+				// Send a sync message and then a followup to broadcast
 				PTPMessageSync sync(this);
 				std::shared_ptr<PortIdentity> dest_id = std::make_shared<PortIdentity>();
 				getPortIdentity(dest_id);
@@ -1465,6 +1472,14 @@ void IEEE1588Port::processEvent(Event e)
 			startSyncIntervalTimer(wait_time);
 
 		}
+#ifdef APTP
+		else
+		{
+			++fSyncIntervalTimeoutExpireCount;
+			long long wait_time = ((long long) (pow((double)2, getSyncInterval()) * 1000000000.0));
+			startSyncIntervalTimer(wait_time);
+		}
+#endif
 		break;
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES occured  port_state:%d", port_state);
