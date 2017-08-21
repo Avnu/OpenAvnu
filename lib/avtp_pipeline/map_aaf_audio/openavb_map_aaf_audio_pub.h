@@ -32,7 +32,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 /*
  * HEADER SUMMARY : AVTP Audio Format mapping module public interface
  *
- * AAF is defined in IEEE 1722a (still in draft as of Feb 2015).
+ * AAF (AVTP Audio Format) is defined in IEEE 1722-2016 Clause 7.
  *
  * map_nv_tx_rate must be set in the .ini file.
  */
