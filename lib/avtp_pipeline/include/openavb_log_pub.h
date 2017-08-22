@@ -164,7 +164,7 @@ typedef enum {
 #define IF_LOG_ONCE() static U32 LOG_VAR(logOnce,__LINE__) = 0; if (!LOG_VAR(logOnce,__LINE__)++)
 
 // Log a message at an interval. Usage: IF_LOG_INTERVAL(100) AVB_LOG_INFO(...)
-#define IF_LOG_INTERVAL(x) static U32 LOG_VAR(logOnce,__LINE__) = 0; if (!(LOG_VAR(logOnce,__LINE__)++ % (x - 1)))
+#define IF_LOG_INTERVAL(x) static U32 LOG_VAR(logOnce,__LINE__) = 0; if (!(LOG_VAR(logOnce,__LINE__)++ % (x)))
 
 
 #define ETH_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x"
