@@ -641,7 +641,13 @@ public:
 class LinuxIPCArg : public OS_IPC_ARG {
 private:
 	char *group_name;
+	int fAddrRegPort;
 public:
+	LinuxIPCArg() :
+	 group_name(nullptr),
+	 fAddrRegPort(0)
+	{}
+
 	/**
 	 * @brief  Initializes IPCArg object
 	 * @param group_name [in] Group's name
@@ -658,6 +664,17 @@ public:
 	virtual ~LinuxIPCArg() {
 		delete group_name;
 	}
+
+	int AdrRegSocketPort() const
+	{
+		return fAddrRegPort;
+	}
+
+	void AdrRegSocketPort(int portNumber)
+	{
+		fAddrRegPort = portNumber;
+	}
+
 	friend class LinuxSharedMemoryIPC;
 };
 

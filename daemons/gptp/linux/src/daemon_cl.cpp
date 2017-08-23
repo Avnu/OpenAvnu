@@ -317,12 +317,6 @@ int main(int argc, char **argv)
 		phy_delay[3] = PHY_DELAY_MB_RX_I20;
 	}
 
-	if( !ipc->init( ipc_arg ) ) {
-		delete ipc;
-		ipc = NULL;
-	}
-	if( ipc_arg != NULL ) delete ipc_arg;
-
 	if( pGPTPPersist ) {
 		uint32_t bufSize = 0;
 		if (!pGPTPPersist->readStorage(&restoredata, &bufSize))
@@ -451,6 +445,23 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	if (nullptr == ipc_arg)
+	{
+		ipc_arg = new LinuxIPCArg;
+	}
+	ipc_arg->AdrRegSocketPort(pPort->AdrRegSocketPort());
+	if (!ipc->init(ipc_arg))
+	{
+		delete ipc;
+		ipc = nullptr;
+	}
+
+	if (ipc_arg != nullptr)
+	{
+		delete ipc_arg;
+		ipc_arg = nullptr;
+	}
+
 	if( restoredataptr != NULL ) {
 		if( !restorefailed ) {
 			restorefailed = !pPort->restoreSerializedState( restoredataptr, &restoredatacount );
@@ -545,7 +556,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if( ipc ) delete ipc;
+	if (ipc != nullptr)
+	{
+		delete ipc;
+	}
 
 	GPTP_LOG_UNREGISTER();
 	return 0;

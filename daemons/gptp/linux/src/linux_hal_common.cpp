@@ -737,11 +737,18 @@ LinuxSharedMemoryIPC::~LinuxSharedMemoryIPC() {
 }
 
 bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
-	LinuxIPCArg *arg;
+	LinuxIPCArg *arg = nullptr;
 	struct group *grp;
 	const char *group_name;
 	pthread_mutexattr_t shared;
 	mode_t oldumask = umask(0);
+
+#ifdef APTP
+	int buf_offset = 0;
+	pid_t process_id = getpid();
+	char *shm_buffer = nullptr;
+	gPtpTimeData *ptimedata;
+#endif
 
 	if( barg == NULL ) {
 		group_name = DEFAULT_GROUPNAME;
@@ -800,7 +807,35 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 			 strerror(errno));
 		goto exit_unlink;
 	}
+
+#ifdef APTP
+	shm_buffer = master_offset_buffer;
+	if (shm_buffer != nullptr)
+	{
+		/* lock */
+		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
+		buf_offset += sizeof(pthread_mutex_t);
+		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
+
+		ptimedata->ml_phoffset = 1;
+		ptimedata->ml_freqoffset = 1;
+		ptimedata->ls_phoffset = 1;
+		ptimedata->ls_freqoffset = 1;
+		ptimedata->local_time = 0;
+      ptimedata->addressRegistrationSocketPort = arg != nullptr
+       ? arg->AdrRegSocketPort() : 0;
+		ptimedata->sync_count   = 0;
+		ptimedata->pdelay_count = 0;
+      ptimedata->asCapable = false;
+		ptimedata->port_state = PTP_UNCALIBRATED;
+		ptimedata->process_id = process_id;
+
+		/* unlock */
+		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
+	}
+#endif	
 	return true;
+
  exit_unlink:
 	shm_unlink( SHM_NAME );
  exit_error:
