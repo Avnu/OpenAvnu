@@ -759,7 +759,11 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 		GPTP_LOG_ERROR( "Group %s not found, will try root (0) instead", group_name );
 	}
 
-	shm_fd = shm_open( SHM_NAME, O_RDWR | O_CREAT, 0660 );
+#ifdef APTP
+	shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
+#else
+	shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0660);
+#endif
 	if( shm_fd == -1 ) {
 		GPTP_LOG_ERROR( "shm_open(): %s", strerror(errno) );
 		goto exit_error;
