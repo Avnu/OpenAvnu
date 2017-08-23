@@ -311,7 +311,7 @@ void CommonPort::stopSyncReceiptTimer( void )
 void CommonPort::startSyncIntervalTimer
 ( long long unsigned int waitTime )
 {
-	syncIntervalTimerLock->lock();
+	if( syncIntervalTimerLock->trylock() == oslock_fail ) return;
 	clock->deleteEventTimerLocked(this, SYNC_INTERVAL_TIMEOUT_EXPIRES);
 	clock->addEventTimerLocked
 		(this, SYNC_INTERVAL_TIMEOUT_EXPIRES, waitTime);
