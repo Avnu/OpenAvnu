@@ -391,7 +391,7 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	pCfg->rx_signal_mode = 1;
 	pCfg->pMapInitFn = NULL;
 	pCfg->pIntfInitFn = NULL;
-	pCfg->vlan_id = VLAN_NULL;
+	pCfg->vlan_id = 0;
 	pCfg->fixed_timestamp = 0;
 	pCfg->spin_wait = FALSE;
 	pCfg->thread_rt_priority = 0;

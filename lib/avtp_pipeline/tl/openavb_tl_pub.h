@@ -79,9 +79,6 @@ typedef enum {
 /// Maximum size of the friendly name
 #define FRIENDLY_NAME_SIZE 64
 
-/// Indicates that VLAN ID is not set in configuration
-#define VLAN_NULL UINT16_MAX
-
 /// Initial talker/listener state
 typedef enum {
 	/// Unspecified
@@ -162,6 +159,22 @@ typedef struct {
 	openavb_map_initialize_fn_t pMapInitFn;
 	/// Initialization function in interface
 	openavb_intf_initialize_fn_t pIntfInitFn;
+
+	/// TRUE if backup_stream_addr and backup_stream_uid are valid.
+	bool backup_stream_id_valid;
+	/// Saved original MAC address of the source
+	U8 backup_stream_addr[ETH_ALEN];
+	/// Stream UID (has to be unique)
+	U16 backup_stream_uid;
+	/// TRUE if backup_dest_addr_valid is valid.
+	bool backup_dest_addr_valid;
+	/// Saved original MAC address of destination - multicast (talker only if SRP is enabled)
+	U8 backup_dest_addr[ETH_ALEN];
+	/// TRUE if backup_vlan_id_valid is valid.
+	bool backup_vlan_id_valid;
+	/// Saved original VLAN ID
+	U16 backup_vlan_id;
+
 } openavb_tl_cfg_t;
 
 /// Structure holding configuration of mapping and interface modules

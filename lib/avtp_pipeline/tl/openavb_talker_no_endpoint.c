@@ -74,16 +74,17 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	}
 
 	pTalkerData->streamID.uniqueID = pCfg->stream_uid;
+	pTalkerData->srClass = pCfg->sr_class;
 	if (pCfg->sr_class == SR_CLASS_A) {
 		pTalkerData->classRate = 8000;
-		pTalkerData->vlanID = pCfg->vlan_id == VLAN_NULL ?
-					SR_CLASS_A_DEFAULT_VID : pCfg->vlan_id;
+		pTalkerData->vlanID = (pCfg->vlan_id == 0 ?
+					SR_CLASS_A_DEFAULT_VID : pCfg->vlan_id);
 		pTalkerData->vlanPCP = SR_CLASS_A_DEFAULT_PRIORITY;
 	}
 	else if (pCfg->sr_class == SR_CLASS_B) {
 		pTalkerData->classRate = 4000;
-		pTalkerData->vlanID = pCfg->vlan_id == VLAN_NULL ?
-					SR_CLASS_B_DEFAULT_VID : pCfg->vlan_id;
+		pTalkerData->vlanID = (pCfg->vlan_id == 0 ?
+					SR_CLASS_B_DEFAULT_VID : pCfg->vlan_id);
 		pTalkerData->vlanPCP = SR_CLASS_B_DEFAULT_PRIORITY;
 	}
 	memcpy(&pTalkerData->destAddr, &pCfg->dest_addr.mac->ether_addr_octet, ETH_ALEN);
@@ -132,7 +133,7 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	// Let the AVDECC Msg server know our current stream ID, in case it is waiting for an update.
 	if (pTLState->avdeccMsgHandle != AVB_AVDECC_MSG_HANDLE_INVALID) {
 		if (!openavbAvdeccMsgClntTalkerStreamID(pTLState->avdeccMsgHandle,
-				pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
+				pTalkerData->srClass, pTalkerData->streamID.addr, pTalkerData->streamID.uniqueID,
 				pTalkerData->destAddr, pTalkerData->vlanID)) {
 			AVB_LOG_ERROR("openavbAvdeccMsgClntTalkerStreamID() failed");
 		}
@@ -153,6 +154,7 @@ AVBStreamID_t           *streamID,
 char                    *ifname,
 U8                       destAddr[],
 openavbSrpLsnrDeclSubtype_t  lsnrDecl,
+U8                       srClass,
 U32                      classRate,
 U16                      vlanID,
 U8                       priority,

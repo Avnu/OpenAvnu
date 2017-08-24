@@ -67,6 +67,7 @@ bool openavbAVDECCRunListener(openavb_aem_descriptor_stream_io_t *pDescriptorStr
 	// Send the Stream ID to the client.
 	// The client will stop a running Listener if the settings differ from its current values.
 	if (!openavbAvdeccMsgSrvrListenerStreamID(pDescriptorStreamInput->stream->client->avdeccMsgHandle,
+			((pListenerStreamInfo->flags & OPENAVB_ACMP_FLAG_CLASS_B) != 0 ? SR_CLASS_B : SR_CLASS_A),
 			pListenerStreamInfo->stream_id, /* The first 6 bytes of the steam_id are the source MAC Address */
 			(((U16) pListenerStreamInfo->stream_id[6]) << 8 | (U16) pListenerStreamInfo->stream_id[7]),
 			pListenerStreamInfo->stream_dest_mac,
@@ -264,87 +265,96 @@ bool openavbAVDECCGetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescr
 		(((U16) pTalkerStreamInfo->stream_id[6]) << 8) | (U16) pTalkerStreamInfo->stream_id[7]);
 
 	// Get the VLAN ID.
-	if (pDescriptorStreamOutput->stream->vlan_id == VLAN_NULL) {
-		AVB_LOG_ERROR("openavbAVDECCGetTalkerStreamInfo Invalid stream vlan_id");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
-	}
 	pTalkerStreamInfo->stream_vlan_id = pDescriptorStreamOutput->stream->vlan_id;
 
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 	return TRUE;
 }
 
-bool openavbAVDECCListenerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescriptorStreamInput, U16 configIdx)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
-
-	// Sanity tests.
-	if (!pDescriptorStreamInput) {
-		AVB_LOG_ERROR("openavbAVDECCListenerIsStreaming Invalid descriptor");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
-	}
-	if (!pDescriptorStreamInput->stream) {
-		AVB_LOG_ERROR("openavbAVDECCListenerIsStreaming Invalid StreamInput descriptor stream");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
-	}
-	if (!pDescriptorStreamInput->stream->client) {
-		AVB_LOG_ERROR("openavbAVDECCListenerIsStreaming Invalid stream client pointer");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
-	}
-
-	// Return the current Listener state.
-	// If the state is not known, assume the Listener is not running.
-	if (pDescriptorStreamInput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return TRUE;
-	}
-	if (pDescriptorStreamInput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
-		AVB_LOG_WARNING("Listener state unknown");
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return FALSE;
-	}
-	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-	return FALSE;
-}
-
-bool openavbAVDECCTalkerIsStreaming(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput, U16 configIdx)
+bool openavbAVDECCSetTalkerStreamInfo(openavb_aem_descriptor_stream_io_t *pDescriptorStreamOutput,
+	U8 sr_class, U8 stream_id_valid, const U8 stream_src_mac[6], U16 stream_uid, U8 stream_dest_valid, const U8 stream_dest_mac[6], U8 stream_vlan_id_valid, U16 stream_vlan_id)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
 
 	// Sanity tests.
 	if (!pDescriptorStreamOutput) {
-		AVB_LOG_ERROR("openavbAVDECCTalkerIsStreaming Invalid descriptor");
+		AVB_LOG_ERROR("openavbAVDECCSetTalkerStreamInfo Invalid descriptor");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamOutput->stream) {
-		AVB_LOG_ERROR("openavbAVDECCTalkerIsStreaming Invalid StreamInput descriptor stream");
+		AVB_LOG_ERROR("openavbAVDECCSetTalkerStreamInfo Invalid StreamInput descriptor stream");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 	if (!pDescriptorStreamOutput->stream->client) {
-		AVB_LOG_ERROR("openavbAVDECCTalkerIsStreaming Invalid stream client pointer");
+		AVB_LOG_ERROR("openavbAVDECCSetTalkerStreamInfo Invalid stream client pointer");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
 
-	// Return the current Talker state.
-	// If the state is not known, assume the Talker is not running.
-	if (pDescriptorStreamOutput->stream->client->lastReportedState == OPENAVB_AVDECC_MSG_RUNNING) {
-		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-		return TRUE;
-	}
-	if (pDescriptorStreamOutput->stream->client->lastReportedState != OPENAVB_AVDECC_MSG_STOPPED) {
-		AVB_LOG_WARNING("Talker state unknown");
+	// Send the information to the client.
+	if (!openavbAvdeccMsgSrvrTalkerStreamID(pDescriptorStreamOutput->stream->client->avdeccMsgHandle,
+			sr_class, stream_id_valid, stream_src_mac, stream_uid, stream_dest_valid, stream_dest_mac, stream_vlan_id_valid, stream_vlan_id)) {
+		AVB_LOG_ERROR("Error sending stream info updates to Talker");
 		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
 		return FALSE;
 	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
-	return FALSE;
+	return TRUE;
+}
+
+openavbAvdeccMsgStateType_t openavbAVDECCGetRequestedState(openavb_aem_descriptor_stream_io_t *pDescriptorStream, U16 configIdx)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
+
+	// Sanity tests.
+	if (!pDescriptorStream) {
+		AVB_LOG_ERROR("openavbAVDECCGetRequestedState Invalid descriptor");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return OPENAVB_AVDECC_MSG_UNKNOWN;
+	}
+	if (!pDescriptorStream->stream) {
+		AVB_LOG_ERROR("openavbAVDECCGetRequestedState Invalid descriptor stream");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return OPENAVB_AVDECC_MSG_UNKNOWN;
+	}
+	if (!pDescriptorStream->stream->client) {
+		AVB_LOG_DEBUG("openavbAVDECCGetRequestedState Invalid stream client pointer");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return OPENAVB_AVDECC_MSG_UNKNOWN;
+	}
+
+	// Return the current state.
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+	return pDescriptorStream->stream->client->lastRequestedState;
+}
+
+openavbAvdeccMsgStateType_t openavbAVDECCGetStreamingState(openavb_aem_descriptor_stream_io_t *pDescriptorStream, U16 configIdx)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC);
+
+	// Sanity tests.
+	if (!pDescriptorStream) {
+		AVB_LOG_ERROR("openavbAVDECCGetStreamingState Invalid descriptor");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return OPENAVB_AVDECC_MSG_UNKNOWN;
+	}
+	if (!pDescriptorStream->stream) {
+		AVB_LOG_ERROR("openavbAVDECCGetStreamingState Invalid descriptor stream");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return OPENAVB_AVDECC_MSG_UNKNOWN;
+	}
+	if (!pDescriptorStream->stream->client) {
+		AVB_LOG_DEBUG("openavbAVDECCGetStreamingState Invalid stream client pointer");
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+		return OPENAVB_AVDECC_MSG_UNKNOWN;
+	}
+
+	// Return the current state.
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC);
+	return pDescriptorStream->stream->client->lastReportedState;
 }
 
 void openavbAVDECCPauseStream(openavb_aem_descriptor_stream_io_t *pDescriptor, bool bPause)

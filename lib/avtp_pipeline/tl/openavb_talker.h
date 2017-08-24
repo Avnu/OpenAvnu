@@ -41,9 +41,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 typedef struct {
 	// Data from callback
 	char			ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
-	AVBStreamID_t 	streamID;
+	AVBStreamID_t	streamID;
 	U8				destAddr[ETH_ALEN];
 	AVBTSpec_t		tSpec;
+	U8				srClass;
 	U32				classRate;
 	U32				fwmark;
 	U16				vlanID;

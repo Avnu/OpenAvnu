@@ -96,13 +96,14 @@ static bool openavbAvdeccMsgSrvrReceiveFromClient(int avdeccMsgHandle, openavbAv
 				msg->params.clientInitIdentify.friendly_name,
 				msg->params.clientInitIdentify.talker);
 			break;
-		case OPENAVB_AVDECC_MSG_TALKER_STREAM_ID:
-			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_TALKER_STREAM_ID");
+		case OPENAVB_AVDECC_MSG_C2S_TALKER_STREAM_ID:
+			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_C2S_TALKER_STREAM_ID");
 			ret = openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(avdeccMsgHandle,
-				msg->params.talkerStreamID.stream_src_mac,
-				ntohs(msg->params.talkerStreamID.stream_uid),
-				msg->params.talkerStreamID.stream_dest_mac,
-				ntohs(msg->params.talkerStreamID.stream_vlan_id));
+				msg->params.c2sTalkerStreamID.sr_class,
+				msg->params.c2sTalkerStreamID.stream_src_mac,
+				ntohs(msg->params.c2sTalkerStreamID.stream_uid),
+				msg->params.c2sTalkerStreamID.stream_dest_mac,
+				ntohs(msg->params.c2sTalkerStreamID.stream_vlan_id));
 			break;
 		case OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION:
 			AVB_LOG_DEBUG("Message received:  OPENAVB_AVDECC_MSG_CLIENT_CHANGE_NOTIFICATION");
@@ -208,7 +209,7 @@ bool openavbAvdeccMsgSrvrHndlInitIdentifyFromClient(int avdeccMsgHandle, char * 
 	return true;
 }
 
-bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
+bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, U8 sr_class, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 
@@ -227,12 +228,14 @@ bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, const
 	}
 
 	// Update the stream information supplied by the client.
+	pCfg->sr_class = sr_class;
 	memcpy(pCfg->stream_addr.buffer.ether_addr_octet, stream_src_mac, 6);
 	pCfg->stream_addr.mac = &(pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
 	pCfg->stream_uid = stream_uid;
 	memcpy(pCfg->dest_addr.buffer.ether_addr_octet, stream_dest_mac, 6);
 	pCfg->dest_addr.mac = &(pCfg->dest_addr.buffer); // Indicate that the MAC Address is valid.
 	pCfg->vlan_id = stream_vlan_id;
+	AVB_LOGF_DEBUG("Talker-supplied sr_class:  %u", pCfg->sr_class);
 	AVB_LOGF_DEBUG("Talker-supplied stream_id:  " ETH_FORMAT "/%u",
 		ETH_OCTETS(pCfg->stream_addr.buffer.ether_addr_octet), pCfg->stream_uid);
 	AVB_LOGF_DEBUG("Talker-supplied dest_addr:  " ETH_FORMAT,
@@ -246,7 +249,7 @@ bool openavbAvdeccMsgSrvrHndlTalkerStreamIDFromClient(int avdeccMsgHandle, const
 	return true;
 }
 
-bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
+bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, U8 sr_class, const U8 stream_src_mac[6], U16 stream_uid, const U8 stream_dest_mac[6], U16 stream_vlan_id)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
 	openavbAvdeccMessage_t msgBuf;
@@ -262,9 +265,42 @@ bool openavbAvdeccMsgSrvrListenerStreamID(int avdeccMsgHandle, const U8 stream_s
 	msgBuf.type = OPENAVB_AVDECC_MSG_LISTENER_STREAM_ID;
 	openavbAvdeccMsgParams_ListenerStreamID_t * pParams =
 		&(msgBuf.params.listenerStreamID);
+	pParams->sr_class = sr_class;
 	memcpy(pParams->stream_src_mac, stream_src_mac, 6);
 	pParams->stream_uid = htons(stream_uid);
 	memcpy(pParams->stream_dest_mac, stream_dest_mac, 6);
+	pParams->stream_vlan_id = htons(stream_vlan_id);
+	bool ret = openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
+
+	AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+	return ret;
+}
+
+bool openavbAvdeccMsgSrvrTalkerStreamID(int avdeccMsgHandle,
+	U8 sr_class, U8 stream_id_valid, const U8 stream_src_mac[6], U16 stream_uid, U8 stream_dest_valid, const U8 stream_dest_mac[6], U8 stream_vlan_id_valid, U16 stream_vlan_id)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVDECC_MSG);
+	openavbAvdeccMessage_t msgBuf;
+
+	avdecc_msg_state_t *pState = AvdeccMsgStateListGet(avdeccMsgHandle);
+	if (!pState) {
+		AVB_LOGF_ERROR("avdeccMsgHandle %d not valid", avdeccMsgHandle);
+		AVB_TRACE_EXIT(AVB_TRACE_AVDECC_MSG);
+		return false;
+	}
+
+	// Send the stream information to the client.
+	memset(&msgBuf, 0, OPENAVB_AVDECC_MSG_LEN);
+	msgBuf.type = OPENAVB_AVDECC_MSG_S2C_TALKER_STREAM_ID;
+	openavbAvdeccMsgParams_S2C_TalkerStreamID_t * pParams =
+		&(msgBuf.params.s2cTalkerStreamID);
+	pParams->sr_class = sr_class;
+	pParams->stream_id_valid = stream_id_valid;
+	memcpy(pParams->stream_src_mac, stream_src_mac, 6);
+	pParams->stream_uid = htons(stream_uid);
+	pParams->stream_dest_valid = stream_dest_valid;
+	memcpy(pParams->stream_dest_mac, stream_dest_mac, 6);
+	pParams->stream_vlan_id_valid = stream_vlan_id_valid;
 	pParams->stream_vlan_id = htons(stream_vlan_id);
 	bool ret = openavbAvdeccMsgSrvrSendToClient(avdeccMsgHandle, &msgBuf);
 

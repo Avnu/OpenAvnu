@@ -247,8 +247,28 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 			case OPENAVB_AEM_COMMAND_CODE_GET_SENSOR_FORMAT:
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_SET_STREAM_INFO:
+				{
+					openavb_aecp_commandresponse_data_set_stream_info_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.setStreamInfoCmd;
+					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
+					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
+					OCT_B2DNTOHL(pDst->flags, pSrc);
+					OCT_B2DMEMCP(pDst->stream_format, pSrc);
+					OCT_B2DMEMCP(pDst->stream_id, pSrc);
+					OCT_B2DNTOHL(pDst->msrp_accumulated_latency, pSrc);
+					OCT_B2DMEMCP(pDst->stream_dest_mac, pSrc);
+					OCT_B2DNTOHB(pDst->msrp_failure_code, pSrc);
+					OCT_B2DNTOHB(pDst->reserved_1, pSrc);
+					OCT_B2DMEMCP(pDst->msrp_failure_bridge_id, pSrc);
+					OCT_B2DNTOHS(pDst->stream_vlan_id, pSrc);
+					OCT_B2DNTOHS(pDst->reserved_2, pSrc);
+				}
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_GET_STREAM_INFO:
+				{
+					openavb_aecp_command_data_get_stream_info_t *pDst = &openavbAecpCommandResponse->entityModelPdu.command_data.getStreamInfoCmd;
+					OCT_B2DNTOHS(pDst->descriptor_type, pSrc);
+					OCT_B2DNTOHS(pDst->descriptor_index, pSrc);
+				}
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_SET_NAME:
 				break;
@@ -487,9 +507,15 @@ static void openavbAecpMessageRxFrameParse(U8* payload, int payload_len, hdr_inf
 				break;
 		}
 
-		// Notify the state machine of the command request
-		// The buffer will be deleted once the request is handled.
-		openavbAecpSMEntityModelEntitySet_rcvdCommand(openavbAecpCommandResponse);
+		if (pSrc - payload <= payload_len) {
+			// Notify the state machine of the command request
+			// The buffer will be deleted once the request is handled.
+			openavbAecpSMEntityModelEntitySet_rcvdCommand(openavbAecpCommandResponse);
+		}
+		else {
+			AVB_LOGF_ERROR("Expected packet of size %d, but received one of size %d.  Discarding.", pSrc - payload, payload_len);
+			free(openavbAecpCommandResponse);
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_AECP);
@@ -504,7 +530,7 @@ static void openavbAecpMessageRxFrameReceive(U32 timeoutUsec)
 	U8 *pBuf, *pFrame;
 
 	memset(&hdrInfo, 0, sizeof(hdr_info_t));
-	
+
 	pBuf = (U8 *)openavbRawsockGetRxFrame(rxSock, timeoutUsec, &offset, &len);
 	if (pBuf) {
 		pFrame = pBuf + offset;
@@ -667,8 +693,38 @@ void openavbAecpMessageTxFrame(openavb_aecp_AEMCommandResponse_t *AEMCommandResp
 			case OPENAVB_AEM_COMMAND_CODE_GET_SENSOR_FORMAT:
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_SET_STREAM_INFO:
+				{
+					openavb_aecp_commandresponse_data_set_stream_info_t *pSrc = &AEMCommandResponse->entityModelPdu.command_data.setStreamInfoRsp;
+					OCT_D2BHTONS(pDst, pSrc->descriptor_type);
+					OCT_D2BHTONS(pDst, pSrc->descriptor_index);
+					OCT_D2BHTONL(pDst, pSrc->flags);
+					OCT_D2BMEMCP(pDst, pSrc->stream_format);
+					OCT_D2BMEMCP(pDst, pSrc->stream_id);
+					OCT_D2BHTONL(pDst, pSrc->msrp_accumulated_latency);
+					OCT_D2BMEMCP(pDst, pSrc->stream_dest_mac);
+					OCT_D2BHTONB(pDst, pSrc->msrp_failure_code);
+					OCT_D2BHTONB(pDst, pSrc->reserved_1);
+					OCT_D2BMEMCP(pDst, pSrc->msrp_failure_bridge_id);
+					OCT_D2BHTONS(pDst, pSrc->stream_vlan_id);
+					OCT_D2BHTONS(pDst, pSrc->reserved_2);
+				}
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_GET_STREAM_INFO:
+				{
+					openavb_aecp_response_data_get_stream_info_t *pSrc = &AEMCommandResponse->entityModelPdu.command_data.getStreamInfoRsp;
+					OCT_D2BHTONS(pDst, pSrc->descriptor_type);
+					OCT_D2BHTONS(pDst, pSrc->descriptor_index);
+					OCT_D2BHTONL(pDst, pSrc->flags);
+					OCT_D2BMEMCP(pDst, pSrc->stream_format);
+					OCT_D2BMEMCP(pDst, pSrc->stream_id);
+					OCT_D2BHTONL(pDst, pSrc->msrp_accumulated_latency);
+					OCT_D2BMEMCP(pDst, pSrc->stream_dest_mac);
+					OCT_D2BHTONB(pDst, pSrc->msrp_failure_code);
+					OCT_D2BHTONB(pDst, pSrc->reserved_1);
+					OCT_D2BMEMCP(pDst, pSrc->msrp_failure_bridge_id);
+					OCT_D2BHTONS(pDst, pSrc->stream_vlan_id);
+					OCT_D2BHTONS(pDst, pSrc->reserved_2);
+				}
 				break;
 			case OPENAVB_AEM_COMMAND_CODE_SET_NAME:
 				break;
