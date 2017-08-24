@@ -396,7 +396,6 @@ bool EtherPort::_processEvent( Event e )
 	case LINKUP:
 		haltPdelay(false);
 		startPDelay();
-
 		if (automotive_profile) {
 			GPTP_LOG_EXCEPTION("LINKUP");
 		}
