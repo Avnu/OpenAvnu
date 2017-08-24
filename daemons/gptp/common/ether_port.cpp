@@ -396,11 +396,20 @@ bool EtherPort::_processEvent( Event e )
 	case LINKUP:
 		haltPdelay(false);
 		startPDelay();
+
 		if (automotive_profile) {
 			GPTP_LOG_EXCEPTION("LINKUP");
 		}
 		else {
 			GPTP_LOG_STATUS("LINKUP");
+		}
+
+		if( clock->getPriority1() == 255 || port_state == PTP_SLAVE ) {
+			becomeSlave( true );
+		} else if( port_state == PTP_MASTER ) {
+			becomeMaster( true );
+		} else {
+			startAnnounce();
 		}
 
 		if (automotive_profile) {
