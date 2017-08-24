@@ -67,7 +67,7 @@ typedef struct {
 
 openavb_list_t strElemList;
 
-#define SID_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x/%d"
+#define SID_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x/%u"
 #define SID_OCTETS(a) (a)[0],(a)[1],(a)[2],(a)[3],(a)[4],(a)[5],(a)[6]<<8|(a)[7]
 
 // Callback for SRP to notify AVTP Talker that a Listener Declaration has been
