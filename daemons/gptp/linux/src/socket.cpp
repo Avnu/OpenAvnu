@@ -66,6 +66,13 @@ ASocket::ASocket(const std::string& interfaceName, uint16_t port) :
 				std::cout << "createInterface  ifindex: " << fInterfaceIndex
 				 << std::endl;
 
+				int value = 1;
+				if (-1 == setsockopt(fSocketDescriptor, SOL_SOCKET, SO_REUSEADDR,
+				 &value, sizeof(value)))
+				{
+ 		   		std::cout << "warning setsocokopt failed." << std::endl;
+				}
+
 				Bind();
 			}
 		}
