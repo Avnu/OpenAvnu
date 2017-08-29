@@ -104,9 +104,9 @@ class LinkLayerAddress : public InterfaceLabel
 		GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv6  addrStr:%s  sin6_port:%d  "
 			"sin6_family:%d", buf, other.sin6_port, other.sin6_family);
 
-		memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
-		memcpy(fIpv6Addr, other.sin6_addr.s6_addr, sizeof(other.sin6_addr.s6_addr));
-		//ParseIpAddress(buf, fIpv6Addr, IPV6_ADDR_OCTETS, ":");
+		FixBSDLinkLocal(other);
+
+		//fIpVersion = 6;
 	}
 	/**
 	 * @brief Receives an address as an array of octets
@@ -138,8 +138,8 @@ class LinkLayerAddress : public InterfaceLabel
 	bool operator==(const LinkLayerAddress & cmp) const 
 	{
 		return 
-			0 == memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) &&
-			cmp.fPort == fPort;
+		 0 == memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) &&
+		 cmp.fPort == fPort;
 	}
 
 	/**
@@ -180,8 +180,8 @@ class LinkLayerAddress : public InterfaceLabel
 			return;
 		}
 
-		uint8_t *begin = fIpv6Addr;
-		uint8_t *end = fIpv6Addr + IPV6_ADDR_OCTETS;
+      uint8_t *begin = fIpv6Addr;
+      uint8_t *end = fIpv6Addr + IPV6_ADDR_OCTETS;
 		size_t copied = 0;
 		for (; begin < end && copied < octetSize; ++begin, ++address_octet_array)
 		{
@@ -231,14 +231,22 @@ class LinkLayerAddress : public InterfaceLabel
 
 	const std::string AddressString()
 	{
-		std::string address;
-
-		char buf[INET6_ADDRSTRLEN];
 		sockaddr_in6 other;
 		memcpy(other.sin6_addr.s6_addr, fIpv6Addr, sizeof(fIpv6Addr));
 
+		std::string address = FixBSDLinkLocal(other);
+
+		GPTP_LOG_VERBOSE("AddressString  address:%s", address.c_str());
+
+		return address;
+	}
+
+private:
+	const std::string FixBSDLinkLocal(const sockaddr_in6& other)
+	{
+		char buf[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, &other.sin6_addr, buf, sizeof(buf));
-		address = buf;
+		std::string address = buf;
 
 		// On BSD based platforms, the scope ID is embedded into the address
 		// itself for link local addresses as the second 16 bit word so we need
@@ -258,11 +266,18 @@ class LinkLayerAddress : public InterfaceLabel
 			inet_pton(AF_INET6, address.c_str(), &dest);
 			memcpy(fIpv6Addr, dest.s6_addr, sizeof(dest.s6_addr));
 		}
+		else
+		{
+			memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+			memcpy(fIpv6Addr, other.sin6_addr.s6_addr, sizeof(other.sin6_addr.s6_addr));
+			//ParseIpAddress(buf, fIpv6Addr, IPV6_ADDR_OCTETS, ":");
+		}
+
+		GPTP_LOG_VERBOSE("FixBSDLinkLocal    address:%s", address.c_str());
 
 		return address;
 	}
 
-private:
 	void ParseIpAddress(const std::string& ip, uint8_t * destination,
  	 size_t maxSize, const std::string& token)
 	{
@@ -297,8 +312,8 @@ private:
 
 
  private:
-	//!< Ethernet address
-	//uint8_t fIpv4Addr[ETHER_ADDR_OCTETS];
+   //!< Ethernet address
+   //uint8_t fIpv4Addr[ETHER_ADDR_OCTETS];
 	uint8_t fIpv6Addr[IPV6_ADDR_OCTETS];
 	uint16_t fPort;
 };

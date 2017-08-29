@@ -115,7 +115,7 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 			std::shared_ptr<PortIdentity> respPortIdentity;
 			port->getPortIdentity(respPortIdentity);
 
-			GPTP_LOG_DEBUG("Processing Delay Response as slave.");
+			GPTP_LOG_DEBUG("MaybePerformCalculations Processing as slave.");
 			PTPMessageSync *sync = port->getLastSync();
 			PTPMessageDelayReq req = port->getLastDelayReq();
 			PTPMessageDelayResp resp = port->getLastDelayResp();
@@ -2653,13 +2653,14 @@ void PTPMessageSignalling::sendPort(IEEE1588Port * port,
 
 void PTPMessageSignalling::processMessage(IEEE1588Port * port)
 {
-	long long unsigned int waitTime;
-
 	GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage");
 
 	GPTP_LOG_STATUS("Signalling Link Delay Interval: %d", tlv.getLinkDelayInterval());
 	GPTP_LOG_STATUS("Signalling Sync Interval: %d", tlv.getTimeSyncInterval());
 	GPTP_LOG_STATUS("Signalling Announce Interval: %d", tlv.getAnnounceInterval());
+
+#ifndef APTP
+	long long unsigned int waitTime;
 
 	char linkDelayInterval = tlv.getLinkDelayInterval();
 	char timeSyncInterval = tlv.getTimeSyncInterval();
@@ -2745,4 +2746,5 @@ void PTPMessageSignalling::processMessage(IEEE1588Port * port)
 			port->startAnnounceIntervalTimer(waitTime);
 		}
 	}
+#endif	
 }
