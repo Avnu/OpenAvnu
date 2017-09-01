@@ -830,9 +830,9 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 		buf_offset += sizeof(pthread_mutex_t);
 		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
 
-		ptimedata->ml_phoffset = 1;
+		ptimedata->ml_phoffset = 0;
 		ptimedata->ml_freqoffset = 1;
-		ptimedata->ls_phoffset = 1;
+		ptimedata->ls_phoffset = 0;
 		ptimedata->ls_freqoffset = 1;
 		ptimedata->local_time = 0;
       ptimedata->addressRegistrationSocketPort = arg != nullptr
