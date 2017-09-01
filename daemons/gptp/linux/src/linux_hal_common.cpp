@@ -92,12 +92,25 @@ net_result LinuxNetworkInterface::send
 	int err;
 #ifdef APTP
 	struct sockaddr_in6 remoteIpv6;
-	memset(&remoteIpv6, 0, sizeof(remoteIpv6));
-	remoteIpv6.sin6_family = AF_INET6;
-	remoteIpv6.sin6_port = htons(addr->Port());
-	addr->getAddress(&remoteIpv6.sin6_addr);
-	remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
-	remoteSize = sizeof(remoteIpv6);
+	struct sockaddr_in remoteIpv4;
+	if (4 == addr->IpVersion())
+	{
+		memset(&remoteIpv4, 0, sizeof(remoteIpv4));
+		remoteIpv4.sin_family = AF_INET;
+		remoteIpv4.sin_port = htons(addr->Port());
+		addr->getAddress(&remoteIpv4.sin_addr);
+		remote = reinterpret_cast<sockaddr*>(&remoteIpv4);
+		remoteSize = sizeof(remoteIpv4);
+	}
+	else
+	{
+		memset(&remoteIpv6, 0, sizeof(remoteIpv6));
+		remoteIpv6.sin6_family = AF_INET6;
+		remoteIpv6.sin6_port = htons(addr->Port());
+		addr->getAddress(&remoteIpv6.sin6_addr);
+		remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
+		remoteSize = sizeof(remoteIpv6);	
+	}
 #else
 	sockaddr_ll remoteOrig;
 	memset(&remoteOrig, 0, sizeof(remoteOrig));
@@ -898,7 +911,6 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 {
 	struct ifreq device;
 	int err;
-	LinkLayerAddress addr;
 	int ifindex;
 
 	LinuxNetworkInterface *net_iface_l = new LinuxNetworkInterface();
@@ -974,8 +986,9 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 		device.ifr_hwaddr.sa_data[13]);
 
 
-	addr = LinkLayerAddress( (uint8_t *)&device.ifr_hwaddr.sa_data );
-	net_iface_l->local_addr = addr;
+	// Set the interface's mac address
+	net_iface_l->local_addr = AMacAddress(device);
+
 	err = ioctl( net_iface_l->sd_event, SIOCGIFINDEX, &device );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR("Failed to get interface index: %s", strerror( errno ));

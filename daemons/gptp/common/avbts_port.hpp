@@ -54,6 +54,7 @@
 
 
 #include "gptp_cfg.hpp"
+#include "macaddress.hpp"
 
 
 /**@file*/
@@ -351,7 +352,7 @@ class IEEE1588Port {
 	std::shared_ptr<PortIdentity> peer_identity;
 
 	OSNetworkInterface *net_iface;
-	LinkLayerAddress local_addr;
+	AMacAddress local_addr;
 	int link_delay[4];
 
 	/* Port Status */
@@ -865,10 +866,11 @@ class IEEE1588Port {
 	}
 	/**
 	 * @brief  Gets the local_addr
-	 * @return LinkLayerAddress
+	 * @return AMacAddress
 	 */
-	LinkLayerAddress *getLocalAddr(void) {
-		return &local_addr;
+	const AMacAddress& getLocalAddr(void) const
+	{
+		return local_addr;
 	}
 
 	/**

@@ -929,11 +929,7 @@ PTPMessageCommon *buildPTPMessage
 
 	uint16_t debugPort;
 	msg->sourcePortIdentity->getPortNumber(&debugPort);
-	uint8_t debugDestAdr[8];
-	remote->toOctetArray(debugDestAdr, sizeof(debugDestAdr));
-	GPTP_LOG_VERBOSE("Added msg port %d  address: %d %d %d %d %d %d",
-	 debugPort, debugDestAdr[0], debugDestAdr[1], debugDestAdr[2],
-	 debugDestAdr[3], debugDestAdr[4], debugDestAdr[5], debugDestAdr[6]);
+	GPTP_LOG_VERBOSE("Added msg port %d  remote address: %s", debugPort, remote->AddressString().c_str());
 
 	msg->_timestamp = timestamp;
 	msg->_timestamp_counter_value = counter_value;
@@ -1800,7 +1796,7 @@ void PTPMessageDelayReq::buildCommonHeader(uint8_t * buf)
 			 (PTP_COMMON_HDR_OFFSET)));
 
 	// Per Apple Vendor PTP Profile 2017 (See setDelayRequest)
-	GPTP_LOG_VERBOSE("Sending Sequence Id: %u", sequenceId);
+	GPTP_LOG_VERBOSE("PTPMessageDelayReq::buildCommonHeader Sending Sequence Id: %u", sequenceId);
 	sequenceId = PLAT_htons(sequenceId);
 	memcpy(buf + PTP_COMMON_HDR_SEQUENCE_ID(PTP_COMMON_HDR_OFFSET),
 	       &sequenceId, sizeof(sequenceId));
@@ -1871,10 +1867,13 @@ void PTPMessageDelayResp::sendPort(IEEE1588Port * port,
 
 	messageLength = PTP_COMMON_HDR_LENGTH + PTP_DELAY_RESP_LENGTH;
 	tspec_msg_t |= messageType & 0xF;
+
+	fEgressTime = port->getClock()->getTime();
+
 	buildCommonHeader(buf_ptr);
 
 	// receiveTimeStamp
-	Timestamp receiveTimestamp = port->getClock()->getTime();
+	Timestamp receiveTimestamp = _timestamp;//port->getClock()->getTime();
 	receiveTimeStamp_BE.seconds_ms = PLAT_htons(receiveTimestamp.seconds_ms);
 	receiveTimeStamp_BE.seconds_ls = PLAT_htonl(receiveTimestamp.seconds_ls);
 	receiveTimeStamp_BE.nanoseconds =
@@ -1926,9 +1925,13 @@ void PTPMessageDelayResp::buildCommonHeader(uint8_t * buf)
      * So I am not sure why we are adding 0x10 to it
      */
 	tspec_msg_t = messageType | 0x10;
-	// Per Apple Vendor PTP Profile 2017 (See setDelayRequest)
-	correctionField = 0;
-	long long correctionField_BE = PLAT_htonll(correctionField);
+
+	// Compute correction field
+	int64_t residenceTime = TIMESTAMP_TO_NS(fEgressTime) - TIMESTAMP_TO_NS(_timestamp);
+
+	static const int32_t kTwoToThe16th = 65536;
+	correctionField = residenceTime * kTwoToThe16th;
+	int64_t correctionField_BE = PLAT_htonll(correctionField);
 	uint16_t messageLength_NO = PLAT_htons(messageLength);
 
 	memcpy(buf + PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(PTP_COMMON_HDR_OFFSET),

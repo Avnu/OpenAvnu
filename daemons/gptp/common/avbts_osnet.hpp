@@ -44,6 +44,8 @@
 #include <arpa/inet.h>
 #include <sstream>
 
+#include "macaddress.hpp"
+
 /**@file*/
 
 #define FACTORY_NAME_LENGTH 48		/*!< Factory name maximum length */
@@ -74,10 +76,6 @@ class LinkLayerAddress : public InterfaceLabel
 	{
 		uint8_t *ptr;
 		address_scalar <<= 16;
-		if (nullptr == fIpv6Addr)
-		{
-			return;
-		}
 
 		for (ptr = fIpv6Addr; ptr < fIpv6Addr + ETHER_ADDR_OCTETS; ++ptr) {
 			*ptr = (address_scalar & 0xFF00000000000000ULL) >> 56;
@@ -85,28 +83,85 @@ class LinkLayerAddress : public InterfaceLabel
 		}
 	}
 
-	// LinkLayerAddress(const sockaddr_in &other)
-	// {
-	// 	char buf[INET_ADDRSTRLEN];
-	// 	fIpVersion = 4;
-	// 	inet_ntop(other.sin_family, &other.sin_addr, buf, sizeof(buf));
-	// 	GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv4  addrStr:%s  sin_port:%d  "
-	// 		"sin_family:%d", buf, other.sin_port, other.sin_family);
+	LinkLayerAddress(const sockaddr &other)
+	{
+		if (AF_INET == other.sa_family)
+		{
+			fIpVersion = 4;
+			const sockaddr_in *dest = reinterpret_cast<const sockaddr_in*>(&other);
+			//ok = inet_pton(AF_INET, other.sa_data, &(dest->sin_addr);
+			fIpv4Addr = dest->sin_addr.s_addr;
 
-	// 	memset(fIpv4Addr, 0, sizeof(fIpv4Addr));
-	// 	ParseIpAddress(buf, fIpv4Addr, ETHER_ADDR_OCTETS, ".");
-	// }
+			char buf[INET_ADDRSTRLEN];
+			in_addr source;
+			source.s_addr = fIpv4Addr;
+			inet_ntop(AF_INET, &source, buf, sizeof(buf));
+
+			GPTP_LOG_VERBOSE("LinkLayerAddress::LinkLayerAddress  sockaddr  ipv4  rawAddress:%s", buf);
+		}
+		else if (AF_INET6 == other.sa_family)
+		{
+			fIpVersion = 6;
+	      const sockaddr_in6 *dest = reinterpret_cast<const sockaddr_in6*>(&other);
+	      //ok = inet_pton(AF_INET6, other.sa_data, &(dest->sin6_addr));
+	      memcpy(fIpv6Addr, dest->sin6_addr.s6_addr, sizeof(dest->sin6_addr.s6_addr));
+
+			char buf[INET6_ADDRSTRLEN];
+			inet_ntop(AF_INET6, &(dest->sin6_addr.s6_addr), buf, sizeof(buf));
+			GPTP_LOG_VERBOSE("LinkLayerAddress::LinkLayerAddress  sockaddr  ipv6  rawAddress:%s", buf);
+		}
+		else
+		{
+			GPTP_LOG_ERROR("Error constructing LinkLayAddress from sockaddr, "
+			 "invalid family %d", other.sa_family);	
+		}
+
+		GPTP_LOG_VERBOSE("LinkLayerAddress::LinkLayerAddress  sockaddr  address:%s", AddressString().c_str());
+	}
+
+	LinkLayerAddress(const sockaddr_in &other)
+	{
+	   memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+	   fIpv4Addr = 0;
+		fIpVersion = 4;
+
+		char buf[INET_ADDRSTRLEN];
+		const char* resultBuf = inet_ntop(other.sin_family, &other.sin_addr, buf, sizeof(buf));
+		if (nullptr == resultBuf)
+		{
+			GPTP_LOG_ERROR("Error constructing LinkLayAddress from sockaddr_in6.");
+		}
+		else
+		{
+			GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv4  addrStr:%s  sin_port:%d  "
+				"sin_family:%d", buf, other.sin_port, other.sin_family);
+
+			fIpv4Addr = other.sin_addr.s_addr;
+		}
+		//memset(&fIpv4Addr, 0, sizeof(fIpv4Addr));
+		//ParseIpAddress(buf, fIpv4Addr, ETHER_ADDR_OCTETS, ".");
+	}
 
 	LinkLayerAddress(const sockaddr_in6 &other)
 	{
+	   memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+	   fIpv4Addr = 0;
+		fIpVersion = 6;
+
 		char buf[INET6_ADDRSTRLEN];
-		inet_ntop(other.sin6_family, &other.sin6_addr, buf, sizeof(buf));
-		GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv6  addrStr:%s  sin6_port:%d  "
-			"sin6_family:%d", buf, other.sin6_port, other.sin6_family);
+		const char* resultBuf = inet_ntop(other.sin6_family, &other.sin6_addr, buf, sizeof(buf));
+		if (nullptr == resultBuf)
+		{
+			GPTP_LOG_ERROR("Error constructing LinkLayAddress from sockaddr_in6.");
+		}
+		else
+		{
+			GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv6  addrStr:%s  sin6_port:%d  "
+				"sin6_family:%d", buf, other.sin6_port, other.sin6_family);
 
-		FixBSDLinkLocal(other);
+			FixBSDLinkLocal(other);
+		}
 
-		//fIpVersion = 6;
 	}
 	/**
 	 * @brief Receives an address as an array of octets
@@ -115,6 +170,9 @@ class LinkLayerAddress : public InterfaceLabel
 	 */
 	LinkLayerAddress(uint8_t * address_octet_array)
 	{
+	   memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+	   fIpv4Addr = 0;
+
 		uint8_t *ptr = fIpv6Addr;
 		uint8_t *dest = ptr;
 		if (nullptr == address_octet_array)
@@ -137,8 +195,9 @@ class LinkLayerAddress : public InterfaceLabel
 	 */
 	bool operator==(const LinkLayerAddress & cmp) const 
 	{
-		return 
-		 0 == memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) &&
+		return (4 == fIpVersion 
+		 ? fIpv4Addr == cmp.fIpv4Addr
+		 : 0 == memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS)) &&
 		 cmp.fPort == fPort;
 	}
 
@@ -151,7 +210,9 @@ class LinkLayerAddress : public InterfaceLabel
 	 */
 	bool operator <(const LinkLayerAddress & cmp) const
 	{
-		return memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) < 0;
+		return 4 == fIpVersion 
+		 ? fIpv4Addr < cmp.fIpv4Addr
+		 : memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) < 0;
 	}
 
 	/**
@@ -163,7 +224,9 @@ class LinkLayerAddress : public InterfaceLabel
 	 */
 	bool operator>(const LinkLayerAddress & cmp) const
 	{
-		return memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) > 0;
+		return 4 == fIpVersion
+		 ? fIpv4Addr > cmp.fIpv4Addr
+		 : memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) > 0;
 	}
 
 	/**
@@ -180,43 +243,47 @@ class LinkLayerAddress : public InterfaceLabel
 			return;
 		}
 
-      uint8_t *begin = fIpv6Addr;
-      uint8_t *end = fIpv6Addr + IPV6_ADDR_OCTETS;
-		size_t copied = 0;
-		for (; begin < end && copied < octetSize; ++begin, ++address_octet_array)
+		if (4 == fIpVersion)
 		{
-			*address_octet_array = *begin;
-			++copied;
+			char buf[ETHER_ADDR_OCTETS];
+			in_addr source;
+			source.s_addr = fIpv4Addr;
+			inet_ntop(AF_INET, &source, buf, sizeof(buf));
+			ParseIpAddress(buf, address_octet_array, octetSize, ".");
+		}
+		else
+		{
+			sockaddr_in6 other;
+			memcpy(other.sin6_addr.s6_addr, fIpv6Addr, sizeof(fIpv6Addr));
+			std::string address = FixBSDLinkLocal(other);			
+			ParseIpAddress(address, address_octet_array, octetSize, ":");
 		}
 	}
 
-	// void getAddress(in_addr *dest)
-	// {
-	// 	if (fIpVersion != 4)
-	// 	{
-	// 		GPTP_LOG_ERROR("Invalid coversion...This address is version %d but "
-	// 		 "converting to 4", fIpVersion);
-	// 		return;
-	// 	}
+	void getAddress(in_addr *dest)
+	{
+		if (fIpVersion != 4)
+		{
+			GPTP_LOG_ERROR("Invalid coversion...This address is version %d but "
+			 "converting to 4", fIpVersion);
+			return;
+		}
 
-	// 	// Convert the raw values to a string for use with inet_pton
-	// 	std::string address = AddressString();
+		// Convert the raw values to a string for use with inet_pton
+		std::string address = AddressString();
 
-	// 	GPTP_LOG_VERBOSE("address:%s", address.c_str());
+		GPTP_LOG_VERBOSE("address:%s", address.c_str());
 
-	// 	// Convert the address eg "192.168.0.189"
-	// 	inet_pton(AF_INET, address.c_str(), dest);
-	// }
+		// Convert the address eg "192.168.0.189"
+		inet_pton(AF_INET, address.c_str(), dest);
+	}
 
 	void getAddress(in6_addr *dest)
 	{
 		std::string address = AddressString();
-		GPTP_LOG_VERBOSE("address:%s", address.c_str());
+		GPTP_LOG_VERBOSE("fIpVersion:%d   address:%s", fIpVersion, address.c_str());
 
-		memcpy(dest->s6_addr, fIpv6Addr, sizeof(fIpv6Addr));
-
-		// // Convert the address eg "2001:db8:8714:3a90::12"
-		// inet_pton(AF_INET6, address.c_str(), dest);
+		inet_pton(AF_INET6, address.c_str(), dest);
 	}
 
 	uint16_t Port() const
@@ -231,14 +298,31 @@ class LinkLayerAddress : public InterfaceLabel
 
 	const std::string AddressString()
 	{
-		sockaddr_in6 other;
-		memcpy(other.sin6_addr.s6_addr, fIpv6Addr, sizeof(fIpv6Addr));
+		std::string address;
 
-		std::string address = FixBSDLinkLocal(other);
+		if (4 == fIpVersion)
+		{
+			char buf[INET_ADDRSTRLEN];
+			in_addr source;
+			source.s_addr = fIpv4Addr;
+			inet_ntop(AF_INET, &source, buf, sizeof(buf));
+			address = buf;
+		}
+		else
+		{
+			sockaddr_in6 other;
+			memcpy(other.sin6_addr.s6_addr, fIpv6Addr, sizeof(fIpv6Addr));
+			address = FixBSDLinkLocal(other);
+		}
 
-		GPTP_LOG_VERBOSE("AddressString  address:%s", address.c_str());
+		GPTP_LOG_VERBOSE("AddressString  fIpVersion:%d address:%s", fIpVersion, address.c_str());
 
 		return address;
+	}
+
+	int IpVersion() const
+	{
+		return fIpVersion;
 	}
 
 private:
@@ -312,10 +396,10 @@ private:
 
 
  private:
-   //!< Ethernet address
-   //uint8_t fIpv4Addr[ETHER_ADDR_OCTETS];
+	uint32_t fIpv4Addr;
 	uint8_t fIpv6Addr[IPV6_ADDR_OCTETS];
 	uint16_t fPort;
+	int fIpVersion;
 };
 
 /**
@@ -514,7 +598,7 @@ class OSNetworkInterface {
 	  * @param addr [out] Link Layer address
 	  * @return void
 	  */
-	 virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
+	 virtual void getMacAddress(AMacAddress * addr) = 0;
 
 	 /**
 	  * @brief Watch for netlink changes.

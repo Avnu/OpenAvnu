@@ -40,6 +40,8 @@
 #include <avbts_ostimerq.hpp>
 #include <avbts_osipc.hpp>
 
+#include "macaddress.hpp"
+
 /**@file*/
 
 #define EVENT_TIMER_GRANULARITY 5000000		/*!< Event timer granularity*/
@@ -240,7 +242,8 @@ public:
    * @brief  Gets the Last Best clock identity
    * @return clock identity
    */
-  ClockIdentity getLastEBestIdentity( void ) {
+  const ClockIdentity& getLastEBestIdentity( void ) const
+  {
 	  return LastEBestIdentity;
   }
 
@@ -264,13 +267,14 @@ public:
   }
 
   /**
-   * @brief  Set clock id based on the link layer address. Clock id is 8 octets
-   * long whereas link layer address is 6 octets long and it is turned into a
-   * clock identity as per the 802.1AS standard described in clause 8.5.2.2
-   * @param  addr Link layer address
+   * @brief  Set clock id based on the mac address. the mac address is turned
+   * into a clock identity as per the 802.1AS standard described in clause
+   * 8.5.2.2
+   * @param  addr mac address
    * @return void
    */
-  void setClockIdentity(LinkLayerAddress * addr) {
+  void setClockIdentity(const AMacAddress& addr)
+  {
 	  clock_identity.set(addr);
   }
 
@@ -286,7 +290,8 @@ public:
    * @brief  Gets grandmaster clock ID
    * @return GM clock ID
    */
-  ClockIdentity getGrandmasterClockIdentity(void) {
+  const ClockIdentity& getGrandmasterClockIdentity(void) const
+  {
 	  return grandmaster_clock_identity;
   }
 
@@ -565,7 +570,8 @@ public:
    * @brief  Get the IEEE1588Clock identity value
    * @return clock identity
    */
-  const ClockIdentity& getClockIdentity() {
+  const ClockIdentity& getClockIdentity() const
+  {
 	  return clock_identity;
   }
 

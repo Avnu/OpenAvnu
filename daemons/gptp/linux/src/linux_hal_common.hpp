@@ -44,6 +44,7 @@
 #include "avbts_osthread.hpp"
 #include "avbts_osipc.hpp"
 #include "ieee1588.hpp"
+#include "../../common/macaddress.hpp"
 
 #include <list>
 
@@ -154,7 +155,7 @@ public:
 class LinuxNetworkInterface : public OSNetworkInterface {
 	friend class LinuxNetworkInterfaceFactory;
 private:
-	LinkLayerAddress local_addr;
+	AMacAddress local_addr;
 	int sd_event;
 	int sd_general;
 	LinuxTimestamper *timestamper;
@@ -215,7 +216,8 @@ public:
 	 * @param  addr [out] Pointer to the LinkLayerAddress object
 	 * @return void
 	 */
-	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
+	virtual void getMacAddress(AMacAddress *addr)
+	{
 		*addr = local_addr;
 	}
 

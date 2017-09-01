@@ -50,6 +50,8 @@
 
 #include <gptp_log.hpp>
 
+#include "macaddress.hpp"
+
 #define MAX_PORTS 32	/*!< Maximum number of IEEE1588Port instances */
 
 #define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS Clause 8.5.2.4*/
@@ -244,14 +246,14 @@ class ClockIdentity {
 		set(other.id);
 	}
 
-	/**
-	 * @brief  Set clock id based on the link layer address. Clock id is 8 octets
-	 * long whereas link layer address is 6 octets long and it is turned into a
-	 * clock identity as per the 802.1AS standard described in clause 8.5.2.2
-	 * @param  address Link layer address
-	 * @return void
-	 */
-	void set(LinkLayerAddress * address);
+   /**
+   * @brief  Set clock id based on the mac address. the mac address is turned
+   * into a clock identity as per the 802.1AS standard described in clause
+   * 8.5.2.2
+   * @param  address mac address
+   * @return void
+   */
+   void set(const AMacAddress& address);
 
 	/**
 	 * @brief  This method is only enabled at compiling time. When enabled, it prints on the

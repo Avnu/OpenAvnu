@@ -65,7 +65,7 @@ class WindowsPCAPNetworkInterface : public OSNetworkInterface {
 	friend class WindowsPCAPNetworkInterfaceFactory;
 private:
 	pfhandle_t handle;
-	LinkLayerAddress local_addr;
+	AMacAddress local_addr;
 public:
 	/**
 	 * @brief  Sends a packet to a remote address
@@ -103,7 +103,8 @@ public:
 	 * @param  addr [out] Link layer address
 	 * @return void
 	 */
-	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
+	virtual void getMacAddress(AMacAddress *addr)
+	{
 		*addr = local_addr;
 	}
 

@@ -1045,7 +1045,7 @@ class PTPMessageDelayResp:public PTPMessageCommon {
 private:
 	std::shared_ptr<PortIdentity> requestingPortIdentity;
 	Timestamp requestReceiptTimestamp;
-
+	Timestamp fEgressTime;
 
 public:
 	PTPMessageDelayResp(const MessageType type = DELAY_RESP_MESSAGE) :

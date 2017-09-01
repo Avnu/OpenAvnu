@@ -105,7 +105,9 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-	struct sockaddr_in6 remoteIpv6;
+
+	struct sockaddr_storage remoteAddress;
+	size_t remoteSize = sizeof(struct sockaddr_storage);
 
 	struct iovec sgentry;
 	net_result ret = net_succeed;
@@ -178,15 +180,15 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 				sgentry.iov_base = payload;
 				sgentry.iov_len = length;
 
-				memset(&remoteIpv6, 0, sizeof(remoteIpv6));
-				msg.msg_name = &remoteIpv6;
-				msg.msg_namelen = sizeof(remoteIpv6);
+				memset(&remoteAddress, 0, remoteSize);
+				msg.msg_name = &remoteAddress;
+				msg.msg_namelen = remoteSize;
 
 				msg.msg_control = &control;
 				msg.msg_controllen = sizeof(control);
 
 				err = recvmsg(fileDesc, &msg, 0);
-				GPTP_LOG_VERBOSE("After call to recvmsg err:%d", err);
+				GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive After call to recvmsg err:%d", err);
 				if (err < 0) 
 				{
 					if (errno == ENOMSG)
@@ -196,13 +198,24 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 					}
 					else
 					{
-						GPTP_LOG_ERROR("recvmsg() failed: %s", strerror(errno));
+						GPTP_LOG_ERROR("LinuxNetworkInterface::receive recvmsg() failed: %s", strerror(errno));
 						ret = net_fatal;
 					}
 				}
 				else
 				{
-					*addr = LinkLayerAddress(remoteIpv6);
+					if (AF_INET == remoteAddress.ss_family)
+					{
+						GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive   remoteAddress  IPV4");
+						sockaddr_in* address = reinterpret_cast<sockaddr_in*>(&remoteAddress);
+						*addr = LinkLayerAddress(*address);
+					}
+					else
+					{
+						GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive   remoteAddress  IPV6");
+						sockaddr_in6* address = reinterpret_cast<sockaddr_in6*>(&remoteAddress);
+						*addr = LinkLayerAddress(*address);
+					}
 
 					struct timespec ts;
 					clock_gettime(CLOCK_REALTIME, &ts);
@@ -211,7 +224,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 					gtimestamper = dynamic_cast<LinuxTimestamperGeneric *>(timestamper);
 					if (err > 0 && !(payload[0] & 0x8) && gtimestamper != NULL)
 					{
-						GPTP_LOG_VERBOSE("LinuxNetworkInterface::nrecv  getting timestamp");
+						GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  getting timestamp");
 
 						/* Retrieve the timestamp */
 						cmsg = CMSG_FIRSTHDR(&msg);

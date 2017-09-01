@@ -297,8 +297,8 @@ bool IEEE1588Port::init_port(int delay[4])
 	fSyncIntervalTimeoutExpireCount = 0;
 
 	this->net_iface = net_iface;
-	this->net_iface->getLinkLayerAddress(&local_addr);
-	clock->setClockIdentity(&local_addr);
+	this->net_iface->getMacAddress(&local_addr);
+	clock->setClockIdentity(local_addr);
 	memcpy(this->link_delay, delay, sizeof(this->link_delay));
 
 	this->timestamper_init();
@@ -764,10 +764,7 @@ net_result IEEE1588Port::port_send(uint16_t etherType, uint8_t * buf, int size,
 		{
 			mapSocketAddr(destIdentity, &dest);
 			dest.Port(port);
-			uint8_t debugOctets[6];
-			dest.toOctetArray(debugOctets, sizeof(debugOctets));
-			GPTP_LOG_VERBOSE("dest: %d %d %d %d %d %d", debugOctets[0],debugOctets[1],debugOctets[2],debugOctets[3],
-				debugOctets[4],debugOctets[5]);			
+			GPTP_LOG_VERBOSE("IEEE1588Port::port_send dest: %s", dest.AddressString().c_str());			
 			ok = net_iface->send(&dest, etherType, (uint8_t *) buf, size, timestamp);
 		}
 	}
@@ -1341,7 +1338,7 @@ void IEEE1588Port::processEvent(Event e)
 			uint32_t local_clock, nominal_clock_rate;
 
 #ifdef APTP
-			fSyncIntervalTimeoutExpireCount = 0;
+//			fSyncIntervalTimeoutExpireCount = 0;
 #else
 			// The aPTP profile can't support asCapable
 			if (asCapable)
@@ -1872,6 +1869,7 @@ void IEEE1588Port::startSyncReceiptTimer(long long unsigned int waitTime) {
 
 void IEEE1588Port::stopSyncReceiptTimer(void)
 {
+	GPTP_LOG_VERBOSE("IEEE1588Port::stopSyncReceiptTimer");
 	syncReceiptTimerLock->lock();
 	clock->deleteEventTimerLocked(this, SYNC_RECEIPT_TIMEOUT_EXPIRES);
 	syncReceiptTimerLock->unlock();

@@ -80,7 +80,7 @@ void APMessageTestStatus::sendPort(IEEE1588Port * port)
 
 	size_t length = AP_TEST_STATUS_CONTROLLER_ENTITY_ID(AP_TEST_STATUS_OFFSET) -
 	 AP_TEST_STATUS_TARGET_ENTITY_ID(AP_TEST_STATUS_OFFSET);
-	port->getLocalAddr()->toOctetArray(
+	port->getLocalAddr().Copy(
 	 buf_ptr + AP_TEST_STATUS_TARGET_ENTITY_ID(AP_TEST_STATUS_OFFSET), length);
 
 	tmp16 = PLAT_htons(sequenceId++);
