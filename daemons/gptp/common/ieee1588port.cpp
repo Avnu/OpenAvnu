@@ -814,6 +814,7 @@ void IEEE1588Port::processEvent(Event e)
 			Event e3 = NULL_EVENT;
 			Event e4 = NULL_EVENT;
 
+#ifndef APTP
 			if (!automotive_profile) {
 				if (port_state != PTP_SLAVE && port_state != PTP_MASTER) {
 					GPTP_LOG_STATUS("Starting PDelay");
@@ -823,6 +824,7 @@ void IEEE1588Port::processEvent(Event e)
 			else {
 				startPDelay();
 			}
+#endif
 
 			if( clock->getPriority1() == 255 || port_state == PTP_SLAVE ) {
 				becomeSlave( true );
@@ -1534,7 +1536,6 @@ void IEEE1588Port::processEvent(Event e)
 	case PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("Received PDELAY_RESP_PEER_MISBEHAVING_TIMEOUT_EXPIRES event");
 		GPTP_LOG_EXCEPTION("PDelay Resp Peer Misbehaving timeout expired! Restarting PDelay");
-
 		haltPdelay(false);
 		if( port_state != PTP_SLAVE && port_state != PTP_MASTER ) {
 			GPTP_LOG_STATUS("Starting PDelay" );
