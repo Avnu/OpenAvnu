@@ -21,7 +21,6 @@ class AAddressMessage
 		virtual ~AAddressMessage();
 
 	public:
-		virtual void Process();
 		virtual void Process(const AAddressMessage& data, IEEE1588Port *port);
 
 	public:
@@ -45,7 +44,6 @@ class AAddAddressMessage : public AAddressMessage
 		virtual ~AAddAddressMessage();
 
 	public:
-		virtual void Process();
 		virtual void Process(const AAddressMessage& data, IEEE1588Port *port);
 };
 
@@ -57,6 +55,5 @@ class ADeleteAddressMessage : public AAddressMessage
 		virtual ~ADeleteAddressMessage();
 
 	public:
-		virtual void Process();
 		virtual void Process(const AAddressMessage& data, IEEE1588Port *port);
 };

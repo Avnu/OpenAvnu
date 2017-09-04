@@ -213,56 +213,79 @@ bool ASocket::ReceiveData(ARawPacket& data, std::mutex& keeper)
 		char control[256];
 	} control;
 
-	struct sockaddr_in6 remoteIpv6;
-	size_t remoteSize;
-	sockaddr *remote;
-
-	memset(&remoteIpv6, 0, sizeof(remoteIpv6));
-	remoteIpv6.sin6_port = htons(fPort);
-	remoteIpv6.sin6_addr = in6addr_any;
-	remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
-	remoteSize = sizeof(remoteIpv6);
+	struct sockaddr_storage remoteAddress;
+	size_t remoteSize = sizeof(struct sockaddr_storage);
 
 	struct iovec sgentry;
 
-	uint8_t buf[kReceiveBufferSize];
+	ARawPacket::Buffer buf(kReceiveBufferSize, 0);
 
 	memset(&msg, 0, sizeof(msg));
 
 	msg.msg_iov = &sgentry;
 	msg.msg_iovlen = 1;
 
-	sgentry.iov_base = buf;
+	sgentry.iov_base = &buf[0];
 	sgentry.iov_len = kReceiveBufferSize;
 
-	msg.msg_name = remote;
+	msg.msg_name = &remoteAddress;
 	msg.msg_namelen = remoteSize;
 	msg.msg_control = &control;
 	msg.msg_controllen = sizeof(control);
 
+	std::cout << "ASocket::ReceiveData  2" << std::endl;
 	size_t bytesReceived = recvmsg(fSocketDescriptor, &msg, 0);
-	struct timespec ts;
-	clock_gettime(CLOCK_REALTIME, &ts);
-	if (bytesReceived < 0)
+	if (bytesReceived <= 0)
 	{
 		// if (ENOMSG == errno)
 		// {
-		// 	// std::cerr << "Got ENOMSG: " << __FILE__
-		// 	//  << ":" << __LINE__ << std::endl;
+		//  	//std::cerr << "Got ENOMSG: " << __FILE__
+		//  	//  << ":" << __LINE__ << std::endl;
 		// }
 		// else
 		// {
-		// 	// std::cerr << "recvmsg() failed: " << strerror(errno)
-		// 	//  << std::endl;
+		//  	//std::cerr << "recvmsg() failed: " << strerror(errno)
+		//  	//  << std::endl;
 		// }
 	}
 	else
 	{
-		data.IngressTimeNano(ts);
-		size_t toCopySize = bytesReceived < kReceiveBufferSize
-		 ? bytesReceived : kReceiveBufferSize;
-		data.Assign(buf, toCopySize);
-		data.RemoteAddress(remoteIpv6);
+		// Assign the received data to the ARawDataPacket
+		// size_t toCopySize = bytesReceived < kReceiveBufferSize
+		//  ? bytesReceived : kReceiveBufferSize;
+		data.Assign(buf);
+
+		// Extract and assign the remote address to the ARawDataPacket
+		if (AF_INET == remoteAddress.ss_family)
+		{
+			sockaddr_in* address = reinterpret_cast<sockaddr_in*>(&remoteAddress);
+			data.RemoteAddress(*address);
+		}
+		else
+		{
+			sockaddr_in6* address = reinterpret_cast<sockaddr_in6*>(&remoteAddress);
+			data.RemoteAddress(*address);
+		}
+
+		// Extract and assign the packet timestamp (in nanoseconds) to the ARawDataPacket
+		if (!(buf[0] & 0x8))
+		{
+			struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+			while (cmsg != NULL)
+			{
+				if (SOL_SOCKET == cmsg->cmsg_level &&
+				 SO_TIMESTAMPING == cmsg->cmsg_type) 
+				{
+					struct timespec *ts_device, *ts_system;
+					ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
+					ts_device = ts_system + 1;
+					data.IngressTimeNano(*ts_device);
+					break;
+				}
+				cmsg = CMSG_NXTHDR(&msg,cmsg);
+			}
+		}
+
 		haveData = true;
 	}
 	return haveData;

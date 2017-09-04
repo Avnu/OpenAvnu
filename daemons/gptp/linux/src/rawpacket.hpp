@@ -19,8 +19,8 @@
 class ARawPacket
 {
 	public:
-		typedef uint8_t Type;
-		typedef std::vector<Type> Buffer;
+		typedef uint8_t ValueType;
+		typedef std::vector<ValueType> Buffer;
 
 	public:
 		ARawPacket() : fIngressTimeNano(0)
@@ -34,10 +34,17 @@ class ARawPacket
 		}
 
 	public:
-		ARawPacket& Assign(const Type* source, const size_t sourceSize)
+		ARawPacket& Assign(const Buffer& rawBuffer)
 		{
-			const Type* first = source;
-			const Type* last = source + sourceSize;
+			fBuffer.resize(rawBuffer.size());
+			fBuffer = rawBuffer;
+			return *this;
+		}
+
+		ARawPacket& Assign(const ValueType* source, const size_t sourceSize)
+		{
+			const ValueType* first = source;
+			const ValueType* last = source + sourceSize;
 
 			fBuffer.resize(sourceSize);
 			fBuffer.assign(first, last);
@@ -45,7 +52,7 @@ class ARawPacket
 			return *this;
 		}
 
-		void Copy(Type* destination, const size_t destinationSize)
+		void Copy(ValueType* destination, const size_t destinationSize)
 		{
 			const size_t kBufferSize = fBuffer.size();
 			if (kBufferSize <= destinationSize)
@@ -58,6 +65,16 @@ class ARawPacket
 				//std::cerr << msg << std::endl;
 				throw(std::runtime_error(msg));
 			}
+		}
+
+		void PushBack(const ValueType& value)
+		{
+			fBuffer.push_back(value);
+		}
+
+		void Swap(ARawPacket& other)
+		{
+			std::swap(fBuffer, other.fBuffer);
 		}
 
 		void IngressTimeNano(const struct timespec& ts)

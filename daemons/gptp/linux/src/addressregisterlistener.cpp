@@ -39,7 +39,8 @@ void AAddressRegisterListener::ProcessData(ARawPacket& data)
 	const int kKind = msg.Type();
 	if (kKind != AddressApiAdd && kKind != AddressApiDelete)
 	{
-		std::string msg = "Invalid address api message type.";
+		std::string msg = "Invalid address api message type "
+		 + std::to_string(kKind) + ".";
 		//std::cerr << msg << std::endl;
 		GPTP_LOG_ERROR(msg.c_str());
 		throw(std::runtime_error(msg));

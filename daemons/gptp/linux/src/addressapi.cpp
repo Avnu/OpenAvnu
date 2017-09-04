@@ -8,6 +8,7 @@
  */
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
 
 #include "addressapi.hpp"
 
@@ -47,11 +48,10 @@ AAddressMessage::AAddressMessage(const ARawPacket& data)
 {
 	const ARawPacket::Buffer& buf = data.Data();
 
-	memcpy(&fType, &buf[0], sizeof(fType));
-
-	const ARawPacket::Type *begin = &buf[0] + sizeof(fType);
-	const ARawPacket::Type *end = begin + kAddressApiIpAddressLength;
-	fAddress.assign(begin, end);
+	auto begin = buf.begin();
+	fType = *begin;	
+	++begin;
+	fAddress.assign(begin, buf.end());
 
 	StripTrailing(fAddress);
 
@@ -63,14 +63,12 @@ AAddressMessage::AAddressMessage(const ARawPacket& data)
 		//std::cerr << msg << std::endl;
 		throw(std::runtime_error(msg));
 	}
+	DebugLog();
 }
 
 AAddressMessage::~AAddressMessage()
 {}
 
-
-void AAddressMessage::Process()
-{}
 
 void AAddressMessage::Process(const AAddressMessage& data, IEEE1588Port *port)
 {}
@@ -105,11 +103,15 @@ void AAddressMessage::Copy(ARawPacket& packet)
 		//std::cerr << msg << std::endl;
 		throw(std::runtime_error(msg));
 	}
-	ARawPacket::Type buf[kAddressApiMsgLength];
-	memset(buf, 0, kAddressApiMsgLength);
-	memcpy(buf, &fType, sizeof(fType));
-	memcpy(buf+sizeof(fType), fAddress.c_str(), fAddress.length());
-	packet.Assign(buf, kAddressApiMsgLength);
+
+	ARawPacket dataPacket;
+	dataPacket.PushBack(fType);
+	std::for_each(fAddress.begin(), fAddress.end(), [&] (const char value)
+	{
+		dataPacket.PushBack(static_cast<ARawPacket::ValueType>(value));
+	});
+
+	packet.Swap(dataPacket);
 }
 
 void AAddressMessage::DebugLog()
@@ -142,10 +144,6 @@ AAddAddressMessage::AAddAddressMessage(const ARawPacket& data) :
 AAddAddressMessage::~AAddAddressMessage()
 {}
 
-void AAddAddressMessage::Process()
-{
-}
-
 void AAddAddressMessage::Process(const AAddressMessage& data, IEEE1588Port *port)
 {
 	if (port != nullptr)
@@ -175,10 +173,6 @@ ADeleteAddressMessage::ADeleteAddressMessage(const ARawPacket& data) :
 
 ADeleteAddressMessage::~ADeleteAddressMessage()
 {}
-
-void ADeleteAddressMessage::Process()
-{
-}
 
 void ADeleteAddressMessage::Process(const AAddressMessage& data, IEEE1588Port *port)
 {
