@@ -597,13 +597,9 @@ bool CommonPort::processEvent( Event e )
 
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES occured");
-		if( !asCapable )
-		{
-			ret = true;
-			break;
-		}
 
 		// Send an announce message
+		if ( asCapable)
 		{
 			PTPMessageAnnounce *annc =
 				new PTPMessageAnnounce(this);
