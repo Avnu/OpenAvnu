@@ -217,10 +217,6 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 						*addr = LinkLayerAddress(*address);
 					}
 
-					struct timespec ts;
-					clock_gettime(CLOCK_REALTIME, &ts);
-					ingressTime = Timestamp(ts);
-
 					gtimestamper = dynamic_cast<LinuxTimestamperGeneric *>(timestamper);
 					if (err > 0 && !(payload[0] & 0x8) && gtimestamper != NULL)
 					{
@@ -241,6 +237,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 								ts_device = ts_system + 1; 
 								device = tsToTimestamp( ts_device );
 								device = device - latency;
+								ingressTime = device;
 								gtimestamper->pushRXTimestamp( &device );
 								break;
 							}

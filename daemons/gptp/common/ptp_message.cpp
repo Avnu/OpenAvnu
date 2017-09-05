@@ -417,6 +417,7 @@ PTPMessageCommon *buildPTPMessage
 	messageId.setMessageType(messageType);
 	messageId.setSequenceId(sequenceId);
 
+	timestamp = ingressTime;
 
 	if (!(messageType >> 3)) {
 		int iter = 5;
@@ -578,6 +579,7 @@ PTPMessageCommon *buildPTPMessage
 				goto abort;
 			}
 
+			timestamp = ingressTime;
 			std::shared_ptr<PortIdentity> reqPortId = port->getPortIdentity();
 			msg = new PTPMessageDelayReq(messageType);
 			msg->setPortIdentity(reqPortId);
