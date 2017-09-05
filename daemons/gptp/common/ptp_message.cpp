@@ -310,6 +310,8 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 									//port->MasterOffset(offset);
 									port->meanPathDelay(filteredMeanPathDelay);
 
+									port->setLinkDelay(filteredMeanPathDelay);
+
 									port->PushMasterSlaveRateRatio(RR1);
 									port->PushSlaveMasterRateRatio(RR2);
 
@@ -1539,20 +1541,30 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 
 	master_local_freq_offset /= port->getPeerRateOffset();
 	//correctionField /= 1 << 16;
+	
+	GPTP_LOG_VERBOSE("Followup  sync_arrival:%Ld", TIMESTAMP_TO_NS(sync_arrival));
+	GPTP_LOG_VERBOSE("Followup  master_local_freq_offset:%Le", master_local_freq_offset);
+	
 	correction = (int64_t)((delay * master_local_freq_offset) + convertedCorrection);
 
+	GPTP_LOG_VERBOSE("Followup  correction:%Ld", correction);
+
 	masterTime = preciseOriginTimestamp;
+
+	GPTP_LOG_VERBOSE("Followup  masterTime (raw):%Ld", TIMESTAMP_TO_NS(masterTime));
 
 	if (correction > 0)
 	   TIMESTAMP_ADD_NS(masterTime, correction);
 	else 
 		TIMESTAMP_SUB_NS(masterTime, -correction);
 
+	GPTP_LOG_VERBOSE("Followup  masterTime (adj):%Ld", TIMESTAMP_TO_NS(masterTime));
+
 	scalar_offset  = TIMESTAMP_TO_NS(sync_arrival);
 	scalar_offset -= TIMESTAMP_TO_NS(masterTime);
 
 	port->MasterOffset(scalar_offset);
-   GPTP_LOG_VERBOSE("Followup  scalar_offset:%d", scalar_offset);
+   GPTP_LOG_VERBOSE("Followup  scalar_offset:%Ld", scalar_offset);
 
 	GPTP_LOG_VERBOSE("Followup Correction Field: %Ld,  convertedCorrection: %Ld"
 	 " Link Delay: %lu", correctionField, convertedCorrection, delay);
@@ -1599,7 +1611,7 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	// GPTP_LOG_INFO("PTPMessageFollowUp::processMessage  correctedMasterEventTimestamp.nanoseconds:%d", correctedMasterEventTimestamp.nanoseconds);
 
 	local_clock_adjustment = port->getClock()->calcMasterLocalClockRateDifference(
-	 preciseOriginTimestamp, sync_arrival);
+	 masterTime, sync_arrival);
 
 	/*Update information on local status structure.*/
 	scaledLastGmFreqChange = (int32_t)((1.0/local_clock_adjustment -1.0) * (1ULL << 41));
@@ -1873,7 +1885,7 @@ void PTPMessageDelayResp::sendPort(IEEE1588Port * port,
 	buildCommonHeader(buf_ptr);
 
 	// receiveTimeStamp
-	Timestamp receiveTimestamp = _timestamp;//port->getClock()->getTime();
+	Timestamp receiveTimestamp = port->getClock()->getTime();
 	receiveTimeStamp_BE.seconds_ms = PLAT_htons(receiveTimestamp.seconds_ms);
 	receiveTimeStamp_BE.seconds_ls = PLAT_htonl(receiveTimestamp.seconds_ls);
 	receiveTimeStamp_BE.nanoseconds =
