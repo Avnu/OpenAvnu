@@ -217,6 +217,10 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 						*addr = LinkLayerAddress(*address);
 					}
 
+					struct timespec ts;
+					clock_gettime(CLOCK_REALTIME, &ts);
+					ingressTime = Timestamp(ts);
+
 					gtimestamper = dynamic_cast<LinuxTimestamperGeneric *>(timestamper);
 					if (err > 0 && !(payload[0] & 0x8) && gtimestamper != NULL)
 					{
@@ -224,24 +228,38 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 
 						/* Retrieve the timestamp */
 						cmsg = CMSG_FIRSTHDR(&msg);
-						while( cmsg != NULL )
+						if (nullptr == cmsg)
 						{
-							if (cmsg->cmsg_level == SOL_SOCKET &&
-							 cmsg->cmsg_type == SO_TIMESTAMPING) 
+							// There are no headers to process so we need to set the ingress time
+							Timestamp latency(delay->gb_rx_phy_delay, 0, 0);
+							Timestamp device = ingressTime;
+							device = device - latency;
+							gtimestamper->pushRXTimestamp(&device);
+						}
+						else
+						{
+							while (cmsg != nullptr)
 							{
-								Timestamp latency( delay->gb_rx_phy_delay, 0, 0 );
-								struct timespec *ts_device, *ts_system;
-								Timestamp device, system;
-								ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
-								system = tsToTimestamp( ts_system );
-								ts_device = ts_system + 1; 
-								device = tsToTimestamp( ts_device );
-								device = device - latency;
-								ingressTime = device;
-								gtimestamper->pushRXTimestamp( &device );
-								break;
+								GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  cmsg->cmsg_level:%d  cmsg->cmsg_type:%d", cmsg->cmsg_level, cmsg->cmsg_type);
+								if (cmsg->cmsg_level == SOL_SOCKET &&
+								 cmsg->cmsg_type == SO_TIMESTAMPING) 
+								{
+									Timestamp latency( delay->gb_rx_phy_delay, 0, 0 );
+									struct timespec *ts_device, *ts_system;
+									Timestamp device, system;
+									ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
+									system = tsToTimestamp( ts_system );
+									GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  ts_system.tv_sec:%d  ts_system.tv_nsec:%d", ts_system->tv_sec, ts_system->tv_nsec);
+									ts_device = ts_system + 1; 
+									device = tsToTimestamp( ts_device );
+									device = device - latency;
+									ingressTime = device;
+									GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  ts_device.tv_sec:%d  ts_device.tv_nsec:%d", ts_device->tv_sec, ts_device->tv_nsec);
+									gtimestamper->pushRXTimestamp( &device );
+									break;
+								}
+								cmsg = CMSG_NXTHDR(&msg,cmsg);
 							}
-							cmsg = CMSG_NXTHDR(&msg,cmsg);
 						}
 					}
 				}

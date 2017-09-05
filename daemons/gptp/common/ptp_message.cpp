@@ -250,10 +250,10 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 								remoteDiffUpper = ceil(remoteDiffUpper * kLimit) / kLimit;
 								remoteDiffLower = ceil(remoteDiffLower * kLimit) / kLimit;
 
-								// Limit to 10 bad diffs otherwise we loose too many
+								// Limit to 5 bad diffs otherwise we loose too many
 								if ((difflocaltime <= remoteDiffUpper &&
 									difflocaltime >= remoteDiffLower) ||
-									port->BadDiffCount() > 10)
+									port->BadDiffCount() > 5)
 								{
 									port->BadDiffCount(0);
 									GPTP_LOG_VERBOSE("Setting badDiffCount  0");
@@ -416,8 +416,6 @@ PTPMessageCommon *buildPTPMessage
 	GPTP_LOG_VERBOSE("Captured Sequence Id: %u", sequenceId);
 	messageId.setMessageType(messageType);
 	messageId.setSequenceId(sequenceId);
-
-	timestamp = ingressTime;
 
 	if (!(messageType >> 3)) {
 		int iter = 5;
