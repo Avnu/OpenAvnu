@@ -1398,6 +1398,13 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	messageLength =
 	    PTP_COMMON_HDR_LENGTH + PTP_FOLLOWUP_LENGTH + sizeof(tlv);
 	tspec_msg_t |= messageType & 0xF;
+
+	// Compute correction field
+        Timestamp egressTime = port->getClock()->getTime();
+	int64_t residenceTime = TIMESTAMP_TO_NS(egressTime) - TIMESTAMP_TO_NS(preciseOriginTimestamp);
+	static const int32_t kTwoToThe16th = 65536;
+	correctionField = residenceTime * kTwoToThe16th;
+
 	buildCommonHeader(buf_ptr);
 	preciseOriginTimestamp_BE.seconds_ms =
 	    PLAT_htons(preciseOriginTimestamp.seconds_ms);
