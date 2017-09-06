@@ -705,7 +705,7 @@ public:
 	/**
 	 * @brief Destroys and unlinks shared memory
 	 */
-	~LinuxSharedMemoryIPC();
+	virtual ~LinuxSharedMemoryIPC();
 
 	/**
 	 * @brief  Initializes shared memory with DEFAULT_GROUPNAME case arg is null
@@ -741,6 +741,35 @@ public:
 	 * @return void
 	 */
 	void stop();
+
+	virtual void ResetValues()
+	{
+#ifdef APTP
+		GPTP_LOG_VERBOSE("LinuxSharedMemoryIPC::ResetValues");
+		char *shm_buffer = master_offset_buffer;
+		if (shm_buffer != nullptr)
+		{
+			/* lock */
+			pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
+			int buf_offset = sizeof(pthread_mutex_t);
+			gPtpTimeData *ptimedata = reinterpret_cast<gPtpTimeData *>(
+			 shm_buffer + buf_offset);
+
+			ptimedata->ml_phoffset = 0;
+			ptimedata->ml_freqoffset = 1;
+			ptimedata->ls_phoffset = 0;
+			ptimedata->ls_freqoffset = 1;
+			ptimedata->local_time = 0;
+			ptimedata->sync_count   = 0;
+			ptimedata->pdelay_count = 0;
+	      ptimedata->asCapable = false;
+			ptimedata->port_state = PTP_UNCALIBRATED;
+
+			/* unlock */
+			pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
+		}
+#endif
+	}
 };
 
 

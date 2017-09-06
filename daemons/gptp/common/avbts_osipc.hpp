@@ -88,6 +88,11 @@ public:
 	 * Destroys IPC
 	 */
 	virtual ~OS_IPC() = 0;
+
+  virtual void ResetValues()
+  {
+     // Intentionally empty
+  }
 };
 
 inline OS_IPC::~OS_IPC() {}

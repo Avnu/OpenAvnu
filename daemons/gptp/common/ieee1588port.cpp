@@ -1186,6 +1186,9 @@ void IEEE1588Port::processEvent(Event e)
 					}
 					port_state = PTP_MASTER;
 					GPTP_LOG_VERBOSE("port_state SET to MASTER!!!!!");
+
+					clock->ResetIpcValues();
+
 					Timestamp system_time;
 					Timestamp device_time;
 
@@ -1732,6 +1735,8 @@ void IEEE1588Port::becomeMaster( bool annc ) {
 #endif
 	startSyncIntervalTimer(interval);
 	GPTP_LOG_STATUS("Switching to Master" );
+
+	clock->ResetIpcValues();
 
 	clock->updateFUPInfo();
 

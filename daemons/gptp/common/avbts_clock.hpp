@@ -670,6 +670,14 @@ public:
   OSLock *timerQLock() {
 	  return timerq_lock;
   }
+
+  void ResetIpcValues()
+  {
+     if (ipc != nullptr)
+     {
+        ipc->ResetValues();
+     }
+  }
 };
 
 void tick_handler(int sig);
