@@ -1946,7 +1946,7 @@ void PTPMessageDelayResp::buildCommonHeader(uint8_t * buf)
 	tspec_msg_t = messageType | 0x10;
 
 	// Compute correction field
-	int64_t residenceTime = TIMESTAMP_TO_NS(fEgressTime) - TIMESTAMP_TO_NS(_timestamp);
+	int64_t residenceTime = TIMESTAMP_TO_NS(fEgressTime) - TIMESTAMP_TO_NS(requestReceiptTimestamp);
 
 	static const int32_t kTwoToThe16th = 65536;
 	correctionField = residenceTime * kTwoToThe16th;
