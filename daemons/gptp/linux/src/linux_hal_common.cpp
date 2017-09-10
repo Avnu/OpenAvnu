@@ -868,18 +868,27 @@ bool LinuxSharedMemoryIPC::update
 
 	if (shm_buffer != nullptr)
 	{
-		typedef FrequencyRatio FR;
-
 		/* lock */
 		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
 		buf_offset += sizeof(pthread_mutex_t);
 		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
 
-		// For now we are filtering the frequency offset until it is better tuned
 		ptimedata->ml_phoffset = ml_phoffset;
-		FrequencyRatio filtered = (FR(fLastFreqoffset * 63) / 64) + (ml_freqoffset / 64);
-		ptimedata->ml_freqoffset = filtered;
 
+		// For now we are filtering the frequency offset until it is better tuned
+		FrequencyRatio filtered;
+		if (ml_freqoffset > 3.0)
+		{
+			GPTP_LOG_VERBOSE("LinuxSharedMemoryIPC::update   ml_freqoffset > 2.0: %Le", ml_freqoffset);
+			filtered = fLastFreqoffset;
+		}
+		else
+		{
+			typedef FrequencyRatio FR;
+			filtered = (FR(fLastFreqoffset * 63) / 64) + (ml_freqoffset / 64);
+		}
+
+		ptimedata->ml_freqoffset = filtered;		
 		ptimedata->ls_phoffset = ls_phoffset;
 		ptimedata->ls_freqoffset = ls_freqoffset;
 		ptimedata->local_time = local_time;
