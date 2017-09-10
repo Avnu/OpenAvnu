@@ -218,6 +218,8 @@ public:
 	}
 };
 
+class PTPMessageFollowUp;
+
 /**
  * @brief Provides the PTPMessage common interface used during building of
  * PTP messages.
@@ -242,13 +244,22 @@ protected:
 	Timestamp _timestamp;	/*!< PTP message timestamp */
 	unsigned _timestamp_counter_value;	/*!< PTP timestamp counter value */
 
-	// TODO: replace this with std::shared_ptr
+	// TODO: remove this when using std::shared_ptr
 	bool _gc;	/*!< Garbage collection flag */
 
+private:
+	static int sMaxBadDiffCount;
+	static int sSuccessDiffCount;
+	static const int kMaxSuccessCount = 4;
+	static const int kMaxBadDiffCount = 10;
+
+protected:
 	/**
 	 * @brief Default constructor
 	 */
-	PTPMessageCommon(void) : sourcePortIdentity(nullptr), sequenceId(0), correctionField(0) { };
+	PTPMessageCommon() : 
+	 sourcePortIdentity(nullptr), sequenceId(0), correctionField(0)
+	{ };
 
  public:
  	PTPMessageCommon(const PTPMessageCommon& other)
@@ -937,6 +948,10 @@ public:
 	Timestamp getPreciseOriginTimestamp(void) {
 		return preciseOriginTimestamp;
 	}
+
+	void MaybePerformCalculations(IEEE1588Port *port, bool frequencyComputeOk);
+
+	bool ComputeFrequencies(IEEE1588Port * port);
 
 	/**
 	 * @brief  Sets the precis origin timestamp value

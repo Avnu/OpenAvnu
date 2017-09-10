@@ -50,6 +50,10 @@ using namespace std::chrono;
 
 steady_clock::time_point lastSync = steady_clock::now();
 
+int PTPMessageCommon::sMaxBadDiffCount = 5;
+int PTPMessageCommon::sSuccessDiffCount = 0;
+
+
 PTPMessageCommon::PTPMessageCommon(IEEE1588Port * port)
 {
 	// Fill in fields using port/clock dataset as a template
@@ -250,12 +254,29 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 								remoteDiffUpper = ceil(remoteDiffUpper * kLimit) / kLimit;
 								remoteDiffLower = ceil(remoteDiffLower * kLimit) / kLimit;
 
-								// Limit to 5 bad diffs otherwise we loose too many
+								// Limit to 5 bad diffs initially to quickly lock into
+								// master time then increase the amout to stabilize the
+								// offests. Keep this check in place otherwise we loose
+								// too many.
 								if ((difflocaltime <= remoteDiffUpper &&
 									difflocaltime >= remoteDiffLower) ||
-									port->BadDiffCount() > 5)
+									port->BadDiffCount() > PTPMessageCommon::sMaxBadDiffCount)
 								{
 									port->BadDiffCount(0);
+
+									if (PTPMessageCommon::sSuccessDiffCount > kMaxSuccessCount &&
+										PTPMessageCommon::sSuccessDiffCount < kMaxBadDiffCount)
+									{
+										PTPMessageCommon::sMaxBadDiffCount *= 2;								
+										GPTP_LOG_VERBOSE("Incremented sMaxBadDiffCount to %d", PTPMessageCommon::sMaxBadDiffCount);
+									}
+									
+									if (PTPMessageCommon::sSuccessDiffCount < kMaxBadDiffCount)
+									{
+										++PTPMessageCommon::sSuccessDiffCount;
+										GPTP_LOG_VERBOSE("Incremented PTPMessageCommon::sSuccessDiffCount to %d", PTPMessageCommon::sSuccessDiffCount);
+									}
+
 									GPTP_LOG_VERBOSE("Setting badDiffCount  0");
 
 									FR RR1 = 1.0;
@@ -1463,10 +1484,111 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 {
 	if (*(port->getPortIdentity()) == *getPortIdentity())
 	{
+		GPTP_LOG_VERBOSE("Received Follow Up from self...ignoring it.");
 		// Ignore messages from self
 		return;
 	}
 
+	GPTP_LOG_DEBUG("Processing a follow-up message");
+
+	GPTP_LOG_VERBOSE("Followup clock id:%s", 
+	 sourcePortIdentity->getClockIdentity().getIdentityString().c_str());
+
+	// Expire any SYNC_RECEIPT timers that exist
+	port->stopSyncReceiptTimer();
+
+	if (port->getPortState() == PTP_DISABLED ) {
+		GPTP_LOG_VERBOSE("Followup   Received Follow Up but state is PTP_DISABLED");
+		// Do nothing Sync messages should be ignored when in this state
+		return;
+	}
+	if (port->getPortState() == PTP_FAULTY) {
+		GPTP_LOG_VERBOSE("Followup   Received Follow Up but state is PTP_FAULTY");
+		// According to spec recovery is implementation specific
+		port->recoverPort();
+		return;
+	}
+
+	PTPMessageSync *sync = port->getLastSync();
+	if (sync == nullptr) {
+		GPTP_LOG_ERROR("Received Follow Up but there is no sync message");
+		return;
+	}
+	std::shared_ptr<PortIdentity> sync_id;
+	sync_id = sync->getPortIdentity();
+
+	bool ok = false;
+	if (sync->getSequenceId() != sequenceId || 
+	 (sourcePortIdentity != nullptr && sync_id != nullptr &&
+	 *sync_id != *sourcePortIdentity))
+	{
+#ifdef APTP
+		GPTP_LOG_ERROR("Received Follow Up that didn't match the sync message. "
+		 "sync.seqId:%d  followup.seqId:%d", sync->getSequenceId(), sequenceId);
+		GPTP_LOG_VERBOSE("Sync clock id:%s", 
+ 	    sync_id->getClockIdentity().getIdentityString().c_str());
+#else
+		unsigned int cnt = 0;
+
+		if( !port->incWrongSeqIDCounter(&cnt) )
+		{
+			port->becomeMaster( true );
+			port->setWrongSeqIDCounter(0);
+		}
+
+		GPTP_LOG_ERROR("Received Follow Up %d times but cannot find "
+		 "corresponding Sync", cnt);
+#endif
+	}
+	else
+	{
+		ok = ComputeFrequencies(port);
+	}
+
+	MaybePerformCalculations(port, ok);
+
+	return;
+
+// done:
+// 	_gc = true;
+// #ifndef APTP
+// 	port->setLastSync(NULL);
+// 	delete sync;
+// #endif
+}
+
+void PTPMessageFollowUp::MaybePerformCalculations(IEEE1588Port *port,
+ bool frequencyComputeOk)
+{
+	if (!frequencyComputeOk)
+	{
+		// Attempt to compute the frequency one more time
+		PTPMessageSync *sync = port->getLastSync();
+		if (sync == nullptr) {
+			return;
+		}
+		std::shared_ptr<PortIdentity> sync_id;
+		sync_id = sync->getPortIdentity();
+
+		if (sync->getSequenceId() == sequenceId && 
+		 (sourcePortIdentity != nullptr && sync_id != nullptr &&
+		 *sync_id == *sourcePortIdentity))
+		{
+			GPTP_LOG_VERBOSE("Attempting recomputation of frequencies.");
+			ComputeFrequencies(port);
+		}
+		else
+		{
+			GPTP_LOG_VERBOSE("Sync and followup still outof sync...giving up on this followup.");
+		}
+
+	}
+	PTPMessageCommon::MaybePerformCalculations(port);
+}
+
+bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
+{
+	bool ok = false;
 	uint64_t delay;
 	Timestamp sync_arrival;
 	Timestamp system_time(0, 0, 0);
@@ -1484,62 +1606,21 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	int32_t scaledLastGmFreqChange = 0;
 	scaledNs scaledLastGmPhaseChange;
 
-	GPTP_LOG_DEBUG("Processing a follow-up message");
-
-	GPTP_LOG_VERBOSE("Followup clock id:%s", 
-	 sourcePortIdentity->getClockIdentity().getIdentityString().c_str());
-
-	// Expire any SYNC_RECEIPT timers that exist
-	port->stopSyncReceiptTimer();
-
-	if (port->getPortState() == PTP_DISABLED ) {
-		// Do nothing Sync messages should be ignored when in this state
-		return;
-	}
-	if (port->getPortState() == PTP_FAULTY) {
-		// According to spec recovery is implementation specific
-		port->recoverPort();
-		return;
-	}
-
 	port->incCounter_ieee8021AsPortStatRxFollowUpCount();
 
 	FrequencyRatio adjMaster = 0.0;
 	Timestamp correctedMasterEventTimestamp;
 
-	std::shared_ptr<PortIdentity> sync_id;
 	PTPMessageSync *sync = port->getLastSync();
 	if (sync == nullptr) {
-		GPTP_LOG_ERROR("Received Follow Up but there is no sync message");
-		return;
+		return ok;
 	}
-	sync->getPortIdentity(sync_id);
-
-#ifndef APTP
-	if (sync->getSequenceId() != sequenceId || 
-	 (sourcePortIdentity != nullptr && sync_id != nullptr &&
-	 *sync_id != *sourcePortIdentity))
-	{
-		unsigned int cnt = 0;
-
-		if( !port->incWrongSeqIDCounter(&cnt) )
-		{
-			port->becomeMaster( true );
-			port->setWrongSeqIDCounter(0);
-		}
-
-		GPTP_LOG_ERROR("Received Follow Up %d times but cannot find "
-		 "corresponding Sync", cnt);
-		goto done;
-	}
-#endif
-
 	sync_arrival = sync->getTimestamp();
 
 	if( !port->getLinkDelay(&delay) ) 
 	{
 		GPTP_LOG_ERROR("Error getting link delay.");
-		goto done;
+		return ok;
 	}
 
 	master_local_freq_offset  =  tlv.getRateOffset();
@@ -1645,6 +1726,8 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 		signed long long local_system_offset =
 			TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(sync_arrival);
 
+		GPTP_LOG_VERBOSE("local_clock_adjustment:%Le  local_system_offset:%Ld",
+		 local_clock_adjustment, local_system_offset);
 		port->getClock()->setMasterOffset(port, scalar_offset, sync_arrival,
 		 local_clock_adjustment, local_system_offset, system_time,
 		 local_system_freq_offset, port->getSyncCount(), port->getPdelayCount(),
@@ -1665,14 +1748,9 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 	}
 	port->setLastGmTimeBaseIndicator(tlv.getGmTimeBaseIndicator());
 
-	MaybePerformCalculations(port);
+	ok = true;
 
-done:
-	_gc = true;
-#ifndef APTP
-	port->setLastSync(NULL);
-	delete sync;
-#endif	
+	return ok;
 }
 
 PTPMessageDelayReq::PTPMessageDelayReq(IEEE1588Port * port):
