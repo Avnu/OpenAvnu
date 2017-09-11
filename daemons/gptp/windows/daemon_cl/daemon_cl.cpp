@@ -44,10 +44,17 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <tchar.h>
 #include <iphlpapi.h>
 
-#define PHY_DELAY_GB_TX		7750	//1G delay
-#define PHY_DELAY_GB_RX		7750	//1G delay
-#define PHY_DELAY_MB_TX		27500	//100M delay
-#define PHY_DELAY_MB_RX		27500	//100M delay
+/* Generic PCH delays */
+#define PHY_DELAY_GB_TX_PCH 7750  //1G delay
+#define PHY_DELAY_GB_RX_PCH 7750  //1G delay
+#define PHY_DELAY_MB_TX_PCH 27500 //100M delay
+#define PHY_DELAY_MB_RX_PCH 27500 //100M delay
+
+/* I210 delays */
+#define PHY_DELAY_GB_TX_I210 184  //1G delay
+#define PHY_DELAY_GB_RX_I210 382  //1G delay
+#define PHY_DELAY_MB_TX_I210 1044 //100M delay
+#define PHY_DELAY_MB_RX_I210 2133 //100M delay
 
 #define MACSTR_LENGTH 17
 
@@ -93,10 +100,10 @@ int _tmain(int argc, _TCHAR* argv[])
 	PortInit_t portInit;
 
 	phy_delay_map_t ether_phy_delay;
-	ether_phy_delay[LINKSPEED_1G].set
-	(PHY_DELAY_GB_TX, PHY_DELAY_GB_RX);
-	ether_phy_delay[LINKSPEED_100MB].set
-	(PHY_DELAY_MB_TX, PHY_DELAY_MB_RX);
+	ether_phy_delay[LINKSPEED_1G].set_delay
+	(PHY_DELAY_GB_TX_PCH, PHY_DELAY_GB_RX_PCH);
+	ether_phy_delay[LINKSPEED_100MB].set_delay
+	(PHY_DELAY_MB_TX_PCH, PHY_DELAY_MB_RX_PCH);
 
 
 	portInit.clock = NULL;

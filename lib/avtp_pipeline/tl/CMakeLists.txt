@@ -3,6 +3,7 @@ SET (SRC_FILES_TL
 	${AVB_OSAL_DIR}/tl/openavb_tl_osal.c
 	${AVB_SRC_DIR}/tl/openavb_listener.c
 	${AVB_SRC_DIR}/tl/openavb_talker.c
+	${AVB_SRC_DIR}/avdecc_msg/openavb_avdecc_msg_client.c
 	)
 
 if(AVB_FEATURE_ENDPOINT)

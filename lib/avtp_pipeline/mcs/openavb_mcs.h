@@ -1,5 +1,6 @@
 /*************************************************************************************************************
-Copyright (c) 2016, Harman International Industries, Incorporated
+Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -21,6 +22,11 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
+https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /*
@@ -31,12 +37,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define OPENAVB_MCS_H
 
 typedef struct {
-  bool firstTimeSet;
-  U64 nsPerAdvance;
-  U64 edgeTime;
+	bool firstTimeSet;
+	U64 nsPerAdvance;
+	U64 startTime;
+	U64 tickCount;
+	S32 correctionAmount;
+	U32 correctionInterval;
+	U64 edgeTime;
 } mcs_t;
 
-void openavbMcsInit(mcs_t *mediaClockSynth, U64 nsPerAdvance);
+void openavbMcsInit(mcs_t *mediaClockSynth, U64 nsPerAdvance, S32 correctionAmount, U32 correctionInterval);
 void openavbMcsAdvance(mcs_t *mediaClockSynth);
 
 #endif

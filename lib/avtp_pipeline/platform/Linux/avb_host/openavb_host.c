@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -48,7 +49,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 bool bRunning = TRUE;
 
-// Platform indendent mapping modules
+// Platform independent mapping modules
 extern bool openavbMapPipeInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
 extern bool openavbMapAVTPAudioInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
 extern bool openavbMapCtrlInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
@@ -58,7 +59,7 @@ extern bool openavbMapMpeg2tsInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pM
 extern bool openavbMapNullInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
 extern bool openavbMapUncmpAudioInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
 
-// Platform indendent interface modules
+// Platform independent interface modules
 extern bool openavbIntfEchoInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfCtrlInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfLoggerInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
@@ -84,9 +85,15 @@ static void openavbTLSigHandler(int signal)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HOST);
 
-	if (signal == SIGINT) {
-		AVB_LOG_INFO("Host shutting down");
-		bRunning = FALSE;
+	if (signal == SIGINT || signal == SIGTERM) {
+		if (bRunning) {
+			AVB_LOG_INFO("Host shutting down");
+			bRunning = FALSE;
+		}
+		else {
+			// Force shutdown
+			exit(2);
+		}
 	}
 	else if (signal == SIGUSR1) {
 		AVB_LOG_DEBUG("Waking up streaming thread");
@@ -185,6 +192,13 @@ int main(int argc, char *argv[])
 		osalAVBFinalize();
 		exit(-1);
 	}
+	err = sigaction(SIGTERM, &sa, NULL);
+	if (err)
+	{
+		AVB_LOG_ERROR("Failed to setup SIGTERM handler");
+		osalAVBFinalize();
+		exit(-1);
+	}
 	err = sigaction(SIGUSR1, &sa, NULL);
 	if (err)
 	{
@@ -192,6 +206,9 @@ int main(int argc, char *argv[])
 		osalAVBFinalize();
 		exit(-1);
 	}
+
+	// Ignore SIGPIPE signals.
+	signal(SIGPIPE, SIG_IGN);
 
 	registerStaticMapModule(openavbMapPipeInitialize);
 	registerStaticMapModule(openavbMapAVTPAudioInitialize);
@@ -262,12 +279,15 @@ int main(int argc, char *argv[])
 	gst_init(0, NULL);
 #endif
 
+	// Run any streams where the stop initial state was not requested.
 	for (i1 = 0; i1 < tlCount; i1++) {
-		openavbTLRun(tlHandleList[i1]);
+		if (openavbTLGetInitialState(tlHandleList[i1]) != TL_INIT_STATE_STOPPED) {
+			openavbTLRun(tlHandleList[i1]);
+		}
 	}
 
 	while (bRunning) {
-		sleep(1);
+		SLEEP_MSEC(1);
 	}
 
 	for (i1 = 0; i1 < tlCount; i1++) {

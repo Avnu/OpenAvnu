@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -61,6 +62,7 @@ typedef struct {
 	bool vlan;		// Include VLAN header?
 	U8  vlan_pcp;	// VLAN Priority Code Point
 	U16 vlan_vid;	// VLAN ID
+	struct timespec ts;	// RX timestamp
 } hdr_info_t;
 	
 	

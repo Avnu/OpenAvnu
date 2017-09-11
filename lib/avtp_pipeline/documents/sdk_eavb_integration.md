@@ -10,6 +10,7 @@ will be active. The details of stream configuration is described in another
 section. 
 
 <br>
+
 AVTP Control {#sdk_integration_avtp_control}
 ============
 Only a handful of functions are needed to control the AVTP component. This is
@@ -23,6 +24,7 @@ general flow is:
    close.
 
 <br>
+
 Host Application Integration {#sdk_integration_host_app}
 ============================
 Controlling the non-AVTP components of the AVB stack are platform dependent. 

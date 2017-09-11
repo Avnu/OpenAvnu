@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -38,10 +39,6 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_trace_pub.h"
 #include "openavb_avtp_time_pub.h"
 #include "openavb_mediaq_pub.h"
-
-// TODO_OPENAVB : Is this needed?
-//#include "openavb_avdecc_pub.h"
-
 #include "openavb_map_pub.h"
 #include "openavb_map_uncmp_audio_pub.h"
 
@@ -204,7 +201,7 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 				break;
 
 			default:
-				AVB_LOG_ERROR("Invalid audio frequency configured.");
+				AVB_LOGF_ERROR("Invalid audio frequency configured: %u", pPubMapInfo->audioRate);
 				pPvtData->cip_sfc = 2;
 				pPubMapInfo->sytInterval = 8;
 				break;
@@ -224,16 +221,13 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 		if (pPubMapInfo->packingFactor > 1) {
 			// Packing multiple packets of sampling into a media queue item
 			pPubMapInfo->framesPerItem = pPubMapInfo->framesPerPacket * pPvtData->packingFactor;
-			if (pPubMapInfo->framesPerItem < 1) {
-				pPubMapInfo->framesPerItem = 1;
-			}
 		}
 		else {
 			// No packing. SYT_INTERVAL is used for media queue item size.
 			pPubMapInfo->framesPerItem = pPubMapInfo->sytInterval;
-			if (pPubMapInfo->framesPerItem < 1) {
-				pPubMapInfo->framesPerItem = 1;
-			}
+		}
+		if (pPubMapInfo->framesPerItem < 1) {
+			pPubMapInfo->framesPerItem = 1;
 		}
 
 		pPubMapInfo->packetSampleSizeBytes = 4;
@@ -281,7 +275,7 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 				break;
 
 			default:
-				AVB_LOG_ERROR("Invalid audio format configured.");
+				AVB_LOGF_ERROR("Invalid audio bit depth configured: %u", pPubMapInfo->audioBitDepth);
 				pPvtData->AM824_label = 0x40000000;
 				break;
 		}
@@ -474,14 +468,15 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 		U32 framesProcessed = 0;
 		U8 *pAVTPDataUnit = pPayload;
 		bool timestampSet = FALSE;		// index of the timestamp
+		U32 sytInt = pPubMapInfo->sytInterval;
+		U8 dbc = pPvtData->DBC;
 		while (framesProcessed < pPubMapInfo->framesPerPacket) {
 			pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
+			if (pMediaQItem && pMediaQItem->pPubData && pMediaQItem->dataLen > 0) {
+				U8 *pItemData = (U8 *)pMediaQItem->pPubData + pMediaQItem->readIdx;
 
-			if (pMediaQItem && pMediaQItem->dataLen > 0) {
 				if (pMediaQItem->readIdx == 0) {
-					// Timestamp from the media queue is always assoicated with the first data point.
-
-					// Update time stamp
+					// Timestamp from the media queue is always associated with the first data point.
 
 					// PTP walltime already set in the interface module. Just add the max transit time.
 					openavbAvtpTimeAddUSec(pMediaQItem->pAvtpTime, pPvtData->maxTransitUsec);
@@ -496,14 +491,11 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 					// Set timestamp uncertain flag
 					if (openavbAvtpTimeTimestampIsUncertain(pMediaQItem->pAvtpTime))
 						pHdr[HIDX_AVTP_HIDE7_TU1] |= 0x01;      // Set
-					else pHdr[HIDX_AVTP_HIDE7_TU1] &= ~0x01;     // Clear
+					else
+						pHdr[HIDX_AVTP_HIDE7_TU1] &= ~0x01;     // Clear
 
-					*(U32 *)(&pHdr[HIDX_AVTP_TIMESTAMP32]) = htonl(openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime));
-
-					timestampSet = TRUE;
 				}
 
-				U8 *pItemData = (U8 *)pMediaQItem->pPubData + pMediaQItem->readIdx;
 				while (framesProcessed < pPubMapInfo->framesPerPacket && pMediaQItem->readIdx < pMediaQItem->dataLen) {
 					int i1;
 					for (i1 = 0; i1 < pPubMapInfo->audioChannels; i1++) {
@@ -528,6 +520,12 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 						}
 					}
 					framesProcessed++;
+					if (dbc % sytInt == 0) {
+						*(U32 *)(&pHdr[HIDX_AVTP_TIMESTAMP32]) = htonl(openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime));
+
+						timestampSet = TRUE;
+					}
+					dbc++;
 					pMediaQItem->readIdx += pPubMapInfo->itemFrameSizeBytes;
 				}
 
@@ -548,12 +546,12 @@ tx_cb_ret_t openavbMapUncmpAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen
 		// Check if timestamp was set
 		if (!timestampSet) {
 			// Timestamp wasn't set so mark it as invalid
-			pHdr[HIDX_AVTP_HIDE7_TV1] &= ~0x01;     
+			pHdr[HIDX_AVTP_HIDE7_TV1] &= ~0x01;
 		}
 
 		// Set the block continutity and data length
 		pHdr[HIDX_DBC8] = pPvtData->DBC;
-		pPvtData->DBC += pPubMapInfo->framesPerPacket;
+		pPvtData->DBC = dbc;
 
 		*(U16 *)(&pHdr[HIDX_DATALEN16]) = htons((pPubMapInfo->framesPerPacket * pPubMapInfo->packetFrameSizeBytes) + CIP_HEADER_SIZE);
 
@@ -631,7 +629,7 @@ bool openavbMapUncmpAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 				if (pMediaQItem->dataLen == 0) {
 					// This is the first set of frames for the media queue item, must align based on SYT_INTERVAL for proper synchronization of listeners
 					if (dbcIdx > 0) {
-						// Failed to make alignment with this packet. This AVTP packet will be tossed. Once alignment is reached 
+						// Failed to make alignment with this packet. This AVTP packet will be tossed. Once alignment is reached
 						// it is expected not to need to toss packets anymore.
 						openavbMediaQHeadUnlock(pMediaQ);
 						AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
@@ -726,7 +724,6 @@ extern DLL_EXPORT bool openavbMapUncmpAudioInitialize(media_q_t *pMediaQ, openav
 		}
 
 		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
-		media_q_pub_map_uncmp_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
 
 		pMapCB->map_cfg_cb = openavbMapUncmpAudioCfgCB;
 		pMapCB->map_subtype_cb = openavbMapUncmpAudioSubtypeCB;
@@ -734,7 +731,6 @@ extern DLL_EXPORT bool openavbMapUncmpAudioInitialize(media_q_t *pMediaQ, openav
 		pMapCB->map_max_data_size_cb = openavbMapUncmpAudioMaxDataSizeCB;
 		pMapCB->map_transmit_interval_cb = openavbMapUncmpAudioTransmitIntervalCB;
 		pMapCB->map_gen_init_cb = openavbMapUncmpAudioGenInitCB;
-		pMapCB->map_avdecc_init_cb = openavbMapUncmpAudioAVDECCInitCB;
 		pMapCB->map_tx_init_cb = openavbMapUncmpAudioTxInitCB;
 		pMapCB->map_tx_cb = openavbMapUncmpAudioTxCB;
 		pMapCB->map_rx_init_cb = openavbMapUncmpAudioRxInitCB;
@@ -748,8 +744,6 @@ extern DLL_EXPORT bool openavbMapUncmpAudioInitialize(media_q_t *pMediaQ, openav
 		pPvtData->maxTransitUsec = inMaxTransitUsec;
 		pPvtData->DBC = 0;
 		pPvtData->audioMcr = AVB_MCR_NONE;
-
-		pPubMapInfo->sparseMode = TS_SPARSE_MODE_UNSPEC;
 
 		openavbMediaQSetMaxLatency(pMediaQ, inMaxTransitUsec);
 	}
