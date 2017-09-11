@@ -52,7 +52,6 @@
 #include <list>
 #include <algorithm>
 
-
 #include "gptp_cfg.hpp"
 #include "macaddress.hpp"
 
@@ -70,6 +69,11 @@
 #define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3		/*!< Announce receipt timeout multiplier*/
 
 #define LOG2_INTERVAL_INVALID -127	/* Simple out of range Log base 2 value used for Sync and PDelay msg internvals */
+
+namespace std 
+{
+	class mutex;
+}
 
 
 /**
@@ -2229,6 +2233,13 @@ class IEEE1588Port {
 	{
 		iniParser = parser;
 	}
+
+public:
+	std::mutex* GetLastFwupMutex();
+	std::mutex* GetLastDelayReqMutex();
+	std::mutex* GetLastDelayRespMutex();
+	std::mutex* GetLastSyncMutex();
+	std::mutex* GetMeanPathDelayMutex();
 };
 
 #endif

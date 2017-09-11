@@ -734,7 +734,7 @@ public:
 	(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
 	 FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
 	 uint32_t pdelay_count, PortState port_state, bool asCapable,
-	 uint16_t adrRegSocketPort = 0);
+	 uint16_t adrRegSocketPort = 0, int64_t clockId = 0);
 
 	/**
 	 * @brief unmaps and unlink shared memory

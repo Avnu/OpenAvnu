@@ -834,6 +834,7 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 		ptimedata->ml_freqoffset = 1;
 		ptimedata->ls_phoffset = 0;
 		ptimedata->ls_freqoffset = 1;
+		ptimedata->clock_id = 0;
 		ptimedata->local_time = 0;
       ptimedata->addressRegistrationSocketPort = arg != nullptr
        ? arg->AdrRegSocketPort() : 0;
@@ -859,7 +860,7 @@ bool LinuxSharedMemoryIPC::update
 (int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
  FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
  uint32_t pdelay_count, PortState port_state, bool asCapable,
- uint16_t adrRegSocketPort)
+ uint16_t adrRegSocketPort, int64_t clockId)
 {
 	int buf_offset = 0;
 	pid_t process_id = getpid();
@@ -891,6 +892,7 @@ bool LinuxSharedMemoryIPC::update
 		ptimedata->ml_freqoffset = filtered;		
 		ptimedata->ls_phoffset = ls_phoffset;
 		ptimedata->ls_freqoffset = ls_freqoffset;
+		ptimedata->clock_id = clockId;
 		ptimedata->local_time = local_time;
       ptimedata->addressRegistrationSocketPort = adrRegSocketPort;
 		ptimedata->sync_count   = sync_count;

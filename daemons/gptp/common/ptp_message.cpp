@@ -45,6 +45,7 @@
 #include <sstream>
 
 #include <chrono>
+#include <mutex>
 
 using namespace std::chrono;
 
@@ -110,6 +111,12 @@ bool PTPMessageCommon::isSenderEqual(const PortIdentity& portIdentity)
  
 void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 {
+	std::lock_guard<std::mutex> lockFwup(*(port->GetLastFwupMutex()));
+	std::lock_guard<std::mutex> lockDelReq(*(port->GetLastDelayReqMutex()));
+	std::lock_guard<std::mutex> lockDelResp(*(port->GetLastDelayRespMutex()));
+	std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
+	std::lock_guard<std::mutex> lockMeanPathDelay(*(port->GetMeanPathDelayMutex()));
+
 	if (V2_E2E == port->getDelayMechanism())
 	{
 		GPTP_LOG_DEBUG("*** MaybePerformCalculations--------------------------------------");
@@ -1560,6 +1567,12 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 void PTPMessageFollowUp::MaybePerformCalculations(IEEE1588Port *port,
  bool frequencyComputeOk)
 {
+	std::lock_guard<std::mutex> lockFwup(*(port->GetLastFwupMutex()));
+	std::lock_guard<std::mutex> lockDelReq(*(port->GetLastDelayReqMutex()));
+	std::lock_guard<std::mutex> lockDelResp(*(port->GetLastDelayRespMutex()));
+	std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
+	std::lock_guard<std::mutex> lockMeanPathDelay(*(port->GetMeanPathDelayMutex()));
+
 	if (!frequencyComputeOk)
 	{
 		// Attempt to compute the frequency one more time
@@ -1588,6 +1601,12 @@ void PTPMessageFollowUp::MaybePerformCalculations(IEEE1588Port *port,
 
 bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 {
+	std::lock_guard<std::mutex> lockFwup(*(port->GetLastFwupMutex()));
+	std::lock_guard<std::mutex> lockDelReq(*(port->GetLastDelayReqMutex()));
+	std::lock_guard<std::mutex> lockDelResp(*(port->GetLastDelayRespMutex()));
+	std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
+	std::lock_guard<std::mutex> lockMeanPathDelay(*(port->GetMeanPathDelayMutex()));
+
 	bool ok = false;
 	uint64_t delay;
 	Timestamp sync_arrival;
@@ -1726,12 +1745,27 @@ bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 		signed long long local_system_offset =
 			TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(sync_arrival);
 
+		int64_t grandMasterId = 0;
+		if (PTP_MASTER == port->getPortState())
+		{
+			grandMasterId = std::stoll(port->getPortIdentity()->getClockIdentity().getString());
+		}
+		else
+		{
+			PTPMessageSync *sync = port->getLastSync();
+			if (sync != nullptr)
+			{
+				grandMasterId = std::stoll(
+				 sync->getPortIdentity()->getClockIdentity().getString());
+			}
+		}
 		GPTP_LOG_VERBOSE("local_clock_adjustment:%Le  local_system_offset:%Ld",
 		 local_clock_adjustment, local_system_offset);
 		port->getClock()->setMasterOffset(port, scalar_offset, sync_arrival,
 		 local_clock_adjustment, local_system_offset, system_time,
 		 local_system_freq_offset, port->getSyncCount(), port->getPdelayCount(),
-		 port->getPortState(), port->getAsCapable(), port->AdrRegSocketPort());
+		 port->getPortState(), port->getAsCapable(), port->AdrRegSocketPort(),
+		 grandMasterId);
 
 		port->syncDone();
 		// Restart the SYNC_RECEIPT timer

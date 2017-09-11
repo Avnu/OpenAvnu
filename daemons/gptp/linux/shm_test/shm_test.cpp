@@ -101,6 +101,7 @@ int main(int argc, char *argv[])
     fprintf(stdout, "ls phoffset %" PRIu64 "\n", ptpData->ls_phoffset);
     fprintf(stdout, "ls freq offset %Lf\n", ptpData->ls_freqoffset);
     fprintf(stdout, "local time %llu\n", ptpData->local_time);
+    fprintf(stdout, "clock id %ll\n", ptpData->clock_id);
     fprintf(stdout, "address reg port %d\n", (int)ptpData->addressRegistrationSocketPort);
     fprintf(stdout, "sync count %u\n", ptpData->sync_count);
     fprintf(stdout, "pdelay count %u\n", ptpData->pdelay_count);
