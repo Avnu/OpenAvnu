@@ -71,6 +71,7 @@ typedef struct {
     FrequencyRatio ml_freqoffset;	//!< Master to local frequency offset
     FrequencyRatio ls_freqoffset;	//!< Local to system frequency offset
     uint64_t local_time;			//!< Local time of last update
+    uint64_t clock_id;  // Clock identifier
     uint16_t addressRegistrationSocketPort;
     uint32_t sync_count;			//!< Sync messages count
     uint32_t pdelay_count;			//!< pdelay messages count

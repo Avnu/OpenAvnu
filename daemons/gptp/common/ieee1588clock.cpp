@@ -47,6 +47,22 @@
 
 #include <math.h>
 
+const std::string ClockIdentity::getString() const
+{
+	uint8_t cid[PTP_CLOCK_IDENTITY_LENGTH];
+	getIdentityString(cid);
+	char scid[PTP_CLOCK_IDENTITY_LENGTH * 3 + 1];
+	char* pscid = scid;
+	for (unsigned i = 0; i < PTP_CLOCK_IDENTITY_LENGTH; ++i) {
+		unsigned byte = cid[i];
+		PLAT_snprintf(pscid, 4, "%2.2X", byte);
+		pscid += 3;
+	}
+	scid[PTP_CLOCK_IDENTITY_LENGTH * 3 - 1] = '\0';
+
+	return std::string(scid);
+}
+
 const std::string ClockIdentity::getIdentityString() const
 {
 	uint8_t cid[PTP_CLOCK_IDENTITY_LENGTH];
@@ -425,7 +441,7 @@ void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
  FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
  Timestamp system_time, FrequencyRatio local_system_freq_offset,
  unsigned sync_count, unsigned pdelay_count, PortState port_state, bool asCapable,
- uint16_t adrRegSocketPort)
+ uint16_t adrRegSocketPort, int64_t masterClockId)
 {
 	if (port->getTestMode())
 	{
@@ -441,7 +457,7 @@ void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
 		ipc->update(master_local_offset, local_system_offset,
 		 master_local_freq_offset, local_system_freq_offset,
 		 TIMESTAMP_TO_NS(local_time), sync_count, pdelay_count, port_state,
-		 asCapable, adrRegSocketPort);
+		 asCapable, adrRegSocketPort, masterClockId);
 	}
 
 	setMasterOffset(port, master_local_offset, master_local_freq_offset,

@@ -222,6 +222,8 @@ class ClockIdentity {
 	 */
 	const std::string getIdentityString() const;
 
+	const std::string getString() const;
+
 	/**
 	 * @brief  Gets the identity string from the ClockIdentity object
 	 * @param  id [out] Value copied from the object ClockIdentity. Needs to be at least ::PTP_CLOCK_IDENTITY_LENGTH long.

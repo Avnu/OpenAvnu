@@ -252,6 +252,31 @@ IEEE1588Port::IEEE1588Port(IEEE1588PortInit_t *portInit)
 	}
 }
 
+std::mutex* IEEE1588Port::GetLastFwupMutex()
+{
+	return &gLastFwupMutex;
+}
+
+std::mutex* IEEE1588Port::GetLastDelayReqMutex()
+{
+	return &gLastDelayReqMutex;
+}
+
+std::mutex* IEEE1588Port::GetLastDelayRespMutex()
+{
+	return &gLastDelayRespMutex;
+}
+
+std::mutex* IEEE1588Port::GetLastSyncMutex()
+{
+	return &gLastSyncMutex;
+}
+
+std::mutex* IEEE1588Port::GetMeanPathDelayMutex()
+{
+	return &gMeanPathDelayMutex;
+}
+
 void IEEE1588Port::timestamper_init(void)
 {
 	if (_hw_timestamper != nullptr)
@@ -936,7 +961,11 @@ void IEEE1588Port::processEvent(Event e)
 		GPTP_LOG_DEBUG("Received STATE CHANGE event");
 
 		if (!automotive_profile) {       // BMCA is not active with Automotive Profile
-			if ( clock->getPriority1() != 255 ) {
+			GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT    clock->priority1:%d", clock->getPriority1());
+#ifndef APTP
+			if ( clock->getPriority1() != 255 )
+#endif
+			{
 				int number_ports, j;
 				PTPMessageAnnounce *EBest = NULL;
 				char EBestClockIdentity[PTP_CLOCK_IDENTITY_LENGTH];
@@ -983,6 +1012,7 @@ void IEEE1588Port::processEvent(Event e)
 					} else {
 						changed_external_master = false;
 					}
+					GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT   changed_external_master:%s",(changed_external_master ? "true" : "false"));
 				}
 
 				if( clock->isBetterThan( EBest )) {
@@ -1002,6 +1032,7 @@ void IEEE1588Port::processEvent(Event e)
 					getClock()->setGrandmasterClockQuality( clock_quality );
 				}
 
+				GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT   number_ports:%d",number_ports);
 				j = 0;
 				for (int i = 0; i < number_ports; ++i) {
 					while (ports[j] == NULL)
@@ -1015,7 +1046,7 @@ void IEEE1588Port::processEvent(Event e)
 						EBest = NULL;	// EBest == NULL : we were grandmaster
 						ports[j]->recommendState(PTP_MASTER,
 						                         changed_external_master);
-						GPTP_LOG_VERBOSE("AFTER recommendState  port_state:%d", port_state);
+						GPTP_LOG_VERBOSE("AFTER recommendState 1 port_state:%d", port_state);
 					} else {
 						if( EBest == ports[j]->calculateERBest() ) {
 							// The "best" Announce was recieved on this port
@@ -1026,7 +1057,7 @@ void IEEE1588Port::processEvent(Event e)
 
 							ports[j]->recommendState
 							  ( PTP_SLAVE, changed_external_master );
-							GPTP_LOG_VERBOSE("AFTER recommendState  port_state:%d", port_state);
+							GPTP_LOG_VERBOSE("AFTER recommendState  2 port_state:%d", port_state);
 
 							clock_identity = EBest->getGrandmasterClockIdentity();
 							getClock()->setGrandmasterClockIdentity(clock_identity);
@@ -1041,7 +1072,7 @@ void IEEE1588Port::processEvent(Event e)
 							   sync'd to a better clock */
 							ports[j]->recommendState
 							  (PTP_MASTER, changed_external_master);
-							GPTP_LOG_VERBOSE("AFTER recommendState  port_state:%d", port_state);
+							GPTP_LOG_VERBOSE("AFTER recommendState  3 port_state:%d", port_state);
 						}
 					}
 				}
