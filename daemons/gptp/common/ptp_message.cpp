@@ -111,11 +111,17 @@ bool PTPMessageCommon::isSenderEqual(const PortIdentity& portIdentity)
  
 void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 {
+	GPTP_LOG_DEBUG("*** MaybePerformCalculations---------BEFORE LOCK-----------------------------");
 	std::lock_guard<std::mutex> lockFwup(*(port->GetLastFwupMutex()));
+	GPTP_LOG_DEBUG("*** MaybePerformCalculations   after fwup LOCK");
 	std::lock_guard<std::mutex> lockDelReq(*(port->GetLastDelayReqMutex()));
+	GPTP_LOG_DEBUG("*** MaybePerformCalculations   after delReq LOCK");
 	std::lock_guard<std::mutex> lockDelResp(*(port->GetLastDelayRespMutex()));
+	GPTP_LOG_DEBUG("*** MaybePerformCalculations   after delresp LOCK");
 	std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
-	std::lock_guard<std::mutex> lockMeanPathDelay(*(port->GetMeanPathDelayMutex()));
+	GPTP_LOG_DEBUG("*** MaybePerformCalculations   after sync LOCK");
+	//std::lock_guard<std::mutex> lockMeanPathDelay(*(port->GetMeanPathDelayMutex()));
+	GPTP_LOG_DEBUG("*** MaybePerformCalculations---------AFTER LOCK-----------------------------");
 
 	if (V2_E2E == port->getDelayMechanism())
 	{
@@ -127,10 +133,10 @@ void PTPMessageCommon::MaybePerformCalculations(IEEE1588Port *port)
 			port->getPortIdentity(respPortIdentity);
 
 			GPTP_LOG_DEBUG("MaybePerformCalculations Processing as slave.");
-			PTPMessageSync *sync = port->getLastSync();
-			PTPMessageDelayReq req = port->getLastDelayReq();
-			PTPMessageDelayResp resp = port->getLastDelayResp();
-			PTPMessageFollowUp fup = port->getLastFollowUp();
+			PTPMessageSync *sync = port->getLastSync(false);
+			PTPMessageDelayReq req = port->getLastDelayReq(false);
+			PTPMessageDelayResp resp = port->getLastDelayResp(false);
+			PTPMessageFollowUp fup = port->getLastFollowUp(false);
 			ALastTimestampKeeper tsKeeper = port->LastTimestamps();
 
 			if (sync)
@@ -1360,21 +1366,27 @@ void PTPMessageSync::processMessage(IEEE1588Port * port)
 	}
 
 #ifdef APTP
-	PTPMessageSync *sync = port->getLastSync();
-	port->setLastSync(NULL);
-	delete sync;
-
-	GPTP_LOG_VERBOSE("PTPMessageSync::processMessage  before setLastSync");
-	port->setLastSync(this);
-	GPTP_LOG_VERBOSE("PTPMessageSync::processMessage  after setLastSync");
-
-	port->HaveDelayResp(false);
-	if (!port->FollowupAhead())
 	{
-		port->HaveFollowup(false);
-	}
-	port->FollowupAhead(false);
-	_gc = false;
+		std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
+      GPTP_LOG_DEBUG("------------- PTPMessageSync::processMessage   after sync LOCK");
+		PTPMessageSync *sync = port->getLastSync(false);
+		port->setLastSync(NULL, false);
+		delete sync;
+
+		GPTP_LOG_VERBOSE("PTPMessageSync::processMessage  before setLastSync");
+		port->setLastSync(this, false);
+		GPTP_LOG_VERBOSE("PTPMessageSync::processMessage  after setLastSync");
+
+		port->HaveDelayResp(false);
+		if (!port->FollowupAhead())
+		{
+			port->HaveFollowup(false);
+		}
+		port->FollowupAhead(false);
+		_gc = false;
+   }
+   GPTP_LOG_DEBUG("------------- PTPMessageSync::processMessage   after sync UNLOCK");
+
 #else
 	if (flags[PTP_ASSIST_BYTE] & (0x1<<PTP_ASSIST_BIT))
 	{
@@ -1521,36 +1533,45 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 		GPTP_LOG_ERROR("Received Follow Up but there is no sync message");
 		return;
 	}
-	std::shared_ptr<PortIdentity> sync_id;
-	sync_id = sync->getPortIdentity();
 
 	bool ok = false;
-	if (sync->getSequenceId() != sequenceId || 
-	 (sourcePortIdentity != nullptr && sync_id != nullptr &&
-	 *sync_id != *sourcePortIdentity))
+	
 	{
-#ifdef APTP
-		GPTP_LOG_ERROR("Received Follow Up that didn't match the sync message. "
-		 "sync.seqId:%d  followup.seqId:%d", sync->getSequenceId(), sequenceId);
-		GPTP_LOG_VERBOSE("Sync clock id:%s", 
- 	    sync_id->getClockIdentity().getIdentityString().c_str());
-#else
-		unsigned int cnt = 0;
+		std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
+      GPTP_LOG_DEBUG("------------- PTPMessageFollowUp::processMessage   after sync LOCK");
 
-		if( !port->incWrongSeqIDCounter(&cnt) )
+		std::shared_ptr<PortIdentity> sync_id;
+		sync_id = sync->getPortIdentity();
+
+		if (sync->getSequenceId() != sequenceId || 
+		 (sourcePortIdentity != nullptr && sync_id != nullptr &&
+		 *sync_id != *sourcePortIdentity))
 		{
-			port->becomeMaster( true );
-			port->setWrongSeqIDCounter(0);
-		}
+	#ifdef APTP
+			GPTP_LOG_ERROR("Received Follow Up that didn't match the sync message. "
+			 "sync.seqId:%d  followup.seqId:%d", sync->getSequenceId(), sequenceId);
+			GPTP_LOG_VERBOSE("Sync clock id:%s", 
+	 	    sync_id->getClockIdentity().getIdentityString().c_str());
+	#else
+			unsigned int cnt = 0;
 
-		GPTP_LOG_ERROR("Received Follow Up %d times but cannot find "
-		 "corresponding Sync", cnt);
-#endif
+			if( !port->incWrongSeqIDCounter(&cnt) )
+			{
+				port->becomeMaster( true );
+				port->setWrongSeqIDCounter(0);
+			}
+
+			GPTP_LOG_ERROR("Received Follow Up %d times but cannot find "
+			 "corresponding Sync", cnt);
+	#endif
+		}
+		else
+		{
+			ok = ComputeFrequencies(port, false);
+		}
 	}
-	else
-	{
-		ok = ComputeFrequencies(port);
-	}
+   GPTP_LOG_DEBUG("------------- PTPMessageFollowUp::processMessage   after sync ULOCK");
+
 
 	MaybePerformCalculations(port, ok);
 
@@ -1567,16 +1588,21 @@ void PTPMessageFollowUp::processMessage(IEEE1588Port * port)
 void PTPMessageFollowUp::MaybePerformCalculations(IEEE1588Port *port,
  bool frequencyComputeOk)
 {
-	std::lock_guard<std::mutex> lockFwup(*(port->GetLastFwupMutex()));
-	std::lock_guard<std::mutex> lockDelReq(*(port->GetLastDelayReqMutex()));
-	std::lock_guard<std::mutex> lockDelResp(*(port->GetLastDelayRespMutex()));
-	std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
-	std::lock_guard<std::mutex> lockMeanPathDelay(*(port->GetMeanPathDelayMutex()));
+	GPTP_LOG_DEBUG("*** MaybePerformCalculations (feqCompOk)---------BEFORE LOCK-----------------------------");
+	// std::lock_guard<std::mutex> lockFwup(*(port->GetLastFwupMutex()));
+	// std::lock_guard<std::mutex> lockDelReq(*(port->GetLastDelayReqMutex()));
+	// std::lock_guard<std::mutex> lockDelResp(*(port->GetLastDelayRespMutex()));
+	//std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
+	// std::lock_guard<std::mutex> lockMeanPathDelay(*(port->GetMeanPathDelayMutex()));
+	GPTP_LOG_DEBUG("*** MaybePerformCalculations (feqCompOk)---------AFTER LOCK-----------------------------");
 
 	if (!frequencyComputeOk)
 	{
 		// Attempt to compute the frequency one more time
-		PTPMessageSync *sync = port->getLastSync();
+		std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
+	   GPTP_LOG_DEBUG("*** MaybePerformCalculations   (feqCompOk) after sync LOCK");
+
+		PTPMessageSync *sync = port->getLastSync(false);
 		if (sync == nullptr) {
 			return;
 		}
@@ -1588,7 +1614,7 @@ void PTPMessageFollowUp::MaybePerformCalculations(IEEE1588Port *port,
 		 *sync_id == *sourcePortIdentity))
 		{
 			GPTP_LOG_VERBOSE("Attempting recomputation of frequencies.");
-			ComputeFrequencies(port);
+			ComputeFrequencies(port, false);
 		}
 		else
 		{
@@ -1596,17 +1622,27 @@ void PTPMessageFollowUp::MaybePerformCalculations(IEEE1588Port *port,
 		}
 
 	}
+	GPTP_LOG_DEBUG("*** MaybePerformCalculations   (feqCompOk) after sync UNLOCK");
 	PTPMessageCommon::MaybePerformCalculations(port);
+}
+
+bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port, bool lockSync)
+{
+	if (lockSync)
+	{
+		std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
+      GPTP_LOG_DEBUG("------------- PTPMessageFollowUp::ComputeFrequencies   after sync LOCK");
+      return ComputeFrequencies(port);
+   }
+   else
+   {
+   	GPTP_LOG_DEBUG("------------- PTPMessageFollowUp::ComputeFrequencies   NO sync LOCK");
+   	return ComputeFrequencies(port);
+   }
 }
 
 bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 {
-	std::lock_guard<std::mutex> lockFwup(*(port->GetLastFwupMutex()));
-	std::lock_guard<std::mutex> lockDelReq(*(port->GetLastDelayReqMutex()));
-	std::lock_guard<std::mutex> lockDelResp(*(port->GetLastDelayRespMutex()));
-	std::lock_guard<std::mutex> lockSync(*(port->GetLastSyncMutex()));
-	std::lock_guard<std::mutex> lockMeanPathDelay(*(port->GetMeanPathDelayMutex()));
-
 	bool ok = false;
 	uint64_t delay;
 	Timestamp sync_arrival;
@@ -1630,8 +1666,9 @@ bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 	FrequencyRatio adjMaster = 0.0;
 	Timestamp correctedMasterEventTimestamp;
 
-	PTPMessageSync *sync = port->getLastSync();
+	PTPMessageSync *sync = port->getLastSync(false);
 	if (sync == nullptr) {
+		GPTP_LOG_DEBUG("------------- PTPMessageFollowUp::ComputeFrequencies   sync nullptr");
 		return ok;
 	}
 	sync_arrival = sync->getTimestamp();
@@ -1746,19 +1783,21 @@ bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 			TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(sync_arrival);
 
 		int64_t grandMasterId = 0;
+		std::string clockId;
 		if (PTP_MASTER == port->getPortState())
 		{
-			grandMasterId = std::stoll(port->getPortIdentity()->getClockIdentity().getString());
+			clockId = port->getPortIdentity()->getClockIdentity().getString();
 		}
 		else
 		{
-			PTPMessageSync *sync = port->getLastSync();
 			if (sync != nullptr)
 			{
-				grandMasterId = std::stoll(
-				 sync->getPortIdentity()->getClockIdentity().getString());
+				clockId = sync->getPortIdentity()->getClockIdentity().getString();
 			}
 		}
+		GPTP_LOG_DEBUG("*** ComputeFrequencies clockId:%s", clockId.c_str());
+		grandMasterId = clockId.empty() ? 0 : std::stoll(clockId, 0, 16);
+		
 		GPTP_LOG_VERBOSE("local_clock_adjustment:%Le  local_system_offset:%Ld",
 		 local_clock_adjustment, local_system_offset);
 		port->getClock()->setMasterOffset(port, scalar_offset, sync_arrival,
@@ -1784,6 +1823,7 @@ bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 
 	ok = true;
 
+	GPTP_LOG_DEBUG("------------- PTPMessageFollowUp::ComputeFrequencies   DONE");
 	return ok;
 }
 

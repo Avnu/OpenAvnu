@@ -51,15 +51,16 @@ const std::string ClockIdentity::getString() const
 {
 	uint8_t cid[PTP_CLOCK_IDENTITY_LENGTH];
 	getIdentityString(cid);
-	char scid[PTP_CLOCK_IDENTITY_LENGTH * 3 + 1];
+	char scid[PTP_CLOCK_IDENTITY_LENGTH * 2 + 1];
 	char* pscid = scid;
 	for (unsigned i = 0; i < PTP_CLOCK_IDENTITY_LENGTH; ++i) {
 		unsigned byte = cid[i];
 		PLAT_snprintf(pscid, 4, "%2.2X", byte);
-		pscid += 3;
+		pscid += 2;
 	}
-	scid[PTP_CLOCK_IDENTITY_LENGTH * 3 - 1] = '\0';
+	scid[PTP_CLOCK_IDENTITY_LENGTH * 2 - 1] = '\0';
 
+	GPTP_LOG_VERBOSE("ClockIdentity::getString  scid:%s", scid);
 	return std::string(scid);
 }
 

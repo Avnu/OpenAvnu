@@ -1083,13 +1083,13 @@ class IEEE1588Port {
 	 * @param  msg [in] PTP sync message
 	 * @return void
 	 */
-	void setLastSync(PTPMessageSync * msg);
+	void setLastSync(PTPMessageSync * msg, bool lockIt = true);
 
 	/**
 	 * @brief  Gets last sync message
 	 * @return PTPMessageSync last sync
 	 */
-	PTPMessageSync* getLastSync(void);
+	PTPMessageSync* getLastSync(bool lockIt = true);
 
 	/**
 	 * @brief  Locks PDelay RX
@@ -1226,7 +1226,7 @@ class IEEE1588Port {
 	 * @brief  Gets the last PTPMessageFollowUp message
 	 * @return last follow up
 	 */
-	const PTPMessageFollowUp& getLastFollowUp() const;
+	const PTPMessageFollowUp& getLastFollowUp(bool lockIt = true) const;
 
 	/**
 	 * @brief  Sets the last_delay_req message
@@ -1241,7 +1241,7 @@ class IEEE1588Port {
 	 * @brief  Gets the last PTPMessageDelayReq message
 	 * @return Last delay request
 	 */
-	const PTPMessageDelayReq& getLastDelayReq() const;
+	const PTPMessageDelayReq& getLastDelayReq(bool lockIt = true) const;
 
 	/**
 	 * @brief  Sets the last PTPMessageDelayResp message
@@ -1254,7 +1254,7 @@ class IEEE1588Port {
 	 * @brief  Gets the last PTPMessageDelayResp message
 	 * @return Last delay response
 	 */
-	const PTPMessageDelayResp& getLastDelayResp() const;
+	const PTPMessageDelayResp& getLastDelayResp(bool lockIt = true) const;
 
 	/**
 	 * @brief  Gets the Peer rate offset. Used to calculate neighbor rate ratio.
@@ -2240,6 +2240,8 @@ public:
 	std::mutex* GetLastDelayRespMutex();
 	std::mutex* GetLastSyncMutex();
 	std::mutex* GetMeanPathDelayMutex();
+
+
 };
 
 #endif
