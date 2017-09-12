@@ -51,11 +51,11 @@
 
 #include <mutex>
 
-std::mutex gLastFwupMutex;
-std::mutex gLastDelayReqMutex;
-std::mutex gLastDelayRespMutex;
-std::mutex gLastSyncMutex;
-std::mutex gMeanPathDelayMutex;
+static std::mutex gLastFwupMutex;
+static std::mutex gLastDelayReqMutex;
+static std::mutex gLastDelayRespMutex;
+static std::mutex gLastSyncMutex;
+static std::mutex gMeanPathDelayMutex;
 
 
 LinkLayerAddress IEEE1588Port::other_multicast(OTHER_MULTICAST);
@@ -1641,16 +1641,30 @@ IEEE1588Clock *IEEE1588Port::getClock(void)
 	return clock;
 }
 
-void IEEE1588Port::setLastSync(PTPMessageSync * msg)
+void IEEE1588Port::setLastSync(PTPMessageSync * msg, bool lockIt)
 {
-	std::lock_guard<std::mutex> lock(gLastSyncMutex);
-	last_sync = msg;
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastSyncMutex);
+		last_sync = msg;
+	}
+	else
+	{
+		last_sync = msg;
+	}
 }
 
-PTPMessageSync* IEEE1588Port::getLastSync(void)
+PTPMessageSync* IEEE1588Port::getLastSync(bool lockIt)
 {
-	std::lock_guard<std::mutex> lock(gLastSyncMutex);
-	return last_sync;
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastSyncMutex);
+		return last_sync;
+	}
+	else
+	{
+		return last_sync;
+	}
 }
 
 void IEEE1588Port::setLastFollowUp(PTPMessageFollowUp *msg) 	
@@ -1659,10 +1673,17 @@ void IEEE1588Port::setLastFollowUp(PTPMessageFollowUp *msg)
 	last_fwup = *msg;
 }
 
-const PTPMessageFollowUp& IEEE1588Port::getLastFollowUp() const
+const PTPMessageFollowUp& IEEE1588Port::getLastFollowUp(bool lockIt) const
 {
-	std::lock_guard<std::mutex> lock(gLastFwupMutex);
-	return last_fwup;
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastFwupMutex);
+		return last_fwup;
+	}
+	else
+	{
+		return last_fwup;
+	}
 }
 
 void IEEE1588Port::setLastDelayReq(PTPMessageDelayReq *msg)
@@ -1677,10 +1698,17 @@ void IEEE1588Port::setLastDelayReq(const PTPMessageDelayReq &msg)
 	last_delay_req = msg;
 }
 
-const PTPMessageDelayReq& IEEE1588Port::getLastDelayReq() const
+const PTPMessageDelayReq& IEEE1588Port::getLastDelayReq(bool lockIt) const
 {
-	std::lock_guard<std::mutex> lock(gLastDelayReqMutex);
-	return last_delay_req;
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastDelayReqMutex);
+		return last_delay_req;
+	}
+	else
+	{
+		return last_delay_req;
+	}
 }
 
 void IEEE1588Port::setLastDelayResp(PTPMessageDelayResp *msg)
@@ -1689,10 +1717,17 @@ void IEEE1588Port::setLastDelayResp(PTPMessageDelayResp *msg)
 	last_delay_resp = *msg;
 }
 
-const PTPMessageDelayResp& IEEE1588Port::getLastDelayResp() const
+const PTPMessageDelayResp& IEEE1588Port::getLastDelayResp(bool lockIt) const
 {
-	std::lock_guard<std::mutex> lock(gLastDelayRespMutex);
-	return last_delay_resp;
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastDelayRespMutex);
+		return last_delay_resp;
+	}
+	else
+	{
+		return last_delay_resp;
+	}
 }
 
 FrequencyRatio IEEE1588Port::meanPathDelay() const

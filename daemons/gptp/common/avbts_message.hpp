@@ -951,7 +951,9 @@ public:
 
 	void MaybePerformCalculations(IEEE1588Port *port, bool frequencyComputeOk);
 
+	bool ComputeFrequencies(IEEE1588Port * port, bool lockSync);
 	bool ComputeFrequencies(IEEE1588Port * port);
+
 
 	/**
 	 * @brief  Sets the precis origin timestamp value
