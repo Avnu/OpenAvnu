@@ -1969,8 +1969,8 @@ void PTPMessageDelayResp::sendPort(IEEE1588Port * port,
 
 	buildCommonHeader(buf_ptr);
 
-	// receiveTimeStamp
-	Timestamp receiveTimestamp = port->getClock()->getTime();
+	// receiveTimeStamp (set when DelayRequest was received, i.e. T4)
+	Timestamp receiveTimestamp = requestReceiptTimestamp;
 	receiveTimeStamp_BE.seconds_ms = PLAT_htons(receiveTimestamp.seconds_ms);
 	receiveTimeStamp_BE.seconds_ls = PLAT_htonl(receiveTimestamp.seconds_ls);
 	receiveTimeStamp_BE.nanoseconds =
