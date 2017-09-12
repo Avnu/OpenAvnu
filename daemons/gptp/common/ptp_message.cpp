@@ -1789,9 +1789,9 @@ bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 		}
 		else
 		{
-			if (sync != nullptr)
+			if (port != nullptr)
 			{
-				clockId = sync->getPortIdentity()->getClockIdentity().getString();
+				clockId = port->getClock()->getGrandmasterClockIdentity().getString();
 			}
 		}
 		GPTP_LOG_DEBUG("*** ComputeFrequencies clockId:%s", clockId.c_str());

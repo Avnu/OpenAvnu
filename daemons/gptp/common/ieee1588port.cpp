@@ -1220,7 +1220,7 @@ void IEEE1588Port::processEvent(Event e)
 
 					int64_t grandMasterId = 0;
 					std::string clockId;
-					clockId = getPortIdentity()->getClockIdentity().getString();
+					clockId = getClock()->getGrandmasterClockIdentity().getString();
 					grandMasterId = clockId.empty() ? 0 : std::stoll(clockId, 0, 16);
 					GPTP_LOG_VERBOSE("RESET of clockID  clockId:%s", clockId.c_str());
 					clock->ResetIpcValues(grandMasterId);
