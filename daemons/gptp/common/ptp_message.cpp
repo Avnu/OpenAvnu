@@ -495,6 +495,12 @@ PTPMessageCommon *buildPTPMessage
 		goto abort;
 	}
  
+ 	long long rawCorrectionField;
+ 	memcpy(&rawCorrectionField,
+	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
+	       sizeof(rawCorrectionField));
+	rawCorrectionField = PLAT_ntohll(rawCorrectionField);
+
 	switch (messageType) {
 	case SYNC_MESSAGE:
 	{
@@ -527,9 +533,7 @@ PTPMessageCommon *buildPTPMessage
 			       buf + PTP_SYNC_NSEC(PTP_SYNC_OFFSET),
 			       sizeof(sync_msg->originTimestamp.nanoseconds));
 
-			memcpy(&(sync_msg->correctionField),
-	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
-	       sizeof(sync_msg->correctionField));
+			sync_msg->correctionField = rawCorrectionField;
 
 			msg = sync_msg;
 
@@ -587,9 +591,7 @@ PTPMessageCommon *buildPTPMessage
 
 			followup_msg->sequenceId = sequenceId;
 
-			memcpy(&(followup_msg->correctionField),
-	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
-	       sizeof(followup_msg->correctionField));
+			followup_msg->correctionField = rawCorrectionField;
 
 			msg = followup_msg;
 			msg->setPortIdentity(sourcePortIdentity);
@@ -616,6 +618,7 @@ PTPMessageCommon *buildPTPMessage
 			timestamp = ingressTime;
 			std::shared_ptr<PortIdentity> reqPortId = port->getPortIdentity();
 			msg = new PTPMessageDelayReq(messageType);
+			msg->correctionField = rawCorrectionField;
 			msg->setPortIdentity(reqPortId);
 		}
 		break;
@@ -649,9 +652,7 @@ PTPMessageCommon *buildPTPMessage
 			resp->requestReceiptTimestamp.nanoseconds =
 			    PLAT_ntohl(resp->requestReceiptTimestamp.nanoseconds);
 
-			memcpy(&(resp->correctionField),
-	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
-	       sizeof(resp->correctionField));
+			resp->correctionField = rawCorrectionField;
 
 			msg = resp;
 
@@ -942,10 +943,8 @@ PTPMessageCommon *buildPTPMessage
 	       sizeof(msg->domainNumber));
 	memcpy(&(msg->flags), buf + PTP_COMMON_HDR_FLAGS(PTP_COMMON_HDR_OFFSET),
 	       PTP_FLAGS_LENGTH);
-	memcpy(&(msg->correctionField),
-	       buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
-	       sizeof(msg->correctionField));
-	msg->correctionField = PLAT_ntohll(msg->correctionField);
+
+	msg->correctionField = rawCorrectionField;
 
 	GPTP_LOG_VERBOSE("Common correctionField: %d", msg->correctionField);
 
