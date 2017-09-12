@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -182,7 +183,7 @@ void openavbMapPipeCfgCB(media_q_t *pMediaQ, const char *name, const char *value
 			char *pEnd;
 			pPvtData->maxPayloadSize = strtol(value, &pEnd, 10);
 			pPvtData->maxDataSize = (pPvtData->maxPayloadSize + TOTAL_HEADER_SIZE);
-			pPvtData->itemSize =	pPvtData->maxDataSize;
+			pPvtData->itemSize =	pPvtData->maxPayloadSize;
 		}
 		else if (strcmp(name, "map_nv_push_header") == 0) {
 			char *pEnd;

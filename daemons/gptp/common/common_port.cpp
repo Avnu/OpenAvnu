@@ -311,7 +311,7 @@ void CommonPort::stopSyncReceiptTimer( void )
 void CommonPort::startSyncIntervalTimer
 ( long long unsigned int waitTime )
 {
-	syncIntervalTimerLock->lock();
+	if( syncIntervalTimerLock->trylock() == oslock_fail ) return;
 	clock->deleteEventTimerLocked(this, SYNC_INTERVAL_TIMEOUT_EXPIRES);
 	clock->addEventTimerLocked
 		(this, SYNC_INTERVAL_TIMEOUT_EXPIRES, waitTime);
@@ -597,13 +597,9 @@ bool CommonPort::processEvent( Event e )
 
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES occured");
-		if( !asCapable )
-		{
-			ret = true;
-			break;
-		}
 
 		// Send an announce message
+		if ( asCapable)
 		{
 			PTPMessageAnnounce *annc =
 				new PTPMessageAnnounce(this);

@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -74,10 +75,12 @@ typedef enum {
 //////////////////////////////
 typedef struct {
 	U8 			destAddr[ETH_ALEN];
+	U8 			noMaapAllocate;
 	AVBTSpec_t	tSpec;
 	U8			srClass;
 	U8	        srRank;
 	U32			latency;
+	U32			txRate;
 } openavbEndpointParams_TalkerRegister_t;
 
 typedef struct {
@@ -94,9 +97,10 @@ typedef struct {
 // Server messages parameters
 //////////////////////////////
 typedef struct {
-	char		ifname[IFNAMSIZ];
-	U8 			destAddr[ETH_ALEN];
+	char		ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
+	U8			destAddr[ETH_ALEN];
 	openavbSrpLsnrDeclSubtype_t lsnrDecl;
+	U8			srClass;
 	U32			classRate;
 	U16			vlanID;
 	U8			priority;
@@ -105,13 +109,13 @@ typedef struct {
 
 typedef struct {
 	openavbSrpAttribType_t tlkrDecl;
-	char		ifname[IFNAMSIZ];
+	char		ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	U8 			destAddr[ETH_ALEN];
 	AVBTSpec_t	tSpec;
 	U8			srClass;
 	U32			latency;
 	openavbSrpFailInfo_t failInfo;
-} openavbEndpointParams_ListenerCallback_t; 
+} openavbEndpointParams_ListenerCallback_t;
 
 typedef struct {
 	U32 		AVBVersion;
@@ -133,7 +137,8 @@ typedef struct clientStream_t {
 	SRClassIdx_t	srClass;			// AVB class
 	U8 				srRank;				// AVB rank
 	U32				latency;			// internal latency
-	
+	U32				txRate;				// frames per second
+
 	// Information provided by SRP
 	U8				priority;			// AVB priority to use for stream
 	U16				vlanID;				// VLAN ID to use for stream
@@ -142,6 +147,9 @@ typedef struct clientStream_t {
 	// Information provided by MAAP
 	void			*hndMaap;			// handle for MAAP address allocation
 	U8				destAddr[ETH_ALEN];	// destination MAC address (from config or MAAP)
+
+	// Information provided by Shaper
+	void			*hndShaper;			// handle for Shaping configuration
 
 	// Information provided by QMgr
 	int				fwmark;				// mark to identify packets of this stream
@@ -203,17 +211,21 @@ void openavbEptClntCheckVerMatchesSrvr(int h, U32 AVBVersion);
 bool openavbEptClntRegisterStream(int            h,
                               AVBStreamID_t *streamID,
                               U8             destAddr[],
+                              U8             noMaapAllocation,
                               AVBTSpec_t    *tSpec,
                               U8             srClass,
                               U8             srRank,
-                              U32            latency);
+                              U32            latency,
+                              U32            txRate);
 bool openavbEptSrvrRegisterStream(int             h,
                               AVBStreamID_t  *streamID,
                               U8              destAddr[],
+                              U8              noMaapAllocation,
                               AVBTSpec_t     *tSpec,
                               U8              srClass,
                               U8              srRank,
-                              U32             latency);
+                              U32             latency,
+                              U32             txRate);
 
 // Each lister attaches to the stream it wants to receive;
 // specifically the listener indicates interest / declaration to SRP.
@@ -233,6 +245,7 @@ void openavbEptSrvrNotifyTlkrOfSrpCb(int                      h,
                                  char                    *ifname,
                                  U8                       destAddr[],
                                  openavbSrpLsnrDeclSubtype_t  lsnrDecl,
+                                 U8                       srClass,
                                  U32                      classRate,
                                  U16                      vlanID,
                                  U8                       priority,
@@ -242,6 +255,7 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      h,
                                  char                    *ifname,
                                  U8                       destAddr[],
                                  openavbSrpLsnrDeclSubtype_t  lsnrDecl,
+                                 U8                       srClass,
                                  U32                      classRate,
                                  U16                      vlanID,
                                  U8                       priority,
@@ -270,8 +284,8 @@ void openavbEptClntNotifyLstnrOfSrpCb(int                 h,
 
 
 // A talker can withdraw its stream registration at any time;
-// a listener can withdraw its stream attachement at any time;
-// in ether case, endpoint communication is from client to server
+// a listener can withdraw its stream attachment at any time;
+// in either case, endpoint communication is from client to server
 bool openavbEptClntStopStream(int h, AVBStreamID_t *streamID);
 bool openavbEptSrvrStopStream(int h, AVBStreamID_t *streamID);
 

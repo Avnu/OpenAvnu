@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -218,9 +219,9 @@ U8* ringRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len)
 	// And pointer to portion of buffer to be filled with frame
 	volatile U8 *pBuffer = (U8*)pHdr + rawsock->bufHdrSize;
 
-	AVB_LOGF_VERBOSE("block=%d, buffer=%d, out=%d, pHdr=%p, pBuffer=%p",
+	AVB_LOGF_VERBOSE("block=%d, buffer=%d, out=%d, pBuffer=%p, pHdr=%p",
 					 rawsock->blockIndex, rawsock->bufferIndex, rawsock->buffersOut,
-					 pHdr, pBuffer);
+					 pBuffer, pHdr);
 
 	// Check if buffer ready for user
 	// In send mode, we want to see TP_STATUS_AVAILABLE
@@ -484,9 +485,9 @@ U8* ringRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, un
 							   + (rawsock->bufferIndex * rawsock->bufferSize));
 	volatile U8 *pBuffer = (U8*)pHdr + rawsock->bufHdrSize;
 
-	AVB_LOGF_VERBOSE("block=%d, buffer=%d, out=%d, pHdr=%p, pBuffer=%p",
+	AVB_LOGF_VERBOSE("block=%d, buffer=%d, out=%d, pBuffer=%p, pHdr=%p",
 					 rawsock->blockIndex, rawsock->bufferIndex, rawsock->buffersOut,
-					 pHdr, pBuffer);
+					 pBuffer, pHdr);
 
 	// Check if buffer ready for user
 	// In receive mode, we want TP_STATUS_USER flag set
@@ -600,7 +601,12 @@ U8* ringRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, un
 	rawsock->buffersOut += 1;
 
 	if (pHdr->tp_snaplen < pHdr->tp_len) {
+#if (AVB_LOG_LEVEL >= AVB_LOG_LEVEL_VERBOSE)
+		AVB_LOGF_WARNING("Getting RX frame; partial frame ignored (len %d, snaplen %d)", pHdr->tp_len, pHdr->tp_snaplen);
+		AVB_LOG_BUFFER(AVB_LOG_LEVEL_VERBOSE, (const U8 *) pBuffer + (pHdr->tp_mac - rawsock->bufHdrSize), pHdr->tp_len, 16);
+#else
 		IF_LOG_INTERVAL(1000) AVB_LOGF_WARNING("Getting RX frame; partial frame ignored (len %d, snaplen %d)", pHdr->tp_len, pHdr->tp_snaplen);
+#endif
 		ringRawsockRelRxFrame(rawsock, (U8*)pBuffer);
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 		return NULL;
@@ -609,6 +615,7 @@ U8* ringRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, un
 	// Return pointer to the buffer and length
 	*offset = pHdr->tp_mac - rawsock->bufHdrSize;
 	*len = pHdr->tp_snaplen;
+	AVB_LOGF_VERBOSE("Good RX frame (len %d, snaplen %d)", pHdr->tp_len, pHdr->tp_snaplen);
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
 	return (U8*)pBuffer;
@@ -627,7 +634,7 @@ int ringRawsockRxParseHdr(void *pvRawsock, U8 *pBuffer, hdr_info_t *pInfo)
 	}
 
 	volatile struct tpacket2_hdr *pHdr = (struct tpacket2_hdr*)(pBuffer - rawsock->bufHdrSize);
-	AVB_LOGF_VERBOSE("pBuffer=%p, pHdr=%p", pBuffer, pHdr);
+	AVB_LOGF_VERBOSE("ringRawsockRxParseHdr: pBuffer=%p, pHdr=%p", pBuffer, pHdr);
 
 	memset(pInfo, 0, sizeof(hdr_info_t));
 
@@ -636,6 +643,8 @@ int ringRawsockRxParseHdr(void *pvRawsock, U8 *pBuffer, hdr_info_t *pInfo)
 	pInfo->shost = pNoTag->shost;
 	pInfo->dhost = pNoTag->dhost;
 	pInfo->ethertype = ntohs(pNoTag->ethertype);
+	pInfo->ts.tv_sec = pHdr->tp_sec;
+	pInfo->ts.tv_nsec = pHdr->tp_nsec;
 
 	if (pInfo->ethertype == ETHERTYPE_8021Q) {
 		pInfo->vlan = TRUE;
@@ -662,7 +671,7 @@ bool ringRawsockRelRxFrame(void *pvRawsock, U8 *pBuffer)
 	}
 
 	volatile struct tpacket2_hdr *pHdr = (struct tpacket2_hdr*)(pBuffer - rawsock->bufHdrSize);
-	AVB_LOGF_VERBOSE("pBuffer=%p, pHdr=%p", pBuffer, pHdr);
+	AVB_LOGF_VERBOSE("ringRawsockRelRxFrame: pBuffer=%p, pHdr=%p", pBuffer, pHdr);
 
 	pHdr->tp_status = TP_STATUS_KERNEL;
 	rawsock->buffersOut -= 1;

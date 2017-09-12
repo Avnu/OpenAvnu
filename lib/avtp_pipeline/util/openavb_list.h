@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -48,37 +49,37 @@ openavb_list_t openavbListNewList(void);
 // Delete a link list.
 void openavbListDeleteList(openavb_list_t list);
 
-// Add a data element as a node to a link list. Returns NULL on failure.
+// Add a data element as a node to the end (tail) of a link list. Returns NULL on failure.
 openavb_list_node_t openavbListAdd(openavb_list_t list, void *data);
 
-// Allocate and manage data element and add as a node to a link list. Returns NULL on failure. 
+// Allocate and manage data element and add as a node to the end (tail) of a link list. Returns NULL on failure.
 openavb_list_node_t openavbListNew(openavb_list_t list, U32 size);
 
 // Remove (delete) node. Returns NULL on failure otherwise next node. 
 openavb_list_node_t openavbListDelete(openavb_list_t list, openavb_list_node_t node);
 
-// Gets the next node. Returns FALSE on error or if already at the tail.
+// Gets the next node. Returns NULL on error or if already at the tail.
 openavb_list_node_t openavbListNext(openavb_list_t list, openavb_list_node_t node);
 
-// Gets the previous node. Returns FALSE on error or if already at the head.
+// Gets the previous node. Returns NULL on error or if already at the head.
 openavb_list_node_t openavbListPrev(openavb_list_t list, openavb_list_node_t node);
 
-// Gets the first (head) node. Returns FALSE on error or empty list.
+// Gets the first (head) node. Returns NULL on error or empty list.
 openavb_list_node_t openavbListFirst(openavb_list_t list);
 
-// Gets the lastt (tail) node. Returns FALSE on error or empty list.
+// Gets the last (tail) node. Returns NULL on error or empty list.
 openavb_list_node_t openavbListLast(openavb_list_t list);
 
-// Gets the first node and preps for iteration. Returns FALSE on error or empty list.
+// Gets the first node and preps for iteration. Returns NULL on error or empty list.
 openavb_list_node_t openavbListIterFirst(openavb_list_t list);
 
-// Gets the last node and preps for iteration. Returns FALSE on error or empty list.
+// Gets the last node and preps for iteration. Returns NULL on error or empty list.
 openavb_list_node_t openavbListIterLast(openavb_list_t list);
 
-// Gets the next node in the iteration. Returns FALSE on error or end of list.
+// Gets the next node in the iteration. Returns NULL on error or end of list.
 openavb_list_node_t openavbListIterNext(openavb_list_t list);
 
-// Gets the prev node in the iteration. Returns FALSE on error or beginning of list.
+// Gets the previous node in the iteration. Returns NULL on error or beginning of list.
 openavb_list_node_t openavbListIterPrev(openavb_list_t list);
 
 // Get data element. Returns NULL on failure.

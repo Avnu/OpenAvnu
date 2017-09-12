@@ -162,11 +162,11 @@ typedef enum {
 #define LOG_VARX(x, y) x ## y
 #define LOG_VAR(x, y) LOG_VARX(x, y)
 
-// Log a message once. Technically once every 4.2 billion attempts. Usage: LOG_ONCE MAAP_LOG_INFO(...)
-#define IF_LOG_ONCE() static uint32_t LOG_VAR(logOnce,__LINE__); if (!LOG_VAR(logOnce,__LINE__)++)
+// Log a message once. Technically once every 4.2 billion attempts. Usage: IF_LOG_ONCE() MAAP_LOG_INFO(...)
+#define IF_LOG_ONCE() static uint32_t LOG_VAR(logOnce,__LINE__) = 0; if (!LOG_VAR(logOnce,__LINE__)++)
 
-// Log a message at an interval. Usage: LOG_INTERVAL(100) MAAP_LOG_INFO(...)
-#define IF_LOG_INTERVAL(x) static uint32_t LOG_VAR(logOnce,__LINE__); if (!(LOG_VAR(logOnce,__LINE__)++ % (x - 1)))
+// Log a message at an interval. Usage: IF_LOG_INTERVAL(100) MAAP_LOG_INFO(...)
+#define IF_LOG_INTERVAL(x) static uint32_t LOG_VAR(logOnce,__LINE__) = 0; if (!(LOG_VAR(logOnce,__LINE__)++ % (x)))
 
 
 #define ETH_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -221,7 +221,7 @@ void maapLogBuffer(
 #define MAAP_LOGRT_STATUS(BEGIN, ITEM, END, FMT, TYPE, VAL)	maapLogRT(MAAP_LOG_LEVEL_STATUS, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define MAAP_LOGRT_DEBUG(BEGIN, ITEM, END, FMT, TYPE, VAL)	maapLogRT(MAAP_LOG_LEVEL_DEBUG, BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define MAAP_LOGRT_VERBOSE(BEGIN, ITEM, END, FMT, TYPE, VAL)	maapLogRT(MAAP_LOG_LEVEL_VERBOSE, BEGIN, ITEM, END, FMT, TYPE, VAL)
-#define MAAP_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)   maapLogBuffer(LEVEL, DATA, DATALEN, LINELINE, MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__)
+#define MAAP_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)   do { if (LEVEL <= MAAP_LOG_LEVEL) maapLogBuffer(0, DATA, DATALEN, LINELINE, MAAP_LOG_COMPANY, MAAP_LOG_COMPONENT, __FILE__, __LINE__); } while(0)
 #else
 #define MAAP_LOGF_DEV(LEVEL, FMT, ...)
 #define MAAP_LOGF_ERROR(FMT, ...)

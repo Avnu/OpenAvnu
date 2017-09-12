@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -38,7 +39,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_tl.h"
 #include "openavb_avtp.h"
 #include "openavb_talker.h"
-// #include "openavb_time.h"
+#include "openavb_avdecc_msg_client.h"
 
 // DEBUG Uncomment to turn on logging for just this module.
 //#define AVB_LOG_ON	1
@@ -126,7 +127,7 @@ bool talkerStartStream(tl_state_t *pTLState)
 	// setup the initial times
 	U64 nowNS;
 
-	if (!pCfg->fixed_timestamp) {
+	if (!pCfg->spin_wait) {
 		CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
 	} else {
 		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
@@ -136,6 +137,7 @@ bool talkerStartStream(tl_state_t *pTLState)
 	nowNS = ((nowNS + (pTalkerData->intervalNS)) / pTalkerData->intervalNS) * pTalkerData->intervalNS;
 
 	pTalkerData->nextReportNS = nowNS + (pCfg->report_seconds * NANOSECONDS_PER_SECOND);
+	pTalkerData->lastReportFrames = 0;
 	pTalkerData->nextSecondNS = nowNS + NANOSECONDS_PER_SECOND;
 	pTalkerData->nextCycleNS = nowNS + pTalkerData->intervalNS;
 
@@ -173,7 +175,7 @@ void talkerStopStream(tl_state_t *pTLState)
 
 	openavbTalkerAddStat(pTLState, TL_STAT_TX_CALLS, pTalkerData->cntWakes);
 	openavbTalkerAddStat(pTLState, TL_STAT_TX_FRAMES, pTalkerData->cntFrames);
-//	openavbTalkerAddStat(pTLState, TL_STAT_TX_LATE, 0);		// Can't calulate at this time
+//	openavbTalkerAddStat(pTLState, TL_STAT_TX_LATE, 0);		// Can't calculate at this time
 	openavbTalkerAddStat(pTLState, TL_STAT_TX_BYTES, openavbAvtpBytes(pTalkerData->avtpHandle));
 
 	AVB_LOGF_INFO("TX "STREAMID_FORMAT", Totals: calls=%" PRIu64 ", frames=%" PRIu64 ", late=%" PRIu64 ", bytes=%" PRIu64 ", TXOutOfBuffs=%ld",
@@ -186,11 +188,31 @@ void talkerStopStream(tl_state_t *pTLState)
 		);
 
 	if (pTLState->bStreaming) {
-		openavbAvtpShutdown(pTalkerData->avtpHandle);
+		openavbAvtpShutdownTalker(pTalkerData->avtpHandle);
 		pTLState->bStreaming = FALSE;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
+}
+
+static inline void talkerShowStats(talker_data_t *pTalkerData, tl_state_t *pTLState)
+{
+	S32 late = pTalkerData->wakesPerReport - pTalkerData->cntWakes;
+	U64 bytes = openavbAvtpBytes(pTalkerData->avtpHandle);
+	if (late < 0) late = 0;
+	U32 txbuf = openavbAvtpTxBufferLevel(pTalkerData->avtpHandle);
+	U32 mqbuf = openavbMediaQCountItems(pTLState->pMediaQ, TRUE);
+
+	AVB_LOGRT_INFO(LOG_RT_BEGIN, LOG_RT_ITEM, FALSE, "TX UID:%d, ", LOG_RT_DATATYPE_U16, &pTalkerData->streamID.uniqueID);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "calls=%ld, ", LOG_RT_DATATYPE_U32, &pTalkerData->cntWakes);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "frames=%ld, ", LOG_RT_DATATYPE_U32, &pTalkerData->cntFrames);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "late=%d, ", LOG_RT_DATATYPE_U32, &late);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "bytes=%lld, ", LOG_RT_DATATYPE_U64, &bytes);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "txbuf=%d, ", LOG_RT_DATATYPE_U32, &txbuf);
+	AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, LOG_RT_END, "mqbuf=%d, ", LOG_RT_DATATYPE_U32, &mqbuf);
+
+	openavbTalkerAddStat(pTLState, TL_STAT_TX_LATE, late);
+	openavbTalkerAddStat(pTLState, TL_STAT_TX_BYTES, bytes);
 }
 
 static inline bool talkerDoStream(tl_state_t *pTLState)
@@ -212,7 +234,7 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 
 		if (!pCfg->tx_blocking_in_intf) {
 
-			if (!pCfg->fixed_timestamp) {
+			if (!pCfg->spin_wait) {
 				// sleep until the next interval
 				SLEEP_UNTIL_NSEC(pTalkerData->nextCycleNS);
 			} else {
@@ -238,47 +260,40 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 				pTalkerData->cntFrames++;
 		}
 
-		if (pTalkerData->cntWakes++ % pTalkerData->wakeRate == 0) {
-			// time to service the endpoint IPC
-			bRet = TRUE;
-		}
-
-		if (!pCfg->fixed_timestamp) {
+		if (!pCfg->spin_wait) {
 			CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
 		} else {
 			CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
 		}
 
+		if (pTalkerData->cntWakes++ % pTalkerData->wakeRate == 0) {
+			// time to service the endpoint IPC
+			bRet = TRUE;
+
+			// Don't need to check again for another second.
+			pTalkerData->nextSecondNS = nowNS + NANOSECONDS_PER_SECOND;
+		}
+
 		if (pCfg->report_seconds > 0) {
 			if (nowNS > pTalkerData->nextReportNS) {
+				talkerShowStats(pTalkerData, pTLState);
 			  
-				S32 late = pTalkerData->wakesPerReport - pTalkerData->cntWakes;
-				U64 bytes = openavbAvtpBytes(pTalkerData->avtpHandle);
-				if (late < 0) late = 0;
-				U32 txbuf = openavbAvtpTxBufferLevel(pTalkerData->avtpHandle);
-				U32 mqbuf = openavbMediaQCountItems(pTLState->pMediaQ, TRUE);
-			
-				AVB_LOGRT_INFO(LOG_RT_BEGIN, LOG_RT_ITEM, FALSE, "TX UID:%d, ", LOG_RT_DATATYPE_U16, &pTalkerData->streamID.uniqueID);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "calls=%ld, ", LOG_RT_DATATYPE_U32, &pTalkerData->cntWakes);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "frames=%ld, ", LOG_RT_DATATYPE_U32, &pTalkerData->cntFrames);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "late=%d, ", LOG_RT_DATATYPE_U32, &late);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "bytes=%lld, ", LOG_RT_DATATYPE_U64, &bytes);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, FALSE, "txbuf=%d, ", LOG_RT_DATATYPE_U32, &txbuf);
-				AVB_LOGRT_INFO(FALSE, LOG_RT_ITEM, LOG_RT_END, "mqbuf=%d, ", LOG_RT_DATATYPE_U32, &mqbuf);
-
 				openavbTalkerAddStat(pTLState, TL_STAT_TX_CALLS, pTalkerData->cntWakes);
 				openavbTalkerAddStat(pTLState, TL_STAT_TX_FRAMES, pTalkerData->cntFrames);
-				openavbTalkerAddStat(pTLState, TL_STAT_TX_LATE, late);
-				openavbTalkerAddStat(pTLState, TL_STAT_TX_BYTES, bytes);
 
 				pTalkerData->cntFrames = 0;
 				pTalkerData->cntWakes = 0;
-				pTalkerData->nextReportNS = nowNS + (pCfg->report_seconds * NANOSECONDS_PER_SECOND);  
+				pTalkerData->nextReportNS = nowNS + (pCfg->report_seconds * NANOSECONDS_PER_SECOND);
+			}
+		} else if (pCfg->report_frames > 0 && pTalkerData->cntFrames != pTalkerData->lastReportFrames) {
+			if (pTalkerData->cntFrames % pCfg->report_frames == 1) {
+				talkerShowStats(pTalkerData, pTLState);
+				pTalkerData->lastReportFrames = pTalkerData->cntFrames;
 			}
 		}
 
 		if (nowNS > pTalkerData->nextSecondNS) {
-			pTalkerData->nextSecondNS += NANOSECONDS_PER_SECOND;
+			pTalkerData->nextSecondNS = nowNS + NANOSECONDS_PER_SECOND;
 			bRet = TRUE;
 		}
 
@@ -294,9 +309,10 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 		}
 	}
 	else {
-            SLEEP(1);
-	    // time to service the endpoint IPC
-	    bRet = TRUE;
+		SLEEP_MSEC(10);
+
+		// time to service the endpoint IPC
+		bRet = TRUE;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
@@ -339,13 +355,16 @@ void openavbTLRunTalker(tl_state_t *pTLState)
 	if (pTLState->bConnected) {
 		bool bServiceIPC;
 
-		// Do until we are stopped or loose connection to endpoint
+		// Notify AVDECC Msg of the state change.
+		openavbAvdeccMsgClntNotifyCurrentState(pTLState);
+
+		// Do until we are stopped or lose connection to endpoint
 		while (pTLState->bRunning && pTLState->bConnected) {
 
 			// Talk (or just sleep if not streaming.)
 			bServiceIPC = talkerDoStream(pTLState);
 
-			// TalkerDoStream() returns TRUE once per second,
+			// TalkerDoStream() returns TRUE occasionally,
 			// so that we can service our IPC at that low rate.
 			if (bServiceIPC) {
 				// Look for messages from endpoint.  Don't block (timeout=0)
@@ -371,6 +390,9 @@ void openavbTLRunTalker(tl_state_t *pTLState)
 			openavbEptClntStopStream(pTLState->endpointHandle, &(((talker_data_t *)pTLState->pPvtTalkerData)->streamID));
 
 		openavbTLRunTalkerFinish(pTLState);
+
+		// Notify AVDECC Msg of the state change.
+		openavbAvdeccMsgClntNotifyCurrentState(pTLState);
 	}
 	else {
 		AVB_LOGF_WARNING("Failed to connect to endpoint"STREAMID_FORMAT, STREAMID_ARGS(&(((talker_data_t *)pTLState->pPvtTalkerData)->streamID)));
@@ -401,7 +423,11 @@ void openavbTLPauseTalker(tl_state_t *pTLState, bool bPause)
 		return;
 	}
 
+	pTLState->bPaused = bPause;
 	openavbAvtpPause(pTalkerData->avtpHandle, bPause);
+
+	// Notify AVDECC Msg of the state change.
+	openavbAvdeccMsgClntNotifyCurrentState(pTLState);
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }

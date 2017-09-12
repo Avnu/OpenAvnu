@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -72,11 +73,8 @@ static openavbRC openAvtpSock(avtp_stream_t *pStream)
 	}
 
 	if (pStream->rawsock != NULL) {
-		// Get the socket, so we can poll on it
-		pStream->sock = openavbRawsockGetSocket(pStream->rawsock);
-
 		openavbSetRxSignalMode(pStream->rawsock, pStream->bRxSignalMode);
-		
+
 		if (!pStream->tx) {
 			// Set the multicast address that we want to receive
 			openavbRawsockRxMulticast(pStream->rawsock, TRUE, pStream->dest_addr.ether_addr_octet);
@@ -147,6 +145,9 @@ openavbRC openavbAvtpTxInit(
 
 	pStream->pMapCB->map_tx_init_cb(pStream->pMediaQ);
 	pStream->pIntfCB->intf_tx_init_cb(pStream->pMediaQ);
+	if (pStream->pIntfCB->intf_set_stream_uid_cb) {
+		pStream->pIntfCB->intf_set_stream_uid_cb(pStream->pMediaQ, streamID->uniqueID);
+	}
 
 	// Set the frame length
 	pStream->frameLen = pStream->pMapCB->map_max_data_size_cb(pStream->pMediaQ) + ETH_HDR_LEN_VLAN;
@@ -255,7 +256,7 @@ static void inline rxDeliveryStats(avtp_rx_info_t *rxInfo,
 static openavbRC fillAvtpHdr(avtp_stream_t *pStream, U8 *pFill)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP_DETAIL);
-  
+
 	switch (pStream->pMapCB->map_avtp_version_cb()) {
 		default:
 			AVB_RC_LOG_RET(AVB_RC(OPENAVB_AVTP_FAILURE | OPENAVBAVTP_RC_INVALID_AVTP_VERSION));
@@ -341,7 +342,7 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 
 			// Call mapping module to move data into AVTP frame
 			txCBResult = pStream->pMapCB->map_tx_cb(pStream->pMediaQ, pAvtpFrame, &avtpFrameLen);
-		
+
 			pStream->bytes += avtpFrameLen;
 		}
 		else {
@@ -365,8 +366,9 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			}
 		}
 
-		// If we got data from the mapping module, notifiy the raw sockets.
-		if (txCBResult != TX_CB_RET_PACKET_NOT_READY) {
+		// If we got data from the mapping module and stream is not paused,
+		// notify the raw sockets.
+		if (txCBResult != TX_CB_RET_PACKET_NOT_READY && !pStream->bPause) {
 
 			if (pStream->tsEval) {
 				processTimestampEval(pStream, pAvtpFrame);
@@ -432,6 +434,9 @@ openavbRC openavbAvtpRxInit(
 
 	pStream->pMapCB->map_rx_init_cb(pStream->pMediaQ);
 	pStream->pIntfCB->intf_rx_init_cb(pStream->pMediaQ);
+	if (pStream->pIntfCB->intf_set_stream_uid_cb) {
+		pStream->pIntfCB->intf_set_stream_uid_cb(pStream->pMediaQ, streamID->uniqueID);
+	}
 
 	// Set the frame length
 	pStream->frameLen = pStream->pMapCB->map_max_data_size_cb(pStream->pMediaQ) + ETH_HDR_LEN_VLAN;
@@ -465,7 +470,7 @@ openavbRC openavbAvtpRxInit(
 static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP_DETAIL);
-	AVB_LOGF_DEBUG("pFrame=%p, len=%u", pFrame, frameLen);
+	IF_LOG_INTERVAL(4096) AVB_LOGF_DEBUG("pFrame=%p, len=%u", pFrame, frameLen);
 	U8 subtype, flags, flags2, rxSeq, nLost, avtpVersion;
 	U8 *pRead = pFrame;
 
@@ -490,7 +495,7 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 			else if (pStream->avtp_sequence_num != rxSeq) {
 				nLost = (rxSeq - pStream->avtp_sequence_num)
 					+ (rxSeq < pStream->avtp_sequence_num ? 256 : 0);
-				AVB_LOGF_DEBUG("AVTP sequence mismatch: expected: %u,\tgot: %u,\tlost %d",
+				AVB_LOGF_INFO("AVTP sequence mismatch: expected: %3u,\tgot: %3u,\tlost %3d",
 					pStream->avtp_sequence_num, rxSeq, nLost);
 				pStream->nLost += nLost;
 			}
@@ -499,8 +504,7 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 			pStream->bytes += frameLen;
 
 			flags2 = *pRead++;
-
-			AVB_LOGF_DEBUG("subtype=%u, sv=%u, ver=%u, mr=%u, tv=%u tu=%u",
+			IF_LOG_INTERVAL(4096) AVB_LOGF_DEBUG("subtype=%u, sv=%u, ver=%u, mr=%u, tv=%u tu=%u",
 				subtype, flags & 0x80, avtpVersion,
 				flags & 0x08, flags & 0x01, flags2 & 0x01);
 
@@ -511,7 +515,7 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 			}
 
 			pStream->pMapCB->map_rx_cb(pStream->pMediaQ, pFrame, frameLen);
-			
+
 			// NOTE : This is a redundant call. It is handled in avtpTryRx()
 			// pStream->pIntfCB->intf_rx_cb(pStream->pMediaQ);
 
@@ -573,7 +577,7 @@ static void avtpTryRx(avtp_stream_t *pStream)
 				timeout = AVTP_MAX_BLOCK_USEC;
 			if (timeout < RAWSOCK_MIN_TIMEOUT_USEC)
 				timeout = RAWSOCK_MIN_TIMEOUT_USEC;
-			
+
 			pBuf = (U8 *)openavbRawsockGetRxFrame(pStream->rawsock, timeout, &offsetToFrame, &frameLen);
 			if (!pBuf)
 				pStream->pIntfCB->intf_rx_cb(pStream->pMediaQ);
@@ -694,10 +698,12 @@ void openavbAvtpPause(void *handle, bool bPause)
 
 	pStream->bPause = bPause;
 
+	// AVDECC_TODO:  Do something with the bPause value!
+
 	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
 }
 
-void openavbAvtpShutdown(void *pv)
+void openavbAvtpShutdownTalker(void *pv)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP);
 	AVB_LOG_DEBUG("Shutdown");
@@ -712,6 +718,32 @@ void openavbAvtpShutdown(void *pv)
 			openavbRawsockClose(pStream->rawsock);
 			pStream->rawsock = NULL;
 		}
+
+		if (pStream->ifname)
+			free(pStream->ifname);
+
+		// free the malloc'd stream info
+		free(pStream);
+	}
+	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
+	return;
+}
+
+void openavbAvtpShutdownListener(void *pv)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_AVTP);
+	AVB_LOG_DEBUG("Shutdown");
+
+	avtp_stream_t *pStream = (avtp_stream_t *)pv;
+	if (pStream) {
+		// close the rawsock
+		if (pStream->rawsock) {
+			openavbRawsockClose(pStream->rawsock);
+			pStream->rawsock = NULL;
+		}
+
+		pStream->pIntfCB->intf_end_cb(pStream->pMediaQ);
+		pStream->pMapCB->map_end_cb(pStream->pMediaQ);
 
 		if (pStream->ifname)
 			free(pStream->ifname);

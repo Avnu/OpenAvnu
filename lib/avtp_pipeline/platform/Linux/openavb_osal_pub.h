@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -39,6 +40,11 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 bool osalAVBInitialize(const char *ifname);
 
 bool osalAVBFinalize(void);
+
+
+bool osalAvdeccInitialize(const char *ifname, const char **inifiles, int numfiles);
+
+bool osalAvdeccFinalize(void);
 
 #endif // _OPENAVB_OSAL_PUB_H
 

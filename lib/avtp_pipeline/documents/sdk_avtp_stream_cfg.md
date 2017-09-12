@@ -54,7 +54,7 @@ void h264_SampleListenerCfg(openavb_tl_cfg_t *cfg)
 	// On the talker this value is added to the PTP walltime to create the AVTP Timestamp.
 	// On the listener this value is used to validate an expected valid timestamp range.
 	// Note: For the listener the map_nv_item_count value must be set large enough to 
-	// allow buffering at least as many AVTP packets that can be transmitted  during this 
+	// allow buffering at least as many AVTP packets that can be transmitted during this 
 	// max transit time.
 	cfg->max_transit_usec = 2000;
 
@@ -119,8 +119,8 @@ void h264_SampleListenerCfg(openavb_tl_cfg_t *cfg)
 	// cfg->libCfgNames[cfgIdx] = "map_nv_tx_rate";
 	// cfg->libCfgValues[cfgIdx++] = "8000";
 
-	// map_nv_max_payload_size: This is the max RTP payload size. See RFC 6184 for details, 
-       // 1412 is the default size
+	// map_nv_max_payload_size: This is the max RTP payload size. See RFC 6184 for details,
+	// 1412 is the default size
 	cfg->libCfgNames[cfgIdx] = "map_nv_max_payload_size";
 	cfg->libCfgValues[cfgIdx++] = "1412";
 	
@@ -153,109 +153,34 @@ void h264_SampleListenerCfg(openavb_tl_cfg_t *cfg)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 <br>
+
 Common Stream Configuration {#sdk_avtp_stream_cfg_common}
 ===========================
 These are common stream configuration values. 
 
 Name                | Description
 --------------------|------------
-role                |Sets the process as a talker or listener. Valid values are\
-                     *talker* or *listener*.
-stream_addr         |Used on the listener and should be set to the mac address \
-                     of the talker.
-stream_uid          |The unique stream ID. The talker and listener must both   \
-                     have this set the same.
-dest_addr           |Destination multicast address for the stream.<br>         \
-                     If using                                                  \
-                     <ul><li><b>with MAAP</b> - dynamic destination addresses  \
-                     are generated automatically by the talker and passed to   \
-                     the listener, and don't need to be configured.</li>       \
-                     <li><b>without MAAP</b>, locally administered (static)    \
-                     addresses must be configured. Those addresses are in the  \
-                     range of: 91:E0:F0:00:FE:00 - 91:E0:F0:00:FE:FF. Typically\
-                     use :00 for the first stream, :01 for the second, etc.    \
-                     </li></ul>                                                \
-                     If <b>SRP</b>                                             \
-                     <ul><li><b>is being</b> used the static destination       \
-                     address only needs to be set in the talker;</li>          \
-                     <li><b>is not being</b> used the destination address need \
-                     to be set (to the same value) in both the talker and      \
-                     listener.</li></ul>                                       \
-                     The destination is a multicast address, not a real MAC    \
-                     address, so it does not match the talker or listener's    \
-                     interface MAC. There are several pools of those addresses \
-                     for use by AVTP defined in 1722.
-max_interval_frames |The maximum number of packets that will be sent during an \
-                     observation interval. This is only used on the talker.
+role                |Sets the process as a talker or listener. Valid values are *talker* or *listener*.
+stream_addr         |Used on the listener and should be set to the mac address of the talker.  If not specified on the talker, the talker's detected mac address will be used.<br>If AVDECC is being used, this does not need to be specified for the listener, as AVDECC will tell the listener which value to use.
+stream_uid          |The unique stream ID. The talker and listener must both have this set the same.<br>If AVDECC is being used, this does not need to be specified for the listener, as AVDECC will tell the listener which value to use.
+dest_addr           |Destination multicast address for the stream.<br>If using<ul><li><b>with MAAP</b> - dynamic destination addresses are generated automatically by the talker and passed to the listener, and don't need to be configured.<br>However, it is recommended that a locally administered (static) address still be configured, as the dest_addr will be used if the MAAP daemon is not available.</li><li><b>without MAAP</b>, locally administered (static) addresses must be configured. Those addresses are in the range of: 91:E0:F0:00:FE:00 - 91:E0:F0:00:FE:FF. Typically use :00 for the first stream, :01 for the second, etc. </li></ul> If <b>SRP</b> <ul><li><b>is being</b> used the static destination address only needs to be set in the talker;</li> <li><b>is not being</b> used the destination address need to be set (to the same value) in both the talker and listener.</li></ul> The destination is a multicast address, not a real MAC address, so it does not match the talker or listener's interface MAC. There are several pools of those addresses for use by AVTP defined in 1722.
+max_interval_frames |The maximum number of packets that will be sent during an observation interval. This is only used on the talker.
 max_frame_size      |Maximum size of the frame
-sr_class            |A talker only setting. Values are either A or B. If not   \
-                     set an internal default is used.
-sr_rank             |A talker only setting. If not set an internal default is  \
-                     used.
-max_transit_usec    |Allows manually specifying a maximum transit time.        \
-                     <ul><li><b>On the talker</b> this value is added to the   \
-                     PTP walltime to create the AVTP Timestamp.</li>           \
-                     <li><b>On the listener</b> this value is used to validate \
-                     an expected valid timestamp range.</li></ul>              \
-                     <b>Note:</b> For the listener the map_nv_item_count value  \
-                     must be set large enough to allow buffering at least as   \
-                     many AVTP packets that can be transmitted during this max \
-                     transit time.
-max_transmit_deficit_usec |Allows setting the maximum packet transmit rate     \
-                     deficit that will be recovered when a talker falls behind.\
-                     <p>When a talker can not keep up with the specified       \
-                     transmit rate it builds up a deficit and will attempt to  \
-                     make up for this deficit by sending more packets. There is\
-                     normally some variability in the transmit rate because of \
-                     other demands on the system so this is expected. However, \
-                     without this bounding value the deficit could grew too    \
-                     large in cases such where more streams are started than   \
-                     the system can support and when the number of streams is  \
-                     reduced the remaining streams will attempt to recover this\
-                     deficit by sending packets at a higher rate. This can     \
-                     cause a problem at the listener side and significantly    \
-                     delay the recovery time before media playback will return \
-                     to normal.</p>                                            \
-                     <p>Typically this value can be set to the expected buffer \
-                     size (in usec) that listeners are expected to be          \
-                     buffering.<br>                                            \
-                     For low latency solutions this is normally a small value. \
-                     For non-live media playback such as video playback the    \
-                     listener side buffers can often be large enough to held   \
-                     many seconds of data.</p>                                 \
-                     <b>Note:</b> This is only used on a talker side.
-internal_latency    |Allows mannually specifying an internal latency time. This\
-                     is used only on the talker.
-max_stale           |The number of microseconds beyond the presentation time   \
-                     that media queue items will be purged because they are too\
-                     old (past the presentation time).<br>                     \
-                     This is only used on listener end stations.               \
-                     <p><b>Note:</b> needing to purge old media queue items is \
-                     often a sign of some other problem.<br>                   \
-                     For example: a delay at stream startup before incoming    \
-                     packets are ready to be processed by the media sink.<br>  \
-                     If this deficit in processing or purging the old (stale)  \
-                     packets is not handled, syncing multiple listeners will be\
-                     problematic.</p>
-raw_tx_buffers      |The number of raw socket transmit buffers. Typically 4 - 8\
-                     are good values. This is only used by the talker. If not  \
-                     set internal defaults are used.
-raw_rx_buffers      |The number of raw socket receive buffers. Typically 50 -  \
-                     100 are good values. This is only used by the listener.   \
-                     If not set internal defaults are used.
-report_seconds      |How often to output stats. Defaults to 10 seconds. 0 turns\
-                     off the stats.
-tx_blocking_in_intf |The interface module will block until data is available.  \
-                     This is a talker only configuration value and not all interface modules support it.     
-pMapInitFn          |Pointer to the mapping module initialization function.    \
-                     Since this is a pointer to a function addresss is it not  \
-		     directly set in platforms that use a .ini file. 
-IntfInitFn          |Pointer to the interface module initialization function.  \
-                     Since this is a pointer to a function addresss is it not  \
-		     directly set in platforms that use a .ini file. 
-
+sr_class            |A talker only setting. Values are either A or B. If not set an internal default is used.
+sr_rank             |A talker only setting. If not set an internal default is used.
+max_transit_usec    |Allows manually specifying a maximum transit time. <ul><li><b>On the talker</b> this value is added to the PTP walltime to create the AVTP Timestamp.</li><li><b>On the listener</b> this value is used to validate an expected valid timestamp range.</li></ul><b>Note:</b> For the listener the map_nv_item_count value must be set large enough to allow buffering at least as many AVTP packets that can be transmitted during this max transit time.
+max_transmit_deficit_usec |Allows setting the maximum packet transmit rate deficit that will be recovered when a talker falls behind. <p>When a talker can not keep up with the specified transmit rate it builds up a deficit and will attempt to make up for this deficit by sending more packets. There is normally some variability in the transmit rate because of other demands on the system so this is expected. However, without this bounding value the deficit could grew too large in cases such where more streams are started than the system can support and when the number of streams is reduced the remaining streams will attempt to recover this deficit by sending packets at a higher rate. This can cause a problem at the listener side and significantly delay the recovery time before media playback will return to normal.</p><p>Typically this value can be set to the expected buffer size (in usec) that listeners are expected to be buffering.<br>For low latency solutions this is normally a small value. For non-live media playback such as video playback the listener side buffers can often be large enough to held many seconds of data.</p><b>Note:</b> This is only used on a talker side.
+internal_latency    |Allows manually specifying an internal latency time. This is used only on the talker.
+max_stale           |The number of microseconds beyond the presentation time that media queue items will be purged because they are too old (past the presentation time).<br>This is only used on listener end stations.<p><b>Note:</b> needing to purge old media queue items is often a sign of some other problem.<br>For example: a delay at stream startup before incoming packets are ready to be processed by the media sink.<br>If this deficit in processing or purging the old (stale) packets is not handled, syncing multiple listeners will be problematic.</p>
+raw_tx_buffers      |The number of raw socket transmit buffers. Typically 4 - 8 are good values. This is only used by the talker. If not set internal defaults are used.
+raw_rx_buffers      |The number of raw socket receive buffers. Typically 50 - 100 are good values. This is only used by the listener. If not set internal defaults are used.
+report_seconds      |How often to output stats. Defaults to 10 seconds. 0 turns off the stats.
+tx_blocking_in_intf |The interface module will block until data is available. This is a talker only configuration value and not all interface modules support it.
+pMapInitFn          |Pointer to the mapping module initialization function. Since this is a pointer to a function address is it not directly set in platforms that use a .ini file. 
+IntfInitFn          |Pointer to the interface module initialization function. Since this is a pointer to a function address is it not directly set in platforms that use a .ini file. 
 
 <br>
+
 # Platform Specific Stream Configuration Values
 Some platform ports have unique configuration values. 
 
@@ -263,26 +188,13 @@ Some platform ports have unique configuration values.
 
 Name                      | Description
 --------------------------|---------------------------
-map_lib                   |The name of the library file (commonly a .so file) that   \
-                           implements the Initialize function.<br>                   \
-                           Comment out the map_lib name and link in the .c file to   \
-                           the openavb_tl executable to embed the mapper directly into   \
-                           the executable unit. There is no need to change anything  \
-                           else. The Initialize function will still be dynamically   \
-                           linked in.
+map_lib                   |The name of the library file (commonly a .so file) that implements the Initialize function.<br>Comment out the map_lib name and link in the .c file to the openavb_tl executable to embed the mapper directly into the executable unit. There is no need to change anything else. The Initialize function will still be dynamically linked in.
 map_fn                    |The name of the initialize function in the mapper
-intf_lib                  | The name of the library file (commonly a .so file) \
-                            that implements the Initialize function.<br>       \
-                            Comment out the intf_lib name and link in the .c   \
-                            file to the openavb_tl executable to embed the         \
-                            interface directly into the executable unit.<br>   \
-                            There is no need to change anything else.          \
-                            The Initialize function will still be dynamically  \
-                            linked in
+intf_lib                  | The name of the library file (commonly a .so file) that implements the Initialize function.<br>Comment out the intf_lib name and link in the .c file to the openavb_tl executable to embed the interface directly into the executable unit.<br>There is no need to change anything else. The Initialize function will still be dynamically linked in
 intf_fn                   | The name of the initialize function in the interface
 
-
 <br>
+
 Example Interface / Mapping Combinations {#sdk_avtp_stream_cfg_combinations}
 ========================================
 Below are a few interface / mapping module combinations. Notice that a single 
@@ -291,28 +203,13 @@ mappings may work with multiple interface modules.
 
 interface module            | mapping module        | description
 ----------------------------|-----------------------|------------
-[echo](@ref echo_host_intf) |[pipe](@ref pipe_map)  |Demonstration interface   \
-                                                     used mostly for           \
-                                                     verification and testing  \
-                                                     purposes.
-[alsa](@ref alsa_intf)      |[uncmp_audio](@ref uncmp_audio_map)|Audio         \
-                                                     interface created for     \
-                                                     demonstration on Linux.   \
-                                                     Can be used to play       \
-                                                     captured (line in, mic)   \
-                                                     audio stream via EAVB
-[alsa](@ref alsa_intf)      |[aaf_audio](@ref aaf_audio_map)|Audio             \
-                                                     interface created for     \
-                                                     demonstration on Linux.   \
-                                                     Can be used to play       \
-                                                     captured (line in, mic)   \
-                                                     audio stream via EAVB
-[wav_file](@ref wav_file_intf)|[uncmp_audio](@ref uncmp_audio_map)|            \
-                                                     Configuration for playing \
-                                                     wave file via EAVB
-
+[echo](@ref echo_host_intf) |[pipe](@ref pipe_map)  |Demonstration interface used mostly for verification and testing purposes.
+[alsa](@ref alsa_intf)      |[uncmp_audio](@ref uncmp_audio_map)|Audio interface created for demonstration on Linux. Can be used to play captured (line in, mic) audio stream via EAVB
+[alsa](@ref alsa_intf)      |[aaf_audio](@ref aaf_audio_map)|Audio interface created for demonstration on Linux. Can be used to play captured (line in, mic) audio stream via EAVB
+[wav_file](@ref wav_file_intf)|[uncmp_audio](@ref uncmp_audio_map)|Configuration for playing wave file via EAVB
 
 <br>
+
 Interface and Mapping Module Configuration {#sdk_avtp_stream_cfg_intf_map}
 ==========================================
 
