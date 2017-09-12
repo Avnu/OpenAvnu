@@ -89,7 +89,7 @@ public:
 	 */
 	virtual ~OS_IPC() = 0;
 
-  virtual void ResetValues()
+  virtual void ResetValues(int64_t clockId = 0)
   {
      // Intentionally empty
   }

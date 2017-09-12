@@ -671,11 +671,11 @@ public:
 	  return timerq_lock;
   }
 
-  void ResetIpcValues()
+  void ResetIpcValues(int64_t clockId)
   {
      if (ipc != nullptr)
      {
-        ipc->ResetValues();
+        ipc->ResetValues(clockId);
      }
   }
 };

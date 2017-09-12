@@ -1218,7 +1218,12 @@ void IEEE1588Port::processEvent(Event e)
 					port_state = PTP_MASTER;
 					GPTP_LOG_VERBOSE("port_state SET to MASTER!!!!!");
 
-					clock->ResetIpcValues();
+					int64_t grandMasterId = 0;
+					std::string clockId;
+					clockId = getPortIdentity()->getClockIdentity().getString();
+					grandMasterId = clockId.empty() ? 0 : std::stoll(clockId, 0, 16);
+					GPTP_LOG_VERBOSE("RESET of clockID  clockId:%s", clockId.c_str());
+					clock->ResetIpcValues(grandMasterId);
 
 					Timestamp system_time;
 					Timestamp device_time;
@@ -1802,7 +1807,13 @@ void IEEE1588Port::becomeMaster( bool annc ) {
 	startSyncIntervalTimer(interval);
 	GPTP_LOG_STATUS("Switching to Master" );
 
-	clock->ResetIpcValues();
+	int64_t grandMasterId = 0;
+	std::string clockId;
+	clockId = getPortIdentity()->getClockIdentity().getString();
+	GPTP_LOG_VERBOSE("RESET of clockID  clockId:%s", clockId.c_str());
+	grandMasterId = clockId.empty() ? 0 : std::stoll(clockId, 0, 16);
+
+	clock->ResetIpcValues(grandMasterId);
 
 	clock->updateFUPInfo();
 

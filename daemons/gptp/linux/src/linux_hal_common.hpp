@@ -742,7 +742,7 @@ public:
 	 */
 	void stop();
 
-	virtual void ResetValues()
+	virtual void ResetValues(int64_t clockId)
 	{
 #ifdef APTP
 		GPTP_LOG_VERBOSE("LinuxSharedMemoryIPC::ResetValues");
@@ -760,6 +760,7 @@ public:
 			ptimedata->ls_phoffset = 0;
 			ptimedata->ls_freqoffset = 1;
 			ptimedata->local_time = 0;
+			ptimedata->clock_id = clockId;
 			ptimedata->sync_count   = 0;
 			ptimedata->pdelay_count = 0;
 	      ptimedata->asCapable = false;
