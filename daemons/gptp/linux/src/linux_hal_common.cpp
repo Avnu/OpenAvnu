@@ -860,7 +860,7 @@ bool LinuxSharedMemoryIPC::update
 (int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
  FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
  uint32_t pdelay_count, PortState port_state, bool asCapable,
- uint16_t adrRegSocketPort, int64_t clockId)
+ uint16_t adrRegSocketPort, uint64_t clockId)
 {
 	int buf_offset = 0;
 	pid_t process_id = getpid();

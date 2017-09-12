@@ -554,7 +554,7 @@ public:
 	int64_t local_system_offset, Timestamp system_time,
    FrequencyRatio local_system_freq_offset, unsigned sync_count,
    unsigned pdelay_count, PortState port_state, bool asCapable,
-   uint16_t adrRegSocketPort, int64_t masterClockId);
+   uint16_t adrRegSocketPort, uint64_t masterClockId);
 
   /**
    * @brief  Sets the master offset, sintonyze and adjusts the frequency offset

@@ -1781,7 +1781,7 @@ bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 		signed long long local_system_offset =
 			TIMESTAMP_TO_NS(system_time) - TIMESTAMP_TO_NS(sync_arrival);
 
-		int64_t grandMasterId = 0;
+		uint64_t grandMasterId = 0;
 		std::string clockId;
 		if (PTP_MASTER == port->getPortState())
 		{
@@ -1795,7 +1795,7 @@ bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 			}
 		}
 		GPTP_LOG_DEBUG("*** ComputeFrequencies clockId:%s", clockId.c_str());
-		grandMasterId = clockId.empty() ? 0 : std::stoll(clockId, 0, 16);
+		grandMasterId = clockId.empty() ? 0 : std::stoull(clockId, 0, 16);
 		
 		GPTP_LOG_VERBOSE("local_clock_adjustment:%Le  local_system_offset:%Ld",
 		 local_clock_adjustment, local_system_offset);
