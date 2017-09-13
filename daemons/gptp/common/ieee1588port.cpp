@@ -790,7 +790,8 @@ net_result IEEE1588Port::port_send(uint16_t etherType, uint8_t * buf, int size,
 		{
 			mapSocketAddr(destIdentity, &dest);
 			dest.Port(port);
-			GPTP_LOG_VERBOSE("IEEE1588Port::port_send dest: %s", dest.AddressString().c_str());			
+			GPTP_LOG_VERBOSE("IEEE1588Port::port_send dest.address: %s  dest.port:%d",
+			 dest.AddressString().c_str(), port);
 			ok = net_iface->send(&dest, etherType, (uint8_t *) buf, size, timestamp);
 		}
 	}

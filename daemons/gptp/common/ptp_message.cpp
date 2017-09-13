@@ -1956,7 +1956,9 @@ void PTPMessageDelayReq::sendPort(IEEE1588Port * port,
 	MCAST_OTHER;
 #endif
 
+	GPTP_LOG_VERBOSE("PTPMessageDelayReq::sendPort  BEFORE send");
 	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, broadcastType, destIdentity);
+	GPTP_LOG_VERBOSE("PTPMessageDelayReq::sendPort  AFTER send");
 	port->incCounter_ieee8021AsPortStatTxDelayRequest();
 
 	return;
