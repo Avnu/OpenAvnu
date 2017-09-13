@@ -974,10 +974,14 @@ void IEEE1588Port::processEvent(Event e)
 				clock->getPortList(number_ports, ports);
 
 				/* Find EBest for all ports */
-				j = 0;
-				for (int i = 0; i < number_ports; ++i) {
-					while (ports[j] == NULL)
+				for (j = 0; j < number_ports; ++j) 
+				{
+					while (ports[j] == NULL && j < number_ports)
 						++j;
+					if (number_ports == j)
+					{
+						break;
+					}
 					if (ports[j]->port_state == PTP_DISABLED
 					    || ports[j]->port_state == PTP_FAULTY) {
 						continue;
