@@ -833,7 +833,7 @@ class IEEE1588Port {
 	 * @brief  Gets the "best" announce
 	 * @return Pointer to PTPMessageAnnounce
 	 */
-	PTPMessageAnnounce *calculateERBest(void);
+	PTPMessageAnnounce *calculateERBest(bool lockIt = true);
 
 	/**
 	 * @brief  Adds a foreign master.

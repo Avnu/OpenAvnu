@@ -1038,10 +1038,14 @@ void IEEE1588Port::processEvent(Event e)
 				}
 
 				GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT   number_ports:%d",number_ports);
-				j = 0;
-				for (int i = 0; i < number_ports; ++i) {
-					while (ports[j] == NULL)
+
+				for (int j = 0; j < number_ports; ++j) {
+					while (nullptr == ports[j] && j < number_ports)
 						++j;
+					if (number_ports == j)
+					{
+						break;
+					}
 					if (ports[j]->port_state == PTP_DISABLED
 					    || ports[j]->port_state == PTP_FAULTY) {
 						continue;
@@ -1637,10 +1641,17 @@ void IEEE1588Port::processEvent(Event e)
 	return;
 }
 
-PTPMessageAnnounce *IEEE1588Port::calculateERBest(void)
+PTPMessageAnnounce *IEEE1588Port::calculateERBest(bool lockIt)
 {
-	std::lock_guard<std::mutex> lock(gQualifiedAnnounceMutex);
-	return qualified_announce;
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gQualifiedAnnounceMutex);
+		return qualified_announce;
+	}
+	else
+	{
+		return qualified_announce;
+	}
 }
 
 void IEEE1588Port::recoverPort(void)
