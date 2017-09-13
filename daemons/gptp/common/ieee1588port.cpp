@@ -56,6 +56,7 @@ static std::mutex gLastDelayReqMutex;
 static std::mutex gLastDelayRespMutex;
 static std::mutex gLastSyncMutex;
 static std::mutex gMeanPathDelayMutex;
+static std::mutex gQualifiedAnnounceMutex;
 
 
 LinkLayerAddress IEEE1588Port::other_multicast(OTHER_MULTICAST);
@@ -1240,6 +1241,7 @@ void IEEE1588Port::processEvent(Event e)
 					(void) clock->calcLocalSystemClockRateDifference
 					         ( device_time, system_time );
 
+					std::lock_guard<std::mutex> lock(gQualifiedAnnounceMutex);
 					delete qualified_announce;
 					qualified_announce = NULL;
 
@@ -1637,6 +1639,7 @@ void IEEE1588Port::processEvent(Event e)
 
 PTPMessageAnnounce *IEEE1588Port::calculateERBest(void)
 {
+	std::lock_guard<std::mutex> lock(gQualifiedAnnounceMutex);
 	return qualified_announce;
 }
 
@@ -1648,6 +1651,13 @@ void IEEE1588Port::recoverPort(void)
 IEEE1588Clock *IEEE1588Port::getClock(void)
 {
 	return clock;
+}
+
+void IEEE1588Port::addQualifiedAnnounce(PTPMessageAnnounce * msg)
+{
+	std::lock_guard<std::mutex> lock(gQualifiedAnnounceMutex);
+	if( qualified_announce != NULL ) delete qualified_announce;
+	qualified_announce = msg;
 }
 
 void IEEE1588Port::setLastSync(PTPMessageSync * msg, bool lockIt)

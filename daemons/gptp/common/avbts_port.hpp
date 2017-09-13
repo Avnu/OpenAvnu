@@ -864,10 +864,8 @@ class IEEE1588Port {
 	 * @param  msg PTP announce message
 	 * @return void
 	 */
-	void addQualifiedAnnounce(PTPMessageAnnounce * msg) {
-		if( qualified_announce != NULL ) delete qualified_announce;
-		qualified_announce = msg;
-	}
+	void addQualifiedAnnounce(PTPMessageAnnounce * msg);
+
 	/**
 	 * @brief  Gets the local_addr
 	 * @return AMacAddress
