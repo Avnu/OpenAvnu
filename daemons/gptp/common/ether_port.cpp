@@ -403,6 +403,15 @@ bool EtherPort::_processEvent( Event e )
 			GPTP_LOG_STATUS("LINKUP");
 		}
 
+		if( clock->getPriority1() == 255 || getPortState() == PTP_SLAVE ) {
+			becomeSlave( true );
+		} else if( getPortState() == PTP_MASTER ) {
+			becomeMaster( true );
+		} else {
+			clock->addEventTimerLocked(this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
+				ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER * pow(2.0, getAnnounceInterval()) * 1000000000.0);
+		}
+
 		if (automotive_profile) {
 			setAsCapable( true );
 
