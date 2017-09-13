@@ -532,6 +532,22 @@ class PathTraceTLV {
 	int length() {
 		return (int)(2*sizeof(uint16_t) + PTP_CLOCK_IDENTITY_LENGTH*identityList.size());
 	}
+
+	const std::string GetIdentities()
+	{
+		std::string ids;
+		std::string value;
+		std::for_each(identityList.begin(), identityList.end(), [&](const ClockIdentity &id)
+			{
+				ids += ids.empty() ? id.getString() : ", " + id.getString();
+			});
+		return ids;
+	}
+
+	uint16_t TlvType() const
+	{
+		return tlvType;
+	}
 };
 
 /* back to whatever the previous packing mode was */
@@ -568,6 +584,8 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	  * @brief Destroys the PTPMessageAnnounce interface
 	  */
 	~PTPMessageAnnounce();
+
+	void VerboseLog();
 
 	/**
 	 * @brief  Compare gramdmaster's capabilities comming on the

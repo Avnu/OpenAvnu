@@ -1021,6 +1021,10 @@ void IEEE1588Port::processEvent(Event e)
 					GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT   changed_external_master:%s",(changed_external_master ? "true" : "false"));
 				}
 
+				GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT   EBest(announce)  START");
+				EBest->VerboseLog();
+				GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT   EBest(announce)  END");
+
 				if( clock->isBetterThan( EBest )) {
 					// We're Grandmaster, set grandmaster info to me
 					ClockIdentity clock_identity;

@@ -1083,6 +1083,42 @@ PTPMessageAnnounce::~PTPMessageAnnounce(void)
 	delete grandmasterClockQuality;
 }
 
+void PTPMessageAnnounce::VerboseLog()
+{
+	GPTP_LOG_VERBOSE("AnnounceMessage:  grandmasterIdentity: %s",
+	 getGrandmasterClockIdentity().getString().c_str());
+	GPTP_LOG_VERBOSE("AnnounceMessage:  grandmasterClockQuality.cq_class: %d"
+	 "  grandmasterClockQuality.clockAccuracy: %d"
+	 "  grandmasterClockQuality.offsetScaledLogVariance:%d",
+	 grandmasterClockQuality->cq_class, grandmasterClockQuality->clockAccuracy,
+	 grandmasterClockQuality->offsetScaledLogVariance);
+
+	GPTP_LOG_VERBOSE("AnnounceMessage:  tlv.tlvType: %d", tlv.TlvType());
+	GPTP_LOG_VERBOSE("AnnounceMessage:  tlv.GetIdentities: %s", tlv.GetIdentities().c_str());
+
+	GPTP_LOG_VERBOSE("AnnounceMessage:  currentUtcOffset: %d",
+	 currentUtcOffset);
+	GPTP_LOG_VERBOSE("AnnounceMessage:  grandmasterPriority1: %d",
+	 grandmasterPriority1);
+	GPTP_LOG_VERBOSE("AnnounceMessage:  grandmasterPriority2: %d",
+	 grandmasterPriority2);
+	if (nullptr == clockQuality)
+	{
+		GPTP_LOG_VERBOSE("AnnounceMessage:  clockQuality IS nullptr");
+	}
+	else
+	{
+		GPTP_LOG_VERBOSE("AnnounceMessage:  clockQuality.cq_class: %d"
+		 "  clockQuality.clockAccuracy: %d"
+		 "  clockQuality.offsetScaledLogVariance:%d",
+		 clockQuality->cq_class, clockQuality->clockAccuracy,
+		 clockQuality->offsetScaledLogVariance);
+	}
+	GPTP_LOG_VERBOSE("AnnounceMessage:  stepsRemoved: %d", stepsRemoved);
+	GPTP_LOG_VERBOSE("AnnounceMessage:  timeSource: %d", timeSource);
+}
+
+
 bool PTPMessageAnnounce::isBetterThan(PTPMessageAnnounce * msg)
 {
 	unsigned char this1[14];
