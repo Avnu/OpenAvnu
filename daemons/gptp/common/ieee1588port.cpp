@@ -962,7 +962,8 @@ void IEEE1588Port::processEvent(Event e)
 		GPTP_LOG_DEBUG("Received STATE CHANGE event");
 
 		if (!automotive_profile) {       // BMCA is not active with Automotive Profile
-			GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT    clock->priority1:%d", clock->getPriority1());
+			GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT    clock->priority1:%d  clockIdentity:%s",
+			 clock->getPriority1(), clock->getClockIdentity().getString().c_str());
 #ifndef APTP
 			if ( clock->getPriority1() != 255 )
 #endif
@@ -1085,6 +1086,7 @@ void IEEE1588Port::processEvent(Event e)
 						}
 					}
 				}
+				GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT   END");
 			}
 		}
 		break;
