@@ -930,6 +930,10 @@ PTPMessageCommon *buildPTPMessage
 
 	msg->_gc = false;
 
+	GPTP_LOG_VERBOSE("buildPTPMessage    port->getClock()->priority1:%d  port->getClock->clockIdentity:%s",
+	 port->getClock()->getPriority1(),
+	 port->getClock()->getClockIdentity().getString().c_str());
+
 	// Copy in common header fields
 	memcpy(&(msg->versionPTP),
 	       buf + PTP_COMMON_HDR_PTP_VERSION(PTP_COMMON_HDR_OFFSET),

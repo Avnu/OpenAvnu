@@ -278,6 +278,14 @@ std::mutex* IEEE1588Port::GetMeanPathDelayMutex()
 	return &gMeanPathDelayMutex;
 }
 
+void IEEE1588Port::setClockPriority1(uint8_t priority1)
+{
+	if (clock != nullptr)
+	{
+		clock->setPriority1(priority1);
+	}
+}
+
 void IEEE1588Port::timestamper_init(void)
 {
 	if (_hw_timestamper != nullptr)
@@ -963,7 +971,7 @@ void IEEE1588Port::processEvent(Event e)
 		GPTP_LOG_DEBUG("Received STATE CHANGE event");
 
 		if (!automotive_profile) {       // BMCA is not active with Automotive Profile
-			GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT    clock->priority1:%d  clockIdentity:%s",
+			GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT    clock->priority1:%d  clock->clockIdentity:%s",
 			 clock->getPriority1(), clock->getClockIdentity().getString().c_str());
 #ifndef APTP
 			if ( clock->getPriority1() != 255 )

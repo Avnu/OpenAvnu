@@ -398,6 +398,10 @@ public:
 	  return priority1;
   }
 
+  void setPriority1(unsigned char value)
+  {
+      priority1 = value;
+  }
   /**
    * @brief  Gets IEEE1588Clock priority2 attribute (IEEE 802.1AS clause 8.6.2.5)
    * @return Priority2 value

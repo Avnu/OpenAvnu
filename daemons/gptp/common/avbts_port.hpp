@@ -2239,6 +2239,7 @@ public:
 	std::mutex* GetLastSyncMutex();
 	std::mutex* GetMeanPathDelayMutex();
 
+	void setClockPriority1(uint8_t priority1);
 
 };
 

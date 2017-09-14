@@ -407,6 +407,8 @@ int main(int argc, char **argv)
 			pPort->setNeighPropDelayThresh(iniParser.getNeighborPropDelayThresh());
 #endif
 
+			pPort->setClockPriority1(iniParser.getPriority1());
+
 			/* If using config file, set the syncReceiptThreshold, otherwise
 			 * it will use the default value (SYNC_RECEIPT_THRESH)
 			 */
