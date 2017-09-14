@@ -69,22 +69,7 @@ class AGpio
       {
          if (fIsSetup)
          {
-            int unexportfd = open("/sys/class/gpio/unexport", O_WRONLY|O_SYNC);
-            if (unexportfd < 0)
-            {
-               GPTP_LOG_ERROR("Can't open GPIO unexport device.");
-            }
-
-            std::string toWrite = std::to_string(fGpioPinNumber);
-            if (write(unexportfd, toWrite.c_str(), toWrite.length()) < 0)
-            {
-               GPTP_LOG_ERROR("Can't write to GPIO unexport device.");
-            }
-
-            if (close(unexportfd) < 0)
-            {
-               GPTP_LOG_ERROR("Can't close GPIO unexport device.");
-            }
+            Unexport();
          }
       }
 
@@ -120,6 +105,8 @@ class AGpio
    private:
       void Setup()
       {
+         Unexport();
+
          std::string toWrite;
          int exportfd = open("/sys/class/gpio/export",  O_WRONLY|O_SYNC);
          if (exportfd < 0)
@@ -170,6 +157,28 @@ class AGpio
                {
                   GPTP_LOG_ERROR("Can't close GPIO direction device.");
                }
+            }
+         }
+      }
+
+      void Unexport()
+      {
+         int unexportfd = open("/sys/class/gpio/unexport", O_WRONLY|O_SYNC);
+         if (unexportfd < 0)
+         {
+            GPTP_LOG_ERROR("Can't open GPIO unexport device.");
+         }
+         else
+         {
+            std::string toWrite = std::to_string(fGpioPinNumber);
+            if (write(unexportfd, toWrite.c_str(), toWrite.length()) < 0)
+            {
+               GPTP_LOG_ERROR("Can't write to GPIO unexport device.");
+            }
+
+            if (close(unexportfd) < 0)
+            {
+               GPTP_LOG_ERROR("Can't close GPIO unexport device.");
             }
          }
       }
