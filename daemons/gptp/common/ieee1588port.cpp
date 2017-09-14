@@ -779,25 +779,31 @@ net_result IEEE1588Port::port_send(uint16_t etherType, uint8_t * buf, int size,
 	}
 	else
 	{
-		if (!destIdentity && !fUnicastSendNodeList.empty())
+		mapSocketAddr(destIdentity, &dest);
+		dest.Port(port);
+		if (PTP_MASTER == port_state && !fUnicastSendNodeList.empty())
 		{
 			ok = net_succeed;
-
+			bool foundDest = false;
+			net_result status;
 			// Use the unicast send node list if it is present
 			std::for_each(fUnicastSendNodeList.begin(), fUnicastSendNodeList.end(), 
 			 [&](const std::string& address)
 			 {
-			 	 GPTP_LOG_VERBOSE("IEEE1588Port::port_send   address: %s, port:%d", address.c_str(), port);
-				 LinkLayerAddress dest(address, port);
-				 net_result status = net_iface->send(&dest, etherType, buf, size,
-				  timestamp);
+			 	 GPTP_LOG_VERBOSE("IEEE1588Port::port_send   address: %s, port:%d",
+			 	  address.c_str(), port);
+				 LinkLayerAddress unicastDest(address, port);
+				 status = net_iface->send(&unicastDest, etherType, buf, size, timestamp);
 				 ok = status != net_succeed ? status : ok;
+				 foundDest = dest == unicastDest;
 			 });
+			if (!foundDest)
+			{
+				status = net_iface->send(&dest, etherType, (uint8_t *) buf, size, timestamp);	
+			}
 		}
 		else
 		{
-			mapSocketAddr(destIdentity, &dest);
-			dest.Port(port);
 			GPTP_LOG_VERBOSE("IEEE1588Port::port_send dest.address: %s  dest.port:%d",
 			 dest.AddressString().c_str(), port);
 			ok = net_iface->send(&dest, etherType, (uint8_t *) buf, size, timestamp);
