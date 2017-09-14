@@ -63,7 +63,7 @@ AAddressMessage::AAddressMessage(const ARawPacket& data)
 		//std::cerr << msg << std::endl;
 		throw(std::runtime_error(msg));
 	}
-	DebugLog();
+	//DebugLog();
 }
 
 AAddressMessage::~AAddressMessage()
