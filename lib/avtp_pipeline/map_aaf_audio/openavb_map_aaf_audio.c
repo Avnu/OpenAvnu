@@ -476,15 +476,10 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 					return;
 				}
 				pPvtData->temporalRedundantDataStorageSize = queueSize;
+				pPvtData->temporalRedundantDataHead = pPvtData->temporalRedundantDataTail =
+					pPvtData->temporalRedundantDataStorage;
 				AVB_LOGF_DEBUG("Allocated Temporal Redundancy queue of size %u", pPvtData->temporalRedundantDataStorageSize);
 			}
-
-			// Prefill the queue with empty samples for the initial temporal redundancy processing.
-			// TODO:  Do we need something besides zeros for AAF_FORMAT_FLOAT_32 or AAF_FORMAT_AES3_32?
-			memset(pPvtData->temporalRedundantDataStorage, 0, pPvtData->temporalRedundantDataStorageSize);
-			pPvtData->temporalRedundantDataHead = pPvtData->temporalRedundantDataStorage +
-				(pPvtData->temporalRedundantOffsetSamples * pPubMapInfo->packetSampleSizeBytes* pPubMapInfo->audioChannels);
-			pPvtData->temporalRedundantDataTail = pPvtData->temporalRedundantDataStorage;
 		}
 
 		pPvtData->dataValid = TRUE;
@@ -497,6 +492,25 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 void openavbMapAVTPAudioTxInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_MAP);
+
+	if (pMediaQ) {
+		media_q_pub_map_uncmp_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
+		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
+		if (!pPvtData) {
+			AVB_LOG_ERROR("Private mapping module data not allocated.");
+			return;
+		}
+
+		if (pPvtData->temporalRedundantOffsetUsec > 0 && pPvtData->temporalRedundantOffsetSamples > 0) {
+			// Prefill the queue with empty samples for the initial temporal redundancy processing.
+			// TODO:  Do we need something besides zeros for AAF_FORMAT_FLOAT_32 or AAF_FORMAT_AES3_32?
+			memset(pPvtData->temporalRedundantDataStorage, 0, pPvtData->temporalRedundantDataStorageSize);
+			pPvtData->temporalRedundantDataHead = pPvtData->temporalRedundantDataStorage +
+				(pPvtData->temporalRedundantOffsetSamples * pPubMapInfo->packetSampleSizeBytes* pPubMapInfo->audioChannels);
+			pPvtData->temporalRedundantDataTail = pPvtData->temporalRedundantDataStorage;
+		}
+	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
 
