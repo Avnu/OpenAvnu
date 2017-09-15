@@ -30,15 +30,13 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-
-#include <iostream>
-#include <linux_hal_generic.hpp>
-#include <linux_hal_generic_tsprivate.hpp>
-#include <errno.h>
-
-
 #include <ctime>
 #include <chrono>
+#include <errno.h>
+#include <iostream>
+
+#include "linux_hal_generic.hpp"
+#include "linux_hal_generic_tsprivate.hpp"
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -208,7 +206,8 @@ class AGPioPinger
        fTimestamper(nullptr),
        fLastTimestamp(0),
        fRate(kOnePerSecond),
-       fGpioPin(piPinNumber, AGpio::kOut)
+       fGpioPin(piPinNumber, AGpio::kOut),
+       fWaitingToCalc(true)
       {
          fDebugLogFile.open("gpiopinger.txt", std::ofstream::out);
       }
@@ -268,8 +267,24 @@ class AGPioPinger
             break;
          }
 
+         long long count = 0;
+         //int waitInterval = 10;
          while (fKeepGoing)
          {
+            // If we want to adjust the calculation period uncomment the if
+            // else block
+            //if (0 == count % waitInterval)
+            {
+               fWaitingToCalc = false;
+               // This interval should be adjusted but for now we are leaving it
+               //waitInterval = 10;
+            }
+            // else
+            // {
+            //    fWaitingToCalc = true;
+            // }
+            
+
             // Adjust the pulse rate to be aliggned with the MC adjusted timestamp
             AdjustToTimestamp();
 
@@ -277,6 +292,8 @@ class AGPioPinger
             //AdjustToSystemClock();
 
             ActivatePin();
+
+            ++count;
          }
 
          // Ensure we set the pin low
@@ -348,10 +365,10 @@ class AGPioPinger
 
    int64_t CalculateSleepInterval(int64_t timeStamp) const
    {
-      // !!! This will need to be adjusted when dealing with fInterval that are
-      // less than kMicroSlopFactor
       int64_t delta = fNextInterval < timeStamp
-       ? fInterval - kMicroSlopFactor : (fNextInterval - timeStamp) / 1000;
+       ? (timeStamp - fNextInterval) / 1000 
+       : (fNextInterval - timeStamp) / 1000;
+
       // std::cout << "**********************timeStamp:" << timeStamp
       //  << "   nextInterval:" << nextInterval
       //  << "   delta:" << delta << std::endl;
@@ -399,34 +416,29 @@ class AGPioPinger
       usleep(sleepInterval > 0 ? sleepInterval : fInterval);
    }
 
+   int64_t ConvertToMaster()
+   {
+      time_point<high_resolution_clock> now = high_resolution_clock::now();
+      int64_t timestamp = duration_cast<nanoseconds>(now.time_since_epoch()).count();
+
+      IEEE1588Port *port = fTimestamper->Port();
+      return port != nullptr ? timestamp - port->MasterOffset() : 0;
+   }
+
    void AdjustToTimestamp()
    {
       IEEE1588Port *port = fTimestamper->Port();
       if (fTimestamper != nullptr && port != nullptr)
       {
-         PTPMessageFollowUp fup = port->getLastFollowUp();
-         //int64_t timeStamp = int64_t(fTimestamper->AdjustedTime());
-         int64_t timeStamp = TIMESTAMP_TO_NS(fup.getPreciseOriginTimestamp());
-         GPTP_LOG_INFO("-------------------------timeStamp:             %" PRIu64, timeStamp);
          GPTP_LOG_INFO("-------------------------fLastTimestamp:        %" PRIu64, fLastTimestamp);
-         if (timeStamp == fLastTimestamp)
+         if (fWaitingToCalc)
          {
-            //std::cout << "**********************timeStamp:" << timeStamp << "   fLastTimestamp:" << fLastTimestamp << std::endl;
-            //usleep(fInterval);
-            // Calculate the next interval with respect to local time
             SleepWithLocalClock();
          }
          else
          {
-            //usleep(CalculateSleepInterval(timeStamp));
-
-            // Calculate when the next interval(second, 1/10 s, etc) should
-            // occur in master time - it sets member fNextInterval
-            CalculateNextInterval(timeStamp);
-
-            // Convert fNextInterval to local time and subtract a slop factor - this
-            // is how long we sleep
-            int64_t adjustedNextSecond = ConvertToLocal(fNextInterval);
+            int64_t timestamp = ConvertToMaster();
+            int64_t adjustedNextSecond = CalculateNextInterval(timestamp);
 
             GPTP_LOG_INFO("-------------------------nextInterval:          %" PRIu64, fNextInterval);
             GPTP_LOG_INFO("-------------------------adjustedNextSecond:    %" PRIu64, adjustedNextSecond);
@@ -436,56 +448,25 @@ class AGPioPinger
             }
             else
             {
-               fNextInterval = adjustedNextSecond - kNanoSlopFactor;
-
-               //int64_t sleepInterval = adjustedNextSecond - int64_t(100000000);
-               // FrequencyRatio offsetFromMaster = fTimestamper->MasterOffset();
-               // int64_t adjustedNextSecond = int64_t(fNextInterval + offsetFromMaster);
-               //adjustedNextSecond -= int64_t(100000000);
-               int64_t sleepInterval = CalculateSleepInterval(ConvertToLocal(timeStamp));
+               int64_t sleepInterval = CalculateSleepInterval(timestamp);
+               
 
                high_resolution_clock::time_point now = high_resolution_clock::now();
 
-               //GPTP_LOG_INFO("-------------------------offsetFromMaster: %Le", offsetFromMaster);
-               //GPTP_LOG_INFO("-------------------------timeStamp: %" PRIu64, timeStamp);
-               GPTP_LOG_INFO("---------------------ConvertToLocal(timeStamp): %" PRIu64, ConvertToLocal(timeStamp));
                GPTP_LOG_INFO("-------------------------nextInterval:          %" PRIu64, fNextInterval);
                GPTP_LOG_INFO("-------------------------now(1):                %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
                GPTP_LOG_INFO("-------------------------sleepInterval:         %" PRIu64, sleepInterval);
-               //GPTP_LOG_INFO("-------------------------OldSleepInterval: %" PRIu64, CalculateSleepInterval(timeStamp));
 
-               // sleep until the the calculated wake up time
+               // Sleep until the the calculated wake up time
                if (sleepInterval > 0)
                {
                   usleep(sleepInterval);
                }
 
                GPTP_LOG_INFO("-------------------------WAKE UP");
-               // Poll the master time and see when the time wraps on the interval
-               // (second) boundary
-               //timeStamp = int64_t(fTimestamper->AdjustedTime());
-               now = high_resolution_clock::now();
-
-               fNextInterval = adjustedNextSecond;
-
-               //fDebugLogFile << duration_cast<nanoseconds>(now.time_since_epoch()).count()
-
-               while (!AtIntervalBoundary(duration_cast<nanoseconds>(now.time_since_epoch()).count()))
-               {
-                  //timeStamp = int64_t(fTimestamper->AdjustedTime());
-                  now = high_resolution_clock::now();
-               }
-               GPTP_LOG_INFO("-------------------------timeStamp:       %" PRIu64, timeStamp);
-               GPTP_LOG_INFO("-------------------------now(2):          %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
-
-               // raise the GPIO.
-               // then sleep for short duration
-               // lower the GPIO
-               // repeat.
+               fLastTimestamp = timestamp;
             }
          }
-
-         fLastTimestamp = timeStamp;
       }
       else
       {
@@ -525,6 +506,7 @@ class AGPioPinger
       std::chrono::high_resolution_clock::time_point fLastActivate;
       int64_t fNextInterval;
       AGpio fGpioPin;
+      bool fWaitingToCalc;
 
       const int64_t kOneSecNano = 1000000000;
       const int64_t kTenthSecNano = 100000000;
