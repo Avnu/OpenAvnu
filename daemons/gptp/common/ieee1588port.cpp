@@ -1527,9 +1527,16 @@ void IEEE1588Port::processEvent(Event e)
 			    clock->calcLocalSystemClockRateDifference
 			      ( device_time, system_time );
 
+			std::string clockId = PTP_MASTER == getPortState()
+			 ? getPortIdentity()->getClockIdentity().getString()
+			 : getClock()->getGrandmasterClockIdentity().getString();
+
+			uint64_t grandMasterId = clockId.empty() ? 0 : std::stoull(clockId, 0, 16);
+		
 			clock->setMasterOffset(this, 0, device_time, 1.0, local_system_offset,
-			   system_time, local_system_freq_offset, sync_count,
-			   pdelay_count, port_state, asCapable, fAdrRegSocketPort);
+			 system_time, local_system_freq_offset, sync_count,
+			 pdelay_count, port_state, asCapable, fAdrRegSocketPort,
+			 grandMasterId);
 #endif
 			syncDone();
 
