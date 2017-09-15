@@ -300,8 +300,8 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 
 		// AAF packet size calculations
 		pPubMapInfo->packetFrameSizeBytes = pPubMapInfo->packetSampleSizeBytes * pPubMapInfo->audioChannels;
-		pPvtData->payloadSize = pPvtData->payloadSizeMax =
-			pPubMapInfo->framesPerPacket * pPubMapInfo->packetFrameSizeBytes;
+		pPvtData->payloadSize = pPubMapInfo->framesPerPacket * pPubMapInfo->packetFrameSizeBytes;
+		pPvtData->payloadSizeMax = pPvtData->payloadSize * 2; // Double max payload in case of Temporal Redundancy
 		AVB_LOGF_INFO("packet: sampleSz=%d * channels=%d => frameSz=%d * %d => payloadSz=%d",
 			pPubMapInfo->packetSampleSizeBytes,
 			pPubMapInfo->audioChannels,
@@ -311,6 +311,7 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 		if (pPvtData->aaf_format >= AAF_FORMAT_INT_32 && pPvtData->aaf_format <= AAF_FORMAT_INT_16) {
 			// Determine the largest size we could receive before adjustments.
 			pPvtData->payloadSizeMax = 4 * pPubMapInfo->audioChannels * pPubMapInfo->framesPerPacket;
+			pPvtData->payloadSizeMax *= 2; // Double max payload in case of Temporal Redundancy
 			AVB_LOGF_DEBUG("packet: payloadSizeMax=%d", pPvtData->payloadSizeMax);
 		}
 
@@ -330,10 +331,6 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 		if (pPvtData->temporalRedundantOffsetUsec > 0) {
 			AVB_LOGF_INFO("temporal redundancy offset=%u microseconds, %u samples",
 				pPvtData->temporalRedundantOffsetUsec, pPvtData->temporalRedundantOffsetSamples);
-
-			// Using temporal redundancy, so double the number of samples per frame we could receive.
-			pPvtData->payloadSizeMax *= 2;
-			AVB_LOGF_INFO("payloadSizeMax adjusted to %u", pPvtData->payloadSizeMax);
 		}
 	}
 
