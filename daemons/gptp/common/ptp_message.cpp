@@ -1232,7 +1232,8 @@ void PTPMessageSync::sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity>
 	MCAST_OTHER;
 #endif
 	GPTP_LOG_VERBOSE("***  SYNC  before sendEventPort  destIdentity is %s", (destIdentity ? "NOT NULL" : "NULL"));
-	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, broadcastType, destIdentity);
+	port->sendEventPort(PTP_ETHERTYPE, buf_t, messageLength, broadcastType,
+	 destIdentity, true);
 	port->incCounter_ieee8021AsPortStatTxSyncCount();
 
 	return;
@@ -1311,7 +1312,8 @@ void PTPMessageAnnounce::sendPort(IEEE1588Port * port,
 	MCAST_OTHER;
 #endif
 
-	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, broadcastType, destIdentity);
+	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, broadcastType,
+	 destIdentity, true);
 	port->incCounter_ieee8021AsPortStatTxAnnounce();
 }
 
@@ -1531,7 +1533,8 @@ void PTPMessageFollowUp::sendPort(IEEE1588Port * port,
 	MCAST_OTHER;
 #endif
 
-	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, broadcastType, destIdentity);
+	port->sendGeneralPort(PTP_ETHERTYPE, buf_t, messageLength, broadcastType,
+	 destIdentity, true);
 
 	port->incCounter_ieee8021AsPortStatTxFollowUpCount();
 
@@ -1825,14 +1828,13 @@ bool PTPMessageFollowUp::ComputeFrequencies(IEEE1588Port * port)
 		std::string clockId;
 		if (PTP_MASTER == port->getPortState())
 		{
+			GPTP_LOG_DEBUG("*** ComputeFrequencies portState     MASTER");
 			clockId = port->getPortIdentity()->getClockIdentity().getString();
 		}
 		else
 		{
-			if (port != nullptr)
-			{
-				clockId = port->getClock()->getGrandmasterClockIdentity().getString();
-			}
+			GPTP_LOG_DEBUG("*** ComputeFrequencies portState     NOT MASTER");
+			clockId = port->getClock()->getGrandmasterClockIdentity().getString();
 		}
 		GPTP_LOG_DEBUG("*** ComputeFrequencies clockId:%s", clockId.c_str());
 		grandMasterId = clockId.empty() ? 0 : std::stoull(clockId, 0, 16);

@@ -539,7 +539,7 @@ class IEEE1588Port {
  private:
 	net_result port_send(uint16_t etherType, uint8_t * buf, int size,
 	 MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity,
-	 bool timestamp, uint16_t port);
+	 bool timestamp, uint16_t port, bool sendToAllUnicast);
 
 	net_result maybeProcessMessage(bool checkEventMessage, phy_delay& delay);
 
@@ -804,11 +804,13 @@ class IEEE1588Port {
 	 * @param  len Size of the message
 	 * @param  mcast_type Enumeration MulticastType (pdlay, none or other). Depracated.
 	 * @param  destIdentity Destination port identity
+	 * @param  sendToAllUnicast true to send to all unicast nodes, otherwise send
+	 *         to just destIdentity
 	 * @return void
 	 */
 	void sendEventPort
 	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
-	 std::shared_ptr<PortIdentity> destIdentity);
+	 std::shared_ptr<PortIdentity> destIdentity, bool sendToAllUnicast = false);
 
 	/**
 	 * @brief Sends a general message to a port. No timestamps
@@ -816,11 +818,13 @@ class IEEE1588Port {
 	 * @param len Size of the message
 	 * @param mcast_type Enumeration MulticastType (pdelay, none or other). Depracated.
 	 * @param destIdentity Destination port identity
+	 * @param  sendToAllUnicast true to send to all unicast nodes, otherwise send
+	 *         to just destIdentity
 	 * @return void
 	 */
 	void sendGeneralPort
 	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
-	 std::shared_ptr<PortIdentity> destIdentity);
+	 std::shared_ptr<PortIdentity> destIdentity, bool sendToAllUnicast = false);
 
 	/**
 	 * @brief  Process all events for a IEEE1588Port

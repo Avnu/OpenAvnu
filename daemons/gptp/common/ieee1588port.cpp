@@ -760,7 +760,7 @@ net_result IEEE1588Port::maybeProcessMessage(bool checkEventMessage, phy_delay& 
 
 net_result IEEE1588Port::port_send(uint16_t etherType, uint8_t * buf, int size,
  MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity, 
- bool timestamp, uint16_t port)
+ bool timestamp, uint16_t port, bool sendToAllUnicast)
 {
 	net_result ok;
 	LinkLayerAddress dest;
@@ -781,7 +781,7 @@ net_result IEEE1588Port::port_send(uint16_t etherType, uint8_t * buf, int size,
 	{
 		mapSocketAddr(destIdentity, &dest);
 		dest.Port(port);
-		if (PTP_MASTER == port_state && !fUnicastSendNodeList.empty())
+		if (PTP_MASTER == port_state && !fUnicastSendNodeList.empty() && sendToAllUnicast)
 		{
 			ok = net_succeed;
 			bool foundDest = false;
@@ -819,9 +819,11 @@ unsigned IEEE1588Port::getPayloadOffset()
 }
 
 void IEEE1588Port::sendEventPort(uint16_t etherType, uint8_t * buf, int size,
- MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity)
+ MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity,
+ bool sendToAllUnicast)
 {	
-	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, true, 319);
+	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity,
+	 true, 319, sendToAllUnicast);
 	if (rtx != net_succeed) {
 		GPTP_LOG_ERROR("sendEventPort(): failure");
 	}
@@ -830,9 +832,11 @@ void IEEE1588Port::sendEventPort(uint16_t etherType, uint8_t * buf, int size,
 }
 
 void IEEE1588Port::sendGeneralPort(uint16_t etherType, uint8_t * buf, int size,
- MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity)
+ MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity,
+ bool sendToAllUnicast)
 {
-	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, false, 320);
+	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity,
+	 false, 320, sendToAllUnicast);
 	if (rtx != net_succeed) {
 		GPTP_LOG_ERROR("sendGeneralPort(): failure");
 	}
@@ -1049,6 +1053,7 @@ void IEEE1588Port::processEvent(Event e)
 
 					clock_identity = getClock()->getClockIdentity();
 					getClock()->setGrandmasterClockIdentity( clock_identity );
+					GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT   we are master!!!");
 					priority1 = getClock()->getPriority1();
 					getClock()->setGrandmasterPriority1( priority1 );
 					priority2 = getClock()->getPriority2();
@@ -1533,6 +1538,7 @@ void IEEE1588Port::processEvent(Event e)
 
 			uint64_t grandMasterId = clockId.empty() ? 0 : std::stoull(clockId, 0, 16);
 		
+			GPTP_LOG_DEBUG("SYNC_INTERVAL_TIMEOUT_EXPIRES    grandMasterId:%s", clockId.c_str());
 			clock->setMasterOffset(this, 0, device_time, 1.0, local_system_offset,
 			 system_time, local_system_freq_offset, sync_count,
 			 pdelay_count, port_state, asCapable, fAdrRegSocketPort,
@@ -1860,9 +1866,12 @@ void IEEE1588Port::becomeMaster( bool annc ) {
 	startSyncIntervalTimer(interval);
 	GPTP_LOG_STATUS("Switching to Master" );
 
+	ClockIdentity clock_identity = getClock()->getClockIdentity();
+	getClock()->setGrandmasterClockIdentity( clock_identity );
+
 	uint64_t grandMasterId = 0;
 	std::string clockId;
-	clockId = getPortIdentity()->getClockIdentity().getString();
+	clockId = clock_identity.getString();
 	GPTP_LOG_VERBOSE("RESET of clockID  clockId:%s", clockId.c_str());
 	grandMasterId = clockId.empty() ? 0 : std::stoull(clockId, 0, 16);
 
