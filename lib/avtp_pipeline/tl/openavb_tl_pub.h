@@ -74,7 +74,9 @@ typedef enum {
 
 
 /// Maximum size of interface name
-#define IFNAMSIZE 16
+#ifndef IFNAMSIZ
+#define IFNAMSIZ 16
+#endif
 
 /// Maximum size of the friendly name
 #define FRIENDLY_NAME_SIZE 64
@@ -139,7 +141,7 @@ typedef struct {
 	/// Is the interface module blocking in the TX CB.
 	bool tx_blocking_in_intf;
 	/// Network interface name. Not used on all platforms.
-	char ifname[IFNAMSIZE];
+	char ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	/// VLAN ID
 	U16 vlan_id;
 	/// When set incoming packets will trigger a signal to the stream task to wakeup.
