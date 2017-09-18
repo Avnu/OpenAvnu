@@ -2159,6 +2159,13 @@ void PTPMessageDelayResp::buildCommonHeader(uint8_t * buf)
 	memcpy(buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
 	       &correctionField_BE, sizeof(correctionField));
 
+	// Per Apple Vendor PTP Profile 2017 - force two way and unicast
+	flags[0] |= 6;
+	memcpy(buf + PTP_COMMON_HDR_FLAGS(PTP_COMMON_HDR_OFFSET), &flags,
+	       PTP_FLAGS_LENGTH);
+	memcpy(buf + PTP_COMMON_HDR_CORRECTION(PTP_COMMON_HDR_OFFSET),
+	       &correctionField_BE, sizeof(correctionField));
+
 	// Per Apple Vendor PTP Profile 2017 (See setDelayReponse)
 	sourcePortIdentity->getClockIdentityString
 	  ((uint8_t *) buf+
