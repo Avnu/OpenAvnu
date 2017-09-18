@@ -79,6 +79,17 @@ static openavbRC openAvtpSock(avtp_stream_t *pStream)
 			// Set the multicast address that we want to receive
 			openavbRawsockRxMulticast(pStream->rawsock, TRUE, pStream->dest_addr.ether_addr_octet);
 		}
+		else {
+			// Open any mirrored TX interfaces desired.
+			int i;
+			for (i = 0; pStream->ifname_mirror[i] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+				pStream->rawsock_mirror[i] = openavbRawsockOpen(pStream->ifname_mirror[i], FALSE, TRUE, ETHERTYPE_AVTP, pStream->frameLen, pStream->nbuffers);
+				if (pStream->rawsock_mirror[i] == NULL) {
+					AVB_RC_LOG_RET(AVB_RC(OPENAVB_AVTP_FAILURE | OPENAVB_RC_RAWSOCK_OPEN));
+				}
+				openavbSetRxSignalMode(pStream->rawsock_mirror[i], pStream->bRxSignalMode);
+			}
+		}
 		AVB_RC_RET(OPENAVB_AVTP_SUCCESS);
 	}
 
@@ -117,7 +128,7 @@ openavbRC openavbAvtpTxInit(
 	media_q_t *pMediaQ,
 	openavb_map_cb_t *pMapCB,
 	openavb_intf_cb_t *pIntfCB,
-	char *ifname,
+	char *(ifname[]),
 	AVBStreamID_t *streamID,
 	U8 *destAddr,
 	U32 max_transit_usec,
@@ -127,6 +138,8 @@ openavbRC openavbAvtpTxInit(
 	U16 nbuffers,
 	void **pStream_out)
 {
+	int i;
+
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP);
 	AVB_LOG_DEBUG("Initialize");
 
@@ -156,7 +169,14 @@ openavbRC openavbAvtpTxInit(
 	pStream->max_transit_usec = max_transit_usec;
 
 	// and save other stuff needed to (re)open the socket
-	pStream->ifname = strdup(ifname);
+	if (!ifname[0]) {
+		free(pStream);
+		AVB_RC_LOG_TRACE_RET(AVB_RC(OPENAVB_AVTP_FAILURE | OPENAVB_RC_INVALID_ARGUMENT), AVB_TRACE_AVTP);
+	}
+	pStream->ifname = strdup(ifname[0]);
+	for (i = 0; ifname[i + 1] && ifname[i + 1][0] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+		pStream->ifname_mirror[i] = strdup(ifname[i + 1]);
+	}
 	pStream->nbuffers = nbuffers;
 
 	// Open a raw socket
@@ -170,37 +190,66 @@ openavbRC openavbAvtpTxInit(
 	hdr_info_t hdrInfo;
 
 	U8 srcAddr[ETH_ALEN];
-	if (openavbRawsockGetAddr(pStream->rawsock, srcAddr)) {
-		hdrInfo.shost = srcAddr;
-	}
-	else {
-		openavbRawsockClose(pStream->rawsock);
-		free(pStream);
-		AVB_LOG_ERROR("Failed to get source MAC address");
-		AVB_RC_TRACE_RET(OPENAVB_AVTP_FAILURE, AVB_TRACE_AVTP);
-	}
+	for (i = -1; i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+		void *current_rawsock = (i < 0 ? pStream->rawsock : pStream->rawsock_mirror[i]);
+		if (!current_rawsock) break;
 
-	hdrInfo.dhost = destAddr;
-	if (vlanPCP != 0 || vlanID != 0) {
-		hdrInfo.vlan = TRUE;
-		hdrInfo.vlan_pcp = vlanPCP;
-		hdrInfo.vlan_vid = vlanID;
-		AVB_LOGF_DEBUG("VLAN pcp=%d vid=%d", hdrInfo.vlan_pcp, hdrInfo.vlan_vid);
+		if (openavbRawsockGetAddr(current_rawsock, srcAddr)) {
+			hdrInfo.shost = srcAddr;
+		}
+		else if (i >= 0) {
+			AVB_LOGF_ERROR("Unable to get address for mirror interface %s - Interface disabled", pStream->ifname_mirror[i]);
+			for (; pStream->rawsock_mirror[i] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+				openavbRawsockClose(pStream->rawsock_mirror[i]);
+				pStream->rawsock_mirror[i] = NULL;
+				free(pStream->ifname_mirror[i]);
+				pStream->ifname_mirror[i] = NULL;
+			}
+		}
+		else {
+			if (pStream->rawsock) {
+				openavbRawsockClose(pStream->rawsock);
+				pStream->rawsock = NULL;
+			}
+			for (i = 0; pStream->rawsock_mirror[i] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+				openavbRawsockClose(pStream->rawsock_mirror[i]);
+				pStream->rawsock_mirror[i] = NULL;
+			}
+
+			free(pStream->ifname);
+			pStream->ifname = NULL;
+			for (i = 0; pStream->ifname_mirror[i] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+				free(pStream->ifname_mirror[i]);
+				pStream->ifname_mirror[i] = NULL;
+			}
+
+			free(pStream);
+			AVB_LOG_ERROR("Failed to get source MAC address");
+			AVB_RC_TRACE_RET(OPENAVB_AVTP_FAILURE, AVB_TRACE_AVTP);
+		}
+
+		hdrInfo.dhost = destAddr;
+		if (vlanPCP != 0 || vlanID != 0) {
+			hdrInfo.vlan = TRUE;
+			hdrInfo.vlan_pcp = vlanPCP;
+			hdrInfo.vlan_vid = vlanID;
+			AVB_LOGF_DEBUG("VLAN pcp=%d vid=%d", hdrInfo.vlan_pcp, hdrInfo.vlan_vid);
+		}
+		else {
+			hdrInfo.vlan = FALSE;
+		}
+		openavbRawsockTxSetHdr(current_rawsock, &hdrInfo);
+
+		// Set the fwmark - used to steer packets into the right traffic control queue
+		openavbRawsockTxSetMark(current_rawsock, fwmark);
 	}
-	else {
-		hdrInfo.vlan = FALSE;
-	}
-	openavbRawsockTxSetHdr(pStream->rawsock, &hdrInfo);
 
 	// Remember the AVTP subtype and streamID
 	pStream->subtype = pStream->pMapCB->map_subtype_cb();
 
 	memcpy(pStream->streamIDnet, streamID->addr, ETH_ALEN);
-        U16 *pStreamUID = (U16 *)((U8 *)(pStream->streamIDnet) + ETH_ALEN);
-       *pStreamUID = htons(streamID->uniqueID);
-
-	// Set the fwmark - used to steer packets into the right traffic control queue
-	openavbRawsockTxSetMark(pStream->rawsock, fwmark);
+		U16 *pStreamUID = (U16 *)((U8 *)(pStream->streamIDnet) + ETH_ALEN);
+	   *pStreamUID = htons(streamID->uniqueID);
 
 	*pStream_out = (void *)pStream;
 	AVB_RC_TRACE_RET(OPENAVB_AVTP_SUCCESS, AVB_TRACE_AVTP);
@@ -376,6 +425,30 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 
 			// Increment the sequence number now that we are sure this is a good packet.
 			pStream->avtp_sequence_num++;
+
+			// Mirror the frame.
+			int i;
+			for (i = 0; pStream->rawsock_mirror[i] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+				// Get a buffer from the mirrored socket.
+				U8 *pMirrorBuf = (U8 *)openavbRawsockGetTxFrame(pStream->rawsock_mirror[i], TRUE, &frameLen);
+				if (pMirrorBuf) {
+					assert(frameLen >= pStream->frameLen);
+					// Fill in the Ethernet header
+					openavbRawsockTxFillHdr(pStream->rawsock_mirror[i], pMirrorBuf, &pStream->ethHdrLen);
+
+					// Make a copy of the original buffer.
+					memcpy(pMirrorBuf, pStream->pBuf, avtpFrameLen + pStream->ethHdrLen);
+
+					// Mark the frame "ready to send".
+					openavbRawsockTxFrameReady(pStream->rawsock_mirror[i], pMirrorBuf, avtpFrameLen + pStream->ethHdrLen, timeNsec);
+					// Send if requested
+					if (bSend)
+						openavbRawsockSend(pStream->rawsock_mirror[i]);
+					// Drop our reference to it
+					pMirrorBuf = NULL;
+				}
+			}
+
 			// Mark the frame "ready to send".
 			openavbRawsockTxFrameReady(pStream->rawsock, pStream->pBuf, avtpFrameLen + pStream->ethHdrLen, timeNsec);
 			// Send if requested
@@ -710,6 +783,8 @@ void openavbAvtpShutdownTalker(void *pv)
 
 	avtp_stream_t *pStream = (avtp_stream_t *)pv;
 	if (pStream) {
+		int i;
+
 		pStream->pIntfCB->intf_end_cb(pStream->pMediaQ);
 		pStream->pMapCB->map_end_cb(pStream->pMediaQ);
 
@@ -718,9 +793,17 @@ void openavbAvtpShutdownTalker(void *pv)
 			openavbRawsockClose(pStream->rawsock);
 			pStream->rawsock = NULL;
 		}
+		for (i = 0; pStream->rawsock_mirror[i] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+			openavbRawsockClose(pStream->rawsock_mirror[i]);
+			pStream->rawsock_mirror[i] = NULL;
+		}
 
-		if (pStream->ifname)
-			free(pStream->ifname);
+		free(pStream->ifname);
+		pStream->ifname = NULL;
+		for (i = 0; pStream->ifname_mirror[i] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+			free(pStream->ifname_mirror[i]);
+			pStream->ifname_mirror[i] = NULL;
+		}
 
 		// free the malloc'd stream info
 		free(pStream);
@@ -736,17 +819,27 @@ void openavbAvtpShutdownListener(void *pv)
 
 	avtp_stream_t *pStream = (avtp_stream_t *)pv;
 	if (pStream) {
+		int i;
+
 		// close the rawsock
 		if (pStream->rawsock) {
 			openavbRawsockClose(pStream->rawsock);
 			pStream->rawsock = NULL;
 		}
+		for (i = 0; pStream->rawsock_mirror[i] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+			openavbRawsockClose(pStream->rawsock_mirror[i]);
+			pStream->rawsock_mirror[i] = NULL;
+		}
 
 		pStream->pIntfCB->intf_end_cb(pStream->pMediaQ);
 		pStream->pMapCB->map_end_cb(pStream->pMediaQ);
 
-		if (pStream->ifname)
-			free(pStream->ifname);
+		free(pStream->ifname);
+		pStream->ifname = NULL;
+		for (i = 0; pStream->ifname_mirror[i] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+			free(pStream->ifname_mirror[i]);
+			pStream->ifname_mirror[i] = NULL;
+		}
 
 		// free the malloc'd stream info
 		free(pStream);

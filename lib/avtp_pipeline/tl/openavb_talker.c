@@ -2,16 +2,16 @@
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
 Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -22,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -84,10 +84,18 @@ bool talkerStartStream(tl_state_t *pTLState)
 		AVB_LOG_ERROR("Fixed timestamp enabled but interface doesn't support it");
 	}
 
+	// Create a list of the network interface names.
+	char* (ifnamearg[MAX_NUM_INTERFACE_MIRRORS + 2]) = { 0 };
+	int i;
+	ifnamearg[0] = pTalkerData->ifname;
+	for (i = 0; pCfg->ifmirrorname[i][0] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+		ifnamearg[i + 1] = pCfg->ifmirrorname[i];
+	}
+
 	openavbRC rc = openavbAvtpTxInit(pTLState->pMediaQ,
 		&pCfg->map_cb,
 		&pCfg->intf_cb,
-		pTalkerData->ifname,
+		ifnamearg,
 		&pTalkerData->streamID,
 		pTalkerData->destAddr,
 		pCfg->max_transit_usec,
@@ -277,7 +285,7 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 		if (pCfg->report_seconds > 0) {
 			if (nowNS > pTalkerData->nextReportNS) {
 				talkerShowStats(pTalkerData, pTLState);
-			  
+
 				openavbTalkerAddStat(pTLState, TL_STAT_TX_CALLS, pTalkerData->cntWakes);
 				openavbTalkerAddStat(pTLState, TL_STAT_TX_FRAMES, pTalkerData->cntFrames);
 
@@ -301,11 +309,11 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 			pTalkerData->nextCycleNS += pTalkerData->intervalNS;
 
 			if ((pTalkerData->nextCycleNS + (pCfg->max_transmit_deficit_usec * 1000)) < nowNS) {
-				// Hit max deficit time. Something must be wrong. Reset the cycle timer.	
+				// Hit max deficit time. Something must be wrong. Reset the cycle timer.
 				// Align clock : allows for some performance gain
 				nowNS = ((nowNS + (pTalkerData->intervalNS)) / pTalkerData->intervalNS) * pTalkerData->intervalNS;
 				pTalkerData->nextCycleNS = nowNS + pTalkerData->intervalNS;
-			}				
+			}
 		}
 	}
 	else {
@@ -320,7 +328,7 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 }
 
 
-// Called from openavbTLThreadFn() which is started from openavbTLRun() 
+// Called from openavbTLThreadFn() which is started from openavbTLRun()
 void openavbTLRunTalker(tl_state_t *pTLState)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
@@ -350,7 +358,7 @@ void openavbTLRunTalker(tl_state_t *pTLState)
 
 	/* If using endpoint register talker,
 	   else register with tpsec */
-	pTLState->bConnected = openavbTLRunTalkerInit(pTLState); 
+	pTLState->bConnected = openavbTLRunTalkerInit(pTLState);
 
 	if (pTLState->bConnected) {
 		bool bServiceIPC;

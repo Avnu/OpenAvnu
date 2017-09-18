@@ -81,6 +81,9 @@ typedef enum {
 /// Maximum size of the friendly name
 #define FRIENDLY_NAME_SIZE 64
 
+/// Maximum number of interfaces to mirror the AVTP traffic to.
+#define MAX_NUM_INTERFACE_MIRRORS 4
+
 /// Initial talker/listener state
 typedef enum {
 	/// Unspecified
@@ -142,6 +145,8 @@ typedef struct {
 	bool tx_blocking_in_intf;
 	/// Network interface name. Not used on all platforms.
 	char ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
+	/// Network interface name for interfaces to TX mirror the AVTP traffic to. Not used on all platforms.
+	char ifmirrorname[MAX_NUM_INTERFACE_MIRRORS][IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	/// VLAN ID
 	U16 vlan_id;
 	/// When set incoming packets will trigger a signal to the stream task to wakeup.
