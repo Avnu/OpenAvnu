@@ -90,9 +90,9 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 
 			// Save the data provided by endpoint/SRP
 			if (!pCfg->ifname[0]) {
-				strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+				strncpy(pTalkerData->ifname, ifname, sizeof(pTalkerData->ifname) - 1);
 			} else {
-				strncpy(pTalkerData->ifname, pCfg->ifname, IFNAMSIZ);
+				strncpy(pTalkerData->ifname, pCfg->ifname, sizeof(pTalkerData->ifname) - 1);
 			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
@@ -109,9 +109,9 @@ void openavbEptClntNotifyTlkrOfSrpCb(int                      endpointHandle,
 		else if (lsnrDecl == openavbSrp_LDSt_Stream_Info) {
 			// Stream information is available does NOT mean listener is ready. Stream not started yet.
 			if (!pCfg->ifname[0]) {
-				strncpy(pTalkerData->ifname, ifname, IFNAMSIZ);
+				strncpy(pTalkerData->ifname, ifname, sizeof(pTalkerData->ifname) - 1);
 			} else {
-				strncpy(pTalkerData->ifname, pCfg->ifname, IFNAMSIZ);
+				strncpy(pTalkerData->ifname, pCfg->ifname, sizeof(pTalkerData->ifname) - 1);
 			}
 			memcpy(&pTalkerData->streamID, streamID, sizeof(AVBStreamID_t));
 			memcpy(&pTalkerData->destAddr, destAddr, ETH_ALEN);
