@@ -97,7 +97,7 @@
 #define PTP_DELAY_REQ_NSEC(x) x+6		/*!< Gets the pdelay request nanoseconds offset */
 
 #define PTP_DELAY_RESP_OFFSET 34				/*!< DELAY RESPONSE base offset */
-#define PTP_DELAY_RESP_LENGTH 10				/*!< DELAY RESPONSE length in bytes */
+#define PTP_DELAY_RESP_LENGTH 20				/*!< DELAY RESPONSE length in bytes */
 #define PTP_DELAY_RESP_SEC_MS(x) x				/*!< Gets the delay response seconds MSB offset */
 #define PTP_DELAY_RESP_SEC_LS(x) x+2			/*!< Gets the delay response seconds LSB offset */
 #define PTP_DELAY_RESP_NSEC(x) x+6				/*!< Gets the delay nanoseconds offset */
