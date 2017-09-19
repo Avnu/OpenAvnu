@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -73,7 +74,7 @@ typedef struct {
 	void *pPubMapData;
 
 	/// For use internally by mapping modules. Often may not be used.
-	void *pPvtMapData;	
+	void *pPvtMapData;
 
 	/// For use internally by the interface. Often may not be used.
 	void *pPvtIntfData;
@@ -125,7 +126,7 @@ media_q_t* openavbMediaQCreate();
 /** Enable thread safe access for this media queue.
  *
  * In the default case a media queue is only accessed from a single thread and
- * therefore multi-threaded synchronication isn't needed. In situations where a
+ * therefore multi-threaded synchronization isn't needed. In situations where a
  * media queue can be accessed from multiple threads calling this function will
  * enable mutex protection on the head and tail related functions. Once enabled
  * for a media queue it can not be disabled.
@@ -238,7 +239,7 @@ media_q_item_t *openavbMediaQHeadLock(media_q_t *pMediaQ);
  *
  * Unlock a locked media queue item from the head of the queue. The item will
  * not become available for use in the queue and the data will not be cleared.
- * Subsequent calls to openavbMediaQHeadLock  will return the same item storage
+ * Subsequent calls to openavbMediaQHeadLock will return the same item storage
  * with the same data values. An interface module will use this function when
  * running as a talker when it must release a previously locked media queue head
  * item.
@@ -264,9 +265,9 @@ bool openavbMediaQHeadPush(media_q_t *pMediaQ);
  * Lock the next available tail item in the media queue. Available is based on
  * the timestamp that is associated with the item when it was a placed into the
  * media queue. The interface module running on a listener uses this function
- * to access the data items place into the media queue by the mapping module.
+ * to access the data items placed into the media queue by the mapping module.
  * At some point after this function call the item must be unlocked with either
- * openavbMediaQTailUnlockor openavbMediaQTailPull on the same callback or a subsequent
+ * openavbMediaQTailUnlock or openavbMediaQTailPull on the same callback or a subsequent
  * callback.
  *
  * \param pMediaQ A pointer to the media_q_t structure.
@@ -343,7 +344,7 @@ bool openavbMediaQIsAvailableBytes(media_q_t *pMediaQ, U32 bytes, bool ignoreTim
 
 /** Count number of available MediaQ items.
  *
- * Count the number of available MediaQ items. 
+ * Count the number of available MediaQ items.
  *
  * \param pMediaQ A pointer to the media_q_t structure.
  * \param ignoreTimestamp Ignore timestamp for byte accumulation.

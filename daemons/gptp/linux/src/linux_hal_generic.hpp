@@ -91,7 +91,7 @@ public:
 	 * the struct timex
 	 * @return TRUE if ok, FALSE if error.
 	 */
-	bool Adjust( void *tmx );
+	bool Adjust( void *tmx ) const;
 
 	/**
 	 * @brief  Initializes the Hardware timestamp interface
@@ -101,6 +101,12 @@ public:
 	 */
 	virtual bool HWTimestamper_init
 	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
+
+	/**
+	 * @brief  Reset the Hardware timestamp interface
+	 * @return void
+	 */
+	virtual void HWTimestamper_reset();
 
 	/**
 	 * @brief  Inserts a new timestamp to the beginning of the
@@ -131,34 +137,34 @@ public:
 	 * @return TRUE if got the time successfully, FALSE otherwise
 	 */
 	virtual bool HWTimestamper_gettime
-	( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
-	  uint32_t *nominal_clock_rate );
+	( Timestamp *system_time, Timestamp *device_time,
+	  uint32_t *local_clock, uint32_t *nominal_clock_rate ) const;
 
 	/**
 	 * @brief  Gets the TX timestamp from hardware interface
 	 * @param  identity PTP port identity
-	 * @param  sequenceId Sequence ID
+	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp
-	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last );
 
 	/**
 	 * @brief  Gets the RX timestamp from the hardware interface. This
 	 * Currently the RX timestamp is retrieved at LinuxNetworkInterface::nrecv method.
 	 * @param  identity PTP port identity
-	 * @param  sequenceId Sequence ID
+	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] Timestamp value
 	 * @param  clock_value [out] Clock value
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
      * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp
-	( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last ) {
 		/* This shouldn't happen. Ever. */
 		if( rxTimestampList.empty() ) return GPTP_EC_EAGAIN;
@@ -180,7 +186,7 @@ public:
 	 * @param  freq_offset Frequency adjustment
 	 * @return TRUE in case of sucess, FALSE if error.
 	 */
-	virtual bool HWTimestamper_adjclockrate( float freq_offset );
+	virtual bool HWTimestamper_adjclockrate( float freq_offset ) const;
 
 #ifdef WITH_IGBLIB
 	bool HWTimestamper_PPS_start( );

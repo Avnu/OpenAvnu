@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -122,6 +123,16 @@ void openavbAvtpTimeSetToTimestamp(avtp_time_t *pAvtpTime, U32 timestamp);
  * \param timestamp A timestamp in the timespec_t format.
  */
 void openavbAvtpTimeSetToTimespec(avtp_time_t *pAvtpTime, timespec_t* timestamp);
+
+/** Set to nanosecond timestamp.
+ *
+ * Set the time in the avtp_time_t structure to the value of U64
+ * timeNS.
+ *
+ * \param pAvtpTime A pointer to the avtp_time_t structure.
+ * \param timeNS A U64 timestamp in nanoseconds.
+ */
+void openavbAvtpTimeSetToTimestampNS(avtp_time_t *pAvtpTime, U64 timeNS);
 
 /** Push a timestamp, for use in Media Clock Recovery (MCR).
  * \note Not available in all platforms.

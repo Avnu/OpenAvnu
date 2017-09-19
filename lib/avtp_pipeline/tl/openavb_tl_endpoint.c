@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -117,7 +118,7 @@ void* openavbTLThreadFn(void *pv)
 		}
 
 		if (pTLState->bRunning) {
-			SLEEP(1);
+			SLEEP_MSEC(1);
 		}
 	}
 
@@ -153,126 +154,3 @@ tl_handle_t TLHandleListGet(int endpointHandle)
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 	return NULL;
 }
-
-#ifdef AVTP_PIPELINE_AVDECC
-bool openavbTLAVDECCRunListener(tl_handle_t handle, U16 configIdx, U16 descriptorType, U16 descriptorIdx, void *pVoidListenerStreamInfo)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_TL);
-
-	if (!handle) {
-		AVB_LOG_ERROR("Invalid handle.");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
-		return FALSE;
-	}
-
-	if (!pVoidListenerStreamInfo) {
-		AVB_LOG_ERROR("Invalid argument");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
-		return FALSE;
-	}
-
-	openavb_acmp_ListenerStreamInfo_t *pListenerStreamInfo = pVoidListenerStreamInfo;
-	tl_state_t *pTLState = (tl_state_t *)handle;
-
-	memcpy(pTLState->cfg.dest_addr.mac->ether_addr_octet, pListenerStreamInfo->stream_dest_mac, ETH_ALEN);
-	memcpy(pTLState->cfg.stream_addr.mac->ether_addr_octet, pListenerStreamInfo->stream_id, ETH_ALEN);
-	U8 *pStreamUID = pListenerStreamInfo->stream_id + 6;
-//	pTLState->cfg.stream_uid = ntohs(*(U16 *)(pStreamUID));
-	U16 align16;
-	memcpy(&align16, (U16 *)(pStreamUID), sizeof(U16));
-	pTLState->cfg.stream_uid = ntohs(align16);
-
-	if (pTLState->cfg.intf_cb.intf_avdecc_init_cb) {
-		pTLState->cfg.intf_cb.intf_avdecc_init_cb(pTLState->pMediaQ, configIdx, descriptorType, descriptorIdx);
-	}
-	if (pTLState->cfg.map_cb.map_avdecc_init_cb) {
-		pTLState->cfg.map_cb.map_avdecc_init_cb(pTLState->pMediaQ, configIdx, descriptorType, descriptorIdx);
-	}
-
-	openavbTLRun(handle);
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
-	return TRUE;
-}
-
-bool openavbTLAVDECCRunTalker(tl_handle_t handle, U16 configIdx, U16 descriptorType, U16 descriptorIdx, void *pVoidTalkerStreamInfo)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_TL);
-
-	if (!handle) {
-		AVB_LOG_ERROR("Invalid handle.");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
-		return FALSE;
-	}
-
-	tl_state_t *pTLState = (tl_state_t *)handle;
-
-	if (pTLState->cfg.intf_cb.intf_avdecc_init_cb) {
-		pTLState->cfg.intf_cb.intf_avdecc_init_cb(pTLState->pMediaQ, configIdx, descriptorType, descriptorIdx);
-	}
-	if (pTLState->cfg.map_cb.map_avdecc_init_cb) {
-		pTLState->cfg.map_cb.map_avdecc_init_cb(pTLState->pMediaQ, configIdx, descriptorType, descriptorIdx);
-	}
-
-	if (!openavbTLIsRunning(handle)) {
-		openavbTLRun(handle);
-	}
-
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
-	return TRUE;
-}
-
-bool openavbTLAVDECCStopListener(tl_handle_t handle, U16 configIdx, void *pVoidListenerStreamInfo)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_TL);
-
-	openavbTLStop(handle);
-
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
-	return TRUE;
-}
-
-bool openavbTLAVDECCStopTalker(tl_handle_t handle, U16 configIdx, void *pVoidTalkerStreamInfo)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_TL);
-
-	openavbTLStop(handle);
-
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
-	return TRUE;
-}
-
-// CORE_TODO: Consider having this functionality live in openavb_talker.c and then talker_data_t can again be private to openavb_talker.c
-bool openavbTLAVDECCGetTalkerStreamInfo(tl_handle_t handle, U16 configIdx, void *pVoidTalkerStreamInfo)
-{
-	AVB_TRACE_ENTRY(AVB_TRACE_TL);
-
-	if (!handle) {
-		AVB_LOG_ERROR("Invalid handle.");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
-		return FALSE;
-	}
-
-	if (!pVoidTalkerStreamInfo) {
-		AVB_LOG_ERROR("Invalid argument");
-		AVB_TRACE_EXIT(AVB_TRACE_TL);
-		return FALSE;
-	}
-
-	openavb_acmp_TalkerStreamInfo_t *pTalkerStreamInfo = pVoidTalkerStreamInfo;
-	tl_state_t *pTLState = (tl_state_t *)handle;
-
-	talker_data_t *pTalkerData = pTLState->pPvtTalkerData;
-
-	// Get the destination mac address.
-	memcpy(pTalkerStreamInfo->stream_dest_mac, pTalkerData->destAddr, ETH_ALEN);
-
-	// Get the stream ID
-	memcpy(pTalkerStreamInfo->stream_id, pTalkerData->streamID.addr, ETH_ALEN);
-	U8 *pStreamUID = pTalkerStreamInfo->stream_id + 6;
-	*(U16 *)(pStreamUID) = htons(pTLState->cfg.stream_uid);
-
-	AVB_TRACE_EXIT(AVB_TRACE_TL);
-	return TRUE;
-}
-
-#endif //AVTP_PIPELINE_AVDECC

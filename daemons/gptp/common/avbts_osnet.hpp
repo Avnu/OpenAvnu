@@ -42,6 +42,8 @@
 
 /**@file*/
 
+class CommonTimestamper;
+
 #define FACTORY_NAME_LENGTH 48		/*!< Factory name maximum length */
 #define DEFAULT_TIMEOUT 1			/*!< Default timeout in milliseconds*/
 
@@ -127,7 +129,7 @@ class LinkLayerAddress:public InterfaceLabel {
 	 */
 	bool operator>(const LinkLayerAddress & cmp)const {
 		return memcmp
-			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) < 0 ? true : false;
+			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) > 0 ? true : false;
 	}
 
 	/**
@@ -202,7 +204,7 @@ class InterfaceName: public InterfaceLabel {
 	 * @return TRUE if the interface name is found to be greater than cmd. FALSE otherwise
 	 */
 	bool operator>(const InterfaceName & cmp)const {
-		return strcmp(name, cmp.name) < 0 ? true : false;
+		return strcmp(name, cmp.name) > 0 ? true : false;
 	}
 
 	/**
@@ -313,7 +315,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecv
-		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
+	 ( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) = 0;
 
 	 /**
 	  * @brief Get Link Layer address (mac address)
@@ -325,7 +327,7 @@ class OSNetworkInterface {
 	 /**
 	  * @brief Watch for netlink changes.
 	  */
-	 virtual void watchNetLink(IEEE1588Port *pPort) = 0;
+	 virtual void watchNetLink( CommonPort *pPort ) = 0;
 
 	 /**
 	  * @brief  Provides generic method for getting the payload offset
@@ -372,12 +374,12 @@ class OSNetworkInterfaceFactory {
 	 * @param iface [out] Pointer to interface name
 	 * @param id Factory name index
 	 * @param iflabel Interface label
-	 * @param timestamper HWTimestamper class pointer
+	 * @param timestamper CommonTimestamper class pointer
 	 * @return TRUE ok, FALSE error.
 	 */
 	static bool buildInterface
 	(OSNetworkInterface ** iface, factory_name_t id, InterfaceLabel * iflabel,
-	 HWTimestamper * timestamper) {
+	 CommonTimestamper * timestamper) {
 		return factoryMap[id]->createInterface
 			(iface, iflabel, timestamper);
 	}
@@ -385,7 +387,7 @@ class OSNetworkInterfaceFactory {
 private:
 	virtual bool createInterface
 	(OSNetworkInterface ** iface, InterfaceLabel * iflabel,
-	 HWTimestamper * timestamper) = 0;
+	 CommonTimestamper * timestamper) = 0;
 	static FactoryMap_t factoryMap;
 };
 

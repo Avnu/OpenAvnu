@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -64,20 +65,6 @@ typedef void (*openavb_intf_cfg_cb_t)(media_q_t *pMediaQ, const char *name, cons
  * \param pMediaQ A pointer to the media queue for this stream
  */
 typedef void (*openavb_intf_gen_init_cb_t)(media_q_t *pMediaQ);
-
-/** AVDECC initialize callback for both a talker or listener.
- *
- * Entity model based configuration can be processed at this time.
- * This callback is optional and only executed when AVDECC is used to connect
- * streams.
- *
- * \param pMediaQ A pointer to the media queue for this stream
- * \param configIdx current configuration descriptor index for the Entity Model
- * \param descriptorType The descriptorType is expected to be of STREAM_INPUT
- *        for listeners and STREAM_OUTPUT for talkers.
- * \param descriptorIdx descriptor index in the Entity Model
- */
-typedef void (*openavb_intf_avdecc_init_cb_t)(media_q_t *pMediaQ, U16 configIdx, U16 descriptorType, U16 descriptorIdx);
 
 /** Initialize transmit callback into the interface module.
  *
@@ -170,6 +157,37 @@ typedef void (*openavb_intf_gen_end_cb_t)(media_q_t *pMediaQ);
  */
 typedef unsigned int (*openavb_intf_get_src_bitrate_t)(media_q_t *pMediaQ);
 
+/** Inform interface about stream_uid.
+ *
+ * Will be used for logging to distinguish information logged from different streams
+ * using the same interface.
+ * \param pMediaQ A pointer to the media queue for this stream
+ * \param stream_uid stream unique ID (last two bytes of streamID)
+ */
+typedef void (*openavb_intf_set_stream_uid_t)(media_q_t *pMediaQ, U16 stream_uid);
+
+/** Enable fixed timestamping in interface.
+ *
+ * Everytime interface needs to set media_q_item_t.pAvtpTime it calls openavbAvtpTimeSetToWallTime() to set.
+ *
+ * When fixed timestamping is enabled, interface only calls openavbAvtpTimeSetToWallTime() once
+ * for first media_q_item, then for next items it just adds fixed delay calculated
+ * from transmitInterval and batchFactor.
+ *
+ * If transmitInterval = 8000 and batchFactor = 1 then 125 us will be added.
+ * If batchFactor is 4, 4 items will have the same AVTP time set and
+ * then 125 * 4 = 500 us will be added to timestamp.
+ *
+ * \param pMediaQ A pointer to media queue for this stream
+ * \param enable true to enable, false to disable
+ * \param transmitInterval The transmit interval (in frames per second)
+ * \param batchFactor Number of intervals to handle at once
+ *
+ * \note  This callback is optional, does not need to be implemented in the
+ * interface module.
+ */
+typedef void (*openavb_intf_enable_fixed_timestamp)(media_q_t *pMediaQ, bool enable, U32 transmitInterval, U32 batchFactor);
+
 /** Interface callbacks structure.
  */
 typedef struct {
@@ -177,8 +195,6 @@ typedef struct {
 	openavb_intf_cfg_cb_t			intf_cfg_cb;
 	/// General initialize callback.
 	openavb_intf_gen_init_cb_t		intf_gen_init_cb;
-	/// AVDECC initialize callback.
-	openavb_intf_avdecc_init_cb_t	intf_avdecc_init_cb;
 	/// Initialize transmit callback.
 	openavb_intf_tx_init_cb_t		intf_tx_init_cb;
 	/// Transmit callback.
@@ -197,6 +213,10 @@ typedef struct {
 	void *						intf_host_cb_list;
 	/// Source bit rate callback.
 	openavb_intf_get_src_bitrate_t  intf_get_src_bitrate_cb;
+	/// Callback for setting stream uid
+	openavb_intf_set_stream_uid_t  intf_set_stream_uid_cb;
+	/// Enable fixed timestamp callback
+	openavb_intf_enable_fixed_timestamp intf_enable_fixed_timestamp;
 } openavb_intf_cb_t;
 
 /** Main initialization entry point into the interface module.

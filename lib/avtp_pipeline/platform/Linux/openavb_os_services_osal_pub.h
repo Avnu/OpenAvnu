@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -34,6 +35,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define LINUX 1	// !!! FIX ME !!! THIS IS A HACK TO SUPPORT ANOTHER HACK IN openavb_avtp_time.c. REMOVE THIS WHEN openavb_avtp_time.c GETS FIXED !!!
 
 #include "openavb_time_osal_pub.h"
+#include "openavb_grandmaster_osal_pub.h"
 
 #define INLINE_VARIABLE_NUM_OF_ARGUMENTS inline // must be okay of gcc
 

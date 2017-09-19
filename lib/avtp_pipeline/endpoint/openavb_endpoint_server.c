@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -35,7 +36,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  * "endpoint" process to create a reservation for their traffic.
  *
  * This code implements the endpoint (server) side of the IPC.
- * 
+ *
  * It provides proxy functions for the endpoint to call.  The arguments
  * for those calls are packed into messages, which are unpacked in the
  * streamer processes and then used to call the real functions.
@@ -56,6 +57,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_log.h"
 #include "openavb_qmgr.h"  // for INVALID_FWMARK
 #include "openavb_maap.h"
+#include "openavb_shaper.h"
 
 // forward declarations
 static bool openavbEptSrvrReceiveFromClient(int h, openavbEndpointMessage_t *msg);
@@ -76,17 +78,19 @@ static bool openavbEptSrvrReceiveFromClient(int h, openavbEndpointMessage_t *msg
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return FALSE;
 	}
-			
+
 	bool ret = FALSE;
 	switch (msg->type) {
 		case OPENAVB_ENDPOINT_TALKER_REGISTER:
 			AVB_LOGF_DEBUG("TalkerRegister from client uid=%d", msg->streamID.uniqueID);
 			ret = openavbEptSrvrRegisterStream(h, &msg->streamID,
-			                               msg->params.talkerRegister.destAddr,
-			                               &msg->params.talkerRegister.tSpec,
-			                               msg->params.talkerRegister.srClass,
-			                               msg->params.talkerRegister.srRank,
-			                               msg->params.talkerRegister.latency);
+					msg->params.talkerRegister.destAddr,
+					msg->params.talkerRegister.noMaapAllocate,
+					&msg->params.talkerRegister.tSpec,
+					msg->params.talkerRegister.srClass,
+					msg->params.talkerRegister.srRank,
+					msg->params.talkerRegister.latency,
+					msg->params.talkerRegister.txRate);
 			break;
 		case OPENAVB_ENDPOINT_LISTENER_ATTACH:
 			AVB_LOGF_DEBUG("ListenerAttach from client uid=%d", msg->streamID.uniqueID);
@@ -116,10 +120,11 @@ void openavbEptSrvrNotifyTlkrOfSrpCb(int h,
                                   char                    *ifname,
                                   U8                       destAddr[ETH_ALEN],
                                   openavbSrpLsnrDeclSubtype_t  lsnrDecl,
+                                  U8                       srClass,
                                   U32                      classRate,
                                   U16                      vlanID,
                                   U8                       priority,
-                                  U16                      fwmark) 
+                                  U16                      fwmark)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 	openavbEndpointMessage_t  msgBuf;
@@ -136,6 +141,7 @@ void openavbEptSrvrNotifyTlkrOfSrpCb(int h,
 	strncpy(msgBuf.params.talkerCallback.ifname, ifname, IFNAMSIZ - 1);
 	memcpy(msgBuf.params.talkerCallback.destAddr, destAddr, ETH_ALEN);
 	msgBuf.params.talkerCallback.lsnrDecl = lsnrDecl;
+	msgBuf.params.talkerCallback.srClass = srClass;
 	msgBuf.params.talkerCallback.classRate = classRate;
 	msgBuf.params.talkerCallback.vlanID = vlanID;
 	msgBuf.params.talkerCallback.priority = priority;
@@ -159,7 +165,7 @@ void openavbEptSrvrNotifyLstnrOfSrpCb(int h,
 	openavbEndpointMessage_t  msgBuf;
 
 	// Check for valid parameters. DestAddr is optional and checked later.
-	if (!streamID || !ifname) {		
+	if (!streamID || !ifname) {
 		AVB_LOG_ERROR("Listener callback; invalid argument passed");
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return;
@@ -169,7 +175,7 @@ void openavbEptSrvrNotifyLstnrOfSrpCb(int h,
 	msgBuf.type = OPENAVB_ENDPOINT_LISTENER_CALLBACK;
 	memcpy(&(msgBuf.streamID), streamID, sizeof(AVBStreamID_t));
 	strncpy(msgBuf.params.listenerCallback.ifname, ifname, IFNAMSIZ - 1);
-	if (destAddr) 
+	if (destAddr)
 		memcpy(msgBuf.params.listenerCallback.destAddr, destAddr, ETH_ALEN);
 	msgBuf.params.listenerCallback.tlkrDecl = tlkrDecl;
 	if (tSpec)
@@ -200,17 +206,19 @@ void openavbEptSrvrSendServerVersionToClient(int h, U32 AVBVersion)
 bool openavbEptSrvrRegisterStream(int h,
                               AVBStreamID_t *streamID,
                               U8 destAddr[],
+                              U8 noMaapAllocation,
                               AVBTSpec_t *tSpec,
                               U8 srClass,
                               U8 srRank,
-                              U32 latency)
+                              U32 latency,
+                              U32 txRate)
 {
 	openavbRC rc = OPENAVB_SUCCESS;
 
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 
 	clientStream_t *ps = findStream(streamID);
-	
+
 	if (ps && ps->clientHandle != h) {
 		AVB_LOGF_ERROR("Error registering talker; multiple clients for stream %d", streamID->uniqueID);
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
@@ -228,10 +236,12 @@ bool openavbEptSrvrRegisterStream(int h,
 	ps->srClass = (SRClassIdx_t)srClass;
 	ps->srRank  = srRank;
 	ps->latency = latency;
+	ps->txRate = txRate;
 	ps->fwmark = INVALID_FWMARK;
 
-	if (memcmp(ps->destAddr, destAddr, ETH_ALEN) == 0) {
-		// no client-supplied address, use MAAP
+	// If MAAP is available, or no client-supplied address, allocate an address.
+	if ((!noMaapAllocation && openavbMaapDaemonAvailable()) ||
+			memcmp(ps->destAddr, destAddr, ETH_ALEN) == 0) {
 		struct ether_addr addr;
 		ps->hndMaap = openavbMaapAllocate(1, &addr);
 		if (ps->hndMaap) {
@@ -251,11 +261,24 @@ bool openavbEptSrvrRegisterStream(int h,
 		ps->hndMaap = NULL;
 	}
 
+	// If the Shaper is available, enable it.
+	if (openavbShaperDaemonAvailable() && ps->txRate) {
+		ps->hndShaper = openavbShaperHandle(
+			ps->srClass,
+			MICROSECONDS_PER_SECOND / ps->txRate, /* Note that division rounds down, which is what we want. */
+			tSpec->maxFrameSize + 18 /* Header size */,
+			1,
+			ps->destAddr);
+		if (!ps->hndShaper) {
+			AVB_LOG_ERROR("Unable to start Shaping");
+		}
+	}
+
 	// Do SRP talker register
-	AVB_LOGF_DEBUG("REGISTER: ps=%p, streamID=%d, tspec=%d,%d, srClass=%d, srRank=%d, latency=%d, da="ETH_FORMAT"",
+	AVB_LOGF_DEBUG("REGISTER: ps=%p, streamID=%d, tspec=%d,%d, srClass=%d, srRank=%d, latency=%d, tsRate=%d, da="ETH_FORMAT"",
 				   ps, streamID->uniqueID,
 				   tSpec->maxFrameSize, tSpec->maxIntervalFrames,
-				   ps->srClass, ps->srRank, ps->latency,
+				   ps->srClass, ps->srRank, ps->latency, ps->txRate,
 				   ETH_OCTETS(ps->destAddr));
 
 
@@ -273,12 +296,14 @@ bool openavbEptSrvrRegisterStream(int h,
 		if (!IS_OPENAVB_SUCCESS(rc)) {
 			if (ps->hndMaap)
 				openavbMaapRelease(ps->hndMaap);
+			if (ps->hndShaper)
+				openavbShaperRelease(ps->hndShaper);
 			delStream(ps);
 		}
 	}
 
 	openavbEndPtLogAllStaticStreams();
-	
+
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return IS_OPENAVB_SUCCESS(rc);
 }
@@ -372,7 +397,7 @@ bool openavbEptSrvrHndlVerRqstFromClient(int h)
 	return TRUE;
 }
 
-/* Called if a client closes their end of the IPC 
+/* Called if a client closes their end of the IPC
  */
 void openavbEptSrvrCloseClientConnection(int h)
 {

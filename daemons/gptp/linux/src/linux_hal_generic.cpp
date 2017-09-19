@@ -52,7 +52,8 @@
 #define RX_PHY_TIME 382
 
 net_result LinuxNetworkInterface::nrecv
-( LinkLayerAddress *addr, uint8_t *payload, size_t &length,struct phy_delay *delay ) {
+( LinkLayerAddress *addr, uint8_t *payload, size_t &length )
+{
 	fd_set readfds;
 	int err;
 	struct msghdr msg;
@@ -71,7 +72,7 @@ net_result LinuxNetworkInterface::nrecv
 	struct timeval timeout = { 0, 16000 }; // 16 ms
 
 	if( !net_lock.lock( &got_net_lock )) {
-		fprintf( stderr, "A Failed to lock mutex\n" );
+		GPTP_LOG_ERROR("A Failed to lock mutex");
 		return net_fatal;
 	}
 	if( !got_net_lock ) {
@@ -88,11 +89,11 @@ net_result LinuxNetworkInterface::nrecv
 	} else if( err == -1 ) {
 		if( err == EINTR ) {
 			// Caught signal
-			GPTP_LOG_ERROR( "select() recv signal" );
+			GPTP_LOG_ERROR("select() recv signal");
 			ret = net_trfail;
 			goto done;
 		} else {
-			GPTP_LOG_ERROR( "select() failed" );
+			GPTP_LOG_ERROR("select() failed");
 			ret = net_fatal;
 			goto done;
     }
@@ -118,11 +119,11 @@ net_result LinuxNetworkInterface::nrecv
 	err = recvmsg( sd_event, &msg, 0 );
 	if( err < 0 ) {
 		if( errno == ENOMSG ) {
-			fprintf( stderr, "Got ENOMSG: %s:%d\n", __FILE__, __LINE__ );
+			GPTP_LOG_ERROR("Got ENOMSG: %s:%d", __FILE__, __LINE__);
 			ret = net_trfail;
 			goto done;
 		}
-		GPTP_LOG_ERROR( "recvmsg() failed: %s", strerror(errno) );
+		GPTP_LOG_ERROR("recvmsg() failed: %s", strerror(errno));
 		ret = net_fatal;
 		goto done;
 	}
@@ -136,13 +137,11 @@ net_result LinuxNetworkInterface::nrecv
 			if
 				( cmsg->cmsg_level == SOL_SOCKET &&
 				  cmsg->cmsg_type == SO_TIMESTAMPING ) {
-				Timestamp latency( delay->gb_rx_phy_delay, 0, 0 );
 				struct timespec *ts_device, *ts_system;
 				Timestamp device, system;
 				ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
 				system = tsToTimestamp( ts_system );
 				ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
-				device = device - latency;
 				gtimestamper->pushRXTimestamp( &device );
 				break;
 			}
@@ -154,7 +153,7 @@ net_result LinuxNetworkInterface::nrecv
 
  done:
 	if( !net_lock.unlock()) {
-		fprintf( stderr, "A Failed to unlock, %d\n", err );
+		GPTP_LOG_ERROR("A Failed to unlock, %d", err);
 		return net_fatal;
 	}
 
@@ -168,13 +167,13 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	struct ifreq ifr;
 
 	if(( ifname = dynamic_cast<InterfaceName *>(iface_label)) == NULL ) {
-		fprintf( stderr, "findPTPIndex requires InterfaceName\n" );
+		GPTP_LOG_ERROR("findPTPIndex requires InterfaceName");
 		return -1;
 	}
 
 	sd = socket( AF_UNIX, SOCK_DGRAM, 0 );
 	if( sd < 0 ) {
-		fprintf( stderr, "findPTPIndex: failed to open socket\n" );
+		GPTP_LOG_ERROR("findPTPIndex: failed to open socket");
 		return -1;
 	}
 
@@ -185,7 +184,7 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	ifr.ifr_data = (char *) &info;
 
 	if( ioctl( sd, SIOCETHTOOL, &ifr ) < 0 ) {
-		fprintf( stderr, "findPTPIndex: ioctl(SIOETHTOOL) failed\n" );
+		GPTP_LOG_ERROR("findPTPIndex: ioctl(SIOETHTOOL) failed");
 		return -1;
 	}
 
@@ -209,9 +208,9 @@ LinuxTimestamperGeneric::LinuxTimestamperGeneric() {
 	sd = -1;
 }
 
-bool LinuxTimestamperGeneric::Adjust( void *tmx ) {
+bool LinuxTimestamperGeneric::Adjust( void *tmx ) const {
 	if( syscall(__NR_clock_adjtime, _private->clockid, tmx ) != 0 ) {
-		GPTP_LOG_ERROR( "Failed to adjust PTP clock rate" );
+		GPTP_LOG_ERROR("Failed to adjust PTP clock rate");
 		return false;
 	}
 	return true;
@@ -232,17 +231,17 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	// Determine the correct PTP clock interface
 	phc_index = findPhcIndex( iface_label );
 	if( phc_index < 0 ) {
-		fprintf( stderr, "Failed to find PTP device index\n" );
+		GPTP_LOG_ERROR("Failed to find PTP device index");
 		return false;
 	}
 
 	snprintf
 		( ptp_device+PTP_DEVICE_IDX_OFFS,
 		  sizeof(ptp_device)-PTP_DEVICE_IDX_OFFS, "%d", phc_index );
-	fprintf( stderr, "Using clock device: %s\n", ptp_device );
+	GPTP_LOG_ERROR("Using clock device: %s", ptp_device);
 	phc_fd = open( ptp_device, O_RDWR );
 	if( phc_fd == -1 || (_private->clockid = FD_TO_CLOCKID(phc_fd)) == -1 ) {
-		fprintf( stderr, "Failed to open PTP clock device\n" );
+		GPTP_LOG_ERROR("Failed to open PTP clock device");
 		return false;
 	}
 
@@ -250,14 +249,14 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	// Query PTP stack for availability of HW cross-timestamp
 	if( ioctl( phc_fd, PTP_CLOCK_GETCAPS, &ptp_capability ) == -1 )
 	{
-		GPTP_LOG_ERROR( "Failed to query PTP clock capabilities" );
+		GPTP_LOG_ERROR("Failed to query PTP clock capabilities");
 		return false;
 	}
 	precise_timestamp_enabled = ptp_capability.cross_timestamping;
 #endif
 
 	if( !resetFrequencyAdjustment() ) {
-		GPTP_LOG_ERROR( "Failed to reset (zero) frequency adjustment" );
+		GPTP_LOG_ERROR("Failed to reset (zero) frequency adjustment");
 		return false;
 	}
 
@@ -269,9 +268,17 @@ bool LinuxTimestamperGeneric::HWTimestamper_init
 	return true;
 }
 
+void LinuxTimestamperGeneric::HWTimestamper_reset()
+{
+	if( !resetFrequencyAdjustment() ) {
+		GPTP_LOG_ERROR("Failed to reset (zero) frequency adjustment");
+	}
+}
+
 int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
-( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
-  unsigned &clock_value, bool last ) {
+( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
+  unsigned &clock_value, bool last )
+{
 	int err;
 	int ret = GPTP_EC_EAGAIN;
 	struct msghdr msg;
@@ -282,10 +289,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-    struct phy_delay delay_val;
-	get_phy_delay (&delay_val);//gets the phy delay
 
-	Timestamp latency( delay_val.gb_tx_phy_delay, 0, 0 );
     if( sd == -1 ) return -1;
 	memset( &msg, 0, sizeof( msg ));
 
@@ -324,7 +328,6 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 			system = tsToTimestamp( ts_system );
 			ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
 			system._version = version;
-			device = device + latency;
 			device._version = version;
 			timestamp = device;
 			ret = 0;
@@ -334,7 +337,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	}
 
 	if( ret != 0 ) {
-		fprintf( stderr, "Received a error message, but didn't find a valid timestamp\n" );
+		GPTP_LOG_ERROR("Received a error message, but didn't find a valid timestamp");
 	}
 
  done:
@@ -359,7 +362,7 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 	err = ioctl( sd, SIOCGIFNAME, &device );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR
-			( "Failed to get interface name: %s", strerror( errno ));
+			("Failed to get interface name: %s", strerror(errno));
 		return false;
 	}
 
@@ -370,7 +373,7 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 	err = ioctl( sd, SIOCSHWTSTAMP, &device );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR
-			( "Failed to configure timestamping: %s", strerror( errno ));
+			("Failed to configure timestamping: %s", strerror(errno));
 		return false;
 	}
 
@@ -383,8 +386,8 @@ bool LinuxTimestamperGeneric::post_init( int ifindex, int sd, TicketingLock *loc
 		  sizeof(timestamp_flags) );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR
-			( "Failed to configure timestamping on socket: %s",
-			  strerror( errno ));
+			("Failed to configure timestamping on socket: %s",
+			  strerror(errno));
 		return false;
 	}
 
@@ -426,7 +429,8 @@ static inline Timestamp pctTimestamp( struct ptp_clock_time *t ) {
 // Use HW cross-timestamp if available
 bool LinuxTimestamperGeneric::HWTimestamper_gettime
 ( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
-  uint32_t *nominal_clock_rate ) {
+  uint32_t *nominal_clock_rate ) const
+{
 	if( phc_fd == -1 )
 		return false;
 
@@ -448,7 +452,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 	{
 		unsigned i;
 		struct ptp_clock_time *pct;
-		struct ptp_clock_time *system_time_l, *device_time_l;
+		struct ptp_clock_time *system_time_l = NULL, *device_time_l = NULL;
 		int64_t interval = LLONG_MAX;
 		struct ptp_sys_offset offset;
 
@@ -468,8 +472,10 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 			}
 		}
 
-		*device_time = pctTimestamp( device_time_l );
-		*system_time = pctTimestamp( system_time_l );
+		if (device_time_l)
+			*device_time = pctTimestamp( device_time_l );
+		if (system_time_l)
+			*system_time = pctTimestamp( system_time_l );
 	}
 
 	return true;

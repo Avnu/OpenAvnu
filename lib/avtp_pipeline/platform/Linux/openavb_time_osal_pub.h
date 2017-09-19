@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -42,7 +43,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define TIMERFD_SETTIME(arg1, arg2, arg3, arg4) timerfd_settime(arg1, arg2, arg3, arg4)
 #define TIMER_CLOSE(arg1) close(arg1)
 
-// In this Linux port all clock IDs preceeding OPENAVB_CLOCK_WALLTIME will be set to clock_gettime()
+// In this Linux port all clock IDs preceding OPENAVB_CLOCK_WALLTIME will be set to clock_gettime()
 typedef enum {
 	OPENAVB_CLOCK_REALTIME,
 	OPENAVB_CLOCK_MONOTONIC,

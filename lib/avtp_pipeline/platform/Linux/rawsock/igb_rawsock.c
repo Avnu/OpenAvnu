@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,7 +33,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "pcap_rawsock.h"
 #include "simple_rawsock.h"
 #include "avb.h"
-#include "openavb_ether_hal.h"
+#include "openavb_igb.h"
 #include "avb_sched.h"
 
 #include "openavb_trace.h"
@@ -192,7 +193,7 @@ bool igbRawsockRelTxFrame(void *pvRawsock, U8 *pBuffer)
 }
 
 // Release a TX frame, and mark it as ready to send
-bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
+bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
 	igb_rawsock_t *rawsock = (igb_rawsock_t*)pvRawsock;
@@ -207,7 +208,7 @@ bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len)
 	rawsock->tx_packet->len = len;
 
 #if IGB_LAUNCHTIME_ENABLED
-	gptplocaltime(&gPtpTD, &rawsock->tx_packet->attime);
+	gptpmaster2local(&gPtpTD, timeNsec, &rawsock->tx_packet->attime);
 #endif
 
 	err = igb_xmit(rawsock->igb_dev, rawsock->queue, rawsock->tx_packet);

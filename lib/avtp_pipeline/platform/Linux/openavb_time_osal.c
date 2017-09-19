@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -33,45 +34,35 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-#include "igb.h"
-#include "avb.h"
+#include "avb_gptp.h"
 
 #include "openavb_platform.h"
 #include "openavb_time_osal.h"
-#include "openavb_time_hal.h"
 #include "openavb_trace.h"
 
 #define	AVB_LOG_COMPONENT	"osalTime"
 #include "openavb_pub.h"
 #include "openavb_log.h"
 
-//#include "openavb_time_util_osal.h"
-
 static pthread_mutex_t gOSALTimeInitMutex = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK()  	pthread_mutex_lock(&gOSALTimeInitMutex)
 #define UNLOCK()	pthread_mutex_unlock(&gOSALTimeInitMutex)
 
 static bool bInitialized = FALSE;
-static int gIgbShmFd = -1;
-static char *gIgbMmap = NULL;
+static int gPtpShmFd = -1;
+static char *gPtpMmap = NULL;
 gPtpTimeData gPtpTD;
 
 static bool x_timeInit(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	if (!halTimeInitialize()) {
-		AVB_LOG_ERROR("HAL Time Init failed");
-		AVB_TRACE_EXIT(AVB_TRACE_TIME);
-		return FALSE;
-	}
-
-	if (gptpinit(&gIgbShmFd, &gIgbMmap) < 0) {
+	if (gptpinit(&gPtpShmFd, &gPtpMmap) < 0) {
 		AVB_LOG_ERROR("GPTP init failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
 	}
 
-	if (gptpgetdata(gIgbMmap, &gPtpTD) < 0) {
+	if (gptpgetdata(gPtpMmap, &gPtpTD) < 0) {
 		AVB_LOG_ERROR("GPTP data fetch failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
@@ -88,7 +79,7 @@ static bool x_timeInit(void) {
 static bool x_getPTPTime(U64 *timeNsec) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	if (gptpgetdata(gIgbMmap, &gPtpTD) < 0) {
+	if (gptpgetdata(gPtpMmap, &gPtpTD) < 0) {
 		AVB_LOG_ERROR("GPTP data fetch failed");
 		AVB_TRACE_EXIT(AVB_TRACE_TIME);
 		return FALSE;
@@ -124,15 +115,13 @@ bool osalAVBTimeInit(void) {
 	UNLOCK();
 
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
-	return TRUE;
+	return bInitialized;
 }
 
 bool osalAVBTimeClose(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	gptpdeinit(&gIgbShmFd, &gIgbMmap);
-
-	halTimeFinalize();
+	gptpdeinit(&gPtpShmFd, &gPtpMmap);
 
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
 	return TRUE;
@@ -141,7 +130,8 @@ bool osalAVBTimeClose(void) {
 bool osalClockGettime(openavb_clockId_t openavbClockId, struct timespec *getTime) {
 	AVB_TRACE_ENTRY(AVB_TRACE_TIME);
 
-	if (openavbClockId < OPENAVB_CLOCK_WALLTIME) {
+	if (openavbClockId < OPENAVB_CLOCK_WALLTIME)
+	{
 		clockid_t clockId = CLOCK_MONOTONIC;
 		switch (openavbClockId) {
 		case OPENAVB_CLOCK_REALTIME:
@@ -174,7 +164,8 @@ bool osalClockGettime(openavb_clockId_t openavbClockId, struct timespec *getTime
 }
 
 bool osalClockGettime64(openavb_clockId_t openavbClockId, U64 *timeNsec) {
-	if (openavbClockId < OPENAVB_CLOCK_WALLTIME) {
+	if (openavbClockId < OPENAVB_CLOCK_WALLTIME)
+	{
 		clockid_t clockId = CLOCK_MONOTONIC;
 		switch (openavbClockId) {
 		case OPENAVB_CLOCK_REALTIME:
@@ -203,5 +194,4 @@ bool osalClockGettime64(openavb_clockId_t openavbClockId, U64 *timeNsec) {
 	AVB_TRACE_EXIT(AVB_TRACE_TIME);
 	return FALSE;
 }
-
 

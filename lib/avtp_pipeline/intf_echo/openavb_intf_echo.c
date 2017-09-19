@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -77,6 +78,10 @@ typedef struct {
 	/////////////
 	// When increment is enable this is the counter
 	U32 Counter;
+
+	bool fixedTimestampEnabled;
+	U32 tsIncrement;
+	avtp_time_t walltime;
 } pvt_data_t;
 
 
@@ -168,6 +173,9 @@ void openavbIntfEchoTxInitCB(media_q_t *pMediaQ)
 		}
 
 		pPvtData->Counter = 0;
+
+		if (pPvtData->fixedTimestampEnabled)
+			openavbAvtpTimeSetToWallTime(&pPvtData->walltime);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -187,7 +195,7 @@ bool openavbIntfEchoTxCB(media_q_t *pMediaQ)
 
 		media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
 		if (pMediaQItem) {
-			if (pMediaQItem->itemSize >= pPvtData->increment ? pPvtData->echoStringLen + 16 : pPvtData->echoStringLen) {
+			if (pMediaQItem->itemSize >= (pPvtData->increment ? pPvtData->echoStringLen + 16 : pPvtData->echoStringLen)) {
 				if (pPvtData->increment) {
 					int len = sprintf(pMediaQItem->pPubData, "%s %u", pPvtData->pEchoString, pPvtData->Counter++);
 					pMediaQItem->dataLen = len;
@@ -209,7 +217,12 @@ bool openavbIntfEchoTxCB(media_q_t *pMediaQ)
 					printf("%s\n\r", (char *)pMediaQItem->pPubData); 
 			}
 
-			openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+			if (pPvtData->fixedTimestampEnabled) {
+				openavbAvtpTimeAddUSec(&pPvtData->walltime, pPvtData->tsIncrement);
+				*pMediaQItem->pAvtpTime = pPvtData->walltime;
+			} else {
+				openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+			}
 			openavbMediaQHeadPush(pMediaQ);
 			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 			return TRUE;
@@ -311,6 +324,25 @@ void openavbIntfEchoGenEndCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
+void openavbIntfEchoEnableFixedTimestamp(media_q_t *pMediaQ, bool enabled, U32 transmitInterval, U32 batchFactor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
+	if (pMediaQ && pMediaQ->pPvtIntfInfo) {
+		pvt_data_t *pPvtData = (pvt_data_t *)pMediaQ->pPvtIntfInfo;
+
+		pPvtData->fixedTimestampEnabled = enabled;
+		if (pPvtData->fixedTimestampEnabled) {
+				pPvtData->tsIncrement = NANOSECONDS_PER_SECOND/transmitInterval;
+		}
+
+		if (batchFactor != 1) {
+			AVB_LOGF_WARNING("batchFactor of %d ignored (must be 1)", batchFactor);
+		}
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_INTF);
+}
+
 // Main initialization entry point into the interface module
 extern bool DLL_EXPORT openavbIntfEchoInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
 {
@@ -334,6 +366,7 @@ extern bool DLL_EXPORT openavbIntfEchoInitialize(media_q_t *pMediaQ, openavb_int
 		pIntfCB->intf_rx_cb = openavbIntfEchoRxCB;
 		pIntfCB->intf_end_cb = openavbIntfEchoEndCB;
 		pIntfCB->intf_gen_end_cb = openavbIntfEchoGenEndCB;
+		pIntfCB->intf_enable_fixed_timestamp = openavbIntfEchoEnableFixedTimestamp;
 
 		pPvtData->pEchoString = NULL;
 		pPvtData->echoStringRepeat = 1; 
@@ -342,6 +375,7 @@ extern bool DLL_EXPORT openavbIntfEchoInitialize(media_q_t *pMediaQ, openavb_int
 		pPvtData->txLocalEcho = FALSE;
 		pPvtData->noNewline = FALSE;
 		pPvtData->ignoreTimestamp = FALSE;
+		pPvtData->fixedTimestampEnabled = FALSE;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);

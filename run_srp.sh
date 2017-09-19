@@ -7,4 +7,4 @@ if [ "$#" -eq "0" ]; then
     exit -1
 fi
 
-daemons/mrpd/mrpd -s -i $1
+daemons/mrpd/mrpd -mvs -i $1

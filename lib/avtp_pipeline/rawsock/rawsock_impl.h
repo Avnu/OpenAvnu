@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -75,7 +76,7 @@ typedef struct {
 	bool (*txSetMark)(void* rawsock, int prio);
 	U8* (*getTxFrame)(void* rawsock, bool blocking, U32* size);
 	bool (*relTxFrame)(void* rawsock, U8* pBuffer);
-	bool (*txFrameReady)(void* rawsock, U8* pFrame, U32 len);
+	bool (*txFrameReady)(void* rawsock, U8* pFrame, U32 len, U64 timeNsec);
 	int (*send)(void* rawsock);
 	int (*txBufLevel)(void* rawsock);
 	int (*rxBufLevel)(void* rawsock);

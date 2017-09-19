@@ -103,7 +103,7 @@ class OSLockFactory {
 		 * @param  type Enumeration OSLockType
 		 * @return Pointer to an enumeration of type OSLock
 		 */
-		virtual OSLock * createLock(OSLockType type) = 0;
+		virtual OSLock *createLock(OSLockType type) const = 0;
 		virtual ~OSLockFactory() = 0;
 };
 

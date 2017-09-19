@@ -70,7 +70,7 @@ TEST(ParseTestGroup, TestParse_null)
 	int err_index;
 	int status;
 	struct parse_param specs[] = {
-		{ "C" PARSE_ASSIGN, parse_null, &value },
+		{ (char*)"C" PARSE_ASSIGN, parse_null, &value },
 		{ 0, parse_null, 0 }};
 	const char strz[] = "C=1234";
 
@@ -96,7 +96,7 @@ TEST(ParseTestGroup, TestParse_u8)
 	int err_index;
 	int status;
 	struct parse_param specs[] = {
-		{ "C" PARSE_ASSIGN, parse_u8, &value },
+		{ (char*)"C" PARSE_ASSIGN, parse_u8, &value },
 		{ 0, parse_null, 0 } };
 	char strz[64];
 	int i;
@@ -147,7 +147,7 @@ TEST(ParseTestGroup, TestParse_u16)
 	int err_index;
 	int status;
 	struct parse_param specs[] = {
-		{ "C" PARSE_ASSIGN, parse_u16, &value },
+		{ (char*)"C" PARSE_ASSIGN, parse_u16, &value },
 		{ 0, parse_null, 0 } };
 	char strz[64];
 	int i;
@@ -197,7 +197,7 @@ TEST(ParseTestGroup, TestParse_u16_04x)
 	int err_index;
 	int status;
 	struct parse_param specs[] = {
-		{ "C" PARSE_ASSIGN, parse_u16_04x, &value },
+		{ (char*)"C" PARSE_ASSIGN, parse_u16_04x, &value },
 		{ 0, parse_null, 0 } };
 	char strz[64];
 	int i;
@@ -247,7 +247,7 @@ TEST(ParseTestGroup, TestParse_u32)
 	int err_index;
 	int status;
 	struct parse_param specs[] = {
-		{ "C" PARSE_ASSIGN, parse_u32, &value },
+		{ (char*)"C" PARSE_ASSIGN, parse_u32, &value },
 		{ 0, parse_null, 0 } };
 	char strz[64];
 	int i;
@@ -298,13 +298,13 @@ TEST(ParseTestGroup, TestParse_u64)
 	int err_index;
 	int status;
 	struct parse_param specsu[] = {
-		{ "C" PARSE_ASSIGN, parse_u64, &value },
+		{ (char*)"C" PARSE_ASSIGN, parse_u64, &value },
 		{ 0, parse_null, 0 } };
 	struct parse_param specsx[] = {
-		{ "C" PARSE_ASSIGN, parse_h64, &value },
+		{ (char*)"C" PARSE_ASSIGN, parse_h64, &value },
 		{ 0, parse_null, 0 } };
 	struct parse_param specsc[] = {
-		{ "C" PARSE_ASSIGN, parse_c64, &stream_id },
+		{ (char*)"C" PARSE_ASSIGN, parse_c64, &stream_id },
 		{ 0, parse_null, 0 } };
 	char strz[64];
 	int i, j;

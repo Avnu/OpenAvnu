@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -54,7 +55,7 @@ U8 *igbRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len);
 
 bool igbRawsockRelTxFrame(void *pvRawsock, U8 *pBuffer);
 
-bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len);
+bool igbRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec);
 
 int igbRawsockSend(void *pvRawsock);
 

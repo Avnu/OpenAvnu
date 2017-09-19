@@ -355,6 +355,7 @@ int igb_start_rx(device_t *igb_dev, struct mrp_listener_ctx *ctx)
 
 	uint8_t test_filter[128];
 	uint8_t filter_mask[64];
+	uint32_t filter_len = 0;
 	struct ethhdr *ethhdr = NULL;
 	uint16_t *ethtype = NULL;
 
@@ -452,11 +453,12 @@ int igb_start_rx(device_t *igb_dev, struct mrp_listener_ctx *ctx)
 	filter_mask[1] = 0x30; /* 00110000b = ethtype */
 	filter_mask[2] = 0x03; /* 00000011b = ethtype after a vlan tag */
 
+	/* length must be 8 byte-aligned */
+	filter_len = ((ETHERNET_HEADER_SIZE + (8u - 1u)) / 8u) * 8u;
+
 	/* install the filter on queue0 */
-	igb_setup_flex_filter(igb_dev, IGB_QUEUE_0, 0, ETHERNET_HEADER_SIZE,
+	rc = igb_setup_flex_filter(igb_dev, IGB_QUEUE_0, 0, filter_len,
 								test_filter, filter_mask);
-	
-	rc = 0;
 out:
 	if (rc != 0)
 		igb_stop_rx(igb_dev);

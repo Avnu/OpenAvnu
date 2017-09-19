@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -38,6 +39,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <endian.h>
 #include "openavb_platform_pub.h"
 #include "openavb_osal_pub.h"
 #include "openavb_types_pub.h"
@@ -46,9 +48,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_map_uncmp_audio_pub.h"
 #include "openavb_map_aaf_audio_pub.h"
 #include "openavb_intf_pub.h"
+#include "openavb_mcs.h"
 
 #define	AVB_LOG_COMPONENT	"Tone Gen Interface"
-#include "openavb_log_pub.h" 
+#include "openavb_log_pub.h"
 
 #define PI 3.14159265358979f
 
@@ -58,7 +61,7 @@ typedef struct {
 	/////////////
 	// intf_nv_tone_hz: The tone hz to generate
 	U32 toneHz;
-	
+
 	// intf_nv_on_off_interval_msec: Interval for turning tone on and off. A value of zero will keep the tone on.
 	U32 onOffIntervalMSec;
 
@@ -69,16 +72,27 @@ typedef struct {
 	avb_audio_rate_t audioRate;
 
 	// intf_nv_audio_type
-	avb_audio_bit_depth_t audioType;
+	avb_audio_type_t audioType;
 
 	// intf_nv_audio_bit_depth
 	avb_audio_bit_depth_t audioBitDepth;
 
 	// intf_nv_audio_endian
-	avb_audio_bit_depth_t audioEndian;
+	avb_audio_endian_t audioEndian;
 
 	// intf_nv_channels
 	avb_audio_channels_t audioChannels;
+
+	// Volume for the tone generation
+	float volume;
+
+	// Fixed 32 bit value 1
+	bool fv1Enabled;
+	U32 fv1;
+
+	// Fixed 32 bit value 2
+	bool fv2Enabled;
+	U32 fv2;
 
 	/////////////
 	// Variable data
@@ -87,9 +101,9 @@ typedef struct {
 	// Packing interval
 	U32 intervalCounter;
 
-	// Keeps track of if the tone is currently on or off	
+	// Keeps track of if the tone is currently on or off
 	U32 freq;
-	
+
 	// Keeps track of how long before toggling the tone on / off
 	U32 freqCountdown;
 
@@ -98,9 +112,16 @@ typedef struct {
 
 	// Index to into the melody string
 	U32 melodyIdx;
-	
+
 	// Length of the melody string
 	U32 melodyLen;
+
+	U32 fvChannels;
+
+	// Media clock synthesis for precise timestamps
+	mcs_t mcs;
+
+	bool fixedTimestampEnabled;
 
 } pvt_data_t;
 
@@ -262,42 +283,42 @@ void openavbIntfToneGenCfgCB(media_q_t *pMediaQ, const char *name, const char *v
 
 		else if (strcmp(name, "intf_nv_audio_type") == 0) {
 			if (strncasecmp(value, "float", 5) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_TYPE_FLOAT;
+				pPvtData->audioType = AVB_AUDIO_TYPE_FLOAT;
 			else if (strncasecmp(value, "sign", 4) == 0 || strncasecmp(value, "int", 4) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_TYPE_INT;
+				pPvtData->audioType = AVB_AUDIO_TYPE_INT;
 			else if (strncasecmp(value, "unsign", 6) == 0 || strncasecmp(value, "uint", 4) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_TYPE_UINT;
+				pPvtData->audioType = AVB_AUDIO_TYPE_UINT;
 			else {
 				AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_type.");
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_TYPE_UNSPEC;
+				pPvtData->audioType = AVB_AUDIO_TYPE_UNSPEC;
 			}
 
 			// Give the audio parameters to the mapping module.
 			if (xSupportedMappingFormat(pMediaQ)) {
-				pPubMapUncmpAudioInfo->audioType = (avb_audio_type_t)pPvtData->audioType;
+				pPubMapUncmpAudioInfo->audioType = pPvtData->audioType;
 			}
 		}
 
 		else if (strcmp(name, "intf_nv_audio_endian") == 0) {
 			if (strncasecmp(value, "big", 3) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_ENDIAN_BIG;
+				pPvtData->audioEndian = AVB_AUDIO_ENDIAN_BIG;
 			else if (strncasecmp(value, "little", 6) == 0)
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_ENDIAN_LITTLE;
+				pPvtData->audioEndian = AVB_AUDIO_ENDIAN_LITTLE;
 			else {
 				AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_endian.");
-				pPvtData->audioType = (avb_audio_bit_depth_t)AVB_AUDIO_ENDIAN_UNSPEC;
+				pPvtData->audioEndian = AVB_AUDIO_ENDIAN_UNSPEC;
 			}
 
 			// Give the audio parameters to the mapping module.
 			if (xSupportedMappingFormat(pMediaQ)) {
-				pPubMapUncmpAudioInfo->audioEndian = (avb_audio_endian_t)pPvtData->audioEndian;
+				pPubMapUncmpAudioInfo->audioEndian = pPvtData->audioEndian;
 			}
 		}
 
 		else if (strcmp(name, "intf_nv_audio_channels") == 0) {
 			val = strtol(value, &pEnd, 10);
 			// TODO: Should check for specific values
-			if (val >= AVB_AUDIO_CHANNELS_1 && val <= AVB_AUDIO_CHANNELS_8) {
+			if (val >= AVB_AUDIO_CHANNELS_1) {
 				pPvtData->audioChannels = (avb_audio_channels_t)val;
 			}
 			else {
@@ -310,7 +331,24 @@ void openavbIntfToneGenCfgCB(media_q_t *pMediaQ, const char *name, const char *v
 				pPubMapUncmpAudioInfo->audioChannels = pPvtData->audioChannels;
 			}
 		}
-	
+
+		else if (strcmp(name, "intf_nv_volume") == 0) {
+			S32 vol = strtol(value, &pEnd, 10);
+			pPvtData->volume = pow(10.0, vol/10.0);
+		}
+
+		else if (strcmp(name, "intf_nv_fv1") == 0) {
+			pPvtData->fv1 = strtol(value, &pEnd, 10);
+			pPvtData->fv1Enabled = true;
+			pPvtData->fvChannels++;
+		}
+
+		else if (strcmp(name, "intf_nv_fv2") == 0) {
+			pPvtData->fv2 = strtol(value, &pEnd, 10);
+			pPvtData->fv2Enabled = true;
+			pPvtData->fvChannels++;
+		}
+
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -360,6 +398,61 @@ void openavbIntfToneGenTxInitCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
+
+#define SWAPU16(x)	(((x) >> 8) | ((x) << 8))
+static U16 convertToDesiredEndianOrder16(U16 hostData, avb_audio_endian_t audioEndian)
+{
+#if defined __BYTE_ORDER && defined __BIG_ENDIAN && defined __LITTLE_ENDIAN
+#if __BYTE_ORDER == __BIG_ENDIAN
+	if (audioEndian == AVB_AUDIO_ENDIAN_LITTLE) { hostData = SWAPU16(hostData); }
+	return hostData;
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+	if (audioEndian == AVB_AUDIO_ENDIAN_BIG) { hostData = SWAPU16(hostData); }
+	return hostData;
+#else
+	#error Unsupported Endian format
+#endif
+#else
+	U16 test_var = 1;
+	unsigned char test_endian* = (unsigned char*)&test_var;
+	if (test_endian[0] == 0) {
+		// This is big-endian.
+		if (audioEndian == AVB_AUDIO_ENDIAN_LITTLE) { hostData = SWAPU16(hostData); }
+	} else {
+		// This is little-endian.
+		if (audioEndian == AVB_AUDIO_ENDIAN_BIG) { hostData = SWAPU16(hostData); }
+	}
+	return hostData;
+#endif
+}
+
+#define SWAPU32(x)	(((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
+static U32 convertToDesiredEndianOrder32(U32 hostData, avb_audio_endian_t audioEndian)
+{
+#if defined __BYTE_ORDER && defined __BIG_ENDIAN && defined __LITTLE_ENDIAN
+#if __BYTE_ORDER == __BIG_ENDIAN
+	if (audioEndian == AVB_AUDIO_ENDIAN_LITTLE) { hostData = SWAPU32(hostData); }
+	return hostData;
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+	if (audioEndian == AVB_AUDIO_ENDIAN_BIG) { hostData = SWAPU32(hostData); }
+	return hostData;
+#else
+	#error Unsupported Endian format
+#endif
+#else
+	U16 test_var = 1;
+	unsigned char test_endian* = (unsigned char*)&test_var;
+	if (test_endian[0] == 0) {
+		// This is big-endian.
+		if (audioEndian == AVB_AUDIO_ENDIAN_LITTLE) { hostData = SWAPU32(hostData); }
+	} else {
+		// This is little-endian.
+		if (audioEndian == AVB_AUDIO_ENDIAN_BIG) { hostData = SWAPU32(hostData); }
+	}
+	return hostData;
+#endif
+}
+
 // This callback will be called for each AVB transmit interval. Commonly this will be
 // 4000 or 8000 times  per second.
 bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
@@ -387,7 +480,8 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 			static U32 runningFrameCnt = 0;
 			U32 frameCnt;
 			U32 channelCnt;
-			U32 idx = 0;
+			U8 *pData = pMediaQItem->pPubData;
+
 			for (frameCnt = 0; frameCnt < pPubMapUncmpAudioInfo->framesPerItem; frameCnt++) {
 
 				// Check for tone on / off toggle
@@ -408,44 +502,87 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 					else {
 						// Fixed tone
 						if (pPvtData->onOffIntervalMSec > 0) {
-							if (pPvtData->freq == 0)
+							if (pPvtData->freq == 0) {
 								pPvtData->freq = pPvtData->toneHz;
-							else
+							} else {
 								pPvtData->freq = 0;
+							}
 							pPvtData->freqCountdown = (pPubMapUncmpAudioInfo->audioRate / 1000) * pPvtData->onOffIntervalMSec;
 						}
 						else {
 							pPvtData->freqCountdown = pPubMapUncmpAudioInfo->audioRate;		// Just run steady for 1 sec
+							pPvtData->freq = pPvtData->toneHz;
 						}
 					}
-					pPvtData->ratio = pPvtData->freq / (float)pPubMapUncmpAudioInfo->audioRate;
+					pPvtData->ratio = (float)pPvtData->freq / (float)pPubMapUncmpAudioInfo->audioRate;
 				}
 				pPvtData->freqCountdown--;
 
+				float value = SIN(2 * PI * (runningFrameCnt++ % pPubMapUncmpAudioInfo->audioRate) * pPvtData->ratio) * pPvtData->volume;
 
-				float value = SIN(2 * PI * (runningFrameCnt++ % pPubMapUncmpAudioInfo->audioRate) * pPvtData->ratio);
-
-				if (pPubMapUncmpAudioInfo->itemSampleSizeBytes == 2) {
-					// 16 bit audio
-					S16 sample = (S16)(value * 15000);
-					for (channelCnt = 0; channelCnt < pPubMapUncmpAudioInfo->audioChannels; channelCnt++) {
-						unsigned char c;
-						U8 *pData = pMediaQItem->pPubData;
-						c = (unsigned)sample % 256;
-						pData[idx++] = c;
-						c = (unsigned)sample / 256 % 256;
-						pData[idx++] = c;
+				for (channelCnt = 0; channelCnt < pPubMapUncmpAudioInfo->audioChannels - pPvtData->fvChannels; channelCnt++) {
+					if (pPvtData->audioType == AVB_AUDIO_TYPE_INT) {
+						if (pPvtData->audioBitDepth == 32) {
+							S32 sample32 = (S32)(value * (32000 << 16));
+							S32 tmp32 = convertToDesiredEndianOrder32(sample32, pPvtData->audioEndian);
+							memcpy(pData, (U8 *)&tmp32, 4);
+							pData += 4;
+						} else if (pPvtData->audioBitDepth == 24) {
+							S32 sample24 = (S32)(value * (32000 << 16));
+							S32 tmp24 = convertToDesiredEndianOrder32(sample24, pPvtData->audioEndian);
+							if (pPvtData->audioEndian == AVB_AUDIO_ENDIAN_BIG) {
+								memcpy(pData, (U8 *)&tmp24, 3);
+							} else {
+								memcpy(pData, ((U8 *)&tmp24) + 1, 3);
+							}
+							pData += 3;
+						} else if (pPvtData->audioBitDepth == 16) {
+							S16 sample16 = (S32)(value * 32000);
+							S16 tmp16 = convertToDesiredEndianOrder16(sample16, pPvtData->audioEndian);
+							memcpy(pData, (U8 *)&tmp16, 2);
+							pData += 2;
+						}
+					} else if (pPvtData->audioType == AVB_AUDIO_TYPE_FLOAT) {
+						U32 tmp32f;
+						// value *= .75; // attenuate value
+						memcpy((U8 *)&tmp32f, (U8 *)&value, 4);  // done so no warning with -Wstrict-aliasing
+						tmp32f = convertToDesiredEndianOrder32(tmp32f, pPvtData->audioEndian);
+						memcpy(pData, (U8 *)&tmp32f, 4);
+						pData += 4;
+					} else {
+						// CORE_TODO
+						AVB_LOG_ERROR("Audio sample size format not implemented yet for tone generator interface module");
 					}
 				}
-				else {
-					// CORE_TODO
-					AVB_LOG_ERROR("Audio sample size format not implemented yet for tone generator interface module");
+
+				if (pPvtData->fvChannels > 0) {
+					if (pPvtData->audioType == AVB_AUDIO_TYPE_INT) {
+						if (pPvtData->audioBitDepth == 32) {
+							if (pPvtData->fv1Enabled) {
+								S32 tmp32 = convertToDesiredEndianOrder32(pPvtData->fv1, pPvtData->audioEndian);
+								memcpy(pData, (U8 *)&tmp32, 4);
+								pData += 4;
+							}
+
+							if (pPvtData->fv2Enabled) {
+								S32 tmp32 = convertToDesiredEndianOrder32(pPvtData->fv2, pPvtData->audioEndian);
+								memcpy(pData, (U8 *)&tmp32, 4);
+								pData += 4;
+							}
+						}
+					}
 				}
 			}
 			
 			pMediaQItem->dataLen = pPubMapUncmpAudioInfo->itemSize;
 
-			openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+			if (!pPvtData->fixedTimestampEnabled) {
+				openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+			} else {
+				openavbMcsAdvance(&pPvtData->mcs);
+				openavbAvtpTimeSetToTimestampNS(pMediaQItem->pAvtpTime, pPvtData->mcs.edgeTime);
+			}
+
 			openavbMediaQHeadPush(pMediaQ);
 
 			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
@@ -491,8 +628,42 @@ void openavbIntfToneGenGenEndCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
+void openavbIntfToneGenEnableFixedTimestamp(media_q_t *pMediaQ, bool enabled, U32 transmitInterval, U32 batchFactor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
+	if (pMediaQ && pMediaQ->pPvtIntfInfo && pMediaQ->pPubMapInfo) {
+		media_q_pub_map_uncmp_audio_info_t *pPubMapUncmpAudioInfo = pMediaQ->pPubMapInfo;
+		pvt_data_t *pPvtData = (pvt_data_t *)pMediaQ->pPvtIntfInfo;
+
+		pPvtData->fixedTimestampEnabled = enabled;
+		if (pPvtData->fixedTimestampEnabled) {
+			U32 per, rate, rem;
+			/* Ignore passed in transmit interval and use framesPerItem and audioRate so
+			   we work with both AAF and 61883-6 */
+			/* Carefully scale values to avoid U32 overflow or loss of precision */
+			per = MICROSECONDS_PER_SECOND * pPubMapUncmpAudioInfo->framesPerItem * 10;
+			rate = pPvtData->audioRate/100;
+			transmitInterval = per/rate;
+			rem = per % rate;
+			if (rem != 0) {
+				rem *= 10;
+				rem /= rate;
+			}
+			openavbMcsInit(&pPvtData->mcs, transmitInterval, rem, 10);
+			AVB_LOGF_INFO("Fixed timestamping enabled: %d %d/%d", transmitInterval, rem, 10);
+		}
+
+		if (batchFactor != 1) {
+			AVB_LOGF_WARNING("batchFactor of %d ignored (must be 1)", batchFactor);
+		}
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_INTF);
+}
+
 // Main initialization entry point into the interface module
-extern DLL_EXPORT bool openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
+//extern DLL_EXPORT bool openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
+extern bool DLL_EXPORT openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -514,9 +685,21 @@ extern DLL_EXPORT bool openavbIntfToneGenInitialize(media_q_t *pMediaQ, openavb_
 		pIntfCB->intf_rx_cb = openavbIntfToneGenRxCB;
 		pIntfCB->intf_end_cb = openavbIntfToneGenEndCB;
 		pIntfCB->intf_gen_end_cb = openavbIntfToneGenGenEndCB;
+		pIntfCB->intf_enable_fixed_timestamp = openavbIntfToneGenEnableFixedTimestamp;
 
 		pPvtData->intervalCounter = 0;
 		pPvtData->melodyIdx = 0;
+		pPvtData->audioType = AVB_AUDIO_TYPE_INT;
+		pPvtData->audioEndian = AVB_AUDIO_ENDIAN_BIG;
+
+		pPvtData->volume = 1.0f;
+		pPvtData->fv1Enabled = false;
+		pPvtData->fv1 = 0;
+		pPvtData->fv2Enabled = false;
+		pPvtData->fv2 = 0;
+		pPvtData->fvChannels = 0;
+
+		pPvtData->fixedTimestampEnabled = false;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);

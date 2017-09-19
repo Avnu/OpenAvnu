@@ -30,7 +30,7 @@
 
 ALTERNATE_LINUX_INCPATH=$(HOME)/header/include/
 
-CFLAGS_G = -Wall -std=c++0x -g -I. -I../../common -I../src \
+CFLAGS_G = -Wall -g -I. -I../../common -I../src \
 	-I$(ALTERNATE_LINUX_INCPATH)
 
 # Check to see if PTP cross-timestamping is supported in hardware/driver
@@ -39,16 +39,15 @@ CFLAGS_G = -Wall -std=c++0x -g -I. -I../../common -I../src \
 PRECISE_TIME_TEST = "\#include <linux/ptp_clock.h>\\n\
 \#ifdef PTP_SYS_OFFSET_PRECISE\\nint main(){return 0;}\\n\#endif"
 
-HAS_PRECISE_TIME = $(shell echo $(PRECISE_TIME_TEST) | gcc -xc - \
+HAS_PRECISE_TIME = $(shell echo $(PRECISE_TIME_TEST) | $(CC) -xc - \
 -I$(ALTERNATE_LINUX_INCPATH) -o /dev/null > /dev/null 2>&1 ; echo $$?)
 
 ifeq ($(HAS_PRECISE_TIME),0)
        CFLAGS_G += -DPTP_HW_CROSSTSTAMP
 endif
 
-CPPFLAGS_G = $(CFLAGS_G) -Wnon-virtual-dtor
-
-LDFLAGS_G = -lpthread -lrt
+CPPFLAGS_G = $(CFLAGS_G) -std=c++0x -Wnon-virtual-dtor
+LDFLAGS_G = 
 
 COMMON_DIR = ../../common
 SRC_DIR = ../src
@@ -57,7 +56,8 @@ OBJ_DIR = obj
 OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/ap_message.o\
 		 $(OBJ_DIR)/avbts_osnet.o\
-		 $(OBJ_DIR)/ieee1588port.o\
+		 $(OBJ_DIR)/ether_port.o\
+		 $(OBJ_DIR)/common_port.o\
 		 $(OBJ_DIR)/ieee1588clock.o \
 		 $(OBJ_DIR)/linux_hal_common.o\
 		 $(OBJ_DIR)/linux_hal_persist_file.o\
@@ -66,7 +66,8 @@ OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/ini.o \
 		 $(OBJ_DIR)/gptp_cfg.o
 
-HEADER_FILES = $(COMMON_DIR)/avbts_port.hpp\
+HEADER_FILES = $(COMMON_DIR)/ether_port.hpp\
+		$(COMMON_DIR)/common_port.hpp\
 		$(COMMON_DIR)/avbts_ostimerq.hpp\
 		$(COMMON_DIR)/avbts_ostimer.hpp\
 		$(COMMON_DIR)/avbts_osthread.hpp\
@@ -112,6 +113,22 @@ else
 	HEADER_FILES += $(SRC_DIR)/linux_hal_generic.hpp
 endif
 
+ifeq ($(GENIVI_DLT),1)
+	GENIVI_DLT_INCLUDE_PATH=/usr/local/include/dlt/
+	GENIVI_DLT_LIB_PATH=/usr/local/lib/x86_64-linux-gnu/static/
+	CFLAGS_G += -I$(GENIVI_DLT_INCLUDE_PATH) -DGENIVI_DLT
+	LDFLAGS_G += -ldlt -L$(GENIVI_DLT_LIB_PATH)
+endif
+
+ifeq ($(SYSTEMD_WATCHDOG),1)
+	CFLAGS_G += -DSYSTEMD_WATCHDOG
+	LDFLAGS_G += -lsystemd
+	OBJ_FILES += $(OBJ_DIR)/watchdog.o
+	HEADER_FILES += $(SRC_DIR)/watchdog.hpp
+endif
+
+LDFLAGS_G += -lpthread -lrt
+
 CFLAGS = $(CFLAGS_G)
 CPPFLAGS = $(CPPFLAGS_G)
 LDFLAGS = $(LDFLAGS_G)
@@ -141,8 +158,11 @@ $(OBJ_DIR)/linux_hal_i210.o: $(SRC_DIR)/linux_hal_i210.cpp $(HEADER_FILES)
 $(OBJ_DIR)/linux_hal_intelce.o: $(SRC_DIR)/linux_hal_intelce.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_intelce.cpp -o $(OBJ_DIR)/linux_hal_intelce.o
 
-$(OBJ_DIR)/ieee1588port.o: $(COMMON_DIR)/ieee1588port.cpp $(HEADER_FILES)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ieee1588port.cpp -o $(OBJ_DIR)/ieee1588port.o
+$(OBJ_DIR)/ether_port.o: $(COMMON_DIR)/ether_port.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/common_port.o: $(COMMON_DIR)/common_port.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/ieee1588clock.o: $(COMMON_DIR)/ieee1588clock.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(COMMON_DIR)/ieee1588clock.cpp -o $(OBJ_DIR)/ieee1588clock.o
@@ -168,6 +188,8 @@ $(OBJ_DIR)/gptp_cfg.o: $(COMMON_DIR)/gptp_cfg.cpp $(HEADER_FILES)
 $(OBJ_DIR)/ini.o: $(COMMON_DIR)/ini.c $(HEADER_FILES)
 	$(CC) $(CFLAGS) -c $(COMMON_DIR)/ini.c -o $(OBJ_DIR)/ini.o
 
+$(OBJ_DIR)/watchdog.o: $(SRC_DIR)/watchdog.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/watchdog.cpp -o $(OBJ_DIR)/watchdog.o
 clean:
 	$(RM) *~ $(OBJ_DIR)/*.o  $(OBJ_DIR)/daemon_cl
 

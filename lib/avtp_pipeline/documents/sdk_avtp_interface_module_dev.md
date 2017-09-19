@@ -7,6 +7,7 @@ Interface modules are the components that sit between the core AVB stack and the
 platform device drivers that supply access to media hardware. 
 
 <br>
+
 The Plug-in Architecture {#sdk_avtp_intf_module_plugin} 
 ========================
 The OPENAVB AVB stack has a plug-in architecture for the AVTP implementation in the
@@ -63,6 +64,7 @@ callback list for the interface module to call into the media queue to access
 and work with the media queue.
 
 <br>
+
 Task / Thread Model {#sdk_avtp_intf_module_task} 
 =================
 In the general case the task / threading (hereafter referred to as task) model 
@@ -85,6 +87,7 @@ it can only be accessed within the scope of a callback into the interface
 module.
 
 <br>
+
 Building an Interface Module {#sdk_avtp_intf_module_building} 
 ============================
 There should be minimal dependencies for creation of an interface module. The
@@ -96,6 +99,7 @@ handled via callbacks that are available to the interface module in the media
 queue structure it receives as a parameter on its own callbacks.
 
 <br>
+
 Interface Module in a Talker {#sdk_avtp_intf_module_talker} 
 ============================
 An interface module when used in a talker pulls data from a media source and
@@ -103,12 +107,14 @@ pushes it onto the media queue in the format expected by the mapping module
 configured for that stream.
 
 <br>
+
 Interface Module in a Listener {#sdk_avtp_intf_module_listener} 
 ==============================
 When called from a listener it pulls data from the media queue and pushes it to
 the media sink for presentation.
 
 <br>
+
 Working With the Media Queue {#working_with_mediaq}
 ============================
 The media queue is the conduit between interface modules and mapping modules.
@@ -151,6 +157,7 @@ For a detailed work flow please visit
 [Media Queue Usage](@ref sdk_notes_media_queue_usage)
 
 <br>
+
 Timestamps {#sdk_avtp_intf_module_timestamps} 
 ==========
 For interface modules often the only requirement for timestamps is to assign a

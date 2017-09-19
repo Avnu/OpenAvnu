@@ -1,7 +1,7 @@
 *.o
 *.swp
 *build/
-*.cmake
+*build_avdecc/
 *CMakeFiles/
 CMakeCache.txt
 

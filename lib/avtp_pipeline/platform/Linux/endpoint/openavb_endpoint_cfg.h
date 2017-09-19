@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -43,21 +44,28 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "net/if.h"
 
 #define DEFAULT_INI_FILE "endpoint.ini"
+#define DEFAULT_SAVE_INI_FILE "endpoint_save.ini"
 
 typedef struct {
-	char 		ifname[IFNAMSIZ];
-	U8			ifmac[ETH_ALEN];
-	char		*ptp_start_opts;
-	int			ifindex;
-	unsigned	link_kbit;
-	unsigned	nsr_kbit;
-	unsigned	mtu;
-	unsigned	fqtss_mode;
-	bool        noSrp;
-	bool        bypassAsCapableCheck;
+	char				ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
+	U8					ifmac[ETH_ALEN];
+	char				*ptp_start_opts;
+	int					ifindex;
+	unsigned			link_kbit;
+	unsigned			nsr_kbit;
+	unsigned			mtu;
+	unsigned			fqtss_mode;
+	bool				noSrp;
+	unsigned			maapPort;
+	unsigned			shaperPort;
+	bool				bypassAsCapableCheck;
+
+	// Information to be saved for future use.
+	struct ether_addr	maap_preferred; // Last assigned MAAP address.
 } openavb_endpoint_cfg_t;
 
-int openavbReadConfig(const char *inifile, openavb_endpoint_cfg_t *pCfg);
+int openavbReadConfig(const char *ini_file, const char *save_ini_file, openavb_endpoint_cfg_t *pCfg);
+int openavbSaveConfig(const char *save_ini_file, const openavb_endpoint_cfg_t *pCfg);
 void openavbUnconfigure(openavb_endpoint_cfg_t *pCfg);
 
 #endif // AVB_ENDPOINT_CONFIG_H

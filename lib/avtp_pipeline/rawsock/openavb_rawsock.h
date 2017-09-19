@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -61,6 +62,7 @@ typedef struct {
 	bool vlan;		// Include VLAN header?
 	U8  vlan_pcp;	// VLAN Priority Code Point
 	U16 vlan_vid;	// VLAN ID
+	struct timespec ts;	// RX timestamp
 } hdr_info_t;
 	
 	
@@ -143,7 +145,8 @@ bool openavbRawsockRelTxFrame(void *rawsock, U8 *pBuffer);
 // Submit a frame and mark it "ready to send"
 bool openavbRawsockTxFrameReady(void *rawsock,	// rawsock handle
 							U8 *pFrame, 	// pointer to frame buffer
-							U32 len);		// length of frame to send
+							U32 len,	// length of frame to send
+							U64 timeNsec);	// launch time (in gPTP wall clock)
 
 // Send all packets that are marked "ready to send".
 // Returns count of bytes in sent frames - or < 0 for error.

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.4)
 project (gptp)
 
 include_directories( "./common" )
@@ -18,7 +18,7 @@ elseif(WIN32)
   # HAVE_REMOTE change pcap include options
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -DHAVE_REMOTE)
   include_directories( include "./windows/daemon_cl" $ENV{WPCAP_DIR}/Include )
-  file(GLOB GPTP_OS "./windows/daemon_cl/*.cpp")
+  file(GLOB GPTP_OS "./windows/daemon_cl/*.cpp" "./windows/daemon_cl/gptp.manifest")
   add_executable (gptp ${GPTP_COMMON} ${GPTP_OS})
   target_link_libraries(gptp wpcap Iphlpapi Ws2_32)
 
