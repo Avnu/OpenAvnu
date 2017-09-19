@@ -48,6 +48,24 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define	AVB_LOG_COMPONENT	"AAF Mapping"
 #include "openavb_log_pub.h"
 
+
+typedef struct {
+	U8 * queueStorage; // Buffer used as a circular queue for storing samples
+	U8 * queueHead; // Head of the circular queue
+	U8 * queueTail; // Tail of the circular queue
+	U32  queueSize;
+} circular_queue_t;
+
+static bool AllocateCircularQueue(circular_queue_t *pQueue, U32 nQueueSize);
+static void FreeCircularQueue(circular_queue_t *pQueue);
+
+static bool CircularQueueIsValid(circular_queue_t *pQueue);
+static void ResetCircularQueue(circular_queue_t *pQueue, U32 nQueueInitialSize);
+
+static void PushBufferToCircularQueue(circular_queue_t *pQueue, const U8 *pData, U32 nDataSize);
+static void PullBufferFromCircularQueue(circular_queue_t *pQueue, U8 *pData, U32 nDataSize);
+
+
 #define AVTP_SUBTYPE_AAF			2
 
 // Header sizes (bytes)
@@ -161,10 +179,8 @@ typedef struct {
 	bool mediaQItemSyncTS;
 
 	U32 temporalRedundantOffsetSamples;
-	U8 * temporalRedundantDataStorage; // Buffer used as a circular queue for storing samples
-	U32 temporalRedundantDataStorageSize;
-	U8 * temporalRedundantDataHead; // Head of the circular queue
-	U8 * temporalRedundantDataTail; // Tail of the circular queue
+
+	circular_queue_t temporalRedundantQueue;
 
 } pvt_data_t;
 
@@ -461,24 +477,14 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 		openavbMediaQSetSize(pMediaQ, pPvtData->itemCount, pPubMapInfo->itemSize);
 
 		if (pPvtData->temporalRedundantOffsetUsec > 0 && pPvtData->temporalRedundantOffsetSamples > 0) {
+			// Create a queue big enough to meet our needs.
 			const U32 queueSize =
 				(pPvtData->temporalRedundantOffsetSamples * pPubMapInfo->packetSampleSizeBytes * pPubMapInfo->audioChannels) +
 				(pPubMapInfo->itemFrameSizeBytes * pPubMapInfo->framesPerPacket * 2);
-			if (!pPvtData->temporalRedundantDataStorage ||
-					pPvtData->temporalRedundantDataStorageSize < queueSize) {
-				// Delete the previous inadequate queue, if there is one.
-				free(pPvtData->temporalRedundantDataStorage);
-
-				// Create a queue big enough to meet our needs.
-				pPvtData->temporalRedundantDataStorage = malloc(queueSize);
-				if (!pPvtData->temporalRedundantDataStorage) {
-					AVB_LOG_ERROR("Temporal Redundancy queue not allocated.");
-					return;
-				}
-				pPvtData->temporalRedundantDataStorageSize = queueSize;
-				pPvtData->temporalRedundantDataHead = pPvtData->temporalRedundantDataTail =
-					pPvtData->temporalRedundantDataStorage;
-				AVB_LOGF_DEBUG("Allocated Temporal Redundancy queue of size %u", pPvtData->temporalRedundantDataStorageSize);
+			FreeCircularQueue(&pPvtData->temporalRedundantQueue);
+			if (!AllocateCircularQueue(&pPvtData->temporalRedundantQueue, queueSize)) {
+				AVB_LOG_ERROR("Temporal Redundancy queue not allocated.");
+				return;
 			}
 		}
 
@@ -504,10 +510,8 @@ void openavbMapAVTPAudioTxInitCB(media_q_t *pMediaQ)
 		if (pPvtData->temporalRedundantOffsetUsec > 0 && pPvtData->temporalRedundantOffsetSamples > 0) {
 			// Prefill the queue with empty samples for the initial temporal redundancy processing.
 			// TODO:  Do we need something besides zeros for AAF_FORMAT_FLOAT_32 or AAF_FORMAT_AES3_32?
-			memset(pPvtData->temporalRedundantDataStorage, 0, pPvtData->temporalRedundantDataStorageSize);
-			pPvtData->temporalRedundantDataHead = pPvtData->temporalRedundantDataStorage +
-				(pPvtData->temporalRedundantOffsetSamples * pPubMapInfo->packetSampleSizeBytes* pPubMapInfo->audioChannels);
-			pPvtData->temporalRedundantDataTail = pPvtData->temporalRedundantDataStorage;
+			ResetCircularQueue(&pPvtData->temporalRedundantQueue,
+				(pPvtData->temporalRedundantOffsetSamples * pPubMapInfo->packetSampleSizeBytes* pPubMapInfo->audioChannels));
 		}
 	}
 
@@ -567,7 +571,7 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 			return TX_CB_RET_PACKET_NOT_READY;
 		}
 
-		if (!pPvtData->temporalRedundantDataStorage) {
+		if (!CircularQueueIsValid(&pPvtData->temporalRedundantQueue)) {
 			AVB_LOG_ERROR("No queue for temporal offset payload");
 			openavbMediaQTailUnlock(pMediaQ);
 			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
@@ -677,43 +681,11 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 	*dataLen = bytesNeeded + TOTAL_HEADER_SIZE;
 
 	if (pPvtData->temporalRedundantOffsetUsec > 0) {
-		U32 bytesToCopyPhase1, bytesToCopyPhase2;
+		// Push the data from the redundant_audio_data_payload to the circular queue, so we can use it in a later packet.
+		PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, pData + TOTAL_HEADER_SIZE + bytesNeeded, bytesNeeded);
 
-		// Copy the data from the redundant_audio_data_payload to the head of the circular queue, so we can use it in a later packet.
-		bytesToCopyPhase1 = pPvtData->temporalRedundantDataStorageSize - (pPvtData->temporalRedundantDataHead - pPvtData->temporalRedundantDataStorage);
-		if (bytesToCopyPhase1 > bytesNeeded) {
-			bytesToCopyPhase1 = bytesNeeded;
-		}
-		memcpy(pPvtData->temporalRedundantDataHead, pData + TOTAL_HEADER_SIZE + bytesNeeded, bytesToCopyPhase1);
-		pPvtData->temporalRedundantDataHead += bytesToCopyPhase1;
-		if (pPvtData->temporalRedundantDataHead >= pPvtData->temporalRedundantDataStorage + pPvtData->temporalRedundantDataStorageSize) {
-			pPvtData->temporalRedundantDataHead = pPvtData->temporalRedundantDataStorage;
-
-			if (bytesToCopyPhase1 < bytesNeeded) {
-				// Didn't have enough bytes at the end of the storage buffer.  Copy to the beginning of the buffer as well.
-				bytesToCopyPhase2 = bytesNeeded - bytesToCopyPhase1;
-				memcpy(pPvtData->temporalRedundantDataHead, pData + TOTAL_HEADER_SIZE + bytesNeeded + bytesToCopyPhase1, bytesToCopyPhase2);
-				pPvtData->temporalRedundantDataHead += bytesToCopyPhase2;
-			}
-		}
-
-		// Copy the data from the tail of the circular queue to the primary_audio_data_payload.
-		bytesToCopyPhase1 = pPvtData->temporalRedundantDataStorageSize - (pPvtData->temporalRedundantDataTail - pPvtData->temporalRedundantDataStorage);
-		if (bytesToCopyPhase1 > bytesNeeded) {
-			bytesToCopyPhase1 = bytesNeeded;
-		}
-		memcpy(pData + TOTAL_HEADER_SIZE, pPvtData->temporalRedundantDataTail, bytesToCopyPhase1);
-		pPvtData->temporalRedundantDataTail += bytesToCopyPhase1;
-		if (pPvtData->temporalRedundantDataTail >= pPvtData->temporalRedundantDataStorage + pPvtData->temporalRedundantDataStorageSize) {
-			pPvtData->temporalRedundantDataTail = pPvtData->temporalRedundantDataStorage;
-
-			if (bytesToCopyPhase1 < bytesNeeded) {
-				// Didn't have enough bytes at the end of the storage buffer.  Copy from the beginning of the buffer as well.
-				bytesToCopyPhase2 = bytesNeeded - bytesToCopyPhase1;
-				memcpy(pData + TOTAL_HEADER_SIZE + bytesToCopyPhase1, pPvtData->temporalRedundantDataTail, bytesToCopyPhase2);
-				pPvtData->temporalRedundantDataTail += bytesToCopyPhase2;
-			}
-		}
+		// Pull the data from the circular queue to the primary_audio_data_payload.
+		PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, pData + TOTAL_HEADER_SIZE, bytesNeeded);
 
 		// Account for the larger packet size.
 		*dataLen += bytesNeeded;
@@ -1010,10 +982,7 @@ void openavbMapAVTPAudioGenEndCB(media_q_t *pMediaQ)
 	if (pMediaQ) {
 		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
 		if (pPvtData) {
-			free(pPvtData->temporalRedundantDataStorage);
-			pPvtData->temporalRedundantDataStorage = NULL;
-			pPvtData->temporalRedundantDataStorageSize = 0;
-			pPvtData->temporalRedundantDataHead = pPvtData->temporalRedundantDataTail = NULL;
+			FreeCircularQueue(&pPvtData->temporalRedundantQueue);
 		}
 	}
 
@@ -1062,12 +1031,90 @@ extern DLL_EXPORT bool openavbMapAVTPAudioInitialize(media_q_t *pMediaQ, openavb
 		pPvtData->intervalCounter = 0;
 		pPvtData->mediaQItemSyncTS = FALSE;
 		pPvtData->temporalRedundantOffsetSamples = 0;
-		pPvtData->temporalRedundantDataStorage = NULL;
-		pPvtData->temporalRedundantDataStorageSize = 0;
-		pPvtData->temporalRedundantDataHead = pPvtData->temporalRedundantDataTail = NULL;
 		openavbMediaQSetMaxLatency(pMediaQ, inMaxTransitUsec);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 	return TRUE;
+}
+
+
+static bool AllocateCircularQueue(circular_queue_t *pQueue, U32 nQueueSize)
+{
+	// Create a queue big enough to meet our needs.
+	pQueue->queueSize = nQueueSize;
+	pQueue->queueStorage = malloc(pQueue->queueSize);
+	if (!pQueue->queueStorage) {
+		AVB_LOG_ERROR("Temporal Redundancy queue not allocated.");
+		return FALSE;
+	}
+	pQueue->queueHead = pQueue->queueTail = pQueue->queueStorage;
+	AVB_LOGF_DEBUG("Allocated Temporal Redundancy queue of size %u", pQueue->queueSize);
+	return TRUE;
+}
+
+static void FreeCircularQueue(circular_queue_t *pQueue)
+{
+	free(pQueue->queueStorage);
+	pQueue->queueStorage = NULL;
+	pQueue->queueSize = 0;
+	pQueue->queueHead = pQueue->queueTail = NULL;
+}
+
+static void ResetCircularQueue(circular_queue_t *pQueue, U32 nQueueInitialSize)
+{
+	memset(pQueue->queueStorage, 0, pQueue->queueSize);
+	pQueue->queueHead = pQueue->queueStorage + nQueueInitialSize;
+	pQueue->queueTail = pQueue->queueStorage;
+}
+
+static bool CircularQueueIsValid(circular_queue_t *pQueue)
+{
+	return (pQueue && pQueue->queueStorage && pQueue->queueSize);
+}
+
+static void PushBufferToCircularQueue(circular_queue_t *pQueue, const U8 *pDataXX, U32 nDataSize)
+{
+	U32 bytesToCopyPhase1, bytesToCopyPhase2;
+
+	// Copy the data from the redundant_audio_data_payload to the head of the circular queue, so we can use it in a later packet.
+	bytesToCopyPhase1 = pQueue->queueSize - (pQueue->queueHead - pQueue->queueStorage);
+	if (bytesToCopyPhase1 > nDataSize) {
+		bytesToCopyPhase1 = nDataSize;
+	}
+	memcpy(pQueue->queueHead, pDataXX, bytesToCopyPhase1);
+	pQueue->queueHead += bytesToCopyPhase1;
+	if (pQueue->queueHead >= pQueue->queueStorage + pQueue->queueSize) {
+		pQueue->queueHead = pQueue->queueStorage;
+
+		if (bytesToCopyPhase1 < nDataSize) {
+			// Didn't have enough bytes at the end of the storage buffer.  Copy to the beginning of the buffer as well.
+			bytesToCopyPhase2 = nDataSize - bytesToCopyPhase1;
+			memcpy(pQueue->queueHead, pDataXX + bytesToCopyPhase1, bytesToCopyPhase2);
+			pQueue->queueHead += bytesToCopyPhase2;
+		}
+	}
+}
+
+static void PullBufferFromCircularQueue(circular_queue_t *pQueue, U8 *pDataXX, U32 nDataSize)
+{
+	U32 bytesToCopyPhase1, bytesToCopyPhase2;
+
+	// Copy the data from the tail of the circular queue to the primary_audio_data_payload.
+	bytesToCopyPhase1 = pQueue->queueSize - (pQueue->queueTail - pQueue->queueStorage);
+	if (bytesToCopyPhase1 > nDataSize) {
+		bytesToCopyPhase1 = nDataSize;
+	}
+	memcpy(pDataXX, pQueue->queueTail, bytesToCopyPhase1);
+	pQueue->queueTail += bytesToCopyPhase1;
+	if (pQueue->queueTail >= pQueue->queueStorage + pQueue->queueSize) {
+		pQueue->queueTail = pQueue->queueStorage;
+
+		if (bytesToCopyPhase1 < nDataSize) {
+			// Didn't have enough bytes at the end of the storage buffer.  Copy from the beginning of the buffer as well.
+			bytesToCopyPhase2 = nDataSize - bytesToCopyPhase1;
+			memcpy(pDataXX + bytesToCopyPhase1, pQueue->queueTail, bytesToCopyPhase2);
+			pQueue->queueTail += bytesToCopyPhase2;
+		}
+	}
 }
