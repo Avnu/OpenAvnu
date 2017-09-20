@@ -344,8 +344,11 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 			pPubMapInfo->packingFactor,
 			pPubMapInfo->itemSize);
 
-		pPvtData->payloadSizeMax *= 2; // Double max payload in case of Temporal Redundancy
+		// Temporal Redundancy adjustments
+		pPvtData->payloadSizeMaxListener *= 2; // Double Listener max payload in case remote Talker using Temporal Redundancy
 		if (pPvtData->temporalRedundantOffsetUsec > 0) {
+			pPvtData->payloadSizeMaxTalker *= 2; // Double Talker max payload if using Temporal Redundancy
+
 			AVB_LOGF_INFO("temporal redundancy offset=%u microseconds, %u samples",
 				pPvtData->temporalRedundantOffsetUsec, pPvtData->temporalRedundantOffsetSamples);
 		}
