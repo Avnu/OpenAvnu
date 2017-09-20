@@ -166,7 +166,8 @@ typedef struct {
 	aaf_sample_format_t			aaf_format;
 	U8							aaf_bit_depth;
 	U32 payloadSize;
-	U32 payloadSizeMax;
+	U32 payloadSizeMaxTalker, payloadSizeMaxListener;
+	bool isTalker;
 
 	U8 aaf_event_field;
 
@@ -316,7 +317,7 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 
 		// AAF packet size calculations
 		pPubMapInfo->packetFrameSizeBytes = pPubMapInfo->packetSampleSizeBytes * pPubMapInfo->audioChannels;
-		pPvtData->payloadSize = pPvtData->payloadSizeMax =
+		pPvtData->payloadSize = pPvtData->payloadSizeMaxTalker = pPvtData->payloadSizeMaxListener =
 			pPubMapInfo->framesPerPacket * pPubMapInfo->packetFrameSizeBytes;
 		AVB_LOGF_INFO("packet: sampleSz=%d * channels=%d => frameSz=%d * %d => payloadSz=%d",
 			pPubMapInfo->packetSampleSizeBytes,
@@ -326,8 +327,8 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 			pPvtData->payloadSize);
 		if (pPvtData->aaf_format >= AAF_FORMAT_INT_32 && pPvtData->aaf_format <= AAF_FORMAT_INT_16) {
 			// Determine the largest size we could receive before adjustments.
-			pPvtData->payloadSizeMax = 4 * pPubMapInfo->audioChannels * pPubMapInfo->framesPerPacket;
-			AVB_LOGF_DEBUG("packet: payloadSizeMax=%d", pPvtData->payloadSizeMax);
+			pPvtData->payloadSizeMaxListener = 4 * pPubMapInfo->audioChannels * pPubMapInfo->framesPerPacket;
+			AVB_LOGF_DEBUG("packet: payloadSizeMaxListener=%d", pPvtData->payloadSizeMaxListener);
 		}
 
 		// MediaQ item size calculations
@@ -437,8 +438,17 @@ U16 openavbMapAVTPAudioMaxDataSizeCB(media_q_t *pMediaQ)
 			return 0;
 		}
 
+		// Return the largest size a frame payload could be.
+		// If we don't yet know if we are a Talker or Listener, the larger Listener max will be returned.
+		U16 payloadSizeMax;
+		if (pPvtData->isTalker) {
+			payloadSizeMax = pPvtData->payloadSizeMaxTalker + TOTAL_HEADER_SIZE;
+		}
+		else {
+			payloadSizeMax = pPvtData->payloadSizeMaxListener + TOTAL_HEADER_SIZE;
+		}
 		AVB_TRACE_EXIT(AVB_TRACE_MAP);
-		return pPvtData->payloadSizeMax + TOTAL_HEADER_SIZE;
+		return payloadSizeMax;
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 	return 0;
@@ -506,6 +516,8 @@ void openavbMapAVTPAudioTxInitCB(media_q_t *pMediaQ)
 			AVB_LOG_ERROR("Private mapping module data not allocated.");
 			return;
 		}
+
+		pPvtData->isTalker = TRUE;
 
 		if (pPvtData->temporalRedundantOffsetUsec > 0 && pPvtData->temporalRedundantOffsetSamples > 0) {
 			// Prefill the queue with empty samples for the initial temporal redundancy processing.
@@ -706,6 +718,7 @@ void openavbMapAVTPAudioRxInitCB(media_q_t *pMediaQ)
 			AVB_LOG_ERROR("Private mapping module data not allocated.");
 			return;
 		}
+		pPvtData->isTalker = FALSE;
 		if (pPvtData->audioMcr != AVB_MCR_NONE) {
 			HAL_INIT_MCR_V2(pPvtData->txInterval, pPvtData->packingFactor, pPvtData->mcrTimestampInterval, pPvtData->mcrRecoveryInterval);
 		}
