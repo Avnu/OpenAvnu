@@ -444,7 +444,6 @@ void openavbMapAVTPAudioTxInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_MAP);
 	if (pMediaQ) {
-		media_q_pub_map_uncmp_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
 		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
 		if (pPvtData) {
 			pPvtData->isTalker = TRUE;
