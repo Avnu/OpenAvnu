@@ -79,7 +79,7 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 		{
 			if_info_t ifinfo;
 			if (openavbCheckInterface(value, &ifinfo)) {
-				strncpy(pCfg->ifname, value, IFNAMSIZ - 1);
+				strncpy(pCfg->ifname, value, sizeof(pCfg->ifname) - 1);
 				memcpy(pCfg->ifmac, &ifinfo.mac, ETH_ALEN);
 				valOK = TRUE;
 			}

@@ -138,7 +138,7 @@ void openavbEptSrvrNotifyTlkrOfSrpCb(int h,
 	memset(&msgBuf, 0, OPENAVB_ENDPOINT_MSG_LEN);
 	msgBuf.type = OPENAVB_ENDPOINT_TALKER_CALLBACK;
 	memcpy(&(msgBuf.streamID), streamID, sizeof(AVBStreamID_t));
-	strncpy(msgBuf.params.talkerCallback.ifname, ifname, IFNAMSIZ - 1);
+	strncpy(msgBuf.params.talkerCallback.ifname, ifname, sizeof(msgBuf.params.talkerCallback.ifname) - 1);
 	memcpy(msgBuf.params.talkerCallback.destAddr, destAddr, ETH_ALEN);
 	msgBuf.params.talkerCallback.lsnrDecl = lsnrDecl;
 	msgBuf.params.talkerCallback.srClass = srClass;
@@ -174,7 +174,7 @@ void openavbEptSrvrNotifyLstnrOfSrpCb(int h,
 	memset(&msgBuf, 0, OPENAVB_ENDPOINT_MSG_LEN);
 	msgBuf.type = OPENAVB_ENDPOINT_LISTENER_CALLBACK;
 	memcpy(&(msgBuf.streamID), streamID, sizeof(AVBStreamID_t));
-	strncpy(msgBuf.params.listenerCallback.ifname, ifname, IFNAMSIZ - 1);
+	strncpy(msgBuf.params.listenerCallback.ifname, ifname, sizeof(msgBuf.params.listenerCallback.ifname) - 1);
 	if (destAddr)
 		memcpy(msgBuf.params.listenerCallback.destAddr, destAddr, ETH_ALEN);
 	msgBuf.params.listenerCallback.tlkrDecl = tlkrDecl;
