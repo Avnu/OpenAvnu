@@ -82,6 +82,7 @@ typedef enum {
 	AAF_RATE_96K,
 	AAF_RATE_176K4,
 	AAF_RATE_192K,
+	AAF_RATE_24K,
 } aaf_nominal_sample_rate_t;
 
 typedef enum {
@@ -173,6 +174,9 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 				break;
 			case AVB_AUDIO_RATE_16KHZ:
 				pPvtData->aaf_rate = AAF_RATE_16K;
+				break;
+			case AVB_AUDIO_RATE_24KHZ:
+				pPvtData->aaf_rate = AAF_RATE_24K;
 				break;
 			case AVB_AUDIO_RATE_32KHZ:
 				pPvtData->aaf_rate = AAF_RATE_32K;
@@ -481,15 +485,15 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 		return TX_CB_RET_PACKET_NOT_READY;
 	}
 
+	U32 tmp32;
+	U8 *pHdrV0 = pData;
+	U32 *pHdr = (U32 *)(pData + AVTP_V0_HEADER_SIZE);
+	U8  *pPayload = pData + TOTAL_HEADER_SIZE;
+
 	U32 bytesProcessed = 0;
 	while (bytesProcessed < bytesNeeded) {
 		pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
 		if (pMediaQItem && pMediaQItem->pPubData && pMediaQItem->dataLen > 0) {
-
-			U32 tmp32;
-			U8 *pHdrV0 = pData;
-			U32 *pHdr = (U32 *)(pData + AVTP_V0_HEADER_SIZE);
-			U8  *pPayload = pData + TOTAL_HEADER_SIZE;
 
 			// timestamp set in the interface module, here just validate
 			// In sparse mode, the timestamp valid flag should be set every eighth AAF AVPTDU.
@@ -858,8 +862,8 @@ void openavbMapAVTPAudioEndCB(media_q_t *pMediaQ)
 
 void openavbMapAVTPAudioGenEndCB(media_q_t *pMediaQ)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
-	AVB_TRACE_EXIT(AVB_TRACE_INTF);
+	AVB_TRACE_ENTRY(AVB_TRACE_MAP);
+	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
 
 // Initialization entry point into the mapping module. Will need to be included in the .ini file.
