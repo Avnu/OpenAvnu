@@ -1048,6 +1048,9 @@ bool openavbMapAVTPAudioRxLostCB(media_q_t *pMediaQ, U8 numLost)
 					pPvtData->trStatsTotalFrames++;
 					pPvtData->trStatsLostFrames++;
 
+					// Clear the timestamp valid flag
+					openavbAvtpTimeSetTimestampValid(pMediaQItem->pAvtpTime, FALSE);
+
 					// Add the recovery data to pMediaQ.
 					// TODO:  Convert the data, if needed.
 					U8 dataValid = 0;
