@@ -157,6 +157,9 @@ typedef struct {
 	// This is also referred to as Max Allowed Dropout Time (MADT)
 	U32 temporalRedundantOffsetUsec;
 
+	// How frequently to report statistics.
+	U32 report_seconds;
+
 	/////////////
 	// Variable data
 	/////////////
@@ -189,6 +192,8 @@ typedef struct {
 	// Temporal Redundancy Listener support and statistics
 	circular_queue_t trStatsEntryValidQueue;
 	U32 trStatsTotalFrames, trStatsLostFrames, trStatsNeededAvailable, trStatsNeededNotAvailable;
+
+	U64 nextReportNS;
 
 } pvt_data_t;
 
@@ -423,6 +428,10 @@ void openavbMapAVTPAudioCfgCB(media_q_t *pMediaQ, const char *name, const char *
 				strcmp(name, "map_nv_max_allowed_dropout_time") == 0 ) {
 			char *pEnd;
 			pPvtData->temporalRedundantOffsetUsec = strtol(value, &pEnd, 10);
+		}
+		else if (strcmp(name, "map_nv_report_seconds") == 0) {
+			char *pEnd;
+			pPvtData->report_seconds = strtol(value, &pEnd, 10);
 		}
 	}
 
@@ -992,17 +1001,26 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 					PushBufferToCircularQueue(&pPvtData->trStatsEntryValidQueue, &result, 1);
 					pPvtData->trStatsTotalFrames++;
 
-					// TODO:  Display the statistics.
-					IF_LOG_INTERVAL(8000) {
-						AVB_LOGF_INFO("Temporal Redundancy Total Frames:  %u", pPvtData->trStatsTotalFrames);
-						AVB_LOGF_INFO("Temporal Redundancy Lost Frames:  %u", pPvtData->trStatsLostFrames);
-						AVB_LOGF_INFO("Temporal Redundancy Available When Needed:  %u", pPvtData->trStatsNeededAvailable);
-						AVB_LOGF_INFO("Temporal Redundancy Not Available When Needed:  %u", pPvtData->trStatsNeededNotAvailable);
-						AVB_LOGF_INFO("Temporal Redundancy Data Queue Size:  %d", CircularQueueBytesQueued(&pPvtData->temporalRedundantQueue));
-						AVB_LOGF_INFO("Temporal Redundancy Tracking Queue Size:  %d", CircularQueueBytesQueued(&pPvtData->trStatsEntryValidQueue));
+					// Display the statistics.
+					if (pPvtData->report_seconds > 0) {
+						U64 nowNS;
+						CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
+						if (nowNS > pPvtData->nextReportNS) {
+							AVB_LOGF_INFO("Temporal Redundancy Total Frames=%u, Lost Frames=%u, Available When Needed=%u, Not Available When Needed=%u",
+								pPvtData->trStatsTotalFrames, pPvtData->trStatsLostFrames,
+								pPvtData->trStatsNeededAvailable, pPvtData->trStatsNeededNotAvailable);
+							AVB_LOGF_DEBUG("Temporal Redundancy Data Queue Size=%u, Tracking Queue Size=%u",
+								CircularQueueBytesQueued(&pPvtData->temporalRedundantQueue),
+								CircularQueueBytesQueued(&pPvtData->trStatsEntryValidQueue));
 
-						pPvtData->trStatsTotalFrames = pPvtData->trStatsLostFrames =
-							pPvtData->trStatsNeededAvailable = pPvtData->trStatsNeededNotAvailable = 0;
+							pPvtData->trStatsTotalFrames = pPvtData->trStatsLostFrames =
+								pPvtData->trStatsNeededAvailable = pPvtData->trStatsNeededNotAvailable = 0;
+
+							pPvtData->nextReportNS += (pPvtData->report_seconds * NANOSECONDS_PER_SECOND);
+							if (nowNS > pPvtData->nextReportNS) {
+								pPvtData->nextReportNS = nowNS + (pPvtData->report_seconds * NANOSECONDS_PER_SECOND);
+							}
+						}
 					}
 				}
 
