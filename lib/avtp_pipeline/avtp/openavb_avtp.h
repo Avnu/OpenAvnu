@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -100,8 +101,6 @@ typedef struct
 	U16 nbuffers;
 	// The rawsock library handle.  Used to send or receive frames.
 	void *rawsock;
-	// The actual socket used by the rawsock library.  Used for poll().
-	int sock;
 	// The streamID - in network form
 	U8 streamIDnet[8];
 	// The destination address for stream
@@ -179,7 +178,8 @@ void openavbAvtpConfigTimsstampEval(void *handle, U32 tsInterval, U32 reportInte
 
 void openavbAvtpPause(void *handle, bool bPause);
 
-void openavbAvtpShutdown(void *handle);
+void openavbAvtpShutdownTalker(void *handle);
+void openavbAvtpShutdownListener(void *handle);
 
 int openavbAvtpTxBufferLevel(void *handle);
 

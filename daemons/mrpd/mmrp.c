@@ -327,6 +327,11 @@ int mmrp_event(int event, struct mmrp_attribute *rattrib)
 		attrib = mmrp_lookup(rattrib);
 
 		if (NULL == attrib) {
+			/* ignore rMT! if attribute does not already exist */
+			if (MRP_EVENT_RMT == event) {
+				free(rattrib);
+				return 0;
+			}
 			mmrp_add(rattrib);
 			attrib = rattrib;
 		} else {

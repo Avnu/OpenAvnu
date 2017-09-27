@@ -79,6 +79,7 @@ int ini_parse_file(FILE* file,
     char* value;
     int lineno = 0;
     int error = 0;
+    int value_quoted = 0;
 
 #if !INI_USE_STACK
     line = (char*)malloc(INI_MAX_LINE);
@@ -140,9 +141,18 @@ int ini_parse_file(FILE* file,
                     *end = '\0';
                 rstrip(value);
 
+                /* If the value starts and ends with a quote character, extract the string from inside the quotes. */
+                if (value[0] == '\"') {
+                    char *end_quote = strchr(value + 1, '\"');
+                    if (end_quote) {
+                        *end_quote = '\0';
+                        value_quoted = 1;
+                    }
+                }
+
                 /* Valid name[=:]value pair found, call handler */
                 strncpy0(prev_name, name, sizeof(prev_name));
-                if (!handler(user, section, name, value) && !error)
+                if (!handler(user, section, name, (value_quoted ? value + 1 : value)) && !error)
                     error = lineno;
             }
             else if (!error) {

@@ -96,8 +96,8 @@ void ClockIdentity::set(const AMacAddress& addr)
 
 IEEE1588Clock::IEEE1588Clock
 ( bool forceOrdinarySlave, bool syntonize, uint8_t priority1,
-  HWTimestamper *timestamper, OSTimerQueueFactory *timerq_factory,
-  OS_IPC *ipc, OSLockFactory *lock_factory )
+  OSTimerQueueFactory *timerq_factory, OS_IPC *ipc,
+  OSLockFactory *lock_factory )
 {
 	this->priority1 = priority1;
 	priority2 = 248;
@@ -123,7 +123,6 @@ IEEE1588Clock::IEEE1588Clock
 
 	_master_local_freq_offset_init = false;
 	_local_system_freq_offset_init = false;
-	_timestamper = timestamper;
 
 	this->ipc = ipc;
 
@@ -252,7 +251,7 @@ void timerq_handler(void *arg)
 }
 
 void IEEE1588Clock::addEventTimer
-( IEEE1588Port * target, Event e, unsigned long long time_ns )
+(CommonPort *target, Event e, unsigned long long time_ns)
 {
 	event_descriptor_t *event_descriptor = new event_descriptor_t();
 	event_descriptor->event = e;
@@ -263,7 +262,7 @@ void IEEE1588Clock::addEventTimer
 }
 
 void IEEE1588Clock::addEventTimerLocked
-( IEEE1588Port * target, Event e, unsigned long long time_ns )
+(CommonPort *target, Event e, unsigned long long time_ns)
 {
     if( getTimerQLock() == oslock_fail ) return;
 	addEventTimer( target, e, time_ns );
@@ -272,12 +271,12 @@ void IEEE1588Clock::addEventTimerLocked
 
 
 
-void IEEE1588Clock::deleteEventTimer(IEEE1588Port * target, Event event)
+void IEEE1588Clock::deleteEventTimer(CommonPort *target, Event event)
 {
 	timerq->cancelEvent((int)event, NULL);
 }
 
-void IEEE1588Clock::deleteEventTimerLocked(IEEE1588Port * target, Event event)
+void IEEE1588Clock::deleteEventTimerLocked(CommonPort *target, Event event)
 {
     if( getTimerQLock() == oslock_fail ) return;
 
@@ -287,7 +286,7 @@ void IEEE1588Clock::deleteEventTimerLocked(IEEE1588Port * target, Event event)
 }
 
 FrequencyRatio 
-IEEE1588Clock::calcLocalSystemClockRateDifference(const Timestamp& local_time, const Timestamp& system_time ) 
+IEEE1588Clock::calcLocalSystemClockRateDifference(const Timestamp& local_time, const Timestamp& system_time) 
 {
 	unsigned long long inter_system_time;
 	unsigned long long inter_local_time;
@@ -324,7 +323,7 @@ IEEE1588Clock::calcLocalSystemClockRateDifference(const Timestamp& local_time, c
 
 
 FrequencyRatio
-IEEE1588Clock::calcMasterLocalClockRateDifference(const Timestamp& master_time, const Timestamp& sync_time )
+IEEE1588Clock::calcMasterLocalClockRateDifference(const Timestamp& master_time, const Timestamp& sync_time)
 {
 	unsigned long long inter_sync_time;
 	unsigned long long inter_master_time;
@@ -343,13 +342,24 @@ IEEE1588Clock::calcMasterLocalClockRateDifference(const Timestamp& master_time, 
 
 	inter_sync_time =
 		TIMESTAMP_TO_NS(sync_time) - TIMESTAMP_TO_NS(_prev_sync_time);
-	inter_master_time =
-		TIMESTAMP_TO_NS(master_time) -  TIMESTAMP_TO_NS(_prev_master_time);
+
+	uint64_t master_time_ns = TIMESTAMP_TO_NS(master_time);
+	uint64_t prev_master_time_ns = TIMESTAMP_TO_NS(_prev_master_time);
+
+	inter_master_time = master_time_ns - prev_master_time_ns;
 
 	if( inter_sync_time != 0 ) {
 		ppt_offset = ((FrequencyRatio)inter_master_time)/inter_sync_time;
 	} else {
 		ppt_offset = 1.0;
+	}
+
+	if( master_time_ns < prev_master_time_ns ) {
+		GPTP_LOG_ERROR("Negative time jump detected - inter_master_time: %lld, inter_sync_time: %lld, incorrect ppt_offset: %Lf",
+					   inter_master_time, inter_sync_time, ppt_offset);
+		_master_local_freq_offset_init = false;
+
+		return NEGATIVE_TIME_JUMP;
 	}
 
 	_prev_sync_time = sync_time;
@@ -358,7 +368,7 @@ IEEE1588Clock::calcMasterLocalClockRateDifference(const Timestamp& master_time, 
 	return ppt_offset;
 }
 
-void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
+void IEEE1588Clock::setMasterOffset(CommonPort * port,
  int64_t master_local_offset,
  FrequencyRatio master_local_freq_offset,
  FrequencyRatio local_system_freq_offset)
@@ -372,28 +382,21 @@ void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
 		return;
 	}
 
-	if (_syntonize)
-	{
-		if (_new_syntonization_set_point || _phase_error_violation > PHASE_ERROR_MAX_COUNT )
-		{
+	if( _syntonize ) {
+		if( _new_syntonization_set_point || _phase_error_violation > PHASE_ERROR_MAX_COUNT ) {
 			_new_syntonization_set_point = false;
 			_phase_error_violation = 0;
-			if (_timestamper)
-			{
-				/* Make sure that there are no transmit operations
-				   in progress */
-				getTxLockAll();
-				if (port->getTestMode()) 
-				{
-					GPTP_LOG_STATUS("Adjust clock phase offset:%lld", 
-						-master_local_offset);
-				}
-				_timestamper->HWTimestamper_adjclockphase(-master_local_offset);
-				_master_local_freq_offset_init = false;
-				restartPDelayAll();
-				putTxLockAll();
-				master_local_offset = 0;
+			/* Make sure that there are no transmit operations
+			   in progress */
+			getTxLockAll();
+			if (port->getTestMode()) {
+				GPTP_LOG_STATUS("Adjust clock phase offset:%lld", -master_local_offset);
 			}
+			port->adjustClockPhase( -master_local_offset );
+			_master_local_freq_offset_init = false;
+			restartPDelayAll();
+			putTxLockAll();
+			master_local_offset = 0;
 		}
 
 		// Adjust for frequency offset
@@ -413,31 +416,18 @@ void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
 			GPTP_LOG_DEBUG("phase_error = %Lf, ppm = %f", phase_error, _ppm );
 		}
 
-		if (_ppm < LOWER_FREQ_LIMIT)
-		{
-			_ppm = LOWER_FREQ_LIMIT;
+		if( _ppm < LOWER_FREQ_LIMIT ) _ppm = LOWER_FREQ_LIMIT;
+		if( _ppm > UPPER_FREQ_LIMIT ) _ppm = UPPER_FREQ_LIMIT;
+		if ( port->getTestMode() ) {
+			GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
 		}
-		if (_ppm > UPPER_FREQ_LIMIT)
-		{
-			_ppm = UPPER_FREQ_LIMIT;
-		}
-		if (_timestamper)
-		{
-			if (port->getTestMode())
-			{
-				GPTP_LOG_STATUS("Adjust clock rate ppm:%f", _ppm);
-			}
-			
-			GPTP_LOG_INFO("IEEE1588Clock::setMasterOffset before HWTimestamper_adjclockrate _ppm:%f", _ppm);
-			if (!_timestamper->HWTimestamper_adjclockrate(_ppm))
-			{
-				GPTP_LOG_ERROR("Failed to adjust clock rate");
-			}
+		if( !port->adjustClockRate( _ppm ) ) {
+			GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 		}
 	}
 }
 
-void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
+void IEEE1588Clock::setMasterOffset(CommonPort * port,
  int64_t master_local_offset, Timestamp local_time,
  FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
  Timestamp system_time, FrequencyRatio local_system_freq_offset,
@@ -455,6 +445,28 @@ void IEEE1588Clock::setMasterOffset(IEEE1588Port * port,
 
 	if (ipc != NULL)
 	{
+		uint8_t grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];
+		uint8_t clock_id[PTP_CLOCK_IDENTITY_LENGTH];
+		std::shared_ptr<PortIdentity> port_identity = port->getPortIdentity();
+		uint16_t port_number;
+
+		grandmaster_clock_identity.getIdentityString(grandmaster_id);
+		clock_identity.getIdentityString(clock_id);
+		port_identity->getPortNumber(&port_number);
+
+		ipc->update_grandmaster(
+			grandmaster_id, domain_number);
+
+		ipc->update_network_interface(
+			clock_id, priority1,
+			clock_quality.cq_class,	clock_quality.offsetScaledLogVariance,
+			clock_quality.clockAccuracy,
+			priority2, domain_number,
+			port->getSyncInterval(),
+			port->getAnnounceInterval(),
+			0, // TODO:  Was port->getPDelayInterval() before refactoring.  What do we do now?
+			port_number);
+
 		ipc->update(master_local_offset, local_system_offset,
 		 master_local_freq_offset, local_system_freq_offset,
 		 TIMESTAMP_TO_NS(local_time), sync_count, pdelay_count, port_state,

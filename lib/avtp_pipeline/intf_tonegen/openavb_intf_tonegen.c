@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -38,6 +39,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <endian.h>
 #include "openavb_platform_pub.h"
 #include "openavb_osal_pub.h"
 #include "openavb_types_pub.h"
@@ -396,6 +398,61 @@ void openavbIntfToneGenTxInitCB(media_q_t *pMediaQ)
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
+
+#define SWAPU16(x)	(((x) >> 8) | ((x) << 8))
+static U16 convertToDesiredEndianOrder16(U16 hostData, avb_audio_endian_t audioEndian)
+{
+#if defined __BYTE_ORDER && defined __BIG_ENDIAN && defined __LITTLE_ENDIAN
+#if __BYTE_ORDER == __BIG_ENDIAN
+	if (audioEndian == AVB_AUDIO_ENDIAN_LITTLE) { hostData = SWAPU16(hostData); }
+	return hostData;
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+	if (audioEndian == AVB_AUDIO_ENDIAN_BIG) { hostData = SWAPU16(hostData); }
+	return hostData;
+#else
+	#error Unsupported Endian format
+#endif
+#else
+	U16 test_var = 1;
+	unsigned char test_endian* = (unsigned char*)&test_var;
+	if (test_endian[0] == 0) {
+		// This is big-endian.
+		if (audioEndian == AVB_AUDIO_ENDIAN_LITTLE) { hostData = SWAPU16(hostData); }
+	} else {
+		// This is little-endian.
+		if (audioEndian == AVB_AUDIO_ENDIAN_BIG) { hostData = SWAPU16(hostData); }
+	}
+	return hostData;
+#endif
+}
+
+#define SWAPU32(x)	(((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
+static U32 convertToDesiredEndianOrder32(U32 hostData, avb_audio_endian_t audioEndian)
+{
+#if defined __BYTE_ORDER && defined __BIG_ENDIAN && defined __LITTLE_ENDIAN
+#if __BYTE_ORDER == __BIG_ENDIAN
+	if (audioEndian == AVB_AUDIO_ENDIAN_LITTLE) { hostData = SWAPU32(hostData); }
+	return hostData;
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+	if (audioEndian == AVB_AUDIO_ENDIAN_BIG) { hostData = SWAPU32(hostData); }
+	return hostData;
+#else
+	#error Unsupported Endian format
+#endif
+#else
+	U16 test_var = 1;
+	unsigned char test_endian* = (unsigned char*)&test_var;
+	if (test_endian[0] == 0) {
+		// This is big-endian.
+		if (audioEndian == AVB_AUDIO_ENDIAN_LITTLE) { hostData = SWAPU32(hostData); }
+	} else {
+		// This is little-endian.
+		if (audioEndian == AVB_AUDIO_ENDIAN_BIG) { hostData = SWAPU32(hostData); }
+	}
+	return hostData;
+#endif
+}
+
 // This callback will be called for each AVB transmit interval. Commonly this will be
 // 4000 or 8000 times  per second.
 bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
@@ -467,17 +524,21 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 					if (pPvtData->audioType == AVB_AUDIO_TYPE_INT) {
 						if (pPvtData->audioBitDepth == 32) {
 							S32 sample32 = (S32)(value * (32000 << 16));
-							S32 tmp32 = htonl(sample32);
+							S32 tmp32 = convertToDesiredEndianOrder32(sample32, pPvtData->audioEndian);
 							memcpy(pData, (U8 *)&tmp32, 4);
 							pData += 4;
 						} else if (pPvtData->audioBitDepth == 24) {
 							S32 sample24 = (S32)(value * (32000 << 16));
-							S32 tmp24 = htonl(sample24);
-							memcpy(pData, (U8 *)&tmp24, 3);
+							S32 tmp24 = convertToDesiredEndianOrder32(sample24, pPvtData->audioEndian);
+							if (pPvtData->audioEndian == AVB_AUDIO_ENDIAN_BIG) {
+								memcpy(pData, (U8 *)&tmp24, 3);
+							} else {
+								memcpy(pData, ((U8 *)&tmp24) + 1, 3);
+							}
 							pData += 3;
 						} else if (pPvtData->audioBitDepth == 16) {
 							S16 sample16 = (S32)(value * 32000);
-							S16 tmp16 = htons(sample16);
+							S16 tmp16 = convertToDesiredEndianOrder16(sample16, pPvtData->audioEndian);
 							memcpy(pData, (U8 *)&tmp16, 2);
 							pData += 2;
 						}
@@ -485,7 +546,7 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 						U32 tmp32f;
 						// value *= .75; // attenuate value
 						memcpy((U8 *)&tmp32f, (U8 *)&value, 4);  // done so no warning with -Wstrict-aliasing
-						tmp32f = htonl(tmp32f);
+						tmp32f = convertToDesiredEndianOrder32(tmp32f, pPvtData->audioEndian);
 						memcpy(pData, (U8 *)&tmp32f, 4);
 						pData += 4;
 					} else {
@@ -498,13 +559,13 @@ bool openavbIntfToneGenTxCB(media_q_t *pMediaQ)
 					if (pPvtData->audioType == AVB_AUDIO_TYPE_INT) {
 						if (pPvtData->audioBitDepth == 32) {
 							if (pPvtData->fv1Enabled) {
-								S32 tmp32 = htonl(pPvtData->fv1);
+								S32 tmp32 = convertToDesiredEndianOrder32(pPvtData->fv1, pPvtData->audioEndian);
 								memcpy(pData, (U8 *)&tmp32, 4);
 								pData += 4;
 							}
 
 							if (pPvtData->fv2Enabled) {
-								S32 tmp32 = htonl(pPvtData->fv2);
+								S32 tmp32 = convertToDesiredEndianOrder32(pPvtData->fv2, pPvtData->audioEndian);
 								memcpy(pData, (U8 *)&tmp32, 4);
 								pData += 4;
 							}
@@ -570,13 +631,26 @@ void openavbIntfToneGenGenEndCB(media_q_t *pMediaQ)
 void openavbIntfToneGenEnableFixedTimestamp(media_q_t *pMediaQ, bool enabled, U32 transmitInterval, U32 batchFactor)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
-	if (pMediaQ && pMediaQ->pPvtIntfInfo) {
+	if (pMediaQ && pMediaQ->pPvtIntfInfo && pMediaQ->pPubMapInfo) {
+		media_q_pub_map_uncmp_audio_info_t *pPubMapUncmpAudioInfo = pMediaQ->pPubMapInfo;
 		pvt_data_t *pPvtData = (pvt_data_t *)pMediaQ->pPvtIntfInfo;
 
 		pPvtData->fixedTimestampEnabled = enabled;
 		if (pPvtData->fixedTimestampEnabled) {
-				openavbMcsInit(&pPvtData->mcs, NANOSECONDS_PER_SECOND/transmitInterval);
-				AVB_LOG_INFO("Fixed timestamping enabled");
+			U32 per, rate, rem;
+			/* Ignore passed in transmit interval and use framesPerItem and audioRate so
+			   we work with both AAF and 61883-6 */
+			/* Carefully scale values to avoid U32 overflow or loss of precision */
+			per = MICROSECONDS_PER_SECOND * pPubMapUncmpAudioInfo->framesPerItem * 10;
+			rate = pPvtData->audioRate/100;
+			transmitInterval = per/rate;
+			rem = per % rate;
+			if (rem != 0) {
+				rem *= 10;
+				rem /= rate;
+			}
+			openavbMcsInit(&pPvtData->mcs, transmitInterval, rem, 10);
+			AVB_LOGF_INFO("Fixed timestamping enabled: %d %d/%d", transmitInterval, rem, 10);
 		}
 
 		if (batchFactor != 1) {

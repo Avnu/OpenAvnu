@@ -72,7 +72,7 @@ private:
 	std::shared_ptr<OSThread> fPulseThread;
 #endif	
 
-	IEEE1588Port *fPort;
+	EtherPort *fPort;
 
 	TicketingLock *net_lock;
 
@@ -99,11 +99,11 @@ public:
 	 * the struct timex
 	 * @return TRUE if ok, FALSE if error.
 	 */
-	bool Adjust( void *tmx );
+	bool Adjust( void *tmx ) const;
 
 	bool Adjust(const timeval& tm);
 
-	IEEE1588Port *Port() const
+	EtherPort *Port() const
 	{
 		return fPort;
 	}
@@ -115,7 +115,7 @@ public:
 	 * @return FALSE in case of error, TRUE if success.
 	 */
 	virtual bool HWTimestamper_init(InterfaceLabel *iface_label,
-	 OSNetworkInterface *iface, IEEE1588Port* port);
+	 OSNetworkInterface *iface, EtherPort* port);
 
 	/**
 	 * @brief  Reset the Hardware timestamp interface
@@ -152,8 +152,8 @@ public:
 	 * @return TRUE if got the time successfully, FALSE otherwise
 	 */
 	virtual bool HWTimestamper_gettime
-	( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
-	  uint32_t *nominal_clock_rate );
+	( Timestamp *system_time, Timestamp *device_time,
+	  uint32_t *local_clock, uint32_t *nominal_clock_rate ) const;
 
 	/**
 	 * @brief  Gets the TX timestamp from hardware interface
@@ -201,7 +201,7 @@ public:
 	 * @param  freq_offset Frequency adjustment
 	 * @return TRUE in case of sucess, FALSE if error.
 	 */
-	virtual bool HWTimestamper_adjclockrate( float freq_offset );
+	virtual bool HWTimestamper_adjclockrate( float freq_offset ) const;
 
 #if  defined(WITH_IGBLIB) || defined(RPI)
 	bool HWTimestamper_PPS_start( );

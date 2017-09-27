@@ -61,6 +61,10 @@
 #include <unistd.h>
 #include <string.h>
 
+#ifdef SYSTEMD_WATCHDOG
+#include <watchdog.hpp>
+#endif
+
 #define PHY_DELAY_GB_TX_I20 184 //1G delay
 #define PHY_DELAY_GB_RX_I20 382 //1G delay
 #define PHY_DELAY_MB_TX_I20 1044//100M delay
@@ -99,12 +103,38 @@ void print_usage( char *arg0 ) {
 		);
 }
 
-static IEEE1588Clock *pClock = NULL;
-static IEEE1588Port *pPort = NULL;
+int watchdog_setup(OSThreadFactory *thread_factory)
+{
+#ifdef SYSTEMD_WATCHDOG
+	SystemdWatchdogHandler *watchdog = new SystemdWatchdogHandler();
+	OSThread *watchdog_thread = thread_factory->createThread();
+	int watchdog_result;
+	long unsigned int watchdog_interval;
+	watchdog_interval = watchdog->getSystemdWatchdogInterval(&watchdog_result);
+	if (watchdog_result) {
+		GPTP_LOG_INFO("Watchtog interval read from service file: %lu us", watchdog_interval);
+		watchdog->update_interval = watchdog_interval / 2;
+		GPTP_LOG_STATUS("Starting watchdog handler (Update every: %lu us)", watchdog->update_interval);
+		watchdog_thread->start(watchdogUpdateThreadFunction, watchdog);
+		return 0;
+	} else if (watchdog_result < 0) {
+		GPTP_LOG_ERROR("Watchdog settings read error.");
+		return -1;
+	} else {
+		GPTP_LOG_STATUS("Watchdog disabled");
+		return 0;
+	}
+#else
+	return 0;
+#endif
+}
+
+static IEEE1588Clock *pClock = nullptr;
+static EtherPort *pPort = nullptr;
 
 int main(int argc, char **argv)
 {
-	IEEE1588PortInit_t portInit;
+	PortInit_t portInit;
 
 	sigset_t set;
 	InterfaceName *ifname;
@@ -117,17 +147,17 @@ int main(int argc, char **argv)
 	bool override_portstate = false;
 	PortState port_state = PTP_SLAVE;
 
-	char *restoredata = NULL;
-	char *restoredataptr = NULL;
+	char *restoredata = nullptr;
+	char *restoredataptr = nullptr;
 	off_t restoredatalength = 0;
 	off_t restoredatacount = 0;
 	bool restorefailed = false;
-	LinuxIPCArg *ipc_arg = NULL;
+	LinuxIPCArg *ipc_arg = nullptr;
 	bool use_config_file = false;
 	char config_file_path[512];
 	memset(config_file_path, 0, 512);
 
-	GPTPPersist *pGPTPPersist = NULL;
+	GPTPPersist *pGPTPPersist = nullptr;
 
 	// Block SIGUSR1
 	{
@@ -142,19 +172,17 @@ int main(int argc, char **argv)
 
 	GPTP_LOG_REGISTER();
 	GPTP_LOG_INFO("gPTP starting");
-
-	int phy_delay[4]={0,0,0,0};
+	phy_delay_map_t ether_phy_delay;
 	bool input_delay=false;
 
 	portInit.clock = NULL;
 	portInit.index = 0;
-	portInit.forceSlave = false;
 	portInit.timestamper = NULL;
-	portInit.offset = 0;
 	portInit.net_label = NULL;
 	portInit.automotive_profile = false;
 	portInit.isGM = false;
 	portInit.testMode = false;
+	portInit.linkUp = false;
 	portInit.initialLogSyncInterval = LOG2_INTERVAL_INVALID;
 	portInit.initialLogPdelayReqInterval = LOG2_INTERVAL_INVALID;
 	portInit.operLogPdelayReqInterval = LOG2_INTERVAL_INVALID;
@@ -164,6 +192,10 @@ int main(int argc, char **argv)
 	portInit.timer_factory = NULL;
 	portInit.lock_factory = NULL;
 	portInit.smoothRateChange = true;
+	portInit.syncReceiptThreshold =
+		CommonPort::DEFAULT_SYNC_RECEIPT_THRESH;
+	portInit.neighborPropDelayThreshold =
+		CommonPort::NEIGHBOR_PROP_DELAY_THRESH;
 
 	LinuxNetworkInterfaceFactory *default_factory =
 		new LinuxNetworkInterfaceFactory;
@@ -175,6 +207,11 @@ int main(int argc, char **argv)
 	LinuxTimerFactory *timer_factory = new LinuxTimerFactory();
 	LinuxConditionFactory *condition_factory = new LinuxConditionFactory();
 	LinuxSharedMemoryIPC *ipc = new LinuxSharedMemoryIPC();
+
+	if (watchdog_setup(thread_factory) != 0) {
+		GPTP_LOG_ERROR("Watchdog handler setup error");
+		return -1;
+	}
 
 	/* Create Low level network interface object */
 	if( argc < 2 ) {
@@ -244,6 +281,7 @@ int main(int argc, char **argv)
 				}
 			}
 			else if (strcmp(argv[i] + 1, "D") == 0) {
+				int phy_delay[4];
 				input_delay=true;
 				int delay_count=0;
 				char *cli_inp_delay = strtok(argv[i+1],",");
@@ -267,6 +305,10 @@ int main(int argc, char **argv)
 					GPTP_LOG_UNREGISTER();
 					return 0;
 				}
+				ether_phy_delay[LINKSPEED_1G].set_delay
+					( phy_delay[0], phy_delay[1] );
+				ether_phy_delay[LINKSPEED_100MB].set_delay
+					( phy_delay[2], phy_delay[3] );
 			}
 			else if (strcmp(argv[i] + 1, "V") == 0) {
 				portInit.automotive_profile = true;
@@ -311,11 +353,12 @@ int main(int argc, char **argv)
 
 	if (!input_delay)
 	{
-		phy_delay[0] = PHY_DELAY_GB_TX_I20;
-		phy_delay[1] = PHY_DELAY_GB_RX_I20;
-		phy_delay[2] = PHY_DELAY_MB_TX_I20;
-		phy_delay[3] = PHY_DELAY_MB_RX_I20;
+		ether_phy_delay[LINKSPEED_1G].set_delay
+			( PHY_DELAY_GB_TX_I20, PHY_DELAY_GB_RX_I20 );
+		ether_phy_delay[LINKSPEED_100MB].set_delay
+			( PHY_DELAY_MB_TX_I20, PHY_DELAY_MB_RX_I20 );
 	}
+	portInit.phy_delay = &ether_phy_delay;
 
 	if( pGPTPPersist ) {
 		uint32_t bufSize = 0;
@@ -327,9 +370,9 @@ int main(int argc, char **argv)
 	}
 
 #ifdef ARCH_INTELCE
-	HWTimestamper *timestamper = new LinuxTimestamperIntelCE();
+	EtherTimestamper  *timestamper = new LinuxTimestamperIntelCE();
 #else
-	HWTimestamper *timestamper = new LinuxTimestamperGeneric();
+	EtherTimestamper  *timestamper = new LinuxTimestamperGeneric();
 	#ifdef RPI
 		std::shared_ptr<LinuxThreadFactory> pulseThreadFactory = 
 	 	 std::make_shared<LinuxThreadFactory>();
@@ -350,30 +393,18 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	pClock = new IEEE1588Clock( false, syntonize, priority1, timestamper,
-								timerq_factory, ipc, lock_factory );
-
-	if( restoredataptr != NULL ) {
-		if( !restorefailed )
-			restorefailed =
-				!pClock->restoreSerializedState( restoredataptr, &restoredatacount );
-		restoredataptr = ((char *)restoredata) + (restoredatalength - restoredatacount);
-	}
-
 	// TODO: The setting of values into temporary variables should be changed to
 	// just set directly into the portInit struct.
 	portInit.clock = pClock;
 	portInit.index = 1;
-	portInit.forceSlave = false;
 	portInit.timestamper = timestamper;
-	portInit.offset = 0;
 	portInit.net_label = ifname;
 	portInit.condition_factory = condition_factory;
 	portInit.thread_factory = thread_factory;
 	portInit.timer_factory = timer_factory;
 	portInit.lock_factory = lock_factory;
 
-	pPort = new IEEE1588Port(&portInit);
+	pPort = new EtherPort(&portInit);
 
 	GPTP_LOG_INFO("smoothRateChange: %s", (pPort->SmoothRateChange() ? "true" : "false"));
 	
@@ -393,10 +424,7 @@ int main(int argc, char **argv)
 			GPTP_LOG_INFO("announceReceiptTimeout: %d", iniParser.getAnnounceReceiptTimeout());
 			GPTP_LOG_INFO("initialLogSyncInterval: %d", iniParser.getInitialLogSyncInterval());
 			GPTP_LOG_INFO("syncReceiptTimeout: %d", iniParser.getSyncReceiptTimeout());
-			GPTP_LOG_INFO("phy_delay_gb_tx: %d", iniParser.getPhyDelayGbTx());
-			GPTP_LOG_INFO("phy_delay_gb_rx: %d", iniParser.getPhyDelayGbRx());
-			GPTP_LOG_INFO("phy_delay_mb_tx: %d", iniParser.getPhyDelayMbTx());
-			GPTP_LOG_INFO("phy_delay_mb_rx: %d", iniParser.getPhyDelayMbRx());
+			iniParser.print_phy_delay();
 			GPTP_LOG_INFO("neighborPropDelayThresh: %ld", iniParser.getNeighborPropDelayThresh());
 			GPTP_LOG_INFO("syncReceiptThreshold: %d", iniParser.getSyncReceiptThresh());
 			GPTP_LOG_INFO("Address reg socket Port: %d", iniParser.AdrRegSocketPort());
@@ -404,10 +432,11 @@ int main(int argc, char **argv)
 #ifndef APTP
 			/* If using config file, set the neighborPropDelayThresh.
 			 * Otherwise it will use its default value (800ns) */
-			pPort->setNeighPropDelayThresh(iniParser.getNeighborPropDelayThresh());
+			portInit.neighborPropDelayThreshold =
+				iniParser.getNeighborPropDelayThresh();
 #endif
 
-			pPort->setClockPriority1(iniParser.getPriority1());
+			priority1 = iniParser.getPriority1();
 
 			/* If using config file, set the syncReceiptThreshold, otherwise
 			 * it will use the default value (SYNC_RECEIPT_THRESH)
@@ -432,16 +461,13 @@ int main(int argc, char **argv)
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
 			if (!input_delay)
 			{
-				phy_delay[0] = iniParser.getPhyDelayGbTx();
-				phy_delay[1] = iniParser.getPhyDelayGbRx();
-				phy_delay[2] = iniParser.getPhyDelayMbTx();
-				phy_delay[3] = iniParser.getPhyDelayMbRx();
+				ether_phy_delay = iniParser.getPhyDelay();
 			}
 		}
 
 	}
 
-	if (!pPort->init_port(phy_delay)) {
+	if (!pPort->init_port()) {
 		GPTP_LOG_ERROR("failed to initialize port");
 		GPTP_LOG_UNREGISTER();
 		return -1;
@@ -458,17 +484,20 @@ int main(int argc, char **argv)
 		ipc = nullptr;
 	}
 
-	if (ipc_arg != nullptr)
-	{
-		delete ipc_arg;
-		ipc_arg = nullptr;
-	}
+	delete ipc_arg;
+	ipc_arg = nullptr;
 
-	if( restoredataptr != NULL ) {
-		if( !restorefailed ) {
-			restorefailed = !pPort->restoreSerializedState( restoredataptr, &restoredatacount );
-			GPTP_LOG_INFO("Persistent port data restored: asCapable:%d, port_state:%d, one_way_delay:%lld",
-						  pPort->getAsCapable(), pPort->getPortState(), pPort->getLinkDelay());
+	pClock = new IEEE1588Clock(false, syntonize, priority1, timerq_factory, ipc,
+	  lock_factory);
+
+	pPort->setClock(pClock);
+
+	if (restoredataptr != nullptr)
+	{
+		if (!restorefailed)
+		{
+			restorefailed =
+				!pClock->restoreSerializedState( restoredataptr, &restoredatacount );
 		}
 		restoredataptr = ((char *)restoredata) + (restoredatalength - restoredatacount);
 	}
@@ -558,10 +587,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (ipc != nullptr)
-	{
-		delete ipc;
-	}
+	delete ipc;
+	ipc = nullptr;
 
 	GPTP_LOG_UNREGISTER();
 	return 0;

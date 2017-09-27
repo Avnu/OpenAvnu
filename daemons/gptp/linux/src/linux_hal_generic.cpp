@@ -51,6 +51,9 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 
+#define TX_PHY_TIME 184
+#define RX_PHY_TIME 382
+
 net_result gLockErrorStatus = net_succeed;
 
 class ALockKeeper
@@ -95,8 +98,9 @@ private:
 };
 
 net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *payload, 
-	size_t &length,struct phy_delay *delay, uint16_t portNum, Timestamp& ingressTime)
+	size_t &length, uint16_t portNum, Timestamp& ingressTime)
 {
+	//GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  length:%d   portNum:%d", length, portNum);
 	fd_set readfds;
 	int err;
 	struct msghdr msg;
@@ -146,7 +150,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 			err = select(fileDesc+1, &readfds, NULL, NULL, &timeout);
 			if (err == 0) 
 			{
-				// GPTP_LOG_VERBOSE("LinuxNetworkInterface::nrecv  err == 0 after select"
+				// GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  err == 0 after select"
 				//  "   fileDesc:%d  timeout.tv_sec: %d timeout.tv_usec: %d", fileDesc, 
 				//  timeout.tv_sec, timeout.tv_usec);
 				ret = net_trfail;
@@ -167,7 +171,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 			} 
 			else if (!FD_ISSET(fileDesc, &readfds)) 
 			{
-				GPTP_LOG_VERBOSE("LinuxNetworkInterface::nrecv  FD_ISSET  failed");
+				GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  FD_ISSET  failed");
 				ret = net_trfail;
 			}
 			else
@@ -231,9 +235,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 						if (nullptr == cmsg)
 						{
 							// There are no headers to process so we need to set the ingress time
-							Timestamp latency(delay->gb_rx_phy_delay, 0, 0);
 							Timestamp device = ingressTime;
-							device = device - latency;
 							gtimestamper->pushRXTimestamp(&device);
 						}
 						else
@@ -244,7 +246,6 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 								if (cmsg->cmsg_level == SOL_SOCKET &&
 								 cmsg->cmsg_type == SO_TIMESTAMPING) 
 								{
-									Timestamp latency( delay->gb_rx_phy_delay, 0, 0 );
 									struct timespec *ts_device, *ts_system;
 									Timestamp device, system;
 									ts_system = ((struct timespec *) CMSG_DATA(cmsg)) + 1;
@@ -252,7 +253,6 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 									GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  ts_system.tv_sec:%d  ts_system.tv_nsec:%d", ts_system->tv_sec, ts_system->tv_nsec);
 									ts_device = ts_system + 1; 
 									device = tsToTimestamp( ts_device );
-									device = device - latency;
 									ingressTime = device;
 									GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  ts_device.tv_sec:%d  ts_device.tv_nsec:%d", ts_device->tv_sec, ts_device->tv_nsec);
 									gtimestamper->pushRXTimestamp( &device );
@@ -266,6 +266,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 			}
 		}
 	}
+
 	length = err;
 
 	if (gLockErrorStatus != net_succeed)
@@ -280,29 +281,26 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 // Providing an implementation for this but it should never be invoked for the
 // LinuxNetworkInterface.
 net_result LinuxNetworkInterface::nrecv(LinkLayerAddress *addr, uint8_t *payload, 
- size_t &length,struct phy_delay *delay ) 
+ size_t &length) 
 {
 	Timestamp ingressTime;
-	//net_trfail
-	net_result result = receive(addr, payload, length, delay, 319, ingressTime);
+	net_result result = receive(addr, payload, length, 319, ingressTime);
 	result = Filter(result, addr, 0);
 	return result;
 }
 
 net_result LinuxNetworkInterface::nrecvEvent(LinkLayerAddress *addr,
- uint8_t *payload, size_t &length,struct phy_delay *delay,
- Timestamp& ingressTime, IEEE1588Port* port) 
+ uint8_t *payload, size_t &length, Timestamp& ingressTime, EtherPort* port) 
 {
-	net_result result = receive(addr, payload, length, delay, 319, ingressTime);
+	net_result result = receive(addr, payload, length, 319, ingressTime);
 	result = Filter(result, addr, port);
 	return result;
 }
 
 net_result LinuxNetworkInterface::nrecvGeneral(LinkLayerAddress *addr, 
- uint8_t *payload, size_t &length,struct phy_delay *delay, 
- Timestamp& ingressTime, IEEE1588Port* port) 
+ uint8_t *payload, size_t &length, Timestamp& ingressTime, EtherPort* port) 
 {
-	net_result result = receive(addr, payload, length, delay, 320, ingressTime);
+	net_result result = receive(addr, payload, length, 320, ingressTime);
 	result = Filter(result, addr, port);
 	return result;
 }
@@ -385,26 +383,16 @@ bool LinuxTimestamperGeneric::Adjust(const timeval& tm)
 		tv.tv_usec = kMaxAdjust;
 	}
 
-	GPTP_LOG_INFO("BeforeAdjust...++++++++++++++++++++++++++++++++++++++");
-	GPTP_LOG_INFO("tv.tv_sec:%d", tv.tv_sec);
-	GPTP_LOG_INFO("tv.tv_usec:%d", tv.tv_usec);
-
-	// Log time before adjustment
-	logCurrentTime("1");
-	
 	if (adjtime(&tv, &oldAdjTv) < 0) 
 	{
 		GPTP_LOG_ERROR("adjtime failed(%d): %s", errno, strerror(errno));
 		ok = false;
 	}
 
-	// Log time after adjustment
-	logCurrentTime("2");
-
 	return ok;
 }
 
-bool LinuxTimestamperGeneric::Adjust( void *tmx )
+bool LinuxTimestamperGeneric::Adjust( void *tmx ) const
 {
 	if (nullptr == tmx)
 	{
@@ -412,21 +400,6 @@ bool LinuxTimestamperGeneric::Adjust( void *tmx )
 		return false;
 	}
 	timex* t = static_cast<timex *>(tmx);
-
-	GPTP_LOG_INFO("BeforeAdjust...");
-	GPTP_LOG_INFO("tmx->modes:%d", t->modes);
-	GPTP_LOG_INFO("tmx->offset:%d", t->offset);
-	GPTP_LOG_INFO("tmx->freq:%d", t->freq);
-	GPTP_LOG_INFO("tmx->tick:%d", t->tick);
-	GPTP_LOG_INFO("tmx->tolerance:%d", t->tolerance);
-	GPTP_LOG_INFO("tmx->maxerror:%d", t->maxerror);
-	GPTP_LOG_INFO("tmx->esterror:%d", t->esterror);
-	GPTP_LOG_INFO("tmx->status:%d", t->status);
-	GPTP_LOG_INFO("tmx->time.tv_sec:%d", t->time.tv_sec);
-	GPTP_LOG_INFO("tmx->time.tv_usec:%d", t->time.tv_usec);
-
-	// Log time before adjustment
-	logCurrentTime("1");
 
 	// This system call works
 	int adjRet = adjtimex(t);
@@ -446,10 +419,6 @@ bool LinuxTimestamperGeneric::Adjust( void *tmx )
 	// 	return false;
 	// }
 
-	// Log time after adjustment
-	logCurrentTime("2");
-
-	
 	{
 		struct timeval tv = t->time;
 		time_t theTime;
@@ -462,16 +431,6 @@ bool LinuxTimestamperGeneric::Adjust( void *tmx )
 		snprintf(buf, sizeof buf, "%s.%06ld", tmbuf, tv.tv_usec);	
 		GPTP_LOG_INFO("Time adjustment:%s", buf);
 	}
-
-	GPTP_LOG_INFO("AfterAdjust...");
-	GPTP_LOG_INFO("tmx->modes:%d", t->modes);
-	GPTP_LOG_INFO("tmx->offset:%d", t->offset);
-	GPTP_LOG_INFO("tmx->freq:%d", t->freq);
-	GPTP_LOG_INFO("tmx->maxerror:%d", t->maxerror);
-	GPTP_LOG_INFO("tmx->esterror:%d", t->esterror);
-	GPTP_LOG_INFO("tmx->status:%d", t->status);
-	GPTP_LOG_INFO("tmx->time.tv_sec:%d", t->time.tv_sec);
-	GPTP_LOG_INFO("tmx->time.tv_usec:%d", t->time.tv_usec);
 
 	return true;
 }
@@ -493,7 +452,7 @@ void LinuxTimestamperGeneric::logCurrentTime(const char * msg)
 
 
 bool LinuxTimestamperGeneric::HWTimestamper_init(InterfaceLabel *iface_label,
- OSNetworkInterface *iface, IEEE1588Port *port)
+ OSNetworkInterface *iface, EtherPort *port)
 {
 	cross_stamp_good = false;
 	int phc_index;
@@ -567,10 +526,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 		struct cmsghdr cm;
 		char control[256];
 	} control;
-    struct phy_delay delay_val;
-	get_phy_delay (&delay_val);//gets the phy delay
-
-	Timestamp latency( delay_val.gb_tx_phy_delay, 0, 0 );
+  
     if( sd == -1 ) return -1;
 	memset( &msg, 0, sizeof( msg ));
 
@@ -609,7 +565,6 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 			system = tsToTimestamp( ts_system );
 			ts_device = ts_system + 1; device = tsToTimestamp( ts_device );
 			system._version = version;
-			device = device + latency;
 			device._version = version;
 			timestamp = device;
 			ret = 0;
@@ -723,7 +678,8 @@ static inline Timestamp pctTimestamp( struct ptp_clock_time *t ) {
 // Use HW cross-timestamp if available
 bool LinuxTimestamperGeneric::HWTimestamper_gettime
 ( Timestamp *system_time, Timestamp *device_time, uint32_t *local_clock,
-  uint32_t *nominal_clock_rate ) {
+  uint32_t *nominal_clock_rate ) const
+{
 	if( phc_fd == -1 )
 		return false;
 

@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,7 +33,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "pcap_rawsock.h"
 #include "simple_rawsock.h"
 #include "avb.h"
-#include "openavb_ether_hal.h"
+#include "openavb_igb.h"
 #include "avb_sched.h"
 
 #include "openavb_trace.h"

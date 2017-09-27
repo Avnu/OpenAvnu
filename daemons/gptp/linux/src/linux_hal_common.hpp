@@ -44,6 +44,8 @@
 #include "avbts_osthread.hpp"
 #include "avbts_osipc.hpp"
 #include "ieee1588.hpp"
+#include <ether_tstamper.hpp>
+#include <linux/ethtool.h>
 #include "../../common/macaddress.hpp"
 
 #include <list>
@@ -132,7 +134,7 @@ private:
  * @brief LinuxTimestamper: Provides a generic hardware
  * timestamp interface for linux based systems.
  */
-class LinuxTimestamper : public HWTimestamper {
+class LinuxTimestamper : public EtherTimestamper {
 public:
 	/**
 	 * @brief Destructor
@@ -189,13 +191,13 @@ public:
 	 * an error on the transmit side, net_fatal if error on reception
 	 */
 	virtual net_result nrecv
-	( LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay);
+	( LinkLayerAddress *addr, uint8_t *payload, size_t &length);
 
 	virtual net_result nrecvEvent(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
-	 struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port);
+	 Timestamp& ingressTime, EtherPort* port);
 
 	virtual net_result nrecvGeneral(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
-	 struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port);
+	 Timestamp& ingressTime, EtherPort* port);
 
 	virtual bool IsWireless(const std::string& netInterfaceName) const;
 
@@ -222,9 +224,18 @@ public:
 	}
 
 	/**
+	 * @brief Get speed of network link
+	 *
+	 * @param [in] sd	Open socket descriptor
+	 * @param [out] speed	Link speed in kb/sec
+	 * @return false on error
+	 */
+	bool getLinkSpeed( int sd, uint32_t *speed );
+
+	/**
 	 * @brief Watch for net link changes.
 	 */
-	virtual void watchNetLink(IEEE1588Port *pPort);
+	virtual void watchNetLink(CommonPort *pPort);
 
 	/**
 	 * @brief Gets the payload offset
@@ -243,14 +254,16 @@ public:
 		net_lock.LogState();
 	}
 
-	bool ValidAddress(LinkLayerAddress *addr, IEEE1588Port* port)
+	bool ValidAddress(LinkLayerAddress *addr, EtherPort* port)
 	{
+		// Note that we only restrict addresses if the receive nodes
+		// are specified.
 		bool isValid = true;
 		std::string toCompare = addr ? addr->AddressString() : "";
 		std::list<std::string> nodeList;
 		if (port != nullptr)
 		{
-			port->UnicastReceiveNodes();
+			nodeList = port->UnicastReceiveNodes();
 		}
 		std::for_each(nodeList.begin(), nodeList.end(), [&isValid, toCompare](const std::string& ip)
 		 {
@@ -259,7 +272,7 @@ public:
 		return isValid;
 	}
 
-	net_result Filter(net_result result, LinkLayerAddress *addr, IEEE1588Port* port)
+	net_result Filter(net_result result, LinkLayerAddress *addr, EtherPort* port)
 	{
 		net_result ok = result;
 		if (net_succeed == result && !ValidAddress(addr, port))
@@ -277,7 +290,7 @@ protected:
 
 private:
 	net_result receive(LinkLayerAddress *addr, uint8_t *payload, 
-	 size_t &length,struct phy_delay *delay, uint16_t port, Timestamp& ingressTime);
+	 size_t &length, uint16_t port, Timestamp& ingressTime);
 };
 
 /**
@@ -349,7 +362,8 @@ public:
 	 * @param type OSLockType enumeration
 	 * @return Pointer to OSLock object
 	 */
-	OSLock * createLock(OSLockType type) {
+	OSLock * createLock( OSLockType type ) const
+	{
 		LinuxLock *lock = new LinuxLock();
 		if (lock->initialize(type) != oslock_ok) {
 			delete lock;
@@ -422,7 +436,8 @@ public:
 	 * @brief Creates LinuxCondition objects
 	 * @return Pointer to the OSCondition object in case of success. NULL otherwise
 	 */
-	OSCondition * createCondition() {
+	OSCondition *createCondition() const
+	{
 		LinuxCondition *result = new LinuxCondition();
 		return result->initialize() ? result : NULL;
 	}
@@ -544,7 +559,8 @@ class LinuxTimerFactory : public OSTimerFactory {
 	  * @brief  Creates the linux timer
 	  * @return Pointer to OSTimer object
 	  */
-	virtual OSTimer * createTimer() {
+	virtual OSTimer *createTimer() const
+	{
 		return new LinuxTimer();
 	}
 };
@@ -608,7 +624,7 @@ class LinuxThreadFactory:public OSThreadFactory {
 	  * @brief Creates a new LinuxThread
 	  * @return Pointer to LinuxThread object
 	  */
-	 OSThread * createThread() {
+	 OSThread *createThread() const {
 		 return new LinuxThread();
 	 }
 
@@ -634,7 +650,7 @@ public:
 	 * @return TRUE if no error during interface creation, FALSE otherwise
 	 */
 	virtual bool createInterface(OSNetworkInterface **net_iface, InterfaceLabel *label,
-	  HWTimestamper *timestamper);
+	  CommonTimestamper *timestamper);
 };
 
 /**
@@ -642,11 +658,11 @@ public:
  */
 class LinuxIPCArg : public OS_IPC_ARG {
 private:
-	char *group_name;
+	std::string fGroupName;
 	int fAddrRegPort;
 public:
 	LinuxIPCArg() :
-	 group_name(nullptr),
+	 fGroupName(""),
 	 fAddrRegPort(0)
 	{}
 
@@ -654,17 +670,15 @@ public:
 	 * @brief  Initializes IPCArg object
 	 * @param group_name [in] Group's name
 	 */
-	LinuxIPCArg( char *group_name ) {
-		int len = strnlen(group_name,16);
-		this->group_name = new char[len+1];
-		strncpy( this->group_name, group_name, len+1 );
-		this->group_name[len] = '\0';
+	LinuxIPCArg(char *name)
+	{
+		fGroupName = name;
 	}
 	/**
 	 * @brief Destroys IPCArg internal variables
 	 */
-	virtual ~LinuxIPCArg() {
-		delete group_name;
+	virtual ~LinuxIPCArg()
+	{
 	}
 
 	int AdrRegSocketPort() const
@@ -677,7 +691,10 @@ public:
 		fAddrRegPort = portNumber;
 	}
 
-	friend class LinuxSharedMemoryIPC;
+	const std::string& GroupName() const
+	{
+		return fGroupName;
+	}
 };
 
 #define DEFAULT_GROUPNAME "ptp"		/*!< Default groupname for the shared memory interface*/
@@ -730,11 +747,60 @@ public:
 	 * @param adrRegSocketPort Port number for the adrRegSocketIp
 	 * @return TRUE
 	 */
-	virtual bool update
-	(int64_t ml_phoffset, int64_t ls_phoffset, FrequencyRatio ml_freqoffset,
-	 FrequencyRatio ls_freqoffset, uint64_t local_time, uint32_t sync_count,
-	 uint32_t pdelay_count, PortState port_state, bool asCapable,
-	 uint16_t adrRegSocketPort = 0, uint64_t clockId = 0);
+	virtual bool update(
+		int64_t ml_phoffset,
+		int64_t ls_phoffset,
+		FrequencyRatio ml_freqoffset,
+		FrequencyRatio ls_freqoffset,
+		uint64_t local_time,
+		uint32_t sync_count,
+		uint32_t pdelay_count,
+		PortState port_state,
+		bool asCapable,
+		uint16_t adrRegSocketPort = 0,
+		uint64_t clockId = 0);
+
+	/**
+	 * @brief Updates grandmaster IPC values
+	 *
+	 * @param gptp_grandmaster_id Current grandmaster id (all 0's if no grandmaster selected)
+	 * @param gptp_domain_number gPTP domain number
+	 *
+	 * @return TRUE
+	 */
+	virtual bool update_grandmaster(
+		uint8_t gptp_grandmaster_id[],
+		uint8_t gptp_domain_number );
+
+	/**
+	 * @brief Updates network interface IPC values
+	 *
+	 * @param  clock_identity  The clock identity of the interface
+	 * @param  priority1  The priority1 field of the grandmaster functionality of the interface, or 0xFF if not supported
+	 * @param  clock_class  The clockClass field of the grandmaster functionality of the interface, or 0xFF if not supported
+	 * @param  offset_scaled_log_variance  The offsetScaledLogVariance field of the grandmaster functionality of the interface, or 0x0000 if not supported
+	 * @param  clock_accuracy  The clockAccuracy field of the grandmaster functionality of the interface, or 0xFF if not supported
+	 * @param  priority2  The priority2 field of the grandmaster functionality of the interface, or 0xFF if not supported
+	 * @param  domain_number  The domainNumber field of the grandmaster functionality of the interface, or 0 if not supported
+	 * @param  log_sync_interval  The currentLogSyncInterval field of the grandmaster functionality of the interface, or 0 if not supported
+	 * @param  log_announce_interval  The currentLogAnnounceInterval field of the grandmaster functionality of the interface, or 0 if not supported
+	 * @param  log_pdelay_interval  The currentLogPDelayReqInterval field of the grandmaster functionality of the interface, or 0 if not supported
+	 * @param  port_number  The portNumber field of the interface, or 0x0000 if not supported
+	 *
+	 * @return TRUE
+	 */
+	virtual bool update_network_interface(
+		uint8_t  clock_identity[],
+		uint8_t  priority1,
+		uint8_t  clock_class,
+		int16_t  offset_scaled_log_variance,
+		uint8_t  clock_accuracy,
+		uint8_t  priority2,
+		uint8_t  domain_number,
+		int8_t   log_sync_interval,
+		int8_t   log_announce_interval,
+		int8_t   log_pdelay_interval,
+		uint16_t port_number );
 
 	/**
 	 * @brief unmaps and unlink shared memory
@@ -763,7 +829,7 @@ public:
 			ptimedata->clock_id = clockId;
 			ptimedata->sync_count   = 0;
 			ptimedata->pdelay_count = 0;
-	      ptimedata->asCapable = false;
+	      		ptimedata->asCapable = false;
 			ptimedata->port_state = PTP_UNCALIBRATED;
 
 			/* unlock */

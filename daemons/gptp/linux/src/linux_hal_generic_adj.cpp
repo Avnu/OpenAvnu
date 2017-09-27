@@ -125,7 +125,7 @@ bool LinuxTimestamperGeneric::HWTimestamper_adjclockphase( int64_t phase_adjust 
 	return ret;
 }
 	
-bool LinuxTimestamperGeneric::HWTimestamper_adjclockrate( float freq_offset ) {
+bool LinuxTimestamperGeneric::HWTimestamper_adjclockrate( float freq_offset ) const {
 	struct timex tx;
 	InitTimex(tx);
 	//tx.modes = ADJ_FREQUENCY;

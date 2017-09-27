@@ -34,6 +34,8 @@
 #ifndef AVBTS_OSTHREAD_HPP
 #define AVBTS_OSTHREAD_HPP
 
+#include <memory>
+
 /**@file*/
 
 /**
@@ -47,6 +49,7 @@ typedef enum { osthread_ok, osthread_error } OSThreadExitCode;
  * @brief Provides the OSThreadExitCode callback format
  */
 typedef OSThreadExitCode(*OSThreadFunction) (void *);
+typedef void *OSThreadFunctionArg;
 
 /**
  * @brief Provides a generic interface for threads
@@ -81,7 +84,7 @@ public:
 	 * @brief Creates a new thread
 	 * @return Pointer to OSThread object
 	 */
-	virtual OSThread * createThread() = 0;
+	virtual OSThread * createThread() const = 0;
 
 #ifdef RPI
 	virtual std::shared_ptr<OSThread> create() = 0;

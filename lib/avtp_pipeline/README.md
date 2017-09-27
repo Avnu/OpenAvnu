@@ -1,23 +1,22 @@
-# STC AVTP Pipeline Contribution Notes
+# STC/Harman AVTP Pipeline Contribution Notes
 
 ## General Status
 - Consider the AVTP Pipeline a work in progress.
-- Integrated with OpenAVB:
+- Integrated with OpenAvnu:
     - gPTP
+    - MAAP
     - MSRP
     - igb direct for packet TX.
     - igb credit based shaper
     - build system
-- Not yet integreated with OpenAVB:
-    - MAAP
 - Credit-based shaper algorithm is not used for individual streams.
 - Testing of various mappings and benchmarking has been performed. Look at the end of this file for benchmark results.
 - Documentation and doc generation has not been fully updated.
 
-## Building Current OpenAVB
+## Building Current OpenAvnu
 ### Tool chain and libraries
 - Ubuntu 14.04
-- Install dependencies for OpenAVB ($ sudo apt-get install ...)
+- Install dependencies for OpenAvnu ($ sudo apt-get install ...)
     - $ sudo apt-get install build-essential
     - $ sudo apt-get install libpcap-dev
     - $ sudo apt-get install libpci-dev
@@ -36,21 +35,30 @@
 - Building from the repo root
 - $ ARCH=I210 make all
 
-### Building just AVTP pipeline.
+### Building just AVTP pipeline
 - $ make avtp_pipeline
 
 Binaries will be installed in lib/avtp_pipeline/build/bin.
 
-### Building AVTP pipeline without SRP.
+### Building AVTP pipeline without SRP or MAAP support
 - $ AVB_FEATURE_ENDPOINT=0 make avtp_pipeline
 
 Make sure to call `make avtp_pipeline_clean` before.
 
-
 ### Building AVTP pipeline documentation
 - $ make avtp_pipeline_doc
 
-## Running OpenAVB daemons
+### Building just AVTP AVDECC support
+- $ make avtp_avdecc
+
+Binaries will be installed in lib/avtp_pipeline/build_avdecc/bin.
+
+The openavb_avdecc binary needs to be run in addition to the AVTP pipeline binary (openavb_harness or openavb_host) for AVDECC to be supported.
+
+### Building AVTP AVDECC documentation
+- $ make avtp_avdecc_doc
+
+## Running OpenAvnu daemons
 - Helper scripts in the repo root.
 - `$ sudo ./run_igb.sh eth1`
     - Load the igb driver. Supply the interface name (ethx) as parameter.
@@ -58,16 +66,18 @@ Make sure to call `make avtp_pipeline_clean` before.
     - Start gptp daemon. Supply the interface name (ethx) as parameter.
 - `$ sudo ./run_srp.sh eth1`
     - Start msrp daemon. Supply the interface name (ethx) as parameter.
+- `$ sudo ./run_maap.sh eth1`
+    - Start maap daemon. Supply the interface name (ethx) as parameter.
 
-## Running OpenAVB simple talker example
+## Running OpenAvnu simple talker example
 - `$ sudo ./run_simple_talker.sh eth1`
-    - Run the current OpenAVB simple talker example.  Supply the interface name (ethx) as parameter.
+    - Run the current OpenAvnu simple talker example.  Supply the interface name (ethx) as parameter.
 
-## Running STC Echo Talker
+## Running OpenAvnu Echo Talker
 - `$ sudo ./run_echo_talker.sh eth1`
     - Run the AVTP Echo talker test stream. Supply the interface name (ethx) as parameter.
 
-## Running STC Echo Listener
+## Running OpenAvnu Echo Listener
 - `$ sudo ./run_echo_listener.sh eth1`
     - Run the AVTP Echo talker test stream. Supply the interface name (ethx) as parameter.
 

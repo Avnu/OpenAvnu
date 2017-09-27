@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -95,7 +96,7 @@ int openavbEptClntOpenSrvrConnection(tl_state_t *pTLState)
 		return AVB_ENDPOINT_HANDLE_INVALID;
 	}
 
-	AVB_LOG_DEBUG("connected to endpoint");
+	AVB_LOG_DEBUG("Connected to endpoint");
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return h;
 }

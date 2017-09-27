@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -29,7 +30,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /*
-* MODULE SUMMARY : Reads the .ini file for an enpoint and
+* MODULE SUMMARY : Reads the .ini file for an endpoint
 */
 
 #include <unistd.h>
@@ -49,6 +50,16 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // macro to make matching names easier
 #define MATCH(A, B)(strcasecmp((A), (B)) == 0)
 #define MATCH_FIRST(A, B)(strncasecmp((A), (B), strlen(B)) == 0)
+
+static bool parse_mac(const char *str, struct ether_addr *mac)
+{
+	memset(mac, 0, sizeof(struct ether_addr));
+	if (ether_aton_r(str, mac) != NULL)
+		return TRUE;
+
+	AVB_LOGF_ERROR("Failed to parse addr: %s", str);
+	return FALSE;
+}
 
 static void cfgValErr(const char *section, const char *name, const char *value)
 {
@@ -164,6 +175,60 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 			return 0;
 		}
 	}
+	else if (MATCH(section, "maap"))
+	{
+		if (MATCH(name, "port")) {
+			errno = 0;
+			unsigned temp = strtoul(value, &pEnd, 10);
+			if (*pEnd == '\0' && errno == 0) {
+				if (temp >= 1 && temp <= 65535) {
+					pCfg->maapPort = temp;
+					valOK = TRUE;
+				}
+			}
+		}
+		else {
+			// unmatched item, fail
+			AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
+			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+			return 0;
+		}
+	}
+	else if (MATCH(section, "shaper"))
+	{
+		if (MATCH(name, "port")) {
+			errno = 0;
+			unsigned temp = strtoul(value, &pEnd, 10);
+			if (*pEnd == '\0' && errno == 0) {
+				if (temp >= 1 && temp <= 65535) {
+					pCfg->shaperPort = temp;
+					valOK = TRUE;
+				}
+			}
+		}
+		else {
+			// unmatched item, fail
+			AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
+			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+			return 0;
+		}
+	}
+
+	// Special section to load saved settings.
+	else if (MATCH(section, "saved"))
+	{
+		if (MATCH(name, "maap_preferred"))
+		{
+			valOK = parse_mac(value, &(pCfg->maap_preferred));
+		}
+		else {
+			// unmatched item, fail
+			AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
+			AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+			return 0;
+		}
+	}
+
 	else {
 		// unmatched item, fail
 		AVB_LOGF_ERROR("Unrecognized configuration item: section=%s, name=%s", section, name);
@@ -183,7 +248,7 @@ static int cfgCallback(void *user, const char *section, const char *name, const 
 
 // Parse ini file, and create config data
 //
-int openavbReadConfig(const char *ini_file, openavb_endpoint_cfg_t *pCfg)
+int openavbReadConfig(const char *ini_file, const char *save_ini_file, openavb_endpoint_cfg_t *pCfg)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 
@@ -194,13 +259,73 @@ int openavbReadConfig(const char *ini_file, openavb_endpoint_cfg_t *pCfg)
 	int result = ini_parse(ini_file, cfgCallback, pCfg);
 	if (result < 0) {
 		AVB_LOGF_ERROR("Couldn't parse INI file: %s", ini_file);
+		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return -1;
     }
 	if (result > 0) {
 		AVB_LOGF_ERROR("Error in INI file: %s, line %d", ini_file, result);
+		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return -1;
     }
 
+	result = ini_parse(save_ini_file, cfgCallback, pCfg);
+	if (result > 0) {
+		AVB_LOGF_ERROR("Error in INI file: %s, line %d", ini_file, result);
+		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+		return -1;
+    }
+
+	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+
+	// Yay, we did it.
+	return 0;
+}
+
+// Create ini file with information to save.
+//
+int openavbSaveConfig(const char *ini_file, const openavb_endpoint_cfg_t *pCfg)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
+
+	FILE* file;
+
+	char *pvtFilename = strdup(ini_file);
+	if (!pvtFilename) {
+		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+		return -1;
+	}
+
+	char *override = strchr(pvtFilename, ',');
+	if (override)
+		*override++ = '\0';
+
+	file = fopen(pvtFilename, "w");
+	if (!file) {
+		AVB_LOGF_WARNING("Error saving to INI file: %s", ini_file);
+		free (pvtFilename);
+		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+		return -1;
+	}
+
+	if (fputs("[saved]\n", file) < 0) {
+		AVB_LOGF_ERROR("Error writing to INI file: %s", ini_file);
+		fclose(file);
+		free (pvtFilename);
+		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+		return -1;
+	}
+	if (fprintf(file, "maap_preferred = " ETH_FORMAT "\n", ETH_OCTETS(pCfg->maap_preferred.ether_addr_octet)) < 0) {
+		AVB_LOGF_ERROR("Error writing to INI file: %s", ini_file);
+		fclose(file);
+		free (pvtFilename);
+		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
+		return -1;
+	}
+
+	fclose(file);
+	free (pvtFilename);
+
+	AVB_LOGF_DEBUG("Saved settings to INI file: %s", ini_file);
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 
 	// Yay, we did it.

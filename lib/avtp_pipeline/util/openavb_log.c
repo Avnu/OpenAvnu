@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -61,6 +62,7 @@ typedef struct {
 
 static openavb_queue_t logQueue;
 static openavb_queue_t logRTQueue;
+static FILE *logOutputFd = NULL;
 
 static char msg[LOG_MSG_LEN] = "";
 static char time_msg[LOG_TIME_LEN] = "";
@@ -96,35 +98,35 @@ void avbLogRTRender(log_queue_item_t *pLogItem)
 						strcat((char *)pLogItem->msg, pLogRTItem->pFormat);
 						break;
 					case LOG_RT_DATATYPE_NOW_TS:
-						sprintf(rt_msg, "[%lu:%09lu] ", pLogRTItem->data.nowTS.tv_sec, pLogRTItem->data.nowTS.tv_nsec);
+						snprintf(rt_msg, LOG_RT_MSG_LEN, "[%lu:%09lu] ", pLogRTItem->data.nowTS.tv_sec, pLogRTItem->data.nowTS.tv_nsec);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_U16:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.unsignedShortVar);
+						snprintf(rt_msg, LOG_RT_MSG_LEN, pLogRTItem->pFormat, pLogRTItem->data.unsignedShortVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_S16:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.signedShortVar);
+						snprintf(rt_msg, LOG_RT_MSG_LEN, pLogRTItem->pFormat, pLogRTItem->data.signedShortVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_U32:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.unsignedLongVar);
+						snprintf(rt_msg, LOG_RT_MSG_LEN, pLogRTItem->pFormat, pLogRTItem->data.unsignedLongVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_S32:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.signedLongVar);
+						snprintf(rt_msg, LOG_RT_MSG_LEN, pLogRTItem->pFormat, pLogRTItem->data.signedLongVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_U64:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.unsignedLongLongVar);
+						snprintf(rt_msg, LOG_RT_MSG_LEN, pLogRTItem->pFormat, pLogRTItem->data.unsignedLongLongVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_S64:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.signedLongLongVar);
+						snprintf(rt_msg, LOG_RT_MSG_LEN, pLogRTItem->pFormat, pLogRTItem->data.signedLongLongVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_FLOAT:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.floatVar);
+						snprintf(rt_msg, LOG_RT_MSG_LEN, pLogRTItem->pFormat, pLogRTItem->data.floatVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					default:
@@ -168,33 +170,42 @@ extern U32 DLL_EXPORT avbLogGetMsg(U8 *pBuf, U32 bufSize)
 
 void *loggingThreadFn(void *pv)
 {
-	while (loggingThreadRunning) {
+	do {
 		SLEEP_MSEC(LOG_QUEUE_SLEEP_MSEC);
 
 		bool more = TRUE;
+		bool flush = FALSE;
 
 		while (more) {
 			more = FALSE;
 			openavb_queue_elem_t elem = openavbQueueTailLock(logQueue);
 			if (elem) {
 				log_queue_item_t *pLogItem = (log_queue_item_t *)openavbQueueData(elem);
-				
+
 				if (pLogItem->bRT)
 					avbLogRTRender(pLogItem);
-				
-				fputs((const char *)pLogItem->msg, AVB_LOG_OUTPUT_FD);
+
+				fputs((const char *)pLogItem->msg, logOutputFd);
 				openavbQueueTailPull(logQueue);
 				more = TRUE;
+				flush = TRUE;
 			}
 		}
-	}
+		if (flush)
+			fflush(logOutputFd);
+	} while (loggingThreadRunning);
 
 	return NULL;
 }
 
-extern void DLL_EXPORT avbLogInit(void)
+extern void DLL_EXPORT avbLogInitEx(FILE* file)
 {
 	MUTEX_CREATE_ALT(gLogMutex);
+
+	if (file != NULL)
+		logOutputFd = file;
+	else
+		logOutputFd = AVB_LOG_OUTPUT_FD;
   
 	logQueue = openavbQueueNewQueue(sizeof(log_queue_item_t), LOG_QUEUE_MSG_CNT);
 	if (!logQueue) {
@@ -216,12 +227,20 @@ extern void DLL_EXPORT avbLogInit(void)
 	}
 }
 
+extern void DLL_EXPORT avbLogInit(void)
+{
+	avbLogInitEx(NULL);
+}
+
 extern void DLL_EXPORT avbLogExit()
 {
 	if (OPENAVB_LOG_FROM_THREAD) {
 		loggingThreadRunning = false;
 		THREAD_JOIN(loggingThread, NULL);
 	}
+
+	fflush(logOutputFd);
+	logOutputFd = NULL;
 }
 
 extern void DLL_EXPORT avbLogFn(
@@ -250,36 +269,37 @@ extern void DLL_EXPORT avbLogFn(
 				file += 1;
 			else
 				file = (char*)path;
-			sprintf(file_msg, " %s:%d", file, line);
+			snprintf(file_msg, LOG_FILE_LEN, " %s:%d", file, line);
 		}
 		if (OPENAVB_LOG_PROC_INFO) {
-			sprintf(proc_msg, " P:%5.5d", GET_PID());
+			snprintf(proc_msg, LOG_PROC_LEN, " P:%5.5d", GET_PID());
 		}
 		if (OPENAVB_LOG_THREAD_INFO) {
-			sprintf(thread_msg, " T:%lu", THREAD_SELF());
+			snprintf(thread_msg, LOG_THREAD_LEN, " T:%lu", THREAD_SELF());
 		}
 		if (OPENAVB_LOG_TIME_INFO) {
 			time_t tNow = time(NULL);
 			struct tm tmNow;
 			localtime_r(&tNow, &tmNow);
 
-			sprintf(time_msg, "%2.2d:%2.2d:%2.2d", tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
+			snprintf(time_msg, LOG_TIME_LEN, "%2.2d:%2.2d:%2.2d", tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
 		}
 		if (OPENAVB_LOG_TIMESTAMP_INFO) {
 			struct timespec nowTS;
 			CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &nowTS);
 
-			sprintf(timestamp_msg, "%lu:%09lu", nowTS.tv_sec, nowTS.tv_nsec);
+			snprintf(timestamp_msg, LOG_TIMESTAMP_LEN, "%lu:%09lu", nowTS.tv_sec, nowTS.tv_nsec);
 		}
 
 		// using sprintf and puts allows using static buffers rather than heap.
 		if (OPENAVB_TCAL_LOG_EXTRA_NEWLINE)
-			/* S32 full_msg_len = */ sprintf(full_msg, "[%s%s%s%s %s %s%s] %s: %s\n", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
+			/* S32 full_msg_len = */ snprintf(full_msg, LOG_FULL_MSG_LEN, "[%s%s%s%s %s %s%s] %s: %s\n", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
 		else
-			/* S32 full_msg_len = */ sprintf(full_msg, "[%s%s%s%s %s %s%s] %s: %s", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
+			/* S32 full_msg_len = */ snprintf(full_msg, LOG_FULL_MSG_LEN, "[%s%s%s%s %s %s%s] %s: %s", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
 
 		if (!OPENAVB_LOG_FROM_THREAD && !OPENAVB_LOG_PULL_MODE) {
-			fputs(full_msg, AVB_LOG_OUTPUT_FD);
+			fputs(full_msg, logOutputFd);
+			fflush(logOutputFd);
 		}
 		else {
 			if (logQueue) {
@@ -301,94 +321,139 @@ extern void DLL_EXPORT avbLogFn(
 
 extern void DLL_EXPORT avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, char *pFormat, log_rt_datatype_t dataType, void *pVar)
 {
-	if (level <= AVB_LOG_LEVEL) {
-		if (logRTQueue) {
-			if (bBegin) {
-				LOG_LOCK();
+	if (logRTQueue) {
+		if (bBegin) {
+			LOG_LOCK();
 
-				openavb_queue_elem_t elem = openavbQueueHeadLock(logRTQueue);
-				if (elem) {
-					log_rt_queue_item_t *pLogRTItem = (log_rt_queue_item_t *)openavbQueueData(elem);
-					pLogRTItem->bEnd = FALSE;
-					pLogRTItem->pFormat = NULL;
-					pLogRTItem->dataType = LOG_RT_DATATYPE_NOW_TS;
-					CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &pLogRTItem->data.nowTS);
-					openavbQueueHeadPush(logRTQueue);
-				}
+			openavb_queue_elem_t elem = openavbQueueHeadLock(logRTQueue);
+			if (elem) {
+				log_rt_queue_item_t *pLogRTItem = (log_rt_queue_item_t *)openavbQueueData(elem);
+				pLogRTItem->bEnd = FALSE;
+				pLogRTItem->pFormat = NULL;
+				pLogRTItem->dataType = LOG_RT_DATATYPE_NOW_TS;
+				CLOCK_GETTIME(OPENAVB_CLOCK_REALTIME, &pLogRTItem->data.nowTS);
+				openavbQueueHeadPush(logRTQueue);
 			}
+		}
 
-			if (bItem) {
-				openavb_queue_elem_t elem = openavbQueueHeadLock(logRTQueue);
-				if (elem) {
-					log_rt_queue_item_t *pLogRTItem = (log_rt_queue_item_t *)openavbQueueData(elem);
-					if (bEnd)
-						pLogRTItem->bEnd = TRUE;
-					else
-						pLogRTItem->bEnd = FALSE;
-					pLogRTItem->pFormat = pFormat;
-					pLogRTItem->dataType = dataType;
-
-					switch (pLogRTItem->dataType) {
-						case LOG_RT_DATATYPE_CONST_STR:
-					  		break;
-						case LOG_RT_DATATYPE_U16:
-							pLogRTItem->data.unsignedLongVar = *(U16 *)pVar;
-							break;
-						case LOG_RT_DATATYPE_S16:
-							pLogRTItem->data.signedLongVar = *(S16 *)pVar;
-							break;
-						case LOG_RT_DATATYPE_U32:
-							pLogRTItem->data.unsignedLongVar = *(U32 *)pVar;
-							break;
-						case LOG_RT_DATATYPE_S32:
-							pLogRTItem->data.signedLongVar = *(S32 *)pVar;
-							break;
-						case LOG_RT_DATATYPE_U64:
-							pLogRTItem->data.unsignedLongLongVar = *(U64 *)pVar;
-							break;
-						case LOG_RT_DATATYPE_S64:
-							pLogRTItem->data.signedLongLongVar = *(S64 *)pVar;
-							break;
-						case LOG_RT_DATATYPE_FLOAT:
-							pLogRTItem->data.floatVar = *(float *)pVar;
-							break;
-						default:
-							break;
-					}
-					openavbQueueHeadPush(logRTQueue);
-				}
-			}
-			
-			if (!bItem && bEnd) {
-				openavb_queue_elem_t elem = openavbQueueHeadLock(logRTQueue);
-				if (elem) {
-					log_rt_queue_item_t *pLogRTItem = (log_rt_queue_item_t *)openavbQueueData(elem);
+		if (bItem) {
+			openavb_queue_elem_t elem = openavbQueueHeadLock(logRTQueue);
+			if (elem) {
+				log_rt_queue_item_t *pLogRTItem = (log_rt_queue_item_t *)openavbQueueData(elem);
+				if (bEnd)
 					pLogRTItem->bEnd = TRUE;
-					pLogRTItem->pFormat = NULL;
-					pLogRTItem->dataType = LOG_RT_DATATYPE_NONE;
-					openavbQueueHeadPush(logRTQueue);
+				else
+					pLogRTItem->bEnd = FALSE;
+				pLogRTItem->pFormat = pFormat;
+				pLogRTItem->dataType = dataType;
+
+				switch (pLogRTItem->dataType) {
+					case LOG_RT_DATATYPE_CONST_STR:
+						break;
+					case LOG_RT_DATATYPE_U16:
+						pLogRTItem->data.unsignedLongVar = *(U16 *)pVar;
+						break;
+					case LOG_RT_DATATYPE_S16:
+						pLogRTItem->data.signedLongVar = *(S16 *)pVar;
+						break;
+					case LOG_RT_DATATYPE_U32:
+						pLogRTItem->data.unsignedLongVar = *(U32 *)pVar;
+						break;
+					case LOG_RT_DATATYPE_S32:
+						pLogRTItem->data.signedLongVar = *(S32 *)pVar;
+						break;
+					case LOG_RT_DATATYPE_U64:
+						pLogRTItem->data.unsignedLongLongVar = *(U64 *)pVar;
+						break;
+					case LOG_RT_DATATYPE_S64:
+						pLogRTItem->data.signedLongLongVar = *(S64 *)pVar;
+						break;
+					case LOG_RT_DATATYPE_FLOAT:
+						pLogRTItem->data.floatVar = *(float *)pVar;
+						break;
+					default:
+						break;
 				}
+				openavbQueueHeadPush(logRTQueue);
 			}
-			
-			if (bEnd) {
-				if (logQueue) {
-					openavb_queue_elem_t elem = openavbQueueHeadLock(logQueue);
-					if (elem) {
-						log_queue_item_t *pLogItem = (log_queue_item_t *)openavbQueueData(elem);
-						pLogItem->bRT = TRUE;
-						if (OPENAVB_LOG_FROM_THREAD) {
-							openavbQueueHeadPush(logQueue);
-						} else {
-							avbLogRTRender(pLogItem);
-							fputs((const char *)pLogItem->msg, AVB_LOG_OUTPUT_FD);
-							openavbQueueHeadUnlock(logQueue);
-						}
+		}
+
+		if (!bItem && bEnd) {
+			openavb_queue_elem_t elem = openavbQueueHeadLock(logRTQueue);
+			if (elem) {
+				log_rt_queue_item_t *pLogRTItem = (log_rt_queue_item_t *)openavbQueueData(elem);
+				pLogRTItem->bEnd = TRUE;
+				pLogRTItem->pFormat = NULL;
+				pLogRTItem->dataType = LOG_RT_DATATYPE_NONE;
+				openavbQueueHeadPush(logRTQueue);
+			}
+		}
+
+		if (bEnd) {
+			if (logQueue) {
+				openavb_queue_elem_t elem = openavbQueueHeadLock(logQueue);
+				if (elem) {
+					log_queue_item_t *pLogItem = (log_queue_item_t *)openavbQueueData(elem);
+					pLogItem->bRT = TRUE;
+					if (OPENAVB_LOG_FROM_THREAD) {
+						openavbQueueHeadPush(logQueue);
+					} else {
+						avbLogRTRender(pLogItem);
+						fputs((const char *)pLogItem->msg, logOutputFd);
+						fflush(logOutputFd);
+						openavbQueueHeadUnlock(logQueue);
 					}
 				}
-			  
-				LOG_UNLOCK();
 			}
+
+			LOG_UNLOCK();
 		}
 	}
 }
 
+extern void DLL_EXPORT avbLogBuffer(
+	int level,
+	const U8 *pData,
+	int dataLen,
+	int lineLen,
+	const char *company,
+	const char *component,
+	const char *path,
+	int line)
+{
+	char szDataLine[ 400 ];
+	char *pszOut;
+	int i, j;
+
+	if (level > AVB_LOG_LEVEL) { return; }
+
+	for (i = 0; i < dataLen; i += lineLen) {
+		/* Create the hexadecimal output for the buffer. */
+		pszOut = szDataLine;
+		*pszOut++ = '\t';
+		for (j = i; j < i + lineLen; ++j) {
+			if (j < dataLen) {
+				sprintf(pszOut, "%02x ", pData[j]);
+			} else {
+				strcpy(pszOut, "   ");
+			}
+			pszOut += 3;
+		}
+
+		*pszOut++ = ' ';
+		*pszOut++ = ' ';
+
+		/* Append the ASCII equivalent of each character. */
+		for (j = i; j < dataLen && j < i + lineLen; ++j) {
+			if (pData[j] >= 0x20 && pData[j] < 0x7f) {
+				*pszOut++ = (char) pData[j];
+			} else {
+				*pszOut++ = '.';
+			}
+		}
+
+		/* Display this line of text. */
+		*pszOut = '\0';
+		avbLogFn(level, "BUFFER", company, component, path, line, "%s", szDataLine);
+	}
+}

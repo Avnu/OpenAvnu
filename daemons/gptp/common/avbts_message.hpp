@@ -34,13 +34,14 @@
 #ifndef AVBTS_MESSAGE_HPP
 #define AVBTS_MESSAGE_HPP
 
-#include <stdint.h>
-#include <avbts_osnet.hpp>
-#include <ieee1588.hpp>
-
 #include <list>
 #include <algorithm>
 #include <memory>
+
+#include "avbts_osnet.hpp"
+#include "ieee1588.hpp"
+
+#include <stdint.h>
 
 /** @file **/
 
@@ -259,7 +260,9 @@ protected:
 	 */
 	PTPMessageCommon() : 
 	 sourcePortIdentity(nullptr), sequenceId(0), correctionField(0)
-	{ };
+	{
+
+	}
 
  public:
  	PTPMessageCommon(const PTPMessageCommon& other)
@@ -268,9 +271,10 @@ protected:
  	}
 	/**
 	 * @brief Creates the PTPMessageCommon interface
-	 * @param port IEEE1588Port where the message interface is connected to.
+	 * @param port CommonPort where the message interface is
+	 * connected to.
 	 */
-	PTPMessageCommon(IEEE1588Port * port);
+	PTPMessageCommon(CommonPort *port);
 	/**
 	 * @brief Destroys PTPMessageCommon interface
 	 */
@@ -281,7 +285,7 @@ protected:
 		return assign(other);
 	}
 
-	void MaybePerformCalculations(IEEE1588Port* port);
+	void MaybePerformCalculations(EtherPort* port);
 
 	PTPMessageCommon& assign(const PTPMessageCommon& other);
 
@@ -316,6 +320,22 @@ protected:
 	MessageType getMessageType(void) {
 		return messageType;
 	}
+
+	/**
+	 * @brief Check if message type is event
+	 * @return true if an event message
+	 */
+	bool isEvent( void )
+	{
+		return (( messageType >> 3) & 0x1 ) == 0;
+	}
+
+	/**
+	 * @brief Get TX timestamp
+	 * @param port used to send message
+	 * @param link_speed link speed of message
+	 */
+	bool getTxTimestamp( EtherPort *port, uint32_t link_speed );
 
 	/**
 	 * @brief  Gets the MessageID of the PTP message.
@@ -404,7 +424,7 @@ protected:
 	 * @param  port IEEE1588 port
 	 * @return void
 	 */
-	virtual void processMessage(IEEE1588Port * port);
+	virtual void processMessage(EtherPort *port);
 
 	/**
 	 * @brief  Builds PTP common header
@@ -425,8 +445,8 @@ protected:
 
 	void logCommonHeader();
 
-	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 /*Exact fit. No padding*/
@@ -573,12 +593,13 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	uint16_t stepsRemoved;
 	unsigned char timeSource;
 
-	 PTPMessageAnnounce(void);
- public:
+public:
+	 PTPMessageAnnounce();
+ 
 	 /**
 	  * @brief Creates the PTPMessageAnnounce interface
 	  */
-	 PTPMessageAnnounce(IEEE1588Port * port);
+	 PTPMessageAnnounce(CommonPort * port);
 
 	 /**
 	  * @brief Destroys the PTPMessageAnnounce interface
@@ -620,7 +641,7 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	}
 
 	/**
-	 * @brief  Gets the steps removed value. See IEEE 802.1AS clause 10.3.3
+	 * @brief  Gets the steps removed value. See IEEE 802.1AS-2011 Clause 10.3.3
 	 * @return steps removed value
 	 */
 	uint16_t getStepsRemoved(void) {
@@ -648,22 +669,23 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 
 	/**
 	 * @brief  Processes PTP message
-	 * @param  port IEEE1588Port
+	 * @param  port EtherPort
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port);
+	void processMessage(EtherPort *port);
 
 	/**
-	 * @brief  Assembles PTPMessageAnnounce message on the IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 * @brief  Assembles PTPMessageAnnounce message on the
+	 * EtherPort payload
+	 * @param  port EtherPort where the message will be
+	 * assembled
 	 * @param  destIdentity [in] Destination PortIdentity
-	 * @return void
+	 * @return true on success
 	 */
-	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+	bool sendPort(EtherPort *port, std::shared_ptr<PortIdentity> destIdentity);
 
-	friend PTPMessageCommon *buildPTPMessage(char *buf, int size,
-						 LinkLayerAddress * remote,
-						 IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 /**
@@ -678,9 +700,9 @@ class PTPMessageSync : public PTPMessageCommon {
 
 	/**
 	 * @brief Default constructor. Creates PTPMessageSync
-	 * @param port IEEE1588Port
+	 * @param port EtherPort
 	 */
-	PTPMessageSync(IEEE1588Port * port);
+	PTPMessageSync(EtherPort *port);
 
 	/**
 	 * @brief Destroys PTPMessageSync interface
@@ -701,10 +723,10 @@ class PTPMessageSync : public PTPMessageCommon {
 
 	/**
 	 * @brief  Processes PTP messages
-	 * @param  port [in] IEEE1588Port
+	 * @param  port [in] EtherPort
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port);
+	void processMessage(EtherPort *port);
 
 	/**
 	 * @brief  Gets origin timestamp value
@@ -715,15 +737,17 @@ class PTPMessageSync : public PTPMessageCommon {
 	}
 
 	/**
-	 * @brief  Assembles PTPMessageSync message on the IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 * @brief  Assembles PTPMessageSync message on the
+	 * EtherPort payload
+	 * @param  port EtherPort where the message will be
+	 * assembled
 	 * @param  destIdentity [in] Destination PortIdentity
-	 * @return void
+	 * @return true on success
 	 */
-	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+	bool sendPort(EtherPort *port, std::shared_ptr<PortIdentity> destIdentity);
 
-	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 /* Exact fit. No padding*/
@@ -925,13 +949,15 @@ private:
 	FollowUpTLV tlv;
 
 public:
-
-	PTPMessageFollowUp(void) { }
-
+	PTPMessageFollowUp()
+	{ 
+		messageType = FOLLOWUP_MESSAGE;
+	}
+	
 	/**
 	 * @brief Builds the PTPMessageFollowUP object
 	 */
-	PTPMessageFollowUp(IEEE1588Port * port);
+	PTPMessageFollowUp(EtherPort * port);
 
 	PTPMessageFollowUp(const PTPMessageFollowUp& other)
 	{
@@ -946,19 +972,22 @@ public:
 	PTPMessageFollowUp& assign(const PTPMessageFollowUp& other);
 
 	/**
-	 * @brief  Assembles PTPMessageFollowUp message on the IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 * @brief  Assembles PTPMessageFollowUp message on the
+	 * EtherPort payload
+	 * @param  port EtherPort where the message will be
+	 * assembled
 	 * @param  destIdentity [in] Destination PortIdentity
-	 * @return void
+	 * @return true on success
 	 */
-	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+	bool sendPort(EtherPort *port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
-	 * @param  port [in] IEEE1588Port
+	 * @param  port [in] EtherPort
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port);
+	void processMessage( EtherPort *port );
+
 	/**
 	 * @brief  Gets the precise origin timestamp value
 	 * @return preciseOriginTimestamp value
@@ -967,10 +996,10 @@ public:
 		return preciseOriginTimestamp;
 	}
 
-	void MaybePerformCalculations(IEEE1588Port *port, bool frequencyComputeOk);
+	void MaybePerformCalculations(EtherPort *port, bool frequencyComputeOk);
 
-	bool ComputeFrequencies(IEEE1588Port * port, bool lockSync);
-	bool ComputeFrequencies(IEEE1588Port * port);
+	bool ComputeFrequencies(EtherPort * port, bool lockSync);
+	bool ComputeFrequencies(EtherPort * port);
 
 
 	/**
@@ -994,8 +1023,8 @@ public:
 		tlv.setScaledLastGmPhaseChange(fup->getScaledLastGmPhaseChange());
 	}
 
-	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1010,17 +1039,19 @@ class PTPMessageDelayReq : public PTPMessageCommon {
 	/**
 	 * @brief Destroys the PTPMessageDelayReq object
 	 */
-	~PTPMessageDelayReq() {
+	~PTPMessageDelayReq()
+	{
 	}
 
-	PTPMessageDelayReq(const MessageType type = DELAY_REQ_MESSAGE)
+	PTPMessageDelayReq()
 	{
+		messageType = DELAY_REQ_MESSAGE;
 	}
 
 	/**
 	 * @brief Builds the PTPMessageDelayReq message
 	 */
-	PTPMessageDelayReq(IEEE1588Port * port);
+	PTPMessageDelayReq(EtherPort * port);
 
 	PTPMessageDelayReq(const PTPMessagePathDelayReq& other)
 	{
@@ -1034,18 +1065,18 @@ class PTPMessageDelayReq : public PTPMessageCommon {
 	
 	/**
 	 * @brief  Assembles PTPMessageDelayReq message on the IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  port etherPort where the message will be assembled
 	 * @param  destIdentity [in] Destination PortIdentity
-	 * @return void
+	 * @return bool
 	 */
-	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+	bool sendPort(EtherPort *port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
-	 * @param  port [in] IEEE1588Port
+	 * @param  port [in] etherPort
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port);
+	void processMessage(EtherPort * port);
 
 #ifdef APTP
 	/**
@@ -1069,8 +1100,8 @@ class PTPMessageDelayReq : public PTPMessageCommon {
 		originTimestamp = timestamp;
 	}
 
-	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1083,9 +1114,10 @@ private:
 	Timestamp fEgressTime;
 
 public:
-	PTPMessageDelayResp(const MessageType type = DELAY_RESP_MESSAGE) :
+	PTPMessageDelayResp() :
 		requestingPortIdentity(nullptr)
 	{
+		messageType = DELAY_RESP_MESSAGE;
 	}
 
 	PTPMessageDelayResp(const PTPMessageDelayResp& other)
@@ -1101,7 +1133,7 @@ public:
 	/**
 	 * @brief Builds the PTPMessageDelayResp object
 	 */
-	PTPMessageDelayResp(IEEE1588Port * port);
+	PTPMessageDelayResp(EtherPort * port);
 
 	PTPMessageDelayResp& operator=(const PTPMessageDelayResp& other)
 	{
@@ -1114,18 +1146,18 @@ public:
 
 	/**
 	 * @brief  Assembles PTPMessageDelayResp message on the IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 * @param  port EtherPort where the message will be assembled
 	 * @param  destIdentity [in] Destination PortIdentity
-	 * @return void
+	 * @return bool
 	 */
-	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+	bool sendPort(EtherPort *port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
-	 * @param  port [in] IEEE1588Port
+	 * @param  port [in] EtherPort
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port);
+	void processMessage(EtherPort * port);
 
 	/**
 	 * @brief  Sets the request receipt timestamp
@@ -1172,8 +1204,8 @@ public:
 	void buildCommonHeader(uint8_t * buf);
 #endif
 	
-	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1196,22 +1228,24 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 	/**
 	 * @brief Builds the PTPMessagePathDelayReq message
 	 */
-	PTPMessagePathDelayReq(IEEE1588Port * port);
+	PTPMessagePathDelayReq(EtherPort *port);
 
 	/**
-	 * @brief  Assembles PTPMessagePathDelayReq message on the IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 * @brief  Assembles PTPMessagePathDelayReq message on the
+	 * EtherPort payload
+	 * @param  port EtherPort where the message will be
+	 * assembled
 	 * @param  destIdentity [in] Destination PortIdentity
-	 * @return void
+	 * @return true on success
 	 */
-	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+	bool sendPort(EtherPort *port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
-	 * @param  port [in] IEEE1588Port
+	 * @param  port [in] EtherPort
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port);
+	void processMessage(EtherPort *port);
 
 	/**
 	 * @brief  Gets origin timestamp value
@@ -1221,8 +1255,8 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 		return originTimestamp;
 	}
 
-	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1243,22 +1277,24 @@ public:
 	/**
 	 * @brief Builds the PTPMessagePathDelayResp object
 	 */
-	PTPMessagePathDelayResp(IEEE1588Port * port);
+	PTPMessagePathDelayResp( EtherPort *port );
 
 	/**
-	 * @brief  Assembles PTPMessagePathDelayResp message on the IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 * @brief  Assembles PTPMessagePathDelayResp message on the
+	 * EtherPort payload
+	 * @param  port EtherPort where the message will be
+	 * assembled
 	 * @param  destIdentity [in] Destination PortIdentity
-	 * @return void
+	 * @return true on success
 	 */
-	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+	bool sendPort(EtherPort *port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
-	 * @param  port [in] IEEE1588Port
+	 * @param  port [in] EtherPort
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port);
+	void processMessage( EtherPort *port );
 
 	/**
 	 * @brief  Sets the request receipt timestamp
@@ -1290,8 +1326,8 @@ public:
 		return requestReceiptTimestamp;
 	}
 
-	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 /**
@@ -1308,7 +1344,7 @@ public:
 	/**
 	 * @brief Builds the PTPMessagePathDelayRespFollowUp object
 	 */
-	PTPMessagePathDelayRespFollowUp(IEEE1588Port * port);
+	PTPMessagePathDelayRespFollowUp(EtherPort *port);
 
 	/**
 	 * @brief Destroys the PTPMessagePathDelayRespFollowUp object
@@ -1316,19 +1352,21 @@ public:
 	~PTPMessagePathDelayRespFollowUp();
 
 	/**
-	 * @brief  Assembles PTPMessageRespFollowUp message on the IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 * @brief  Assembles PTPMessageRespFollowUp message on the
+	 * EtherPort payload
+	 * @param  port EtherPort where the message will be
+	 * assembled
 	 * @param  destIdentity [in] Destination PortIdentity
-	 * @return void
+	 * @return true on success
 	 */
-	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+	bool sendPort(EtherPort *port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
-	 * @param  port [in] IEEE1588Port
+	 * @param  port [in] EtherPort
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port);
+	void processMessage(EtherPort *port);
 
 	/**
 	 * @brief  Sets the response origin timestamp
@@ -1360,8 +1398,8 @@ public:
 		return requestingPortIdentity;
 	}
 
-	friend PTPMessageCommon *buildPTPMessage
-	(char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 /*Exact fit. No padding*/
@@ -1475,8 +1513,9 @@ private:
 	int8_t targetPortIdentify;
 	SignallingTLV tlv;
 
-	PTPMessageSignalling(void);
 public:
+	PTPMessageSignalling(void);
+
 	static const int8_t sigMsgInterval_Initial =  126;
 	static const int8_t sigMsgInterval_NoSend =  127;
 	static const int8_t sigMsgInterval_NoChange =  -128;
@@ -1484,7 +1523,7 @@ public:
 	/**
 	 * @brief Builds the PTPMessageSignalling object
 	 */
-	PTPMessageSignalling(IEEE1588Port * port);
+	PTPMessageSignalling(EtherPort *port);
 
 	/**
 	 * @brief Destroys the PTPMessageSignalling object
@@ -1502,22 +1541,23 @@ public:
 
 	/**
 	 * @brief  Assembles PTPMessageSignalling message on the
-	 *         IEEE1588Port payload
-	 * @param  port IEEE1588Port where the message will be assembled
+	 *         EtherPort payload
+	 * @param  port EtherPort where the message will be
+	 * assembled
 	 * @param  destIdentity [in] Destination PortIdentity
-	 * @return void
+	 * @return true on success
 	 */
-	void sendPort(IEEE1588Port * port, std::shared_ptr<PortIdentity> destIdentity);
+	bool sendPort(EtherPort *port, std::shared_ptr<PortIdentity> destIdentity);
 
 	/**
 	 * @brief  Processes PTP messages
-	 * @param  port [in] IEEE1588Port
+	 * @param  port [in] EtherPort
 	 * @return void
 	 */
-	void processMessage(IEEE1588Port * port);
+	void processMessage(EtherPort *port);
 
-	friend PTPMessageCommon *buildPTPMessage
-	  (char *buf, int size, LinkLayerAddress * remote, IEEE1588Port * port, const Timestamp& ingressTime);
+	friend PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+	 LinkLayerAddress *remote, EtherPort *port, const Timestamp& ingressTime);
 };
 
 #endif

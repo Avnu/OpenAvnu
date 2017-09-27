@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -36,7 +37,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 * This code provides the means for them to do so.
 *
 * This source file is compiled into the streamer executable.
-* 
+*
 * It provides proxy functions for the streamer to call.  The arguments
 * for those calls are packed into messages, which are unpacked in the
 * endpoint process and then used to call the real functions.
@@ -80,13 +81,14 @@ static bool openavbEptClntReceiveFromServer(int h, openavbEndpointMessage_t *msg
 			                            msg->params.talkerCallback.ifname,
 			                            msg->params.talkerCallback.destAddr,
 			                            msg->params.talkerCallback.lsnrDecl,
+			                            msg->params.talkerCallback.srClass,
 			                            msg->params.talkerCallback.classRate,
 			                            msg->params.talkerCallback.vlanID,
 			                            msg->params.talkerCallback.priority,
 			                            msg->params.talkerCallback.fwmark);
 			break;
 		case OPENAVB_ENDPOINT_LISTENER_CALLBACK:
-			openavbEptClntNotifyLstnrOfSrpCb(h, 
+			openavbEptClntNotifyLstnrOfSrpCb(h,
 			                            &msg->streamID,
 			                             msg->params.listenerCallback.ifname,
 			                             msg->params.listenerCallback.destAddr,
@@ -111,10 +113,12 @@ static bool openavbEptClntReceiveFromServer(int h, openavbEndpointMessage_t *msg
 bool openavbEptClntRegisterStream(int h,
                               AVBStreamID_t *streamID,
                               U8 destAddr[],
+                              U8 noMaapAllocate,
                               AVBTSpec_t *tSpec,
                               U8 srClass,
                               U8 srRank,
-                              U32 latency)
+                              U32 latency,
+                              U32 txRate)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
 	openavbEndpointMessage_t msgBuf;
@@ -129,13 +133,16 @@ bool openavbEptClntRegisterStream(int h,
 	memset(&msgBuf, 0, OPENAVB_ENDPOINT_MSG_LEN);
 	msgBuf.type = OPENAVB_ENDPOINT_TALKER_REGISTER;
 	memcpy(&(msgBuf.streamID), streamID, sizeof(AVBStreamID_t));
-	if (destAddr)
+	if (destAddr) {
 		memcpy(msgBuf.params.talkerRegister.destAddr, destAddr, ETH_ALEN);
+		msgBuf.params.talkerRegister.noMaapAllocate = noMaapAllocate;
+	}
 	msgBuf.params.talkerRegister.tSpec.maxFrameSize = tSpec->maxFrameSize;
 	msgBuf.params.talkerRegister.tSpec.maxIntervalFrames = tSpec->maxIntervalFrames;
 	msgBuf.params.talkerRegister.srClass = srClass;
 	msgBuf.params.talkerRegister.srRank = srRank;
 	msgBuf.params.talkerRegister.latency = latency;
+	msgBuf.params.talkerRegister.txRate = txRate;
 	bool ret = openavbEptClntSendToServer(h, &msgBuf);
 
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
@@ -153,7 +160,7 @@ bool openavbEptClntAttachStream(int h, AVBStreamID_t *streamID,
 		AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 		return FALSE;
 	}
-	
+
 	memset(&msgBuf, 0, OPENAVB_ENDPOINT_MSG_LEN);
 	msgBuf.type = OPENAVB_ENDPOINT_LISTENER_ATTACH;
 	memcpy(&(msgBuf.streamID), streamID, sizeof(AVBStreamID_t));
@@ -183,7 +190,7 @@ bool openavbEptClntStopStream(int h, AVBStreamID_t *streamID)
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return ret;
 }
- 
+
 bool openavbEptClntRequestVersionFromServer(int h)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_ENDPOINT);
@@ -196,4 +203,4 @@ bool openavbEptClntRequestVersionFromServer(int h)
 	AVB_TRACE_EXIT(AVB_TRACE_ENDPOINT);
 	return ret;
 }
- 
+

@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -33,7 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  */
 
 #include <openavb_types.h>
-#include "openavb_ether_hal.h"
+
 #define AVB_LOG_COMPONENT "QMGR"
 //#define AVB_LOG_LEVEL AVB_LOG_LEVEL_DEBUG
 #include "openavb_log.h"
@@ -41,7 +42,10 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include "openavb_qmgr.h"
 #include "avb_sched.h"
-#include "openavb_ether_hal.h"
+
+#if (AVB_FEATURE_IGB)
+#include "openavb_igb.h"
+#endif
 
 #define AVB_DEFAULT_QDISC_MODE AVB_SHAPER_HWQ_PER_CLASS
 
@@ -49,17 +53,24 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 // Qdisc configuration
 typedef struct {
+#if (AVB_FEATURE_IGB)
 	device_t *igb_dev;
+#endif
 	int mode;
 	int ifindex;
-	char ifname[IFNAMSIZ];
+	char ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	U32 linkKbit;
 	U32 nsrKbit;
 	U32 linkMTU;
 	int ref;
 } qdisc_data_t;
 
-static qdisc_data_t qdisc_data;
+static qdisc_data_t qdisc_data = {
+#if (AVB_FEATURE_IGB)
+	NULL,
+#endif
+	0, 0, {0}, 0, 0, 0, 0
+};
 
 // We do get accessed from multiple threads, so need a mutex
 pthread_mutex_t qmgr_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -92,21 +103,24 @@ static qmgrStream_t qmgr_streams[MAX_AVB_STREAMS];
 static bool setupHWQueue(int nClass, unsigned classBytesPerSec)
 {
 	int err = 0;
+#if (AVB_FEATURE_IGB)
 	U32 class_a_bytes_per_sec, class_b_bytes_per_sec;
+#endif
 
 	AVB_TRACE_ENTRY(AVB_TRACE_QUEUE_MANAGER);
 
+#if (AVB_FEATURE_IGB)
 	if (nClass == SR_CLASS_A) {
 		class_a_bytes_per_sec = classBytesPerSec;
-		class_b_bytes_per_sec =  qmgr_classes[SR_CLASS_B].classBytesPerSec;
+		class_b_bytes_per_sec = qmgr_classes[SR_CLASS_B].classBytesPerSec;
 	} else {
-		class_a_bytes_per_sec =  qmgr_classes[SR_CLASS_A].classBytesPerSec;
+		class_a_bytes_per_sec = qmgr_classes[SR_CLASS_A].classBytesPerSec;
 		class_b_bytes_per_sec = classBytesPerSec;
 	}
-
 	err = igb_set_class_bandwidth2(qdisc_data.igb_dev, class_a_bytes_per_sec, class_b_bytes_per_sec);
 	if (err)
 		AVB_LOGF_ERROR("Adding stream; igb_set_class_bandwidth failed: %s", strerror(err));
+#endif
 
 	AVB_TRACE_EXIT(AVB_TRACE_QUEUE_MANAGER);
 	return !err;
@@ -208,7 +222,7 @@ void openavbQmgrRemoveStream(U16 fwmark)
 
 		// update class
 		qmgr_classes[nClass].classBytesPerSec -= qmgr_streams[idx].streamBytesPerSec;
-		AVB_LOGF_DEBUG("Removed strea; classBPS=%u, streamBPS=%u", qmgr_classes[nClass].classBytesPerSec, qmgr_streams[idx].streamBytesPerSec);
+		AVB_LOGF_DEBUG("Removed stream; classBPS=%u, streamBPS=%u", qmgr_classes[nClass].classBytesPerSec, qmgr_streams[idx].streamBytesPerSec);
 		// and stream
 		memset(&qmgr_streams[idx], 0, sizeof(qmgrStream_t));
 	}
@@ -246,12 +260,14 @@ bool openavbQmgrInitialize(int mode, int ifindex, const char* ifname, unsigned m
 	AVB_LOGF_DEBUG("Initializing QMgr; mode=%d, idx=%d, mtu=%u, link_kbit=%u, nsr_kbit=%u",
 				   qdisc_data.mode, ifindex, mtu, link_kbit, nsr_kbit);
 
+#if (AVB_FEATURE_IGB)
 	if ( qdisc_data.mode != AVB_SHAPER_DISABLED
 	     && (qdisc_data.igb_dev = igbAcquireDevice()) == 0)
 	{
 		AVB_LOG_ERROR("Initializing QMgr; unable to acquire igb device");
 	}
 	else
+#endif
 	{
 		// Initialize data for classes and streams
 		memset(qmgr_classes, 0, sizeof(qmgr_classes));
@@ -294,8 +310,11 @@ void openavbQmgrFinalize(void)
 				}
 			}
 		}
+
+#if (AVB_FEATURE_IGB)
 		igbReleaseDevice(qdisc_data.igb_dev);
 		qdisc_data.igb_dev = NULL;
+#endif
 	}
 
 	UNLOCK();

@@ -3318,15 +3318,17 @@ static int __igb_open(struct net_device *netdev, bool resuming)
 
 	netif_carrier_off(netdev);
 
-	/* allocate transmit descriptors */
-	err = igb_setup_all_tx_resources(adapter);
-	if (err)
-		goto err_setup_tx;
+	if(!resuming){
+		/* allocate transmit descriptors */
+		err = igb_setup_all_tx_resources(adapter);
+		if (err)
+			goto err_setup_tx;
 
-	/* allocate receive descriptors */
-	err = igb_setup_all_rx_resources(adapter);
-	if (err)
-		goto err_setup_rx;
+		/* allocate receive descriptors */
+		err = igb_setup_all_rx_resources(adapter);
+		if (err)
+			goto err_setup_rx;
+	}
 
 	igb_power_up_link(adapter);
 
@@ -3438,8 +3440,10 @@ static int __igb_close(struct net_device *netdev, bool suspending)
 
 	igb_free_irq(adapter);
 
-	igb_free_all_tx_resources(adapter);
-	igb_free_all_rx_resources(adapter);
+	if(!suspending || (system_state != SYSTEM_RUNNING)){
+		igb_free_all_tx_resources(adapter);
+		igb_free_all_rx_resources(adapter);
+	}
 
 #ifdef CONFIG_PM_RUNTIME
 	if (!suspending)
@@ -9188,7 +9192,8 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 	if (netif_running(netdev))
 		__igb_close(netdev, true);
 
-	igb_clear_interrupt_scheme(adapter);
+	if(system_state != SYSTEM_RUNNING)
+		igb_clear_interrupt_scheme(adapter);
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
@@ -9294,12 +9299,6 @@ static int igb_resume(struct pci_dev *pdev)
 
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
-
-	if (igb_init_interrupt_scheme(adapter, true)) {
-		dev_err(pci_dev_to_dev(pdev),
-			"Unable to allocate memory for queues\n");
-		return -ENOMEM;
-	}
 
 	igb_reset(adapter);
 
@@ -10408,6 +10407,11 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 			       req.queue);
 			return -EINVAL;
 		}
+		
+		if(!adapter->num_tx_queues) {
+			printk("igb_avb igb_mapbuf:tx ring freed %s\n", adapter->netdev->name);
+			return -EINVAL;
+		}
 
 		mutex_lock(&adapter->lock);
 		if (adapter->uring_tx_init & (1 << req.queue)) {
@@ -10426,6 +10430,11 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		if (req.queue >= 3) {
 			printk("mapring:invalid queue specified(%d)\n",
 			       req.queue);
+			return -EINVAL;
+		}
+
+		if(!adapter->num_rx_queues) {
+			printk("igb_avb igb_mapbuf:rx ring freed %s \n", adapter->netdev->name);
 			return -EINVAL;
 		}
 

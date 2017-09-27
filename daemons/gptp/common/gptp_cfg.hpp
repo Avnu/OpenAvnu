@@ -39,7 +39,22 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <string>
 
 #include "ini.h"
-#include "ieee1588.hpp"
+#include <limits.h>
+
+#include "phydelay.hpp"
+#include "ptptypes.hpp"
+
+const uint32_t LINKSPEED_10G =		10000000;
+const uint32_t LINKSPEED_2_5G =		2500000;
+const uint32_t LINKSPEED_1G =		1000000;
+const uint32_t LINKSPEED_100MB =	100000;
+const uint32_t INVALID_LINKSPEED =	UINT_MAX;
+
+/**
+ * @brief Returns name given numeric link speed
+ * @return NULL if speed/name isn't found
+ */
+const char *findNameBySpeed( uint32_t speed );
 
 /**
  * @brief Provides the gptp interface for
@@ -49,169 +64,144 @@ class GptpIniParser
 {
     public:
 
-        /**
-         * @brief Container with the information to get from the .ini file
-         */
-        typedef struct
-        {
-            /*ptp data set*/
-            unsigned char priority1;
+      /**
+      * @brief Container with the information to get from the .ini file
+      */
+      typedef struct
+      {
+         /*ptp data set*/
+         unsigned char priority1;
 
-            /*port data set*/
-            int8_t initialLogAnnounceInterval;
-            int8_t initialLogSyncInterval;
-            unsigned int announceReceiptTimeout;
-            unsigned int syncReceiptTimeout;
-            unsigned int syncReceiptThresh;		//!< Number of wrong sync messages that will trigger a switch to master
-            int64_t neighborPropDelayThresh;
-            unsigned int seqIdAsCapableThresh;
-            uint16_t lostPdelayRespThresh;
-            PortState port_state;
-            PortType delayMechanism;
-            std::list<std::string> unicastSendNodes;
-            std::list<std::string> unicastReceiveNodes;
-            uint16_t adrRegSocketPort;
+         /*port data set*/
+         int8_t initialLogAnnounceInterval;
+         int8_t initialLogSyncInterval;
+         unsigned int announceReceiptTimeout;
+         unsigned int syncReceiptTimeout;
+         unsigned int syncReceiptThresh;     //!< Number of wrong sync messages that will trigger a switch to master
+         int64_t neighborPropDelayThresh;
+         unsigned int seqIdAsCapableThresh;
+         uint16_t lostPdelayRespThresh;
+         PortState port_state;
+         PortType delayMechanism;
+         std::list<std::string> unicastSendNodes;
+         std::list<std::string> unicastReceiveNodes;
+         uint16_t adrRegSocketPort;
 
-            /*ethernet adapter data set*/
-            std::string ifname;
-            struct phy_delay phyDelay;
-        } gptp_cfg_t;
+         /*ethernet adapter data set*/
+       std::string ifname;
+       phy_delay_map_t phy_delay;
+      } gptp_cfg_t;
 
-        /*public methods*/
-        GptpIniParser();
-        GptpIniParser(const std::string& ini_path);
-        ~GptpIniParser();
+      /*public methods*/
+      GptpIniParser();
+      GptpIniParser(const std::string& ini_path);
+      ~GptpIniParser();
 
-        /**
-         * @brief  Reads the parser Error value
-         * @param  void
-         * @return Parser Error
-         */
-        int parserError();
+      /**
+      * @brief  Reads the parser Error value
+      * @param  void
+      * @return Parser Error
+      */
+      int parserError();
 
-        std::list<std::string> UnicastSendNodes() const
-        {
-            return _config.unicastSendNodes;
-        }
+      std::list<std::string> UnicastSendNodes() const
+      {
+         return _config.unicastSendNodes;
+      }
 
-        std::list<std::string> UnicastReceiveNodes() const
-        {
-            return _config.unicastReceiveNodes;
-        }
-        
-        uint16_t AdrRegSocketPort() const
-        {
-            return _config.adrRegSocketPort;
-        }
+      std::list<std::string> UnicastReceiveNodes() const
+      {
+         return _config.unicastReceiveNodes;
+      }
 
-        /**
-         * @brief  Reads priority1 config value
-         * @param  void
-         * @return priority1
-         */
-        unsigned char getPriority1() const
-        {
-            return _config.priority1;
-        }
+      uint16_t AdrRegSocketPort() const
+      {
+         return _config.adrRegSocketPort;
+      }
 
-        /**
-         * @brief  Reads initialLogAnnounceInterval config value
-         * @param  void
-         * @return initialLogAnnounceInterval
-         */
-        int8_t getInitialLogAnnounceInterval() const
-        { 
-            return _config.initialLogAnnounceInterval;
-        }
-        
-        /**
-         * @brief  Reads initialLogSyncInterval config value
-         * @param  void
-         * @return initialLogSyncInterval
-         */
-        int8_t getInitialLogSyncInterval() const
-        {
-            return _config.initialLogSyncInterval;
-        }
+      /**
+      * @brief  Reads priority1 config value
+      * @param  void
+      * @return priority1
+      */
+      unsigned char getPriority1() const
+      {
+         return _config.priority1;
+      }
 
-        /**
-         * @brief  Reads the announceReceiptTimeout configuration value
-         * @param  void
-         * @return announceRecepitTimeout value from .ini file
-         */
-        unsigned int getAnnounceReceiptTimeout() const
-        {
-            return _config.announceReceiptTimeout;
-        }
+      /**
+      * @brief  Reads initialLogAnnounceInterval config value
+      * @param  void
+      * @return initialLogAnnounceInterval
+      */
+      int8_t getInitialLogAnnounceInterval() const
+      { 
+         return _config.initialLogAnnounceInterval;
+      }
 
-        /**
-         * @brief  Reads the syncRecepitTimeout configuration value
-         * @param  void
-         * @return syncRecepitTimeout value from the .ini file
-         */
-        unsigned int getSyncReceiptTimeout() const
-        {
-            return _config.syncReceiptTimeout;
-        }
+      /**
+      * @brief  Reads initialLogSyncInterval config value
+      * @param  void
+      * @return initialLogSyncInterval
+      */
+      int8_t getInitialLogSyncInterval() const
+      {
+         return _config.initialLogSyncInterval;
+      }
 
-        /**
-         * @brief  Reads the TX PHY DELAY GB value from the configuration file
-         * @param  void
-         * @return gb_tx_phy_delay value from the .ini file
-         */
-        int getPhyDelayGbTx() const
-        {
-            return _config.phyDelay.gb_tx_phy_delay;
-        }
+      /**
+      * @brief  Reads the announceReceiptTimeout configuration value
+      * @param  void
+      * @return announceRecepitTimeout value from .ini file
+      */
+      unsigned int getAnnounceReceiptTimeout() const
+      {
+         return _config.announceReceiptTimeout;
+      }
 
-        /**
-         * @brief  Reads the RX PHY DELAY GB value from the configuration file
-         * @param  void
-         * @return gb_rx_phy_delay value from the .ini file
-         */
-        int getPhyDelayGbRx() const
-        {
-            return _config.phyDelay.gb_rx_phy_delay;
-        }
+      /**
+      * @brief  Reads the syncRecepitTimeout configuration value
+      * @param  void
+      * @return syncRecepitTimeout value from the .ini file
+      */
+      unsigned int getSyncReceiptTimeout() const
+      {
+         return _config.syncReceiptTimeout;
+      }
 
-        /**
-         * @brief  Reads the TX PHY DELAY MB value from the configuration file
-         * @param  void
-         * @return mb_tx_phy_delay value from the .ini file
-         */
-        int getPhyDelayMbTx() const
-        {
-            return _config.phyDelay.mb_tx_phy_delay;
-        }
+      /**
+      * @brief  Reads the PHY DELAY values from the configuration file
+      * @param  void
+      * @return PHY delay map structure
+      */
+      const phy_delay_map_t getPhyDelay(void) const
+      {
+         return _config.phy_delay;
+      }
 
-        /**
-         * @brief  Reads the RX PHY DELAY MB valye from the configuration file
-         * @param  void
-         * @return mb_rx_phy_delay value from the .ini file
-         */
-        int getPhyDelayMbRx() const
-        {
-            return _config.phyDelay.mb_rx_phy_delay;
-        }
+      /**
+      * @brief  Reads the neighbohr propagation delay threshold from the configuration file
+      * @param  void
+      * @return neighborPropDelayThresh value from the .ini file
+      */
+      int64_t getNeighborPropDelayThresh() const
+      {
+         return _config.neighborPropDelayThresh;
+      }
 
-        /**
-         * @brief  Reads the neighbohr propagation delay threshold from the configuration file
-         * @param  void
-         * @return neighborPropDelayThresh value from the .ini file
-         */
-        int64_t getNeighborPropDelayThresh() const
-        {
-            return _config.neighborPropDelayThresh;
-        }
+      /**
+      * @brief  Reads the sync receipt threshold from the configuration file
+      * @return syncRecepitThresh value from the .ini file
+      */
+      unsigned int getSyncReceiptThresh() const
+      {
+         return _config.syncReceiptThresh;
+      }
 
-        /**
-         * @brief  Reads the sync receipt threshold from the configuration file
-         * @return syncRecepitThresh value from the .ini file
-         */
-        unsigned int getSyncReceiptThresh() const
-        {
-            return _config.syncReceiptThresh;
-        }
+   	/**
+   	 * @brief Dump PHY delays to screen
+   	 */
+   	void print_phy_delay( void );
 
         PortType getDelayMechanism() const
         {

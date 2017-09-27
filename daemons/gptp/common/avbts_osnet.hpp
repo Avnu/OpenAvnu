@@ -44,9 +44,11 @@
 #include <arpa/inet.h>
 #include <sstream>
 
+#include "common_tstamper.hpp"
 #include "macaddress.hpp"
 
 /**@file*/
+
 
 #define FACTORY_NAME_LENGTH 48		/*!< Factory name maximum length */
 #define DEFAULT_TIMEOUT 1			/*!< Default timeout in milliseconds*/
@@ -55,7 +57,7 @@
  * @brief LinkLayerAddress Class
  * Provides methods for initializing and comparing ethernet addresses.
  */
-class LinkLayerAddress : public InterfaceLabel
+class LinkLayerAddress:public InterfaceLabel
 {
  public:
 	/**
@@ -76,7 +78,7 @@ class LinkLayerAddress : public InterfaceLabel
 	{
 		uint8_t *ptr;
 		address_scalar <<= 16;
-
+		
 		for (ptr = fIpv6Addr; ptr < fIpv6Addr + ETHER_ADDR_OCTETS; ++ptr) {
 			*ptr = (address_scalar & 0xFF00000000000000ULL) >> 56;
 			address_scalar <<= 8;
@@ -394,7 +396,6 @@ private:
 		}
 	}
 
-
  private:
 	uint32_t fIpv4Addr;
 	uint8_t fIpv6Addr[IPV6_ADDR_OCTETS];
@@ -571,7 +572,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecv
-		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay) = 0;
+		(LinkLayerAddress *addr, uint8_t *payload, size_t &length) = 0;
 
 	 /**
 	  * @brief  Receives data from port 319
@@ -581,7 +582,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecvEvent
-		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port) = 0;
+		(LinkLayerAddress *addr, uint8_t *payload, size_t &length, Timestamp &ingressTime, EtherPort *port) = 0;
 
 	 /**
 	  * @brief  Receives data from port 320
@@ -591,7 +592,7 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecvGeneral
-		(LinkLayerAddress * addr, uint8_t * payload, size_t & length, struct phy_delay *delay, Timestamp& ingressTime, IEEE1588Port* port) = 0;
+		(LinkLayerAddress *addr, uint8_t *payload, size_t &length, Timestamp &ingressTime, EtherPort *port) = 0;
 
 	 /**
 	  * @brief Get Link Layer address (mac address)
@@ -603,7 +604,7 @@ class OSNetworkInterface {
 	 /**
 	  * @brief Watch for netlink changes.
 	  */
-	 virtual void watchNetLink(IEEE1588Port *pPort) = 0;
+	 virtual void watchNetLink(CommonPort *pPort) = 0;
 
 	 /**
 	  * @brief  Provides generic method for getting the payload offset
@@ -657,19 +658,19 @@ class OSNetworkInterfaceFactory {
 	 * @param iface [out] Pointer to interface name
 	 * @param id Factory name index
 	 * @param iflabel Interface label
-	 * @param timestamper HWTimestamper class pointer
+	 * @param timestamper CommonTimestamper class pointer
 	 * @return TRUE ok, FALSE error.
 	 */
 	static bool buildInterface(OSNetworkInterface ** iface, factory_name_t id,
-	 InterfaceLabel * iflabel, HWTimestamper * timestamper)
+	 InterfaceLabel * iflabel, CommonTimestamper * timestamper)
 	{
 		return factoryMap[id]->createInterface(iface, iflabel, timestamper);
 	}
 
 	virtual ~OSNetworkInterfaceFactory() = 0;
 private:
-	virtual bool createInterface(OSNetworkInterface ** iface, 
-	 InterfaceLabel * iflabel, HWTimestamper * timestamper) = 0;
+	virtual bool createInterface(OSNetworkInterface ** iface,
+	 InterfaceLabel * iflabel, CommonTimestamper * timestamper) = 0;
 
 	static FactoryMap_t factoryMap;
 };

@@ -1,53 +1,51 @@
-/******************************************************************************
-
-  Copyright (c) 2012, Intel Corporation
-  All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
-
-   1. Redistributions of source code must retain the above copyright notice,
-      this list of conditions and the following disclaimer.
-
-   2. Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-
-   3. Neither the name of the Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived from
-      this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-  POSSIBILITY OF SUCH DAMAGE.
-
-******************************************************************************/
+/*
+ * Copyright (C) 2017 Art and Logic.
+ *
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions are met:
+ *
+ *   1. Redistributions of source code must retain the above copyright notice, 
+ *      this list of conditions and the following disclaimer.
+ *
+ *   2. Redistributions in binary form must reproduce the above copyright 
+ *      notice, this list of conditions and the following disclaimer in the 
+ *      documentation and/or other materials provided with the distribution.
+ *
+ *   3. Neither the name of Art and Logic nor the names of its 
+ *      contributors may be used to endorse or promote products derived from 
+ *      this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ *  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+ *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ *  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
 #include <ctime>
 #include <chrono>
 #include <errno.h>
 #include <iostream>
-
-#include "linux_hal_generic.hpp"
-#include "linux_hal_generic_tsprivate.hpp"
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
 // For debug logging to a file
 #include <fstream>
-
-using namespace std::chrono;
-
 #include <unistd.h>
 #include <fcntl.h>
+
+#include "linux_hal_generic.hpp"
+#include "linux_hal_generic_tsprivate.hpp"
+
+
+using namespace std::chrono;
 
 class AGpio
 {
@@ -304,13 +302,6 @@ class AGPioPinger
 
    void ActivatePin()
    {
-      // high_resolution_clock::time_point now = high_resolution_clock::now();
-      // auto delta = duration_cast<nanoseconds>(now - fLastActivate);
-      // fDebugLogFile << duration_cast<nanoseconds>(now.time_since_epoch()).count() << "\t"
-      //  << duration_cast<nanoseconds>(fLastActivate.time_since_epoch()).count() << "\t"
-      //  << delta.count() << std::endl;
-      // fLastActivate = now;
-
       // Set the GPIO pin high for interval microseconds
       fGpioPin.Output(AGpio::kHigh);
       usleep(fInterval);
@@ -368,10 +359,6 @@ class AGPioPinger
       int64_t delta = fNextInterval < timeStamp
        ? (timeStamp - fNextInterval) / 1000 
        : (fNextInterval - timeStamp) / 1000;
-
-      // std::cout << "**********************timeStamp:" << timeStamp
-      //  << "   nextInterval:" << nextInterval
-      //  << "   delta:" << delta << std::endl;
       return delta;
    }
 
@@ -380,7 +367,8 @@ class AGPioPinger
       int64_t delta = CalculateSleepInterval(timeStamp);
       if (delta > fLastDelta || 0 == delta || delta < 0)
       {
-         GPTP_LOG_INFO("-------------------------AtIntervalBoundary  timeStamp %" PRIu64 "  delta %" PRIu64 "  fLastDelta %" PRIu64, timeStamp, delta, fLastDelta);
+         GPTP_LOG_VERBOSE("-------------------------AtIntervalBoundary  timeStamp %"
+          PRIu64 "  delta %" PRIu64 "  fLastDelta %" PRIu64, timeStamp, delta, fLastDelta);
       }
       bool atBoundary = delta <= 0 || fNextInterval < timeStamp;
       fLastDelta = delta;
@@ -390,7 +378,7 @@ class AGPioPinger
    int64_t ConvertToLocal(int64_t masterTimeToConvert)
    {
       int64_t localTime = 0;
-      IEEE1588Port *port = fTimestamper->Port();
+      EtherPort *port = fTimestamper->Port();
       if (port != nullptr)
       {
          localTime = port->ConvertToLocalTime(masterTimeToConvert);
@@ -421,16 +409,17 @@ class AGPioPinger
       time_point<high_resolution_clock> now = high_resolution_clock::now();
       int64_t timestamp = duration_cast<nanoseconds>(now.time_since_epoch()).count();
 
-      IEEE1588Port *port = fTimestamper->Port();
+      EtherPort *port = fTimestamper->Port();
       return port != nullptr ? timestamp - port->MasterOffset() : 0;
    }
 
    void AdjustToTimestamp()
    {
-      IEEE1588Port *port = fTimestamper->Port();
+      EtherPort *port = fTimestamper->Port();
       if (fTimestamper != nullptr && port != nullptr)
       {
-         GPTP_LOG_INFO("-------------------------fLastTimestamp:        %" PRIu64, fLastTimestamp);
+         GPTP_LOG_VERBOSE("-------------------------fLastTimestamp:        %" 
+          PRIu64, fLastTimestamp);
          if (fWaitingToCalc)
          {
             SleepWithLocalClock();
@@ -440,8 +429,10 @@ class AGPioPinger
             int64_t timestamp = ConvertToMaster();
             int64_t adjustedNextSecond = CalculateNextInterval(timestamp);
 
-            GPTP_LOG_INFO("-------------------------nextInterval:          %" PRIu64, fNextInterval);
-            GPTP_LOG_INFO("-------------------------adjustedNextSecond:    %" PRIu64, adjustedNextSecond);
+            GPTP_LOG_VERBOSE("-------------------------nextInterval:          %"
+             PRIu64, fNextInterval);
+            GPTP_LOG_VERBOSE("-------------------------adjustedNextSecond:    %"
+             PRIu64, adjustedNextSecond);
             if (0 == adjustedNextSecond)
             {
                SleepWithLocalClock();
@@ -453,9 +444,12 @@ class AGPioPinger
 
                high_resolution_clock::time_point now = high_resolution_clock::now();
 
-               GPTP_LOG_INFO("-------------------------nextInterval:          %" PRIu64, fNextInterval);
-               GPTP_LOG_INFO("-------------------------now(1):                %" PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
-               GPTP_LOG_INFO("-------------------------sleepInterval:         %" PRIu64, sleepInterval);
+               GPTP_LOG_VERBOSE("-------------------------nextInterval:          %"
+                PRIu64, fNextInterval);
+               GPTP_LOG_VERBOSE("-------------------------now(1):                %"
+                PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
+               GPTP_LOG_VERBOSE("-------------------------sleepInterval:         %"
+                PRIu64, sleepInterval);
 
                // Sleep until the the calculated wake up time
                if (sleepInterval > 0)
@@ -463,7 +457,7 @@ class AGPioPinger
                   usleep(sleepInterval);
                }
 
-               GPTP_LOG_INFO("-------------------------WAKE UP");
+               GPTP_LOG_VERBOSE("-------------------------WAKE UP");
                fLastTimestamp = timestamp;
             }
          }
