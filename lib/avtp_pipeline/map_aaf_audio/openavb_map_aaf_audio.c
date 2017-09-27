@@ -899,7 +899,7 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 		}
 
 		if (pPvtData->temporalRedundantOffsetUsec > 0 &&
-				dataLen < TOTAL_HEADER_SIZE + (2 * pPvtData->payloadSize)) {
+				dataLen < TOTAL_HEADER_SIZE + (2 * payloadLen)) {
 			AVB_LOG_WARNING("Listener disabling temporal redundancy due to lack of data");
 			pPvtData->temporalRedundantOffsetUsec = 0;
 		}
