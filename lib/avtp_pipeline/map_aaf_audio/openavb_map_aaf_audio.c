@@ -188,9 +188,10 @@ typedef struct {
 
 	// Temporal Redundancy data queue
 	circular_queue_t temporalRedundantQueue;
+	U32 temporalRedundantQueueFrameSize;
 
 	// Temporal Redundancy Listener support and statistics
-	circular_queue_t trStatsEntryValidQueue;
+	circular_queue_t trStatsEntryTypeQueue;
 	U32 trStatsTotalFrames, trStatsLostFrames, trStatsNeededAvailable, trStatsNeededNotAvailable;
 
 	U64 nextReportNS;
@@ -357,15 +358,13 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 			pPubMapInfo->itemSize);
 
 		// Temporal Redundancy adjustments
+		pPvtData->temporalRedundantQueueFrameSize = pPvtData->payloadSizeMaxListener;
 		pPvtData->payloadSizeMaxListener *= 2; // Double Listener max payload in case remote Talker using Temporal Redundancy
 		if (pPvtData->temporalRedundantOffsetUsec > 0) {
 			pPvtData->payloadSizeMaxTalker *= 2; // Double Talker max payload if using Temporal Redundancy
 
 			pPvtData->temporalRedundantOffsetPackets =
 				(pPvtData->temporalRedundantOffsetSamples / pPubMapInfo->framesPerPacket);
-			if ((pPvtData->temporalRedundantOffsetSamples % pPubMapInfo->framesPerPacket) != 0) {
-				AVB_LOG_WARNING("Temporal Redundancy performance may be impacted, and statistics may be inaccurate, as redundant data will be split between two packets");
-			}
 
 			AVB_LOGF_INFO("temporal redundancy offset=%u microseconds, %u samples, %u packets",
 				pPvtData->temporalRedundantOffsetUsec, pPvtData->temporalRedundantOffsetSamples, pPvtData->temporalRedundantOffsetPackets);
@@ -512,10 +511,14 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 		openavbMediaQSetSize(pMediaQ, pPvtData->itemCount, pPubMapInfo->itemSize);
 
 		if (pPvtData->temporalRedundantOffsetUsec > 0 && pPvtData->temporalRedundantOffsetSamples > 0) {
+			if ((pPvtData->temporalRedundantOffsetSamples % pPubMapInfo->framesPerPacket) != 0) {
+				AVB_LOG_ERROR("Temporal Redundancy not supported when redundant data would be split between two packets");
+				return;
+			}
+
 			// Create a data queue big enough to meet our needs.
 			const U32 queueSize =
-				(pPvtData->temporalRedundantOffsetSamples * pPubMapInfo->packetSampleSizeBytes * pPubMapInfo->audioChannels) +
-				(pPubMapInfo->itemFrameSizeBytes * pPubMapInfo->framesPerPacket * 2);
+				(pPvtData->temporalRedundantQueueFrameSize * (pPvtData->temporalRedundantOffsetPackets + 2));
 			FreeCircularQueue(&pPvtData->temporalRedundantQueue);
 			if (!AllocateCircularQueue(&pPvtData->temporalRedundantQueue, queueSize)) {
 				AVB_LOG_ERROR("Temporal Redundancy queue not allocated.");
@@ -525,7 +528,7 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 			// Prefill the data queue with empty samples for the initial temporal redundancy processing.
 			// TODO:  Do we need something besides zeros for AAF_FORMAT_FLOAT_32 or AAF_FORMAT_AES3_32?
 			PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, NULL,
-				(pPvtData->temporalRedundantOffsetSamples * pPubMapInfo->packetSampleSizeBytes* pPubMapInfo->audioChannels));
+				(pPvtData->temporalRedundantQueueFrameSize * pPvtData->temporalRedundantOffsetPackets));
 		}
 
 		pPvtData->dataValid = TRUE;
@@ -717,9 +720,17 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 	if (pPvtData->temporalRedundantOffsetUsec > 0) {
 		// Push the data from the redundant_audio_data_payload to the circular queue, so we can use it in a later packet.
 		PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, pData + TOTAL_HEADER_SIZE + bytesNeeded, bytesNeeded);
+		if (bytesNeeded < pPvtData->temporalRedundantQueueFrameSize) {
+			// Pad to the end of the frame size.
+			PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize - bytesNeeded);
+		}
 
 		// Pull the data from the circular queue to the primary_audio_data_payload.
 		PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, pData + TOTAL_HEADER_SIZE, bytesNeeded);
+		if (bytesNeeded < pPvtData->temporalRedundantQueueFrameSize) {
+			// Go past padding at the end of the frame size.
+			PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize - bytesNeeded);
+		}
 
 		// Account for the larger packet size.
 		*dataLen += bytesNeeded;
@@ -772,11 +783,11 @@ void openavbMapAVTPAudioRxInitCB(media_q_t *pMediaQ)
 		// Prepare to gather Temporal Redundancy statistics.
 		if (pPvtData->temporalRedundantOffsetUsec > 0) {
 			// Create a statistics tracking queue big enough to meet our needs.
-			FreeCircularQueue(&pPvtData->trStatsEntryValidQueue);
-			AllocateCircularQueue(&pPvtData->trStatsEntryValidQueue, pPvtData->temporalRedundantOffsetPackets + 10 /* Add some padding, just in case. */ );
+			FreeCircularQueue(&pPvtData->trStatsEntryTypeQueue);
+			AllocateCircularQueue(&pPvtData->trStatsEntryTypeQueue, pPvtData->temporalRedundantOffsetPackets + 10 /* Add some padding, just in case. */ );
 
-			// Record some initial failures, as the pre-filled redundant data is not valid.
-			PushBufferToCircularQueue(&pPvtData->trStatsEntryValidQueue, NULL, pPvtData->temporalRedundantOffsetPackets);
+			// Record some initial failures, as the pre-filled redundant data is of type AAF_FORMAT_UNSPEC (0).
+			PushBufferToCircularQueue(&pPvtData->trStatsEntryTypeQueue, NULL, pPvtData->temporalRedundantOffsetPackets);
 
 			pPvtData->trStatsTotalFrames = pPvtData->trStatsLostFrames =
 				pPvtData->trStatsNeededAvailable = pPvtData->trStatsNeededNotAvailable = 0;
@@ -930,10 +941,10 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 						memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, pPayload, pPvtData->payloadSize);
 					}
 					else {
-						static U8 s_audioBuffer[1500];
 						U8 *pInData = pPayload;
-						U8 *pInDataEnd = pPayload + payloadLen;
-						U8 *pOutData = s_audioBuffer;
+						U8 *pInDataEnd = pInData + payloadLen;
+						U8 *pOutDataStart = (U8*) pMediaQItem->pPubData + pMediaQItem->dataLen;
+						U8 *pOutData = pOutDataStart;
 						int nInSampleLength = 6 - incoming_aaf_format; // Calculate the number of integer bytes per sample received
 						int nOutSampleLength = 6 - pPvtData->aaf_format; // Calculate the number of integer bytes per sample we want
 						int i;
@@ -957,15 +968,13 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 								pInData += (nInSampleLength - nOutSampleLength);
 							}
 						}
-						if (pOutData - s_audioBuffer != pPvtData->payloadSize) {
-							AVB_LOGF_ERROR("Output not expected size (%d instead of %d)", pOutData - s_audioBuffer, pPvtData->payloadSize);
+						if (pOutData - pOutDataStart != pPvtData->payloadSize) {
+							AVB_LOGF_ERROR("Output not expected size (%d instead of %d)", pOutData - pOutDataStart, pPvtData->payloadSize);
 						}
 
 						if (pPubMapInfo->intf_rx_translate_cb) {
-							pPubMapInfo->intf_rx_translate_cb(pMediaQ, s_audioBuffer, pPvtData->payloadSize);
+							pPubMapInfo->intf_rx_translate_cb(pMediaQ, pOutDataStart, pPvtData->payloadSize);
 						}
-
-						memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, s_audioBuffer, pPvtData->payloadSize);
 					}
 
 					pMediaQItem->dataLen += pPvtData->payloadSize;
@@ -981,24 +990,27 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 				}
 
 				if (pPvtData && pPvtData->temporalRedundantOffsetUsec > 0) {
-					// Save the pre-converted redundant data.
-					// TODO:  Save the length/type of the saved data.
-					PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, pPayload + pPvtData->payloadSize, pPvtData->payloadSize);
+					// Save the pre-converted redundant data, and the format of the saved data.
+					U8 result = incoming_aaf_format; // Format of the redundant data.
+					PushBufferToCircularQueue(&pPvtData->trStatsEntryTypeQueue, &result, 1);
+					PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, pPayload + payloadLen, payloadLen);
+					if (payloadLen < pPvtData->temporalRedundantQueueFrameSize) {
+						// Pad to the end of the frame size.
+						PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize - payloadLen);
+					}
 
 					// Discard the unnecessary redundant data previously saved.
 					// If debugging, verify that, if the redundant data was received earlier, it matches the received data.
-					U8 dataValid = 0;
-					PullBufferFromCircularQueue(&pPvtData->trStatsEntryValidQueue, &dataValid, 1);
+					U8 dataFormat = 0;
+					PullBufferFromCircularQueue(&pPvtData->trStatsEntryTypeQueue, &dataFormat, 1);
 #if (AVB_LOG_LEVEL >= AVB_LOG_LEVEL_DEBUG)
-					if (dataValid && !CompareBufferToCircularQueue(&pPvtData->temporalRedundantQueue, pPayload, pPvtData->payloadSize)) {
+					if (dataFormat != AAF_FORMAT_UNSPEC && !CompareBufferToCircularQueue(&pPvtData->temporalRedundantQueue, pPayload, payloadLen)) {
 						AVB_LOG_DEBUG("Redundant data does not match primary data.");
 					}
 #endif
-					PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->payloadSize);
+					PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize);
 
 					// Update the statistics.
-					U8 result = 1; // Non-Zero to indicate valid recovery data.
-					PushBufferToCircularQueue(&pPvtData->trStatsEntryValidQueue, &result, 1);
 					pPvtData->trStatsTotalFrames++;
 
 					// Display the statistics.
@@ -1011,7 +1023,7 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 								pPvtData->trStatsNeededAvailable, pPvtData->trStatsNeededNotAvailable);
 							AVB_LOGF_DEBUG("Temporal Redundancy Data Queue Size=%u, Tracking Queue Size=%u",
 								CircularQueueBytesQueued(&pPvtData->temporalRedundantQueue),
-								CircularQueueBytesQueued(&pPvtData->trStatsEntryValidQueue));
+								CircularQueueBytesQueued(&pPvtData->trStatsEntryTypeQueue));
 
 							pPvtData->trStatsTotalFrames = pPvtData->trStatsLostFrames =
 								pPvtData->trStatsNeededAvailable = pPvtData->trStatsNeededNotAvailable = 0;
@@ -1052,17 +1064,13 @@ bool openavbMapAVTPAudioRxLostCB(media_q_t *pMediaQ, U8 numLost)
 	if (pMediaQ) {
 		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
 		if (pPvtData && pPvtData->temporalRedundantOffsetUsec > 0 && pPvtData->dataValid) {
-			media_q_pub_map_aaf_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
-			U32 bytesNeeded = pPubMapInfo->itemFrameSizeBytes * pPubMapInfo->framesPerPacket;
-
 			while (numLost-- > 0) {
 				// Get item pointer in media queue
 				media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
 				if (pMediaQItem) {
+					media_q_pub_map_aaf_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
 
 					// Update the statistics.
-					U8 result = 0; // Zero to indicate invalid recovery data.
-					PushBufferToCircularQueue(&pPvtData->trStatsEntryValidQueue, &result, 1);
 					pPvtData->trStatsTotalFrames++;
 					pPvtData->trStatsLostFrames++;
 
@@ -1070,18 +1078,93 @@ bool openavbMapAVTPAudioRxLostCB(media_q_t *pMediaQ, U8 numLost)
 					openavbAvtpTimeSetTimestampValid(pMediaQItem->pAvtpTime, FALSE);
 
 					// Add the recovery data to pMediaQ.
-					// TODO:  Convert the data, if needed.
-					U8 dataValid = 0;
-					PullBufferFromCircularQueue(&pPvtData->trStatsEntryValidQueue, &dataValid, 1);
-					if (dataValid) {
-						pPvtData->trStatsNeededAvailable++;
+					U8 dataFormat = 0;
+					PullBufferFromCircularQueue(&pPvtData->trStatsEntryTypeQueue, &dataFormat, 1);
+					if (dataFormat == AAF_FORMAT_UNSPEC) {
+						pPvtData->trStatsNeededNotAvailable++;
+
+						// TODO:  Do we need something besides zeros for AAF_FORMAT_FLOAT_32 or AAF_FORMAT_AES3_32?
+						PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue,
+							(U8*) pMediaQItem->pPubData + pMediaQItem->dataLen, pPvtData->payloadSize);
+						if (pPubMapInfo->intf_rx_translate_cb) {
+							pPubMapInfo->intf_rx_translate_cb(pMediaQ,
+								(U8*) pMediaQItem->pPubData + pMediaQItem->dataLen, pPvtData->payloadSize);
+						}
+						pMediaQItem->dataLen += pPvtData->payloadSize;
+						if (pPvtData->payloadSize < pPvtData->temporalRedundantQueueFrameSize) {
+							// Go past padding at the end of the frame size.
+							PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, NULL,
+								pPvtData->temporalRedundantQueueFrameSize - pPvtData->payloadSize);
+						}
 					}
 					else {
-						pPvtData->trStatsNeededNotAvailable++;
+						pPvtData->trStatsNeededAvailable++;
+
+						// Convert the data, if needed.
+						if (dataFormat != pPvtData->aaf_format &&
+								dataFormat >= AAF_FORMAT_INT_32 && dataFormat <= AAF_FORMAT_INT_16 &&
+								pPvtData->aaf_format >= AAF_FORMAT_INT_32 && pPvtData->aaf_format <= AAF_FORMAT_INT_16) {
+
+							static U8 s_audioBuffer[1500];
+							int nInSampleLength = 6 - dataFormat; // Calculate the number of integer bytes per sample received
+							int nOutSampleLength = 6 - pPvtData->aaf_format; // Calculate the number of integer bytes per sample we want
+							int payloadLen = nInSampleLength * pPubMapInfo->audioChannels * pPubMapInfo->framesPerPacket;
+							U8 *pInData = s_audioBuffer;
+							U8 *pInDataEnd = pInData + payloadLen;
+							U8 *pOutDataStart = (U8*) pMediaQItem->pPubData + pMediaQItem->dataLen;
+							U8 *pOutData = pOutDataStart;
+							int i;
+
+							PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue,
+								s_audioBuffer, pPvtData->temporalRedundantQueueFrameSize);
+
+							if (nInSampleLength < nOutSampleLength) {
+								// We need to pad the data supplied.
+								while (pInData < pInDataEnd) {
+									for (i = 0; i < nInSampleLength; ++i) {
+										*pOutData++ = *pInData++;
+									}
+									for ( ; i < nOutSampleLength; ++i) {
+										*pOutData++ = 0; // Value specified in Clause 7.3.4.
+									}
+								}
+							}
+							else {
+								// We need to truncate the data supplied.
+								while (pInData < pInDataEnd) {
+									for (i = 0; i < nOutSampleLength; ++i) {
+										*pOutData++ = *pInData++;
+									}
+									pInData += (nInSampleLength - nOutSampleLength);
+								}
+							}
+							if (pOutData - pOutDataStart != pPvtData->payloadSize) {
+								AVB_LOGF_ERROR("Output not expected size (%d instead of %d)", pOutData - pOutDataStart, pPvtData->payloadSize);
+							}
+
+							if (pPubMapInfo->intf_rx_translate_cb) {
+								pPubMapInfo->intf_rx_translate_cb(pMediaQ, pOutDataStart, pPvtData->payloadSize);
+							}
+						}
+						else {
+							// Copy the data directly from the circular queue to the media queue.
+							PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue,
+								(U8*) pMediaQItem->pPubData + pMediaQItem->dataLen, pPvtData->payloadSize);
+							if (pPvtData->payloadSize < pPvtData->temporalRedundantQueueFrameSize) {
+								// Go past padding at the end of the frame size.
+								PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, NULL,
+									pPvtData->temporalRedundantQueueFrameSize - pPvtData->payloadSize);
+							}
+
+							if (pPubMapInfo->intf_rx_translate_cb) {
+								pPubMapInfo->intf_rx_translate_cb(pMediaQ,
+									(U8*) pMediaQItem->pPubData + pMediaQItem->dataLen, pPvtData->payloadSize);
+							}
+						}
+
+						pMediaQItem->dataLen += pPvtData->payloadSize;
 					}
-					PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue,
-						(U8*) pMediaQItem->pPubData + pMediaQItem->dataLen, pPvtData->payloadSize);
-					pMediaQItem->dataLen += pPvtData->payloadSize;
+
 					if (pMediaQItem->dataLen < pMediaQItem->itemSize) {
 						// More data can be written to the item
 						openavbMediaQHeadUnlock(pMediaQ);
@@ -1092,8 +1175,9 @@ bool openavbMapAVTPAudioRxLostCB(media_q_t *pMediaQ, U8 numLost)
 					}
 
 					// Add some blank recovery data for this lost packet.
-					// TODO:  Keep track of the data type for conversion later.
-					PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, NULL, bytesNeeded);
+					U8 result = AAF_FORMAT_UNSPEC; // AAF_FORMAT_UNSPEC (0) to indicate invalid recovery data.
+					PushBufferToCircularQueue(&pPvtData->trStatsEntryTypeQueue, &result, 1);
+					PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize);
 				}
 			}
 		}
@@ -1134,7 +1218,7 @@ void openavbMapAVTPAudioGenEndCB(media_q_t *pMediaQ)
 		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
 		if (pPvtData) {
 			FreeCircularQueue(&pPvtData->temporalRedundantQueue);
-			FreeCircularQueue(&pPvtData->trStatsEntryValidQueue);
+			FreeCircularQueue(&pPvtData->trStatsEntryTypeQueue);
 		}
 	}
 
