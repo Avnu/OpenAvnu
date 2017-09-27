@@ -898,6 +898,12 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			listenerSparseMode = FALSE;
 		}
 
+		if (pPvtData->temporalRedundantOffsetUsec > 0 &&
+				dataLen < TOTAL_HEADER_SIZE + (2 * pPvtData->payloadSize)) {
+			AVB_LOG_WARNING("Listener disabling temporal redundancy due to lack of data");
+			pPvtData->temporalRedundantOffsetUsec = 0;
+		}
+
 		if (dataValid) {
 			if (!pPvtData->dataValid) {
 				AVB_LOG_INFO("RX data valid, stream un-muted");
