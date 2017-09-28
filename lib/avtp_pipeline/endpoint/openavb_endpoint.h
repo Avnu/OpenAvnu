@@ -74,11 +74,11 @@ typedef enum {
 // Client message parameters
 //////////////////////////////
 typedef struct {
-	U8 			destAddr[ETH_ALEN];
-	U8 			noMaapAllocate;
+	U8			destAddr[ETH_ALEN];
+	U8			noMaapAllocate;
 	AVBTSpec_t	tSpec;
 	U8			srClass;
-	U8	        srRank;
+	U8			srRank;
 	U32			latency;
 	U32			txRate;
 } openavbEndpointParams_TalkerRegister_t;
@@ -97,24 +97,24 @@ typedef struct {
 // Server messages parameters
 //////////////////////////////
 typedef struct {
-	char		ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
-	U8			destAddr[ETH_ALEN];
-	openavbSrpLsnrDeclSubtype_t lsnrDecl;
-	U8			srClass;
-	U32			classRate;
-	U16			vlanID;
-	U8			priority;
-	U16			fwmark;
+	char						ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
+	U8							destAddr[ETH_ALEN];
+	openavbSrpLsnrDeclSubtype_t	lsnrDecl;
+	U8							srClass;
+	U32							classRate;
+	U16							vlanID;
+	U8							priority;
+	U16							fwmark;
 } openavbEndpointParams_TalkerCallback_t;
 
 typedef struct {
-	openavbSrpAttribType_t tlkrDecl;
-	char		ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
-	U8 			destAddr[ETH_ALEN];
-	AVBTSpec_t	tSpec;
-	U8			srClass;
-	U32			latency;
-	openavbSrpFailInfo_t failInfo;
+	openavbSrpAttribType_t	tlkrDecl;
+	char					ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
+	U8 						destAddr[ETH_ALEN];
+	AVBTSpec_t				tSpec;
+	U8						srClass;
+	U32						latency;
+	openavbSrpFailInfo_t	failInfo;
 } openavbEndpointParams_ListenerCallback_t;
 
 typedef struct {
@@ -124,35 +124,35 @@ typedef struct {
 #define OPENAVB_ENDPOINT_MSG_LEN sizeof(openavbEndpointMessage_t)
 
 typedef struct clientStream_t {
-	struct clientStream_t *next; // next link list pointer
+	struct clientStream_t	*next;				// next link list pointer
 
-	int				clientHandle;		// ID that links this info to client (talker or listener)
+	int						clientHandle;		// ID that links this info to client (talker or listener)
 
 	// Information provided by the client (talker or listener)
-	AVBStreamID_t	streamID;			// stream identifier
-	clientRole_t	role;				// is client a talker or listener?
+	AVBStreamID_t			streamID;			// stream identifier
+	clientRole_t			role;				// is client a talker or listener?
 
 	// Information provided by the client (talker)
-	AVBTSpec_t 		tSpec;				// traffic specification (bandwidth for reservation)
-	SRClassIdx_t	srClass;			// AVB class
-	U8 				srRank;				// AVB rank
-	U32				latency;			// internal latency
-	U32				txRate;				// frames per second
+	AVBTSpec_t 				tSpec;				// traffic specification (bandwidth for reservation)
+	SRClassIdx_t			srClass;			// AVB class
+	U8 						srRank;				// AVB rank
+	U32						latency;			// internal latency
+	U32						txRate;				// frames per second
 
 	// Information provided by SRP
-	U8				priority;			// AVB priority to use for stream
-	U16				vlanID;				// VLAN ID to use for stream
-	U32				classRate;			// observation intervals per second
+	U8						priority;			// AVB priority to use for stream
+	U16						vlanID;				// VLAN ID to use for stream
+	U32						classRate;			// observation intervals per second
 
 	// Information provided by MAAP
-	void			*hndMaap;			// handle for MAAP address allocation
-	U8				destAddr[ETH_ALEN];	// destination MAC address (from config or MAAP)
+	void					*hndMaap;			// handle for MAAP address allocation
+	U8						destAddr[ETH_ALEN];	// destination MAC address (from config or MAAP)
 
 	// Information provided by Shaper
-	void			*hndShaper;			// handle for Shaping configuration
+	void					*hndShaper;			// handle for Shaping configuration
 
 	// Information provided by QMgr
-	int				fwmark;				// mark to identify packets of this stream
+	int						fwmark;				// mark to identify packets of this stream
 } clientStream_t;
 
 int startPTP(void);
@@ -168,16 +168,18 @@ bool x_talkerDeregister(clientStream_t *ps);
 bool x_listenerDetach(clientStream_t *ps);
 
 
-openavbRC strmRegCb(void *pv,
-						  openavbSrpAttribType_t tlkrDecl,
-						  U8 destAddr[],
-						  AVBTSpec_t *tSpec,
-						  SRClassIdx_t srClass,
-						  U32 accumLatency,
-						  openavbSrpFailInfo_t *failInfo);
+openavbRC strmRegCb(
+	void *pv,
+	openavbSrpAttribType_t tlkrDecl,
+	U8 destAddr[],
+	AVBTSpec_t *tSpec,
+	SRClassIdx_t srClass,
+	U32 accumLatency,
+	openavbSrpFailInfo_t *failInfo);
 
-openavbRC strmAttachCb(void* pv,
-							 openavbSrpLsnrDeclSubtype_t lsnrDecl);
+openavbRC strmAttachCb(
+	void* pv,
+	openavbSrpLsnrDeclSubtype_t lsnrDecl);
 
 
 #include "openavb_endpoint_osal.h"
@@ -197,9 +199,9 @@ void openavbEptSrvrCloseClientConnection(int h);
 
 // Immediately after establishing connection with the endpoint server,
 // the endpoint client checks that the server's version is the same as its own.
-// The client sends a request to the cleint for its version.
+// The client sends a request to the client for its version.
 // The server handles the request and sends its version to the requesting client.
-// The clinet compares the recevied version to its own.
+// The client compares the received version to its own.
 bool openavbEptClntRequestVersionFromServer(int h);
 bool openavbEptSrvrHndlVerRqstFromClient(int h);
 void openavbEptSrvrSendServerVersionToClient(int h, U32 AVBVersion);
@@ -208,79 +210,87 @@ void openavbEptClntCheckVerMatchesSrvr(int h, U32 AVBVersion);
 
 // Each talker registers its stream with SRP via Endpoint.
 // Endpoint communication is from client to server
-bool openavbEptClntRegisterStream(int            h,
-                              AVBStreamID_t *streamID,
-                              U8             destAddr[],
-                              U8             noMaapAllocation,
-                              AVBTSpec_t    *tSpec,
-                              U8             srClass,
-                              U8             srRank,
-                              U32            latency,
-                              U32            txRate);
-bool openavbEptSrvrRegisterStream(int             h,
-                              AVBStreamID_t  *streamID,
-                              U8              destAddr[],
-                              U8              noMaapAllocation,
-                              AVBTSpec_t     *tSpec,
-                              U8              srClass,
-                              U8              srRank,
-                              U32             latency,
-                              U32             txRate);
+bool openavbEptClntRegisterStream(
+	int				h,
+	AVBStreamID_t	*streamID,
+	U8				destAddr[],
+	U8				noMaapAllocation,
+	AVBTSpec_t		*tSpec,
+	U8				srClass,
+	U8				srRank,
+	U32				latency,
+	U32				txRate);
+bool openavbEptSrvrRegisterStream(
+	int				h,
+	AVBStreamID_t	*streamID,
+	U8				destAddr[],
+	U8				noMaapAllocation,
+	AVBTSpec_t		*tSpec,
+	U8				srClass,
+	U8				srRank,
+	U32				latency,
+	U32				txRate);
 
 // Each lister attaches to the stream it wants to receive;
 // specifically the listener indicates interest / declaration to SRP.
 // Endpoint communication is from client to server.
-bool openavbEptClntAttachStream(int                      h,
-                            AVBStreamID_t           *streamID,
-                            openavbSrpLsnrDeclSubtype_t  ld);
-bool openavbEptSrvrAttachStream(int                      h,
-                            AVBStreamID_t           *streamID,
-                            openavbSrpLsnrDeclSubtype_t  ld);
+bool openavbEptClntAttachStream(
+	int							h,
+	AVBStreamID_t				*streamID,
+	openavbSrpLsnrDeclSubtype_t	ld);
+bool openavbEptSrvrAttachStream(
+	int							h,
+	AVBStreamID_t				*streamID,
+	openavbSrpLsnrDeclSubtype_t	ld);
 
 
 // SRP notifies the talker when its stream has been established to taken down.
 // Endpoint communication is from server to client.
-void openavbEptSrvrNotifyTlkrOfSrpCb(int                      h,
-                                 AVBStreamID_t           *streamID,
-                                 char                    *ifname,
-                                 U8                       destAddr[],
-                                 openavbSrpLsnrDeclSubtype_t  lsnrDecl,
-                                 U8                       srClass,
-                                 U32                      classRate,
-                                 U16                      vlanID,
-                                 U8                       priority,
-                                 U16                      fwmark);
-void openavbEptClntNotifyTlkrOfSrpCb(int                      h,
-                                 AVBStreamID_t           *streamID,
-                                 char                    *ifname,
-                                 U8                       destAddr[],
-                                 openavbSrpLsnrDeclSubtype_t  lsnrDecl,
-                                 U8                       srClass,
-                                 U32                      classRate,
-                                 U16                      vlanID,
-                                 U8                       priority,
-                                 U16                      fwmark);
+void openavbEptSrvrNotifyTlkrOfSrpCb(
+	int							h,
+	AVBStreamID_t				*streamID,
+	char						*ifname,
+	U8							destAddr[],
+	openavbSrpLsnrDeclSubtype_t	lsnrDecl,
+	U8							srClass,
+	U32							classRate,
+	U16							vlanID,
+	U8							priority,
+	U16							fwmark);
+void openavbEptClntNotifyTlkrOfSrpCb(
+	int							h,
+	AVBStreamID_t				*streamID,
+	char						*ifname,
+	U8							destAddr[],
+	openavbSrpLsnrDeclSubtype_t	lsnrDecl,
+	U8							srClass,
+	U32							classRate,
+	U16							vlanID,
+	U8							priority,
+	U16							fwmark);
 
 // SRP notifies the listener when its stream is available, failed or gone away.
 // Endpoint communication is from server to client.
-void openavbEptSrvrNotifyLstnrOfSrpCb(int                 h,
-                                  AVBStreamID_t      *streamID,
-                                  char               *ifname,
-                                  U8                  destAddr[],
-                                  openavbSrpAttribType_t  tlkrDecl,
-                                  AVBTSpec_t         *tSpec,
-                                  U8                  srClass,
-                                  U32                 latency,
-                                  openavbSrpFailInfo_t   *failInfo);
-void openavbEptClntNotifyLstnrOfSrpCb(int                 h,
-                                  AVBStreamID_t      *streamID,
-                                  char               *ifname,
-                                  U8                  destAddr[],
-                                  openavbSrpAttribType_t  tlkrDecl,
-                                  AVBTSpec_t         *tSpec,
-                                  U8                  srClass,
-                                  U32                 latency,
-                                  openavbSrpFailInfo_t   *failInfo);
+void openavbEptSrvrNotifyLstnrOfSrpCb(
+	int						h,
+	AVBStreamID_t			*streamID,
+	char					*ifname,
+	U8						destAddr[],
+	openavbSrpAttribType_t	tlkrDecl,
+	AVBTSpec_t				*tSpec,
+	U8						srClass,
+	U32						latency,
+	openavbSrpFailInfo_t	*failInfo);
+void openavbEptClntNotifyLstnrOfSrpCb(
+	int						h,
+	AVBStreamID_t			*streamID,
+	char					*ifname,
+	U8						destAddr[],
+	openavbSrpAttribType_t	tlkrDecl,
+	AVBTSpec_t				*tSpec,
+	U8						srClass,
+	U32						latency,
+	openavbSrpFailInfo_t	*failInfo);
 
 
 // A talker can withdraw its stream registration at any time;

@@ -48,6 +48,25 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #define	AVB_LOG_COMPONENT	"AAF Mapping"
 #include "openavb_log_pub.h"
 
+
+typedef struct {
+	U8 * queueStorage; // Buffer used as a circular queue for storing samples
+	U8 * queueHead; // Head of the circular queue
+	U8 * queueTail; // Tail of the circular queue
+	U32  queueSize;
+} circular_queue_t;
+
+static bool AllocateCircularQueue(circular_queue_t *pQueue, U32 nQueueSize);
+static void FreeCircularQueue(circular_queue_t *pQueue);
+
+static bool CircularQueueIsValid(const circular_queue_t *pQueue);
+static U32  CircularQueueBytesQueued(const circular_queue_t *pQueue);
+
+static void PushBufferToCircularQueue(circular_queue_t *pQueue, const U8 *pData, U32 nDataSize);
+static void PullBufferFromCircularQueue(circular_queue_t *pQueue, U8 *pData, U32 nDataSize);
+static bool CompareBufferToCircularQueue(const circular_queue_t *pQueue, const U8 *pData, U32 nDataSize);
+
+
 #define AVTP_SUBTYPE_AAF			2
 
 // Header sizes (bytes)
@@ -114,6 +133,7 @@ typedef struct {
 	/////////////
 	// Config data
 	/////////////
+
 	// map_nv_item_count
 	U32 itemCount;
 
@@ -133,9 +153,17 @@ typedef struct {
 	// MCR clock recovery interval
 	U32 mcrRecoveryInterval;
 
+	// Time in microseconds to transmit a second redundant stream.  0 (default) if feature disabled.
+	// This is also referred to as Max Allowed Dropout Time (MADT)
+	U32 temporalRedundantOffsetUsec;
+
+	// How frequently to report statistics.
+	U32 report_seconds;
+
 	/////////////
 	// Variable data
 	/////////////
+
 	U32 maxTransitUsec;     // In microseconds
 
 	aaf_nominal_sample_rate_t 	aaf_rate;
@@ -155,6 +183,19 @@ typedef struct {
 
 	bool mediaQItemSyncTS;
 
+	U32 temporalRedundantOffsetSamples;
+	U32 temporalRedundantOffsetPackets;
+
+	// Temporal Redundancy data queue
+	circular_queue_t temporalRedundantQueue;
+	U32 temporalRedundantQueueFrameSize;
+
+	// Temporal Redundancy Listener support and statistics
+	circular_queue_t trStatsEntryTypeQueue;
+	U32 trStatsTotalFrames, trStatsLostFrames, trStatsNeededAvailable, trStatsNeededNotAvailable;
+
+	U64 nextReportNS;
+
 } pvt_data_t;
 
 static void x_calculateSizes(media_q_t *pMediaQ)
@@ -172,33 +213,43 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 		switch (pPubMapInfo->audioRate) {
 			case AVB_AUDIO_RATE_8KHZ:
 				pPvtData->aaf_rate = AAF_RATE_8K;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 8000ull / 1000000ull);
 				break;
 			case AVB_AUDIO_RATE_16KHZ:
 				pPvtData->aaf_rate = AAF_RATE_16K;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 16000ull / 1000000ull);
 				break;
 			case AVB_AUDIO_RATE_24KHZ:
 				pPvtData->aaf_rate = AAF_RATE_24K;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 24000ull / 1000000ull);
 				break;
 			case AVB_AUDIO_RATE_32KHZ:
 				pPvtData->aaf_rate = AAF_RATE_32K;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 32000ull / 1000000ull);
 				break;
 			case AVB_AUDIO_RATE_44_1KHZ:
 				pPvtData->aaf_rate = AAF_RATE_44K1;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 44100ull / 1000000ull);
 				break;
 			case AVB_AUDIO_RATE_48KHZ:
 				pPvtData->aaf_rate = AAF_RATE_48K;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 48000ull / 1000000ull);
 				break;
 			case AVB_AUDIO_RATE_88_2KHZ:
 				pPvtData->aaf_rate = AAF_RATE_88K2;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 88200ull / 1000000ull);
 				break;
 			case AVB_AUDIO_RATE_96KHZ:
 				pPvtData->aaf_rate = AAF_RATE_96K;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 96000ull / 1000000ull);
 				break;
 			case AVB_AUDIO_RATE_176_4KHZ:
 				pPvtData->aaf_rate = AAF_RATE_176K4;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 176400ull / 1000000ull);
 				break;
 			case AVB_AUDIO_RATE_192KHZ:
 				pPvtData->aaf_rate = AAF_RATE_192K;
+				pPvtData->temporalRedundantOffsetSamples = (U32) ((U64) pPvtData->temporalRedundantOffsetUsec * 192000ull / 1000000ull);
 				break;
 			default:
 				AVB_LOG_ERROR("Invalid audio frequency configured");
@@ -305,6 +356,19 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 			pPubMapInfo->framesPerPacket,
 			pPubMapInfo->packingFactor,
 			pPubMapInfo->itemSize);
+
+		// Temporal Redundancy adjustments
+		pPvtData->temporalRedundantQueueFrameSize = pPvtData->payloadSizeMaxListener;
+		pPvtData->payloadSizeMaxListener *= 2; // Double Listener max payload in case remote Talker using Temporal Redundancy
+		if (pPvtData->temporalRedundantOffsetUsec > 0) {
+			pPvtData->payloadSizeMaxTalker *= 2; // Double Talker max payload if using Temporal Redundancy
+
+			pPvtData->temporalRedundantOffsetPackets =
+				(pPvtData->temporalRedundantOffsetSamples / pPubMapInfo->framesPerPacket);
+
+			AVB_LOGF_INFO("temporal redundancy offset=%u microseconds, %u samples, %u packets",
+				pPvtData->temporalRedundantOffsetUsec, pPvtData->temporalRedundantOffsetSamples, pPvtData->temporalRedundantOffsetPackets);
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
@@ -358,6 +422,15 @@ void openavbMapAVTPAudioCfgCB(media_q_t *pMediaQ, const char *name, const char *
 		else if (strcmp(name, "map_nv_mcr_recovery_interval") == 0) {
 			char *pEnd;
 			pPvtData->mcrRecoveryInterval = strtol(value, &pEnd, 10);
+		}
+		else if (strcmp(name, "map_nv_temporal_redundant_offset") == 0 ||
+				strcmp(name, "map_nv_max_allowed_dropout_time") == 0 ) {
+			char *pEnd;
+			pPvtData->temporalRedundantOffsetUsec = strtol(value, &pEnd, 10);
+		}
+		else if (strcmp(name, "map_nv_report_seconds") == 0) {
+			char *pEnd;
+			pPvtData->report_seconds = strtol(value, &pEnd, 10);
 		}
 	}
 
@@ -437,6 +510,27 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 		x_calculateSizes(pMediaQ);
 		openavbMediaQSetSize(pMediaQ, pPvtData->itemCount, pPubMapInfo->itemSize);
 
+		if (pPvtData->temporalRedundantOffsetUsec > 0 && pPvtData->temporalRedundantOffsetSamples > 0) {
+			if ((pPvtData->temporalRedundantOffsetSamples % pPubMapInfo->framesPerPacket) != 0) {
+				AVB_LOG_ERROR("Temporal Redundancy not supported when redundant data would be split between two packets");
+				return;
+			}
+
+			// Create a data queue big enough to meet our needs.
+			const U32 queueSize =
+				(pPvtData->temporalRedundantQueueFrameSize * (pPvtData->temporalRedundantOffsetPackets + 2));
+			FreeCircularQueue(&pPvtData->temporalRedundantQueue);
+			if (!AllocateCircularQueue(&pPvtData->temporalRedundantQueue, queueSize)) {
+				AVB_LOG_ERROR("Temporal Redundancy queue not allocated.");
+				return;
+			}
+
+			// Prefill the data queue with empty samples for the initial temporal redundancy processing.
+			// TODO:  Do we need something besides zeros for AAF_FORMAT_FLOAT_32 or AAF_FORMAT_AES3_32?
+			PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, NULL,
+				(pPvtData->temporalRedundantQueueFrameSize * pPvtData->temporalRedundantOffsetPackets));
+		}
+
 		pPvtData->dataValid = TRUE;
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
@@ -447,12 +541,17 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 void openavbMapAVTPAudioTxInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_MAP);
+
 	if (pMediaQ) {
 		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
-		if (pPvtData) {
-			pPvtData->isTalker = TRUE;
+		if (!pPvtData) {
+			AVB_LOG_ERROR("Private mapping module data not allocated.");
+			return;
 		}
+
+		pPvtData->isTalker = TRUE;
 	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
 
@@ -501,10 +600,31 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 		return TX_CB_RET_PACKET_NOT_READY;
 	}
 
+	if (pPvtData->temporalRedundantOffsetUsec > 0) {
+		if ((*dataLen - TOTAL_HEADER_SIZE) < pPvtData->payloadSize * 2) {
+			AVB_LOG_ERROR("Not enough room in packet for temporal offset payload");
+			openavbMediaQTailUnlock(pMediaQ);
+			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+			return TX_CB_RET_PACKET_NOT_READY;
+		}
+
+		if (!CircularQueueIsValid(&pPvtData->temporalRedundantQueue)) {
+			AVB_LOG_ERROR("No queue for temporal offset payload");
+			openavbMediaQTailUnlock(pMediaQ);
+			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+			return TX_CB_RET_PACKET_NOT_READY;
+		}
+	}
+
 	U32 tmp32;
 	U8 *pHdrV0 = pData;
 	U32 *pHdr = (U32 *)(pData + AVTP_V0_HEADER_SIZE);
 	U8  *pPayload = pData + TOTAL_HEADER_SIZE;
+
+	if (pPvtData->temporalRedundantOffsetUsec > 0) {
+		// We want to write the supplied data to the redundant_audio_data_payload, rather than the primary_audio_data_payload
+		pPayload += bytesNeeded;
+	}
 
 	U32 bytesProcessed = 0;
 	while (bytesProcessed < bytesNeeded) {
@@ -529,6 +649,11 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 			else {
 				// Add the max transit time.
 				openavbAvtpTimeAddUSec(pMediaQItem->pAvtpTime, pPvtData->maxTransitUsec);
+
+				// Add the max allowed dropout time, if used, so that the presentation timestamp includes that delay.
+				if (pPvtData->temporalRedundantOffsetUsec > 0) {
+					openavbAvtpTimeAddUSec(pMediaQItem->pAvtpTime, pPvtData->temporalRedundantOffsetUsec);
+				}
 
 				// Set timestamp valid flag
 				pHdrV0[HIDX_AVTP_HIDE7_TV1] |= 0x01;
@@ -592,6 +717,25 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 	// Set out bound data length (entire packet length)
 	*dataLen = bytesNeeded + TOTAL_HEADER_SIZE;
 
+	if (pPvtData->temporalRedundantOffsetUsec > 0) {
+		// Push the data from the redundant_audio_data_payload to the circular queue, so we can use it in a later packet.
+		PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, pData + TOTAL_HEADER_SIZE + bytesNeeded, bytesNeeded);
+		if (bytesNeeded < pPvtData->temporalRedundantQueueFrameSize) {
+			// Pad to the end of the frame size.
+			PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize - bytesNeeded);
+		}
+
+		// Pull the data from the circular queue to the primary_audio_data_payload.
+		PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, pData + TOTAL_HEADER_SIZE, bytesNeeded);
+		if (bytesNeeded < pPvtData->temporalRedundantQueueFrameSize) {
+			// Go past padding at the end of the frame size.
+			PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize - bytesNeeded);
+		}
+
+		// Account for the larger packet size.
+		*dataLen += bytesNeeded;
+	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 	return TX_CB_RET_PACKET_READY;
 }
@@ -634,6 +778,19 @@ void openavbMapAVTPAudioRxInitCB(media_q_t *pMediaQ)
 			if (badPckFctrValue) {
 				AVB_LOGF_WARNING("Wrong packing factor value set (%d) for sparse timestamping mode", pPvtData->packingFactor);
 			}
+		}
+
+		// Prepare to gather Temporal Redundancy statistics.
+		if (pPvtData->temporalRedundantOffsetUsec > 0) {
+			// Create a statistics tracking queue big enough to meet our needs.
+			FreeCircularQueue(&pPvtData->trStatsEntryTypeQueue);
+			AllocateCircularQueue(&pPvtData->trStatsEntryTypeQueue, pPvtData->temporalRedundantOffsetPackets + 10 /* Add some padding, just in case. */ );
+
+			// Record some initial failures, as the pre-filled redundant data is of type AAF_FORMAT_UNSPEC (0).
+			PushBufferToCircularQueue(&pPvtData->trStatsEntryTypeQueue, NULL, pPvtData->temporalRedundantOffsetPackets);
+
+			pPvtData->trStatsTotalFrames = pPvtData->trStatsLostFrames =
+				pPvtData->trStatsNeededAvailable = pPvtData->trStatsNeededNotAvailable = 0;
 		}
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
@@ -741,6 +898,12 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			listenerSparseMode = FALSE;
 		}
 
+		if (pPvtData->temporalRedundantOffsetUsec > 0 &&
+				dataLen < TOTAL_HEADER_SIZE + (2 * payloadLen)) {
+			AVB_LOG_WARNING("Listener disabling temporal redundancy due to lack of data");
+			pPvtData->temporalRedundantOffsetUsec = 0;
+		}
+
 		if (dataValid) {
 			if (!pPvtData->dataValid) {
 				AVB_LOG_INFO("RX data valid, stream un-muted");
@@ -784,10 +947,10 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 						memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, pPayload, pPvtData->payloadSize);
 					}
 					else {
-						static U8 s_audioBuffer[1500];
 						U8 *pInData = pPayload;
-						U8 *pInDataEnd = pPayload + payloadLen;
-						U8 *pOutData = s_audioBuffer;
+						U8 *pInDataEnd = pInData + payloadLen;
+						U8 *pOutDataStart = (U8*) pMediaQItem->pPubData + pMediaQItem->dataLen;
+						U8 *pOutData = pOutDataStart;
 						int nInSampleLength = 6 - incoming_aaf_format; // Calculate the number of integer bytes per sample received
 						int nOutSampleLength = 6 - pPvtData->aaf_format; // Calculate the number of integer bytes per sample we want
 						int i;
@@ -811,15 +974,13 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 								pInData += (nInSampleLength - nOutSampleLength);
 							}
 						}
-						if (pOutData - s_audioBuffer != pPvtData->payloadSize) {
-							AVB_LOGF_ERROR("Output not expected size (%d instead of %d)", pOutData - s_audioBuffer, pPvtData->payloadSize);
+						if (pOutData - pOutDataStart != pPvtData->payloadSize) {
+							AVB_LOGF_ERROR("Output not expected size (%d instead of %d)", pOutData - pOutDataStart, pPvtData->payloadSize);
 						}
 
 						if (pPubMapInfo->intf_rx_translate_cb) {
-							pPubMapInfo->intf_rx_translate_cb(pMediaQ, s_audioBuffer, pPvtData->payloadSize);
+							pPubMapInfo->intf_rx_translate_cb(pMediaQ, pOutDataStart, pPvtData->payloadSize);
 						}
-
-						memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, s_audioBuffer, pPvtData->payloadSize);
 					}
 
 					pMediaQItem->dataLen += pPvtData->payloadSize;
@@ -832,6 +993,53 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 				else {
 					// The item is full push it.
 					openavbMediaQHeadPush(pMediaQ);
+				}
+
+				if (pPvtData && pPvtData->temporalRedundantOffsetUsec > 0) {
+					// Save the pre-converted redundant data, and the format of the saved data.
+					U8 result = incoming_aaf_format; // Format of the redundant data.
+					PushBufferToCircularQueue(&pPvtData->trStatsEntryTypeQueue, &result, 1);
+					PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, pPayload + payloadLen, payloadLen);
+					if (payloadLen < pPvtData->temporalRedundantQueueFrameSize) {
+						// Pad to the end of the frame size.
+						PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize - payloadLen);
+					}
+
+					// Discard the unnecessary redundant data previously saved.
+					// If debugging, verify that, if the redundant data was received earlier, it matches the received data.
+					U8 dataFormat = 0;
+					PullBufferFromCircularQueue(&pPvtData->trStatsEntryTypeQueue, &dataFormat, 1);
+#if (AVB_LOG_LEVEL >= AVB_LOG_LEVEL_DEBUG)
+					if (dataFormat != AAF_FORMAT_UNSPEC && !CompareBufferToCircularQueue(&pPvtData->temporalRedundantQueue, pPayload, payloadLen)) {
+						AVB_LOG_DEBUG("Redundant data does not match primary data.");
+					}
+#endif
+					PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize);
+
+					// Update the statistics.
+					pPvtData->trStatsTotalFrames++;
+
+					// Display the statistics.
+					if (pPvtData->report_seconds > 0) {
+						U64 nowNS;
+						CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
+						if (nowNS > pPvtData->nextReportNS) {
+							AVB_LOGF_INFO("Temporal Redundancy Total Frames=%u, Lost Frames=%u, Available When Needed=%u, Not Available When Needed=%u",
+								pPvtData->trStatsTotalFrames, pPvtData->trStatsLostFrames,
+								pPvtData->trStatsNeededAvailable, pPvtData->trStatsNeededNotAvailable);
+							AVB_LOGF_DEBUG("Temporal Redundancy Data Queue Size=%u, Tracking Queue Size=%u",
+								CircularQueueBytesQueued(&pPvtData->temporalRedundantQueue),
+								CircularQueueBytesQueued(&pPvtData->trStatsEntryTypeQueue));
+
+							pPvtData->trStatsTotalFrames = pPvtData->trStatsLostFrames =
+								pPvtData->trStatsNeededAvailable = pPvtData->trStatsNeededNotAvailable = 0;
+
+							pPvtData->nextReportNS += (pPvtData->report_seconds * NANOSECONDS_PER_SECOND);
+							if (nowNS > pPvtData->nextReportNS) {
+								pPvtData->nextReportNS = nowNS + (pPvtData->report_seconds * NANOSECONDS_PER_SECOND);
+							}
+						}
+					}
 				}
 
 				AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
@@ -850,6 +1058,137 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			}
 		}
 	}
+	AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+	return FALSE;
+}
+
+// This callback occurs when running as a listener and data is not available.
+bool openavbMapAVTPAudioRxLostCB(media_q_t *pMediaQ, U8 numLost)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_MAP_DETAIL);
+
+	if (pMediaQ) {
+		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
+		if (pPvtData && pPvtData->temporalRedundantOffsetUsec > 0 && pPvtData->dataValid) {
+			while (numLost-- > 0) {
+				// Get item pointer in media queue
+				media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
+				if (pMediaQItem) {
+					media_q_pub_map_aaf_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
+
+					// Update the statistics.
+					pPvtData->trStatsTotalFrames++;
+					pPvtData->trStatsLostFrames++;
+
+					// Clear the timestamp valid flag
+					openavbAvtpTimeSetTimestampValid(pMediaQItem->pAvtpTime, FALSE);
+
+					// Add the recovery data to pMediaQ.
+					U8 dataFormat = 0;
+					PullBufferFromCircularQueue(&pPvtData->trStatsEntryTypeQueue, &dataFormat, 1);
+					if (dataFormat == AAF_FORMAT_UNSPEC) {
+						pPvtData->trStatsNeededNotAvailable++;
+
+						// TODO:  Do we need something besides zeros for AAF_FORMAT_FLOAT_32 or AAF_FORMAT_AES3_32?
+						PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue,
+							(U8*) pMediaQItem->pPubData + pMediaQItem->dataLen, pPvtData->payloadSize);
+						if (pPubMapInfo->intf_rx_translate_cb) {
+							pPubMapInfo->intf_rx_translate_cb(pMediaQ,
+								(U8*) pMediaQItem->pPubData + pMediaQItem->dataLen, pPvtData->payloadSize);
+						}
+						pMediaQItem->dataLen += pPvtData->payloadSize;
+						if (pPvtData->payloadSize < pPvtData->temporalRedundantQueueFrameSize) {
+							// Go past padding at the end of the frame size.
+							PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, NULL,
+								pPvtData->temporalRedundantQueueFrameSize - pPvtData->payloadSize);
+						}
+					}
+					else {
+						pPvtData->trStatsNeededAvailable++;
+
+						// Convert the data, if needed.
+						if (dataFormat != pPvtData->aaf_format &&
+								dataFormat >= AAF_FORMAT_INT_32 && dataFormat <= AAF_FORMAT_INT_16 &&
+								pPvtData->aaf_format >= AAF_FORMAT_INT_32 && pPvtData->aaf_format <= AAF_FORMAT_INT_16) {
+
+							static U8 s_audioBuffer[1500];
+							int nInSampleLength = 6 - dataFormat; // Calculate the number of integer bytes per sample received
+							int nOutSampleLength = 6 - pPvtData->aaf_format; // Calculate the number of integer bytes per sample we want
+							int payloadLen = nInSampleLength * pPubMapInfo->audioChannels * pPubMapInfo->framesPerPacket;
+							U8 *pInData = s_audioBuffer;
+							U8 *pInDataEnd = pInData + payloadLen;
+							U8 *pOutDataStart = (U8*) pMediaQItem->pPubData + pMediaQItem->dataLen;
+							U8 *pOutData = pOutDataStart;
+							int i;
+
+							PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue,
+								s_audioBuffer, pPvtData->temporalRedundantQueueFrameSize);
+
+							if (nInSampleLength < nOutSampleLength) {
+								// We need to pad the data supplied.
+								while (pInData < pInDataEnd) {
+									for (i = 0; i < nInSampleLength; ++i) {
+										*pOutData++ = *pInData++;
+									}
+									for ( ; i < nOutSampleLength; ++i) {
+										*pOutData++ = 0; // Value specified in Clause 7.3.4.
+									}
+								}
+							}
+							else {
+								// We need to truncate the data supplied.
+								while (pInData < pInDataEnd) {
+									for (i = 0; i < nOutSampleLength; ++i) {
+										*pOutData++ = *pInData++;
+									}
+									pInData += (nInSampleLength - nOutSampleLength);
+								}
+							}
+							if (pOutData - pOutDataStart != pPvtData->payloadSize) {
+								AVB_LOGF_ERROR("Output not expected size (%d instead of %d)", pOutData - pOutDataStart, pPvtData->payloadSize);
+							}
+
+							if (pPubMapInfo->intf_rx_translate_cb) {
+								pPubMapInfo->intf_rx_translate_cb(pMediaQ, pOutDataStart, pPvtData->payloadSize);
+							}
+						}
+						else {
+							// Copy the data directly from the circular queue to the media queue.
+							PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue,
+								(U8*) pMediaQItem->pPubData + pMediaQItem->dataLen, pPvtData->payloadSize);
+							if (pPvtData->payloadSize < pPvtData->temporalRedundantQueueFrameSize) {
+								// Go past padding at the end of the frame size.
+								PullBufferFromCircularQueue(&pPvtData->temporalRedundantQueue, NULL,
+									pPvtData->temporalRedundantQueueFrameSize - pPvtData->payloadSize);
+							}
+
+							if (pPubMapInfo->intf_rx_translate_cb) {
+								pPubMapInfo->intf_rx_translate_cb(pMediaQ,
+									(U8*) pMediaQItem->pPubData + pMediaQItem->dataLen, pPvtData->payloadSize);
+							}
+						}
+
+						pMediaQItem->dataLen += pPvtData->payloadSize;
+					}
+
+					if (pMediaQItem->dataLen < pMediaQItem->itemSize) {
+						// More data can be written to the item
+						openavbMediaQHeadUnlock(pMediaQ);
+					}
+					else {
+						// The item is full push it.
+						openavbMediaQHeadPush(pMediaQ);
+					}
+
+					// Add some blank recovery data for this lost packet.
+					U8 result = AAF_FORMAT_UNSPEC; // AAF_FORMAT_UNSPEC (0) to indicate invalid recovery data.
+					PushBufferToCircularQueue(&pPvtData->trStatsEntryTypeQueue, &result, 1);
+					PushBufferToCircularQueue(&pPvtData->temporalRedundantQueue, NULL, pPvtData->temporalRedundantQueueFrameSize);
+				}
+			}
+		}
+	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 	return FALSE;
 }
@@ -880,6 +1219,15 @@ void openavbMapAVTPAudioEndCB(media_q_t *pMediaQ)
 void openavbMapAVTPAudioGenEndCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_MAP);
+
+	if (pMediaQ) {
+		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
+		if (pPvtData) {
+			FreeCircularQueue(&pPvtData->temporalRedundantQueue);
+			FreeCircularQueue(&pPvtData->trStatsEntryTypeQueue);
+		}
+	}
+
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
 
@@ -910,6 +1258,7 @@ extern DLL_EXPORT bool openavbMapAVTPAudioInitialize(media_q_t *pMediaQ, openavb
 		pMapCB->map_tx_cb = openavbMapAVTPAudioTxCB;
 		pMapCB->map_rx_init_cb = openavbMapAVTPAudioRxInitCB;
 		pMapCB->map_rx_cb = openavbMapAVTPAudioRxCB;
+		pMapCB->map_rx_lost_cb = openavbMapAVTPAudioRxLostCB;
 		pMapCB->map_end_cb = openavbMapAVTPAudioEndCB;
 		pMapCB->map_gen_end_cb = openavbMapAVTPAudioGenEndCB;
 
@@ -920,12 +1269,139 @@ extern DLL_EXPORT bool openavbMapAVTPAudioInitialize(media_q_t *pMediaQ, openavb
 		pPvtData->sparseMode = TS_SPARSE_MODE_DISABLED;
 		pPvtData->mcrTimestampInterval = 144;
 		pPvtData->mcrRecoveryInterval = 512;
+		pPvtData->temporalRedundantOffsetUsec = 0;
 		pPvtData->aaf_event_field = AAF_STATIC_CHANNELS_LAYOUT;
 		pPvtData->intervalCounter = 0;
 		pPvtData->mediaQItemSyncTS = FALSE;
+		pPvtData->temporalRedundantOffsetSamples = 0;
 		openavbMediaQSetMaxLatency(pMediaQ, inMaxTransitUsec);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
+	return TRUE;
+}
+
+
+static bool AllocateCircularQueue(circular_queue_t *pQueue, U32 nQueueSize)
+{
+	// Create a queue big enough to meet our needs.
+	pQueue->queueSize = nQueueSize;
+	pQueue->queueStorage = malloc(pQueue->queueSize);
+	if (!pQueue->queueStorage) {
+		AVB_LOG_ERROR("Temporal Redundancy queue not allocated.");
+		return FALSE;
+	}
+	pQueue->queueHead = pQueue->queueTail = pQueue->queueStorage;
+	AVB_LOGF_DEBUG("Allocated Temporal Redundancy queue of size %u", pQueue->queueSize);
+	return TRUE;
+}
+
+static void FreeCircularQueue(circular_queue_t *pQueue)
+{
+	if (pQueue) {
+		free(pQueue->queueStorage);
+		pQueue->queueStorage = NULL;
+		pQueue->queueSize = 0;
+		pQueue->queueHead = pQueue->queueTail = NULL;
+	}
+}
+
+static bool CircularQueueIsValid(const circular_queue_t *pQueue)
+{
+	return (pQueue && pQueue->queueStorage && pQueue->queueSize);
+}
+
+static U32 CircularQueueBytesQueued(const circular_queue_t *pQueue)
+{
+	if (pQueue->queueTail > pQueue->queueHead) {
+		return (pQueue->queueHead + pQueue->queueSize - pQueue->queueTail);
+	}
+	return (pQueue->queueHead - pQueue->queueTail);
+}
+
+static void PushBufferToCircularQueue(circular_queue_t *pQueue, const U8 *pData, U32 nDataSize)
+{
+	U32 bytesToCopyPhase1, bytesToCopyPhase2;
+
+	// Copy the supplied data to the head of the circular queue, so we can use it in a later packet.
+	bytesToCopyPhase1 = pQueue->queueSize - (pQueue->queueHead - pQueue->queueStorage);
+	if (bytesToCopyPhase1 > nDataSize) {
+		bytesToCopyPhase1 = nDataSize;
+	}
+	if (pData) {
+		memcpy(pQueue->queueHead, pData, bytesToCopyPhase1);
+	}
+	else {
+		memset(pQueue->queueHead, 0, bytesToCopyPhase1);
+	}
+	pQueue->queueHead += bytesToCopyPhase1;
+	if (pQueue->queueHead >= pQueue->queueStorage + pQueue->queueSize) {
+		pQueue->queueHead = pQueue->queueStorage;
+
+		if (bytesToCopyPhase1 < nDataSize) {
+			// Didn't have enough bytes at the end of the storage buffer.  Copy to the beginning of the buffer as well.
+			bytesToCopyPhase2 = nDataSize - bytesToCopyPhase1;
+			if (pData) {
+				memcpy(pQueue->queueHead, pData + bytesToCopyPhase1, bytesToCopyPhase2);
+			}
+			else {
+				memset(pQueue->queueHead, 0, bytesToCopyPhase2);
+			}
+			pQueue->queueHead += bytesToCopyPhase2;
+		}
+	}
+}
+
+static void PullBufferFromCircularQueue(circular_queue_t *pQueue, U8 *pData, U32 nDataSize)
+{
+	U32 bytesToCopyPhase1, bytesToCopyPhase2;
+
+	// Copy the data from the tail of the circular queue to the supplied data.
+	bytesToCopyPhase1 = pQueue->queueSize - (pQueue->queueTail - pQueue->queueStorage);
+	if (bytesToCopyPhase1 > nDataSize) {
+		bytesToCopyPhase1 = nDataSize;
+	}
+	if (pData) {
+		memcpy(pData, pQueue->queueTail, bytesToCopyPhase1);
+	}
+	pQueue->queueTail += bytesToCopyPhase1;
+	if (pQueue->queueTail >= pQueue->queueStorage + pQueue->queueSize) {
+		pQueue->queueTail = pQueue->queueStorage;
+
+		if (bytesToCopyPhase1 < nDataSize) {
+			// Didn't have enough bytes at the end of the storage buffer.  Copy from the beginning of the buffer as well.
+			bytesToCopyPhase2 = nDataSize - bytesToCopyPhase1;
+			if (pData) {
+				memcpy(pData + bytesToCopyPhase1, pQueue->queueTail, bytesToCopyPhase2);
+			}
+			pQueue->queueTail += bytesToCopyPhase2;
+		}
+	}
+}
+
+// Return TRUE if the buffer matches the next data in the queue, FALSE otherwise.
+// The queue is not changed by this call.
+static bool CompareBufferToCircularQueue(const circular_queue_t *pQueue, const U8 *pData, U32 nDataSize)
+{
+	U32 bytesToComparePhase1, bytesToComparePhase2;
+
+	if (!pData) return FALSE;
+
+	// Compare the data from the tail of the circular queue to the supplied data.
+	bytesToComparePhase1 = pQueue->queueSize - (pQueue->queueTail - pQueue->queueStorage);
+	if (bytesToComparePhase1 > nDataSize) {
+		bytesToComparePhase1 = nDataSize;
+	}
+	if (memcmp(pData, pQueue->queueTail, bytesToComparePhase1) != 0) {
+		return FALSE;
+	}
+	if (bytesToComparePhase1 < nDataSize) {
+		// Didn't have enough bytes at the end of the storage buffer.  Compare from the beginning of the buffer as well.
+		bytesToComparePhase2 = nDataSize - bytesToComparePhase1;
+		if (memcmp(pData + bytesToComparePhase2, pQueue->queueStorage, bytesToComparePhase2) != 0 ) {
+			return FALSE;
+		}
+	}
+
 	return TRUE;
 }

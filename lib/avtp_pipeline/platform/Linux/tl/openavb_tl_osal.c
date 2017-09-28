@@ -320,6 +320,42 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 		strncpy(pCfg->ifname, value, sizeof(pCfg->ifname) - 1);
 		valOK = TRUE;
 	}
+	else if (MATCH(name, "ifmirrorname")) {
+		// Break apart the comma-delimited list.
+		const char *pszValue = value;
+		const char *pszComma = strchr(pszValue, ',');
+		int i;
+		for (i = 0; pszValue != NULL && *pszValue && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+			if (pszComma != NULL) {
+				// Copy the data up to the comma.
+				int copylen = (pszComma - pszValue < sizeof(pCfg->ifmirrorname[0]) - 1 ? pszComma - pszValue : sizeof(pCfg->ifmirrorname[0]) - 1);
+				strncpy(pCfg->ifmirrorname[i], pszValue, copylen);
+
+				// Iterate to the next string.
+				pszValue = pszComma + 1;
+				while (isspace(*pszValue)) pszValue++;
+				pszComma = strchr(pszValue, ',');
+			}
+			else {
+				// Copy the rest of the data.
+				strncpy(pCfg->ifmirrorname[i], pszValue, sizeof(pCfg->ifmirrorname[0]) - 1);
+
+				// Iterate to the next string.
+				pszValue = NULL;
+			}
+		}
+		if (i >= MAX_NUM_INTERFACE_MIRRORS && pszValue != NULL) {
+			AVB_LOGF_ERROR("Maximum of %d mirror interfaces are allowed", MAX_NUM_INTERFACE_MIRRORS);
+		}
+		else {
+			if (AVB_LOG_LEVEL_DEBUG <= AVB_LOG_LEVEL) {
+				for (i = 0; pCfg->ifmirrorname[i][0] && i < MAX_NUM_INTERFACE_MIRRORS; ++i) {
+					AVB_LOGF_DEBUG("  Mirror interface #%d:  \"%s\"", i, pCfg->ifmirrorname[i]);
+				}
+			}
+			valOK = TRUE;
+		}
+	}
 	else if (MATCH(name, "vlan_id")) {
 		errno = 0;
 		long tmp;
