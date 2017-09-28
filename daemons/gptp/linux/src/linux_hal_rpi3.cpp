@@ -443,11 +443,12 @@ class AGPioPinger
                
 
                high_resolution_clock::time_point now = high_resolution_clock::now();
+               auto timeSinceEpoc = now.time_since_epoch();
 
                GPTP_LOG_VERBOSE("-------------------------nextInterval:          %"
                 PRIu64, fNextInterval);
                GPTP_LOG_VERBOSE("-------------------------now(1):                %"
-                PRIu64, duration_cast<nanoseconds>(now.time_since_epoch()).count());
+                PRIu64, duration_cast<nanoseconds>(timeSinceEpoc).count());
                GPTP_LOG_VERBOSE("-------------------------sleepInterval:         %"
                 PRIu64, sleepInterval);
 
