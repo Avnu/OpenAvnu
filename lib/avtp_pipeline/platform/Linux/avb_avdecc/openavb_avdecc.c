@@ -77,6 +77,7 @@ void openavbAvdeccHostUsage(char *programName)
 		"\n"
 		"Usage: %s [options] file...\n"
 		"  -I val     Use given (val) interface globally, can be overriden by giving the ifname= option to the config line.\n"
+		"  -l val     Filename of the log file to use.  If not specified, results will be logged to stderr.\n"
 		"\n"
 		"Examples:\n"
 		"  %s talker.ini\n"
@@ -98,6 +99,7 @@ int main(int argc, char *argv[])
 
 	char *programName;
 	char *optIfnameGlobal = NULL;
+	char *optLogFileName = NULL;
 
 	programName = strrchr(argv[0], '/');
 	programName = programName ? programName + 1 : argv[0];
@@ -110,11 +112,14 @@ int main(int argc, char *argv[])
 	// Process command line
 	bool optDone = FALSE;
 	while (!optDone) {
-		int opt = getopt(argc, argv, "hI:");
+		int opt = getopt(argc, argv, "hI:l:");
 		if (opt != EOF) {
 			switch (opt) {
 				case 'I':
 					optIfnameGlobal = strdup(optarg);
+					break;
+				case 'l':
+					optLogFileName = strdup(optarg);
 					break;
 				case 'h':
 				default:
@@ -130,7 +135,7 @@ int main(int argc, char *argv[])
 	int iniIdx = optind;
 	int tlCount = argc - iniIdx;
 
-	if (!osalAvdeccInitialize(optIfnameGlobal, (const char **) (argv + iniIdx), tlCount)) {
+	if (!osalAvdeccInitialize(optLogFileName, optIfnameGlobal, (const char **) (argv + iniIdx), tlCount)) {
 		osalAvdeccFinalize();
 		exit(-1);
 	}
@@ -172,6 +177,11 @@ int main(int argc, char *argv[])
 	}
 
 	osalAvdeccFinalize();
+
+	if (optLogFileName) {
+		free(optLogFileName);
+		optLogFileName = NULL;
+	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_HOST);
 	exit(0);
