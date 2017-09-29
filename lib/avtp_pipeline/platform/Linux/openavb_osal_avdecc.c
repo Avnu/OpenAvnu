@@ -38,9 +38,23 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_pub.h"
 #include "openavb_log.h"
 
-extern DLL_EXPORT bool osalAvdeccInitialize(const char* ifname, const char **inifiles, int numfiles)
+static FILE *s_logfile = NULL;
+
+extern DLL_EXPORT bool osalAvdeccInitialize(const char* logfilename, const char* ifname, const char **inifiles, int numfiles)
 {
-	avbLogInit();
+	// Open the log file, if requested.
+	if (s_logfile) {
+		fclose(s_logfile);
+		s_logfile = NULL;
+	}
+	if (logfilename) {
+		s_logfile = fopen(logfilename, "w");
+		if (s_logfile == NULL) {
+			fprintf(stderr, "Error opening log file: %s\n", logfilename);
+		}
+	}
+
+	avbLogInitEx(s_logfile);
 	osalAVBTimeInit();
 	if (!osalAVBGrandmasterInit()) { return FALSE; }
 	if (!startAvdecc(ifname, inifiles, numfiles)) { return FALSE; }
@@ -53,6 +67,13 @@ extern DLL_EXPORT bool osalAvdeccFinalize(void)
 	osalAVBGrandmasterClose();
 	osalAVBTimeClose();
 	avbLogExit();
+
+	// Done with the log file.
+	if (s_logfile) {
+		fclose(s_logfile);
+		s_logfile = NULL;
+	}
+
 	return TRUE;
 }
 
