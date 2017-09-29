@@ -144,7 +144,8 @@ net_result LinuxNetworkInterface::send
 
 	if (err == -1)
 	{
-		GPTP_LOG_ERROR( "Failed to send: %s(%d)", strerror(errno), errno );
+		GPTP_LOG_ERROR( "Failed to send to ip '%s': %s",
+		 addr->AddressString().c_str(), strerror(errno));
 		return net_fatal;
 	}
 	return net_succeed;
