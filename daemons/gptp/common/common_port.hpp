@@ -738,6 +738,11 @@ public:
 	 */
 	void getExtendedError(char *msg);
 
+	void SyncIntervalTimeoutExpireCount(int value)
+	{
+		fSyncIntervalTimeoutExpireCount = value;
+	}
+
 	/**
 	 * @brief  Increment IEEE Port counter:
 	 *         ieee8021AsPortStatRxSyncCount

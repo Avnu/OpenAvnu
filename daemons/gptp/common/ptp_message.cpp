@@ -2955,7 +2955,7 @@ void PTPMessageSignalling::processMessage( EtherPort *port )
 
 	if (timeSyncInterval == PTPMessageSignalling::sigMsgInterval_Initial) {
 		GPTP_LOG_VERBOSE("PTPMessageSignalling::processMessage   timeSyncInterval == sigMsgInterval_Initial");
-		port->setInitSyncInterval();
+		port->resetInitSyncInterval();
 
 		waitTime = ((long long) (pow((double)2, port->getSyncInterval()) *  1000000000.0));
 #ifndef APTP
