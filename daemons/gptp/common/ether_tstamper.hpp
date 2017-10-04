@@ -34,6 +34,7 @@
 #ifndef ETHER_TSTAMPER_HPP
 #define ETHER_TSTAMPER_HPP
 
+#include <memory>
 #include <common_tstamper.hpp>
 
 class EtherTimestamper : public CommonTimestamper
@@ -49,7 +50,7 @@ public:
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp
-	( PortIdentity * identity, PTPMessageId messageId,
+	(std::shared_ptr<PortIdentity> identity, PTPMessageId messageId,
 	  Timestamp &timestamp, unsigned &clock_value, bool last ) = 0;
 
 	/**
@@ -61,7 +62,7 @@ public:
 	 * @param  last Signalizes that it is the last timestamp to get. When TRUE, releases the lock when its done.
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
-	virtual int HWTimestamper_rxtimestamp(PortIdentity * identity,
+	virtual int HWTimestamper_rxtimestamp(std::shared_ptr<PortIdentity> identity,
 			PTPMessageId messageId,
 			Timestamp & timestamp,
 			unsigned &clock_value,

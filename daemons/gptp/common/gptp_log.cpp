@@ -33,6 +33,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // MS VC++ 2013 has C++11 but not C11 support, use this to get millisecond resolution
 #include <chrono>
 
+#include <mutex>
+std::mutex gLogKeeper;
+
 #ifdef GENIVI_DLT
 DLT_DECLARE_CONTEXT(dlt_con_gptp);
 #endif
@@ -57,6 +60,8 @@ void gptpLog(GPTP_LOG_LEVEL level, const char *tag, const char *path, int line, 
 {
 	char msg[1024];
 
+	std::lock_guard<std::mutex> guard(gLogKeeper);
+	
 	va_list args;
 	va_start(args, fmt);
 	vsprintf(msg, fmt, args);

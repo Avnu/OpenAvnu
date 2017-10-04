@@ -71,6 +71,8 @@ typedef struct {
 	FrequencyRatio ml_freqoffset;	//!< Master to local frequency offset
 	FrequencyRatio ls_freqoffset;	//!< Local to system frequency offset
 	uint64_t local_time;			//!< Local time of last update
+	uint64_t clock_id;  // Clock identifier
+	uint16_t addressRegistrationSocketPort;
 
 	/* Current grandmaster information */
 	/* Referenced by the IEEE Std 1722.1-2013 AVDECC Discovery Protocol Data Unit (ADPDU) */

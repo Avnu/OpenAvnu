@@ -34,6 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  * to be used on daemon_cl
  */
 
+#include <algorithm>
 #include <iostream>
 
 /* need Microsoft version for strcasecmp() from GCC strings.h */
@@ -46,12 +47,25 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <errno.h>
 #include <stdlib.h>
 
+#include <cstring>  
+#include <sstream>
+#include <map>
+
 #include "gptp_cfg.hpp"
+#include "gptp_log.hpp"
 
 uint32_t findSpeedByName( const char *name, const char **end );
 
-GptpIniParser::GptpIniParser(std::string filename)
+bool GptpIniParser::sHasIniValues = false;
+
+GptpIniParser::GptpIniParser()
 {
+    sHasIniValues = false;
+}
+
+GptpIniParser::GptpIniParser(const std::string& filename)
+{
+    sHasIniValues = false;
     _error = ini_parse(filename.c_str(), iniCallBack, this);
 }
 
@@ -68,7 +82,8 @@ int GptpIniParser::parserError(void)
 
 /****************************************************************************/
 
-int GptpIniParser::iniCallBack(void *user, const char *section, const char *name, const char *value)
+int GptpIniParser::iniCallBack(void *user, const char *section,
+ const char *name, const char *value)
 {
     GptpIniParser *parser = (GptpIniParser*)user;
     bool valOK = false;
@@ -88,7 +103,28 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
     }
     else if( parseMatch(section, "port") )
     {
-        if( parseMatch(name, "announceReceiptTimeout") )
+
+        if (parseMatch(name, "initialLogAnnounceInterval"))
+        {
+            errno = 0;
+            char *pEnd;
+            int8_t ilai = strtoul(value, &pEnd, 10);
+            if( *pEnd == '\0' && errno == 0) {
+                valOK = true;
+                parser->_config.initialLogAnnounceInterval = ilai;
+            }
+        }
+        else if (parseMatch(name, "initialLogSyncInterval"))
+        {
+            errno = 0;
+            char *pEnd;
+            int8_t ilsi = strtol(value, &pEnd, 10);
+            if( *pEnd == '\0' && errno == 0) {
+                valOK = true;
+                parser->_config.initialLogSyncInterval = ilsi;
+            }
+        }
+        else if( parseMatch(name, "announceReceiptTimeout") )
         {
             errno = 0;
             char *pEnd;
@@ -148,9 +184,23 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
                 parser->_config.lostPdelayRespThresh = lostpdelayth;
             }
         }
+        else if (parseMatch(name, "delayMechanism"))
+        {
+            std::string toCompare = value;
+            std::transform(toCompare.begin(), toCompare.end(),
+                toCompare.begin(), ::tolower);
+            std::map<std::string, PortType> nameMap = {
+             {"e2e", V2_E2E}, 
+             {"p2p", V2_P2P}};
+            auto it = nameMap.find(toCompare);
+            parser->_config.delayMechanism = it == nameMap.end() 
+                ? V2_P2P : it->second;
+            valOK = true;
+        }
     }
     else if( parseMatch(section, "eth") )
     {
+        GPTP_LOG_INFO("ini parse  section eth, name %s", name);
         if( parseMatch(name, "phy_delay_gb_tx") )
         {
             errno = 0;
@@ -202,23 +252,42 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
             errno = 0;
             char *pEnd;
             const char *c_pEnd;
-	    uint32_t speed = findSpeedByName( value, &c_pEnd );
-	    if( speed == INVALID_LINKSPEED )
-	    {
-		    speed = strtoul( value, &pEnd, 10 );
-		    c_pEnd = pEnd;
-	    }
+            uint32_t speed = findSpeedByName( value, &c_pEnd );
+            if( speed == INVALID_LINKSPEED )
+            {
+               speed = strtoul( value, &pEnd, 10 );
+               c_pEnd = pEnd;
+            }
             int ph_tx_dly = strtoul(c_pEnd, &pEnd, 10);
             int ph_rx_dly = strtoul(pEnd, &pEnd, 10);
             if( *pEnd == '\0' && errno == 0) {
-                valOK = true;
-                parser->_config.phy_delay[speed].
-			set_delay( ph_tx_dly, ph_rx_dly );
+               valOK = true;
+               parser->_config.phy_delay[speed].
+			      set_delay( ph_tx_dly, ph_rx_dly );
             }
+        }
+        else if (parseMatch(name, "unicast_send_nodes"))
+        {
+            parser->_config.unicastSendNodes = parser->Split(value);
+            valOK = true;
+        }
+        else if (parseMatch(name, "unicast_receive_nodes"))
+        {
+            parser->_config.unicastReceiveNodes = parser->Split(value);
+            valOK = true;
+        }
+        else if (parseMatch(name, "address_registration_socket_port"))
+        {
+            parser->_config.adrRegSocketPort = std::stoi(value);
+            valOK = true;
         }
     }
 
-    if(!valOK)
+    if(valOK)
+    {
+        sHasIniValues = true;
+    }
+    else
     {
         std::cerr << "Unrecognized configuration item: section=" << section << ", name=" << name << std::endl;
         return 0;
@@ -229,6 +298,25 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
 
 
 /****************************************************************************/
+
+const std::list<std::string> GptpIniParser::Split(const std::string& values) const
+{
+    GPTP_LOG_VERBOSE("Split  START");
+    std::list<std::string> nodeList;
+    const char kDelim = ',';
+    std::stringstream ss(values);
+    std::string node;
+    while (std::getline(ss, node, kDelim))
+    {
+        GPTP_LOG_VERBOSE("Split   node:%s", node.c_str());
+       if (!node.empty())
+       {
+            nodeList.push_back(node);
+       }
+    }
+    GPTP_LOG_VERBOSE("Split  END   nodeList.size():%d", nodeList.size());
+    return nodeList;
+}
 
 bool GptpIniParser::parseMatch(const char *s1, const char *s2)
 {
@@ -321,4 +409,5 @@ uint32_t findSpeedByName( const char *name, const char **end )
 
 	return iter->speed;
 }
+
 

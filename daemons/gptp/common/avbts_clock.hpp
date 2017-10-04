@@ -40,18 +40,28 @@
 #include <avbts_ostimerq.hpp>
 #include <avbts_osipc.hpp>
 
+#include "macaddress.hpp"
+
 /**@file*/
 
 #define EVENT_TIMER_GRANULARITY 5000000		/*!< Event timer granularity*/
 
 /* These 4 macros are used only when Syntonize mode is enabled */
 #define INTEGRAL 0.0003				/*!< PI controller integral factor*/
-#define PROPORTIONAL 1.0			/*!< PI controller proportional factor*/
+#define PROPORTIONAL 1.0
+#ifdef APTP
+#define UPPER_FREQ_LIMIT  2500.0		/*!< Upper frequency limit */
+#define LOWER_FREQ_LIMIT -2500.0		/*!< Lower frequency limit */
+#define UPPER_LIMIT_PPM 2500
+#define LOWER_LIMIT_PPM -2500
+#else			/*!< PI controller proportional factor*/
 #define UPPER_FREQ_LIMIT  250.0		/*!< Upper frequency limit */
 #define LOWER_FREQ_LIMIT -250.0		/*!< Lower frequency limit */
-
 #define UPPER_LIMIT_PPM 250
 #define LOWER_LIMIT_PPM -250
+#endif
+
+
 #define PPM_OFFSET_TO_RATIO(ppm) ((ppm) / ((FrequencyRatio)US_PER_SEC) + 1)
 
 /* This is the threshold in ns for which frequency adjustments will be made */
@@ -137,6 +147,8 @@ private:
 	Timestamp _prev_local_time;
 	Timestamp _prev_system_time;
 
+	//HWTimestamper *_timestamper;
+
 	OS_IPC *ipc;
 
 	OSTimerQueue *timerq;
@@ -179,6 +191,10 @@ private:
 	 * @return void
 	 */
 	void deleteEventTimer( CommonPort *target, Event e );
+
+private:
+  IEEE1588Clock();
+
 public:
   /**
    * @brief Instantiates a IEEE 1588 Clock
@@ -238,7 +254,8 @@ public:
    * @brief  Gets the Last Best clock identity
    * @return clock identity
    */
-  ClockIdentity getLastEBestIdentity( void ) {
+  const ClockIdentity& getLastEBestIdentity( void ) const
+  {
 	  return LastEBestIdentity;
   }
 
@@ -262,13 +279,14 @@ public:
   }
 
   /**
-   * @brief  Set clock id based on the link layer address. Clock id is 8 octets
-   * long whereas link layer address is 6 octets long and it is turned into a
-   * clock identity as per the 802.1AS standard described in clause 8.5.2.2
-   * @param  addr Link layer address
+   * @brief  Set clock id based on the mac address. the mac address is turned
+   * into a clock identity as per the 802.1AS standard described in clause
+   * 8.5.2.2
+   * @param  addr mac address
    * @return void
    */
-  void setClockIdentity(LinkLayerAddress * addr) {
+  void setClockIdentity(const AMacAddress& addr)
+  {
 	  clock_identity.set(addr);
   }
 
@@ -284,7 +302,8 @@ public:
    * @brief  Gets grandmaster clock ID
    * @return GM clock ID
    */
-  ClockIdentity getGrandmasterClockIdentity(void) {
+  const ClockIdentity& getGrandmasterClockIdentity(void) const
+  {
 	  return grandmaster_clock_identity;
   }
 
@@ -384,11 +403,16 @@ public:
   }
 
   /**
-   * @brief  Gets IEEE1588Clock priority1 value (IEEE 802.1AS-2011 Clause 8.6.2.1)
+   * @brief  Gets IEEE1588Clock priority1 value (IEEE 802.1AS clause 8.6.2.1)
    * @return Priority1 value
    */
   unsigned char getPriority1(void) {
 	  return priority1;
+  }
+
+  void setPriority1(unsigned char value)
+  {
+      priority1 = value;
   }
 
   /**
@@ -519,7 +543,7 @@ public:
    * @return The offset in ppt (parts per trillion)
    */
   FrequencyRatio calcMasterLocalClockRateDifference
-	  ( Timestamp master_time, Timestamp sync_time );
+	  (const Timestamp& master_time, const Timestamp& sync_time );
 
   /**
    * @brief  Calculates the local to system clock rate difference
@@ -528,7 +552,7 @@ public:
    * @return The offset in ppt (parts per trillion)
    */
   FrequencyRatio calcLocalSystemClockRateDifference
-	  ( Timestamp local_time, Timestamp system_time );
+	  (const Timestamp& local_time, const Timestamp& system_time );
 
   /**
    * @brief  Sets the master offset, sintonyze and adjusts the frequency offset
@@ -543,18 +567,29 @@ public:
    * @param  port_state PortState instance
    * @param  asCapable asCapable flag
    */
-  void setMasterOffset
-  ( CommonPort *port, int64_t master_local_offset,
-    Timestamp local_time, FrequencyRatio master_local_freq_offset,
-    int64_t local_system_offset, Timestamp system_time,
-    FrequencyRatio local_system_freq_offset, unsigned sync_count,
-    unsigned pdelay_count, PortState port_state, bool asCapable );
+  void setMasterOffset(CommonPort * port, int64_t master_local_offset,
+   Timestamp local_time, FrequencyRatio master_local_freq_offset,
+	int64_t local_system_offset, Timestamp system_time,
+   FrequencyRatio local_system_freq_offset, unsigned sync_count,
+   unsigned pdelay_count, PortState port_state, bool asCapable,
+   uint16_t adrRegSocketPort, uint64_t masterClockId);
+
+  /**
+   * @brief  Sets the master offset, sintonyze and adjusts the frequency offset
+   * @param  master_local_offset Master to local phase offset
+   * @param  master_local_freq_offset Master to local frequency offset
+   * @param  local_system_offset Local time to system time phase offset
+   */
+  void setMasterOffset(CommonPort * port, int64_t master_local_offset,
+   FrequencyRatio master_local_freq_offset,
+   FrequencyRatio local_system_freq_offset);
 
   /**
    * @brief  Get the IEEE1588Clock identity value
    * @return clock identity
    */
-  ClockIdentity getClockIdentity() {
+  const ClockIdentity& getClockIdentity() const
+  {
 	  return clock_identity;
   }
 
@@ -652,6 +687,14 @@ public:
    */
   OSLock *timerQLock() {
 	  return timerq_lock;
+  }
+
+  void ResetIpcValues(int64_t clockId)
+  {
+     if (ipc != nullptr)
+     {
+        ipc->ResetValues(clockId);
+     }
   }
 };
 

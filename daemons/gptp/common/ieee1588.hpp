@@ -36,6 +36,7 @@
 
 /** @file */
 
+#include <memory>
 #include <string>
 
 #include <stdint.h>
@@ -50,7 +51,11 @@
 #include <gptp_log.hpp>
 #include <limits.h>
 
+#include "macaddress.hpp"
+
 #define MAX_PORTS 32	/*!< Maximum number of EtherPort instances */
+
+#define PTP_CLOCK_IDENTITY_LENGTH 8		/*!< Size of a clock identifier stored in the ClockIndentity class, described at IEEE 802.1AS Clause 8.5.2.4*/
 
 
 /**
@@ -116,6 +121,10 @@ class InterfaceLabel {
  public:
 	virtual ~ InterfaceLabel() {
 	};
+	virtual const std::string Name() const
+	{
+		return "";
+	}
 };
 
 /**
@@ -133,22 +142,43 @@ class ClockIdentity {
 		memset( id, 0, PTP_CLOCK_IDENTITY_LENGTH );
 	}
 
+	ClockIdentity(const ClockIdentity& other)
+	{
+		assign(other);
+	}
+
+	ClockIdentity& operator=(const ClockIdentity& other)
+	{
+		return assign(other);
+	}
+
+	ClockIdentity& assign(const ClockIdentity& other)
+	{
+		if (this != &other)
+		{
+			memcpy(id, other.id, PTP_CLOCK_IDENTITY_LENGTH);
+		}
+		return *this;
+	}
+
 	/**
 	 * @brief  Constructs the object and sets its ID
 	 * @param  id [in] clock id as an octet array
 	 */
-		ClockIdentity( uint8_t *id ) {
-			set(id);
-		}
+	ClockIdentity(uint8_t *id)
+	{
+		set(id);
+	}
 
-		/**
-		 * @brief  Implements the operator '==' overloading method.
-		 * @param  cmp Reference to the ClockIdentity comparing value
-		 * @return TRUE if cmp equals to the object's clock identity. FALSE otherwise
-		 */
-		bool operator==(const ClockIdentity & cmp) const {
-			return memcmp(this->id, cmp.id,
-			      PTP_CLOCK_IDENTITY_LENGTH) == 0 ? true : false;
+	/**
+	 * @brief  Implements the operator '==' overloading method.
+	 * @param  cmp Reference to the ClockIdentity comparing value
+	 * @return TRUE if cmp equals to the object's clock identity. FALSE otherwise
+	 */
+	bool operator==(const ClockIdentity & cmp) const
+	{
+		//GPTP_LOG_INFO("ClockIdentity::==  this->id:%s  cmp.id:%s", getIdentityString().c_str(), cmp.getIdentityString().c_str());
+		return 0 == memcmp(this->id, cmp.id, PTP_CLOCK_IDENTITY_LENGTH);
 	}
 
 	/**
@@ -157,7 +187,7 @@ class ClockIdentity {
 	 * @return TRUE if cmp differs from the object's clock identity. FALSE otherwise.
 	 */
     bool operator!=( const ClockIdentity &cmp ) const {
-        return memcmp( this->id, cmp.id, PTP_CLOCK_IDENTITY_LENGTH ) != 0 ? true : false;
+        return memcmp(this->id, cmp.id, PTP_CLOCK_IDENTITY_LENGTH) != 0;
 	}
 
 	/**
@@ -184,15 +214,18 @@ class ClockIdentity {
 	 * @brief  Gets the identity string from the ClockIdentity object
 	 * @return String containing the clock identity
 	 */
-	std::string getIdentityString();
+	const std::string getIdentityString() const;
+
+	const std::string getString() const;
 
 	/**
 	 * @brief  Gets the identity string from the ClockIdentity object
 	 * @param  id [out] Value copied from the object ClockIdentity. Needs to be at least ::PTP_CLOCK_IDENTITY_LENGTH long.
 	 * @return void
 	 */
-	void getIdentityString(uint8_t *id) {
-		memcpy(id, this->id, PTP_CLOCK_IDENTITY_LENGTH);
+	void getIdentityString(uint8_t *otherid) const 
+	{
+		memcpy(otherid, id, PTP_CLOCK_IDENTITY_LENGTH);
 	}
 
 	/**
@@ -200,18 +233,23 @@ class ClockIdentity {
 	 * @param  id [in] Value to be set
 	 * @return void
 	 */
-	void set(uint8_t * id) {
+	void set(const uint8_t * id) {
 		memcpy(this->id, id, PTP_CLOCK_IDENTITY_LENGTH);
 	}
 
-	/**
-	 * @brief  Set clock id based on the link layer address. Clock id is 8 octets
-	 * long whereas link layer address is 6 octets long and it is turned into a
-	 * clock identity as per the 802.1AS standard described in clause 8.5.2.2
-	 * @param  address Link layer address
-	 * @return void
-	 */
-	void set(LinkLayerAddress * address);
+	void set(const ClockIdentity& other)
+	{
+		set(other.id);
+	}
+
+   /**
+   * @brief  Set clock id based on the mac address. the mac address is turned
+   * into a clock identity as per the 802.1AS standard described in clause
+   * 8.5.2.2
+   * @param  address mac address
+   * @return void
+   */
+   void set(const AMacAddress& address);
 
 	/**
 	 * @brief  This method is only enabled at compiling time. When enabled, it prints on the
@@ -234,6 +272,15 @@ class ClockIdentity {
  * @brief Provides a Timestamp interface
  */
 class Timestamp {
+private:
+	char output_string[MAX_TSTAMP_STRLEN];
+
+public:
+	uint32_t nanoseconds;	//!< 32 bit nanoseconds value
+	uint32_t seconds_ls;	//!< 32 bit seconds LSB value
+	uint16_t seconds_ms;	//!< 32 bit seconds MSB value
+	uint8_t _version;		//!< 8 bit version value
+
 public:
 	/**
 	 * @brief  Creates a Timestamp instance
@@ -250,17 +297,48 @@ public:
 		seconds_ms = s_m;
 		_version = ver;
 	}
+
+	Timestamp(const timespec& ts)
+	{
+		seconds_ls = ts.tv_sec;
+		// Constructing a unit64_t with the ts.tv_sec value to
+		// normalize the size - on some linux flavors ts.tv_sec
+		// is not a 32 bit value.
+		seconds_ms = uint16_t(uint64_t(ts.tv_sec) >> 32);
+		nanoseconds = ts.tv_nsec;
+	}
+	
 	/*
 	 * Default constructor. Initializes
 	 * the private parameters
 	 */
 	Timestamp() {
 		Timestamp( 0, 0, 0 );
+		_version = 1;
 	}
-	uint32_t nanoseconds;	//!< 32 bit nanoseconds value
-	uint32_t seconds_ls;	//!< 32 bit seconds LSB value
-	uint16_t seconds_ms;	//!< 32 bit seconds MSB value
-	uint8_t _version;		//!< 8 bit version value
+
+	Timestamp(const Timestamp& other)
+	{
+		assign(other);
+	}
+
+	Timestamp& operator=(const Timestamp& other)
+	{
+		return assign(other);
+	}
+
+	Timestamp& assign(const Timestamp& other)
+	{
+		if (this != &other)
+		{
+		    memcpy(output_string, other.output_string, MAX_TSTAMP_STRLEN);
+		    nanoseconds = other.nanoseconds;
+			seconds_ls = other.seconds_ls;
+			seconds_ms = other.seconds_ms;
+			_version = other._version;
+		}
+		return *this;		
+	}
 
 	/**
 	 * @brief Copies the timestamp to the internal string in the following format:
@@ -284,32 +362,30 @@ public:
 	 * @return Object's timestamp + o.
 	 */
 	Timestamp operator+( const Timestamp& o ) {
-		uint32_t nanoseconds;
+		uint32_t ns;
 		uint32_t seconds_ls;
 		uint16_t seconds_ms;
 		uint8_t version;
 		bool carry;
 
-		nanoseconds  = this->nanoseconds;
-		nanoseconds += o.nanoseconds;
-		carry =
-			nanoseconds < this->nanoseconds ||
-			nanoseconds >= MAX_NANOSECONDS ? true : false;
-		nanoseconds -= carry ? MAX_NANOSECONDS : 0;
+		ns  = nanoseconds;
+		ns += o.nanoseconds;
+		carry = ns < nanoseconds || ns >= MAX_NANOSECONDS;
+		ns -= carry ? MAX_NANOSECONDS : 0;
 
 		seconds_ls  = this->seconds_ls;
 		seconds_ls += o.seconds_ls;
 		seconds_ls += carry ? 1 : 0;
-		carry = seconds_ls < this->seconds_ls ? true : false;
+		carry = seconds_ls < this->seconds_ls;
 
 		seconds_ms  = this->seconds_ms;
 		seconds_ms += o.seconds_ms;
 		seconds_ms += carry ? 1 : 0;
-		carry = seconds_ms < this->seconds_ms ? true : false;
+		carry = seconds_ms < this->seconds_ms;
 
-		version = this->_version == o._version ? this->_version :
-			INVALID_TIMESTAMP_VERSION;
-		return Timestamp( nanoseconds, seconds_ls, seconds_ms, version );
+		version = this->_version == o._version 
+		 ? this->_version : INVALID_TIMESTAMP_VERSION;
+		return Timestamp(ns, seconds_ls, seconds_ms, version);
 	}
 
 	/**
@@ -368,12 +444,22 @@ public:
 		seconds_ls = (uint32_t) (value / 1000000000);
 		seconds_ms = (uint16_t)((value / 1000000000) >> 32);
 	}
+
+	uint32_t Seconds() const
+	{
+		return seconds_ls;
+	}
+	
+	uint32_t MicroSeconds() const
+	{
+		return uint32_t(nanoseconds / 1000);
+	}
 };
 
 #define INVALID_TIMESTAMP (Timestamp( 0xC0000000, 0, 0 ))	/*!< Defines an invalid timestamp using a Timestamp instance and a fixed value*/
 #define PDELAY_PENDING_TIMESTAMP (Timestamp( 0xC0000001, 0, 0 ))	/*!< PDelay is pending timestamp */
 
-static inline uint64_t TIMESTAMP_TO_NS(Timestamp &ts)
+static inline uint64_t TIMESTAMP_TO_NS(const Timestamp &ts)
 {
 	return (((static_cast<long long int>(ts.seconds_ms) << sizeof(ts.seconds_ls)*8) +
 			      ts.seconds_ls)*1000000000LL + ts.nanoseconds)	;	/*!< Converts timestamp value into nanoseconds value*/
@@ -460,8 +546,8 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
  * @param  port [in] IEEE1588 port
  * @return PTP message instance of PTPMessageCommon
  */
-PTPMessageCommon *buildPTPMessage
-( char *buf, int size, LinkLayerAddress *remote,
-  EtherPort *port );
+PTPMessageCommon *buildPTPMessage(char *buf, size_t size,
+		LinkLayerAddress *remote,
+		EtherPort *port, const Timestamp& ingressTime);
 
 #endif

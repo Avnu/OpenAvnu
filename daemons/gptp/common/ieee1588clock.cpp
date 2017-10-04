@@ -47,7 +47,24 @@
 
 #include <math.h>
 
-std::string ClockIdentity::getIdentityString()
+const std::string ClockIdentity::getString() const
+{
+	uint8_t cid[PTP_CLOCK_IDENTITY_LENGTH];
+	getIdentityString(cid);
+	char scid[PTP_CLOCK_IDENTITY_LENGTH * 2 + 2];
+	char* pscid = scid;
+	for (unsigned i = 0; i < PTP_CLOCK_IDENTITY_LENGTH; ++i) {
+		unsigned byte = cid[i];
+		PLAT_snprintf(pscid, 4, "%2.2X", byte);
+		pscid += 2;
+	}
+	scid[PTP_CLOCK_IDENTITY_LENGTH * 2] = '\0';
+
+	GPTP_LOG_VERBOSE("ClockIdentity::getString  scid:%s", scid);
+	return std::string(scid);
+}
+
+const std::string ClockIdentity::getIdentityString() const
 {
 	uint8_t cid[PTP_CLOCK_IDENTITY_LENGTH];
 	getIdentityString(cid);
@@ -63,11 +80,11 @@ std::string ClockIdentity::getIdentityString()
 	return std::string(scid);
 }
 
-void ClockIdentity::set(LinkLayerAddress * addr)
+void ClockIdentity::set(const AMacAddress& addr)
 {
 	uint64_t tmp1 = 0;
 	uint32_t tmp2;
-	addr->toOctetArray((uint8_t *) & tmp1);
+	addr.Copy(reinterpret_cast<uint8_t*>(&tmp1), sizeof(tmp1));
 	tmp2 = tmp1 & 0xFFFFFF;
 	tmp1 >>= 24;
 	tmp1 <<= 16;
@@ -221,7 +238,9 @@ bool IEEE1588Clock::restoreSerializedState( void *buf, off_t *count ) {
 
 Timestamp IEEE1588Clock::getSystemTime(void)
 {
-	return (Timestamp(0, 0, 0));
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	return Timestamp(ts);
 }
 
 void timerq_handler(void *arg)
@@ -232,7 +251,7 @@ void timerq_handler(void *arg)
 }
 
 void IEEE1588Clock::addEventTimer
-( CommonPort *target, Event e, unsigned long long time_ns )
+(CommonPort *target, Event e, unsigned long long time_ns)
 {
 	event_descriptor_t *event_descriptor = new event_descriptor_t();
 	event_descriptor->event = e;
@@ -243,7 +262,7 @@ void IEEE1588Clock::addEventTimer
 }
 
 void IEEE1588Clock::addEventTimerLocked
-( CommonPort *target, Event e, unsigned long long time_ns )
+(CommonPort *target, Event e, unsigned long long time_ns)
 {
     if( getTimerQLock() == oslock_fail ) return;
 	addEventTimer( target, e, time_ns );
@@ -252,14 +271,12 @@ void IEEE1588Clock::addEventTimerLocked
 
 
 
-void IEEE1588Clock::deleteEventTimer
-( CommonPort *target, Event event )
+void IEEE1588Clock::deleteEventTimer(CommonPort *target, Event event)
 {
 	timerq->cancelEvent((int)event, NULL);
 }
 
-void IEEE1588Clock::deleteEventTimerLocked
-( CommonPort *target, Event event )
+void IEEE1588Clock::deleteEventTimerLocked(CommonPort *target, Event event)
 {
     if( getTimerQLock() == oslock_fail ) return;
 
@@ -268,7 +285,9 @@ void IEEE1588Clock::deleteEventTimerLocked
     if( putTimerQLock() == oslock_fail ) return;
 }
 
-FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp local_time, Timestamp system_time ) {
+FrequencyRatio 
+IEEE1588Clock::calcLocalSystemClockRateDifference(const Timestamp& local_time, const Timestamp& system_time) 
+{
 	unsigned long long inter_system_time;
 	unsigned long long inter_local_time;
 	FrequencyRatio ppt_offset;
@@ -303,7 +322,9 @@ FrequencyRatio IEEE1588Clock::calcLocalSystemClockRateDifference( Timestamp loca
 
 
 
-FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp master_time, Timestamp sync_time ) {
+FrequencyRatio
+IEEE1588Clock::calcMasterLocalClockRateDifference(const Timestamp& master_time, const Timestamp& sync_time)
+{
 	unsigned long long inter_sync_time;
 	unsigned long long inter_master_time;
 	FrequencyRatio ppt_offset;
@@ -347,52 +368,17 @@ FrequencyRatio IEEE1588Clock::calcMasterLocalClockRateDifference( Timestamp mast
 	return ppt_offset;
 }
 
-void IEEE1588Clock::setMasterOffset
-( CommonPort *port, int64_t master_local_offset,
-  Timestamp local_time, FrequencyRatio master_local_freq_offset,
-  int64_t local_system_offset, Timestamp system_time,
-  FrequencyRatio local_system_freq_offset, unsigned sync_count,
-  unsigned pdelay_count, PortState port_state, bool asCapable )
+void IEEE1588Clock::setMasterOffset(CommonPort * port,
+ int64_t master_local_offset,
+ FrequencyRatio master_local_freq_offset,
+ FrequencyRatio local_system_freq_offset)
 {
 	_master_local_freq_offset = master_local_freq_offset;
 	_local_system_freq_offset = local_system_freq_offset;
 
-	if (port->getTestMode()) {
-		GPTP_LOG_STATUS("Clock offset:%lld   Clock rate ratio:%Lf   Sync Count:%u   PDelay Count:%u", 
-						master_local_offset, master_local_freq_offset, sync_count, pdelay_count);
-	}
-
-	if( ipc != NULL ) {
-		uint8_t grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];
-		uint8_t clock_id[PTP_CLOCK_IDENTITY_LENGTH];
-		PortIdentity port_identity;
-		uint16_t port_number;
-
-		grandmaster_clock_identity.getIdentityString(grandmaster_id);
-		clock_identity.getIdentityString(clock_id);
-		port->getPortIdentity(port_identity);
-		port_identity.getPortNumber(&port_number);
-
-		ipc->update(
-			master_local_offset, local_system_offset, master_local_freq_offset,
-			local_system_freq_offset, TIMESTAMP_TO_NS(local_time),
-			sync_count, pdelay_count, port_state, asCapable);
-
-		ipc->update_grandmaster(
-			grandmaster_id, domain_number);
-
-		ipc->update_network_interface(
-			clock_id, priority1,
-			clock_quality.cq_class,	clock_quality.offsetScaledLogVariance,
-			clock_quality.clockAccuracy,
-			priority2, domain_number,
-			port->getSyncInterval(),
-			port->getAnnounceInterval(),
-			0, // TODO:  Was port->getPDelayInterval() before refactoring.  What do we do now?
-			port_number);
-	}
-
-	if( master_local_offset == 0 && master_local_freq_offset == 1.0 ) {
+	if (master_local_offset == 0 && master_local_freq_offset == 1.0)
+	{
+		GPTP_LOG_VERBOSE("IEEE1588Clock::setMasterOffset  localoffset == 0 and freqoffset == 1.0 RETURNING");
 		return;
 	}
 
@@ -415,13 +401,17 @@ void IEEE1588Clock::setMasterOffset
 
 		// Adjust for frequency offset
 		long double phase_error = (long double) -master_local_offset;
-		if( fabsl(phase_error) > PHASE_ERROR_THRESHOLD ) {
+		if (fabsl(phase_error) > PHASE_ERROR_THRESHOLD)
+		{
 			++_phase_error_violation;
-		} else {
+		}
+		else
+		{
 			_phase_error_violation = 0;
 
 			float syncPerSec = (float)(1.0 / pow((float)2, port->getSyncInterval()));
-			_ppm += (float) ((INTEGRAL * syncPerSec * phase_error) + PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
+			_ppm += (float) ((INTEGRAL * syncPerSec * phase_error) + 
+				PROPORTIONAL*((master_local_freq_offset-1.0)*1000000));
 
 			GPTP_LOG_DEBUG("phase_error = %Lf, ppm = %f", phase_error, _ppm );
 		}
@@ -435,8 +425,56 @@ void IEEE1588Clock::setMasterOffset
 			GPTP_LOG_ERROR( "Failed to adjust clock rate" );
 		}
 	}
+}
 
-	return;
+void IEEE1588Clock::setMasterOffset(CommonPort * port,
+ int64_t master_local_offset, Timestamp local_time,
+ FrequencyRatio master_local_freq_offset, int64_t local_system_offset,
+ Timestamp system_time, FrequencyRatio local_system_freq_offset,
+ unsigned sync_count, unsigned pdelay_count, PortState port_state, bool asCapable,
+ uint16_t adrRegSocketPort, uint64_t masterClockId)
+{
+	if (port->getTestMode())
+	{
+		GPTP_LOG_STATUS("Clock offset:%lld   "
+			"Clock rate ratio:%Lf   "
+			"Sync Count:%u   "
+			"PDelay Count:%u", master_local_offset, master_local_freq_offset,
+			sync_count, pdelay_count);
+	}
+
+	if (ipc != NULL)
+	{
+		uint8_t grandmaster_id[PTP_CLOCK_IDENTITY_LENGTH];
+		uint8_t clock_id[PTP_CLOCK_IDENTITY_LENGTH];
+		std::shared_ptr<PortIdentity> port_identity = port->getPortIdentity();
+		uint16_t port_number;
+
+		grandmaster_clock_identity.getIdentityString(grandmaster_id);
+		clock_identity.getIdentityString(clock_id);
+		port_identity->getPortNumber(&port_number);
+
+		ipc->update_grandmaster(
+			grandmaster_id, domain_number);
+
+		ipc->update_network_interface(
+			clock_id, priority1,
+			clock_quality.cq_class,	clock_quality.offsetScaledLogVariance,
+			clock_quality.clockAccuracy,
+			priority2, domain_number,
+			port->getSyncInterval(),
+			port->getAnnounceInterval(),
+			0, // TODO:  Was port->getPDelayInterval() before refactoring.  What do we do now?
+			port_number);
+
+		ipc->update(master_local_offset, local_system_offset,
+		 master_local_freq_offset, local_system_freq_offset,
+		 TIMESTAMP_TO_NS(local_time), sync_count, pdelay_count, port_state,
+		 asCapable, adrRegSocketPort, masterClockId);
+	}
+
+	setMasterOffset(port, master_local_offset, master_local_freq_offset,
+	 local_system_freq_offset);
 }
 
 /* Get current time from system clock */

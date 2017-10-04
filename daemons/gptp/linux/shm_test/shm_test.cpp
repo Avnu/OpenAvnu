@@ -44,6 +44,9 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #include "linux_ipc.hpp"
 
 static inline uint64_t getCpuFrequency(void)
@@ -91,13 +94,15 @@ int main(int argc, char *argv[])
     gPtpTimeData *ptpData = (gPtpTimeData*)(addr+buf_offset);
     /*TODO: Scale to ns*/
     uint64_t freq = getCpuFrequency();
-    printf("Frequency %lu Hz\n", freq);
+    printf("Frequency %" PRIu64 " Hz\n", freq);
 
-    fprintf(stdout, "ml phoffset %ld\n", ptpData->ml_phoffset);
+    fprintf(stdout, "ml phoffset %" PRIu64 "\n", ptpData->ml_phoffset);
     fprintf(stdout, "ml freq offset %Lf\n", ptpData->ml_freqoffset);
-    fprintf(stdout, "ls phoffset %ld\n", ptpData->ls_phoffset);
+    fprintf(stdout, "ls phoffset %" PRIu64 "\n", ptpData->ls_phoffset);
     fprintf(stdout, "ls freq offset %Lf\n", ptpData->ls_freqoffset);
-    fprintf(stdout, "local time %llu\n\n", (unsigned long long) ptpData->local_time);
+    fprintf(stdout, "local time %" PRIu64 "\n", ptpData->local_time);
+    fprintf(stdout, "clock id %" PRIx64 "\n", ptpData->clock_id);
+    fprintf(stdout, "address reg port %d\n", (int)ptpData->addressRegistrationSocketPort);
 
     fprintf(stdout, "gptp grandmaster id %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
             (unsigned int) ptpData->gptp_grandmaster_id[0], (unsigned int) ptpData->gptp_grandmaster_id[1],

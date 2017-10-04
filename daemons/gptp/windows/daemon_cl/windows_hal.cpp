@@ -145,7 +145,9 @@ bool WindowsNamedPipeIPC::update(
 	uint32_t sync_count,
 	uint32_t pdelay_count,
 	PortState port_state,
-	bool asCapable )
+	bool asCapable,
+	uint16_t adrRegSocketPort,
+	uint64_t clockId)
 {
 	lOffset_.get();
 	lOffset_.local_time = local_time;

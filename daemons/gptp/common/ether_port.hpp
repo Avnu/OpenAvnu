@@ -34,23 +34,23 @@
 #ifndef ETHER_PORT_HPP
 #define ETHER_PORT_HPP
 
-#include <ieee1588.hpp>
-#include <avbap_message.hpp>
-
-#include <avbts_ostimer.hpp>
-#include <avbts_oslock.hpp>
-#include <avbts_osnet.hpp>
-#include <avbts_osthread.hpp>
-#include <avbts_oscondition.hpp>
-#include <ipcdef.hpp>
-#include <gptp_log.hpp>
-
 #include <stdint.h>
-
 #include <map>
 #include <list>
 
-#include <common_port.hpp>
+#include "ieee1588.hpp"
+#include "avbap_message.hpp"
+
+#include "avbts_ostimer.hpp"
+#include "avbts_oslock.hpp"
+#include "avbts_osnet.hpp"
+#include "avbts_osthread.hpp"
+#include "avbts_oscondition.hpp"
+#include "ipcdef.hpp"
+#include "gptp_log.hpp"
+
+
+#include "common_port.hpp"
 
 /**@file*/
 
@@ -65,21 +65,12 @@
 
 #define LOG2_INTERVAL_INVALID -127	/* Simple out of range Log base 2 value used for Sync and PDelay msg internvals */
 
-/**
- * @brief PortType enumeration. Selects between delay request-response (E2E) mechanism
- * or PTPV1 or PTPV2 P2P (peer delay) mechanism.
- */
-typedef enum {
-	V1,
-	V2_E2E,
-	V2_P2P
-} PortType;
 
 /**
  * @brief Provides a map for the identityMap member of EtherPort
  * class
  */
-typedef std::map < PortIdentity, LinkLayerAddress > IdentityMap_t;
+typedef std::map < std::shared_ptr<PortIdentity>, LinkLayerAddress > IdentityMap_t;
 
 
 /**
@@ -131,6 +122,12 @@ class EtherPort : public CommonPort
 	PTPMessagePathDelayResp *last_pdelay_resp;
 	PTPMessagePathDelayRespFollowUp *last_pdelay_resp_fwup;
 
+	PTPMessageFollowUp last_fwup;
+	PTPMessageDelayReq last_delay_req;
+	PTPMessageDelayResp last_delay_resp;
+
+	PTPMessageAnnounce *qualified_announce;
+
 	IdentityMap_t identity_map;
 
 	PTPMessageSync *last_sync;
@@ -138,24 +135,40 @@ class EtherPort : public CommonPort
 	OSCondition *port_ready_condition;
 
 	OSLock *pdelay_rx_lock;
+	OSLock *delay_rx_lock;
 	OSLock *port_tx_lock;
 
-	OSLock *pDelayIntervalTimerLock;
 
-	net_result port_send
-	(uint16_t etherType, uint8_t * buf, int size, MulticastType mcast_type,
-	 PortIdentity * destIdentity, bool timestamp);
+
+	OSLock *pDelayIntervalTimerLock;
+	OSLock *delayIntervalTimerLock;
+
+	net_result port_send(uint16_t etherType, uint8_t * buf, int size,
+	 MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity,
+	 bool timestamp, uint16_t port, bool sendToAllUnicast);
+
 
 	bool pdelay_started;
 	bool pdelay_halted;
 	bool sync_rate_interval_timer_started;
 
+	FrequencyRatio fMeanPathDelay;
+	bool fMeanPathDelayIsSet;
+
 protected:
 	static const unsigned int DUPLICATE_RESP_THRESH = 3;
 
  public:
+ 	virtual void timestamper_init();
 	void becomeMaster( bool annc );
 	void becomeSlave( bool restart_syntonization );
+
+	virtual void _watchNetLink()
+	{
+#ifdef RPI	
+		port_ready_condition->signal();
+#endif	
+	}
 
 	/**
 	 * @brief  Starts pDelay event timer.
@@ -218,6 +231,24 @@ protected:
 	EtherPort( PortInit_t *portInit );
 
 	/**
+	 * @brief  Adds a new qualified announce the port. IEEE 802.1AS
+	 * Clause 10.3.10.2
+	 * @param  annc PTP announce message
+	 * @return void
+	 */
+	virtual void setQualifiedAnnounce(PTPMessageAnnounce *annc)
+	{
+		delete qualified_announce;
+		qualified_announce = annc;
+	}
+
+	/**
+	 * @brief  Gets the "best" announce
+	 * @return Pointer to PTPMessageAnnounce
+	 */
+	virtual PTPMessageAnnounce *calculateERBest(bool lockIt = true);
+
+	/**
 	 * @brief  Initializes the port. Creates network interface, initializes
 	 * hardware timestamper and create OS locks conditions
 	 * @return FALSE if error during building the interface. TRUE if success
@@ -241,11 +272,27 @@ protected:
 	( char *buf, int length, LinkLayerAddress *remote,
 	  uint32_t link_speed );
 
+	bool PortCheck(EtherPort *port, bool isEvent);
+
+	net_result maybeProcessMessage(bool checkEventMessage);
+
 	/**
 	 * @brief Receives messages from the network interface
 	 * @return Its an infinite loop. Returns NULL in case of error.
 	 */
 	void *openPort( EtherPort *port );
+
+	/**
+	 * @brief Thread worker for receiving event messages from port 319.
+	 * @return Its an infinite loop. Returns false in case of error.
+	 */
+	bool OpenEventPort(EtherPort *port);
+
+	/**
+	 * @brief Thread worker for receiving general messages from port 320.
+	 * @return Its an infinite loop. Returns false in case of error.
+	 */
+	bool OpenGeneralPort(EtherPort *port);
 
 	/**
 	 * @brief  Sends and event to a IEEE1588 port. It includes timestamp
@@ -254,11 +301,14 @@ protected:
 	 * @param  mcast_type Enumeration MulticastType (pdlay, none or other). Depracated.
 	 * @param  destIdentity Destination port identity
 	 * @param  [out] link_speed indicates link speed
+	 * @param  sendToAllUnicast true to send to all unicast nodes, otherwise send
+	 *         to just destIdentity
 	 * @return void
 	 */
 	void sendEventPort
 	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
-	 PortIdentity * destIdentity, uint32_t *link_speed );
+	 std::shared_ptr<PortIdentity> destIdentity, uint32_t *link_speed = nullptr,
+	 bool sendToAllUnicast = false);
 
 	/**
 	 * @brief Sends a general message to a port. No timestamps
@@ -266,11 +316,13 @@ protected:
 	 * @param len Size of the message
 	 * @param mcast_type Enumeration MulticastType (pdelay, none or other). Depracated.
 	 * @param destIdentity Destination port identity
+	 * @param  sendToAllUnicast true to send to all unicast nodes, otherwise send
+	 *         to just destIdentity
 	 * @return void
 	 */
 	void sendGeneralPort
 	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
-	 PortIdentity * destIdentity);
+	 std::shared_ptr<PortIdentity> destIdentity, bool sendToAllUnicast = false);
 
 	/**
 	 * @brief  Process all events for a EtherPort
@@ -362,17 +414,13 @@ protected:
 	 * @param  msg [in] PTP sync message
 	 * @return void
 	 */
-	void setLastSync(PTPMessageSync * msg) {
-		last_sync = msg;
-	}
+	void setLastSync(PTPMessageSync * msg, bool lockIt = true);
 
 	/**
 	 * @brief  Gets last sync message
 	 * @return PTPMessageSync last sync
 	 */
-	PTPMessageSync *getLastSync(void) {
-		return last_sync;
-	}
+	PTPMessageSync* getLastSync(bool lockIt = true);
 
 	/**
 	 * @brief  Locks PDelay RX
@@ -398,10 +446,41 @@ protected:
 		return pdelay_rx_lock->unlock() == oslock_ok ? true : false;
 	}
 
+	/**
+	 * @brief  Locks Delay RX
+	 * @return TRUE if acquired the lock. FALSE otherwise
+	 */
+	bool getDelayRxLock() {
+		return delay_rx_lock->lock() == oslock_ok;
+	}
+
+	/**
+	 * @brief  Do a trylock on the Delay RX
+	 * @return TRUE if acquired the lock. FALSE otherwise.
+	 */
+	bool tryDelayRxLock() {
+		return delay_rx_lock->trylock() == oslock_ok;
+	}
+
+	/**
+	 * @brief  Unlocks Delay RX.
+	 * @return TRUE if success. FALSE otherwise
+	 */
+	bool putDelayRxLock() {
+		return delay_rx_lock->unlock() == oslock_ok;
+	}
+	/**
+	 * @brief  Locks the TX port
+	 * @return TRUE if success. FALSE otherwise.
+	 */
 	bool getTxLock() {
 		return port_tx_lock->lock() == oslock_ok ? true : false;
 	}
 
+	/**
+	 * @brief  Unlocks the port TX.
+	 * @return TRUE if success. FALSE otherwise.
+	 */
 	bool putTxLock() {
 		return port_tx_lock->unlock() == oslock_ok ? true : false;
 	}
@@ -458,6 +537,47 @@ protected:
 	}
 
 	/**
+	 * @brief  Sets the last PTPMessageFollowUp message
+	 * @param  msg [in] last follow up
+	 * @return void
+	 */
+	void setLastFollowUp(PTPMessageFollowUp *msg);
+
+	/**
+	 * @brief  Gets the last PTPMessageFollowUp message
+	 * @return last follow up
+	 */
+	const PTPMessageFollowUp& getLastFollowUp(bool lockIt = true) const;
+
+	/**
+	 * @brief  Sets the last_delay_req message
+	 * @param  msg [in] PTPMessageDelayReq message to set
+	 * @return void
+	 */
+	void setLastDelayReq(PTPMessageDelayReq *msg);
+
+	void setLastDelayReq(const PTPMessageDelayReq &msg);
+
+	/**
+	 * @brief  Gets the last PTPMessageDelayReq message
+	 * @return Last delay request
+	 */
+	const PTPMessageDelayReq& getLastDelayReq(bool lockIt = true) const;
+
+	/**
+	 * @brief  Sets the last PTPMessageDelayResp message
+	 * @param  msg [in] Last delay response
+	 * @return void
+	 */
+	void setLastDelayResp(PTPMessageDelayResp *msg);
+
+	/**
+	 * @brief  Gets the last PTPMessageDelayResp message
+	 * @return Last delay response
+	 */
+	const PTPMessageDelayResp& getLastDelayResp(bool lockIt = true) const;
+
+	/**
 	 * @brief  Gets RX timestamp based on port identity
 	 * @param  sourcePortIdentity [in] Source port identity
 	 * @param  sequenceId Sequence ID
@@ -467,7 +587,7 @@ protected:
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getRxTimestamp
-	(PortIdentity * sourcePortIdentity, PTPMessageId messageId,
+	(std::shared_ptr<PortIdentity> sourcePortIdentity, PTPMessageId messageId,
 	 Timestamp & timestamp, unsigned &counter_value, bool last);
 
 	/**
@@ -480,7 +600,7 @@ protected:
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	int getTxTimestamp
-	(PortIdentity * sourcePortIdentity, PTPMessageId messageId,
+	(std::shared_ptr<PortIdentity>  sourcePortIdentity, PTPMessageId messageId,
 	 Timestamp & timestamp, unsigned &counter_value, bool last);
 
 	/**
@@ -560,7 +680,7 @@ protected:
 	 * @return void
 	 */
 	void mapSocketAddr
-	(PortIdentity * destIdentity, LinkLayerAddress * remote);
+	(std::shared_ptr<PortIdentity>  destIdentity, LinkLayerAddress * remote);
 
 	/**
 	 * @brief  Adds New sock addr map
@@ -569,7 +689,7 @@ protected:
 	 * @return void
 	 */
 	void addSockAddrMap
-	(PortIdentity * destIdentity, LinkLayerAddress * remote);
+	(std::shared_ptr<PortIdentity> destIdentity, LinkLayerAddress * remote);
 
 	/**
 	 * @brief  Gets link up count
@@ -631,6 +751,18 @@ protected:
 	bool getLinkUpState(void) {
 		return linkUp;
 	}
+
+public:
+	FrequencyRatio meanPathDelay() const;
+	void meanPathDelay(FrequencyRatio delay);
+
+	std::mutex* GetLastFwupMutex();
+	std::mutex* GetLastDelayReqMutex();
+	std::mutex* GetLastDelayRespMutex();
+	std::mutex* GetLastSyncMutex();
+	std::mutex* GetMeanPathDelayMutex();
+
+	void setClockPriority1(uint8_t priority1);
 };
 
 #endif/*ETHER_PORT_HPP*/

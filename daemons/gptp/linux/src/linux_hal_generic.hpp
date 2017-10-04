@@ -35,6 +35,7 @@
 #define LINUX_HAL_GENERIC_HPP
 
 #include <linux_hal_common.hpp>
+#include <memory>
 
 /**@file*/
 
@@ -66,6 +67,13 @@ private:
 	bool precise_timestamp_enabled;
 #endif
 
+#ifdef RPI
+	std::shared_ptr<LinuxThreadFactory> fPulseThreadFactory;
+	std::shared_ptr<OSThread> fPulseThread;
+#endif	
+
+	EtherPort *fPort;
+
 	TicketingLock *net_lock;
 
 #ifdef WITH_IGBLIB
@@ -93,14 +101,21 @@ public:
 	 */
 	bool Adjust( void *tmx ) const;
 
+	bool Adjust(const timeval& tm);
+
+	EtherPort *Port() const
+	{
+		return fPort;
+	}
+
 	/**
 	 * @brief  Initializes the Hardware timestamp interface
 	 * @param  iface_label [in] Network interface label (used to find the phc index)
 	 * @param  iface [in] Network interface
 	 * @return FALSE in case of error, TRUE if success.
 	 */
-	virtual bool HWTimestamper_init
-	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
+	virtual bool HWTimestamper_init(InterfaceLabel *iface_label,
+	 OSNetworkInterface *iface, EtherPort* port);
 
 	/**
 	 * @brief  Reset the Hardware timestamp interface
@@ -150,12 +165,12 @@ public:
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_txtimestamp
-	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
+	( std::shared_ptr<PortIdentity> identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last );
 
 	/**
 	 * @brief  Gets the RX timestamp from the hardware interface. This
-	 * Currently the RX timestamp is retrieved at LinuxNetworkInterface::nrecv method.
+	 * Currently the RX timestamp is retrieved at LinuxNetworkInterface::nrecv* method.
 	 * @param  identity PTP port identity
 	 * @param  PTPMessageId Message ID
 	 * @param  timestamp [out] Timestamp value
@@ -164,7 +179,7 @@ public:
      * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
 	virtual int HWTimestamper_rxtimestamp
-	( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
+	( std::shared_ptr<PortIdentity>  identity, PTPMessageId messageId, Timestamp &timestamp,
 	  unsigned &clock_value, bool last ) {
 		/* This shouldn't happen. Ever. */
 		if( rxTimestampList.empty() ) return GPTP_EC_EAGAIN;
@@ -188,7 +203,7 @@ public:
 	 */
 	virtual bool HWTimestamper_adjclockrate( float freq_offset ) const;
 
-#ifdef WITH_IGBLIB
+#if  defined(WITH_IGBLIB) || defined(RPI)
 	bool HWTimestamper_PPS_start( );
 	bool HWTimestamper_PPS_stop();
 #endif
@@ -197,7 +212,20 @@ public:
 	 * @brief deletes LinuxTimestamperGeneric object
 	 */
 	virtual ~LinuxTimestamperGeneric();
-};
 
+	void logCurrentTime(const char * msg);
+
+#ifdef RPI
+	void PulseThreadFactory(std::shared_ptr<LinuxThreadFactory> factory)
+	{
+		fPulseThreadFactory = factory;
+	}
+	std::shared_ptr<LinuxThreadFactory>	PulseThreadFactory() const
+	{
+		return fPulseThreadFactory;
+	}
+#endif
+
+};
 
 #endif/*LINUX_HAL_GENERIC_HPP*/

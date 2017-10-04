@@ -35,15 +35,23 @@
 #ifndef COMMON_PORT_HPP
 #define COMMON_PORT_HPP
 
-#include <avbts_message.hpp>
-#include <avbts_osthread.hpp>
-#include <avbts_oscondition.hpp>
-#include <avbts_ostimer.hpp>
-#include <avbts_oslock.hpp>
-#include <avbts_osnet.hpp>
 #include <unordered_map>
+#include <stdint.h>
+#include <cmath>
+#include <list>
+#include <algorithm>
 
-#include <math.h>
+#include "avbts_osthread.hpp"
+#include "avbts_oscondition.hpp"
+#include "avbts_ostimer.hpp"
+#include "avbts_oslock.hpp"
+#include "avbts_osnet.hpp"
+#include "avbts_message.hpp"
+#include "ipcdef.hpp"
+#include "phydelay.hpp"
+#include "gptp_log.hpp"
+#include "gptp_cfg.hpp"
+#include "macaddress.hpp"
 
 class IEEE1588Clock;
 
@@ -61,6 +69,11 @@ public:
 	 */
 	PortIdentity() { };
 
+	PortIdentity(const PortIdentity& other)
+	{
+		assign(other);
+	}
+
 	/**
 	 * @brief  Constructs PortIdentity interface.
 	 * @param  clock_id Clock ID value as defined at IEEE 802.1AS Clause
@@ -74,6 +87,21 @@ public:
 		this->clock_id.set(clock_id);
 	}
 
+	PortIdentity& operator=(const PortIdentity& other)
+	{
+		return assign(other);
+	}
+
+	PortIdentity& assign(const PortIdentity& other)
+	{
+		if (this != &other && this && &other)
+		{
+			clock_id.set(other.clock_id);
+			portNumber = other.portNumber;
+		}
+		return *this;
+	}
+
 	/**
 	 * @brief  Implements the operator '!=' overloading method. Compares
 	 * clock_id and portNumber.
@@ -83,9 +111,7 @@ public:
 	 */
 	bool operator!=(const PortIdentity & cmp) const
 	{
-		return
-			!(this->clock_id == cmp.clock_id) ||
-			this->portNumber != cmp.portNumber ? true : false;
+		return clock_id != cmp.clock_id || portNumber != cmp.portNumber;
 	}
 
 	/**
@@ -97,9 +123,15 @@ public:
 	 */
 	bool operator==(const PortIdentity & cmp)const
 	{
-		return
-			this->clock_id == cmp.clock_id &&
-			this->portNumber == cmp.portNumber ? true : false;
+		// For low level debugging...
+		// GPTP_LOG_VERBOSE("PortIdentity::operator ==");
+		// std::string thisClockid = clock_id.getIdentityString();
+		// std::string otherClockid = cmp.clock_id.getIdentityString();
+		// GPTP_LOG_VERBOSE("this->clock_id:%s", thisClockid.c_str());
+		// GPTP_LOG_VERBOSE("cmp.clock_id:%s", otherClockid.c_str());
+		// GPTP_LOG_VERBOSE("this->portNumber:%d", portNumber);
+		// GPTP_LOG_VERBOSE("cmp.portNumber:%d", portNumber);
+		return this->clock_id == cmp.clock_id && this->portNumber == cmp.portNumber;
 	}
 
 	/**
@@ -114,7 +146,7 @@ public:
 		return
 			this->clock_id < cmp.clock_id ?
 			true : this->clock_id == cmp.clock_id &&
-			this->portNumber < cmp.portNumber ? true : false;
+			this->portNumber < cmp.portNumber;
 	}
 
 	/**
@@ -129,7 +161,12 @@ public:
 		return
 			this->clock_id > cmp.clock_id ?
 			true : this->clock_id == cmp.clock_id &&
-			this->portNumber > cmp.portNumber ? true : false;
+			this->portNumber > cmp.portNumber;
+	}
+
+	bool sameClocks(std::shared_ptr<PortIdentity> other)
+	{
+		return other != nullptr && clock_id == other->getClockIdentity();
 	}
 
 	/**
@@ -142,12 +179,17 @@ public:
 		clock_id.getIdentityString(id);
 	}
 
+	const std::string getClockIdentityString() const
+	{
+		return clock_id.getIdentityString();
+	}
+
 	/**
 	 * @brief  Sets the ClockIdentity.
 	 * @param  clock_id Clock Identity to be set.
 	 * @return void
 	 */
-	void setClockIdentity(ClockIdentity clock_id)
+	void setClockIdentity(const ClockIdentity& clock_id)
 	{
 		this->clock_id = clock_id;
 	}
@@ -156,7 +198,7 @@ public:
 	 * @brief  Gets the clockIdentity value
 	 * @return A copy of Clock identity value.
 	 */
-	ClockIdentity getClockIdentity( void ) {
+	const ClockIdentity& getClockIdentity( void ) {
 		return this->clock_id;
 	}
 
@@ -195,8 +237,6 @@ public:
 	}
 };
 
-class phy_delay_spec_t;
-typedef std::unordered_map<uint32_t, phy_delay_spec_t> phy_delay_map_t;
 
 /**
  * @brief Structure for initializing the port class
@@ -261,6 +301,8 @@ typedef struct {
 
 	/* neighbor delay threshold */
 	int64_t neighborPropDelayThreshold;
+
+	bool smoothRateChange;
 } PortInit_t;
 
 
@@ -272,6 +314,8 @@ typedef struct {
 	int32_t ieee8021AsPortStatRxFollowUpCount;
 	int32_t ieee8021AsPortStatRxPdelayRequest;
 	int32_t ieee8021AsPortStatRxPdelayResponse;
+	int32_t ieee8021AsPortStatRxDelayRequest;
+	int32_t ieee8021AsPortStatRxDelayResponse;
 	int32_t ieee8021AsPortStatRxPdelayResponseFollowUp;
 	int32_t ieee8021AsPortStatRxAnnounce;
 	int32_t ieee8021AsPortStatRxPTPPacketDiscard;
@@ -283,8 +327,33 @@ typedef struct {
 	int32_t ieee8021AsPortStatTxPdelayRequest;
 	int32_t ieee8021AsPortStatTxPdelayResponse;
 	int32_t ieee8021AsPortStatTxPdelayResponseFollowUp;
+	int32_t ieee8021AsPortStatTxDelayRequest;
+	int32_t ieee8021AsPortStatTxDelayResponse;
 	int32_t ieee8021AsPortStatTxAnnounce;
 } PortCounters_t;
+
+struct ALastTimestampKeeper
+{
+	ALastTimestampKeeper(uint64_t t1, uint64_t t2, uint64_t t3, uint64_t t4) :
+	 fT1(t1), fT2(t2), fT3(t3), fT4(t4)
+	{		
+	}
+
+	ALastTimestampKeeper() :
+	 fT1(0), fT2(0), fT3(0), fT4(0)
+	{		
+	}
+
+	uint64_t fT1;
+	uint64_t fT2;
+	uint64_t fT3;
+	uint64_t fT4;
+};
+
+namespace std 
+{
+	class mutex;
+}
 
 /**
  * @brief Port functionality common to all network media
@@ -292,8 +361,9 @@ typedef struct {
 class CommonPort
 {
 private:
-	LinkLayerAddress local_addr;
-	PortIdentity port_identity;
+	const size_t kMaxRateRatioSamples = 2000;
+
+	AMacAddress local_addr;
 
 	/* Network socket description
 	   physical interface number that object represents */
@@ -307,16 +377,25 @@ private:
 	int64_t one_way_delay;
 	int64_t neighbor_prop_delay_thresh;
 
-	InterfaceLabel *net_label;
-
-	OSNetworkInterface *net_iface;
-
-	PortState port_state;
+	PortType delay_mechanism;
 	bool testMode;
 
 	signed char log_mean_sync_interval;
 	signed char log_mean_announce_interval;
 	signed char initialLogSyncInterval;
+
+	std::list<FrequencyRatio> fMasterSlaveRatios;
+	std::list<FrequencyRatio> fSlaveMasterRatios;
+	FrequencyRatio fLastRateAverageMasterSlave;
+	FrequencyRatio fLastRateAverageSlaveMaster;
+
+	FrequencyRatio fLastFilteredRateRatio;
+	ALastTimestampKeeper fLastTimestamps;
+
+	int fSyncIntervalTimeoutExpireCount;
+
+	bool smoothRateChange;
+	bool fIsWireless;
 
 	/*Sync threshold*/
 	unsigned int sync_receipt_thresh;
@@ -324,43 +403,71 @@ private:
 
 	PortCounters_t counters;
 
-	OSThread *listening_thread;
-	OSThread *link_thread;
-
 	FrequencyRatio _peer_rate_offset;
 	Timestamp _peer_offset_ts_theirs;
 	Timestamp _peer_offset_ts_mine;
 	bool _peer_offset_init;
+
+	FrequencyRatio fMasterOffset;
+
 	bool asCapable;
 	unsigned sync_count;  /* 0 for master, increment for each sync
 			       * received as slave */
 	unsigned pdelay_count;
 
-	PTPMessageAnnounce *qualified_announce;
-
 	uint16_t announce_sequence_id;
 	uint16_t signal_sequence_id;
 	uint16_t sync_sequence_id;
+	uint16_t delay_sequence_id;
 
 	uint16_t lastGmTimeBaseIndicator;
+
+	bool fFollowupAhead;
+	bool fHaveFollowup;
+	bool fHaveDelayResp;
 
 	OSLock *syncReceiptTimerLock;
 	OSLock *syncIntervalTimerLock;
 	OSLock *announceIntervalTimerLock;
 
+	GptpIniParser iniParser;
+
+	std::string fAdrRegSocketIp;
+	uint16_t fAdrRegSocketPort;
+
+	FrequencyRatio fLastLocaltime;
+	FrequencyRatio fLastRemote;
+	int fBadDiffCount;
+	int fGoodSyncCount;
+
 protected:
 	static const int64_t INVALID_LINKDELAY = 3600000000000;
 	static const int64_t ONE_WAY_DELAY_DEFAULT = INVALID_LINKDELAY;
+
+	InterfaceLabel *net_label;
+	std::shared_ptr<PortIdentity> port_identity;
 
 	OSThreadFactory const * const thread_factory;
 	OSTimerFactory const * const timer_factory;
 	OSLockFactory const * const lock_factory;
 	OSConditionFactory const * const condition_factory;
 	CommonTimestamper * const _hw_timestamper;
-	IEEE1588Clock * const clock;
+	bool fUseHardwareTimestamp;
+	IEEE1588Clock * clock;
 	const bool isGM;
 
+	OSThread *listening_thread;
+	OSThread *link_thread;
+	OSThread *eventThread;
+	OSThread *generalThread;
+
 	phy_delay_map_t const * const phy_delay;
+
+	OSNetworkInterface *net_iface;
+	PortState port_state;
+
+	std::list<std::string> fUnicastSendNodeList;
+	std::list<std::string> fUnicastReceiveNodeList;
 
 public:
 	static const int64_t NEIGHBOR_PROP_DELAY_THRESH = 800;
@@ -368,6 +475,9 @@ public:
 
 	CommonPort( PortInit_t *portInit );
 	virtual ~CommonPort();
+
+	virtual PTPMessageAnnounce *calculateERBest(bool lockIt = true) = 0;
+	virtual void setQualifiedAnnounce(PTPMessageAnnounce *annc) = 0;
 
 	/**
 	 * @brief Global media dependent port initialization
@@ -384,7 +494,7 @@ public:
 	/**
 	 * @brief Initializes the hwtimestamper
 	 */
-	void timestamper_init( void );
+	virtual void timestamper_init();
 
 	/**
 	 * @brief Resets the hwtimestamper
@@ -444,13 +554,15 @@ public:
 		return clock;
 	}
 
+	void setClock(IEEE1588Clock * otherClock);
+
 	/**
 	 * @brief  Gets the local_addr
-	 * @return LinkLayerAddress
+	 * @return AMacAddress
 	 */
-	LinkLayerAddress *getLocalAddr( void )
+	const AMacAddress& getLocalAddr(void) const
 	{
-		return &local_addr;
+		return local_addr;
 	}
 
 	/**
@@ -580,6 +692,16 @@ public:
 		return ret;
 	}
 
+	void setDelayMechanism(PortType mechanism)
+	{
+		delay_mechanism = mechanism;
+	}
+
+	PortType getDelayMechanism()
+	{
+		return delay_mechanism;
+	}
+
 	/**
 	 * @brief  Gets the hardware timestamper version
 	 * @return HW timestamper version
@@ -615,6 +737,11 @@ public:
 	 * @return void
 	 */
 	void getExtendedError(char *msg);
+
+	void SyncIntervalTimeoutExpireCount(int value)
+	{
+		fSyncIntervalTimeoutExpireCount = value;
+	}
 
 	/**
 	 * @brief  Increment IEEE Port counter:
@@ -674,6 +801,24 @@ public:
 	void incCounter_ieee8021AsPortStatRxAnnounce( void )
 	{
 		counters.ieee8021AsPortStatRxAnnounce++;
+	}
+
+/**
+	 * @brief  Increment IEEE Port counter:
+	 *         ieee8021AsPortStatRxDelayRequest
+	 * @return void
+	 */
+	void incCounter_ieee8021AsPortStatRxDelayRequest(void) {
+		counters.ieee8021AsPortStatRxDelayRequest++;
+	}
+
+	/**
+	 * @brief  Increment IEEE Port counter:
+	 *         ieee8021AsPortStatRxDelayResponse
+	 * @return void
+	 */
+	void incCounter_ieee8021AsPortStatRxDelayResponse(void) {
+		counters.ieee8021AsPortStatRxDelayResponse++;
 	}
 
 	/**
@@ -770,6 +915,24 @@ public:
 		counters.ieee8021AsPortStatTxPdelayResponseFollowUp++;
 	}
 
+/**
+	 * @brief  Increment IEEE Port counter:
+	 *         ieee8021AsPortStatTxDelayRequest
+	 * @return void
+	 */
+	void incCounter_ieee8021AsPortStatTxDelayRequest(void) {
+		counters.ieee8021AsPortStatTxDelayRequest++;
+	}
+
+	/**
+	 * @brief  Increment IEEE Port counter:
+	 *         ieee8021AsPortStatTxDelayResponse
+	 * @return void
+	 */
+	void incCounter_ieee8021AsPortStatTxDelayResponse(void) {
+		counters.ieee8021AsPortStatTxDelayResponse++;
+	}
+
 	/**
 	 * @brief  Increment IEEE Port counter:
 	 *         ieee8021AsPortStatTxAnnounce
@@ -786,77 +949,31 @@ public:
 	 */
 	void logIEEEPortCounters( void )
 	{
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatRxSyncCount : %u",
-			  counters.ieee8021AsPortStatRxSyncCount );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatRxFollowUpCount : %u",
-			  counters.ieee8021AsPortStatRxFollowUpCount );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatRxPdelayRequest : %u",
-			  counters.ieee8021AsPortStatRxPdelayRequest );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatRxPdelayResponse : %u",
-			  counters.ieee8021AsPortStatRxPdelayResponse );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatRxPdelayResponseFollowUp "
-			  ": %u", counters.
-			  ieee8021AsPortStatRxPdelayResponseFollowUp );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatRxAnnounce : %u",
-			  counters.ieee8021AsPortStatRxAnnounce );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatRxPTPPacketDiscard : %u",
-			  counters.
-			  ieee8021AsPortStatRxPTPPacketDiscard );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatRxSyncReceiptTimeouts "
-			  ": %u", counters.
-			  ieee8021AsPortStatRxSyncReceiptTimeouts );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatAnnounceReceiptTimeouts "
-			  ": %u", counters.
-			  ieee8021AsPortStatAnnounceReceiptTimeouts );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatPdelayAllowed"
-			  "LostResponsesExceeded : %u", counters.
-			  ieee8021AsPortStatPdelayAllowedLostResponsesExceeded
-				);
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatTxSyncCount : %u",
-			  counters.ieee8021AsPortStatTxSyncCount );
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatTxFollowUpCount : %u", counters.
-			  ieee8021AsPortStatTxFollowUpCount);
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatTxPdelayRequest : %u",
-			  counters.ieee8021AsPortStatTxPdelayRequest);
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatTxPdelayResponse : %u", counters.
-			  ieee8021AsPortStatTxPdelayResponse);
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatTxPdelayResponseFollowUp : %u",
-			  counters.ieee8021AsPortStatTxPdelayResponseFollowUp
-				);
-		GPTP_LOG_STATUS
-			( "IEEE Port Counter "
-			  "ieee8021AsPortStatTxAnnounce : %u",
-			  counters.ieee8021AsPortStatTxAnnounce);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxSyncCount : %u", counters.ieee8021AsPortStatRxSyncCount);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxFollowUpCount : %u", counters.ieee8021AsPortStatRxFollowUpCount);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxPdelayRequest : %u", counters.ieee8021AsPortStatRxPdelayRequest);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxPdelayResponse : %u", counters.ieee8021AsPortStatRxPdelayResponse);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxPdelayResponseFollowUp : %u", counters.ieee8021AsPortStatRxPdelayResponseFollowUp);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxDelayRequest : %u", counters.ieee8021AsPortStatRxDelayRequest);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxDelayResponse : %u", counters.ieee8021AsPortStatRxDelayResponse);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxAnnounce : %u", counters.ieee8021AsPortStatRxAnnounce);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxPTPPacketDiscard : %u", counters.ieee8021AsPortStatRxPTPPacketDiscard);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatRxSyncReceiptTimeouts : %u", counters.ieee8021AsPortStatRxSyncReceiptTimeouts);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatAnnounceReceiptTimeouts : %u", counters.ieee8021AsPortStatAnnounceReceiptTimeouts);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatPdelayAllowedLostResponsesExceeded : %u", counters.ieee8021AsPortStatPdelayAllowedLostResponsesExceeded);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxSyncCount : %u", counters.ieee8021AsPortStatTxSyncCount);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxFollowUpCount : %u", counters.ieee8021AsPortStatTxFollowUpCount);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxPdelayRequest : %u", counters.ieee8021AsPortStatTxPdelayRequest);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxPdelayResponse : %u", counters.ieee8021AsPortStatTxPdelayResponse);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxPdelayResponseFollowUp : %u", counters.ieee8021AsPortStatTxPdelayResponseFollowUp);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxDelayRequest : %u", counters.ieee8021AsPortStatTxDelayRequest);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxDelayResponse : %u", counters.ieee8021AsPortStatTxDelayResponse);
+		GPTP_LOG_STATUS("IEEE Port Counter ieee8021AsPortStatTxAnnounce : %u", counters.ieee8021AsPortStatTxAnnounce);
+	}
+
+	void setIniParser(const GptpIniParser& parser)
+	{
+		iniParser = parser;
 	}
 
 	/**
@@ -987,6 +1104,8 @@ public:
 		return NULL;
 	}
 
+	virtual void _watchNetLink() = 0;
+
 	/**
 	 * @brief Receive frame
 	 */
@@ -1051,15 +1170,15 @@ public:
 	 * @param  identity [out] Reference to PortIdentity
 	 * @return void
 	 */
-	void getPortIdentity(PortIdentity & identity) {
-		identity = this->port_identity;
+	void getPortIdentity(std::shared_ptr<PortIdentity> identity) {
+		*identity = *port_identity;
 	}
 
-	/**
-	 * @brief  Gets the "best" announce
-	 * @return Pointer to PTPMessageAnnounce
-	 */
-	PTPMessageAnnounce *calculateERBest( void );
+	std::shared_ptr<PortIdentity> getPortIdentity() const
+	{
+		return port_identity;
+	}
+
 
 	/**
 	 * @brief  Changes the port state
@@ -1088,17 +1207,6 @@ public:
 		return false;
 	}
 
-	/**
-	 * @brief  Adds a new qualified announce the port. IEEE 802.1AS
-	 * Clause 10.3.10.2
-	 * @param  annc PTP announce message
-	 * @return void
-	 */
-	void setQualifiedAnnounce( PTPMessageAnnounce *annc )
-	{
-		delete qualified_announce;
-		qualified_announce = annc;
-	}
 
 	/**
 	 * @brief  Switches port to a gPTP master
@@ -1198,6 +1306,14 @@ public:
 	}
 
 	/**
+	 * @brief  Increments Delay sequence ID and returns.
+	 * @return Next Delay sequence id.
+	 */
+	uint16_t getNextDelaySequenceId(void) {
+		return delay_sequence_id++;
+	}
+
+	/**
 	 * @brief  Gets the lastGmTimeBaseIndicator
 	 * @return uint16 of the lastGmTimeBaseIndicator
 	 */
@@ -1259,6 +1375,239 @@ public:
 	signed char getInitSyncInterval( void )
 	{
 		return initialLogSyncInterval;
+	}
+
+	FrequencyRatio meanPathDelay() const;
+
+	void meanPathDelay(FrequencyRatio delay);
+
+	int64_t ConvertToLocalTime(int64_t masterTime);
+
+	void UnicastReceiveNodes(std::list<std::string> nodeList)
+	{
+		fUnicastReceiveNodeList = nodeList;
+	}
+
+	const std::list<std::string> UnicastReceiveNodes() const
+	{
+		return fUnicastReceiveNodeList;
+	}
+
+	void DumpUnicastSendNodes()
+	{
+		std::for_each(fUnicastSendNodeList.begin(), fUnicastSendNodeList.end(), [](const std::string& adr)
+		 {
+		 	 GPTP_LOG_VERBOSE("UnicastSendNode: %s", adr.c_str());
+		 });
+	}
+
+	void AddUnicastSendNode(const std::string& address)
+	{
+		fUnicastSendNodeList.push_back(address);
+	}
+
+	void DeleteUnicastSendNode(const std::string& address)
+	{
+		auto it = std::find(fUnicastSendNodeList.begin(),
+		 fUnicastSendNodeList.end(), address);
+		if (it != fUnicastSendNodeList.end())
+		{
+			fUnicastSendNodeList.erase(it);
+		}
+	}
+
+	void UnicastSendNodes(const std::list<std::string>& nodeList)
+	{
+		fUnicastSendNodeList = nodeList;
+	}
+
+	const std::list<std::string>& UnicastSendNodes() const
+	{
+		return fUnicastSendNodeList;
+	}
+
+	const std::string AdrRegSocketIp() const
+	{
+		return fAdrRegSocketIp;
+	}
+
+	void AdrRegSocketIp(const std::string& ipadr)
+	{
+		fAdrRegSocketIp = ipadr;
+	}
+
+	uint16_t AdrRegSocketPort() const
+	{
+		return fAdrRegSocketPort;
+	}
+
+	void AdrRegSocketPort(uint16_t port)
+	{
+		fAdrRegSocketPort = port;
+	}
+
+	void MasterOffset(FrequencyRatio offset);
+
+	FrequencyRatio MasterOffset() const
+	{
+		return fMasterOffset;
+	}
+
+	void AdjustedTime(FrequencyRatio t);
+
+	void PushRateRatio(std::list<FrequencyRatio>& ratioList, FrequencyRatio ratio)
+	{
+		size_t ratioCount = ratioList.size();
+		// if (ratioCount > 0 && 0 == ratioCount % 1000)
+		// {
+		// 	GPTP_LOG_ERROR("/////////////////////////////   Ratio sample size %d.", ratioCount);
+		// }
+		if (ratioCount > kMaxRateRatioSamples)
+		{
+			ratioList.pop_back();
+		}
+		ratioList.push_front(ratio);
+	}
+
+	void PushMasterSlaveRateRatio(FrequencyRatio ratio)
+	{
+		PushRateRatio(fMasterSlaveRatios, ratio);
+	}
+
+	void PushSlaveMasterRateRatio(FrequencyRatio ratio)
+	{
+		PushRateRatio(fSlaveMasterRatios, ratio);
+	}
+
+	FrequencyRatio LastFilteredRateRatio() const
+	{
+		return fLastFilteredRateRatio;
+	}
+	void LastFilteredRateRatio(FrequencyRatio filteredRateRatio)
+	{
+		fLastFilteredRateRatio = filteredRateRatio;
+	}
+
+	const ALastTimestampKeeper& LastTimestamps() const
+	{
+		return fLastTimestamps;
+	}
+
+	void LastTimestamps(const ALastTimestampKeeper& lastTimestamps)
+	{
+		fLastTimestamps = lastTimestamps;
+	}
+
+	FrequencyRatio RateAverageMasterSlave() const
+	{
+		FrequencyRatio sum = std::accumulate(fMasterSlaveRatios.begin(),
+			fMasterSlaveRatios.end(), 0.0);
+		return sum / fMasterSlaveRatios.size();
+	}
+
+	FrequencyRatio RateAverageSlaveMaster() const
+	{
+		FrequencyRatio sum = std::accumulate(fSlaveMasterRatios.begin(),
+			fSlaveMasterRatios.end(), 0.0);
+		return sum / fSlaveMasterRatios.size();
+	}
+
+	FrequencyRatio LastRateAverageMasterSlave() const
+	{
+		return fLastRateAverageMasterSlave;
+	}
+
+	FrequencyRatio LastRateAverageSlaveMaster() const
+	{
+		return fLastRateAverageSlaveMaster;
+	}
+
+	void LastRateAverageMasterSlave(FrequencyRatio ratio)
+	{
+		fLastRateAverageMasterSlave = ratio;
+	}
+
+	void LastRateAverageSlaveMaster(FrequencyRatio ratio)
+	{
+		fLastRateAverageSlaveMaster = ratio;
+	}
+
+	FrequencyRatio LastLocaltime() const
+	{
+		return fLastLocaltime;
+	}
+	void LastLocaltime(FrequencyRatio value)
+	{
+		fLastLocaltime = value;
+	}
+	FrequencyRatio LastRemote() const
+	{
+		return fLastRemote;
+	}
+	void LastRemote(FrequencyRatio value)
+	{
+		fLastRemote = value;
+	}
+	int BadDiffCount() const
+	{
+		return fBadDiffCount;
+	}
+	void BadDiffCount(int value)
+	{
+		fBadDiffCount = value;
+	}
+	int GoodSyncCount() const
+	{
+		return fGoodSyncCount;
+	}
+	void GoodSyncCount(int value)
+	{
+		fGoodSyncCount = value;
+	}
+
+	void FollowupAhead(bool yesno)
+	{
+		fFollowupAhead = yesno;
+	}
+
+	bool FollowupAhead() const
+	{
+		return fFollowupAhead;
+	}
+
+	void HaveDelayResp(bool yesno)
+	{
+		fHaveDelayResp = yesno;
+	}
+
+	bool HaveDelayResp() const
+	{
+		return fHaveDelayResp;
+	}
+
+	void HaveFollowup(bool yesno)
+	{
+		fHaveFollowup = yesno;
+	}
+
+	bool HaveFollowup() const
+	{
+		return fHaveFollowup;
+	}
+
+	bool SmoothRateChange() const
+	{
+		return smoothRateChange;
+	}
+
+	const bool IsWireless() const
+	{
+		return fIsWireless;
+	}
+
+	void IsWireless(bool yesno)
+	{
+		fIsWireless = yesno;
 	}
 
 	/**
@@ -1347,9 +1696,14 @@ public:
 	 * @param destIdentity Destination port identity
 	 * @return void
 	 */
-	virtual void sendGeneralPort
-	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
-	 PortIdentity * destIdentity) = 0;
+	// virtual void sendGeneralPort
+	// (uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
+	//  PortIdentity * destIdentity) = 0;
+
+	virtual void sendGeneralPort(uint16_t etherType, uint8_t * buf, int len,
+	 MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity,
+	 bool sendToAllUnicast = false) = 0;
+
 
 	/**
 	 * @brief Sets link speed
@@ -1376,80 +1730,7 @@ public:
 	 * @brief Returns RX PHY delay
 	 */
 	Timestamp getRxPhyDelay( uint32_t link_speed ) const;
-};
 
-/**
- * @brief Specifies a RX/TX PHY compensation pair
- */
-class phy_delay_spec_t
-{
-private:
-	uint16_t tx_delay;
-	uint16_t rx_delay;
-public:
-	/**
-	 * Constructor setting PHY compensation
-	 */
-	phy_delay_spec_t(
-		uint16_t tx_delay,
-		uint16_t rx_delay )
-	{
-		this->tx_delay = tx_delay;
-		this->rx_delay = rx_delay;
-	}
-
-	/**
-	 * Default constructor sets 0 PHY compensation
-	 */
-	phy_delay_spec_t()
-	{
-		phy_delay_spec_t( 0, 0 );
-	}
-
-	/**
-	 * @brief sets PHY compensation
-	 */
-	void set_delay(
-		uint16_t tx_delay,
-		uint16_t rx_delay )
-	{
-		this->tx_delay = tx_delay;
-		this->rx_delay = rx_delay;
-	}
-
-	/**
-	 * @brief sets RX PHY compensation
-	 */
-	void set_tx_delay(
-		uint16_t tx_delay )
-	{
-		this->tx_delay = tx_delay;
-	}
-
-	/**
-	 * @brief sets TX PHY compensation
-	 */
-	void set_rx_delay(
-		uint16_t rx_delay )
-	{
-		this->rx_delay = rx_delay;
-	}
-
-	/**
-	 * @brief gets TX PHY compensation
-	 */
-	uint16_t get_tx_delay() const
-	{
-		return tx_delay;
-	}
-
-	/**
-	 * @brief gets RX PHY compensation
-	 */
-	uint16_t get_rx_delay() const
-	{
-		return rx_delay;
-	}
 };
 
 #endif/*COMMON_PORT_HPP*/

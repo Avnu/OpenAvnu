@@ -45,6 +45,11 @@
 #endif
 
 #include "linux_hal_persist_file.hpp"
+
+#ifdef APTP
+#include "addressregisterlistener.hpp"
+#endif
+
 #include <ctype.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -124,8 +129,8 @@ int watchdog_setup(OSThreadFactory *thread_factory)
 #endif
 }
 
-static IEEE1588Clock *pClock = NULL;
-static EtherPort *pPort = NULL;
+static IEEE1588Clock *pClock = nullptr;
+static EtherPort *pPort = nullptr;
 
 int main(int argc, char **argv)
 {
@@ -141,18 +146,18 @@ int main(int argc, char **argv)
 	uint8_t priority1 = 248;
 	bool override_portstate = false;
 	PortState port_state = PTP_SLAVE;
-	char *restoredata = NULL;
-	char *restoredataptr = NULL;
+
+	char *restoredata = nullptr;
+	char *restoredataptr = nullptr;
 	off_t restoredatalength = 0;
 	off_t restoredatacount = 0;
 	bool restorefailed = false;
-	LinuxIPCArg *ipc_arg = NULL;
+	LinuxIPCArg *ipc_arg = nullptr;
 	bool use_config_file = false;
 	char config_file_path[512];
 	memset(config_file_path, 0, 512);
 
-	GPTPPersist *pGPTPPersist = NULL;
-	LinuxThreadFactory *thread_factory = new LinuxThreadFactory();
+	GPTPPersist *pGPTPPersist = nullptr;
 
 	// Block SIGUSR1
 	{
@@ -167,10 +172,6 @@ int main(int argc, char **argv)
 
 	GPTP_LOG_REGISTER();
 	GPTP_LOG_INFO("gPTP starting");
-	if (watchdog_setup(thread_factory) != 0) {
-		GPTP_LOG_ERROR("Watchdog handler setup error");
-		return -1;
-	}
 	phy_delay_map_t ether_phy_delay;
 	bool input_delay=false;
 
@@ -190,6 +191,7 @@ int main(int argc, char **argv)
 	portInit.thread_factory = NULL;
 	portInit.timer_factory = NULL;
 	portInit.lock_factory = NULL;
+	portInit.smoothRateChange = true;
 	portInit.syncReceiptThreshold =
 		CommonPort::DEFAULT_SYNC_RECEIPT_THRESH;
 	portInit.neighborPropDelayThreshold =
@@ -199,11 +201,18 @@ int main(int argc, char **argv)
 		new LinuxNetworkInterfaceFactory;
 	OSNetworkInterfaceFactory::registerFactory
 		(factory_name_t("default"), default_factory);
+	LinuxThreadFactory *thread_factory = new LinuxThreadFactory();
 	LinuxTimerQueueFactory *timerq_factory = new LinuxTimerQueueFactory();
 	LinuxLockFactory *lock_factory = new LinuxLockFactory();
 	LinuxTimerFactory *timer_factory = new LinuxTimerFactory();
 	LinuxConditionFactory *condition_factory = new LinuxConditionFactory();
 	LinuxSharedMemoryIPC *ipc = new LinuxSharedMemoryIPC();
+
+	if (watchdog_setup(thread_factory) != 0) {
+		GPTP_LOG_ERROR("Watchdog handler setup error");
+		return -1;
+	}
+
 	/* Create Low level network interface object */
 	if( argc < 2 ) {
 		printf( "Interface name required\n" );
@@ -211,6 +220,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 	ifname = new InterfaceName( argv[1], strlen(argv[1]) );
+
 
 	/* Process optional arguments */
 	for( i = 2; i < argc; ++i ) {
@@ -330,6 +340,14 @@ int main(int argc, char **argv)
 					fprintf(stderr, "config file must be specified.\n");
 				}
 			}
+			else if (0 == strcmp(argv[i] + 1, "SMOOTH"))
+			{
+				portInit.smoothRateChange = true;
+			}
+			else if (0 == strcmp(argv[i] + 1, "NOSMOOTH"))
+			{
+				portInit.smoothRateChange = false;
+			}
 		}
 	}
 
@@ -342,12 +360,6 @@ int main(int argc, char **argv)
 	}
 	portInit.phy_delay = &ether_phy_delay;
 
-	if( !ipc->init( ipc_arg ) ) {
-		delete ipc;
-		ipc = NULL;
-	}
-	if( ipc_arg != NULL ) delete ipc_arg;
-
 	if( pGPTPPersist ) {
 		uint32_t bufSize = 0;
 		if (!pGPTPPersist->readStorage(&restoredata, &bufSize))
@@ -358,10 +370,17 @@ int main(int argc, char **argv)
 	}
 
 #ifdef ARCH_INTELCE
-	EtherTimestamper *timestamper = new LinuxTimestamperIntelCE();
+	EtherTimestamper  *timestamper = new LinuxTimestamperIntelCE();
 #else
-	EtherTimestamper *timestamper = new LinuxTimestamperGeneric();
+	EtherTimestamper  *timestamper = new LinuxTimestamperGeneric();
+	#ifdef RPI
+		std::shared_ptr<LinuxThreadFactory> pulseThreadFactory = 
+	 	 std::make_shared<LinuxThreadFactory>();
+		LinuxTimestamperGeneric* ts = static_cast<LinuxTimestamperGeneric*>(timestamper);
+		ts->PulseThreadFactory(pulseThreadFactory);
+	#endif
 #endif
+
 
 	sigemptyset(&set);
 	sigaddset(&set, SIGINT);
@@ -372,17 +391,6 @@ int main(int argc, char **argv)
 		perror("pthread_sigmask()");
 		GPTP_LOG_UNREGISTER();
 		return -1;
-	}
-
-	pClock = new IEEE1588Clock
-		( false, syntonize, priority1, timerq_factory, ipc,
-		  lock_factory );
-
-	if( restoredataptr != NULL ) {
-		if( !restorefailed )
-			restorefailed =
-				!pClock->restoreSerializedState( restoredataptr, &restoredatacount );
-		restoredataptr = ((char *)restoredata) + (restoredatalength - restoredatacount);
 	}
 
 	// TODO: The setting of values into temporary variables should be changed to
@@ -396,35 +404,62 @@ int main(int argc, char **argv)
 	portInit.timer_factory = timer_factory;
 	portInit.lock_factory = lock_factory;
 
+	pPort = new EtherPort(&portInit);
+
+	GPTP_LOG_INFO("smoothRateChange: %s", (pPort->SmoothRateChange() ? "true" : "false"));
+	
 	if(use_config_file)
 	{
 		GptpIniParser iniParser(config_file_path);
+		pPort->setIniParser(iniParser);
 
 		if (iniParser.parserError() < 0) {
 			GPTP_LOG_ERROR("Cant parse ini file. Aborting file reading.");
 		}
 		else
 		{
+			GPTP_LOG_INFO("E2E delay mechansm: %d", V2_E2E);
+			GPTP_LOG_INFO("delay_mechansm: %d", iniParser.getDelayMechanism());
 			GPTP_LOG_INFO("priority1 = %d", iniParser.getPriority1());
 			GPTP_LOG_INFO("announceReceiptTimeout: %d", iniParser.getAnnounceReceiptTimeout());
+			GPTP_LOG_INFO("initialLogSyncInterval: %d", iniParser.getInitialLogSyncInterval());
 			GPTP_LOG_INFO("syncReceiptTimeout: %d", iniParser.getSyncReceiptTimeout());
 			iniParser.print_phy_delay();
 			GPTP_LOG_INFO("neighborPropDelayThresh: %ld", iniParser.getNeighborPropDelayThresh());
 			GPTP_LOG_INFO("syncReceiptThreshold: %d", iniParser.getSyncReceiptThresh());
+			GPTP_LOG_INFO("Address reg socket Port: %d", iniParser.AdrRegSocketPort());
 
+#ifndef APTP
 			/* If using config file, set the neighborPropDelayThresh.
 			 * Otherwise it will use its default value (800ns) */
 			portInit.neighborPropDelayThreshold =
 				iniParser.getNeighborPropDelayThresh();
+#endif
+
+			priority1 = iniParser.getPriority1();
 
 			/* If using config file, set the syncReceiptThreshold, otherwise
 			 * it will use the default value (SYNC_RECEIPT_THRESH)
 			 */
-			portInit.syncReceiptThreshold =
-				iniParser.getSyncReceiptThresh();
+			pPort->setSyncReceiptThresh(iniParser.getSyncReceiptThresh());
+
+			pPort->setSyncInterval(iniParser.getInitialLogSyncInterval());
+			GPTP_LOG_VERBOSE("pPort->getSyncInterval:%d", pPort->getSyncInterval());
+
+			// Set the delay_mechanism from the ini file valid values are E2E or P2P
+			pPort->setDelayMechanism(V2_E2E);
+
+			// Allows for an initial setting of unicast send and receive 
+			// ip addresses if the destination platform doesn't have
+			// socket support for the send and receive address registration api
+			pPort->UnicastSendNodes(iniParser.UnicastSendNodes());
+			pPort->UnicastReceiveNodes(iniParser.UnicastReceiveNodes());
+
+			// Set the address registration api ip and port
+			pPort->AdrRegSocketPort(iniParser.AdrRegSocketPort());
 
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
-			if(!input_delay)
+			if (!input_delay)
 			{
 				ether_phy_delay = iniParser.getPhyDelay();
 			}
@@ -432,19 +467,37 @@ int main(int argc, char **argv)
 
 	}
 
-	pPort = new EtherPort(&portInit);
-
 	if (!pPort->init_port()) {
 		GPTP_LOG_ERROR("failed to initialize port");
 		GPTP_LOG_UNREGISTER();
 		return -1;
 	}
 
-	if( restoredataptr != NULL ) {
-		if( !restorefailed ) {
-			restorefailed = !pPort->restoreSerializedState( restoredataptr, &restoredatacount );
-			GPTP_LOG_INFO("Persistent port data restored: asCapable:%d, port_state:%d, one_way_delay:%lld",
-						  pPort->getAsCapable(), pPort->getPortState(), pPort->getLinkDelay());
+	if (nullptr == ipc_arg)
+	{
+		ipc_arg = new LinuxIPCArg;
+	}
+	ipc_arg->AdrRegSocketPort(pPort->AdrRegSocketPort());
+	if (!ipc->init(ipc_arg))
+	{
+		delete ipc;
+		ipc = nullptr;
+	}
+
+	delete ipc_arg;
+	ipc_arg = nullptr;
+
+	pClock = new IEEE1588Clock(false, syntonize, priority1, timerq_factory, ipc,
+	  lock_factory);
+
+	pPort->setClock(pClock);
+
+	if (restoredataptr != nullptr)
+	{
+		if (!restorefailed)
+		{
+			restorefailed =
+				!pClock->restoreSerializedState( restoredataptr, &restoredatacount );
 		}
 		restoredataptr = ((char *)restoredata) + (restoredatalength - restoredatacount);
 	}
@@ -469,6 +522,16 @@ int main(int argc, char **argv)
 			GPTP_LOG_ERROR("Failed to start pulse per second I/O");
 		}
 	}
+
+#ifdef APTP
+	// Start the address api listener
+	AAddressRegisterListener adrListener(ifname->Name(), pPort);
+	std::shared_ptr<LinuxThreadFactory> addressApiThreadFactory =
+	 std::make_shared<LinuxThreadFactory>();
+	adrListener.ThreadFactory(addressApiThreadFactory);
+	adrListener.Start();
+	//std::thread addressApiListenerThread(openAddressApiPortWrapper, std::ref(adrListener));
+#endif
 
 	// Configure persistent write
 	if (pGPTPPersist) {
@@ -507,6 +570,10 @@ int main(int argc, char **argv)
 		}
 	} while (sig == SIGHUP || sig == SIGUSR2);
 
+#ifdef APTP
+	adrListener.Stop();
+#endif
+
 	GPTP_LOG_ERROR("Exiting on %d", sig);
 
 	if (pGPTPPersist) {
@@ -520,7 +587,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if( ipc ) delete ipc;
+	delete ipc;
+	ipc = nullptr;
 
 	GPTP_LOG_UNREGISTER();
 	return 0;

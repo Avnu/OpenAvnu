@@ -46,6 +46,7 @@
 #include "ieee1588.hpp"
 #include <ether_tstamper.hpp>
 #include <linux/ethtool.h>
+#include "../../common/macaddress.hpp"
 
 #include <list>
 
@@ -113,6 +114,14 @@ public:
 	 * @brief Deletes the object and private structures.
 	 */
 	~TicketingLock();
+
+	void LogState()
+	{
+		GPTP_LOG_VERBOSE("init_flag:%d "
+			" in_use:%d"
+			" cond_ticket_issue:%d"
+			" cond_ticket_serving:%d", init_flag, in_use, cond_ticket_issue, cond_ticket_serving);
+	}
 private:
 	bool init_flag;
 	TicketingLockPrivate_t _private;
@@ -148,13 +157,16 @@ public:
 class LinuxNetworkInterface : public OSNetworkInterface {
 	friend class LinuxNetworkInterfaceFactory;
 private:
-	LinkLayerAddress local_addr;
+	AMacAddress local_addr;
 	int sd_event;
 	int sd_general;
 	LinuxTimestamper *timestamper;
 	int ifindex;
 
 	TicketingLock net_lock;
+	TicketingLock fNetLockEvent;
+	TicketingLock fNetLockGeneral;
+	
 public:
 	/**
 	 * @brief Sends a packet to a remote address
@@ -179,7 +191,15 @@ public:
 	 * an error on the transmit side, net_fatal if error on reception
 	 */
 	virtual net_result nrecv
-	( LinkLayerAddress *addr, uint8_t *payload, size_t &length );
+	( LinkLayerAddress *addr, uint8_t *payload, size_t &length);
+
+	virtual net_result nrecvEvent(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
+	 Timestamp& ingressTime, EtherPort* port);
+
+	virtual net_result nrecvGeneral(LinkLayerAddress *addr, uint8_t *payload, size_t &length,
+	 Timestamp& ingressTime, EtherPort* port);
+
+	virtual bool IsWireless(const std::string& netInterfaceName) const;
 
 	/**
 	 * @brief  Disables rx socket descriptor rx queue
@@ -198,7 +218,8 @@ public:
 	 * @param  addr [out] Pointer to the LinkLayerAddress object
 	 * @return void
 	 */
-	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
+	virtual void getMacAddress(AMacAddress *addr)
+	{
 		*addr = local_addr;
 	}
 
@@ -214,7 +235,7 @@ public:
 	/**
 	 * @brief Watch for net link changes.
 	 */
-	virtual void watchNetLink( CommonPort *pPort );
+	virtual void watchNetLink(CommonPort *pPort);
 
 	/**
 	 * @brief Gets the payload offset
@@ -227,11 +248,49 @@ public:
 	 * @brief Destroys the network interface
 	 */
 	~LinuxNetworkInterface();
+
+	void LogLockState()
+	{
+		net_lock.LogState();
+	}
+
+	bool ValidAddress(LinkLayerAddress *addr, EtherPort* port)
+	{
+		// Note that we only restrict addresses if the receive nodes
+		// are specified.
+		bool isValid = true;
+		std::string toCompare = addr ? addr->AddressString() : "";
+		std::list<std::string> nodeList;
+		if (port != nullptr)
+		{
+			nodeList = port->UnicastReceiveNodes();
+		}
+		std::for_each(nodeList.begin(), nodeList.end(), [&isValid, toCompare](const std::string& ip)
+		 {
+		 	isValid = isValid && (ip == toCompare);
+		 });
+		return isValid;
+	}
+
+	net_result Filter(net_result result, LinkLayerAddress *addr, EtherPort* port)
+	{
+		net_result ok = result;
+		if (net_succeed == result && !ValidAddress(addr, port))
+		{
+			ok = net_trfail;
+		}
+		return ok;
+	}
+
 protected:
 	/**
 	 * @brief Default constructor
 	 */
 	LinuxNetworkInterface() {};
+
+private:
+	net_result receive(LinkLayerAddress *addr, uint8_t *payload, 
+	 size_t &length, uint16_t port, Timestamp& ingressTime);
 };
 
 /**
@@ -568,6 +627,14 @@ class LinuxThreadFactory:public OSThreadFactory {
 	 OSThread *createThread() const {
 		 return new LinuxThread();
 	 }
+
+#ifdef RPI
+	std::shared_ptr<OSThread> create()
+	{
+		return std::shared_ptr<OSThread>(new LinuxThread());
+	}
+#endif	
+
 };
 
 /**
@@ -582,9 +649,8 @@ public:
 	 * @param timestamper [in] Pointer to a hardware timestamp object
 	 * @return TRUE if no error during interface creation, FALSE otherwise
 	 */
-	virtual bool createInterface
-	( OSNetworkInterface **net_iface, InterfaceLabel *label,
-	  CommonTimestamper *timestamper );
+	virtual bool createInterface(OSNetworkInterface **net_iface, InterfaceLabel *label,
+	  CommonTimestamper *timestamper);
 };
 
 /**
@@ -592,25 +658,43 @@ public:
  */
 class LinuxIPCArg : public OS_IPC_ARG {
 private:
-	char *group_name;
+	std::string fGroupName;
+	int fAddrRegPort;
 public:
+	LinuxIPCArg() :
+	 fGroupName(""),
+	 fAddrRegPort(0)
+	{}
+
 	/**
 	 * @brief  Initializes IPCArg object
 	 * @param group_name [in] Group's name
 	 */
-	LinuxIPCArg( char *group_name ) {
-		int len = strnlen(group_name,16);
-		this->group_name = new char[len+1];
-		strncpy( this->group_name, group_name, len+1 );
-		this->group_name[len] = '\0';
+	LinuxIPCArg(char *name)
+	{
+		fGroupName = name;
 	}
 	/**
 	 * @brief Destroys IPCArg internal variables
 	 */
-	virtual ~LinuxIPCArg() {
-		delete group_name;
+	virtual ~LinuxIPCArg()
+	{
 	}
-	friend class LinuxSharedMemoryIPC;
+
+	int AdrRegSocketPort() const
+	{
+		return fAddrRegPort;
+	}
+
+	void AdrRegSocketPort(int portNumber)
+	{
+		fAddrRegPort = portNumber;
+	}
+
+	const std::string& GroupName() const
+	{
+		return fGroupName;
+	}
 };
 
 #define DEFAULT_GROUPNAME "ptp"		/*!< Default groupname for the shared memory interface*/
@@ -623,19 +707,22 @@ private:
 	int shm_fd;
 	char *master_offset_buffer;
 	int err;
+	FrequencyRatio fLastFreqoffset;
 public:
 	/**
 	 * @brief Initializes the internal flags
 	 */
-	LinuxSharedMemoryIPC() {
+	LinuxSharedMemoryIPC()
+	{
 		shm_fd = 0;
 		err = 0;
 		master_offset_buffer = NULL;
+		fLastFreqoffset = 0.0;
 	};
 	/**
 	 * @brief Destroys and unlinks shared memory
 	 */
-	~LinuxSharedMemoryIPC();
+	virtual ~LinuxSharedMemoryIPC();
 
 	/**
 	 * @brief  Initializes shared memory with DEFAULT_GROUPNAME case arg is null
@@ -646,7 +733,6 @@ public:
 
 	/**
 	 * @brief Updates IPC values
-	 *
 	 * @param ml_phoffset Master to local phase offset
 	 * @param ls_phoffset Local to slave phase offset
 	 * @param ml_freqoffset Master to local frequency offset
@@ -656,7 +742,9 @@ public:
 	 * @param pdelay_count Count of pdelays
 	 * @param port_state Port's state
 	 * @param asCapable asCapable flag
-	 *
+	 * @param adrRegSocketIp IP address of the socket that listens for adds and
+	 *   deletes of send and receive addresses
+	 * @param adrRegSocketPort Port number for the adrRegSocketIp
 	 * @return TRUE
 	 */
 	virtual bool update(
@@ -668,7 +756,9 @@ public:
 		uint32_t sync_count,
 		uint32_t pdelay_count,
 		PortState port_state,
-		bool asCapable );
+		bool asCapable,
+		uint16_t adrRegSocketPort = 0,
+		uint64_t clockId = 0);
 
 	/**
 	 * @brief Updates grandmaster IPC values
@@ -717,6 +807,36 @@ public:
 	 * @return void
 	 */
 	void stop();
+
+	virtual void ResetValues(uint64_t clockId)
+	{
+#ifdef APTP
+		GPTP_LOG_VERBOSE("LinuxSharedMemoryIPC::ResetValues");
+		char *shm_buffer = master_offset_buffer;
+		if (shm_buffer != nullptr)
+		{
+			/* lock */
+			pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
+			int buf_offset = sizeof(pthread_mutex_t);
+			gPtpTimeData *ptimedata = reinterpret_cast<gPtpTimeData *>(
+			 shm_buffer + buf_offset);
+
+			ptimedata->ml_phoffset = 0;
+			ptimedata->ml_freqoffset = 1;
+			ptimedata->ls_phoffset = 0;
+			ptimedata->ls_freqoffset = 1;
+			ptimedata->local_time = 0;
+			ptimedata->clock_id = clockId;
+			ptimedata->sync_count   = 0;
+			ptimedata->pdelay_count = 0;
+	      		ptimedata->asCapable = false;
+			ptimedata->port_state = PTP_UNCALIBRATED;
+
+			/* unlock */
+			pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
+		}
+#endif
+	}
 };
 
 

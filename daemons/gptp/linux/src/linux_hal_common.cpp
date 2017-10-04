@@ -31,13 +31,13 @@
 
 ******************************************************************************/
 
-#include <linux_hal_common.hpp>
-#include <sys/types.h>
-#include <avbts_clock.hpp>
-#include <ether_port.hpp>
+#include "linux_hal_common.hpp"
+#include "avbts_clock.hpp"
+#include "ether_port.hpp"
+#include "linux_ipc.hpp"
 
+#include <sys/types.h>
 #include <pthread.h>
-#include <linux_ipc.hpp>
 
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -56,11 +56,15 @@
 #include <sys/stat.h>
 
 #include <sys/socket.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <arpa/inet.h>
+
+#include <fstream>
+
 #include <linux/sockios.h>
-#include <gptp_cfg.hpp>
 
 Timestamp tsToTimestamp(struct timespec *ts)
 {
@@ -85,31 +89,63 @@ LinuxNetworkInterface::~LinuxNetworkInterface() {
 
 net_result LinuxNetworkInterface::send
 ( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length, bool timestamp ) {
-	sockaddr_ll *remote = NULL;
+	sockaddr *remote;
+	size_t remoteSize;
 	int err;
-	remote = new struct sockaddr_ll;
-	memset( remote, 0, sizeof( *remote ));
-	remote->sll_family = AF_PACKET;
-	remote->sll_protocol = PLAT_htons( etherType );
-	remote->sll_ifindex = ifindex;
-	remote->sll_halen = ETH_ALEN;
-	addr->toOctetArray( remote->sll_addr );
+#ifdef APTP
+	struct sockaddr_in6 remoteIpv6;
+	struct sockaddr_in remoteIpv4;
+	if (4 == addr->IpVersion())
+	{
+		memset(&remoteIpv4, 0, sizeof(remoteIpv4));
+		remoteIpv4.sin_family = AF_INET;
+		remoteIpv4.sin_port = htons(addr->Port());
+		addr->getAddress(&remoteIpv4.sin_addr);
+		remote = reinterpret_cast<sockaddr*>(&remoteIpv4);
+		remoteSize = sizeof(remoteIpv4);
+	}
+	else
+	{
+		memset(&remoteIpv6, 0, sizeof(remoteIpv6));
+		remoteIpv6.sin6_family = AF_INET6;
+		remoteIpv6.sin6_port = htons(addr->Port());
+		addr->getAddress(&remoteIpv6.sin6_addr);
+		remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
+		remoteSize = sizeof(remoteIpv6);	
+	}
+#else
+	sockaddr_ll remoteOrig;
+	memset(&remoteOrig, 0, sizeof(remoteOrig));
+	remoteOrig.sll_family = AF_PACKET;
+	remoteOrig.sll_protocol = PLAT_htons(etherType);
+	remoteOrig.sll_ifindex = ifindex;
+	remoteOrig.sll_halen = ETH_ALEN;
+	addr->toOctetArray(remoteOrig.sll_addr, sizeof(remoteOrig.sll_addr));
+	remote = reinterpret_cast<sockaddr*>(&remoteOrig);
+	remoteSize = sizeof(remoteOrig);
+#endif
 
-	if( timestamp ) {
+	if (timestamp)
+	{
 #ifndef ARCH_INTELCE
+#ifndef APTP
 		net_lock.lock();
 #endif
-		err = sendto
-			( sd_event, payload, length, 0, (sockaddr *) remote,
-			  sizeof( *remote ));
-	} else {
-		err = sendto
-			( sd_general, payload, length, 0, (sockaddr *) remote,
-			  sizeof( *remote ));
+#endif
+		GPTP_LOG_VERBOSE("sendto  sd_event");
+		err = sendto(sd_event, payload, length, 0, remote, remoteSize);
 	}
-	delete remote;
-	if( err == -1 ) {
-		GPTP_LOG_ERROR( "Failed to send: %s(%d)", strerror(errno), errno );
+	else
+	{
+		GPTP_LOG_VERBOSE("sendto  sd_general");
+		err = sendto(sd_general, payload, length, 0, remote, remoteSize);
+  	}
+
+
+	if (err == -1)
+	{
+		GPTP_LOG_ERROR( "Failed to send to ip '%s': %s",
+		 addr->AddressString().c_str(), strerror(errno));
 		return net_fatal;
 	}
 	return net_succeed;
@@ -117,13 +153,14 @@ net_result LinuxNetworkInterface::send
 
 
 void LinuxNetworkInterface::disable_rx_queue() {
-	struct packet_mreq mr_8021as;
-	int err;
-
 	if( !net_lock.lock() ) {
 		fprintf( stderr, "D rx lock failed\n" );
 		_exit(0);
 	}
+
+#ifndef APTP
+	struct packet_mreq mr_8021as;
+	int err;
 
 	memset( &mr_8021as, 0, sizeof( mr_8021as ));
 	mr_8021as.mr_ifindex = ifindex;
@@ -139,14 +176,15 @@ void LinuxNetworkInterface::disable_rx_queue() {
 			  ifindex );
 		return;
 	}
-
-	return;
+#endif
 }
 
-void LinuxNetworkInterface::clear_reenable_rx_queue() {
+void LinuxNetworkInterface::clear_reenable_rx_queue()
+{
+	int err = 0;
+#ifndef APTP
 	struct packet_mreq mr_8021as;
 	char buf[256];
-	int err;
 
 	while( recvfrom( sd_event, buf, 256, MSG_DONTWAIT, NULL, 0 ) != -1 );
 
@@ -164,12 +202,14 @@ void LinuxNetworkInterface::clear_reenable_rx_queue() {
 			  ifindex );
 		return;
 	}
+#endif
 
 	if( !net_lock.unlock() ) {
 		fprintf( stderr, "D failed unlock rx lock, %d\n", err );
 	}
 }
 
+#ifndef APTP
 static void x_readEvent
 ( int sockint, EtherPort *pPort, int ifindex )
 {
@@ -256,7 +296,7 @@ static void x_initLinkUpStatus( EtherPort *pPort, int ifindex )
 	} //linkUp == false by default
 	close(inetSocket);
 }
-
+#endif
 
 bool LinuxNetworkInterface::getLinkSpeed( int sd, uint32_t *speed )
 {
@@ -308,6 +348,7 @@ bool LinuxNetworkInterface::getLinkSpeed( int sd, uint32_t *speed )
 
 void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 {
+#ifndef APTP
 	fd_set netLinkFD;
 	int netLinkSocket;
 	int inetSocket;
@@ -393,6 +434,7 @@ void LinuxNetworkInterface::watchNetLink( CommonPort *iPort )
 			; // Would be timeout but Won't happen because we wait forever
 		}
 	}
+#endif
 }
 
 
@@ -412,6 +454,8 @@ struct LinuxTimerQueueActionArg {
 LinuxTimerQueue::~LinuxTimerQueue() {
 	pthread_join(_private->signal_thread,NULL);
 	if( _private != NULL ) delete _private;
+
+	// Deallocate the timer argument wrappers!!!!
 }
 
 bool LinuxTimerQueue::init() {
@@ -463,7 +507,7 @@ void *LinuxTimerQueueHandler( void *arg ) {
 void LinuxTimerQueue::LinuxTimerQueueAction( LinuxTimerQueueActionArg *arg ) {
 	arg->func( arg->inner_arg );
 
-	return;
+    return;
 }
 
 OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
@@ -490,9 +534,9 @@ OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
 
 
 
-bool LinuxTimerQueue::addEvent
-( unsigned long micros, int type, ostimerq_handler func,
-  event_descriptor_t * arg, bool rm, unsigned *event) {
+bool LinuxTimerQueue::addEvent(unsigned long micros, int type,
+ ostimerq_handler func, event_descriptor_t * arg, bool rm, unsigned *event)
+{
 	LinuxTimerQueueActionArg *outer_arg;
 	int err;
 	LinuxTimerQueueMap_t::iterator iter;
@@ -503,6 +547,20 @@ bool LinuxTimerQueue::addEvent
 	outer_arg->rm = rm;
 	outer_arg->func = func;
 	outer_arg->type = type;
+
+	// !!! Experimental for reducing the number of per process timers
+	// auto lowerBound = timerQueueMap.lower_bound(type);
+	// if (lowerBound != timerQueueMap.end() &&
+	//  !timerQueueMap.key_comp()(type, lowerBound->first))
+	// {
+	// 	// Update the timer
+	// 	lb->second = outer_arg
+	// }
+	// else
+	// {
+	// 	// Create a new timer
+	// 	timerQueueMap.insert(lb, LinuxTimerQueueMap_t::value_type(type, outer_arg));
+	// }
 
 	// Find key that we can use
 	while( timerQueueMap.find( key ) != timerQueueMap.end() ) {
@@ -679,6 +737,8 @@ bool TicketingLock::init() {
 TicketingLock::TicketingLock() {
 	init_flag = false;
 	_private = NULL;
+	cond_ticket_issue = 0;
+	cond_ticket_serving = 0;
 }
 
 TicketingLock::~TicketingLock() {
@@ -769,20 +829,26 @@ bool LinuxCondition::initialize() {
 bool LinuxCondition::wait_prelock() {
 	pthread_mutex_lock(&_private->port_lock);
 	up();
+	//GPTP_LOG_VERBOSE("LinuxCondition::wait_prelock   LOCKED");
 	return true;
 }
 
 bool LinuxCondition::wait() {
 	pthread_cond_wait(&_private->port_ready_signal, &_private->port_lock);
+	//GPTP_LOG_VERBOSE("LinuxCondition::wait   WAIT");
 	down();
 	pthread_mutex_unlock(&_private->port_lock);
+	//GPTP_LOG_VERBOSE("LinuxCondition::wait   UNLOCK");
 	return true;
 }
 
 bool LinuxCondition::signal() {
 	pthread_mutex_lock(&_private->port_lock);
 	if (waiting())
+	{
 		pthread_cond_broadcast(&_private->port_ready_signal);
+		//GPTP_LOG_VERBOSE("LinuxCondition::signal   BROADCAST");
+	}
 	pthread_mutex_unlock(&_private->port_lock);
 	return true;
 }
@@ -839,8 +905,9 @@ LinuxThread::LinuxThread() {
 	_private = NULL;
 };
 
-LinuxThread::~LinuxThread() {
-	if( _private != NULL ) delete _private;
+LinuxThread::~LinuxThread()
+{
+	delete _private;
 }
 
 LinuxSharedMemoryIPC::~LinuxSharedMemoryIPC() {
@@ -848,30 +915,48 @@ LinuxSharedMemoryIPC::~LinuxSharedMemoryIPC() {
 	shm_unlink(SHM_NAME);
 }
 
-bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
-	LinuxIPCArg *arg;
+bool LinuxSharedMemoryIPC::init(OS_IPC_ARG *barg)
+{
+	LinuxIPCArg *arg = nullptr;
 	struct group *grp;
-	const char *group_name;
+	std::string group_name;
 	pthread_mutexattr_t shared;
 	mode_t oldumask = umask(0);
 
-	if( barg == NULL ) {
+#ifdef APTP
+	int buf_offset = 0;
+	pid_t process_id = getpid();
+	char *shm_buffer = nullptr;
+	gPtpTimeData *ptimedata;
+#endif
+
+	if (nullptr == barg)
+	{
 		group_name = DEFAULT_GROUPNAME;
-	} else {
-		arg = dynamic_cast<LinuxIPCArg *> (barg);
-		if( arg == NULL ) {
+	} 
+	else
+	{
+		arg = dynamic_cast<LinuxIPCArg*>(barg);
+		if (nullptr == arg)
+		{
 			GPTP_LOG_ERROR( "Wrong IPC init arg type" );
 			goto exit_error;
-		} else {
-			group_name = arg->group_name;
+		}
+		else
+		{
+			group_name = arg->GroupName();
 		}
 	}
-	grp = getgrnam( group_name );
+	grp = getgrnam(group_name.c_str());
 	if( grp == NULL ) {
-		GPTP_LOG_ERROR( "Group %s not found, will try root (0) instead", group_name );
+		GPTP_LOG_ERROR("Group %s not found, will try root (0) instead", group_name.c_str());
 	}
 
-	shm_fd = shm_open( SHM_NAME, O_RDWR | O_CREAT, 0660 );
+#ifdef APTP
+	shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
+#else
+	shm_fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0660);
+#endif
 	if( shm_fd == -1 ) {
 		GPTP_LOG_ERROR( "shm_open(): %s", strerror(errno) );
 		goto exit_error;
@@ -884,10 +969,10 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 		GPTP_LOG_ERROR( "ftruncate()" );
 		goto exit_unlink;
 	}
-	master_offset_buffer = (char *) mmap
-		( NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_LOCKED | MAP_SHARED,
-		  shm_fd, 0 );
-	if( master_offset_buffer == (char *) -1 ) {
+	master_offset_buffer = (char *) mmap(NULL, SHM_SIZE,
+	 PROT_READ | PROT_WRITE, MAP_LOCKED | MAP_SHARED, shm_fd, 0);
+	if (master_offset_buffer == (char *)-1)
+	{
 		GPTP_LOG_ERROR( "mmap()" );
 		goto exit_unlink;
 	}
@@ -908,7 +993,36 @@ bool LinuxSharedMemoryIPC::init( OS_IPC_ARG *barg ) {
 			 strerror(errno));
 		goto exit_unlink;
 	}
+
+#ifdef APTP
+	shm_buffer = master_offset_buffer;
+	if (shm_buffer != nullptr)
+	{
+		/* lock */
+		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
+		buf_offset += sizeof(pthread_mutex_t);
+		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
+
+		ptimedata->ml_phoffset = 0;
+		ptimedata->ml_freqoffset = 1;
+		ptimedata->ls_phoffset = 0;
+		ptimedata->ls_freqoffset = 1;
+		ptimedata->clock_id = 0;
+		ptimedata->local_time = 0;
+      ptimedata->addressRegistrationSocketPort = arg != nullptr
+       ? arg->AdrRegSocketPort() : 0;
+		ptimedata->sync_count   = 0;
+		ptimedata->pdelay_count = 0;
+      ptimedata->asCapable = false;
+		ptimedata->port_state = PTP_UNCALIBRATED;
+		ptimedata->process_id = process_id;
+
+		/* unlock */
+		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
+	}
+#endif	
 	return true;
+
  exit_unlink:
 	shm_unlink( SHM_NAME );
  exit_error:
@@ -924,27 +1038,52 @@ bool LinuxSharedMemoryIPC::update(
 	uint32_t sync_count,
 	uint32_t pdelay_count,
 	PortState port_state,
-	bool asCapable )
+	bool asCapable,
+	uint16_t adrRegSocketPort,
+	uint64_t clockId)
 {
 	int buf_offset = 0;
 	pid_t process_id = getpid();
 	char *shm_buffer = master_offset_buffer;
 	gPtpTimeData *ptimedata;
-	if( shm_buffer != NULL ) {
+
+	if (shm_buffer != nullptr)
+	{
 		/* lock */
 		pthread_mutex_lock((pthread_mutex_t *) shm_buffer);
 		buf_offset += sizeof(pthread_mutex_t);
 		ptimedata   = (gPtpTimeData *) (shm_buffer + buf_offset);
+
 		ptimedata->ml_phoffset = ml_phoffset;
+
+		// For now we are filtering the frequency offset until it is better tuned
+		FrequencyRatio filtered;
+		if (ml_freqoffset > 3.0)
+		{
+			GPTP_LOG_VERBOSE("LinuxSharedMemoryIPC::update   ml_freqoffset > 2.0: %Le", ml_freqoffset);
+			filtered = fLastFreqoffset;
+		}
+		else
+		{
+			typedef FrequencyRatio FR;
+			filtered = (FR(fLastFreqoffset * 63) / 64) + (ml_freqoffset / 64);
+		}
+
+		ptimedata->ml_freqoffset = filtered;		
 		ptimedata->ls_phoffset = ls_phoffset;
 		ptimedata->ml_freqoffset = ml_freqoffset;
 		ptimedata->ls_freqoffset = ls_freqoffset;
+		ptimedata->clock_id = clockId;
 		ptimedata->local_time = local_time;
+      		ptimedata->addressRegistrationSocketPort = adrRegSocketPort;
 		ptimedata->sync_count   = sync_count;
 		ptimedata->pdelay_count = pdelay_count;
-		ptimedata->asCapable = asCapable;
+      		ptimedata->asCapable = asCapable;
 		ptimedata->port_state   = port_state;
 		ptimedata->process_id   = process_id;
+
+		fLastFreqoffset = filtered;
+
 		/* unlock */
 		pthread_mutex_unlock((pthread_mutex_t *) shm_buffer);
 	}
@@ -1010,20 +1149,18 @@ bool LinuxSharedMemoryIPC::update_network_interface(
 }
 
 void LinuxSharedMemoryIPC::stop() {
-	if( master_offset_buffer != NULL ) {
-		munmap( master_offset_buffer, SHM_SIZE );
+	if (master_offset_buffer != NULL)
+	{
+		munmap(master_offset_buffer, SHM_SIZE);
 		shm_unlink( SHM_NAME );
 	}
 }
 
-bool LinuxNetworkInterfaceFactory::createInterface
-( OSNetworkInterface **net_iface, InterfaceLabel *label,
-  CommonTimestamper *timestamper ) {
+bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_iface,
+ InterfaceLabel *label, CommonTimestamper *timestamper )
+{
 	struct ifreq device;
 	int err;
-	struct sockaddr_ll ifsock_addr;
-	struct packet_mreq mr_8021as;
-	LinkLayerAddress addr;
 	int ifindex;
 
 	LinuxNetworkInterface *net_iface_l = new LinuxNetworkInterface();
@@ -1033,18 +1170,47 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		return false;
 	}
 
+	if (!net_iface_l->fNetLockEvent.init())
+	{
+		GPTP_LOG_ERROR( "Failed to initialize event network lock");
+		return false;
+	}
+
+	if (!net_iface_l->fNetLockGeneral.init())
+	{
+		GPTP_LOG_ERROR( "Failed to initialize general network lock");
+		return false;
+	}
+
 	InterfaceName *ifname = dynamic_cast<InterfaceName *>(label);
 	if( ifname == NULL ){
 		GPTP_LOG_ERROR( "ifname == NULL");
 		return false;
 	}
 
+
+
+#ifdef APTP
+	// Allow for sending or receiving to / from ipv4 or ipv6 addresses
+	net_iface_l->sd_general = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	int v6OnlyValue = 0;
+	setsockopt(net_iface_l->sd_general, SOL_SOCKET, IPV6_V6ONLY, &v6OnlyValue, sizeof(v6OnlyValue));
+#else
 	net_iface_l->sd_general = socket( PF_PACKET, SOCK_DGRAM, 0 );
+#endif
 	if( net_iface_l->sd_general == -1 ) {
 		GPTP_LOG_ERROR( "failed to open general socket: %s", strerror(errno));
 		return false;
 	}
+
+#ifdef APTP
+	// Allow for sending or receiving to / from ipv4 or ipv6 addresses
+	net_iface_l->sd_event = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	setsockopt(net_iface_l->sd_event, SOL_SOCKET, IPV6_V6ONLY, &v6OnlyValue, sizeof(v6OnlyValue));
+#else
 	net_iface_l->sd_event = socket( PF_PACKET, SOCK_DGRAM, 0 );
+#endif
+	GPTP_LOG_VERBOSE("createInterface  net_iface_l->sd_event: %d", net_iface_l->sd_event);
 	if( net_iface_l->sd_event == -1 ) {
 		GPTP_LOG_ERROR
 			( "failed to open event socket: %s ", strerror(errno));
@@ -1053,6 +1219,9 @@ bool LinuxNetworkInterfaceFactory::createInterface
 
 	memset( &device, 0, sizeof(device));
 	ifname->toString( device.ifr_name, IFNAMSIZ - 1 );
+
+	GPTP_LOG_VERBOSE("device.ifr_name: %s", device.ifr_name);
+
 	err = ioctl( net_iface_l->sd_event, SIOCGIFHWADDR, &device );
 	if( err == -1 ) {
 		GPTP_LOG_ERROR
@@ -1060,16 +1229,50 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		return false;
 	}
 
-	addr = LinkLayerAddress( (uint8_t *)&device.ifr_hwaddr.sa_data );
-	net_iface_l->local_addr = addr;
+	GPTP_LOG_VERBOSE("device.ifr_hwaddr.sa_data: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", device.ifr_hwaddr.sa_data[0],
+		device.ifr_hwaddr.sa_data[1],device.ifr_hwaddr.sa_data[2],device.ifr_hwaddr.sa_data[3],device.ifr_hwaddr.sa_data[4],
+		device.ifr_hwaddr.sa_data[5],device.ifr_hwaddr.sa_data[6],device.ifr_hwaddr.sa_data[7],device.ifr_hwaddr.sa_data[8],
+		device.ifr_hwaddr.sa_data[9],device.ifr_hwaddr.sa_data[10],device.ifr_hwaddr.sa_data[11],device.ifr_hwaddr.sa_data[12],
+		device.ifr_hwaddr.sa_data[13]);
+
+
+	// Set the interface's mac address
+	net_iface_l->local_addr = AMacAddress(device);
+
 	err = ioctl( net_iface_l->sd_event, SIOCGIFINDEX, &device );
 	if( err == -1 ) {
-		GPTP_LOG_ERROR
-			( "Failed to get interface index: %s", strerror( errno ));
+		GPTP_LOG_ERROR("Failed to get interface index: %s", strerror( errno ));
 		return false;
 	}
 	ifindex = device.ifr_ifindex;
 	net_iface_l->ifindex = ifindex;
+
+	GPTP_LOG_VERBOSE("LinuxNetworkInterfaceFactory::createInterface  ifindex: %d", ifindex);
+
+
+	sockaddr *evntAddr;
+	size_t evntAddrSize;
+	sockaddr *genAddr;
+	size_t genAddrSize;
+
+#if APTP
+	struct sockaddr_in6 evntIpv6;
+	struct sockaddr_in6 genIpv6;
+
+	memset(&evntIpv6, 0, sizeof(evntIpv6));
+	evntIpv6.sin6_port = htons(EVENT_PORT);
+	evntIpv6.sin6_family = AF_INET6;
+	evntIpv6.sin6_addr = in6addr_any;
+	evntAddrSize = sizeof(evntIpv6);
+	evntAddr = reinterpret_cast<sockaddr*>(&evntIpv6);
+	memset(&genIpv6, 0, sizeof(evntIpv6));
+	genIpv6.sin6_port = htons(GENERAL_PORT);
+	genIpv6.sin6_family = AF_INET6;
+	genIpv6.sin6_addr = in6addr_any;
+	genAddrSize = sizeof(genIpv6);
+	genAddr = reinterpret_cast<sockaddr*>(&genIpv6);
+#else
+	struct packet_mreq mr_8021as;
 	memset( &mr_8021as, 0, sizeof( mr_8021as ));
 	mr_8021as.mr_ifindex = ifindex;
 	mr_8021as.mr_type = PACKET_MR_MULTICAST;
@@ -1085,30 +1288,122 @@ bool LinuxNetworkInterfaceFactory::createInterface
 		return false;
 	}
 
+	struct sockaddr_ll ifsock_addr;
 	memset( &ifsock_addr, 0, sizeof( ifsock_addr ));
 	ifsock_addr.sll_family = AF_PACKET;
 	ifsock_addr.sll_ifindex = ifindex;
 	ifsock_addr.sll_protocol = PLAT_htons( PTP_ETHERTYPE );
-	err = bind
-		( net_iface_l->sd_event, (sockaddr *) &ifsock_addr,
-		  sizeof( ifsock_addr ));
-	if( err == -1 ) {
-		GPTP_LOG_ERROR( "Call to bind() failed: %s", strerror(errno) );
+	evntAddrSize = sizeof(ifsock_addr);
+	evntAddr = reinterpret_cast<sockaddr*>(&ifsock_addr);
+	genAddrSize = sizeof(ifsock_addr);
+	genAddr = reinterpret_cast<sockaddr*>(&ifsock_addr);
+#endif
+
+	err = bind(net_iface_l->sd_event, evntAddr, evntAddrSize);
+	if (-1 == err)
+	{
+		GPTP_LOG_ERROR("Call to bind() for sd_event failed (%d): %s", errno, strerror(errno) );
+		return false;
+	}
+
+	err = bind(net_iface_l->sd_general, genAddr, genAddrSize);
+	if (-1 == err)
+	{
+		GPTP_LOG_ERROR("Call to bind() for sd_general failed (%d): %s", errno, strerror(errno) );
 		return false;
 	}
 
 	net_iface_l->timestamper =
 		dynamic_cast <LinuxTimestamper *>(timestamper);
-	if(net_iface_l->timestamper == NULL) {
-		GPTP_LOG_ERROR( "timestamper == NULL" );
+	if (nullptr == net_iface_l->timestamper)
+	{
+		GPTP_LOG_ERROR("timestamper == NULL");
 		return false;
 	}
-	if( !net_iface_l->timestamper->post_init
-		( ifindex, net_iface_l->sd_event, &net_iface_l->net_lock )) {
-		GPTP_LOG_ERROR( "post_init failed\n" );
+
+	if (!net_iface_l->timestamper->post_init(ifindex, net_iface_l->sd_event,
+	 &net_iface_l->net_lock ))
+	{
+		GPTP_LOG_ERROR("post_init failed\n");
 		return false;
 	}
+
 	*net_iface = net_iface_l;
 
 	return true;
 }
+
+std::string& StripLeading(std::string& value)
+{
+	using std::string;
+
+   // No need to manipulate empty strings.
+   if (value.empty())
+   {
+      return value;
+   }
+
+   // Iterate from the start of the string
+   // until we hit the first non-space character
+   const string::iterator limit = value.end();
+   string::iterator       p     = value.begin();
+   for (; p != limit && isspace(*p); ++p)
+   {
+   } // Intentionally empty
+
+   // Remove the spaces
+   value.erase(value.begin(), p);
+
+   return value;
+}
+
+bool LinuxNetworkInterface::IsWireless(const std::string& netInterfaceName) const
+{
+	// Validate the network interface name
+	size_t pos;
+	std::ifstream devStream("/proc/net/dev");
+	std::string line;
+	std::string systemInterface;
+	bool isValidInterfaceName = false;
+	while (std::getline(devStream, line))
+	{
+		pos = line.find(":");
+		if (pos != std::string::npos)
+		{
+			systemInterface = line.substr(0, pos);
+			if (StripLeading(systemInterface) == netInterfaceName)
+			{
+				isValidInterfaceName = true;
+				break;
+			}
+		}
+	}
+
+	bool isWireless = false;
+	if (isValidInterfaceName)
+	{
+		// Determine if the interface is wired or not
+		std::string wirelessInterface;
+		std::ifstream wirelessStream("/proc/net/wireless");
+		while (std::getline(devStream, line))
+		{
+			pos = line.find(":");
+			if (pos != std::string::npos)
+			{
+				wirelessInterface = line.substr(0, pos);
+				if (StripLeading(wirelessInterface) == netInterfaceName)
+				{
+					isWireless = true;
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		GPTP_LOG_ERROR("Invalid network interface name.");
+		isWireless = false;
+	}
+	return isWireless;
+}
+

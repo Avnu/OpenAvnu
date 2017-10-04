@@ -73,7 +73,9 @@ public:
 	 * @param pdelay_count Count of pdelays
 	 * @param port_state Port's state
 	 * @param asCapable asCapable flag
-	 *
+	 * @param adrRegSocketIp IP address of the socket that listens for adds and
+	 *   deletes of send and receive addresses
+	 * @param adrRegSocketPort Port number for the adrRegSocketIp
 	 * @return Implementation dependent.
 	 */
 	virtual bool update(
@@ -85,7 +87,9 @@ public:
 		uint32_t sync_count,
 		uint32_t pdelay_count,
 		PortState port_state,
-		bool asCapable ) = 0;
+		bool asCapable,
+		uint16_t adrRegSocketPort = 0,
+		uint64_t masterClockId = 0) = 0;
 
 	/**
 	 * @brief  Updates grandmaster IPC values
@@ -133,6 +137,11 @@ public:
 	 * Destroys IPC
 	 */
 	virtual ~OS_IPC() = 0;
+
+  virtual void ResetValues(uint64_t clockId = 0)
+  {
+     // Intentionally empty
+  }
 };
 
 inline OS_IPC::~OS_IPC() {}

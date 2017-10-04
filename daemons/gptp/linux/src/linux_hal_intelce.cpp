@@ -53,7 +53,7 @@ uint64_t scale_clock( uint64_t count ) {
 }
 
 int LinuxTimestamperIntelCE::ce_timestamp_common
-( PortIdentity *identity, uint16_t sequenceId, Timestamp &timestamp,
+( std::shared_ptr<PortIdentity> identity, uint16_t sequenceId, Timestamp &timestamp,
   unsigned &clock_value, bool tx ) {
 	uint64_t timestamp_s;
 	uint16_t captured_sequence;
@@ -121,14 +121,14 @@ int LinuxTimestamperIntelCE::ce_timestamp_common
 }
 
 int LinuxTimestamperIntelCE::HWTimestamper_txtimestamp
-( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
+(std::shared_ptr<PortIdentity> identity, PTPMessageId messageId, Timestamp &timestamp,
   unsigned &clock_value, bool last ) {
 	return ce_timestamp_common
 		( identity, messageId.getSequenceId(), timestamp, clock_value, true );
 }
 
 int LinuxTimestamperIntelCE::HWTimestamper_rxtimestamp
-( PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp,
+(std::shared_ptr<PortIdentity> identity, PTPMessageId messageId, Timestamp &timestamp,
   unsigned &clock_value, bool last ) {
 	return ce_timestamp_common
 		( identity, messageId.getSequenceId(), timestamp, clock_value, false );

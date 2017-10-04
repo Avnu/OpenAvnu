@@ -58,6 +58,7 @@ OBJ_FILES = $(OBJ_DIR)/ptp_message.o\
 		 $(OBJ_DIR)/avbts_osnet.o\
 		 $(OBJ_DIR)/ether_port.o\
 		 $(OBJ_DIR)/common_port.o\
+		 $(OBJ_DIR)/common_tstamper.o\
 		 $(OBJ_DIR)/ieee1588clock.o \
 		 $(OBJ_DIR)/linux_hal_common.o\
 		 $(OBJ_DIR)/linux_hal_persist_file.o\
@@ -79,6 +80,7 @@ HEADER_FILES = $(COMMON_DIR)/ether_port.hpp\
 		$(COMMON_DIR)/avbts_clock.hpp\
 		$(COMMON_DIR)/avbts_persist.hpp\
 		$(COMMON_DIR)/avbap_message.hpp\
+		$(COMMON_DIR)/common_tstamper.hpp\
 		$(COMMON_DIR)/ieee1588.hpp\
 		$(COMMON_DIR)/ipcdef.hpp\
 		$(COMMON_DIR)/ini.h\
@@ -107,6 +109,19 @@ else ifeq ($(ARCH),IntelCE)
 	HEADER_FILES += $(SRC_DIR)/linux_hal_intelce.hpp
 	OBJ_FILES += $(OBJ_DIR)/linux_hal_intelce.o
 	CXX = $(TARGETCXX)
+else ifeq ($(ARCH),RPI)
+	CFLAGS_G += -DRPI -DAPTP
+	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
+		$(OBJ_DIR)/linux_hal_generic_adj.o \
+		$(OBJ_DIR)/linux_hal_rpi3.o \
+		$(OBJ_DIR)/addressapi.o \
+		$(OBJ_DIR)/socket.o \
+		$(OBJ_DIR)/addressregisterlistener.o
+	HEADER_FILES += $(SRC_DIR)/linux_hal_generic.hpp \
+		$(SRC_DIR)/addressregisterlistener.hpp \
+		$(SRC_DIR)/addressapi.hpp \
+		$(SRC_DIR)/rawpacket.hpp \
+		$(SRC_DIR)/socket.hpp 
 else
 	OBJ_FILES += $(OBJ_DIR)/linux_hal_generic.o \
 		$(OBJ_DIR)/linux_hal_generic_adj.o
@@ -155,6 +170,18 @@ $(OBJ_DIR)/linux_hal_generic_adj.o: $(SRC_DIR)/linux_hal_generic_adj.cpp $(HEADE
 $(OBJ_DIR)/linux_hal_i210.o: $(SRC_DIR)/linux_hal_i210.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_i210.cpp -o $(OBJ_DIR)/linux_hal_i210.o
 
+$(OBJ_DIR)/linux_hal_rpi3.o: $(SRC_DIR)/linux_hal_rpi3.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_rpi3.cpp -o $(OBJ_DIR)/linux_hal_rpi3.o
+
+$(OBJ_DIR)/addressapi.o: $(SRC_DIR)/addressapi.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/addressapi.cpp -o $(OBJ_DIR)/addressapi.o
+
+$(OBJ_DIR)/socket.o: $(SRC_DIR)/socket.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/socket.cpp -o $(OBJ_DIR)/socket.o
+
+$(OBJ_DIR)/addressregisterlistener.o: $(SRC_DIR)/addressregisterlistener.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/addressregisterlistener.cpp -o $(OBJ_DIR)/addressregisterlistener.o
+
 $(OBJ_DIR)/linux_hal_intelce.o: $(SRC_DIR)/linux_hal_intelce.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(SRC_DIR)/linux_hal_intelce.cpp -o $(OBJ_DIR)/linux_hal_intelce.o
 
@@ -162,6 +189,9 @@ $(OBJ_DIR)/ether_port.o: $(COMMON_DIR)/ether_port.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/common_port.o: $(COMMON_DIR)/common_port.cpp $(HEADER_FILES)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/common_tstamper.o: $(COMMON_DIR)/common_tstamper.cpp $(HEADER_FILES)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/ieee1588clock.o: $(COMMON_DIR)/ieee1588clock.cpp $(HEADER_FILES)

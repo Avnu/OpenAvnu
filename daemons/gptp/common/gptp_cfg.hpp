@@ -33,12 +33,16 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
  * MODULE SUMMARY : Reads the .ini file and parses it into information
  * to be used on daemon_cl
  */
+#pragma once
 
+#include <list>
 #include <string>
 
 #include "ini.h"
 #include <limits.h>
-#include <common_port.hpp>
+
+#include "phydelay.hpp"
+#include "ptptypes.hpp"
 
 const uint32_t LINKSPEED_10G =		10000000;
 const uint32_t LINKSPEED_2_5G =		2500000;
@@ -60,106 +64,163 @@ class GptpIniParser
 {
     public:
 
-        /**
-         * @brief Container with the information to get from the .ini file
-         */
-        typedef struct
+      /**
+      * @brief Container with the information to get from the .ini file
+      */
+      typedef struct
+      {
+         /*ptp data set*/
+         unsigned char priority1;
+
+         /*port data set*/
+         int8_t initialLogAnnounceInterval;
+         int8_t initialLogSyncInterval;
+         unsigned int announceReceiptTimeout;
+         unsigned int syncReceiptTimeout;
+         unsigned int syncReceiptThresh;     //!< Number of wrong sync messages that will trigger a switch to master
+         int64_t neighborPropDelayThresh;
+         unsigned int seqIdAsCapableThresh;
+         uint16_t lostPdelayRespThresh;
+         PortState port_state;
+         PortType delayMechanism;
+         std::list<std::string> unicastSendNodes;
+         std::list<std::string> unicastReceiveNodes;
+         uint16_t adrRegSocketPort;
+
+         /*ethernet adapter data set*/
+       std::string ifname;
+       phy_delay_map_t phy_delay;
+      } gptp_cfg_t;
+
+      /*public methods*/
+      GptpIniParser();
+      GptpIniParser(const std::string& ini_path);
+      ~GptpIniParser();
+
+      /**
+      * @brief  Reads the parser Error value
+      * @param  void
+      * @return Parser Error
+      */
+      int parserError();
+
+      std::list<std::string> UnicastSendNodes() const
+      {
+         return _config.unicastSendNodes;
+      }
+
+      std::list<std::string> UnicastReceiveNodes() const
+      {
+         return _config.unicastReceiveNodes;
+      }
+
+      uint16_t AdrRegSocketPort() const
+      {
+         return _config.adrRegSocketPort;
+      }
+
+      /**
+      * @brief  Reads priority1 config value
+      * @param  void
+      * @return priority1
+      */
+      unsigned char getPriority1() const
+      {
+         return _config.priority1;
+      }
+
+      /**
+      * @brief  Reads initialLogAnnounceInterval config value
+      * @param  void
+      * @return initialLogAnnounceInterval
+      */
+      int8_t getInitialLogAnnounceInterval() const
+      { 
+         return _config.initialLogAnnounceInterval;
+      }
+
+      /**
+      * @brief  Reads initialLogSyncInterval config value
+      * @param  void
+      * @return initialLogSyncInterval
+      */
+      int8_t getInitialLogSyncInterval() const
+      {
+         return _config.initialLogSyncInterval;
+      }
+
+      /**
+      * @brief  Reads the announceReceiptTimeout configuration value
+      * @param  void
+      * @return announceRecepitTimeout value from .ini file
+      */
+      unsigned int getAnnounceReceiptTimeout() const
+      {
+         return _config.announceReceiptTimeout;
+      }
+
+      /**
+      * @brief  Reads the syncRecepitTimeout configuration value
+      * @param  void
+      * @return syncRecepitTimeout value from the .ini file
+      */
+      unsigned int getSyncReceiptTimeout() const
+      {
+         return _config.syncReceiptTimeout;
+      }
+
+      /**
+      * @brief  Reads the PHY DELAY values from the configuration file
+      * @param  void
+      * @return PHY delay map structure
+      */
+      const phy_delay_map_t getPhyDelay(void) const
+      {
+         return _config.phy_delay;
+      }
+
+      /**
+      * @brief  Reads the neighbohr propagation delay threshold from the configuration file
+      * @param  void
+      * @return neighborPropDelayThresh value from the .ini file
+      */
+      int64_t getNeighborPropDelayThresh() const
+      {
+         return _config.neighborPropDelayThresh;
+      }
+
+      /**
+      * @brief  Reads the sync receipt threshold from the configuration file
+      * @return syncRecepitThresh value from the .ini file
+      */
+      unsigned int getSyncReceiptThresh() const
+      {
+         return _config.syncReceiptThresh;
+      }
+
+   	/**
+   	 * @brief Dump PHY delays to screen
+   	 */
+   	void print_phy_delay( void );
+
+        PortType getDelayMechanism() const
         {
-            /*ptp data set*/
-            unsigned char priority1;
-
-            /*port data set*/
-            unsigned int announceReceiptTimeout;
-            unsigned int syncReceiptTimeout;
-            unsigned int syncReceiptThresh;		//!< Number of wrong sync messages that will trigger a switch to master
-            int64_t neighborPropDelayThresh;
-            unsigned int seqIdAsCapableThresh;
-            uint16_t lostPdelayRespThresh;
-            PortState port_state;
-
-            /*ethernet adapter data set*/
-	    std::string ifname;
-		phy_delay_map_t phy_delay;
-        } gptp_cfg_t;
-
-        /*public methods*/
-        GptpIniParser(std::string ini_path);
-        ~GptpIniParser();
-
-        /**
-         * @brief  Reads the parser Error value
-         * @param  void
-         * @return Parser Error
-         */
-        int parserError(void);
-
-        /**
-         * @brief  Reads priority1 config value
-         * @param  void
-         * @return priority1
-         */
-        unsigned char getPriority1(void)
-        {
-            return _config.priority1;
+            return _config.delayMechanism;
         }
 
-        /**
-         * @brief  Reads the announceReceiptTimeout configuration value
-         * @param  void
-         * @return announceRecepitTimeout value from .ini file
-         */
-        unsigned int getAnnounceReceiptTimeout(void)
+        bool hasIniValues() const
         {
-            return _config.announceReceiptTimeout;
+            return sHasIniValues;
         }
 
-        /**
-         * @brief  Reads the syncRecepitTimeout configuration value
-         * @param  void
-         * @return syncRecepitTimeout value from the .ini file
-         */
-        unsigned int getSyncReceiptTimeout(void)
-        {
-            return _config.syncReceiptTimeout;
-        }
-
-        /**
-         * @brief  Reads the PHY DELAY values from the configuration file
-         * @param  void
-         * @return PHY delay map structure
-         */
-        const phy_delay_map_t getPhyDelay(void)
-        {
-            return _config.phy_delay;
-        }
-
-        /**
-         * @brief  Reads the neighbohr propagation delay threshold from the configuration file
-         * @param  void
-         * @return neighborPropDelayThresh value from the .ini file
-         */
-        int64_t getNeighborPropDelayThresh(void)
-        {
-            return _config.neighborPropDelayThresh;
-        }
-
-        /**
-         * @brief  Reads the sync receipt threshold from the configuration file
-         * @return syncRecepitThresh value from the .ini file
-         */
-        unsigned int getSyncReceiptThresh(void)
-        {
-            return _config.syncReceiptThresh;
-        }
-
-	/**
-	 * @brief Dump PHY delays to screen
-	 */
-	void print_phy_delay( void );
+    private:
+      const std::list<std::string> Split(const std::string& values) const;        
 
     private:
         int _error;
         gptp_cfg_t _config;
+
+        static bool sHasIniValues;
 
         static int iniCallBack(void *user, const char *section, const char *name, const char *value);
         static bool parseMatch(const char *s1, const char *s2);

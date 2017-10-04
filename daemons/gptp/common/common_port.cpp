@@ -30,12 +30,13 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
+#include <inttypes.h>
 
+#include "common_port.hpp"
+#include "avbts_clock.hpp"
+#include "common_tstamper.hpp"
+#include "gptp_cfg.hpp"
 
-#include <common_port.hpp>
-#include <avbts_clock.hpp>
-#include <common_tstamper.hpp>
-#include <gptp_cfg.hpp>
 
 CommonPort::CommonPort( PortInit_t *portInit ) :
 	thread_factory( portInit->thread_factory ),
@@ -47,6 +48,8 @@ CommonPort::CommonPort( PortInit_t *portInit ) :
 	isGM( portInit->isGM ),
 	phy_delay( portInit->phy_delay )
 {
+	port_identity = std::make_shared<PortIdentity>();
+
 	one_way_delay = ONE_WAY_DELAY_DEFAULT;
 	neighbor_prop_delay_thresh = portInit->neighborPropDelayThreshold;
 	net_label = portInit->net_label;
@@ -59,8 +62,10 @@ CommonPort::CommonPort( PortInit_t *portInit ) :
 	ifindex = portInit->index;
 	testMode = false;
 	port_state = PTP_INITIALIZING;
-	clock->registerPort(this, ifindex);
-	qualified_announce = NULL;
+	if (clock != nullptr)
+	{
+		clock->registerPort(this, ifindex);
+	}
 	announce_sequence_id = 0;
 	signal_sequence_id = 0;
 	sync_sequence_id = 0;
@@ -69,11 +74,12 @@ CommonPort::CommonPort( PortInit_t *portInit ) :
 	pdelay_count = 0;
 	asCapable = false;
 	link_speed = INVALID_LINKSPEED;
+	fUseHardwareTimestamp = true;
+	fSyncIntervalTimeoutExpireCount = 0;
 }
 
 CommonPort::~CommonPort()
 {
-	delete qualified_announce;
 }
 
 bool CommonPort::init_port( void )
@@ -85,13 +91,16 @@ bool CommonPort::init_port( void )
 	      _hw_timestamper))
 		return false;
 
-	this->net_iface->getLinkLayerAddress(&local_addr);
-	clock->setClockIdentity(&local_addr);
+	if (clock != nullptr)
+	{
+		this->net_iface->getMacAddress(&local_addr);
+		clock->setClockIdentity(local_addr);
+		port_identity->setClockIdentity(clock->getClockIdentity());
+	}
 
 	this->timestamper_init();
 
-	port_identity.setClockIdentity(clock->getClockIdentity());
-	port_identity.setPortNumber(&ifindex);
+	port_identity->setPortNumber(&ifindex);
 
 	syncReceiptTimerLock = lock_factory->createLock(oslock_recursive);
 	syncIntervalTimerLock = lock_factory->createLock(oslock_recursive);
@@ -100,32 +109,34 @@ bool CommonPort::init_port( void )
 	return _init_port();
 }
 
-void CommonPort::timestamper_init( void )
+void CommonPort::setClock(IEEE1588Clock * otherClock)
 {
-	if( _hw_timestamper != NULL )
+	clock = otherClock;
+	if (clock != nullptr)
 	{
-		if( !_hw_timestamper->HWTimestamper_init
-		    ( net_label, net_iface ))
-		{
-			GPTP_LOG_ERROR
-				( "Failed to initialize hardware timestamper, "
-				  "falling back to software timestamping" );
-			return;
-		}
+		clock->registerPort(this, ifindex);
+		net_iface->getMacAddress(&local_addr);
+		clock->setClockIdentity(local_addr);
+		port_identity->setClockIdentity(clock->getClockIdentity());
+	}
+}
+
+void CommonPort::timestamper_init()
+{
+	if (_hw_timestamper != nullptr && 
+	 !_hw_timestamper->HWTimestamper_init(net_label, net_iface))
+	{
+		GPTP_LOG_ERROR("Failed to initialize hardware timestamper, "
+		 "falling back to software timestamping");
 	}
 }
 
 void CommonPort::timestamper_reset( void )
 {
-	if( _hw_timestamper != NULL )
+	if (_hw_timestamper != nullptr && fUseHardwareTimestamp)
 	{
 		_hw_timestamper->HWTimestamper_reset();
 	}
-}
-
-PTPMessageAnnounce *CommonPort::calculateERBest( void )
-{
-	return qualified_announce;
 }
 
 void CommonPort::recommendState
@@ -331,37 +342,44 @@ void CommonPort::startAnnounceIntervalTimer
 
 bool CommonPort::processStateChange( Event e )
 {
-	bool changed_external_master;
-	uint8_t LastEBestClockIdentity[PTP_CLOCK_IDENTITY_LENGTH];
+	GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT	 clock->priority1:%d  clock->clockIdentity:%s",
+	 clock->getPriority1(), clock->getClockIdentity().getString().c_str());
+
+// In APTP mode we need to update clockid if the master clock changes
+#ifndef APTP
+	// Nothing to do if we are slave only
+	if (clock->getPriority1() == 255)
+		return true;
+#endif
+
 	int number_ports, j;
 	PTPMessageAnnounce *EBest = NULL;
 	char EBestClockIdentity[PTP_CLOCK_IDENTITY_LENGTH];
+
 	CommonPort **ports;
-
-	// Nothing to do if we are slave only
-	if ( clock->getPriority1() == 255 )
-		return true;
-
 	clock->getPortList(number_ports, ports);
 
-	/* Find EBest for all ports */
-	j = 0;
-	for (int i = 0; i < number_ports; ++i) {
-		while (ports[j] == NULL)
+		/* Find EBest for all ports */
+	for (j = 0; j < number_ports; ++j) 
+	{
+		while (ports[j] == NULL && j < number_ports)
 			++j;
-		if ( ports[j]->getPortState() == PTP_DISABLED ||
-		     ports[j]->getPortState() == PTP_FAULTY )
+		if (number_ports == j)
+		{
+			break;
+		}
+		if (ports[j]->getPortState() == PTP_DISABLED ||
+		 ports[j]->getPortState() == PTP_FAULTY)
 		{
 			continue;
 		}
-		if( EBest == NULL )
+		if (EBest == NULL)
 		{
 			EBest = ports[j]->calculateERBest();
 		}
-		else if( ports[j]->calculateERBest() )
+		else if (ports[j]->calculateERBest())
 		{
-			if( ports[j]->
-			    calculateERBest()->isBetterThan(EBest))
+			if (ports[j]->calculateERBest()->isBetterThan(EBest))
 			{
 				EBest = ports[j]->calculateERBest();
 			}
@@ -373,12 +391,15 @@ bool CommonPort::processStateChange( Event e )
 		return true;
 	}
 
+	bool changed_external_master = false;
+
 	/* Check if we've changed */
+	uint8_t LastEBestClockIdentity[PTP_CLOCK_IDENTITY_LENGTH];
 	clock->getLastEBestIdentity().
-		getIdentityString( LastEBestClockIdentity );
+	getIdentityString( LastEBestClockIdentity );
 	EBest->getGrandmasterIdentity( EBestClockIdentity );
 	if( memcmp( EBestClockIdentity, LastEBestClockIdentity,
-		    PTP_CLOCK_IDENTITY_LENGTH ) != 0 )
+		 PTP_CLOCK_IDENTITY_LENGTH ) != 0 )
 	{
 		ClockIdentity newGM;
 		changed_external_master = true;
@@ -389,6 +410,11 @@ bool CommonPort::processStateChange( Event e )
 	{
 		changed_external_master = false;
 	}
+	GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT	changed_external_master:%s",(changed_external_master ? "true" : "false"));
+
+	GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT	EBest(announce)  START");
+	EBest->VerboseLog();
+	GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT	EBest(announce)  END");
 
 	if( clock->isBetterThan( EBest ))
 	{
@@ -400,6 +426,7 @@ bool CommonPort::processStateChange( Event e )
 
 		clock_identity = getClock()->getClockIdentity();
 		getClock()->setGrandmasterClockIdentity( clock_identity );
+		GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT	we are master!!!");
 		priority1 = getClock()->getPriority1();
 		getClock()->setGrandmasterPriority1( priority1 );
 		priority2 = getClock()->getPriority2();
@@ -408,15 +435,18 @@ bool CommonPort::processStateChange( Event e )
 		getClock()->setGrandmasterClockQuality( clock_quality );
 	}
 
-	j = 0;
-	for( int i = 0; i < number_ports; ++i )
+	GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT	number_ports:%d",number_ports);
+
+	for (int j = 0; j < number_ports; ++j)
 	{
-		while (ports[j] == NULL)
+		while (nullptr == ports[j] && j < number_ports)
 			++j;
-		if ( ports[j]->getPortState() ==
-		     PTP_DISABLED ||
-		     ports[j]->getPortState() ==
-		     PTP_FAULTY)
+		if (number_ports == j)
+		{
+			break;
+		}
+		if (ports[j]->getPortState() == PTP_DISABLED ||
+		 ports[j]->getPortState() == PTP_FAULTY)
 		{
 			continue;
 		}
@@ -424,42 +454,40 @@ bool CommonPort::processStateChange( Event e )
 		{
 			// We are the GrandMaster, all ports are master
 			EBest = NULL;	// EBest == NULL : we were grandmaster
-			ports[j]->recommendState( PTP_MASTER,
-						  changed_external_master );
-		} else {
-			if( EBest == ports[j]->calculateERBest() ) {
-				// The "best" Announce was received on this
-				// port
+			ports[j]->recommendState(PTP_MASTER, changed_external_master);
+			GPTP_LOG_VERBOSE("AFTER recommendState 1 port_state:%d", port_state);
+		}
+		else
+		{
+			if( EBest == ports[j]->calculateERBest() )
+			{
+				// The "best" Announce was recieved on this port
 				ClockIdentity clock_identity;
 				unsigned char priority1;
 				unsigned char priority2;
 				ClockQuality *clock_quality;
 
-				ports[j]->recommendState
-					( PTP_SLAVE, changed_external_master );
-				clock_identity =
-					EBest->getGrandmasterClockIdentity();
-				getClock()->setGrandmasterClockIdentity
-					( clock_identity );
+				ports[j]->recommendState(PTP_SLAVE, changed_external_master);
+				GPTP_LOG_VERBOSE("AFTER recommendState  2 port_state:%d", port_state);
+
+				clock_identity = EBest->getGrandmasterClockIdentity();
+				getClock()->setGrandmasterClockIdentity(clock_identity);
 				priority1 = EBest->getGrandmasterPriority1();
-				getClock()->setGrandmasterPriority1
-					( priority1 );
-				priority2 =
-					EBest->getGrandmasterPriority2();
-				getClock()->setGrandmasterPriority2
-					( priority2 );
-				clock_quality =
-					EBest->getGrandmasterClockQuality();
-				getClock()->setGrandmasterClockQuality
-					(*clock_quality);
-			} else {
-				/* Otherwise we are the master because we have
-				   sync'd to a better clock */
-				ports[j]->recommendState
-					(PTP_MASTER, changed_external_master);
+				getClock()->setGrandmasterPriority1( priority1 );
+				priority2 = EBest->getGrandmasterPriority2();
+				getClock()->setGrandmasterPriority2( priority2 );
+				clock_quality = EBest->getGrandmasterClockQuality();
+				getClock()->setGrandmasterClockQuality(*clock_quality);
+			}
+			else
+			{
+				/* Otherwise we are the master because we have sync'd to a better clock */
+				ports[j]->recommendState(PTP_MASTER, changed_external_master);
+				GPTP_LOG_VERBOSE("AFTER recommendState  3 port_state:%d", port_state);
 			}
 		}
 	}
+	GPTP_LOG_VERBOSE("STATE_CHANGE_EVENT	END");
 
 	return true;
 }
@@ -522,7 +550,7 @@ bool CommonPort::processSyncAnnounceTimeout( Event e )
 	(void) clock->calcLocalSystemClockRateDifference
 		( device_time, system_time );
 
-	setQualifiedAnnounce( NULL );
+	setQualifiedAnnounce(nullptr);
 
 	clock->addEventTimerLocked
 		( this, SYNC_INTERVAL_TIMEOUT_EXPIRES,
@@ -531,6 +559,31 @@ bool CommonPort::processSyncAnnounceTimeout( Event e )
 	startAnnounce();
 
 	return true;
+}
+
+void CommonPort::MasterOffset(FrequencyRatio offset)
+{
+	fMasterOffset = offset;
+	if (_hw_timestamper)
+	{
+		_hw_timestamper->MasterOffset(offset);
+	}
+	else
+	{
+		GPTP_LOG_ERROR("_hw_timestamper IS NULL!!!!!!!!!!!!!!!!!!!!!!!");
+	}
+}
+
+void CommonPort::AdjustedTime(FrequencyRatio t)
+{
+	if (_hw_timestamper)
+	{
+		_hw_timestamper->AdjustedTime(t);
+	}
+	else
+	{
+		GPTP_LOG_ERROR("_hw_timestamper IS NULL!!!!!!!!!!!!!!!!!!!!!!!");
+	}
 }
 
 bool CommonPort::processEvent( Event e )
@@ -582,9 +635,11 @@ bool CommonPort::processEvent( Event e )
 	case ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES:
 	case SYNC_RECEIPT_TIMEOUT_EXPIRES:
 		if (e == ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES) {
+			GPTP_LOG_DEBUG("Received ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES event");
 			incCounter_ieee8021AsPortStatAnnounceReceiptTimeouts();
 		}
 		else if (e == SYNC_RECEIPT_TIMEOUT_EXPIRES) {
+			GPTP_LOG_DEBUG("Received SYNC_RECEIPT_TIMEOUT_EXPIRES event");
 			incCounter_ieee8021AsPortStatRxSyncReceiptTimeouts();
 		}
 
@@ -599,42 +654,49 @@ bool CommonPort::processEvent( Event e )
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES occured");
 
-		// Send an announce message
-		if ( asCapable)
+		ret = true;
+#ifndef APTP
+		if (asCapable)
+#else
+		if (port_state != PTP_SLAVE)
+#endif
 		{
-			PTPMessageAnnounce *annc =
-				new PTPMessageAnnounce(this);
-			PortIdentity dest_id;
-			PortIdentity gmId;
-			ClockIdentity clock_id = clock->getClockIdentity();
-			gmId.setClockIdentity(clock_id);
-			getPortIdentity( dest_id );
-			annc->setPortIdentity( &dest_id );
-			annc->sendPort( this, NULL );
-			delete annc;
+			ret = _processEvent(e);
+#ifdef APTP	
+    		startAnnounceIntervalTimer(1000000000);
+#endif		
 		}
 
+#ifndef APTP
 		startAnnounceIntervalTimer
 			((uint64_t)( pow((double)2, getAnnounceInterval()) *
 				     1000000000.0 ));
-		ret = true;
+#endif
 		break;
 
 	case SYNC_INTERVAL_TIMEOUT_EXPIRES:
-		GPTP_LOG_DEBUG("SYNC_INTERVAL_TIMEOUT_EXPIRES occured");
 		// If asCapable is true attempt some media specific action
 		ret = true;
+
+#ifndef APTP
 		if( asCapable )
 			ret = _processEvent( e );
-
+#endif
 		/* Do getDeviceTime() after transmitting sync frame
 		   causing an update to local/system timestamp */
+#ifdef APTP
+		GPTP_LOG_DEBUG("SYNC_INTERVAL_TIMEOUT_EXPIRES occured  "
+		 "fSyncIntervalTimeoutExpireCount:%d", fSyncIntervalTimeoutExpireCount);
+		if (fSyncIntervalTimeoutExpireCount > 2)
+#endif
 		{
+#ifdef APTP
+			ret = _processEvent( e );
+#endif
 			Timestamp system_time;
 			Timestamp device_time;
+			long long wait_time = 0;
 			uint32_t local_clock, nominal_clock_rate;
-			FrequencyRatio local_system_freq_offset;
-			int64_t local_system_offset;
 
 			getDeviceTime
 				( system_time, device_time,
@@ -648,47 +710,63 @@ bool CommonPort::processEvent( Event e )
 				  device_time.seconds_ls,
 				  device_time.nanoseconds );
 
+#ifndef APTP			
+			FrequencyRatio local_system_freq_offset;
+			int64_t local_system_offset;
+
 			local_system_offset =
 				TIMESTAMP_TO_NS(system_time) -
 				TIMESTAMP_TO_NS(device_time);
 			local_system_freq_offset =
 				clock->calcLocalSystemClockRateDifference
 				( device_time, system_time );
-			clock->setMasterOffset
-				( this, 0, device_time, 1.0,
-				  local_system_offset, system_time,
-				  local_system_freq_offset, getSyncCount(),
-				  pdelay_count, port_state, asCapable );
+
+			std::string clockId = PTP_MASTER == getPortState()
+			 ? getPortIdentity()->getClockIdentity().getString()
+			 : getClock()->getGrandmasterClockIdentity().getString();
+			
+			uint64_t grandMasterId = clockId.empty() ? 0 : std::stoull(clockId, 0, 16);
+
+			GPTP_LOG_DEBUG("SYNC_INTERVAL_TIMEOUT_EXPIRES    grandMasterId:%s", clockId.c_str());
+			
+			clock->setMasterOffset(this, 0, device_time, 1.0, local_system_offset,
+			 system_time, local_system_freq_offset, sync_count,
+			 pdelay_count, port_state, asCapable, fAdrRegSocketPort,
+			 grandMasterId);
+#endif
+			syncDone();
+
+			wait_time = ((long long) (pow((double)2, getSyncInterval()) * 1000000000.0));
+			GPTP_LOG_VERBOSE("Before startSyncReceiptTimer  wait_time:%" PRIu64 "syncInterval:%d", wait_time, getSyncInterval());
+			startSyncIntervalTimer(wait_time);
 		}
-
-		// Call media specific action for completed sync
-		syncDone();
-
-		// Restart the timer
-		startSyncIntervalTimer
-			((uint64_t)( pow((double)2, getSyncInterval()) *
-				     1000000000.0 ));
-
+#ifdef APTP
+		else
+		{
+			++fSyncIntervalTimeoutExpireCount;
+			long long wait_time = ((long long) (pow((double)2, getSyncInterval()) * 1000000000.0));
+			startSyncIntervalTimer(wait_time);
+		}
+#endif
 		break;
 	}
 
 	return ret;
 }
 
-void CommonPort::getDeviceTime
-( Timestamp &system_time, Timestamp &device_time,
-  uint32_t &local_clock, uint32_t &nominal_clock_rate )
+void CommonPort::getDeviceTime(Timestamp &system_time, Timestamp &device_time,
+  uint32_t &local_clock, uint32_t &nominal_clock_rate)
 {
-	if (_hw_timestamper) {
-		_hw_timestamper->HWTimestamper_gettime
-			( &system_time, &device_time,
-			  &local_clock, &nominal_clock_rate );
-	} else {
+	if (_hw_timestamper && fUseHardwareTimestamp)
+	{
+		_hw_timestamper->HWTimestamper_gettime(&system_time, &device_time,
+		 &local_clock, &nominal_clock_rate);
+	}
+	else
+	{
 		device_time = system_time = clock->getSystemTime();
 		local_clock = nominal_clock_rate = 0;
 	}
-
-	return;
 }
 
 void CommonPort::startAnnounce()

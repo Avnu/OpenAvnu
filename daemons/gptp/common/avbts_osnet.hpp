@@ -34,15 +34,21 @@
 #ifndef AVBTS_OSNET_HPP
 #define AVBTS_OSNET_HPP
 
+#include <algorithm>
+#include <cstdlib>
 #include <stdint.h>
 #include <string.h>
 #include <map>
 #include <ieee1588.hpp>
 #include <ptptypes.hpp>
+#include <arpa/inet.h>
+#include <sstream>
+
+#include "common_tstamper.hpp"
+#include "macaddress.hpp"
 
 /**@file*/
 
-class CommonTimestamper;
 
 #define FACTORY_NAME_LENGTH 48		/*!< Factory name maximum length */
 #define DEFAULT_TIMEOUT 1			/*!< Default timeout in milliseconds*/
@@ -51,46 +57,132 @@ class CommonTimestamper;
  * @brief LinkLayerAddress Class
  * Provides methods for initializing and comparing ethernet addresses.
  */
-class LinkLayerAddress:public InterfaceLabel {
- private:
-	//!< Ethernet address
-	uint8_t addr[ETHER_ADDR_OCTETS];
+class LinkLayerAddress:public InterfaceLabel
+{
  public:
 	/**
 	 * @brief Default constructor
 	 */
-	LinkLayerAddress() {
+	LinkLayerAddress()
+	{
 	};
+
+	LinkLayerAddress(const std::string& ip, uint16_t portNumber);
 
 	/**
 	 * @brief Receives a 64bit scalar address and initializes its internal octet
 	 * array with the first 48 bits.
 	 * @param address_scalar 64 bit address
 	 */
-	LinkLayerAddress(uint64_t address_scalar) {
+	LinkLayerAddress(uint64_t address_scalar)
+	{
 		uint8_t *ptr;
 		address_scalar <<= 16;
-		if(addr == NULL)
-			return;
-
-		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS; ++ptr) {
+		
+		for (ptr = fIpv6Addr; ptr < fIpv6Addr + ETHER_ADDR_OCTETS; ++ptr) {
 			*ptr = (address_scalar & 0xFF00000000000000ULL) >> 56;
 			address_scalar <<= 8;
 		}
 	}
 
+	LinkLayerAddress(const sockaddr &other)
+	{
+		if (AF_INET == other.sa_family)
+		{
+			fIpVersion = 4;
+			const sockaddr_in *dest = reinterpret_cast<const sockaddr_in*>(&other);
+			//ok = inet_pton(AF_INET, other.sa_data, &(dest->sin_addr);
+			fIpv4Addr = dest->sin_addr.s_addr;
+
+			char buf[INET_ADDRSTRLEN];
+			in_addr source;
+			source.s_addr = fIpv4Addr;
+			inet_ntop(AF_INET, &source, buf, sizeof(buf));
+
+			GPTP_LOG_VERBOSE("LinkLayerAddress::LinkLayerAddress  sockaddr  ipv4  rawAddress:%s", buf);
+		}
+		else if (AF_INET6 == other.sa_family)
+		{
+			fIpVersion = 6;
+	      const sockaddr_in6 *dest = reinterpret_cast<const sockaddr_in6*>(&other);
+	      //ok = inet_pton(AF_INET6, other.sa_data, &(dest->sin6_addr));
+	      memcpy(fIpv6Addr, dest->sin6_addr.s6_addr, sizeof(dest->sin6_addr.s6_addr));
+
+			char buf[INET6_ADDRSTRLEN];
+			inet_ntop(AF_INET6, &(dest->sin6_addr.s6_addr), buf, sizeof(buf));
+			GPTP_LOG_VERBOSE("LinkLayerAddress::LinkLayerAddress  sockaddr  ipv6  rawAddress:%s", buf);
+		}
+		else
+		{
+			GPTP_LOG_ERROR("Error constructing LinkLayAddress from sockaddr, "
+			 "invalid family %d", other.sa_family);	
+		}
+
+		GPTP_LOG_VERBOSE("LinkLayerAddress::LinkLayerAddress  sockaddr  address:%s", AddressString().c_str());
+	}
+
+	LinkLayerAddress(const sockaddr_in &other)
+	{
+	   memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+	   fIpv4Addr = 0;
+		fIpVersion = 4;
+
+		char buf[INET_ADDRSTRLEN];
+		const char* resultBuf = inet_ntop(other.sin_family, &other.sin_addr, buf, sizeof(buf));
+		if (nullptr == resultBuf)
+		{
+			GPTP_LOG_ERROR("Error constructing LinkLayAddress from sockaddr_in6.");
+		}
+		else
+		{
+			GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv4  addrStr:%s  sin_port:%d  "
+				"sin_family:%d", buf, other.sin_port, other.sin_family);
+
+			fIpv4Addr = other.sin_addr.s_addr;
+		}
+		//memset(&fIpv4Addr, 0, sizeof(fIpv4Addr));
+		//ParseIpAddress(buf, fIpv4Addr, ETHER_ADDR_OCTETS, ".");
+	}
+
+	LinkLayerAddress(const sockaddr_in6 &other)
+	{
+	   memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+	   fIpv4Addr = 0;
+		fIpVersion = 6;
+
+		char buf[INET6_ADDRSTRLEN];
+		const char* resultBuf = inet_ntop(other.sin6_family, &other.sin6_addr, buf, sizeof(buf));
+		if (nullptr == resultBuf)
+		{
+			GPTP_LOG_ERROR("Error constructing LinkLayAddress from sockaddr_in6.");
+		}
+		else
+		{
+			GPTP_LOG_VERBOSE("LinkLayerAddress ctor  ipv6  addrStr:%s  sin6_port:%d  "
+				"sin6_family:%d", buf, other.sin6_port, other.sin6_family);
+
+			FixBSDLinkLocal(other);
+		}
+
+	}
 	/**
 	 * @brief Receives an address as an array of octets
 	 * and copies the first 6 over the internal ethernet address.
 	 * @param address_octet_array Array of octets containing the address
 	 */
-	LinkLayerAddress(uint8_t * address_octet_array) {
-		uint8_t *ptr;
-		if( addr == NULL || address_octet_array == NULL)
-			return;
+	LinkLayerAddress(uint8_t * address_octet_array)
+	{
+	   memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+	   fIpv4Addr = 0;
 
-		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS;
-		     ++ptr, ++address_octet_array)
+		uint8_t *ptr = fIpv6Addr;
+		uint8_t *dest = ptr;
+		if (nullptr == address_octet_array)
+		{
+			return;
+		}
+
+		for (; ptr < dest + ETHER_ADDR_OCTETS; ++ptr, ++address_octet_array)
 		{
 			*ptr = *address_octet_array;
 		}
@@ -103,9 +195,12 @@ class LinkLayerAddress:public InterfaceLabel {
 	 * @param  cmp Value to be compared against.
 	 * @return TRUE if they are equal; FALSE otherwise.
 	 */
-	bool operator==(const LinkLayerAddress & cmp) const {
-		return memcmp
-			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) == 0 ? true : false;
+	bool operator==(const LinkLayerAddress & cmp) const 
+	{
+		return (4 == fIpVersion 
+		 ? fIpv4Addr == cmp.fIpv4Addr
+		 : 0 == memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS)) &&
+		 cmp.fPort == fPort;
 	}
 
 	/**
@@ -115,9 +210,11 @@ class LinkLayerAddress:public InterfaceLabel {
 	 * @param  cmp Value to be compared against.
 	 * @return TRUE if cmp is lower than addr, FALSE otherwise.
 	 */
-	bool operator<(const LinkLayerAddress & cmp)const {
-		return memcmp
-			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) < 0 ? true : false;
+	bool operator <(const LinkLayerAddress & cmp) const
+	{
+		return 4 == fIpVersion 
+		 ? fIpv4Addr < cmp.fIpv4Addr
+		 : memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) < 0;
 	}
 
 	/**
@@ -127,28 +224,183 @@ class LinkLayerAddress:public InterfaceLabel {
 	 * @param  cmp Value to be compared against.
 	 * @return TRUE if cmp is bigger than addr, FALSE otherwise.
 	 */
-	bool operator>(const LinkLayerAddress & cmp)const {
-		return memcmp
-			(this->addr, cmp.addr, ETHER_ADDR_OCTETS) > 0 ? true : false;
+	bool operator>(const LinkLayerAddress & cmp) const
+	{
+		return 4 == fIpVersion
+		 ? fIpv4Addr > cmp.fIpv4Addr
+		 : memcmp(fIpv6Addr, cmp.fIpv6Addr, IPV6_ADDR_OCTETS) > 0;
 	}
 
 	/**
-	 * @brief  Gets first 6 bytes from ethernet address of
+	 * @brief  Gets bytes from ethernet address of
 	 * object LinkLayerAddress.
 	 * @param  address_octet_array [out] Pointer to store the
 	 * ethernet address information.
 	 * @return void
 	 */
-	void toOctetArray(uint8_t * address_octet_array) {
-		uint8_t *ptr;
-		if(addr == NULL || address_octet_array == NULL)
-			return;
-		for (ptr = addr; ptr < addr + ETHER_ADDR_OCTETS;
-		     ++ptr, ++address_octet_array)
+	void toOctetArray(uint8_t * address_octet_array, size_t octetSize)
+	{
+		if (nullptr == address_octet_array)
 		{
-			*address_octet_array = *ptr;
+			return;
+		}
+
+		if (4 == fIpVersion)
+		{
+			char buf[ETHER_ADDR_OCTETS];
+			in_addr source;
+			source.s_addr = fIpv4Addr;
+			inet_ntop(AF_INET, &source, buf, sizeof(buf));
+			ParseIpAddress(buf, address_octet_array, octetSize, ".");
+		}
+		else
+		{
+			sockaddr_in6 other;
+			memcpy(other.sin6_addr.s6_addr, fIpv6Addr, sizeof(fIpv6Addr));
+			std::string address = FixBSDLinkLocal(other);			
+			ParseIpAddress(address, address_octet_array, octetSize, ":");
 		}
 	}
+
+	void getAddress(in_addr *dest)
+	{
+		if (fIpVersion != 4)
+		{
+			GPTP_LOG_ERROR("Invalid coversion...This address is version %d but "
+			 "converting to 4", fIpVersion);
+			return;
+		}
+
+		// Convert the raw values to a string for use with inet_pton
+		std::string address = AddressString();
+
+		GPTP_LOG_VERBOSE("address:%s", address.c_str());
+
+		// Convert the address eg "192.168.0.189"
+		inet_pton(AF_INET, address.c_str(), dest);
+	}
+
+	void getAddress(in6_addr *dest)
+	{
+		std::string address = AddressString();
+		GPTP_LOG_VERBOSE("fIpVersion:%d   address:%s", fIpVersion, address.c_str());
+
+		inet_pton(AF_INET6, address.c_str(), dest);
+	}
+
+	uint16_t Port() const
+	{
+		return fPort;
+	}
+
+	void Port(uint16_t number)
+	{
+		fPort = number;
+	}
+
+	const std::string AddressString()
+	{
+		std::string address;
+
+		if (4 == fIpVersion)
+		{
+			char buf[INET_ADDRSTRLEN];
+			in_addr source;
+			source.s_addr = fIpv4Addr;
+			inet_ntop(AF_INET, &source, buf, sizeof(buf));
+			address = buf;
+		}
+		else
+		{
+			sockaddr_in6 other;
+			memcpy(other.sin6_addr.s6_addr, fIpv6Addr, sizeof(fIpv6Addr));
+			address = FixBSDLinkLocal(other);
+		}
+
+		GPTP_LOG_VERBOSE("AddressString  fIpVersion:%d address:%s", fIpVersion, address.c_str());
+
+		return address;
+	}
+
+	int IpVersion() const
+	{
+		return fIpVersion;
+	}
+
+private:
+	const std::string FixBSDLinkLocal(const sockaddr_in6& other)
+	{
+		char buf[INET6_ADDRSTRLEN];
+		inet_ntop(AF_INET6, &other.sin6_addr, buf, sizeof(buf));
+		std::string address = buf;
+
+		// On BSD based platforms, the scope ID is embedded into the address
+		// itself for link local addresses as the second 16 bit word so we need
+		// to remove it - it can't be used on POSIX conformant platforms.
+		// !!!...
+		// This assumes link local addresses, all bets are off for global
+		// addresses.
+		// ...!!!
+		size_t pos = address.find(":");
+		std::string first = address.substr(0, pos);
+		if (pos != std::string::npos && ("fe80" == first || "FE80" == first) &&
+		 address.substr(pos + 1, 1) != ":")
+		{
+			std::string rest = address.substr(address.find(":", pos + 1));
+			address = first + rest;
+			in6_addr dest;
+			inet_pton(AF_INET6, address.c_str(), &dest);
+			memcpy(fIpv6Addr, dest.s6_addr, sizeof(dest.s6_addr));
+		}
+		else
+		{
+			memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+			memcpy(fIpv6Addr, other.sin6_addr.s6_addr, sizeof(other.sin6_addr.s6_addr));
+			//ParseIpAddress(buf, fIpv6Addr, IPV6_ADDR_OCTETS, ":");
+		}
+
+		GPTP_LOG_VERBOSE("FixBSDLinkLocal    address:%s", address.c_str());
+
+		return address;
+	}
+
+	void ParseIpAddress(const std::string& ip, uint8_t * destination,
+ 	 size_t maxSize, const std::string& token)
+	{
+		size_t start = 0;
+		size_t end = 0;
+		size_t idx = 0;
+		uint8_t *p = destination;
+		int base = ":" == token ? 16 : 10;
+		size_t length;
+
+		while (idx < maxSize)
+		{
+			end = ip.find(token, start);
+			if (std::string::npos == end)
+			{
+				*p = std::stoi(ip.substr(start), 0, base);
+				break;
+			}
+			else
+			{
+			   length = end - start;
+			   if (length > 0)
+			   {
+			      *p = std::stoi(ip.substr(start, length), 0, base);
+			   }
+			}
+			++idx;
+			++p;
+			start = end + 1;
+		}
+	}
+
+ private:
+	uint32_t fIpv4Addr;
+	uint8_t fIpv6Addr[IPV6_ADDR_OCTETS];
+	uint16_t fPort;
+	int fIpVersion;
 };
 
 /**
@@ -222,6 +474,11 @@ class InterfaceName: public InterfaceLabel {
 			return true;
 		}
 		return false;
+	}
+
+	const std::string Name() const
+	{
+		return name;
 	}
 };
 
@@ -315,19 +572,39 @@ class OSNetworkInterface {
 	  * @return net_result enumeration
 	  */
 	 virtual net_result nrecv
-	 ( LinkLayerAddress *addr, uint8_t *payload, size_t &length ) = 0;
+		(LinkLayerAddress *addr, uint8_t *payload, size_t &length) = 0;
+
+	 /**
+	  * @brief  Receives data from port 319
+	  * @param  addr [out] Destination Mac Address
+	  * @param  payload [out] Payload received
+	  * @param  length [out] Received length
+	  * @return net_result enumeration
+	  */
+	 virtual net_result nrecvEvent
+		(LinkLayerAddress *addr, uint8_t *payload, size_t &length, Timestamp &ingressTime, EtherPort *port) = 0;
+
+	 /**
+	  * @brief  Receives data from port 320
+	  * @param  addr [out] Destination Mac Address
+	  * @param  payload [out] Payload received
+	  * @param  length [out] Received length
+	  * @return net_result enumeration
+	  */
+	 virtual net_result nrecvGeneral
+		(LinkLayerAddress *addr, uint8_t *payload, size_t &length, Timestamp &ingressTime, EtherPort *port) = 0;
 
 	 /**
 	  * @brief Get Link Layer address (mac address)
 	  * @param addr [out] Link Layer address
 	  * @return void
 	  */
-	 virtual void getLinkLayerAddress(LinkLayerAddress * addr) = 0;
+	 virtual void getMacAddress(AMacAddress * addr) = 0;
 
 	 /**
 	  * @brief Watch for netlink changes.
 	  */
-	 virtual void watchNetLink( CommonPort *pPort ) = 0;
+	 virtual void watchNetLink(CommonPort *pPort) = 0;
 
 	 /**
 	  * @brief  Provides generic method for getting the payload offset
@@ -338,6 +615,13 @@ class OSNetworkInterface {
 	  * @brief Native support for polimorphic destruction
 	  */
 	 virtual ~OSNetworkInterface() = 0;
+
+	 virtual void LogLockState() {}
+
+	 virtual bool IsWireless(const std::string& netInterfaceName) const
+	 {
+	 	return false;
+	 }
 };
 
 inline OSNetworkInterface::~OSNetworkInterface() {}
@@ -377,17 +661,17 @@ class OSNetworkInterfaceFactory {
 	 * @param timestamper CommonTimestamper class pointer
 	 * @return TRUE ok, FALSE error.
 	 */
-	static bool buildInterface
-	(OSNetworkInterface ** iface, factory_name_t id, InterfaceLabel * iflabel,
-	 CommonTimestamper * timestamper) {
-		return factoryMap[id]->createInterface
-			(iface, iflabel, timestamper);
+	static bool buildInterface(OSNetworkInterface ** iface, factory_name_t id,
+	 InterfaceLabel * iflabel, CommonTimestamper * timestamper)
+	{
+		return factoryMap[id]->createInterface(iface, iflabel, timestamper);
 	}
+
 	virtual ~OSNetworkInterfaceFactory() = 0;
 private:
-	virtual bool createInterface
-	(OSNetworkInterface ** iface, InterfaceLabel * iflabel,
-	 CommonTimestamper * timestamper) = 0;
+	virtual bool createInterface(OSNetworkInterface ** iface,
+	 InterfaceLabel * iflabel, CommonTimestamper * timestamper) = 0;
+
 	static FactoryMap_t factoryMap;
 };
 

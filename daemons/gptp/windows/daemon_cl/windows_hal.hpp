@@ -66,7 +66,7 @@ class WindowsPCAPNetworkInterface : public OSNetworkInterface {
 	friend class WindowsPCAPNetworkInterfaceFactory;
 private:
 	pfhandle_t handle;
-	LinkLayerAddress local_addr;
+	AMacAddress local_addr;
 public:
 	/**
 	 * @brief  Sends a packet to a remote address
@@ -79,7 +79,7 @@ public:
 	 */
 	virtual net_result send( LinkLayerAddress *addr, uint16_t etherType, uint8_t *payload, size_t length, bool timestamp) {
 		packet_addr_t dest;
-		addr->toOctetArray( dest.addr );
+		addr->toOctetArray( dest.addr, sizeof(dest.addr) );
 		if( sendFrame( handle, &dest, etherType, payload, length ) != PACKET_NO_ERROR ) return net_fatal;
 		return net_succeed;
 	}
@@ -91,8 +91,7 @@ public:
 	 * @param  delay [in] Specifications for PHY input and output delays in nanoseconds
 	 * @return net_result structure
 	 */
-	virtual net_result nrecv( LinkLayerAddress *addr, uint8_t *payload, size_t &length )
-	{
+	virtual net_result nrecv(LinkLayerAddress *addr, uint8_t *payload, size_t &length, struct phy_delay *delay) {
 		packet_addr_t dest;
 		packet_error_t pferror = recvFrame( handle, &dest, payload, length );
 		if( pferror != PACKET_NO_ERROR && pferror != PACKET_RECVTIMEOUT_ERROR ) return net_fatal;
@@ -105,7 +104,8 @@ public:
 	 * @param  addr [out] Link layer address
 	 * @return void
 	 */
-	virtual void getLinkLayerAddress( LinkLayerAddress *addr ) {
+	virtual void getMacAddress(AMacAddress *addr)
+	{
 		*addr = local_addr;
 	}
 
@@ -154,7 +154,7 @@ public:
 		if( addr == NULL ) goto error_nofree;
 		net_iface_l->local_addr = *addr;
 		packet_addr_t pfaddr;
-		addr->toOctetArray( pfaddr.addr );
+		addr->toOctetArray( pfaddr.addr, sizeof(pfaddr.addr) );
 		if( mallocPacketHandle( &net_iface_l->handle ) != PACKET_NO_ERROR ) goto error_nofree;
 		if( openInterfaceByAddr( net_iface_l->handle, &pfaddr, 1 ) != PACKET_NO_ERROR ) goto error_free_handle;
 		if( packetBind( net_iface_l->handle, PTP_ETHERTYPE ) != PACKET_NO_ERROR ) goto error_free_handle;
@@ -708,7 +708,7 @@ public:
 	 * @param  last Not used
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
-	virtual int HWTimestamper_txtimestamp(PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp, unsigned &clock_value, bool last)
+	virtual int HWTimestamper_txtimestamp(std::shared_ptr<PortIdentity> identity, PTPMessageId messageId, Timestamp &timestamp, unsigned &clock_value, bool last)
 	{
 		DWORD buf[4], buf_tmp[4];
 		DWORD returned = 0;
@@ -740,7 +740,7 @@ public:
 	 * @param  last Not used
 	 * @return GPTP_EC_SUCCESS if no error, GPTP_EC_FAILURE if error and GPTP_EC_EAGAIN to try again.
 	 */
-	virtual int HWTimestamper_rxtimestamp(PortIdentity *identity, PTPMessageId messageId, Timestamp &timestamp, unsigned &clock_value, bool last)
+	virtual int HWTimestamper_rxtimestamp(std::shared_ptr<PortIdentity> identity, PTPMessageId messageId, Timestamp &timestamp, unsigned &clock_value, bool last)
 	{
 		DWORD buf[4], buf_tmp[4];
 		DWORD returned;
@@ -818,7 +818,9 @@ public:
 		uint32_t sync_count,
 		uint32_t pdelay_count,
 		PortState port_state,
-		bool asCapable );
+		bool asCapable,
+		uint16_t adrRegSocketPort = 0,
+		uint64_t clockId = 0);
 
 	/**
 	 * @brief  Updates grandmaster IPC interface values

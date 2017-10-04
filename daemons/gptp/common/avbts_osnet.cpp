@@ -32,7 +32,45 @@
 ******************************************************************************/
 
 #include <avbts_osnet.hpp>
+#include <regex>
 
-std::map
-< factory_name_t, OSNetworkInterfaceFactory * >
+std::map<factory_name_t, OSNetworkInterfaceFactory *>
 OSNetworkInterfaceFactory::factoryMap;
+
+LinkLayerAddress::LinkLayerAddress(const std::string& ip, uint16_t portNumber) :
+ fPort(portNumber)
+{
+   size_t pos = ip.find(":");
+   memset(fIpv6Addr, 0, sizeof(fIpv6Addr));
+   fIpv4Addr = 0;
+   int ok;
+   if (pos != std::string::npos)
+   {
+      fIpVersion = 6;
+      in6_addr dest;
+      ok = inet_pton(AF_INET6, ip.c_str(), &dest);
+      memcpy(fIpv6Addr, dest.s6_addr, sizeof(dest.s6_addr));
+   }
+   else
+   {
+      fIpVersion = 4;
+      sockaddr_in dest;
+      ok = inet_pton(AF_INET, ip.c_str(), &(dest.sin_addr));
+      fIpv4Addr = dest.sin_addr.s_addr;
+   }
+
+   GPTP_LOG_VERBOSE("LinkLayerAddress::LinkLayerAddress  ip:%s  portNumber:%d  "
+    "fIpVersion:%d", (ip.empty() ? "EMPTY" : ip.c_str()), portNumber, fIpVersion);
+
+   if (0 == ok)
+   {
+      GPTP_LOG_ERROR("Error constructing LinkLayerAddress: %s does not contain "
+       "a valid address string.", ip.c_str());
+   }
+   else if (-1 == ok)
+   {
+      std::string msg = "Error constructing LinkLayerAddress address family error: ";
+      msg += strerror(errno);
+      GPTP_LOG_ERROR(msg.c_str());
+   }
+}

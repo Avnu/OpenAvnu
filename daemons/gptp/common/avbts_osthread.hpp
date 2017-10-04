@@ -34,6 +34,8 @@
 #ifndef AVBTS_OSTHREAD_HPP
 #define AVBTS_OSTHREAD_HPP
 
+#include <memory>
+
 /**@file*/
 
 /**
@@ -83,6 +85,10 @@ public:
 	 * @return Pointer to OSThread object
 	 */
 	virtual OSThread * createThread() const = 0;
+
+#ifdef RPI
+	virtual std::shared_ptr<OSThread> create() = 0;
+#endif	
 
 	/**
 	 * @brief Destroys the new thread

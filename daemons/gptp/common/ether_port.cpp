@@ -30,25 +30,28 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-
-#include <ieee1588.hpp>
-
-#include <ether_port.hpp>
-#include <avbts_message.hpp>
-#include <avbts_clock.hpp>
-
-#include <avbts_oslock.hpp>
-#include <avbts_osnet.hpp>
-#include <avbts_oscondition.hpp>
-#include <ether_tstamper.hpp>
-
-#include <gptp_log.hpp>
-
-#include <stdio.h>
-
+#include <cstdio>
+#include <cstdlib>
 #include <math.h>
+#include <mutex>
 
-#include <stdlib.h>
+#include "ieee1588.hpp"
+#include "ether_port.hpp"
+#include "avbts_message.hpp"
+#include "avbts_clock.hpp"
+#include "avbts_oslock.hpp"
+#include "avbts_osnet.hpp"
+#include "avbts_oscondition.hpp"
+#include "ether_tstamper.hpp"
+#include "gptp_log.hpp"
+
+
+static std::mutex gLastFwupMutex;
+static std::mutex gLastDelayReqMutex;
+static std::mutex gLastDelayRespMutex;
+static std::mutex gLastSyncMutex;
+static std::mutex gMeanPathDelayMutex;
+static std::mutex gQualifiedAnnounceMutex;
 
 LinkLayerAddress EtherPort::other_multicast(OTHER_MULTICAST);
 LinkLayerAddress EtherPort::pdelay_multicast(PDELAY_MULTICAST);
@@ -66,6 +69,20 @@ OSThreadExitCode watchNetLinkWrapper(void *arg)
 		return osthread_error;
 }
 
+OSThreadExitCode openEventPortWrapper(void *arg)
+{
+	GPTP_LOG_VERBOSE("openEventPortWrapper");
+	EtherPort *port = reinterpret_cast<EtherPort*>(arg);
+	return port->OpenEventPort(port) ? osthread_ok : osthread_error;
+}
+
+OSThreadExitCode openGeneralPortWrapper(void *arg)
+{
+	GPTP_LOG_VERBOSE("openGeneralPortWrapper");
+	EtherPort *port = reinterpret_cast<EtherPort*>(arg);
+	return port->OpenGeneralPort(port) ? osthread_ok : osthread_error;
+}
+
 OSThreadExitCode openPortWrapper(void *arg)
 {
 	EtherPort *port;
@@ -79,7 +96,10 @@ OSThreadExitCode openPortWrapper(void *arg)
 
 EtherPort::~EtherPort()
 {
+#ifndef APTP	
 	delete port_ready_condition;
+#endif
+	delete qualified_announce;
 }
 
 EtherPort::EtherPort( PortInit_t *portInit ) :
@@ -97,6 +117,8 @@ EtherPort::EtherPort( PortInit_t *portInit ) :
 
 	duplicate_resp_counter = 0;
 	last_invalid_seqid = 0;
+
+	qualified_announce = nullptr;
 
 	initialLogPdelayReqInterval = portInit->initialLogPdelayReqInterval;
 	operLogPdelayReqInterval = portInit->operLogPdelayReqInterval;
@@ -161,8 +183,10 @@ bool EtherPort::_init_port( void )
 
 	pDelayIntervalTimerLock = lock_factory->createLock(oslock_recursive);
 
+#ifndef APTP
 	port_ready_condition = condition_factory->createCondition();
-
+#endif
+	
 	return true;
 }
 
@@ -214,8 +238,8 @@ void EtherPort::processMessage
 {
 	GPTP_LOG_VERBOSE("Processing network buffer");
 
-	PTPMessageCommon *msg =
-		buildPTPMessage( buf, (int)length, remote, this );
+	Timestamp ingressTime;
+	PTPMessageCommon *msg =	buildPTPMessage(buf, length, remote, this, ingressTime);
 
 	if (msg == NULL)
 	{
@@ -238,6 +262,95 @@ void EtherPort::processMessage
 	msg->processMessage(this);
 	if (msg->garbage())
 		delete msg;
+}
+
+bool EtherPort::PortCheck(EtherPort *port, bool isEvent)
+{
+	bool ok = true;
+	const std::string kMessageType = isEvent ? "event" : "general";
+	while (1)
+	{
+		// Check for messages and process them
+		if (net_fatal == maybeProcessMessage(isEvent))
+		{
+			std::string msg = "net fatal checking for ";
+			msg += kMessageType + " messages.";
+			GPTP_LOG_ERROR(msg.c_str());
+			ok = false;
+			break;
+		}
+	}
+
+	return ok;
+}
+
+bool EtherPort::OpenEventPort(EtherPort *port)
+{
+	GPTP_LOG_VERBOSE("EtherPort::OpenEventPort");
+	return PortCheck(port, true);
+}
+
+bool EtherPort::OpenGeneralPort(EtherPort *port)
+{
+	GPTP_LOG_VERBOSE("EtherPort::OpenGeneralPort");
+	return PortCheck(port, false);
+}
+
+
+PTPMessageAnnounce *EtherPort::calculateERBest(bool lockIt)
+{
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gQualifiedAnnounceMutex);
+		return qualified_announce;
+	}
+	else
+	{
+		return qualified_announce;
+	}
+}
+
+net_result EtherPort::maybeProcessMessage(bool checkEventMessage)
+{
+	PTPMessageCommon *msg;
+	const size_t kBufSize = 128;
+	uint8_t buf[kBufSize];
+	LinkLayerAddress remote;
+	net_result rrecv;
+	Timestamp ingressTime;
+	size_t length = kBufSize;
+	
+	rrecv = checkEventMessage
+	 ? net_iface->nrecvEvent(&remote, buf, length, ingressTime, this)
+	 : net_iface->nrecvGeneral(&remote, buf, length, ingressTime, this);
+
+	if (net_succeed == rrecv)
+	{
+		GPTP_LOG_VERBOSE("Processing network buffer");
+		msg = buildPTPMessage(reinterpret_cast<char*>(buf),
+		 kBufSize, &remote, this, ingressTime);
+		if (msg != NULL)
+		{
+			GPTP_LOG_VERBOSE("Processing message");
+			GPTP_LOG_VERBOSE("EtherPort::maybeProcessMessage   clockId:%s",
+			 port_identity->getClockIdentity().getIdentityString().c_str());
+			msg->processMessage(this);
+			if (msg->garbage())
+			{
+				delete msg;
+			}
+		} 
+		else
+		{
+			GPTP_LOG_ERROR("Discarding invalid message");
+		}
+	}
+	else if (rrecv == net_fatal)
+	{
+		GPTP_LOG_ERROR("read from network interface failed");
+		this->processEvent(FAULT_DETECTED);
+	}
+	return rrecv;
 }
 
 void *EtherPort::openPort( EtherPort *port )
@@ -266,13 +379,15 @@ void *EtherPort::openPort( EtherPort *port )
 	return NULL;
 }
 
-net_result EtherPort::port_send
-( uint16_t etherType, uint8_t *buf, int size, MulticastType mcast_type,
-  PortIdentity *destIdentity, bool timestamp )
+net_result EtherPort::port_send(uint16_t etherType, uint8_t * buf, int size,
+ MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity, 
+ bool timestamp, uint16_t port, bool sendToAllUnicast)
 {
+	net_result ok;
 	LinkLayerAddress dest;
 
-	if (mcast_type != MCAST_NONE) {
+	if (mcast_type != MCAST_NONE)
+	{
 		if (mcast_type == MCAST_PDELAY) {
 			dest = pdelay_multicast;
 		}
@@ -282,40 +397,73 @@ net_result EtherPort::port_send
 		else {
 			dest = other_multicast;
 		}
-	} else {
+		ok = send(&dest, etherType, (uint8_t *) buf, size, timestamp);
+	}
+	else
+	{
 		mapSocketAddr(destIdentity, &dest);
+		dest.Port(port);
+		if (PTP_MASTER == port_state && !fUnicastSendNodeList.empty() && sendToAllUnicast)
+		{
+			ok = net_succeed;
+			bool foundDest = false;
+			net_result status;
+			// Use the unicast send node list if it is present
+			std::for_each(fUnicastSendNodeList.begin(), fUnicastSendNodeList.end(), 
+			 [&](const std::string& address)
+			 {
+			 	 GPTP_LOG_VERBOSE("EtherPort::port_send   address: %s, port:%d",
+			 	  address.c_str(), port);
+				 LinkLayerAddress unicastDest(address, port);
+				 status = net_iface->send(&unicastDest, etherType, buf, size, timestamp);
+				 ok = status != net_succeed ? status : ok;
+				 foundDest = dest == unicastDest;
+			 });
+			if (!foundDest)
+			{
+				status = net_iface->send(&dest, etherType, (uint8_t *) buf, size, timestamp);	
+			}
+		}
+		else
+		{
+			GPTP_LOG_VERBOSE("EtherPort::port_send dest.address: %s  dest.port:%d",
+			 dest.AddressString().c_str(), port);
+			ok = net_iface->send(&dest, etherType, (uint8_t *) buf, size, timestamp);
+		}
 	}
 
-	return send(&dest, etherType, (uint8_t *) buf, size, timestamp);
+	return ok;
 }
 
-void EtherPort::sendEventPort
-( uint16_t etherType, uint8_t *buf, int size, MulticastType mcast_type,
-  PortIdentity *destIdentity, uint32_t *link_speed )
+
+void EtherPort::sendEventPort(uint16_t etherType, uint8_t * buf, int size,
+ MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity,
+ uint32_t *link_speed, bool sendToAllUnicast)
 {
-	net_result rtx = port_send
-		( etherType, buf, size, mcast_type, destIdentity, true );
-	if( rtx != net_succeed )
+	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity,
+	 true, 319, sendToAllUnicast);
+	if (rtx != net_succeed) 
 	{
 		GPTP_LOG_ERROR("sendEventPort(): failure");
 		return;
 	}
 
-	*link_speed = this->getLinkSpeed();
-
-	return;
+	if (link_speed  != nullptr)
+	{
+		*link_speed = this->getLinkSpeed();
+	}
 }
 
-void EtherPort::sendGeneralPort
-( uint16_t etherType, uint8_t *buf, int size, MulticastType mcast_type,
-  PortIdentity * destIdentity )
+void EtherPort::sendGeneralPort(uint16_t etherType, uint8_t * buf, int size,
+ MulticastType mcast_type, std::shared_ptr<PortIdentity> destIdentity,
+ bool sendToAllUnicast)
 {
-	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity, false);
-	if (rtx != net_succeed) {
+	net_result rtx = port_send(etherType, buf, size, mcast_type, destIdentity,
+	 false, 320, sendToAllUnicast);
+	if (rtx != net_succeed)
+	{
 		GPTP_LOG_ERROR("sendGeneralPort(): failure");
 	}
-
-	return;
 }
 
 bool EtherPort::_processEvent( Event e )
@@ -325,6 +473,7 @@ bool EtherPort::_processEvent( Event e )
 	switch (e) {
 	case POWERUP:
 	case INITIALIZE:
+#ifndef APTP
 		if (!automotive_profile) {
 			if ( getPortState() != PTP_SLAVE &&
 			     getPortState() != PTP_MASTER )
@@ -336,7 +485,32 @@ bool EtherPort::_processEvent( Event e )
 		else {
 			startPDelay();
 		}
+#endif		
 
+#ifdef RPI
+		link_thread = thread_factory->createThread();
+		if(!link_thread->start(watchNetLinkWrapper, (void *)this))
+		{
+			GPTP_LOG_ERROR("Error creating port link thread");
+			return false;
+		}
+
+		GPTP_LOG_VERBOSE("Starting event port thread");
+		eventThread = thread_factory->createThread();
+		if (!eventThread->start(openEventPortWrapper, (void *)this))
+		{
+			GPTP_LOG_ERROR("Error creating event port thread");
+			return false;
+		}
+
+		GPTP_LOG_VERBOSE("Starting general port thread");
+		generalThread = thread_factory->createThread();
+		if (!generalThread->start(openGeneralPortWrapper, (void *)this))
+		{
+			GPTP_LOG_ERROR("Error creating general port thread");
+			return false;
+		}
+#else
 		port_ready_condition->wait_prelock();
 
 		if( !linkWatch(watchNetLinkWrapper, (void *)this) )
@@ -354,6 +528,7 @@ bool EtherPort::_processEvent( Event e )
 		}
 
 		port_ready_condition->wait();
+#endif
 
 		if (automotive_profile) {
 			setStationState(STATION_STATE_ETHERNET_READY);
@@ -387,11 +562,7 @@ bool EtherPort::_processEvent( Event e )
 		// If the automotive profile is enabled, handle the event by
 		// doing nothing and returning true, preventing the default
 		// action from executing
-		if( automotive_profile )
-			ret = true;
-		else
-			ret = false;
-
+		ret = automotive_profile;
 		break;
 	case LINKUP:
 		haltPdelay(false);
@@ -501,6 +672,7 @@ bool EtherPort::_processEvent( Event e )
 		}
 		ret = true;
 		break;
+#ifndef APTP
 	case PDELAY_INTERVAL_TIMEOUT_EXPIRES:
 		GPTP_LOG_DEBUG("PDELAY_INTERVAL_TIMEOUT_EXPIRES occured");
 		{
@@ -508,9 +680,8 @@ bool EtherPort::_processEvent( Event e )
 
 			PTPMessagePathDelayReq *pdelay_req =
 			    new PTPMessagePathDelayReq(this);
-			PortIdentity dest_id;
-			getPortIdentity(dest_id);
-			pdelay_req->setPortIdentity(&dest_id);
+			std::shared_ptr<PortIdentity> dest_id = getPortIdentity();
+			pdelay_req->setPortIdentity(dest_id);
 
 			{
 				Timestamp pending =
@@ -553,75 +724,69 @@ bool EtherPort::_processEvent( Event e )
 			}
 		}
 		break;
+#else
+	case PDELAY_INTERVAL_TIMEOUT_EXPIRES:
+	break;
+#endif // ifndef APTP
 	case SYNC_INTERVAL_TIMEOUT_EXPIRES:
 		{
 			/* Set offset from master to zero, update device vs
 			   system time offset */
 
 			// Send a sync message and then a followup to broadcast
-			PTPMessageSync *sync = new PTPMessageSync(this);
-			PortIdentity dest_id;
-			bool tx_succeed;
-			getPortIdentity(dest_id);
-			sync->setPortIdentity(&dest_id);
+			PTPMessageSync sync(this);
+			std::shared_ptr<PortIdentity> dest_id = getPortIdentity();
+
+			GPTP_LOG_VERBOSE("EtherPort::_processEvent   portIdentity:%s", dest_id->getClockIdentityString().c_str());
+
+			sync.setPortIdentity(dest_id);
+
 			getTxLock();
-			tx_succeed = sync->sendPort(this, NULL);
+			bool tx_succeed = sync.sendPort(this, nullptr);
 			GPTP_LOG_DEBUG("Sent SYNC message");
 
-			if ( automotive_profile &&
-			     getPortState() == PTP_MASTER )
+			if (automotive_profile && PTP_MASTER == getPortState() &&
+			 avbSyncState > 0)
 			{
-				if (avbSyncState > 0) {
-					avbSyncState--;
-					if (avbSyncState == 0) {
-						// Send Avnu Automotive Profile status message
-						setStationState(STATION_STATE_AVB_SYNC);
-						if (getTestMode()) {
-							APMessageTestStatus *testStatusMsg = new APMessageTestStatus(this);
-							if (testStatusMsg) {
-								testStatusMsg->sendPort(this);
-								delete testStatusMsg;
-							}
-						}
+				--avbSyncState;
+				if (avbSyncState == 0)
+				{
+					// Send Avnu Automotive Profile status message
+					setStationState(STATION_STATE_AVB_SYNC);
+					if (getTestMode())
+					{
+						APMessageTestStatus testStatusMsg(this);
+						testStatusMsg.sendPort(this);
 					}
 				}
 			}
 			putTxLock();
 
-			if ( tx_succeed )
+			if (tx_succeed)
 			{
-				Timestamp sync_timestamp = sync->getTimestamp();
+				Timestamp sync_timestamp = sync.getTimestamp();
 
 				GPTP_LOG_VERBOSE("Successful Sync timestamp");
-				GPTP_LOG_VERBOSE("Seconds: %u",
-						 sync_timestamp.seconds_ls);
-				GPTP_LOG_VERBOSE("Nanoseconds: %u",
-						 sync_timestamp.nanoseconds);
+				GPTP_LOG_VERBOSE("Seconds: %u", sync_timestamp.seconds_ls);
+				GPTP_LOG_VERBOSE("Nanoseconds: %u", sync_timestamp.nanoseconds);
 
-				PTPMessageFollowUp *follow_up = new PTPMessageFollowUp(this);
-				PortIdentity dest_id;
+				PTPMessageFollowUp follow_up(this);
+				std::shared_ptr<PortIdentity> dest_id = std::make_shared<PortIdentity>();
 				getPortIdentity(dest_id);
 
-				follow_up->setClockSourceTime(getClock()->getFUPInfo());
-				follow_up->setPortIdentity(&dest_id);
-				follow_up->setSequenceId(sync->getSequenceId());
-				follow_up->setPreciseOriginTimestamp
-					(sync_timestamp);
-				follow_up->sendPort(this, NULL);
-				delete follow_up;
-			} else {
-				GPTP_LOG_ERROR
-					("*** Unsuccessful Sync timestamp");
+				follow_up.setClockSourceTime(getClock()->getFUPInfo());
+				follow_up.setPortIdentity(dest_id);
+				follow_up.setSequenceId(sync.getSequenceId());
+				follow_up.setPreciseOriginTimestamp(sync_timestamp);
+				follow_up.sendPort(this, nullptr);
 			}
-			delete sync;
+			else
+			{
+				GPTP_LOG_ERROR("*** Unsuccessful Sync timestamp");
+			}
 		}
 		break;
-	case FAULT_DETECTED:
-		GPTP_LOG_ERROR("Received FAULT_DETECTED event");
-		if (!automotive_profile) {
-			setAsCapable(false);
-		}
-		break;
+#ifndef APTP
 	case PDELAY_DEFERRED_PROCESSING:
 		GPTP_LOG_DEBUG("PDELAY_DEFERRED_PROCESSING occured");
 		pdelay_rx_lock->lock();
@@ -655,6 +820,13 @@ bool EtherPort::_processEvent( Event e )
 			startPDelay();
 		}
 		break;
+#endif
+	case FAULT_DETECTED:
+		GPTP_LOG_ERROR("Received FAULT_DETECTED event");
+		if (!automotive_profile) {
+			setAsCapable(false);
+		}
+		break;
 	case SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED:
 		{
 			GPTP_LOG_INFO("SYNC_RATE_INTERVAL_TIMEOUT_EXPIRED occured");
@@ -668,32 +840,43 @@ bool EtherPort::_processEvent( Event e )
 				sendSignalMessage = true;
 			}
 
-			if (log_min_mean_pdelay_req_interval != operLogPdelayReqInterval) {
+			if (log_min_mean_pdelay_req_interval != operLogPdelayReqInterval)
+			{
 				log_min_mean_pdelay_req_interval = operLogPdelayReqInterval;
 				sendSignalMessage = true;
 			}
 
-			if (sendSignalMessage) {
-				if (!isGM) {
+			if (sendSignalMessage && !isGM) 
+			{
 				// Send operational signalling message
-					PTPMessageSignalling *sigMsg = new PTPMessageSignalling(this);
-					if (sigMsg) {
-						if (automotive_profile)
-							sigMsg->setintervals(PTPMessageSignalling::sigMsgInterval_NoChange, getSyncInterval(), PTPMessageSignalling::sigMsgInterval_NoChange);
-						else
-							sigMsg->setintervals(log_min_mean_pdelay_req_interval, getSyncInterval(), PTPMessageSignalling::sigMsgInterval_NoChange);
-						sigMsg->sendPort(this, NULL);
-						delete sigMsg;
-					}
+				PTPMessageSignalling sigMsg(this);
+				int8_t interval = automotive_profile 
+				 ? PTPMessageSignalling::sigMsgInterval_NoChange
+				 : log_min_mean_pdelay_req_interval;
+				sigMsg.setintervals(interval, getSyncInterval(), PTPMessageSignalling::sigMsgInterval_NoChange);
+				sigMsg.sendPort(this, NULL);
 
-					startSyncReceiptTimer((unsigned long long)
-						 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
-						  ((double) pow((double)2, getSyncInterval()) *
-						   1000000000.0)));
-				}
+				startSyncReceiptTimer((unsigned long long)
+					 (SYNC_RECEIPT_TIMEOUT_MULTIPLIER *
+					  ((double) pow((double)2, getSyncInterval()) *
+					   1000000000.0)));
 			}
 		}
 
+		break;
+	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
+		{
+			// Send an announce message
+			PTPMessageAnnounce annc = PTPMessageAnnounce(this);
+			PortIdentity gmId;
+			ClockIdentity clock_id = clock->getClockIdentity();
+			gmId.setClockIdentity(clock_id);
+			 
+			annc.setPortIdentity(getPortIdentity());
+			annc.sendPort(this, NULL);
+
+			ret = true;
+		}
 		break;
 	default:
 		GPTP_LOG_ERROR
@@ -711,25 +894,42 @@ void EtherPort::recoverPort( void )
 	return;
 }
 
-void EtherPort::becomeMaster( bool annc ) {
-	setPortState( PTP_MASTER );
+void EtherPort::becomeMaster(bool annc)
+{
+	GPTP_LOG_VERBOSE("#####~~~~####~~~~####~~~~####~~~~####  IEEE1588Port::becomeMaster");
+	setPortState(PTP_MASTER);
 	// Stop announce receipt timeout timer
 	clock->deleteEventTimerLocked( this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES );
 
 	// Stop sync receipt timeout timer
 	stopSyncReceiptTimer();
 
-	if( annc ) {
-		if (!automotive_profile) {
-			startAnnounce();
-		}
+	if (annc && !automotive_profile)
+	{
+		startAnnounce();
 	}
-	startSyncIntervalTimer(16000000);
+	int64_t interval = 
+#ifdef APTP
+	125000000;
+#else
+	16000000;
+#endif
+
+	startSyncIntervalTimer(interval);
 	GPTP_LOG_STATUS("Switching to Master" );
 
-	clock->updateFUPInfo();
+	ClockIdentity clock_identity = getClock()->getClockIdentity();
+	getClock()->setGrandmasterClockIdentity( clock_identity );
 
-	return;
+	uint64_t grandMasterId = 0;
+	std::string clockId;
+	clockId = clock_identity.getString();
+	GPTP_LOG_VERBOSE("RESET of clockID  clockId:%s", clockId.c_str());
+	grandMasterId = clockId.empty() ? 0 : std::stoull(clockId, 0, 16);
+
+	clock->ResetIpcValues(grandMasterId);
+
+	clock->updateFUPInfo();
 }
 
 void EtherPort::becomeSlave( bool restart_syntonization ) {
@@ -739,6 +939,9 @@ void EtherPort::becomeSlave( bool restart_syntonization ) {
 	setPortState( PTP_SLAVE );
 
 	if (!automotive_profile) {
+      GPTP_LOG_VERBOSE("IEEE1588Port::becomeSlave  adding "
+       "ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES  announceInterval:%d", getAnnounceInterval());
+
 		clock->addEventTimerLocked
 		  (this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
 		   (ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER*
@@ -750,67 +953,76 @@ void EtherPort::becomeSlave( bool restart_syntonization ) {
 	if( restart_syntonization ) clock->newSyntonizationSetPoint();
 
 	getClock()->updateFUPInfo();
-
-	return;
 }
 
 void EtherPort::mapSocketAddr
-( PortIdentity *destIdentity, LinkLayerAddress *remote )
+(std::shared_ptr<PortIdentity>  destIdentity, LinkLayerAddress * remote)
 {
-	*remote = identity_map[*destIdentity];
-	return;
+	*remote = identity_map[destIdentity];
 }
 
 void EtherPort::addSockAddrMap
-( PortIdentity *destIdentity, LinkLayerAddress *remote )
+(std::shared_ptr<PortIdentity>  destIdentity, LinkLayerAddress * remote)
 {
-	identity_map[*destIdentity] = *remote;
-	return;
+	identity_map[destIdentity] = *remote;
+}
+
+void EtherPort::timestamper_init()
+{
+	if (_hw_timestamper != nullptr)
+	{
+#ifdef APTP		
+		bool ok = _hw_timestamper->HWTimestamper_init(net_label, net_iface, this);
+#else
+		bool ok = _hw_timestamper->HWTimestamper_init(net_label, net_iface);
+#endif
+		if (!ok)
+		{
+			GPTP_LOG_ERROR("Failed to initialize hardware timestamper, "
+			 "falling back to software timestamping");
+			fUseHardwareTimestamp = false;
+		}
+	}
 }
 
 int EtherPort::getTxTimestamp
 ( PTPMessageCommon *msg, Timestamp &timestamp, unsigned &counter_value,
   bool last )
 {
-	PortIdentity identity;
-	msg->getPortIdentity(&identity);
-	return getTxTimestamp
-		(&identity, msg->getMessageId(), timestamp, counter_value, last);
+	std::shared_ptr<PortIdentity> identity =	msg->getPortIdentity();
+	return getTxTimestamp(identity, msg->getMessageId(), timestamp, counter_value, last);
 }
 
 int EtherPort::getRxTimestamp
 ( PTPMessageCommon * msg, Timestamp & timestamp, unsigned &counter_value,
   bool last )
 {
-	PortIdentity identity;
-	msg->getPortIdentity(&identity);
-	return getRxTimestamp
-		(&identity, msg->getMessageId(), timestamp, counter_value, last);
+	std::shared_ptr<PortIdentity> identity =	msg->getPortIdentity();
+	return getRxTimestamp(identity, msg->getMessageId(), timestamp, counter_value, last);
 }
 
 int EtherPort::getTxTimestamp
-(PortIdentity *sourcePortIdentity, PTPMessageId messageId,
+(std::shared_ptr<PortIdentity> sourcePortIdentity, PTPMessageId messageId,
  Timestamp &timestamp, unsigned &counter_value, bool last )
 {
-	EtherTimestamper *timestamper =
-		dynamic_cast<EtherTimestamper *>(_hw_timestamper);
-	if (timestamper)
+	EtherTimestamper *timestamper = dynamic_cast<EtherTimestamper *>(_hw_timestamper);
+	if (timestamper && fUseHardwareTimestamp)
 	{
 		return timestamper->HWTimestamper_txtimestamp
-			( sourcePortIdentity, messageId, timestamp,
-			  counter_value, last );
+			(sourcePortIdentity, messageId, timestamp,
+			  counter_value, last);
 	}
 	timestamp = clock->getSystemTime();
 	return 0;
 }
 
 int EtherPort::getRxTimestamp
-( PortIdentity * sourcePortIdentity, PTPMessageId messageId,
+( std::shared_ptr<PortIdentity> sourcePortIdentity, PTPMessageId messageId,
   Timestamp &timestamp, unsigned &counter_value, bool last )
 {
 	EtherTimestamper *timestamper =
 		dynamic_cast<EtherTimestamper *>(_hw_timestamper);
-	if (timestamper)
+	if (timestamper && fUseHardwareTimestamp)
 	{
 		return timestamper->HWTimestamper_rxtimestamp
 		    (sourcePortIdentity, messageId, timestamp, counter_value,
@@ -860,5 +1072,141 @@ void EtherPort::syncDone() {
 
 	if( !pdelay_started ) {
 		startPDelay();
+	}
+}
+
+void EtherPort::setLastSync(PTPMessageSync * msg, bool lockIt)
+{
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastSyncMutex);
+		last_sync = msg;
+	}
+	else
+	{
+		last_sync = msg;
+	}
+}
+
+PTPMessageSync* EtherPort::getLastSync(bool lockIt)
+{
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastSyncMutex);
+		return last_sync;
+	}
+	else
+	{
+		return last_sync;
+	}
+}
+
+void EtherPort::setLastFollowUp(PTPMessageFollowUp *msg)
+{
+	std::lock_guard<std::mutex> lock(gLastFwupMutex);
+	last_fwup = *msg;
+}
+
+const PTPMessageFollowUp& EtherPort::getLastFollowUp(bool lockIt) const
+{
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastFwupMutex);
+		return last_fwup;
+	}
+	else
+	{
+		return last_fwup;
+	}
+}
+
+void EtherPort::setLastDelayReq(PTPMessageDelayReq *msg)
+{
+	std::lock_guard<std::mutex> lock(gLastDelayReqMutex);
+	last_delay_req = *msg;
+}
+
+void EtherPort::setLastDelayReq(const PTPMessageDelayReq &msg)
+{
+	std::lock_guard<std::mutex> lock(gLastDelayReqMutex);
+	last_delay_req = msg;
+}
+
+const PTPMessageDelayReq& EtherPort::getLastDelayReq(bool lockIt) const
+{
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastDelayReqMutex);
+		return last_delay_req;
+	}
+	else
+	{
+		return last_delay_req;
+	}
+}
+
+void EtherPort::setLastDelayResp(PTPMessageDelayResp *msg)
+{
+	std::lock_guard<std::mutex> lock(gLastDelayRespMutex);
+	last_delay_resp = *msg;
+}
+
+const PTPMessageDelayResp& EtherPort::getLastDelayResp(bool lockIt) const
+{
+	if (lockIt)
+	{
+		std::lock_guard<std::mutex> lock(gLastDelayRespMutex);
+		return last_delay_resp;
+	}
+	else
+	{
+		return last_delay_resp;
+	}
+}
+
+FrequencyRatio EtherPort::meanPathDelay() const
+{
+	std::lock_guard<std::mutex> lock(gMeanPathDelayMutex);
+	return fMeanPathDelay;
+}
+
+void EtherPort::meanPathDelay(FrequencyRatio delay)
+{
+	std::lock_guard<std::mutex> lock(gMeanPathDelayMutex);
+	fMeanPathDelay = delay;
+	fMeanPathDelayIsSet = true;
+}
+
+
+std::mutex* EtherPort::GetLastFwupMutex()
+{
+	return &gLastFwupMutex;
+}
+
+std::mutex* EtherPort::GetLastDelayReqMutex()
+{
+	return &gLastDelayReqMutex;
+}
+
+std::mutex* EtherPort::GetLastDelayRespMutex()
+{
+	return &gLastDelayRespMutex;
+}
+
+std::mutex* EtherPort::GetLastSyncMutex()
+{
+	return &gLastSyncMutex;
+}
+
+std::mutex* EtherPort::GetMeanPathDelayMutex()
+{
+	return &gMeanPathDelayMutex;
+}
+
+void EtherPort::setClockPriority1(uint8_t priority1)
+{
+	if (clock != nullptr)
+	{
+		clock->setPriority1(priority1);
 	}
 }
