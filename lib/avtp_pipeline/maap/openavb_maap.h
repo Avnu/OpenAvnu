@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -27,35 +28,25 @@ Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyrig
 Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
+
 #ifndef OPENAVB_MAAP_H
 #define OPENAVB_MAAP_H 1
 #include "openavb_types.h"
 
 typedef void (openavbMaapRestartCb_t)(void *handle, struct ether_addr *addr);
 
-typedef enum {
-	MAAP_ALLOC_GENERATE,	// normal, random allocation
-	MAAP_ALLOC_PROBE,		// specify address to be allocated
-	MAAP_ALLOC_DEFEND		// specify address, and skip to DEFEND state
-} openavbMaapAllocAction_t;
-
 // MAAP library lifecycle
-bool openavbMaapInitialize(const char *ifname, openavbMaapRestartCb_t* cbfn);
+bool openavbMaapInitialize(const char *ifname, unsigned int maapPort, struct ether_addr *maapPrefAddr, openavbMaapRestartCb_t* cbfn);
 void openavbMaapFinalize();
 
+bool openavbMaapDaemonAvailable(void);
+
 // Normal address allocation
-void* openavbMaapAllocate(int count,
-					  /* out */ struct ether_addr *addr);
-// Extended address allocation (testing)
-void* openavbMaapExtAlloc(int count,
-					  openavbMaapAllocAction_t action,
-					  /* in/out */ struct ether_addr *addr);
+// Will allocate the daemon-reserved address if available,
+//  or one from the  MAAP locally administered Pool otherwise.
+void* openavbMaapAllocate(int count, /* out */ struct ether_addr *addr);
+
 // Release an allocated address range
 void openavbMaapRelease(void* handle);
-
-// Dump state info for MAAP
-void openavbMaapListAllocs();
-// Dump heard announcements
-void openavbMaapListHeard();
 
 #endif // OPENAVB_MAAP_H

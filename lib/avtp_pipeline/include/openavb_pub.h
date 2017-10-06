@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -42,19 +43,23 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // 
 // These must NOT be edited for project related work
 /////////////////////////////////////////////////////////
-#define AVB_CORE_NAME	"AVTP Pipeline"
+#if defined(AVB_FEATURE_AVDECC) && (AVB_FEATURE_AVDECC)
+	#define AVB_CORE_NAME	"AVTP AVDECC"
+#else
+	#define AVB_CORE_NAME	"AVTP Pipeline"
+#endif
 
 #define AVB_CORE_VER_MAJOR		(0)
 #define AVB_CORE_VER_MINOR		(1)
-#define AVB_CORE_VER_REVISION	(0)
-
-#define AVB_CORE_VER_FULL		(AVB_CORE_VER_MAJOR << 16 | AVB_CORE_VER_MINOR << 8 | AVB_CORE_VER_REVISION)
+#define AVB_CORE_VER_REVISION	(3)
 
 // Standard release designations. Uncomment one AVB_RELEASE_TYPE
 #define AVB_CORE_RELEASE_TYPE	"Development"
 //#define AVB_CORE_RELEASE_TYPE	"Alpha"
 //#define AVB_CORE_RELEASE_TYPE	"Beta"
 //#define AVB_CORE_RELEASE_TYPE	"Release"
+
+#define AVB_CORE_VER_FULL		(AVB_CORE_VER_MAJOR << 16 | AVB_CORE_VER_MINOR << 8 | AVB_CORE_VER_REVISION)
 
 #define LOG_EAVB_CORE_VERSION() AVB_LOGF_INFO("%s: %i.%i.%i (%s)", AVB_CORE_NAME, AVB_CORE_VER_MAJOR, AVB_CORE_VER_MINOR, AVB_CORE_VER_REVISION, AVB_CORE_RELEASE_TYPE)
 

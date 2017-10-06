@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -54,7 +55,7 @@ bool simpleAvbCheckInterface(const char *ifname, if_info_t *info)
 	memset(info, 0, sizeof(if_info_t));
 
 	AVB_LOGF_DEBUG("ifname=%s", ifname);
-	strncpy(info->name, ifname, IFNAMSIZ - 1);
+	strncpy(info->name, ifname, sizeof(info->name) - 1);
 
 	// open a throw-away socket - used for our ioctls
 	int sk = socket(AF_INET, SOCK_STREAM, 0);
@@ -137,7 +138,7 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 	// Get info about the network device
 	if (!simpleAvbCheckInterface(ifname, &(rawsock->base.ifInfo))) {
 		AVB_LOGF_ERROR("Creating rawsock; bad interface name: %s", ifname);
-		free(rawsock);
+		simpleRawsockClose(rawsock);
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 		return NULL;
 	}
@@ -149,7 +150,7 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 	}
 	else if (rawsock->base.frameSize > rawsock->base.ifInfo.mtu + ETH_HLEN + VLAN_HLEN) {
 		AVB_LOG_ERROR("Creating raswsock; requested frame size exceeds MTU");
-		free(rawsock);
+		simpleRawsockClose(rawsock);
 		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 		return NULL;
 	}
@@ -201,9 +202,12 @@ void* simpleRawsockOpen(simple_rawsock_t* rawsock, const char *ifname, bool rx_m
 	cb->txSetMark = simpleRawsockTxSetMark;
 	cb->txSetHdr = simpleRawsockTxSetHdr;
 	cb->txFrameReady = simpleRawsockTxFrameReady;
+	cb->send = simpleRawsockSend;
 	cb->getRxFrame = simpleRawsockGetRxFrame;
 	cb->rxMulticast = simpleRawsockRxMulticast;
+	cb->rxAVTPSubtype = simpleRawsockRxAVTPSubtype;
 	cb->getSocket = simpleRawsockGetSocket;
+	cb->relRxFrame = simpleRawsockRelRxFrame;
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 	return rawsock;
@@ -327,6 +331,17 @@ bool simpleRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U
 	return TRUE;
 }
 
+// Send all packets that are ready (i.e. tell kernel to send them)
+int simpleRawsockSend(void *pvRawsock)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK_DETAIL);
+
+	// simpleRawsock sends frames in simpleRawsockTxFrameReady
+
+	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
+	return 1;
+}
+
 // Get a RX frame
 U8* simpleRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, unsigned int *len)
 {
@@ -343,10 +358,23 @@ U8* simpleRawsockGetRxFrame(void *pvRawsock, U32 timeout, unsigned int *offset, 
 //		return NULL;
 //	}
 
+	*offset = 0;
+	*len = 0;
+
+	// Wait until a packet is available, or a timeout occurs.
+	struct timeval tv_timeout = { timeout / MICROSECONDS_PER_SECOND, timeout % MICROSECONDS_PER_SECOND };
+	fd_set readfds;
+	FD_ZERO( &readfds );
+	FD_SET( rawsock->sock, &readfds );
+	int err = select( rawsock->sock + 1, &readfds, NULL, NULL, &tv_timeout );
+	if (err <= 0) {
+		AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK_DETAIL);
+		return NULL;
+	}
+
 	int flags = 0;
 
 	U8 *pBuffer = rawsock->rxBuffer;
-	*offset = 0;
 	*len = recv(rawsock->sock, pBuffer, rawsock->base.frameSize, flags);
 
 	if (*len == -1) {
@@ -396,8 +424,8 @@ bool simpleRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 add
 
 	// In addition to adding the multicast membership, we also want to
 	//	add a packet filter to restrict the packets that we'll receive
-	//	on this socket.  Multicast memeberships are global - not
-	//	per-socket, so without the filter, this socket would receieve
+	//	on this socket.  Multicast memberships are global - not
+	//	per-socket, so without the filter, this socket would receive
 	//	packets for all the multicast addresses added by all other
 	//	sockets.
 	//
@@ -445,6 +473,11 @@ bool simpleRawsockRxMulticast(void *pvRawsock, bool add_membership, const U8 add
 	return TRUE;
 }
 
+bool simpleRawsockRxAVTPSubtype(void *rawsock, U8 subtype)
+{
+	return true; //TODO: implement as BPF to improve performance
+}
+
 // Get the socket used for this rawsock; can be used for poll/select
 int  simpleRawsockGetSocket(void *pvRawsock)
 {
@@ -458,4 +491,9 @@ int  simpleRawsockGetSocket(void *pvRawsock)
 
 	AVB_TRACE_EXIT(AVB_TRACE_RAWSOCK);
 	return rawsock->sock;
+}
+
+bool simpleRawsockRelRxFrame(void *pvRawsock, U8 *pFrame)
+{
+	return true;
 }

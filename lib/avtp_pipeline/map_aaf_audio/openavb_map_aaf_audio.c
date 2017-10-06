@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,17 +22,17 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /*
  * MODULE SUMMARY : Implementation for AAF mapping module
  *
- * AAF is defined in IEEE 1722-rev1/D12 (still in draft as of Feb 2015).
+ * AAF (AVTP Audio Format) is defined in IEEE 1722-2016 Clause 7.
  */
 
 #include <stdlib.h>
@@ -57,6 +58,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // - 1 Byte - TV bit (timestamp valid)
 #define HIDX_AVTP_HIDE7_TV1			1
 
+// - 1 Byte - Sequence number
+#define HIDX_AVTP_SEQ_NUM			2
+
 // - 1 Byte - TU bit (timestamp uncertain)
 #define HIDX_AVTP_HIDE7_TU1			3
 
@@ -78,6 +82,7 @@ typedef enum {
 	AAF_RATE_96K,
 	AAF_RATE_176K4,
 	AAF_RATE_192K,
+	AAF_RATE_24K,
 } aaf_nominal_sample_rate_t;
 
 typedef enum {
@@ -86,6 +91,7 @@ typedef enum {
 	AAF_FORMAT_INT_32,
 	AAF_FORMAT_INT_24,
 	AAF_FORMAT_INT_16,
+	AAF_FORMAT_AES3_32, // AVDECC_TODO:  Implement this
 } aaf_sample_format_t;
 
 typedef enum {
@@ -96,6 +102,13 @@ typedef enum {
 	AAF_7_1_CHANNELS_LAYOUT		= 4,
 	AAF_MAX_CHANNELS_LAYOUT		= 15,
 } aaf_automotive_channels_layout_t;
+
+typedef enum {
+	// Disabled - timestamp is valid in every avtp packet
+	TS_SPARSE_MODE_DISABLED		= 0,
+	// Enabled - timestamp is valid in every 8th avtp packet
+	TS_SPARSE_MODE_ENABLED		= 1
+} avb_audio_sparse_mode_t;
 
 typedef struct {
 	/////////////
@@ -114,12 +127,12 @@ typedef struct {
 	// MCR mode
 	avb_audio_mcr_t audioMcr;
 
-	// MCR timestamp interval	
+	// MCR timestamp interval
 	U32 mcrTimestampInterval;
 
-	// MCR clock recovery interval	
+	// MCR clock recovery interval
 	U32 mcrRecoveryInterval;
-	
+
 	/////////////
 	// Variable data
 	/////////////
@@ -129,6 +142,8 @@ typedef struct {
 	aaf_sample_format_t			aaf_format;
 	U8							aaf_bit_depth;
 	U32 payloadSize;
+	U32 payloadSizeMaxTalker, payloadSizeMaxListener;
+	bool isTalker;
 
 	U8 aaf_event_field;
 
@@ -136,7 +151,7 @@ typedef struct {
 
 	U32 intervalCounter;
 
-	U32 sparseMode;
+	avb_audio_sparse_mode_t sparseMode;
 
 	bool mediaQItemSyncTS;
 
@@ -160,6 +175,9 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 				break;
 			case AVB_AUDIO_RATE_16KHZ:
 				pPvtData->aaf_rate = AAF_RATE_16K;
+				break;
+			case AVB_AUDIO_RATE_24KHZ:
+				pPvtData->aaf_rate = AAF_RATE_24K;
 				break;
 			case AVB_AUDIO_RATE_32KHZ:
 				pPvtData->aaf_rate = AAF_RATE_32K;
@@ -261,13 +279,19 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 
 		// AAF packet size calculations
 		pPubMapInfo->packetFrameSizeBytes = pPubMapInfo->packetSampleSizeBytes * pPubMapInfo->audioChannels;
-		pPvtData->payloadSize = pPubMapInfo->framesPerPacket * pPubMapInfo->packetFrameSizeBytes;
+		pPvtData->payloadSize = pPvtData->payloadSizeMaxTalker = pPvtData->payloadSizeMaxListener =
+			pPubMapInfo->framesPerPacket * pPubMapInfo->packetFrameSizeBytes;
 		AVB_LOGF_INFO("packet: sampleSz=%d * channels=%d => frameSz=%d * %d => payloadSz=%d",
 			pPubMapInfo->packetSampleSizeBytes,
 			pPubMapInfo->audioChannels,
 			pPubMapInfo->packetFrameSizeBytes,
 			pPubMapInfo->framesPerPacket,
 			pPvtData->payloadSize);
+		if (pPvtData->aaf_format >= AAF_FORMAT_INT_32 && pPvtData->aaf_format <= AAF_FORMAT_INT_16) {
+			// Determine the largest size we could receive before adjustments.
+			pPvtData->payloadSizeMaxListener = 4 * pPubMapInfo->audioChannels * pPubMapInfo->framesPerPacket;
+			AVB_LOGF_DEBUG("packet: payloadSizeMaxListener=%d", pPvtData->payloadSizeMaxListener);
+		}
 
 		// MediaQ item size calculations
 		pPubMapInfo->packingFactor = pPvtData->packingFactor;
@@ -365,8 +389,17 @@ U16 openavbMapAVTPAudioMaxDataSizeCB(media_q_t *pMediaQ)
 			return 0;
 		}
 
+		// Return the largest size a frame payload could be.
+		// If we don't yet know if we are a Talker or Listener, the larger Listener max will be returned.
+		U16 payloadSizeMax;
+		if (pPvtData->isTalker) {
+			payloadSizeMax = pPvtData->payloadSizeMaxTalker + TOTAL_HEADER_SIZE;
+		}
+		else {
+			payloadSizeMax = pPvtData->payloadSizeMaxListener + TOTAL_HEADER_SIZE;
+		}
 		AVB_TRACE_EXIT(AVB_TRACE_MAP);
-		return pPvtData->payloadSize + TOTAL_HEADER_SIZE;
+		return payloadSizeMax;
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 	return 0;
@@ -405,13 +438,6 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 		openavbMediaQSetSize(pMediaQ, pPvtData->itemCount, pPubMapInfo->itemSize);
 
 		pPvtData->dataValid = TRUE;
-
-		pPubMapInfo->sparseMode = pPvtData->sparseMode;
-		if (pPubMapInfo->sparseMode == TS_SPARSE_MODE_ENABLED) {
-			AVB_LOG_INFO("Sparse timestamping mode: enabled");
-		} else {
-			AVB_LOG_INFO("Sparse timestamping mode: disabled");
-		}
 	}
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
@@ -421,10 +447,16 @@ void openavbMapAVTPAudioGenInitCB(media_q_t *pMediaQ)
 void openavbMapAVTPAudioTxInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_MAP);
+	if (pMediaQ) {
+		pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
+		if (pPvtData) {
+			pPvtData->isTalker = TRUE;
+		}
+	}
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
 
-// CORE_TODO: This callback should be updated to work in a similiar way the uncompressed audio mapping. With allowing AVTP packets to be built 
+// CORE_TODO: This callback should be updated to work in a similar way the uncompressed audio mapping. With allowing AVTP packets to be built
 //  from multiple media queue items. This allows interface to set into the media queue blocks of audio frames to properly correspond to
 //  a SYT_INTERVAL. Additionally the public data member sytInterval needs to be set in the same way the uncompressed audio mapping does.
 // This talker callback will be called for each AVB observation interval.
@@ -433,30 +465,68 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 	media_q_item_t *pMediaQItem = NULL;
 	AVB_TRACE_ENTRY(AVB_TRACE_MAP_DETAIL);
 
-	if (!pData || !dataLen) {
-		AVB_LOG_ERROR("Mapping module data or data length argument incorrect.");
+	if (!pMediaQ) {
+		AVB_LOG_ERROR("Mapping module invalid MediaQ");
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
 		return TX_CB_RET_PACKET_NOT_READY;
 	}
 
-	if (pMediaQ)
+	if (!pData || !dataLen) {
+		AVB_LOG_ERROR("Mapping module data or data length argument incorrect.");
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+		return TX_CB_RET_PACKET_NOT_READY;
+	}
+
+	media_q_pub_map_aaf_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
+
+	U32 bytesNeeded = pPubMapInfo->itemFrameSizeBytes * pPubMapInfo->framesPerPacket;
+	if (!openavbMediaQIsAvailableBytes(pMediaQ, pPubMapInfo->itemFrameSizeBytes * pPubMapInfo->framesPerPacket, TRUE)) {
+		AVB_LOG_VERBOSE("Not enough bytes are ready");
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+		return TX_CB_RET_PACKET_NOT_READY;
+	}
+
+	pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
+	if (!pPvtData) {
+		AVB_LOG_ERROR("Private mapping module data not allocated.");
+		openavbMediaQTailUnlock(pMediaQ);
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+		return TX_CB_RET_PACKET_NOT_READY;
+	}
+
+	if ((*dataLen - TOTAL_HEADER_SIZE) < pPvtData->payloadSize) {
+		AVB_LOG_ERROR("Not enough room in packet for payload");
+		openavbMediaQTailUnlock(pMediaQ);
+		AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
+		return TX_CB_RET_PACKET_NOT_READY;
+	}
+
+	U32 tmp32;
+	U8 *pHdrV0 = pData;
+	U32 *pHdr = (U32 *)(pData + AVTP_V0_HEADER_SIZE);
+	U8  *pPayload = pData + TOTAL_HEADER_SIZE;
+
+	U32 bytesProcessed = 0;
+	while (bytesProcessed < bytesNeeded) {
 		pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
+		if (pMediaQItem && pMediaQItem->pPubData && pMediaQItem->dataLen > 0) {
 
-	if (pMediaQItem) {
-		if (pMediaQItem->dataLen > 0) {
-
-			U32 tmp32;
-			U8 *pHdrV0 = pData;
-			U32 *pHdr = (U32 *)(pData + AVTP_V0_HEADER_SIZE);
-			U8  *pPayload = pData + TOTAL_HEADER_SIZE;
-			media_q_pub_map_aaf_audio_info_t *pPubMapInfo = pMediaQ->pPubMapInfo;
-			pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
-			if (!pPvtData) {
-				AVB_LOG_ERROR("Private mapping module data not allocated.");
-				return TX_CB_RET_PACKET_NOT_READY;
-			}
 			// timestamp set in the interface module, here just validate
-			if (openavbAvtpTimeTimestampIsValid(pMediaQItem->pAvtpTime)) {
-
+			// In sparse mode, the timestamp valid flag should be set every eighth AAF AVPTDU.
+			if (pPvtData->sparseMode == TS_SPARSE_MODE_ENABLED && (pHdrV0[HIDX_AVTP_SEQ_NUM] & 0x07) != 0) {
+				// Skip over this timestamp, as using sparse mode.
+				pHdrV0[HIDX_AVTP_HIDE7_TV1] &= ~0x01;
+				pHdrV0[HIDX_AVTP_HIDE7_TU1] &= ~0x01;
+				*pHdr++ = 0; // Clear the timestamp field
+			}
+			else if (!openavbAvtpTimeTimestampIsValid(pMediaQItem->pAvtpTime)) {
+				// Error getting the timestamp.  Clear timestamp valid flag.
+				AVB_LOG_ERROR("Unable to get the timestamp value");
+				pHdrV0[HIDX_AVTP_HIDE7_TV1] &= ~0x01;
+				pHdrV0[HIDX_AVTP_HIDE7_TU1] &= ~0x01;
+				*pHdr++ = 0; // Clear the timestamp field
+			}
+			else {
 				// Add the max transit time.
 				openavbAvtpTimeAddUSec(pMediaQItem->pAvtpTime, pPvtData->maxTransitUsec);
 
@@ -472,11 +542,6 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 				*pHdr++ = htonl(openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime));
 
 				openavbAvtpTimeSetTimestampValid(pMediaQItem->pAvtpTime, FALSE);
-			}
-			else {
-				// Clear timestamp valid flag
-				pHdrV0[HIDX_AVTP_HIDE7_TV1] &= ~0x01;
-				pHdr++; // Move past the timestamp field
 			}
 
 			// - 4 bytes	format info (format, sample rate, channels per frame, bit depth)
@@ -498,12 +563,6 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 				pHdrV0[HIDX_AVTP_HIDE7_SP] &= ~SP_M0_BIT;
 			}
 
-			if ((*dataLen - TOTAL_HEADER_SIZE) < pPvtData->payloadSize) {
-				AVB_LOG_ERROR("Not enough room in packet for payload");
-				AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
-				return TX_CB_RET_PACKET_NOT_READY;
-			}
-
 			if ((pMediaQItem->dataLen - pMediaQItem->readIdx) < pPvtData->payloadSize) {
 				// This should not happen so we will just toss it away.
 				AVB_LOG_ERROR("Not enough data in media queue item for packet");
@@ -513,6 +572,7 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 			}
 
 			memcpy(pPayload, (uint8_t *)pMediaQItem->pPubData + pMediaQItem->readIdx, pPvtData->payloadSize);
+			bytesProcessed += pPvtData->payloadSize;
 
 			pMediaQItem->readIdx += pPvtData->payloadSize;
 			if (pMediaQItem->readIdx >= pMediaQItem->dataLen) {
@@ -523,23 +583,17 @@ tx_cb_ret_t openavbMapAVTPAudioTxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 				// More to read next interval
 				openavbMediaQTailUnlock(pMediaQ);
 			}
-
-			// Set outbound data length (entire packet length)
-			*dataLen = pPvtData->payloadSize + TOTAL_HEADER_SIZE;
-
-			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
-			return TX_CB_RET_PACKET_READY;
 		}
 		else {
 			openavbMediaQTailPull(pMediaQ);
-			AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
-			return TX_CB_RET_PACKET_NOT_READY;  // No payload
 		}
-
 	}
 
+	// Set out bound data length (entire packet length)
+	*dataLen = bytesNeeded + TOTAL_HEADER_SIZE;
+
 	AVB_TRACE_EXIT(AVB_TRACE_MAP_DETAIL);
-	return TX_CB_RET_PACKET_NOT_READY;
+	return TX_CB_RET_PACKET_READY;
 }
 
 // A call to this callback indicates that this mapping module will be
@@ -553,6 +607,7 @@ void openavbMapAVTPAudioRxInitCB(media_q_t *pMediaQ)
 			AVB_LOG_ERROR("Private mapping module data not allocated.");
 			return;
 		}
+		pPvtData->isTalker = FALSE;
 		if (pPvtData->audioMcr != AVB_MCR_NONE) {
 			HAL_INIT_MCR_V2(pPvtData->txInterval, pPvtData->packingFactor, pPvtData->mcrTimestampInterval, pPvtData->mcrRecoveryInterval);
 		}
@@ -561,12 +616,16 @@ void openavbMapAVTPAudioRxInitCB(media_q_t *pMediaQ)
 			// sparse mode enabled so check packing factor
 			// listener should work correct for packing_factors:
 			// 1, 2, 4, 8, 16, 24, 32, 40, 48, (+8) ...
-			if (pPvtData->packingFactor < 8) {
+			if (pPvtData->packingFactor == 0) {
+				badPckFctrValue = TRUE;
+			}
+			else if (pPvtData->packingFactor < 8) {
 				// check if power of 2
 				if ((pPvtData->packingFactor & (pPvtData->packingFactor - 1)) != 0) {
 					badPckFctrValue = TRUE;
 				}
-			} else {
+			}
+			else {
 				// check if multiple of 8
 				if (pPvtData->packingFactor % 8 != 0) {
 					badPckFctrValue = TRUE;
@@ -595,8 +654,11 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 			return FALSE;
 		}
 
+		aaf_sample_format_t incoming_aaf_format;
+		U8 incoming_bit_depth;
 		int tmp;
 		bool dataValid = TRUE;
+		bool dataConversionEnabled = FALSE;
 
 		U32 timestamp = ntohl(*pHdr++);
 		U32 format_info = ntohl(*pHdr++);
@@ -606,18 +668,26 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 		bool streamSparseMode = (pHdrV0[HIDX_AVTP_HIDE7_SP] & SP_M0_BIT) ? TRUE : FALSE;
 		U16 payloadLen = ntohs(*(U16 *)(&pHdrV0[HIDX_STREAM_DATA_LEN16]));
 
-		if (payloadLen  > dataLen - TOTAL_HEADER_SIZE) {
+		if (payloadLen > dataLen - TOTAL_HEADER_SIZE) {
 			if (pPvtData->dataValid)
 				AVB_LOGF_ERROR("header data len %d > actual data len %d",
 					       payloadLen, dataLen - TOTAL_HEADER_SIZE);
 			dataValid = FALSE;
 		}
 
-		if ((tmp = ((format_info >> 24) & 0xFF)) != pPvtData->aaf_format) {
-			if (pPvtData->dataValid)
-				AVB_LOGF_ERROR("Listener format %d doesn't match received data (%d)",
-					pPvtData->aaf_format, tmp);
-			dataValid = FALSE;
+		if ((incoming_aaf_format = (aaf_sample_format_t) ((format_info >> 24) & 0xFF)) != pPvtData->aaf_format) {
+			// Check if we can convert the incoming data.
+			if (incoming_aaf_format >= AAF_FORMAT_INT_32 && incoming_aaf_format <= AAF_FORMAT_INT_16 &&
+					pPvtData->aaf_format >= AAF_FORMAT_INT_32 && pPvtData->aaf_format <= AAF_FORMAT_INT_16) {
+				// Integer conversion should be supported.
+				dataConversionEnabled = TRUE;
+			}
+			else {
+				if (pPvtData->dataValid)
+					AVB_LOGF_ERROR("Listener format %d doesn't match received data (%d)",
+						pPvtData->aaf_format, incoming_aaf_format);
+				dataValid = FALSE;
+			}
 		}
 		if ((tmp = ((format_info >> 20) & 0x0F)) != pPvtData->aaf_rate) {
 			if (pPvtData->dataValid)
@@ -631,28 +701,44 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 					pPubMapInfo->audioChannels, tmp);
 			dataValid = FALSE;
 		}
-		if ((tmp = (format_info & 0xFF)) != pPvtData->aaf_bit_depth) {
+		if ((incoming_bit_depth = (U8) (format_info & 0xFF)) == 0) {
 			if (pPvtData->dataValid)
-				AVB_LOGF_ERROR("Listener bit depth (%d) doesn't match received data (%d)",
-					pPvtData->aaf_bit_depth, tmp);
+				AVB_LOGF_ERROR("Listener bit depth (%d) not valid",
+					incoming_bit_depth);
 			dataValid = FALSE;
 		}
 		if ((tmp = ((packet_info >> 16) & 0xFFFF)) != pPvtData->payloadSize) {
-			if (pPvtData->dataValid)
-				AVB_LOGF_ERROR("Listener payload size (%d) doesn't match received data (%d)",
-					pPvtData->payloadSize, tmp);
-			dataValid = FALSE;
+			if (!dataConversionEnabled) {
+				if (pPvtData->dataValid)
+					AVB_LOGF_ERROR("Listener payload size (%d) doesn't match received data (%d)",
+						pPvtData->payloadSize, tmp);
+				dataValid = FALSE;
+			}
+			else {
+				int nInSampleLength = 6 - incoming_aaf_format; // Calculate the number of integer bytes per sample received
+				int nOutSampleLength = 6 - pPvtData->aaf_format; // Calculate the number of integer bytes per sample we want
+				if (tmp / nInSampleLength != pPvtData->payloadSize / nOutSampleLength) {
+					if (pPvtData->dataValid)
+						AVB_LOGF_ERROR("Listener payload samples (%d) doesn't match received data samples (%d)",
+							pPvtData->payloadSize / nOutSampleLength, tmp / nInSampleLength);
+					dataValid = FALSE;
+				}
+			}
 		}
 		if ((tmp = ((packet_info >> 8) & 0x0F)) != pPvtData->aaf_event_field) {
 			if (pPvtData->dataValid)
 				AVB_LOGF_ERROR("Listener event field (%d) doesn't match received data (%d)",
 					pPvtData->aaf_event_field, tmp);
 		}
-		if (streamSparseMode != listenerSparseMode) {
-			if (pPvtData->dataValid)
-				AVB_LOGF_ERROR("Listener sparse mode (%d) doesn't match stream sparse mode (%d)",
-					listenerSparseMode, streamSparseMode);
-			dataValid = FALSE;
+		if (streamSparseMode && !listenerSparseMode) {
+			AVB_LOG_INFO("Listener enabling sparse mode to match incoming stream");
+			pPvtData->sparseMode = TS_SPARSE_MODE_ENABLED;
+			listenerSparseMode = TRUE;
+		}
+		if (!streamSparseMode && listenerSparseMode) {
+			AVB_LOG_INFO("Listener disabling sparse mode to match incoming stream");
+			pPvtData->sparseMode = TS_SPARSE_MODE_DISABLED;
+			listenerSparseMode = FALSE;
 		}
 
 		if (dataValid) {
@@ -689,11 +775,53 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 					}
 				}
 				if (dataValid) {
-					if (pPubMapInfo->intf_rx_translate_cb) {
-						pPubMapInfo->intf_rx_translate_cb(pMediaQ, pPayload, pPvtData->payloadSize);
+					if (!dataConversionEnabled) {
+						// Just use the raw incoming data, and ignore the incoming bit_depth.
+						if (pPubMapInfo->intf_rx_translate_cb) {
+							pPubMapInfo->intf_rx_translate_cb(pMediaQ, pPayload, pPvtData->payloadSize);
+						}
+
+						memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, pPayload, pPvtData->payloadSize);
+					}
+					else {
+						static U8 s_audioBuffer[1500];
+						U8 *pInData = pPayload;
+						U8 *pInDataEnd = pPayload + payloadLen;
+						U8 *pOutData = s_audioBuffer;
+						int nInSampleLength = 6 - incoming_aaf_format; // Calculate the number of integer bytes per sample received
+						int nOutSampleLength = 6 - pPvtData->aaf_format; // Calculate the number of integer bytes per sample we want
+						int i;
+						if (nInSampleLength < nOutSampleLength) {
+							// We need to pad the data supplied.
+							while (pInData < pInDataEnd) {
+								for (i = 0; i < nInSampleLength; ++i) {
+									*pOutData++ = *pInData++;
+								}
+								for ( ; i < nOutSampleLength; ++i) {
+									*pOutData++ = 0; // Value specified in Clause 7.3.4.
+								}
+							}
+						}
+						else {
+							// We need to truncate the data supplied.
+							while (pInData < pInDataEnd) {
+								for (i = 0; i < nOutSampleLength; ++i) {
+									*pOutData++ = *pInData++;
+								}
+								pInData += (nInSampleLength - nOutSampleLength);
+							}
+						}
+						if (pOutData - s_audioBuffer != pPvtData->payloadSize) {
+							AVB_LOGF_ERROR("Output not expected size (%d instead of %d)", pOutData - s_audioBuffer, pPvtData->payloadSize);
+						}
+
+						if (pPubMapInfo->intf_rx_translate_cb) {
+							pPubMapInfo->intf_rx_translate_cb(pMediaQ, s_audioBuffer, pPvtData->payloadSize);
+						}
+
+						memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, s_audioBuffer, pPvtData->payloadSize);
 					}
 
-					memcpy((uint8_t *)pMediaQItem->pPubData + pMediaQItem->dataLen, pPayload, pPvtData->payloadSize);
 					pMediaQItem->dataLen += pPvtData->payloadSize;
 				}
 
@@ -751,8 +879,8 @@ void openavbMapAVTPAudioEndCB(media_q_t *pMediaQ)
 
 void openavbMapAVTPAudioGenEndCB(media_q_t *pMediaQ)
 {
-	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
-	AVB_TRACE_EXIT(AVB_TRACE_INTF);
+	AVB_TRACE_ENTRY(AVB_TRACE_MAP);
+	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
 
 // Initialization entry point into the mapping module. Will need to be included in the .ini file.

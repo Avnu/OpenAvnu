@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,16 +22,16 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
 /*
 * MODULE SUMMARY : A simple logging facility for use during
-* development. 
+* development.
 */
 
 #ifndef OPENAVB_LOG_PUB_H
@@ -122,11 +123,11 @@ static const bool OPENAVB_LOG_THREAD_INFO = FALSE;
 //#define AVB_LOG_OUTPUT_FD stdout
 
 // When OPENAVB_LOG_FROM_THREAD the message output will be output from a separate thread/task
-// Primary intended use is for debugging. 
+// Primary intended use is for debugging.
 // It is expected that OPENAVB_LOG_PULL_MODE will not be used at the same time as this optoin.
 static const bool OPENAVB_LOG_FROM_THREAD = TRUE;
 
-// When OPENAVB_LOG_PULL_MODE the messages will be queued and can be pulled using the 
+// When OPENAVB_LOG_PULL_MODE the messages will be queued and can be pulled using the
 // avbLogGetMsg() call. This could be from an logger interface module or host application.
 // It is expected that OPENAVB_LOG_FROM_THREAD will not be used at the same time as this option.
 static const bool OPENAVB_LOG_PULL_MODE = FALSE;
@@ -159,18 +160,23 @@ typedef enum {
 #define LOG_VARX(x, y) x ## y
 #define LOG_VAR(x, y) LOG_VARX(x, y)
 
-// Log a message once. Technically once every 4.2 billion attempts. Usage: LOG_ONCE AVB_LOG_INFO(...)
-#define IF_LOG_ONCE() static U32 LOG_VAR(logOnce,__LINE__); if (!LOG_VAR(logOnce,__LINE__)++)
+// Log a message once. Technically once every 4.2 billion attempts. Usage: IF_LOG_ONCE() AVB_LOG_INFO(...)
+#define IF_LOG_ONCE() static U32 LOG_VAR(logOnce,__LINE__) = 0; if (!LOG_VAR(logOnce,__LINE__)++)
 
-// Log a message at an interval. Usage: LOG_INTERVAL(100) AVB_LOG_INFO(...)
-#define IF_LOG_INTERVAL(x) static U32 LOG_VAR(logOnce,__LINE__); if (!(LOG_VAR(logOnce,__LINE__)++ % (x - 1)))
+// Log a message at an interval. Usage: IF_LOG_INTERVAL(100) AVB_LOG_INFO(...)
+#define IF_LOG_INTERVAL(x) static U32 LOG_VAR(logOnce,__LINE__) = 0; if (!(LOG_VAR(logOnce,__LINE__)++ % (x)))
 
 
 #define ETH_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x"
 #define ETH_OCTETS(a) (a)[0],(a)[1],(a)[2],(a)[3],(a)[4],(a)[5]
 
-#define STREAMID_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x/%d"
+#define STREAMID_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x/%u"
 #define STREAMID_ARGS(s)   (s)->addr[0],(s)->addr[1],(s)->addr[2],(s)->addr[3],(s)->addr[4],(s)->addr[5],(s)->uniqueID
+
+#define ENTITYID_FORMAT    "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
+#define ENTITYID_ARGS(a)   (a)[0],(a)[1],(a)[2],(a)[3],(a)[4],(a)[5],(a)[6],(a)[7]
+
+void avbLogInitEx(FILE *file);
 
 void avbLogInit(void);
 
@@ -188,12 +194,34 @@ void avbLogFn(
 
 void avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, char *pFormat, log_rt_datatype_t dataType, void *pVar);
 
+void avbLogBuffer(
+	int level,
+	const U8 *pData,
+	int dataLen,
+	int lineLen,
+	const char *company,
+	const char *component,
+	const char *path,
+	int line);
+
 
 #define avbLogFn2(level, tag, company, component, path, line, fmt, ...) \
-    ({\
+    {\
         if (level <= AVB_LOG_LEVEL) \
             avbLogFn(0, tag, company, component, path, line, fmt, __VA_ARGS__); \
-    })
+    }
+
+#define avbLogRT2(level, bBegin, bItem, bEnd, pFormat, dataType, pVar) \
+    {\
+        if (level <= AVB_LOG_LEVEL) \
+            avbLogRT(0, bBegin, bItem, bEnd, pFormat, dataType, pVar); \
+    }
+
+#define avbLogBuffer2(level, pData, dataLen, lineLen, company, component, path, line) \
+    {\
+        if (level <= AVB_LOG_LEVEL) \
+            avbLogBuffer(0, pData, dataLen, lineLen, company, component, path, line); \
+    }
 
 #ifdef AVB_LOG_ON
 #define AVB_LOGF_DEV(LEVEL, FMT, ...) avbLogFn2(LEVEL,                 "DEV",     AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
@@ -203,19 +231,20 @@ void avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, char *pFormat, log_
 #define AVB_LOGF_STATUS(FMT, ...)     avbLogFn2(AVB_LOG_LEVEL_STATUS,  "STATUS",  AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
 #define AVB_LOGF_DEBUG(FMT, ...)      avbLogFn2(AVB_LOG_LEVEL_DEBUG,   "DEBUG",   AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
 #define AVB_LOGF_VERBOSE(FMT, ...)    avbLogFn2(AVB_LOG_LEVEL_VERBOSE, "VERBOSE", AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
-#define AVB_LOG_DEV(LEVEL, FMT, ...)  avbLogFn2(LEVEL,                 "DEV",     AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, FMT, __VA_ARGS__)
+#define AVB_LOG_DEV(LEVEL, MSG)       avbLogFn2(LEVEL,                 "DEV",     AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
 #define AVB_LOG_ERROR(MSG)            avbLogFn2(AVB_LOG_LEVEL_ERROR,   "ERROR",   AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
 #define AVB_LOG_WARNING(MSG)          avbLogFn2(AVB_LOG_LEVEL_WARNING, "WARNING", AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
 #define AVB_LOG_INFO(MSG)             avbLogFn2(AVB_LOG_LEVEL_INFO,    "INFO",    AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
 #define AVB_LOG_STATUS(MSG)           avbLogFn2(AVB_LOG_LEVEL_STATUS,  "STATUS",  AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
 #define AVB_LOG_DEBUG(MSG)            avbLogFn2(AVB_LOG_LEVEL_DEBUG,   "DEBUG",   AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
 #define AVB_LOG_VERBOSE(MSG)          avbLogFn2(AVB_LOG_LEVEL_VERBOSE, "VERBOSE", AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__, "%s", MSG)
-#define AVB_LOGRT_ERROR(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT(AVB_LOG_LEVEL_ERROR, BEGIN, ITEM, END, FMT, TYPE, VAL)
-#define AVB_LOGRT_WARNING(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT(AVB_LOG_LEVEL_WARNING, BEGIN, ITEM, END, FMT, TYPE, VAL)
-#define AVB_LOGRT_INFO(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT(AVB_LOG_LEVEL_INFO, BEGIN, ITEM, END, FMT, TYPE, VAL)
-#define AVB_LOGRT_STATUS(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT(AVB_LOG_LEVEL_STATUS, BEGIN, ITEM, END, FMT, TYPE, VAL)
-#define AVB_LOGRT_DEBUG(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT(AVB_LOG_LEVEL_DEBUG, BEGIN, ITEM, END, FMT, TYPE, VAL)
-#define AVB_LOGRT_VERBOSE(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT(AVB_LOG_LEVEL_VERBOSE, BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOGRT_ERROR(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT2(AVB_LOG_LEVEL_ERROR, BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOGRT_WARNING(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT2(AVB_LOG_LEVEL_WARNING, BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOGRT_INFO(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT2(AVB_LOG_LEVEL_INFO, BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOGRT_STATUS(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT2(AVB_LOG_LEVEL_STATUS, BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOGRT_DEBUG(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT2(AVB_LOG_LEVEL_DEBUG, BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOGRT_VERBOSE(BEGIN, ITEM, END, FMT, TYPE, VAL)	avbLogRT2(AVB_LOG_LEVEL_VERBOSE, BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)   avbLogBuffer2(LEVEL, DATA, DATALEN, LINELINE, AVB_LOG_COMPANY, AVB_LOG_COMPONENT, __FILE__, __LINE__)
 #else
 #define AVB_LOGF_DEV(LEVEL, FMT, ...)
 #define AVB_LOGF_ERROR(FMT, ...)
@@ -237,9 +266,10 @@ void avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, char *pFormat, log_
 #define AVB_LOGRT_STATUS(BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define AVB_LOGRT_DEBUG(BEGIN, ITEM, END, FMT, TYPE, VAL)
 #define AVB_LOGRT_VERBOSE(BEGIN, ITEM, END, FMT, TYPE, VAL)
+#define AVB_LOG_BUFFER(LEVEL, DATA, DATALEN, LINELINE)
 #endif	// AVB_LOG_ON
 
-// Get a queued log message. Intended to be used with the OPENAVB_LOG_PULL_MODE option. 
+// Get a queued log message. Intended to be used with the OPENAVB_LOG_PULL_MODE option.
 // Message will not be null terminated.
 U32 avbLogGetMsg(U8 *pBuf, U32 bufSize);
 

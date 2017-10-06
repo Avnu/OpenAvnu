@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -42,11 +43,12 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_map_uncmp_audio_pub.h"
 #include "openavb_map_aaf_audio_pub.h"
 #include "openavb_intf_pub.h"
+#include "openavb_mcs.h"
 
 #define	AVB_LOG_COMPONENT	"ALSA Interface"
 #include "openavb_log_pub.h"
 
-// The asoundlib.h header needs to appear after openavb_trace_pub.h otherwise an incompatibtily version of time.h gets pulled in.
+// The asoundlib.h header needs to appear after openavb_trace_pub.h otherwise an incompatible version of time.h gets pulled in.
 #include <alsa/asoundlib.h>
 
 #define PCM_DEVICE_NAME_DEFAULT	"default"
@@ -95,6 +97,15 @@ typedef struct {
 
 	// ALSA read/write interval
 	U32 intervalCounter;
+
+	// Media clock synthesis for precise timestamps
+	mcs_t mcs;
+
+	// Estimate of media clock skew in Parts Per Billion (ns per second)
+	S32 clockSkewPPB;
+
+	// Use Media Clock Synth module instead of timestamps taken during Tx callback
+	bool fixedTimestampEnabled;
 } pvt_data_t;
 
 
@@ -217,7 +228,7 @@ static snd_pcm_format_t x_AVBAudioFormatToAlsaFormat(avb_audio_type_t type,
 
 
 // Each configuration name value pair for this mapping will result in this callback being called.
-void openavbIntfAlsaCfgCB(media_q_t *pMediaQ, const char *name, const char *value) 
+void openavbIntfAlsaCfgCB(media_q_t *pMediaQ, const char *name, const char *value)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 	if (pMediaQ) {
@@ -279,7 +290,7 @@ void openavbIntfAlsaCfgCB(media_q_t *pMediaQ, const char *name, const char *valu
 			// TODO: Should check for specific values
 			if (val >= AVB_AUDIO_BIT_DEPTH_1BIT && val <= AVB_AUDIO_BIT_DEPTH_64BIT) {
 				pPvtData->audioBitDepth = val;
-			} 
+			}
 			else {
 				AVB_LOG_ERROR("Invalid audio type configured for intf_nv_audio_bits.");
 				pPvtData->audioBitDepth = AVB_AUDIO_BIT_DEPTH_24BIT;
@@ -380,12 +391,16 @@ void openavbIntfAlsaCfgCB(media_q_t *pMediaQ, const char *name, const char *valu
 			pPvtData->periodTimeUsec = strtol(value, &pEnd, 10);
 		}
 
+		else if (strcmp(name, "intf_nv_clock_skew_ppb") == 0) {
+			pPvtData->clockSkewPPB = strtol(value, &pEnd, 10);
+		}
+
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
-void openavbIntfAlsaGenInitCB(media_q_t *pMediaQ) 
+void openavbIntfAlsaGenInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
@@ -393,7 +408,7 @@ void openavbIntfAlsaGenInitCB(media_q_t *pMediaQ)
 
 // A call to this callback indicates that this interface module will be
 // a talker. Any talker initialization can be done in this function.
-void openavbIntfAlsaTxInitCB(media_q_t *pMediaQ) 
+void openavbIntfAlsaTxInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -427,7 +442,7 @@ void openavbIntfAlsaTxInitCB(media_q_t *pMediaQ)
 			return;
 		}
 
-		// Initialize the hardware paramneters
+		// Initialize the hardware parameters
 		rslt = snd_pcm_hw_params_any(pPvtData->pcmHandle, hwParams);
 		if (rslt < 0) {
 			AVB_LOGF_ERROR("snd_pcm_hw_params_any() error: %s", snd_strerror(rslt));
@@ -466,7 +481,7 @@ void openavbIntfAlsaTxInitCB(media_q_t *pMediaQ)
 		// Set the sample format
 		int fmt = x_AVBAudioFormatToAlsaFormat(pPvtData->audioType,
 											   pPvtData->audioBitDepth,
-											   pPvtData->audioEndian, 
+											   pPvtData->audioEndian,
 											   pMediaQ->pMediaQDataFormat);
 		rslt = snd_pcm_hw_params_set_format(pPvtData->pcmHandle, hwParams, fmt);
 		if (rslt < 0) {
@@ -537,14 +552,23 @@ void openavbIntfAlsaTxInitCB(media_q_t *pMediaQ)
 		snd_output_t* out;
 		snd_output_stdio_attach(&out, stderr, 0);
 		snd_pcm_dump(pPvtData->pcmHandle, out);
-	}
+		snd_output_close(out);
 
+		// Start capture
+		snd_pcm_start(pPvtData->pcmHandle);
+		{
+			media_q_pub_map_uncmp_audio_info_t *pPubMapUncmpAudioInfo = pMediaQ->pPubMapInfo;
+
+			AVB_LOGF_INFO("Finished ALSA Setup: packingFactor %d", pPubMapUncmpAudioInfo->packingFactor);
+		}
+	}
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
-// This callback will be called for each AVB transmit interval. 
+// This callback will be called for each AVB transmit interval.
 bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 {
+	bool moreItems = TRUE;
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF_DETAIL);
 
 	S32 rslt;
@@ -555,72 +579,77 @@ bool openavbIntfAlsaTxCB(media_q_t *pMediaQ)
 		media_q_item_t *pMediaQItem = NULL;
 		if (!pPvtData) {
 			AVB_LOG_ERROR("Private interface module data not allocated.");
+			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 			return FALSE;
 		}
-		//put current wall time into tail item used by AAF mapping module
-		if ((pPubMapUncmpAudioInfo->sparseMode != TS_SPARSE_MODE_UNSPEC)) {
-			pMediaQItem = openavbMediaQTailLock(pMediaQ, TRUE);
-			if ((pMediaQItem) && (pPvtData->intervalCounter % pPubMapUncmpAudioInfo->sparseMode == 0)) {
-				openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
-			}
-			openavbMediaQTailUnlock(pMediaQ);
-			pMediaQItem = NULL;
+
+		if (pPvtData->intervalCounter++ % pPubMapUncmpAudioInfo->packingFactor != 0) {
+			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
+			return TRUE;
 		}
 
-		if (pPvtData->intervalCounter++ % pPubMapUncmpAudioInfo->packingFactor != 0)
-			return TRUE;
-
-		pMediaQItem = openavbMediaQHeadLock(pMediaQ);
-		if (pMediaQItem) {
-			if (pMediaQItem->itemSize < pPubMapUncmpAudioInfo->itemSize) {
-				AVB_LOG_ERROR("Media queue item not large enough for samples");
-			}
-
-			rslt = snd_pcm_readi(pPvtData->pcmHandle, pMediaQItem->pPubData + pMediaQItem->dataLen, pPubMapUncmpAudioInfo->framesPerItem - (pMediaQItem->dataLen / pPubMapUncmpAudioInfo->itemFrameSizeBytes));
-
-			if (rslt == -EPIPE) {
-				AVB_LOGF_ERROR("snd_pcm_readi() error: %s", snd_strerror(rslt));
-				rslt = snd_pcm_recover(pPvtData->pcmHandle, rslt, 0);
-				if (rslt < 0) {
-					AVB_LOGF_ERROR("snd_pcm_recover: %s", snd_strerror(rslt));
+		while (moreItems) {
+			pMediaQItem = openavbMediaQHeadLock(pMediaQ);
+			if (pMediaQItem) {
+				if (pMediaQItem->itemSize < pPubMapUncmpAudioInfo->itemSize) {
+					AVB_LOG_ERROR("Media queue item not large enough for samples");
+					AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
+					return FALSE;
 				}
-				openavbMediaQHeadUnlock(pMediaQ);
-				AVB_TRACE_EXIT(AVB_TRACE_INTF);
-				return FALSE;
-			}
-			if (rslt < 0) {
-				openavbMediaQHeadUnlock(pMediaQ);
-				AVB_TRACE_EXIT(AVB_TRACE_INTF);
-				return FALSE;
-			}
 
-			pMediaQItem->dataLen += rslt * pPubMapUncmpAudioInfo->itemFrameSizeBytes;
-			if (pMediaQItem->dataLen != pPubMapUncmpAudioInfo->itemSize) {
-				openavbMediaQHeadUnlock(pMediaQ);
-				AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-				return TRUE;
+				rslt = snd_pcm_readi(pPvtData->pcmHandle, pMediaQItem->pPubData + pMediaQItem->dataLen, pPubMapUncmpAudioInfo->framesPerItem - (pMediaQItem->dataLen / pPubMapUncmpAudioInfo->itemFrameSizeBytes));
+
+				if (rslt < 0) {
+					switch(rslt) {
+					case -EPIPE:
+						AVB_LOGF_ERROR("snd_pcm_readi() error: %s", snd_strerror(rslt));
+						rslt = snd_pcm_recover(pPvtData->pcmHandle, rslt, 0);
+						if (rslt < 0) {
+							AVB_LOGF_ERROR("snd_pcm_recover: %s", snd_strerror(rslt));
+						}
+						break;
+					case -EAGAIN:
+						{ IF_LOG_INTERVAL(1000) AVB_LOG_DEBUG("snd_pcm_readi() had no data available"); }
+						break;
+					default:
+						AVB_LOGF_ERROR("Unhandled snd_pcm_readi() error: %s", snd_strerror(rslt));
+						break;
+					}
+
+					if (rslt < 0) {
+						openavbMediaQHeadUnlock(pMediaQ);
+						break;
+					}
+				}
+
+				pMediaQItem->dataLen += rslt * pPubMapUncmpAudioInfo->itemFrameSizeBytes;
+				if (pMediaQItem->dataLen != pPubMapUncmpAudioInfo->itemSize) {
+					openavbMediaQHeadUnlock(pMediaQ);
+				}
+				else {
+					// Always get the timestamp.  Protocols such as AAF can choose to ignore them if not needed.
+					if (!pPvtData->fixedTimestampEnabled) {
+						openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
+					} else {
+						openavbMcsAdvance(&pPvtData->mcs);
+						openavbAvtpTimeSetToTimestampNS(pMediaQItem->pAvtpTime, pPvtData->mcs.edgeTime);
+					}
+					openavbMediaQHeadPush(pMediaQ);
+				}
 			}
 			else {
-				openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
-				openavbMediaQHeadPush(pMediaQ);
-
-				AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-				return TRUE;
+				moreItems = FALSE;
 			}
-		}
-		else {
-			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-			return FALSE;	// Media queue full
 		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
-	return FALSE;
+	return !moreItems;
 }
 
 // A call to this callback indicates that this interface module will be
 // a listener. Any listener initialization can be done in this function.
-void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ) 
+void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -656,7 +685,7 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			return;
 		}
 
-		// Initialize the hardware paramneters
+		// Initialize the hardware parameters
 		rslt = snd_pcm_hw_params_any(pPvtData->pcmHandle, hwParams);
 		if (rslt < 0) {
 			AVB_LOGF_ERROR("snd_pcm_hw_params_any() error: %s", snd_strerror(rslt));
@@ -695,7 +724,7 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 		// Set the sample format
 		int fmt = x_AVBAudioFormatToAlsaFormat(pPvtData->audioType,
 											   pPvtData->audioBitDepth,
-											   pPvtData->audioEndian, 
+											   pPvtData->audioEndian,
 											   pMediaQ->pMediaQDataFormat);
 		rslt = snd_pcm_hw_params_set_format(pPvtData->pcmHandle, hwParams, fmt);
 		if (rslt < 0) {
@@ -764,7 +793,7 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			buffer_time = (max / usec_round) * usec_round;
 		}
 
-		// Check for maximum perioid time and adjust ours down if necessary
+		// Check for maximum period time and adjust ours down if necessary
 		rslt = snd_pcm_hw_params_get_period_time_max(hwParams, &max, &dir);
 		if (rslt < 0) {
 			AVB_LOGF_ERROR("snd_pcm_hw_params_get_period_time_max() error: %s", snd_strerror(rslt));
@@ -849,6 +878,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_malloc error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -858,6 +889,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_current error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -867,6 +900,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_set_start_threshold error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -876,6 +911,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_set_avail_min error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -885,6 +922,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params_set_period_event error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -894,6 +933,8 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 			AVB_LOGF_ERROR("snd_pcm_sw_params error(): %s", snd_strerror(rslt));
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+			snd_pcm_sw_params_free(swParams);
+			swParams = NULL;
 			AVB_TRACE_EXIT(AVB_TRACE_INTF);
 			return;
 		}
@@ -917,13 +958,14 @@ void openavbIntfAlsaRxInitCB(media_q_t *pMediaQ)
 		snd_output_t* out;
 		snd_output_stdio_attach(&out, stderr, 0);
 		snd_pcm_dump(pPvtData->pcmHandle, out);
+		snd_output_close(out);
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
 // This callback is called when acting as a listener.
-bool openavbIntfAlsaRxCB(media_q_t *pMediaQ) 
+bool openavbIntfAlsaRxCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF_DETAIL);
 
@@ -932,6 +974,7 @@ bool openavbIntfAlsaRxCB(media_q_t *pMediaQ)
 		pvt_data_t *pPvtData = pMediaQ->pPvtIntfInfo;
 		if (!pPvtData) {
 			AVB_LOG_ERROR("Private interface module data not allocated.");
+			AVB_TRACE_EXIT(AVB_TRACE_INTF_DETAIL);
 			return FALSE;
 		}
 
@@ -975,9 +1018,9 @@ bool openavbIntfAlsaRxCB(media_q_t *pMediaQ)
 	return TRUE;
 }
 
-// This callback will be called when the interface needs to be closed. All shutdown should 
+// This callback will be called when the interface needs to be closed. All shutdown should
 // occur in this function.
-void openavbIntfAlsaEndCB(media_q_t *pMediaQ) 
+void openavbIntfAlsaEndCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
 
@@ -991,15 +1034,53 @@ void openavbIntfAlsaEndCB(media_q_t *pMediaQ)
 		if (pPvtData->pcmHandle) {
 			snd_pcm_close(pPvtData->pcmHandle);
 			pPvtData->pcmHandle = NULL;
+
+#if 0
+			// Optional call when using Valgrind to stop reports of memory leaks.
+			snd_config_update_free_global();
+#endif
 		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
-void openavbIntfAlsaGenEndCB(media_q_t *pMediaQ) 
+void openavbIntfAlsaGenEndCB(media_q_t *pMediaQ)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
+	AVB_TRACE_EXIT(AVB_TRACE_INTF);
+}
+
+void openavbIntfAlsaEnableFixedTimestamp(media_q_t *pMediaQ, bool enabled, U32 transmitInterval, U32 batchFactor)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
+	if (pMediaQ && pMediaQ->pPvtIntfInfo && pMediaQ->pPubMapInfo) {
+		media_q_pub_map_uncmp_audio_info_t *pPubMapUncmpAudioInfo = pMediaQ->pPubMapInfo;
+		pvt_data_t *pPvtData = (pvt_data_t *)pMediaQ->pPvtIntfInfo;
+
+		pPvtData->fixedTimestampEnabled = enabled;
+		if (pPvtData->fixedTimestampEnabled) {
+			U32 per, rate, rem;
+			S32 skewEst = pPvtData->clockSkewPPB;
+			/* Ignore passed in transmit interval and use framesPerItem and audioRate so
+			   we work with both AAF and 61883-6 */
+			/* Carefully scale values to avoid U32 overflow or loss of precision */
+			per = MICROSECONDS_PER_SECOND * pPubMapUncmpAudioInfo->framesPerItem * 10;
+			per += (skewEst/10);
+			rate = pPvtData->audioRate/100;
+			transmitInterval = per/rate;
+			rem = per % rate;
+			if (rem != 0) {
+				rem *= 10;
+				rem /= rate;
+			}
+			openavbMcsInit(&pPvtData->mcs, transmitInterval, rem, 10);
+			AVB_LOGF_INFO("Fixed timestamping enabled: %d %d/%d", transmitInterval, rem, 10);
+		}
+
+	}
+
+
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);
 }
 
@@ -1026,6 +1107,7 @@ extern DLL_EXPORT bool openavbIntfAlsaInitialize(media_q_t *pMediaQ, openavb_int
 		pIntfCB->intf_rx_cb = openavbIntfAlsaRxCB;
 		pIntfCB->intf_end_cb = openavbIntfAlsaEndCB;
 		pIntfCB->intf_gen_end_cb = openavbIntfAlsaGenEndCB;
+		pIntfCB->intf_enable_fixed_timestamp = openavbIntfAlsaEnableFixedTimestamp;
 
 		pPvtData->ignoreTimestamp = FALSE;
 		pPvtData->pDeviceName = strdup(PCM_DEVICE_NAME_DEFAULT);
@@ -1034,6 +1116,8 @@ extern DLL_EXPORT bool openavbIntfAlsaInitialize(media_q_t *pMediaQ, openavb_int
 		pPvtData->startThresholdPeriods = 2;	// Default to 2 periods of frames as the start threshold
 		pPvtData->periodTimeUsec = 100000;
 
+		pPvtData->fixedTimestampEnabled = FALSE;
+		pPvtData->clockSkewPPB = 0;
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_INTF);

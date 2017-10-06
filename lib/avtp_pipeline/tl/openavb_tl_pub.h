@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -73,25 +74,39 @@ typedef enum {
 
 
 /// Maximum size of interface name
-#define IFNAMSIZE 16
+#ifndef IFNAMSIZ
+#define IFNAMSIZ 16
+#endif
 
-/// Indicatates that VLAN ID is not set in configuration
-#define VLAN_NULL UINT16_MAX
+/// Maximum size of the friendly name
+#define FRIENDLY_NAME_SIZE 64
+
+/// Initial talker/listener state
+typedef enum {
+	/// Unspecified
+	TL_INIT_STATE_UNSPECIFIED,
+	/// Stopped
+	TL_INIT_STATE_STOPPED,
+	/// Running
+	TL_INIT_STATE_RUNNING,
+} tl_init_state_t;
 
 /// Structure containing configuration of the host
 typedef struct {
 	/// Role of the host
 	avb_role_t role;
+	/// Initial Talker/Listener state
+	tl_init_state_t initial_state;
 	/// Structure with callbacks to mapping
 	openavb_map_cb_t map_cb;
-	/// Structure with callbacks to inteface
+	/// Structure with callbacks to interface
 	openavb_intf_cb_t intf_cb;
 	/// MAC address of destination - multicast (talker only if SRP is enabled)
 	cfg_mac_t dest_addr;
 	/// MAC address of the source
 	cfg_mac_t stream_addr;
 	/// Stream UID (has to be unique)
-	S32 stream_uid;
+	U16 stream_uid;
 	/// Maximum number of packets sent during one interval (talker only)
 	U32 max_interval_frames;
 	/// Maximum size of the frame
@@ -111,35 +126,57 @@ typedef struct {
 	U32 batch_factor;
 	/// Statistics reporting frequency
 	U32 report_seconds;
+	/// Statistics reporting frequency in frames
+	U32 report_frames;
 	/// Start paused
 	bool start_paused;
-	/// Class in which host will operatea ::SRClassIdx_t (talker only)
+	/// Class in which host will operate ::SRClassIdx_t (talker only)
 	U8 sr_class;
 	/// Rank of the stream #SR_RANK_REGULAR or #SR_RANK_EMERGENCY (talker only)
 	U8 sr_rank;
 	/// Number of raw TX buffers that should be used (talker only)
 	U32 raw_tx_buffers;
-	/// Number of raw rx buffers (listener only)
+	/// Number of raw RX buffers (listener only)
 	U32 raw_rx_buffers;
 	/// Is the interface module blocking in the TX CB.
 	bool tx_blocking_in_intf;
 	/// Network interface name. Not used on all platforms.
-	char ifname[IFNAMSIZE];
+	char ifname[IFNAMSIZ + 10]; // Include space for the socket type prefix (e.g. "simple:eth0")
 	/// VLAN ID
 	U16 vlan_id;
 	/// When set incoming packets will trigger a signal to the stream task to wakeup.
 	bool rx_signal_mode;
 	/// Enable fixed timestamping in interface
 	U32 fixed_timestamp;
+	/// Wait for next observation interval by spinning rather than sleeping
+	bool spin_wait;
 	/// Bit mask used for CPU pinning
 	U32 thread_affinity;
 	/// Real time priority of thread.
 	U32 thread_rt_priority;
+	/// Friendly name for this configuration
+	char friendly_name[FRIENDLY_NAME_SIZE];
 
 	/// Initialization function in mapper
 	openavb_map_initialize_fn_t pMapInitFn;
 	/// Initialization function in interface
 	openavb_intf_initialize_fn_t pIntfInitFn;
+
+	/// TRUE if backup_stream_addr and backup_stream_uid are valid.
+	bool backup_stream_id_valid;
+	/// Saved original MAC address of the source
+	U8 backup_stream_addr[ETH_ALEN];
+	/// Stream UID (has to be unique)
+	U16 backup_stream_uid;
+	/// TRUE if backup_dest_addr_valid is valid.
+	bool backup_dest_addr_valid;
+	/// Saved original MAC address of destination - multicast (talker only if SRP is enabled)
+	U8 backup_dest_addr[ETH_ALEN];
+	/// TRUE if backup_vlan_id_valid is valid.
+	bool backup_vlan_id_valid;
+	/// Saved original VLAN ID
+	U16 backup_vlan_id;
+
 } openavb_tl_cfg_t;
 
 /// Structure holding configuration of mapping and interface modules
@@ -150,7 +187,7 @@ typedef struct openavb_tl_cfg_name_value_t {
 	char *libCfgValues[MAX_LIB_CFG_ITEMS];
 	/// Number of configuration parameters defined
 	U32 nLibCfgItems;
-} openavb_tl_cfg_name_value_t; 
+} openavb_tl_cfg_name_value_t;
 
 
 /** Initialize the talker listener library.
@@ -208,8 +245,8 @@ void openavbTLInitCfg(openavb_tl_cfg_t *pCfg);
  * structure and name value pairs
  *
  * \param handle Handle of talker/listener
- * \param pCfg Pointer to configuration structure 
- * \param pNVCfg Pointer to name value pair configuration 
+ * \param pCfg Pointer to configuration structure
+ * \param pNVCfg Pointer to name value pair configuration
  *  	  structure
  * \return TRUE on success or FALSE on failure
  */
@@ -320,6 +357,13 @@ bool openavbTLIsStreaming(tl_handle_t handle);
  */
 avb_role_t openavbTLGetRole(tl_handle_t handle);
 
+/** Return the specified initial state of the talker or listener.
+ *
+ * \param handle The handle return from openavbTLOpen()
+ * \return The initial state requested
+ */
+tl_init_state_t openavbTLGetInitialState(tl_handle_t handle);
+
 /** Allows pulling current stat counters for a running stream.
  *
  * The various stat counters for a stream can be retrieved with this function
@@ -330,15 +374,15 @@ avb_role_t openavbTLGetRole(tl_handle_t handle);
  */
 U64 openavbTLStat(tl_handle_t handle, tl_stat_t stat);
 
-/** Read an ini file. 
+/** Read an ini file.
  *
  * Parses an input configuration file tp populate configuration structures, and
  * name value pairs.  Only used in Operating Systems that have a file system
  *
  * \param TLhandle Pointer to handle of talker/listener
  * \param fileName Pointer to configuration file name
- * \param pCfg Pointer to configuration structure 
- * \param pNVCfg Pointer to name value pair configuration 
+ * \param pCfg Pointer to configuration structure
+ * \param pNVCfg Pointer to name value pair configuration
  *  	  structure
  * \return TRUE on success or FALSE on failure
  *

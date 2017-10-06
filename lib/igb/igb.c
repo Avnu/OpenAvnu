@@ -131,7 +131,7 @@ int igb_probe(device_t *dev)
 int igb_attach(char *dev_path, device_t *pdev)
 {
 	struct adapter *adapter;
-	struct igb_bind_cmd	bind;
+	struct igb_bind_cmd	bind = {0};
 	int error = 0;
 	bool locked = false;
 
@@ -666,7 +666,7 @@ int igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *dma)
 {
 	struct adapter *adapter;
 	int error = 0;
-	struct igb_buf_cmd ubuf;
+	struct igb_buf_cmd ubuf = {0};
 
 	if (dev == NULL)
 		return -EINVAL;
@@ -749,7 +749,7 @@ err:
  **********************************************************************/
 static int igb_allocate_queues(struct adapter *adapter)
 {
-	struct igb_buf_cmd ubuf;
+	struct igb_buf_cmd ubuf = {0};
 	int dev = adapter->ldev;
 	int i, error = 0;
 
@@ -901,7 +901,7 @@ static void igb_initialize_transmit_units(struct adapter *adapter)
 static void igb_free_transmit_structures(struct adapter *adapter)
 {
 	int i;
-	struct igb_buf_cmd ubuf;
+	struct igb_buf_cmd ubuf = {0};
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		if (adapter->tx_rings[i].tx_base)
@@ -2017,7 +2017,7 @@ int igb_set_class_bandwidth(device_t *dev, u_int32_t class_a, u_int32_t class_b,
 	u_int32_t linkrate;
 	struct adapter *adapter;
 	struct e1000_hw *hw;
-	struct igb_link_cmd link;
+	struct igb_link_cmd link = {0};
 	int err;
 	float class_a_percent, class_b_percent;
 	int error = 0;
@@ -2170,7 +2170,7 @@ int igb_set_class_bandwidth2(device_t *dev, u_int32_t class_a_bytes_per_second,
 	int temp;
 	struct adapter *adapter;
 	struct e1000_hw *hw;
-	struct igb_link_cmd link;
+	struct igb_link_cmd link = {0};
 	int err;
 	float class_a_percent, class_b_percent;
 	int error = 0;

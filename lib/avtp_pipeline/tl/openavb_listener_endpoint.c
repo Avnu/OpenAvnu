@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -41,6 +42,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_endpoint.h"
 #include "openavb_avtp.h"
 #include "openavb_listener.h"
+#include "openavb_avdecc_msg.h"
 
 // DEBUG Uncomment to turn on logging for just this module.
 //#define AVB_LOG_ON	1
@@ -73,6 +75,12 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 		return;
 	}
 
+	// If not a listener, ignore this callback.
+	if (pTLState->cfg.role != AVB_ROLE_LISTENER) {
+		AVB_LOG_DEBUG("Ignoring Listener callback");
+		return;
+	}
+
 	AVB_LOGF_DEBUG("%s streaming=%d, tlkrDecl=%d", __FUNCTION__, pTLState->bStreaming, tlkrDecl);
 
 	if (!pTLState->bStreaming
@@ -82,7 +90,11 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 		bool rc = openavbEptClntAttachStream(pTLState->endpointHandle, streamID, openavbSrp_LDSt_Ready);
 		if (rc) {
 			// Save data provided by endpoint/SRP
-			strncpy(pListenerData->ifname, ifname, IFNAMSIZ);
+			if (!pCfg->ifname[0]) {
+				strncpy(pListenerData->ifname, ifname, sizeof(pListenerData->ifname) - 1);
+			} else {
+				strncpy(pListenerData->ifname, pCfg->ifname, sizeof(pListenerData->ifname) - 1);
+			}
 			memcpy(&pListenerData->streamID, streamID, sizeof(AVBStreamID_t));
 			if (memcmp(destAddr, emptyMAC, ETH_ALEN) != 0) {
 				memcpy(&pListenerData->destAddr, destAddr, ETH_ALEN);
@@ -97,10 +109,8 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 				}
 				else {
 					memcpy(&pListenerData->destAddr, &pCfg->dest_addr.mac->ether_addr_octet, ETH_ALEN);
-					AVB_LOGF_INFO("  Listener configured dest_addr is %02x:%02x:%02x:%02x:%02x:%02x",
-						pListenerData->destAddr[0], pListenerData->destAddr[1],
-						pListenerData->destAddr[2], pListenerData->destAddr[3],
-						pListenerData->destAddr[4], pListenerData->destAddr[5]);
+					AVB_LOGF_INFO("  Listener configured dest_addr is " ETH_FORMAT,
+						ETH_OCTETS(pListenerData->destAddr));
 				}
 				if ((!pCfg->max_interval_frames) || (!pCfg->max_frame_size)) {
 					AVB_LOG_ERROR("  Configuration Error - both max_interval_frames and max_frame_size required in listener config file");
@@ -128,6 +138,11 @@ void openavbEptClntNotifyLstnrOfSrpCb(int endpointHandle,
 
 		// We're still interested in the stream
 		openavbEptClntAttachStream(pTLState->endpointHandle, streamID, openavbSrp_LDSt_Interest);
+
+		// Notify AVDECC that fast connect is desired.
+		if (pTLState->bAvdeccMsgRunning) {
+			openavbAvdeccMsgClntChangeNotification(pTLState->avdeccMsgHandle, OPENAVB_AVDECC_MSG_STOPPED_UNEXPECTEDLY);
+		}
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
