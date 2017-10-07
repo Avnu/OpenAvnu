@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -33,7 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *
 * Implementation of IEEE 802.1Q
 * Multiple Stream Reservation Protocol
-* (limited intial implementation for end stations)
+* (limited initial implementation for end stations)
 * 
 * This file declares the "Public" API.
 * 
@@ -48,7 +49,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_types.h"
 
 // TBD - If queue manager can fail to configure a queue for a granted reservation, SRP
-//       needs to know about the failure in order to correct reseved bandwidth totals.
+//       needs to know about the failure in order to correct reserved bandwidth totals.
 //       (we are probably toast if queue manager fails when removing a stream)
 
 // TBD - This implementation handles bandwidth in kilobits per second
@@ -82,7 +83,7 @@ enum openavbSrpFailureCode {
 	openavbSrp_FC_NoClassBandwidth  =  3, // Insufficient bandwidth for Traffic Class,
 	// 4: StreamID in use by another Talker,
 	// 5: Stream destination address already in use,
-	// 6: Stream pre-empted by higher rank,
+	// 6: Stream preempted by higher rank,
 	// 7: Reported latency has changed,
 	openavbSrp_FC_NotCapable  =  8, // Egress port is not AVBCapable,
 	// 9: Use a different destination_address,

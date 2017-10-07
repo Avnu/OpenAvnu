@@ -261,8 +261,10 @@ int main(int argc, char *argv[])
 		if (-1 == rc) goto out;
 
 		/* yield replies */
-		rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
-		if (-1 == rc) goto out;
+		do {
+			rc = mrpdclient_recv(mrpd_sock, process_ctl_msg);
+			if (-1 == rc) goto out;
+		} while (rc >=0);
 
 		sleep(1);
 	} while (1);

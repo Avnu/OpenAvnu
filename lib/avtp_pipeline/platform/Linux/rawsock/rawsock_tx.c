@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -34,6 +35,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include <string.h>
 #include <glib.h>
 #include "./openavb_rawsock.h"
+#include "openavb_log.h"
 
 //Common usage: ./rawsock_tx -i eth0 -t 8944 -r 8000 -s 1 -c 1 -m 1 -l 100
 
@@ -150,6 +152,8 @@ int main(int argc, char* argv[])
 	U32 buflen, hdrlen, datalen;
 	hdr_info_t hdr;
 
+	avbLogInit();
+
 	memset(&hdr, 0, sizeof(hdr_info_t));
 	openavbRawsockTxSetHdr(rs, &hdr);
 
@@ -165,6 +169,7 @@ int main(int argc, char* argv[])
 	nextReportInterval = TIMESPEC_TO_NSEC(now) + (NANOSECONDS_PER_SECOND * reportSec);
 
 	while (1) {
+		int remainder = 0;
 		pBuf = (U8*)openavbRawsockGetTxFrame(rs, TRUE, &buflen);
 		if (!pBuf) {
 			printf("failed to get TX frame buffer\n");
@@ -204,8 +209,9 @@ int main(int argc, char* argv[])
 		U64 nowNSec = TIMESPEC_TO_NSEC(now);;
 
 		if (nowNSec > nextReportInterval) {
-			printf("TX Packets: %d\n", packetCnt);
-			packetCnt = 0;
+			printf("TX Packets: %d\n", packetCnt-remainder);
+			packetCnt %= chunkSize;
+			remainder = packetCnt;
 			nextReportInterval = nowNSec + (NANOSECONDS_PER_SECOND * reportSec);
 		}
 
@@ -215,5 +221,6 @@ int main(int argc, char* argv[])
 	}
 
 	openavbRawsockClose(rs);
+	avbLogExit();
 	return 0;
 }

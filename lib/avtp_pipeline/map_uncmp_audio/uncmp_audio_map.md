@@ -41,8 +41,6 @@ audioType          |How the data is organized - what is the data type of       \
                     samples @ref avb_audio_type_t
 audioBitDepth      |What is the bit depth of audio @ref avb_audio_bit_depth_t
 audioChannels      |How many channels there are @ref avb_audio_channels_t
-sparseMode         |Timestamping mode @ref avb_audio_sparse_mode_t \
-                    (not used in this mapping module)
 
 Below you can find description of how to set up those variables in interfaces
 * [wav file interface](@ref wav_file_intf)

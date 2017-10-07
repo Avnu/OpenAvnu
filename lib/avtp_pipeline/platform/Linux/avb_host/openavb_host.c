@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -48,7 +49,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 bool bRunning = TRUE;
 
-// Platform indendent mapping modules
+// Platform independent mapping modules
 extern bool openavbMapPipeInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
 extern bool openavbMapAVTPAudioInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
 extern bool openavbMapCtrlInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
@@ -58,7 +59,7 @@ extern bool openavbMapMpeg2tsInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pM
 extern bool openavbMapNullInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
 extern bool openavbMapUncmpAudioInitialize(media_q_t *pMediaQ, openavb_map_cb_t *pMapCB, U32 inMaxTransitUsec);
 
-// Platform indendent interface modules
+// Platform independent interface modules
 extern bool openavbIntfEchoInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfCtrlInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
 extern bool openavbIntfLoggerInitialize(media_q_t *pMediaQ, openavb_intf_cb_t *pIntfCB);
@@ -84,9 +85,15 @@ static void openavbTLSigHandler(int signal)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_HOST);
 
-	if (signal == SIGINT) {
-		AVB_LOG_INFO("Host shutting down");
-		bRunning = FALSE;
+	if (signal == SIGINT || signal == SIGTERM) {
+		if (bRunning) {
+			AVB_LOG_INFO("Host shutting down");
+			bRunning = FALSE;
+		}
+		else {
+			// Force shutdown
+			exit(2);
+		}
 	}
 	else if (signal == SIGUSR1) {
 		AVB_LOG_DEBUG("Waking up streaming thread");
@@ -104,6 +111,7 @@ void openavbTlHostUsage(char *programName)
 		"\n"
 		"Usage: %s [options] file...\n"
 		"  -I val     Use given (val) interface globally, can be overriden by giving the ifname= option to the config line.\n"
+		"  -l val     Filename of the log file to use.  If not specified, results will be logged to stderr.\n"
 		"\n"
 		"Examples:\n"
 		"  %s talker.ini\n"
@@ -128,6 +136,7 @@ int main(int argc, char *argv[])
 	int iniIdx = 0;
 	char *programName;
 	char *optIfnameGlobal = NULL;
+	char *optLogFileName = NULL;
 
 	programName = strrchr(argv[0], '/');
 	programName = programName ? programName + 1 : argv[0];
@@ -143,11 +152,14 @@ int main(int argc, char *argv[])
 	// Process command line
 	bool optDone = FALSE;
 	while (!optDone) {
-		int opt = getopt(argc, argv, "hI:");
+		int opt = getopt(argc, argv, "hI:l:");
 		if (opt != EOF) {
 			switch (opt) {
 				case 'I':
 					optIfnameGlobal = strdup(optarg);
+					break;
+				case 'l':
+					optLogFileName = strdup(optarg);
 					break;
 				case 'h':
 				default:
@@ -160,7 +172,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	osalAVBInitialize(optIfnameGlobal);
+	osalAVBInitialize(optLogFileName, optIfnameGlobal);
 
 	iniIdx = optind;
 	U32 tlCount = argc - iniIdx;
@@ -185,6 +197,13 @@ int main(int argc, char *argv[])
 		osalAVBFinalize();
 		exit(-1);
 	}
+	err = sigaction(SIGTERM, &sa, NULL);
+	if (err)
+	{
+		AVB_LOG_ERROR("Failed to setup SIGTERM handler");
+		osalAVBFinalize();
+		exit(-1);
+	}
 	err = sigaction(SIGUSR1, &sa, NULL);
 	if (err)
 	{
@@ -192,6 +211,9 @@ int main(int argc, char *argv[])
 		osalAVBFinalize();
 		exit(-1);
 	}
+
+	// Ignore SIGPIPE signals.
+	signal(SIGPIPE, SIG_IGN);
 
 	registerStaticMapModule(openavbMapPipeInitialize);
 	registerStaticMapModule(openavbMapAVTPAudioInitialize);
@@ -262,12 +284,15 @@ int main(int argc, char *argv[])
 	gst_init(0, NULL);
 #endif
 
+	// Run any streams where the stop initial state was not requested.
 	for (i1 = 0; i1 < tlCount; i1++) {
-		openavbTLRun(tlHandleList[i1]);
+		if (openavbTLGetInitialState(tlHandleList[i1]) != TL_INIT_STATE_STOPPED) {
+			openavbTLRun(tlHandleList[i1]);
+		}
 	}
 
 	while (bRunning) {
-		sleep(1);
+		SLEEP_MSEC(1);
 	}
 
 	for (i1 = 0; i1 < tlCount; i1++) {
@@ -279,6 +304,11 @@ int main(int argc, char *argv[])
 	}
 
 	openavbTLCleanup();
+
+	if (optLogFileName) {
+		free(optLogFileName);
+		optLogFileName = NULL;
+	}
 
 #ifdef AVB_FEATURE_GSTREAMER
 	// If we're supporting the interface modules which use GStreamer,

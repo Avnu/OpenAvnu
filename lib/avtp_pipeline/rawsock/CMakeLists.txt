@@ -16,6 +16,7 @@ SET (SRC_FILES ${SRC_FILES}
 	${AVB_OSAL_DIR}/rawsock/openavb_rawsock.c
 	${AVB_OSAL_DIR}/rawsock/simple_rawsock.c
 	${AVB_OSAL_DIR}/rawsock/ring_rawsock.c
+	${AVB_OSAL_DIR}/rawsock/sendmmsg_rawsock.c
 	${PCAP_FILES}
 	${IGB_FILES}
 	PARENT_SCOPE

@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -33,7 +34,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *
 * Implementation of IEEE 802.1Q
 * Multiple Stream Reservation Protocol
-* (limited intial implementation for end stations)
+* (limited initial implementation for end stations)
 * 
 * This file declares the "Private" portion - see also openavb_srp_api.h
 */
@@ -132,8 +133,8 @@ typedef struct SrClassParameters {
 } SrClassParameters_t;
 
 // Applicant State - IEEE 802.1Q Table 10-3
-// State here are simplified becasue:
-// - we are suppporting point-to-point only and
+// State here are simplified because:
+// - we are supporting point-to-point only and
 // - initial declaration sends are immediate so there is no need for VP and VN
 typedef enum openavbSrpAppState {
 	openavbSrp_ApSt_VO = 0x00, // no declarations - note that we initialize to 0
@@ -154,7 +155,7 @@ typedef enum openavbSrpRegState {
 
 // Element for linked list of declared / registered streams.
 // Since both a talker and a listener can exist for the same stream on the same
-// end-station, seperate talker and listener lists are kept.
+// end-station, separate talker and listener lists are kept.
 // IMPORTANT NOTE: This implementation assumes that on a given end-station, no
 // more than one talker and no more than one listener exist for each stream; if
 // this is not the case, individual stream list elements could be corrupted
@@ -170,7 +171,7 @@ typedef enum openavbSrpRegState {
 //   - avtpHandle, streamId, DA, tSpec, SRClassId, Rank, and Latency
 //     are as received from AVTP via openavbSrpRegisterStream();
 //   - failInfo is populated only if this station has insufficient outbound
-//     bandwidth for this stream, so must send Talker Failed delcaration;
+//     bandwidth for this stream, so must send Talker Failed declaration;
 //   - kbpsReserved is the bandwidth currently reserved for the stream.
 //
 // On Listener: 
@@ -184,9 +185,9 @@ typedef enum openavbSrpRegState {
 //     received for the stream, if anything; (openavbSrp_AtTyp_None indicates that
 //     the listener currently has no talker declaration for the stream);
 //   - regSubType is not used;
-//   - avtpHandle is as recieved from AVTP via openavbSrpAttachStream();
-//   - strmId is either as recieved from AVTP via openavbSrpAttachStream() or
-//     as recieved via a talker declaration packet (MSRPDU), whichever occurs first;
+//   - avtpHandle is as received from AVTP via openavbSrpAttachStream();
+//   - strmId is either as received from AVTP via openavbSrpAttachStream() or
+//     as received via a talker declaration packet (MSRPDU), whichever occurs first;
 //   - SRClassIdx is derived from priority received in talker declaration packet;
 //   - DA, tSpec, latency, and, if applicable, failInfo are
 //     as received in talker declaration packet
@@ -202,8 +203,8 @@ typedef struct openavbSrpStrm {
 	                                     // (declType == openavbSrp_AtTyp_None is redundant to appState == openavbSrp_ApSt_VO).
 	openavbSrpLsnrDeclSubtype_t declSubType; // listener subtype this station is declaring for this stream, if any;
 	                                     // not used on talker; valid only if declType == openavbSrp_AtTyp_Listener.
-	openavbSrpAttribType_t      regType;     // attribute type   this station has recieved (registered) for this stream, if any;
-	openavbSrpLsnrDeclSubtype_t regSubType;  // listener subtype this station has recieved (registered) for this stream, if any;
+	openavbSrpAttribType_t      regType;     // attribute type   this station has received (registered) for this stream, if any;
+	openavbSrpLsnrDeclSubtype_t regSubType;  // listener subtype this station has received (registered) for this stream, if any;
 	                                     // not used on listener; valid only if regType == openavbSrp_AtTyp_Listener.
 	U8                      DA[ETH_MAC_ADDR_LEN];
 	AVBTSpec_t              tSpec;

@@ -230,16 +230,16 @@ typedef struct {
 	bool linkUp;
 
 	/* gPTP 10.2.4.4 */
-	char initialLogSyncInterval;
+	signed char initialLogSyncInterval;
 
 	/* gPTP 11.5.2.2 */
-	char initialLogPdelayReqInterval;
+	signed char initialLogPdelayReqInterval;
 
 	/* CDS 6.2.1.5 */
-	char operLogPdelayReqInterval;
+	signed char operLogPdelayReqInterval;
 
 	/* CDS 6.2.1.6 */
-	char operLogSyncInterval;
+	signed char operLogSyncInterval;
 
 	/* condition_factory OSConditionFactory instance */
 	OSConditionFactory * condition_factory;
@@ -314,9 +314,9 @@ private:
 	PortState port_state;
 	bool testMode;
 
-	char log_mean_sync_interval;
-	char log_mean_announce_interval;
-	char initialLogSyncInterval;
+	signed char log_mean_sync_interval;
+	signed char log_mean_announce_interval;
+	signed char initialLogSyncInterval;
 
 	/*Sync threshold*/
 	unsigned int sync_receipt_thresh;
@@ -1219,7 +1219,7 @@ public:
 	 * @brief  Gets the sync interval value
 	 * @return Sync Interval
 	 */
-	char getSyncInterval( void )
+	signed char getSyncInterval( void )
 	{
 		return log_mean_sync_interval;
 	}
@@ -1229,7 +1229,7 @@ public:
 	 * @param  val time interval
 	 * @return none
 	 */
-	void setSyncInterval( char val )
+	void setSyncInterval( signed char val )
 	{
 		log_mean_sync_interval = val;
 	}
@@ -1247,7 +1247,7 @@ public:
 	 * @brief  Sets the sync interval
 	 * @return none
 	 */
-	void setInitSyncInterval( char interval )
+	void setInitSyncInterval( signed char interval )
 	{
 		initialLogSyncInterval = interval;
 	}
@@ -1256,7 +1256,7 @@ public:
 	 * @brief  Gets the sync interval
 	 * @return sync interval
 	 */
-	char getInitSyncInterval( void )
+	signed char getInitSyncInterval( void )
 	{
 		return initialLogSyncInterval;
 	}
@@ -1265,7 +1265,7 @@ public:
 	 * @brief  Gets the announce interval
 	 * @return Announce interval
 	 */
-	char getAnnounceInterval( void ) {
+	signed char getAnnounceInterval( void ) {
 		return log_mean_announce_interval;
 	}
 
@@ -1274,7 +1274,7 @@ public:
 	 * @param  val time interval
 	 * @return none
 	 */
-	void setAnnounceInterval(char val) {
+	void setAnnounceInterval(signed char val) {
 		log_mean_announce_interval = val;
 	}
 	/**

@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -55,10 +56,14 @@ typedef struct {
 } talker_stats_t;
 
 THREAD_TYPE(TLThread);
+THREAD_TYPE(avdeccMsgThread);
 
 typedef struct {
 	// Running flag. (assumed atomic)
 	bool bRunning;
+
+	// Paused while Running flag. (assumed atomic)
+	bool bPaused;
 
 	// Connected to endpoint flag. (assumed atomic)
 	bool bConnected;
@@ -86,6 +91,15 @@ typedef struct {
 
 	// Thread for talker or listener
 	THREAD_DEFINITON(TLThread);
+
+	// AVDECC Msg Running flag. (assumed atomic)
+	bool bAvdeccMsgRunning;
+
+	// Thread for AVDECC Msg support
+	THREAD_DEFINITON(avdeccMsgThread);
+
+	// Handle to the AVDECC Msg support.  (Value set by avdeccMsgThread)
+	int avdeccMsgHandle;
 
 	// Per stream Stats Mutex
 	MUTEX_HANDLE(statsMutex);
@@ -120,7 +134,7 @@ unsigned long timespec_usec_diff(struct timespec *t1, struct timespec *t2);
 int timespec_cmp(struct timespec *a, struct timespec *b);
 
 ////////////////
-// TL Handle List functions. The TL handle list is created in the implemntation of openavbTLInitialize.
+// TL Handle List functions. The TL handle list is created in the implementation of openavbTLInitialize.
 ////////////////
 // Get a tl_handle_t from the TLHandleList given an endpointHandle.
 extern U32 gMaxTL;
@@ -132,21 +146,6 @@ void openavbTLUnconfigure(tl_state_t *pTLState);
 
 // Remove a tl_handle_t from the TL handle list.
 bool TLHandleRemove(tl_handle_t handle);
-
-
-////////////////
-// AVDECC Integration functions.
-////////////////
-// Run a single talker or listener. At this point data can be sent or recieved. Used in place of the public openavbTLRun
-bool openavbTLAVDECCRunListener(tl_handle_t handle, U16 configIdx, U16 descriptorType, U16 descriptorIdx, void *pVoidListenerStreamInfo);
-bool openavbTLAVDECCRunTalker(tl_handle_t handle, U16 configIdx, U16 descriptorType, U16 descriptorIdx, void *pVoidTalkerStreamInfo);
-
-// Stop a single talker or listener. At this point data will not be sent or recieved. Used in place of the public openavbTLStop.
-bool openavbTLAVDECCStopListener(tl_handle_t handle, U16 configIdx, void *pVoidListenerStreamInfo);
-bool openavbTLAVDECCStopTalker(tl_handle_t handle, U16 configIdx, void *pVoidTalkerStreamInfo);
-
-// Get talker stream details. Structure members in TalkerStrreamInfo will be filled.
-bool openavbTLAVDECCGetTalkerStreamInfo(tl_handle_t handle, U16 configIdx, void *pVoidTalkerStreamInfo);
 
 
 ////////////////

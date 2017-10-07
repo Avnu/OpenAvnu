@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -85,7 +86,7 @@ enum openavbCommonResultCodes {
 	OPENAVB_RC_FAILED_TO_OPEN				= 0x1004, // Failed to open
 };                                  		
 
-enum openavbPtpResultCodes {            		
+enum openavbPtpResultCodes {
 	OPENAVBPTP_RC_GENERIC						= 0x0000,
 	OPENAVBPTP_RC_SHARED_MEMORY_OPEN  			= 0x0001, // Failed to open shared memory file
 	OPENAVBPTP_RC_SHARED_MEMORY_TRANC 			= 0x0002, // Failed to truncate shared memory file
@@ -115,7 +116,7 @@ enum openavbPtpResultCodes {
 	OPENAVBPTP_RC_TX_TIMESTAMP_FAIL				= 0x0026, // Failed to get egress timestamp
 };                                  		
 
-enum openavbSrpResultCodes {            		
+enum openavbSrpResultCodes {
 	OPENAVBSRP_RC_GENERIC						= 0x0000,
 	OPENAVBSRP_RC_ALREADY_INIT   				= 0x0001, // Already initialized
 	OPENAVBSRP_RC_SOCK_OPEN  					= 0x0002, // Failed to open socket
@@ -140,7 +141,7 @@ enum openavbSrpResultCodes {
 // limited to two bytes; max 0xffff 		
 };                                  		
 
-enum openavbAVTPResultCodes {           		
+enum openavbAVTPResultCodes {
 	OPENAVBAVTP_RC_GENERIC						= 0x0000,
 	OPENAVBAVTP_RC_TX_PACKET_NOT_READY			= 0x0001, // Transmit packet not ready
 	OPENAVBAVTP_RC_MAPPING_CB_NOT_SET			= 0x0002, // Mapping callback structure not set
@@ -152,7 +153,7 @@ enum openavbAVTPResultCodes {
 	OPENAVBAVTP_RC_PARSING_FRAME_HEADER			= 0x0008, // Parsing frame header
 };                                  		
 
-enum openavbAVTPTimeResultCodes {       		
+enum openavbAVTPTimeResultCodes {
 	OPENAVBAVTPTIME_RC_GENERIC					= 0x0000,
 	OPENAVBAVTPTIME_RC_PTP_TIME_DESCRIPTOR		= 0x0001, // PTP file descriptor not available
 	OPENAVBAVTPTIME_RC_OPEN_SRC_PTP_NOT_AVAIL	= 0x0002, // Open source PTP configured but not available in this build
@@ -161,14 +162,15 @@ enum openavbAVTPTimeResultCodes {
 	OPENAVBAVTPTIME_RC_INVALID_PTP_TIME			= 0x0005, // Invalid avtp_time_t
 };                                  		
 
-enum openavbAVDECCResultCodes {           		
+enum openavbAvdeccResultCodes {
 	OPENAVBAVDECC_RC_GENERIC					= 0x0000,
 	OPENAVBAVDECC_RC_BUFFER_TOO_SMALL			= 0x0001, // Buffer size is too small
 	OPENAVBAVDECC_RC_ENTITY_MODEL_MISSING		= 0x0002, // The Entity Model has not been created
 	OPENAVBAVDECC_RC_INVALID_CONFIG_IDX			= 0x0003, // Referenced an invalid configuration descriptor index
 	OPENAVBAVDECC_RC_PARSING_MAC_ADDRESS		= 0x0004, // Parsing Mac Address
 	OPENAVBAVDECC_RC_UNKNOWN_DESCRIPTOR			= 0x0005, // Unknown descriptor
-};                                  		
+	OPENAVBAVDECC_RC_STALE_DATA					= 0x0006, // Stale data
+};
 
 
 #define OPENAVB_PTP_SUCCESS			(OPENAVB_SUCCESS | OPENAVB_MODULE_GPTP)

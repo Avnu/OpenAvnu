@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -48,6 +49,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_rawsock.h"
 #include "openavb_mediaq.h"
 #include "openavb_tl.h"
+#include "openavb_avtp.h"
 
 #define	AVB_LOG_COMPONENT	"Talker / Listener"
 #include "openavb_log.h"
@@ -61,7 +63,7 @@ typedef struct {
 	openavb_tl_cfg_name_value_t *pNVCfg;
 } parse_ini_data_t;
 
-bool parse_mac(const char *str, cfg_mac_t *mac)
+static bool parse_mac(const char *str, cfg_mac_t *mac)
 {
 	memset(&mac->buffer, 0, sizeof(struct ether_addr));
 
@@ -170,6 +172,16 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 		}
 		else if (MATCH(value, "listener")) {
 			pCfg->role = AVB_ROLE_LISTENER;
+			valOK = TRUE;
+		}
+	}
+	else if (MATCH(name, "initial_state")) {
+		if (MATCH(value, "running")) {
+			pCfg->initial_state = TL_INIT_STATE_RUNNING;
+			valOK = TRUE;
+		}
+		else if (MATCH(value, "stopped")) {
+			pCfg->initial_state = TL_INIT_STATE_STOPPED;
 			valOK = TRUE;
 		}
 	}
@@ -283,6 +295,14 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 			&& pCfg->report_seconds <= INT32_MAX)
 			valOK = TRUE;
 	}
+	else if (MATCH(name, "report_frames")) {
+		errno = 0;
+		pCfg->report_frames = strtol(value, &pEnd, 10);
+		if (*pEnd == '\0' && errno == 0
+			&& (int)pCfg->report_frames >= 0
+			&& pCfg->report_frames <= INT32_MAX)
+			valOK = TRUE;
+	}
 	else if (MATCH(name, "start_paused")) {
 		// ignore this item - tl_host doesn't use it because
 		// it pauses before reading any of its streams.
@@ -297,7 +317,7 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 		}
 	}
 	else if (MATCH(name, "ifname")) {
-		strncpy(pCfg->ifname, value, IFNAMSIZ - 1);
+		strncpy(pCfg->ifname, value, sizeof(pCfg->ifname) - 1);
 		valOK = TRUE;
 	}
 	else if (MATCH(name, "vlan_id")) {
@@ -318,6 +338,15 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 		tmp = strtol(value, &pEnd, 0);
 		if (*pEnd == '\0' && errno == 0) {
 			pCfg->fixed_timestamp = tmp;
+			valOK = TRUE;
+		}
+	}
+	else if (MATCH(name, "spin_wait")) {
+		errno = 0;
+		long tmp;
+		tmp = strtol(value, &pEnd, 0);
+		if (*pEnd == '\0' && errno == 0) {
+			pCfg->spin_wait = (tmp == 1);
 			valOK = TRUE;
 		}
 	}
@@ -347,6 +376,11 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 			pCfg->thread_affinity = tmp;
 			valOK = TRUE;
 		}
+	}
+
+	else if (MATCH(name, "friendly_name")) {
+		strncpy(pCfg->friendly_name, value, FRIENDLY_NAME_SIZE - 1);
+		valOK = TRUE;
 	}
 
 	else if (MATCH(name, "map_lib")) {
@@ -405,12 +439,14 @@ static int openavbTLCfgCallback(void *user, const char *tlSection, const char *n
 	else {
 		// unmatched item, fail
 		AVB_LOGF_ERROR("Unrecognized configuration item: name=%s", name);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return 0;
 	}
 
 	if (!valOK) {
 		// bad value
 		AVB_LOGF_ERROR("Invalid value: name=%s, value=%s", name, value);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return 0;
 	}
 
@@ -425,9 +461,6 @@ bool openavbTLThreadFnOsal(tl_state_t *pTLState)
 }
 
 
-
-
-
 EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char *fileName, openavb_tl_cfg_t *pCfg, openavb_tl_cfg_name_value_t *pNVCfg)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
@@ -437,21 +470,60 @@ EXTERN_DLL_EXPORT bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char
 	parseIniData.pCfg = pCfg;
 	parseIniData.pNVCfg = pNVCfg;
 
+	// Use the .INI file name as the default friendly name.
+	strncpy(parseIniData.pCfg->friendly_name, fileName, FRIENDLY_NAME_SIZE - 1);
+	char * pszComma = strchr(parseIniData.pCfg->friendly_name, ',');
+	if (pszComma) {
+		// Get rid of anything following the file name.
+		*pszComma = '\0';
+	}
+	char * pszExtension = strrchr(parseIniData.pCfg->friendly_name, '.');
+	if (pszExtension && strcasecmp(pszExtension, ".ini") == 0) {
+		// Get rid of the .INI file extension.
+		*pszExtension = '\0';
+	}
+
 	int result = ini_parse(fileName, openavbTLCfgCallback, &parseIniData);
 	if (result == 0) {
 		if_info_t ifinfo;
-		if (!openavbCheckInterface(parseIniData.pCfg->ifname, &ifinfo)) {
+		if (pCfg->ifname[0] && !openavbCheckInterface(parseIniData.pCfg->ifname, &ifinfo)) {
 			AVB_LOGF_ERROR("Invalid value: name=%s, value=%s", "ifname", parseIniData.pCfg->ifname);
+			AVB_TRACE_EXIT(AVB_TRACE_TL);
 			return FALSE;
 		}
 	}
 	if (result < 0) {
 		AVB_LOGF_ERROR("Couldn't parse INI file: %s", fileName);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return FALSE;
 	}
 	if (result > 0) {
 		AVB_LOGF_ERROR("Error in INI file: %s, line %d", fileName, result);
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
 		return FALSE;
+	}
+
+	// For a Talker, use the adapter MAC Address as the stream address when one was not supplied.
+	if (parseIniData.pCfg->role == AVB_ROLE_TALKER &&
+	    (!parseIniData.pCfg->stream_addr.mac || memcmp(parseIniData.pCfg->stream_addr.mac, "\x00\x00\x00\x00\x00\x00", 6) == 0))
+	{
+		// Open a rawsock may be the easiest cross platform way to get the MAC address.
+		void *txSock = openavbRawsockOpen(parseIniData.pCfg->ifname, FALSE, TRUE, ETHERTYPE_AVTP, 100, 1);
+		if (txSock) {
+			if (openavbRawsockGetAddr(txSock, parseIniData.pCfg->stream_addr.buffer.ether_addr_octet)) {
+				parseIniData.pCfg->stream_addr.mac = &(parseIniData.pCfg->stream_addr.buffer); // Indicate that the MAC Address is valid.
+			}
+			openavbRawsockClose(txSock);
+			txSock = NULL;
+		}
+
+		if (!parseIniData.pCfg->stream_addr.mac || memcmp(parseIniData.pCfg->stream_addr.mac, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+			AVB_LOG_ERROR("stream_addr required, but not specified.");
+			AVB_TRACE_EXIT(AVB_TRACE_TL);
+			return FALSE;
+		}
+		AVB_LOGF_DEBUG("Detected stream_addr:  " ETH_FORMAT,
+			ETH_OCTETS(parseIniData.pCfg->stream_addr.buffer.ether_addr_octet));
 	}
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
@@ -465,12 +537,14 @@ bool openavbTLOpenLinkLibsOsal(tl_state_t *pTLState)
 
 	if (!pTLState->cfg.pMapInitFn) {
 		if (!openMapLib(pTLState)) {
+			AVB_TRACE_EXIT(AVB_TRACE_TL);
 			return FALSE;
 		}
 	}
 
 	if (!pTLState->cfg.pIntfInitFn) {
 		if (!openIntfLib(pTLState)) {
+			AVB_TRACE_EXIT(AVB_TRACE_TL);
 			return FALSE;
 		}
 	}

@@ -4,7 +4,7 @@ EAVB SDK Overview {#sdk_overview}
 
 Introduction {#sdk_overview_introduction}
 ============
-Symphony Teleca Corporation (OPENAVB) has developed a software Protocol Stack to 
+Harman International Industries, Inc. has developed a software Protocol Stack to 
 support Ethernet Audio Video Bridging (EAVB or AVB) on a variety of platforms. 
 The software includes explicit Operating System and Hardware Abstraction Layers 
 (OSAL and HAL) to facilitate rapid and efficient porting of the generic stack to 
@@ -30,6 +30,7 @@ guides are separated into four sections:
 This overview section will cover general architecture.
 
 <br>
+
 Glossary {#sdk_overview_glossary}
 ========
 **AAF:** AVTP Audio Format
@@ -97,8 +98,6 @@ interface modules and mapping modules communicate.
 
 **SRP:** Stream Reservation Protocol
 
-**OPENAVB:** Symphony Teleca Corporation
-
 **Stream:** A series of AVTP data packets
 
 **Talker:** Takes an audio or video source and transmits it as an AVTP stream on 
@@ -106,6 +105,7 @@ the AVB network. It consists of a dedicated task and uses functionality in the
 AVTP module, one mapping module and one interface module. 
 
 <br>
+
 Architecture {#sdk_overview_architecture}
 ============
 
@@ -117,6 +117,7 @@ What follows in this section are details that more directly effect the use and
 understanding of the SDK. 
 
 <br>
+
 Below is the component diagram of the Core AVB stack. Notice that the interface 
 modules are not shown as part of the formal core stack but instead the 
 interfaces that they use in the core stack are shown. This is also true for the 
@@ -126,6 +127,7 @@ interfaces the host application will use (TL APIs).
 @image latex  Core_AVB.png "Core AVB" width=15cm
 
 <br>
+
 General Purpose OSes will generally have the core AVB stack split across 
 multiple processes. Whereas in an RTOS everything sits within a single execution 
 image. Here is a process diagram of the components split across processes in the 
@@ -135,18 +137,20 @@ Linux reference implementation.
 @image latex fig1.png "AVB Components" width=15cm
 
 As shown above the AVTP component of AVB is present in the application task.
-The libopenavbAVBStack library gets initialized and loaded via the APIs exposed and
+The AVB stack library gets initialized and loaded via the APIs exposed and
 documented here. This static library implements that AVTP functionality as well
 as controlling talker and listener initialization and life cycle. The PTP task
 initialization is handled during stack initialization.
 
 <br>
+
 The common AVTP stream data flow is shown here.
 
 @image html   AVTP_Data_Flow.png "AVTP Data Flow"
 @image latex  AVTP_Data_Flow.png "AVPT Data Flow" width=15cm
 
 <br>
+
 The diagram below shows an audio stream flowing through the AVB system on the 
 Linux platform. Typically the talker and listener will be in different tasks and 
 may use different interfaces. 
@@ -155,6 +159,7 @@ may use different interfaces.
 @image latex fig2.png "AVB Audio Stream Flow" width=15cm
 
 <br>
+
 Understanding the stream life-cycle is important for use of this SDK. Below are 
 sequence diagrams that show the component interaction for key stream use cases. 
 
@@ -162,14 +167,17 @@ sequence diagrams that show the component interaction for key stream use cases.
 @image latex  Stream_Initialize.png "Stream Initialization" width=15cm
 
 <br>
+
 @image html   Talker_Stream_Data_Flow.png "Talker Stream Data Flow"
 @image latex  Talker_Stream_Data_Flow.png "Talker Stream Data Flow" width=15cm
 
 <br>
+
 @image html   Listener_Stream_Data_Flow.png "Listener Stream Data Flow"
 @image latex  Listener_Stream_Data_Flow.png "Listener Stream Data Flow" width=15cm
 
 <br>
+
 Integration, Extension and Configuration {#sdk_overview_integration}
 ========================================
 Three distinct uses of the SDK are as follows.
@@ -195,6 +203,7 @@ area of configuration is related to stream. See the section [AVTP Stream
 Configuration](@ref sdk_avtp_stream_cfg) for more details. 
 
 <br>
+
 Platform Specific Considerations {#sdk_overview_platform}
 ================================
 The OPENAVB AVB stack is designed for portability covering both general purpose OSes 

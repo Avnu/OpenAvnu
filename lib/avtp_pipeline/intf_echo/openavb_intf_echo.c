@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -194,7 +195,7 @@ bool openavbIntfEchoTxCB(media_q_t *pMediaQ)
 
 		media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
 		if (pMediaQItem) {
-			if (pMediaQItem->itemSize >= pPvtData->increment ? pPvtData->echoStringLen + 16 : pPvtData->echoStringLen) {
+			if (pMediaQItem->itemSize >= (pPvtData->increment ? pPvtData->echoStringLen + 16 : pPvtData->echoStringLen)) {
 				if (pPvtData->increment) {
 					int len = sprintf(pMediaQItem->pPubData, "%s %u", pPvtData->pEchoString, pPvtData->Counter++);
 					pMediaQItem->dataLen = len;

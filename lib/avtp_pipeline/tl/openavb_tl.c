@@ -1,16 +1,17 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
- 
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
- 
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
- 
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS LISTED "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,10 +22,10 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-Attributions: The inih library portion of the source code is licensed from 
-Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt. 
-Complete license and copyright information can be found at 
+
+Attributions: The inih library portion of the source code is licensed from
+Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyright (c) 2009, Ben Hoyt.
+Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
@@ -40,7 +41,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #include "openavb_mediaq.h"
 #include "openavb_talker.h"
 #include "openavb_listener.h"
-// #include "openavb_avtp.h"
+#include "openavb_avdecc_msg.h"
 #include "openavb_platform.h"
 
 #define	AVB_LOG_COMPONENT	"Talker / Listener"
@@ -63,6 +64,9 @@ THREAD_TYPE(talkerThread);
 void* openavbTLThreadFn(void *pv);
 #define THREAD_CREATE_TALKER() THREAD_CREATE(talkerThread, pTLState->TLThread, NULL, openavbTLThreadFn, pTLState)
 #define THREAD_CREATE_LISTENER() THREAD_CREATE(listenerThread, pTLState->TLThread, NULL, openavbTLThreadFn, pTLState)
+
+void* openavbAvdeccMsgThreadFn(void *pv);
+#define THREAD_CREATE_AVDECC_MSG() THREAD_CREATE(avdeccMsgThread, pTLState->avdeccMsgThread, NULL, openavbAvdeccMsgThreadFn, pTLState)
 
 void timespec_add_usec(struct timespec *t, unsigned long us)
 {
@@ -156,41 +160,35 @@ static bool checkIntfCallbacks(openavb_tl_cfg_t *pCfg)
 	bool validCfg = TRUE;
 
 	if (!pCfg->intf_cb.intf_cfg_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_cfg'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_cfg'.");
 		// validCfg = FALSE;
 	}
 	if ((pCfg->role == AVB_ROLE_TALKER) && !pCfg->intf_cb.intf_tx_init_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_tx_init'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_tx_init'.");
 		// validCfg = FALSE;
 	}
 	if ((pCfg->role == AVB_ROLE_TALKER) && !pCfg->intf_cb.intf_tx_cb) {
-		AVB_LOG_ERROR("INI file doesn't specify inferface callback for '_tx'.");
+		AVB_LOG_ERROR("INI file doesn't specify interface callback for '_tx'.");
 		validCfg = FALSE;
 	}
 	if ((pCfg->role == AVB_ROLE_LISTENER) && !pCfg->intf_cb.intf_rx_init_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_rx_init'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_rx_init'.");
 		// validCfg = FALSE;
 	}
 	if ((pCfg->role == AVB_ROLE_LISTENER) && !pCfg->intf_cb.intf_rx_cb) {
-		AVB_LOG_ERROR("INI file doesn't specify inferface callback for '_rx'.");
+		AVB_LOG_ERROR("INI file doesn't specify interface callback for '_rx'.");
 		validCfg = FALSE;
 	}
 	if (!pCfg->intf_cb.intf_end_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_end'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_end'.");
 		// validCfg = FALSE;
 	}
 	if (!pCfg->intf_cb.intf_gen_init_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_gen_init'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_gen_init'.");
 		// validCfg = FALSE;
 	}
 	if (!pCfg->intf_cb.intf_gen_end_cb) {
-		AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_gen_end'.");
-		// validCfg = FALSE;
-	}
-	if (!pCfg->intf_cb.intf_avdecc_init_cb) {
-		// Optional callback
-		// CORE_TODO: AVDECC not formally supported yet.
-		// AVB_LOG_WARNING("INI file doesn't specify inferface callback for '_avdecc_init'.");
+		AVB_LOG_WARNING("INI file doesn't specify interface callback for '_gen_end'.");
 		// validCfg = FALSE;
 	}
 
@@ -239,12 +237,6 @@ static bool checkMapCallbacks(openavb_tl_cfg_t *pCfg)
 	}
 	if (!pCfg->map_cb.map_gen_end_cb) {
 		AVB_LOG_WARNING("INI doesn't specify mapping callback for '_gen_end'.");
-		// validCfg = FALSE;
-	}
-	if (!pCfg->map_cb.map_avdecc_init_cb) {
-		// Optional callback
-		// CORE_TODO: AVDECC not formally supported yet.
-		// AVB_LOG_WARNING("INI doesn't specify mapping callback for '_avdecc_init'.");
 		// validCfg = FALSE;
 	}
 
@@ -348,6 +340,7 @@ EXTERN_DLL_EXPORT tl_handle_t openavbTLOpen(void)
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
 
 	tl_state_t *pTLState = calloc(1, sizeof(tl_state_t));
+	pTLState->avdeccMsgHandle = AVB_AVDECC_MSG_HANDLE_INVALID;
 
 	if (!pTLState) {
 		AVB_LOG_ERROR("Unable to allocate talker listener state data.");
@@ -372,12 +365,14 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	memset(pCfg, 0, sizeof(openavb_tl_cfg_t));
 
 	// Set default values.
+	// (These values should match those set in openavbIniCfgInit().)
 	pCfg->role = AVB_ROLE_UNDEFINED;
+	pCfg->initial_state = TL_INIT_STATE_UNSPECIFIED;
 	//pCfg->map_cb;
 	//pCfg->intf_cb;
 	//pCfg->dest_addr;
 	//pCfg->stream_addr;
-	pCfg->stream_uid = -1;
+	pCfg->stream_uid = 0xFFFF;
 	pCfg->max_interval_frames = 1;
 	pCfg->max_frame_size = 1500;
 	pCfg->max_transit_usec = 50000;
@@ -386,6 +381,7 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	pCfg->max_stale = MICROSECONDS_PER_SECOND;
 	pCfg->batch_factor = 1;
 	pCfg->report_seconds = 0;
+	pCfg->report_frames = 0;
 	pCfg->start_paused = FALSE;
 	pCfg->sr_class = SR_CLASS_B;
 	pCfg->sr_rank = SR_RANK_REGULAR;
@@ -395,8 +391,9 @@ EXTERN_DLL_EXPORT void openavbTLInitCfg(openavb_tl_cfg_t *pCfg)
 	pCfg->rx_signal_mode = 1;
 	pCfg->pMapInitFn = NULL;
 	pCfg->pIntfInitFn = NULL;
-	pCfg->vlan_id = VLAN_NULL;
+	pCfg->vlan_id = 0;
 	pCfg->fixed_timestamp = 0;
+	pCfg->spin_wait = FALSE;
 	pCfg->thread_rt_priority = 0;
 	pCfg->thread_affinity = 0xFFFFFFFF;
 
@@ -492,6 +489,10 @@ EXTERN_DLL_EXPORT bool openavbTLConfigure(tl_handle_t handle, openavb_tl_cfg_t *
 	pTLState->cfg.map_cb.map_gen_init_cb(pTLState->pMediaQ);
 	pTLState->cfg.intf_cb.intf_gen_init_cb(pTLState->pMediaQ);
 
+	// Initialize the AVDECC support for this Talker/Listener.
+	pTLState->bAvdeccMsgRunning = TRUE;
+	THREAD_CREATE_AVDECC_MSG();
+
 	return TRUE;
 }
 
@@ -510,21 +511,25 @@ EXTERN_DLL_EXPORT bool openavbTLRun(tl_handle_t handle)
 		}
 
 		pTLState->bRunning = TRUE;
+		pTLState->bPaused = FALSE;
 		if (pTLState->cfg.role == AVB_ROLE_TALKER) {
 			THREAD_CREATE_TALKER();
 
-			THREAD_SET_RT_PRIORITY(pTLState->TLThread, pTLState->cfg.thread_rt_priority);
-			THREAD_PIN(pTLState->TLThread, pTLState->cfg.thread_affinity);
+			if (pTLState->cfg.thread_rt_priority != 0) { THREAD_SET_RT_PRIORITY(pTLState->TLThread, pTLState->cfg.thread_rt_priority); }
+			if (pTLState->cfg.thread_affinity != 0xFFFFFFFF) { THREAD_PIN(pTLState->TLThread, pTLState->cfg.thread_affinity); }
 		}
 		else if (pTLState->cfg.role == AVB_ROLE_LISTENER) {
 			THREAD_CREATE_LISTENER();
+
+			if (pTLState->cfg.thread_rt_priority != 0) { THREAD_SET_RT_PRIORITY(pTLState->TLThread, pTLState->cfg.thread_rt_priority); }
+			if (pTLState->cfg.thread_affinity != 0xFFFFFFFF) { THREAD_PIN(pTLState->TLThread, pTLState->cfg.thread_affinity); }
 		}
 
 		retVal = TRUE;
 
 	} while (0);
 
-	
+
 
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 	return retVal;
@@ -542,6 +547,7 @@ extern DLL_EXPORT bool openavbTLStop(tl_handle_t handle)
 		return FALSE;
 	}
 
+	pTLState->bPaused = FALSE;
 	if (pTLState->bRunning) {
 		// don't set bStreaming to false here, that's needed to track
 		// that the streaming thread is running, so we can shut it down.
@@ -570,6 +576,12 @@ EXTERN_DLL_EXPORT bool openavbTLClose(tl_handle_t handle)
 	if (pTLState->bRunning == TRUE) {
 		// In case openavbTLStop wasn't called stop is now.
 		openavbTLStop(handle);
+	}
+
+	// Done with the AVDECC support.
+	if (pTLState->bAvdeccMsgRunning) {
+		pTLState->bAvdeccMsgRunning = FALSE;
+		THREAD_JOIN(pTLState->avdeccMsgThread, NULL);
 	}
 
 	pTLState->cfg.intf_cb.intf_gen_end_cb(pTLState->pMediaQ);
@@ -689,6 +701,21 @@ EXTERN_DLL_EXPORT avb_role_t openavbTLGetRole(tl_handle_t handle)
 	return pTLState->cfg.role;
 }
 
+EXTERN_DLL_EXPORT tl_init_state_t openavbTLGetInitialState(tl_handle_t handle)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_TL);
+
+	tl_state_t *pTLState = (tl_state_t *)handle;
+
+	if (!pTLState) {
+		AVB_LOG_ERROR("Invalid handle");
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		return TL_INIT_STATE_UNSPECIFIED;
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_TL);
+	return pTLState->cfg.initial_state;
+}
 
 EXTERN_DLL_EXPORT U64 openavbTLStat(tl_handle_t handle, tl_stat_t stat)
 {

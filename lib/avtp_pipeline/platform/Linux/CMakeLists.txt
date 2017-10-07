@@ -1,6 +1,6 @@
-cmake_minimum_required ( VERSION 2.6 )
+cmake_minimum_required ( VERSION 2.6 ) 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-project ( AVB )
+project ( AVB ) 
 
 # Some CMake voodoo to set the default build type
 IF(NOT CMAKE_BUILD_TYPE)
@@ -20,7 +20,7 @@ STRING ( TOUPPER "${CMAKE_BUILD_TYPE}_BUILD" BUILD_TYPE_STRING )
 SET ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${BUILD_TYPE_STRING}" )
 
 # CMake automatically adds some compiler flags based on CMAKE_BUILD_TYPE
-#  for Debug:		"-g"
+#  for Debug:		"-g" 
 #  for RelWithDebInfo: 	"-O2 -g"
 #  for Release:		"-03 -DNDEBUG"
 #  for MinSizeRel:	"-0s -DNDEBUG"
@@ -66,10 +66,13 @@ MESSAGE ("-- SDK_INSTALL_SDK_EAVB_DIR      : ${SDK_INSTALL_SDK_EAVB_DIR}")
 # Turn on all build warnings
 set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -Wall" )
 
+# Turn off strict aliasing
+set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing" )
+
 # Set default visibility of symbols (requires GCC version > 4)
 set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden" )
 
-# Need this to use pthread attributes
+# Need this to use pthread attributes 
 set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE" )
 
 # Increase ini parser's max line length
@@ -78,6 +81,17 @@ set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DINI_MAX_LINE=1024" )
 # check Gstreamer version
 if ( GSTREAMER_1_0)
 set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DGSTREAMER_1_0" )
+endif ()
+
+# For AVDECC, disable features we won't need.
+if (DEFINED AVB_FEATURE_AVDECC)
+	if ( AVB_FEATURE_AVDECC )
+		set ( AVB_FEATURE_FQTSS 0 )
+		set ( AVB_FEATURE_GSTREAMER 0 )
+		set ( AVB_FEATURE_ENDPOINT 0 )
+		set ( AVB_FEATURE_IGB 0 )
+		set ( IGB_LAUNCHTIME_ENABLED 0 )
+	endif ()
 endif ()
 
 # Default feature flags
@@ -91,6 +105,10 @@ endif ()
 # Default Endpoint feature
 if (NOT DEFINED AVB_FEATURE_ENDPOINT)
   set ( AVB_FEATURE_ENDPOINT 0 )
+endif ()
+# Default AVDECC feature
+if (NOT DEFINED AVB_FEATURE_AVDECC)
+  set ( AVB_FEATURE_AVDECC 0 )
 endif ()
 if (NOT DEFINED AVB_FEATURE_IGB)
   set ( AVB_FEATURE_IGB 1 )
@@ -115,10 +133,13 @@ endif ()
 if (AVB_FEATURE_ENDPOINT)
   set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_ENDPOINT=1" )
 endif ()
+if (AVB_FEATURE_AVDECC)
+  set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_AVDECC=1" )
+endif ()
 if (AVB_FEATURE_IGB)
-  set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_IGB=1" )
+	set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_IGB=1" )
 else ()
-  set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_IGB=0" )
+	set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAVB_FEATURE_IGB=0" )
 endif ()
 
 #Export Platform defines
@@ -148,13 +169,13 @@ if (NOT DEFINED SDK_DOC_ONLY)
 
   if (NOT DEFINED ARCH)
   MESSAGE ( FATAL_ERROR "Aborting: ARCH not set" )
-  endif ()
+  endif ()     
   if (NOT DEFINED LINUX_KERNEL_DIR)
   MESSAGE ( FATAL_ERROR "Aborting: LINUX_KERNEL_DIR not set" )
-  endif ()
+  endif ()     
   if (NOT DEFINED GLIB_PKG_INCLUDE_DIRS OR NOT DEFINED GLIB_PKG_LIBRARIES)
   MESSAGE ( FATAL_ERROR "Aborting: glib-2.0 library not found" )
-  endif ()
+  endif ()     
   if (AVB_FEATURE_GSTREAMER)
     if (NOT DEFINED GST_PKG_INCLUDE_DIRS OR NOT DEFINED GST_PKG_LIBRARIES)
       MESSAGE ( FATAL_ERROR "Aborting: gstreamer library not found" )
@@ -162,7 +183,7 @@ if (NOT DEFINED SDK_DOC_ONLY)
   endif ()
   if (NOT DEFINED ALSA_INCLUDE_DIRS)
   MESSAGE ( FATAL_ERROR "Aborting: alsa library not found" )
-  endif ()
+  endif ()     
 endif()
 
 # Add /usr/lib to library search path
@@ -188,7 +209,7 @@ link_directories ( ${PLATFORM_LINK_DIRECTORIES} )
 #    These should be cleaned up to limit the dependencies
 #    across components.
 #
-include_directories(
+include_directories( 
 		${AVB_TCAL_DIR}
 		${AVB_HAL_DIR}
 		${AVB_HAL_DIR}/mcr
@@ -197,10 +218,16 @@ include_directories(
 		${AVB_SRC_DIR}/include
 		${AVB_OSAL_DIR}/avtp
 		${AVB_OSAL_DIR}/tl
-		${AVB_SRC_DIR}/avtp
+		${AVB_SRC_DIR}/avtp 
+		${AVB_SRC_DIR}/avdecc
+		${AVB_SRC_DIR}/acmp
+		${AVB_SRC_DIR}/adp
+		${AVB_SRC_DIR}/aecp
+		${AVB_SRC_DIR}/aem
 		${AVB_SRC_DIR}/endpoint
 		${AVB_SRC_DIR}/srp
 		${AVB_SRC_DIR}/maap
+		${AVB_SRC_DIR}/shaper
 		${AVB_SRC_DIR}/inih
 		${AVB_SRC_DIR}/map_mjpeg
 		${AVB_SRC_DIR}/map_mpeg2ts
@@ -215,9 +242,12 @@ include_directories(
 		${AVB_SRC_DIR}/mediaq
 		${AVB_SRC_DIR}/rawsock
 		${AVB_SRC_DIR}/qmgr
-		${AVB_SRC_DIR}/tl
+		${AVB_SRC_DIR}/tl 
 		${AVB_SRC_DIR}/util
+		${AVB_SRC_DIR}/avdecc_msg
+		${AVB_OSAL_DIR}/avdecc
 		${AVB_OSAL_DIR}/endpoint
+		${AVB_OSAL_DIR}/avdecc_msg
 		${AVB_SRC_DIR}/../common
 		${AVB_SRC_DIR}/mcs
 		)
@@ -243,14 +273,24 @@ add_subdirectory ( inih )
 add_subdirectory ( rawsock )
 add_subdirectory ( openavb_common )
 
-add_subdirectory ( avtp )
-add_subdirectory ( mediaq )
-add_subdirectory ( mcr )
-add_subdirectory ( mcs )
-add_subdirectory ( tl )
-add_subdirectory ( qmgr )
-if (AVB_FEATURE_ENDPOINT)
-  add_subdirectory ( endpoint )
+# TODO: Make the above avbBase, then make avbTl and avbAvdecc from below
+
+if (AVB_FEATURE_AVDECC)
+	add_subdirectory ( avdecc )
+	add_subdirectory ( acmp )
+	add_subdirectory ( adp )
+	add_subdirectory ( aecp )
+	add_subdirectory ( aem )
+else ()
+	add_subdirectory ( avtp )
+	add_subdirectory ( mediaq )
+	add_subdirectory ( mcr )
+	add_subdirectory ( mcs )
+	add_subdirectory ( tl )
+	add_subdirectory ( qmgr )
+	if (AVB_FEATURE_ENDPOINT)
+	  add_subdirectory ( endpoint )
+	endif ()
 endif ()
 
 add_library ( avbTl ${SRC_FILES} )
@@ -261,80 +301,93 @@ endif ()
 
 install ( TARGETS avbTl ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
 
-# avb_host (openavb_host and openavb_harness)
-add_subdirectory ( ${AVB_OSAL_DIR}/avb_host )
-
-# mapping modules
-macro (add_map_mod MAP_NAME)
-	SET ( SRC_FILES "" )
-	add_subdirectory ( ${MAP_NAME} )
-	add_library ( ${MAP_NAME} ${SRC_FILES} )
-	install ( TARGETS ${MAP_NAME} ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
-endmacro()
-add_map_mod ( "map_ctrl" )
-add_map_mod ( "map_mjpeg" )
-add_map_mod ( "map_mpeg2ts" )
-add_map_mod ( "map_null" )
-add_map_mod ( "map_pipe" )
-add_map_mod ( "map_aaf_audio" )
-add_map_mod ( "map_uncmp_audio" )
-add_map_mod ( "map_h264" )
-
-# Interface modules (common)
-macro (add_intf_mod INTF_NAME)
-	SET ( SRC_FILES "" )
-	add_subdirectory ( ${INTF_NAME} )
-	add_library ( ${INTF_NAME} ${SRC_FILES} )
-	install ( TARGETS ${INTF_NAME} ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
-	install ( DIRECTORY "${AVB_SRC_DIR}/${INTF_NAME}/" DESTINATION ${AVB_INSTALL_BIN_DIR} FILES_MATCHING PATTERN "*.ini" )
-endmacro()
-add_intf_mod ( "intf_ctrl" )
-add_intf_mod ( "intf_echo" )
-add_intf_mod ( "intf_logger" )
-add_intf_mod ( "intf_null" )
-add_intf_mod ( "intf_tonegen" )
-add_intf_mod ( "intf_viewer" )
-
-# Interface modules (platform)
-macro (add_intf_mod_platform INTF_NAME)
-	SET ( SRC_FILES "" )
-	SET ( INTF_INCLUDE_DIR "")
-	SET ( INTF_LIBRARY_DIR "")
-	SET ( INTF_LIBRARY "")
-	add_subdirectory ( ${AVB_OSAL_DIR}/${INTF_NAME} )
-	include_directories ( ${INTF_INCLUDE_DIR} )
-	add_library ( ${INTF_NAME} ${SRC_FILES} )
-	install ( TARGETS ${INTF_NAME} ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
-	install ( DIRECTORY "${AVB_OSAL_DIR}/${INTF_NAME}/" DESTINATION ${AVB_INSTALL_BIN_DIR} FILES_MATCHING PATTERN "*.ini" )
-endmacro()
-
-add_intf_mod_platform ( "intf_alsa" )
-if (AVB_FEATURE_GSTREAMER)
-	add_intf_mod_platform ( "intf_mpeg2ts_gst" )
-	add_intf_mod_platform ( "intf_mjpeg_gst" )
-	add_intf_mod_platform ( "intf_h264_gst" )
+if (AVB_FEATURE_AVDECC)
+	# avb_avdecc (openavb_avdecc)
+	add_subdirectory ( ${AVB_OSAL_DIR}/avb_avdecc )
+else ()
+	# avb_host (openavb_host and openavb_harness)
+	add_subdirectory ( ${AVB_OSAL_DIR}/avb_host )
 endif ()
-add_intf_mod_platform ( "intf_mpeg2ts_file" )
-add_intf_mod_platform ( "intf_wav_file" )
+
+if (NOT AVB_FEATURE_AVDECC)
+	# mapping modules
+	macro (add_map_mod MAP_NAME)
+		SET ( SRC_FILES "" )
+		add_subdirectory ( ${MAP_NAME} )
+		add_library ( ${MAP_NAME} ${SRC_FILES} )
+		install ( TARGETS ${MAP_NAME} ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
+	endmacro()
+	add_map_mod ( "map_ctrl" )
+	add_map_mod ( "map_mjpeg" )
+	add_map_mod ( "map_mpeg2ts" )
+	add_map_mod ( "map_null" )
+	add_map_mod ( "map_pipe" )
+	add_map_mod ( "map_aaf_audio" )
+	add_map_mod ( "map_uncmp_audio" )
+	add_map_mod ( "map_h264" )
+
+	# Interface modules (common)
+	macro (add_intf_mod INTF_NAME)
+		SET ( SRC_FILES "" )
+		add_subdirectory ( ${INTF_NAME} )
+		add_library ( ${INTF_NAME} ${SRC_FILES} )
+		install ( TARGETS ${INTF_NAME} ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
+		install ( DIRECTORY "${AVB_SRC_DIR}/${INTF_NAME}/" DESTINATION ${AVB_INSTALL_BIN_DIR} FILES_MATCHING PATTERN "*.ini" )
+	endmacro()
+	add_intf_mod ( "intf_ctrl" )
+	add_intf_mod ( "intf_echo" )
+	add_intf_mod ( "intf_logger" )
+	add_intf_mod ( "intf_null" )
+	add_intf_mod ( "intf_tonegen" )
+	add_intf_mod ( "intf_viewer" )
+
+	# Interface modules (platform)
+	macro (add_intf_mod_platform INTF_NAME)
+		SET ( SRC_FILES "" )
+		SET ( INTF_INCLUDE_DIR "")
+		SET ( INTF_LIBRARY_DIR "")
+		SET ( INTF_LIBRARY "")
+		add_subdirectory ( ${AVB_OSAL_DIR}/${INTF_NAME} )
+		include_directories ( ${INTF_INCLUDE_DIR} )
+		add_library ( ${INTF_NAME} ${SRC_FILES} )
+		install ( TARGETS ${INTF_NAME} ARCHIVE DESTINATION ${AVB_INSTALL_LIB_DIR} )
+		install ( DIRECTORY "${AVB_OSAL_DIR}/${INTF_NAME}/" DESTINATION ${AVB_INSTALL_BIN_DIR} FILES_MATCHING PATTERN "*.ini" )
+	endmacro()
+
+	add_intf_mod_platform ( "intf_alsa" )
+	if (AVB_FEATURE_GSTREAMER)
+		add_intf_mod_platform ( "intf_mpeg2ts_gst" )
+		add_intf_mod_platform ( "intf_mjpeg_gst" )
+		add_intf_mod_platform ( "intf_h264_gst" )
+	endif ()
+	add_intf_mod_platform ( "intf_mpeg2ts_file" )
+	add_intf_mod_platform ( "intf_wav_file" )
+endif ()
 
 # API documentation
 add_subdirectory ( documents )
 
-# SDKS
-add_subdirectory ( sdk )
+if (NOT AVB_FEATURE_AVDECC)
+	# SDKS
+	add_subdirectory ( sdk )
 
-# rawsock_rx
-add_executable (rawsock_rx ${AVB_OSAL_DIR}/rawsock/rawsock_rx.c)
-target_link_libraries (rawsock_rx avbTl ${GLIB_PKG_LIBRARIES} pthread rt pci ${PLATFORM_LINK_LIBRARIES} )
-install ( TARGETS rawsock_rx RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
+	# rawsock_rx
+	add_executable (rawsock_rx ${AVB_OSAL_DIR}/rawsock/rawsock_rx.c)
+	target_link_libraries (rawsock_rx avbTl ${GLIB_PKG_LIBRARIES} pthread rt ${PLATFORM_LINK_LIBRARIES} )
+	install ( TARGETS rawsock_rx RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
 
-# rawsock_tx
-add_executable (rawsock_tx ${AVB_OSAL_DIR}/rawsock/rawsock_tx.c)
-target_link_libraries (rawsock_tx avbTl ${GLIB_PKG_LIBRARIES} pthread rt pci ${PLATFORM_LINK_LIBRARIES} )
-install ( TARGETS rawsock_tx RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
+	# rawsock_tx
+	add_executable (rawsock_tx ${AVB_OSAL_DIR}/rawsock/rawsock_tx.c)
+	target_link_libraries (rawsock_tx avbTl ${GLIB_PKG_LIBRARIES} pthread rt ${PLATFORM_LINK_LIBRARIES} )
+	install ( TARGETS rawsock_tx RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
+endif ()
 
 # Copy additional installation files
 if (AVB_FEATURE_ENDPOINT)
-  install ( FILES ${AVB_SRC_DIR}/endpoint/endpoint.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
-  install ( PROGRAMS ${AVB_SRC_DIR}/endpoint/shutdown_openavb_endpoint.sh DESTINATION ${AVB_INSTALL_BIN_DIR} )
+	install ( FILES ${AVB_SRC_DIR}/endpoint/endpoint.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
+	install ( PROGRAMS ${AVB_SRC_DIR}/endpoint/shutdown_openavb_endpoint.sh DESTINATION ${AVB_INSTALL_BIN_DIR} )
+endif ()
+if (AVB_FEATURE_AVDECC)
+	install ( FILES ${AVB_SRC_DIR}/avdecc/avdecc.ini DESTINATION ${AVB_INSTALL_BIN_DIR} )
+	install ( PROGRAMS ${AVB_SRC_DIR}/avdecc/shutdown_openavb_avdecc.sh DESTINATION ${AVB_INSTALL_BIN_DIR} )
 endif ()

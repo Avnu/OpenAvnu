@@ -1,5 +1,6 @@
 /*************************************************************************************************************
 Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
+Copyright (c) 2016-2017, Harman International Industries, Incorporated
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -28,26 +29,24 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
-#include "openavb_rawsock.h"
-#include <malloc.h>
+#include "sendmmsg_rawsock.h"
 #include "simple_rawsock.h"
 #include "ring_rawsock.h"
-
-#if AVB_FEATURE_IGB
-#include "igb_rawsock.h"
-#define DEFAULT_PROTO "igb"
-#else
-#define DEFAULT_PROTO "simple"
-#endif
-
 #if AVB_FEATURE_PCAP
 #include "pcap_rawsock.h"
+#if AVB_FEATURE_IGB
+#include "igb_rawsock.h"
 #endif
+#endif
+
+#include "openavb_rawsock.h"
 
 #include "openavb_trace.h"
 
 #define	AVB_LOG_COMPONENT	"Raw Socket"
 #include "openavb_log.h"
+
+#include <malloc.h>
 
 
 // Get information about an interface
@@ -77,11 +76,21 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 	AVB_TRACE_ENTRY(AVB_TRACE_RAWSOCK);
 
 	const char* ifname = ifname_uri;
-	char proto[IF_NAMESIZE] = DEFAULT_PROTO;
+#if AVB_FEATURE_PCAP
+#if AVB_FEATURE_IGB
+	char proto[IF_NAMESIZE] = "igb";
+#else
+	char proto[IF_NAMESIZE] = "pcap";
+#endif
+#else
+	char proto[IF_NAMESIZE] = "simple";
+#endif
+
 	char *colon = strchr(ifname_uri, ':');
 	if (colon) {
 		ifname = colon + 1;
 		strncpy(proto, ifname_uri, colon - ifname_uri);
+		proto[colon - ifname_uri] = '\0';
 	}
 
 	AVB_LOGF_DEBUG("%s ifname_uri %s ifname %s proto %s", __func__, ifname_uri, ifname, proto);
@@ -107,7 +116,7 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 		AVB_LOG_INFO("Using *simple* implementation");
 
 		// allocate memory for rawsock object
-		simple_rawsock_t *rawsock = calloc(1, sizeof(simple_rawsock_t));
+		simple_rawsock_t *rawsock = calloc(1, sizeof(simple_rawsock_t) + 4 /* Just in case */);
 		if (!rawsock) {
 			AVB_LOG_ERROR("Creating rawsock; malloc failed");
 			return NULL;
@@ -115,6 +124,19 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 
 		// call constructor
 		pvRawsock = simpleRawsockOpen(rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
+	} else if (strcmp(proto, "sendmmsg") == 0) {
+
+		AVB_LOG_INFO("Using *sendmmsg* implementation");
+
+		// allocate memory for rawsock object
+		sendmmsg_rawsock_t *rawsock = calloc(1, sizeof(sendmmsg_rawsock_t));
+		if (!rawsock) {
+			AVB_LOG_ERROR("Creating rawsock; malloc failed");
+			return NULL;
+		}
+
+		// call constructor
+		pvRawsock = sendmmsgRawsockOpen(rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
 #if AVB_FEATURE_PCAP
 	} else if (strcmp(proto, "pcap") == 0) {
 

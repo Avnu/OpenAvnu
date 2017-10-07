@@ -32,8 +32,7 @@ target_link_libraries( openavb_host
 	${GLIB_PKG_LIBRARIES}
 	pthread 
 	rt 
-	dl 
-	pci )
+	dl )
 
 
 # Rules to build the AVB harness
@@ -62,8 +61,7 @@ target_link_libraries( openavb_harness
 	${GLIB_PKG_LIBRARIES}
 	pthread 
 	rt 
-	dl 
-	pci )
+	dl )
 
 # Install rules 
 install ( TARGETS openavb_host RUNTIME DESTINATION ${AVB_INSTALL_BIN_DIR} )
