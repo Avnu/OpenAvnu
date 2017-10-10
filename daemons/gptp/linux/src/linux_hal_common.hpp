@@ -306,7 +306,7 @@ public:
 	OSLock * createLock( OSLockType type ) const
 	{
 		LinuxLock *lock = new LinuxLock();
-		if (lock->initialize(type) != oslock_ok) {
+		if (!lock->initialize(type)) {
 			delete lock;
 			lock = NULL;
 		}
