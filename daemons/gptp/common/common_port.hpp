@@ -94,7 +94,7 @@ public:
 
 	PortIdentity& assign(const PortIdentity& other)
 	{
-		if (this != &other && this && &other)
+		if (this != &other)
 		{
 			clock_id.set(other.clock_id);
 			portNumber = other.portNumber;
@@ -383,11 +383,6 @@ private:
 	signed char log_mean_sync_interval;
 	signed char log_mean_announce_interval;
 	signed char initialLogSyncInterval;
-
-	std::list<FrequencyRatio> fMasterSlaveRatios;
-	std::list<FrequencyRatio> fSlaveMasterRatios;
-	FrequencyRatio fLastRateAverageMasterSlave;
-	FrequencyRatio fLastRateAverageSlaveMaster;
 
 	FrequencyRatio fLastFilteredRateRatio;
 	ALastTimestampKeeper fLastTimestamps;
@@ -1455,30 +1450,6 @@ public:
 
 	void AdjustedTime(FrequencyRatio t);
 
-	void PushRateRatio(std::list<FrequencyRatio>& ratioList, FrequencyRatio ratio)
-	{
-		size_t ratioCount = ratioList.size();
-		// if (ratioCount > 0 && 0 == ratioCount % 1000)
-		// {
-		// 	GPTP_LOG_ERROR("/////////////////////////////   Ratio sample size %d.", ratioCount);
-		// }
-		if (ratioCount > kMaxRateRatioSamples)
-		{
-			ratioList.pop_back();
-		}
-		ratioList.push_front(ratio);
-	}
-
-	void PushMasterSlaveRateRatio(FrequencyRatio ratio)
-	{
-		PushRateRatio(fMasterSlaveRatios, ratio);
-	}
-
-	void PushSlaveMasterRateRatio(FrequencyRatio ratio)
-	{
-		PushRateRatio(fSlaveMasterRatios, ratio);
-	}
-
 	FrequencyRatio LastFilteredRateRatio() const
 	{
 		return fLastFilteredRateRatio;
@@ -1496,40 +1467,6 @@ public:
 	void LastTimestamps(const ALastTimestampKeeper& lastTimestamps)
 	{
 		fLastTimestamps = lastTimestamps;
-	}
-
-	FrequencyRatio RateAverageMasterSlave() const
-	{
-		FrequencyRatio sum = std::accumulate(fMasterSlaveRatios.begin(),
-			fMasterSlaveRatios.end(), 0.0);
-		return sum / fMasterSlaveRatios.size();
-	}
-
-	FrequencyRatio RateAverageSlaveMaster() const
-	{
-		FrequencyRatio sum = std::accumulate(fSlaveMasterRatios.begin(),
-			fSlaveMasterRatios.end(), 0.0);
-		return sum / fSlaveMasterRatios.size();
-	}
-
-	FrequencyRatio LastRateAverageMasterSlave() const
-	{
-		return fLastRateAverageMasterSlave;
-	}
-
-	FrequencyRatio LastRateAverageSlaveMaster() const
-	{
-		return fLastRateAverageSlaveMaster;
-	}
-
-	void LastRateAverageMasterSlave(FrequencyRatio ratio)
-	{
-		fLastRateAverageMasterSlave = ratio;
-	}
-
-	void LastRateAverageSlaveMaster(FrequencyRatio ratio)
-	{
-		fLastRateAverageSlaveMaster = ratio;
 	}
 
 	FrequencyRatio LastLocaltime() const

@@ -347,9 +347,6 @@ void PTPMessageCommon::MaybePerformCalculations(EtherPort *port)
 
 									port->setLinkDelay(filteredMeanPathDelay);
 
-									port->PushMasterSlaveRateRatio(RR1);
-									port->PushSlaveMasterRateRatio(RR2);
-
 									GPTP_LOG_VERBOSE("lt1: %" PRIu64, lt1);
 									GPTP_LOG_VERBOSE("lt2: %" PRIu64, lt2);
 									GPTP_LOG_VERBOSE("lt3: %" PRIu64, lt3);
