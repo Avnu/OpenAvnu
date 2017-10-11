@@ -94,7 +94,7 @@ public:
 
 	PortIdentity& assign(const PortIdentity& other)
 	{
-		if (this != &other && this && &other)
+		if (this != &other)
 		{
 			clock_id.set(other.clock_id);
 			portNumber = other.portNumber;
