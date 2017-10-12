@@ -111,7 +111,7 @@ net_result LinuxNetworkInterface::send
 		remoteIpv6.sin6_port = htons(addr->Port());
 		addr->getAddress(&remoteIpv6.sin6_addr);
 		remote = reinterpret_cast<sockaddr*>(&remoteIpv6);
-		remoteSize = sizeof(remoteIpv6);	
+		remoteSize = sizeof(remoteIpv6);
 	}
 #else
 	sockaddr_ll remoteOrig;
@@ -132,12 +132,14 @@ net_result LinuxNetworkInterface::send
 		net_lock.lock();
 #endif
 #endif
-		GPTP_LOG_VERBOSE("sendto  sd_event");
+		GPTP_LOG_VERBOSE("sendto  sd_event   ipVersion:%d  port:%d remoteSize:%d",
+		 addr->IpVersion(), addr->Port(), remoteSize);
 		err = sendto(sd_event, payload, length, 0, remote, remoteSize);
 	}
 	else
 	{
-		GPTP_LOG_VERBOSE("sendto  sd_general");
+		GPTP_LOG_VERBOSE("sendto  sd_general  ipVersion:%d  port:%d remoteSize:%d",
+		 addr->IpVersion(), addr->Port(), remoteSize);
 		err = sendto(sd_general, payload, length, 0, remote, remoteSize);
   	}
 
@@ -1221,6 +1223,14 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 	ifname->toString( device.ifr_name, IFNAMSIZ - 1 );
 
 	GPTP_LOG_VERBOSE("device.ifr_name: %s", device.ifr_name);
+
+#ifdef APTP
+	// Bind each socket to a specific interface
+	setsockopt(net_iface_l->sd_event, SOL_SOCKET, SO_BINDTODEVICE,
+	 device.ifr_name, strlen(device.ifr_name));
+	setsockopt(net_iface_l->sd_general, SOL_SOCKET, SO_BINDTODEVICE,
+	 device.ifr_name, strlen(device.ifr_name));
+#endif
 
 	err = ioctl( net_iface_l->sd_event, SIOCGIFHWADDR, &device );
 	if( err == -1 ) {
