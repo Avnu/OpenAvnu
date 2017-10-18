@@ -44,6 +44,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <tchar.h>
 #include <iphlpapi.h>
 
+#include <ether_port.hpp>
+#include <wireless_port.hpp>
+#include <intel_wireless.hpp>
+
 /* Generic PCH delays */
 #define PHY_DELAY_GB_TX_PCH 7750  //1G delay
 #define PHY_DELAY_GB_RX_PCH 7750  //1G delay
@@ -125,9 +129,11 @@ int _tmain(int argc, _TCHAR* argv[])
 		CommonPort::NEIGHBOR_PROP_DELAY_THRESH;
 
 	bool syntonize = false;
+	bool wireless = false;
 	uint8_t priority1 = 248;
 	int i;
 	int phy_delays[4] =	{ -1, -1, -1, -1 };
+	uint8_t addr_ostr[ETHER_ADDR_OCTETS];
 
 	// Register default network interface
 	WindowsPCAPNetworkInterfaceFactory *default_factory = new WindowsPCAPNetworkInterfaceFactory();
@@ -140,6 +146,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	portInit.condition_factory = new WindowsConditionFactory();
 	WindowsNamedPipeIPC *ipc = new WindowsNamedPipeIPC();
 	WindowsTimerQueueFactory *timerq_factory = new WindowsTimerQueueFactory();
+	CommonPort *port;
+	WindowsWirelessAdapter *wl_adapter = NULL;
 
 	if( !ipc->init() ) {
 		delete ipc;
@@ -155,49 +163,106 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	/* Process optional arguments */
 	for( i = 1; i < argc; ++i ) {
-		if( ispunct(argv[i][0]) ) {
-			if( toupper( argv[i][1] ) == 'H' ) {
-				print_usage( argv[0] );
+		if (ispunct(argv[i][0]))
+		{
+			if (toupper(argv[i][1]) == 'H') {
+				print_usage(argv[0]);
 				return -1;
 			}
-			else if( toupper( argv[i][1] ) == 'R' ) {
-				if( i+1 >= argc ) {
-					printf( "Priority 1 value must be specified on "
-						"command line, using default value\n" );
-				} else {
-					unsigned long tmp = strtoul( argv[i+1], NULL, 0 ); ++i;
-					if( tmp > 254 ) {
-						printf( "Invalid priority 1 value, using "
-							"default value\n" );
-					} else {
-						priority1 = (uint8_t) tmp;
+			if (toupper(argv[i][1]) == 'W')
+			{
+				wireless = true;
+			}
+			else if (toupper(argv[i][1]) == 'R') {
+				if (i + 1 >= argc) {
+					printf("Priority 1 value must be specified on "
+						"command line, using default value\n");
+				}
+				else {
+					unsigned long tmp = strtoul(argv[i + 1], NULL, 0); ++i;
+					if (tmp > 255) {
+						printf("Invalid priority 1 value, using "
+							"default value\n");
+					}
+					else {
+						priority1 = (uint8_t)tmp;
 					}
 				}
 			}
+		} else
+		{
+			break;
 		}
 	}
 
-	// the last argument is supposed to be a MAC address, so decrement argv index to read it
-	i--;
-
-	// Create Low level network interface object
-	uint8_t local_addr_ostr[ETHER_ADDR_OCTETS];
-	parseMacAddr( argv[i], local_addr_ostr );
-	LinkLayerAddress local_addr(local_addr_ostr);
-	portInit.net_label = &local_addr;
-	// Create HWTimestamper object
-	portInit.timestamper = new WindowsTimestamper();
-	// Create Clock object
-	portInit.clock = new IEEE1588Clock( false, false, priority1, timerq_factory, ipc, portInit.lock_factory );  // Do not force slave
-	// Create Port Object linked to clock and low level
-	portInit.phy_delay = &ether_phy_delay;
-	EtherPort *port = new EtherPort( &portInit );
-	port->setLinkSpeed(findLinkSpeed(&local_addr));
-	if ( !port->init_port() ) {
-		printf( "Failed to initialize port\n" );
+	// Parse local HW MAC address
+	if (i < argc)
+	{
+		parseMacAddr(argv[i++], addr_ostr);
+		portInit.net_label = new LinkLayerAddress(addr_ostr);
+	} else
+	{
+		printf("Local hardware MAC address required");
 		return -1;
 	}
-	port->processEvent( POWERUP );
+
+	if( wireless )
+	{
+		if (i < argc)
+		{
+			parseMacAddr(argv[i++], addr_ostr);
+			portInit.virtual_label = new LinkLayerAddress(addr_ostr);
+		} else
+		{
+			printf("Wireless operation requires local virtual MAC address");
+			return -1;
+		}
+	}
+
+	if (!wireless)
+	{
+		// Create HWTimestamper object
+		portInit.timestamper = new WindowsEtherTimestamper();
+	} else
+	{
+		portInit.timestamper = new WindowsWirelessTimestamper();
+		(static_cast<WindowsWirelessTimestamper *> (portInit.timestamper))->setAdapter(new IntelWirelessAdapter());
+	}
+
+	// Create Clock object
+	portInit.clock = new IEEE1588Clock(false, false, priority1, timerq_factory, ipc, portInit.lock_factory);  // Do not force slave
+
+	if (!wireless)
+	{
+		// Create Port Object linked to clock and low level
+		portInit.phy_delay = &ether_phy_delay;
+		EtherPort *eport = new EtherPort(&portInit);
+		eport->setLinkSpeed( findLinkSpeed( static_cast <LinkLayerAddress *> ( portInit.net_label )));
+		port = eport;
+		if (!eport->init_port()) {
+			printf("Failed to initialize port\n");
+			return -1;
+		}
+		port->processEvent(POWERUP);
+	} else
+	{
+		if (i < argc)
+		{
+			parseMacAddr(argv[i++], addr_ostr);
+			LinkLayerAddress peer_addr(addr_ostr);
+			port = new WirelessPort(&portInit, peer_addr);
+			(static_cast <WirelessTimestamper *> (portInit.timestamper))->setPort( static_cast<WirelessPort *> ( port ));
+			if (!port->init_port()) {
+				printf("Failed to initialize port\n");
+				return -1;
+			}
+			port->processEvent(POWERUP);
+		} else
+		{
+			printf("Wireless operation requires remote MAC address");
+			return -1;
+		}
+	}
 
 	// Wait for Ctrl-C
 	if( !SetConsoleCtrlHandler( ctrl_handler, true )) {

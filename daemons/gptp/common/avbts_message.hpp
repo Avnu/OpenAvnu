@@ -204,6 +204,17 @@ public:
 };
 
 /**
+ * @brief  Builds PTP message from buffer
+ * @param  buf [in] byte buffer containing PTP message
+ * @param  size [in] length of buffer in bytes
+ * @param  remote [in] address from where message was received
+ * @param  port [in] port object that message was recieved on
+ * @return PTP message object
+ */
+PTPMessageCommon *buildPTPMessage
+( char *buf, int size, LinkLayerAddress *remote, CommonPort *port );
+
+/**
  * @brief Provides the PTPMessage common interface used during building of
  * PTP messages.
  */
@@ -373,10 +384,10 @@ protected:
 
 	/**
 	 * @brief  Generic interface for processing PTP message
-	 * @param  port IEEE1588 port
+	 * @param  port CommonPort object
 	 * @return void
 	 */
-	virtual void processMessage( EtherPort *port );
+	virtual void processMessage( CommonPort *port );
 
 	/**
 	 * @brief  Builds PTP common header
@@ -386,8 +397,7 @@ protected:
 	void buildCommonHeader(uint8_t * buf);
 
 	friend PTPMessageCommon *buildPTPMessage
-	( char *buf, int size, LinkLayerAddress * remote,
-	  EtherPort *port );
+	( char *buf, int size, LinkLayerAddress *remote, CommonPort *port );
 };
 
 /*Exact fit. No padding*/
@@ -589,12 +599,7 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 		return ret;
 	}
 
-	/**
-	 * @brief  Processes PTP message
-	 * @param  port EtherPort
-	 * @return void
-	 */
-	void processMessage( EtherPort *port );
+	void processMessage( CommonPort *port );
 
 	/**
 	 * @brief  Assembles PTPMessageAnnounce message on the
@@ -608,8 +613,7 @@ class PTPMessageAnnounce:public PTPMessageCommon {
 	( CommonPort *port, PortIdentity *destIdentity);
 
 	friend PTPMessageCommon *buildPTPMessage
-	( char *buf, int size, LinkLayerAddress *remote,
-	  EtherPort *port );
+	( char *buf, int size, LinkLayerAddress *remote, CommonPort *port );
 };
 
 /**
@@ -632,12 +636,7 @@ class PTPMessageSync : public PTPMessageCommon {
 	 */
 	~PTPMessageSync();
 
-	/**
-	 * @brief  Processes PTP messages
-	 * @param  port [in] EtherPort
-	 * @return void
-	 */
-	void processMessage( EtherPort *port );
+	void processMessage( CommonPort *port );
 
 	/**
 	 * @brief  Gets origin timestamp value
@@ -659,8 +658,7 @@ class PTPMessageSync : public PTPMessageCommon {
 	(EtherPort *port, PortIdentity *destIdentity );
 
 	friend PTPMessageCommon *buildPTPMessage
-	( char *buf, int size, LinkLayerAddress * remote,
-	  EtherPort *port );
+	( char *buf, int size, LinkLayerAddress *remote, CommonPort *port );
 };
 
 /* Exact fit. No padding*/
@@ -866,7 +864,15 @@ public:
 	/**
 	 * @brief Builds the PTPMessageFollowUP object
 	 */
-	PTPMessageFollowUp( EtherPort *port );
+	PTPMessageFollowUp( CommonPort *port );
+
+	/**
+	 * @brief write followup message into buffer
+	 * @param port [in] associated CommonPort object
+	 * @param buf_ptr [out] buffer to write data to
+	 * @return number of bytes written to buffer
+	 */
+	size_t buildMessage(CommonPort *port, uint8_t *buf_ptr);
 
 	/**
 	 * @brief  Assembles PTPMessageFollowUp message on the
@@ -879,12 +885,16 @@ public:
 	bool sendPort
 	( EtherPort *port, PortIdentity *destIdentity );
 
+	void processMessage( CommonPort *port );
+
 	/**
-	 * @brief  Processes PTP messages
-	 * @param  port [in] EtherPort
-	 * @return void
-	 */
-	void processMessage( EtherPort *port );
+	* @brief Processes PTP messages
+	* @param port [in] CommonPort
+	* @param receipt [in] local time message was received
+	* @param delay
+	* @return void
+	*/
+	void processMessage( CommonPort *port, Timestamp receipt );
 
 	/**
 	 * @brief  Gets the precise origin timestamp value
@@ -916,8 +926,7 @@ public:
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	( char *buf, int size, LinkLayerAddress *remote,
-	  EtherPort *port );
+	( char *buf, int size, LinkLayerAddress *remote, CommonPort *port );
 };
 
 /**
@@ -953,12 +962,7 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 	bool sendPort
 	( EtherPort *port, PortIdentity *destIdentity );
 
-	/**
-	 * @brief  Processes PTP messages
-	 * @param  port [in] EtherPort
-	 * @return void
-	 */
-	void processMessage( EtherPort *port );
+	void processMessage( CommonPort *port );
 
 	/**
 	 * @brief  Gets origin timestamp value
@@ -969,8 +973,7 @@ class PTPMessagePathDelayReq : public PTPMessageCommon {
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	( char *buf, int size, LinkLayerAddress *remote,
-	  EtherPort *port );
+	( char *buf, int size, LinkLayerAddress *remote, CommonPort *port );
 };
 
 /**
@@ -1004,12 +1007,7 @@ public:
 	bool sendPort
 	( EtherPort *port, PortIdentity *destIdentity );
 
-	/**
-	 * @brief  Processes PTP messages
-	 * @param  port [in] EtherPort
-	 * @return void
-	 */
-	void processMessage( EtherPort *port );
+	void processMessage( CommonPort *port );
 
 	/**
 	 * @brief  Sets the request receipt timestamp
@@ -1042,8 +1040,7 @@ public:
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	( char *buf, int size, LinkLayerAddress *remote,
-	  EtherPort *port );
+	( char *buf, int size, LinkLayerAddress *remote, CommonPort *port );
 };
 
 /**
@@ -1078,12 +1075,7 @@ public:
 	bool sendPort
 	( EtherPort *port, PortIdentity *destIdentity );
 
-	/**
-	 * @brief  Processes PTP messages
-	 * @param  port [in] EtherPort
-	 * @return void
-	 */
-	void processMessage( EtherPort *port );
+	void processMessage( CommonPort *port );
 
 	/**
 	 * @brief  Sets the response origin timestamp
@@ -1116,8 +1108,7 @@ public:
 	}
 
 	friend PTPMessageCommon *buildPTPMessage
-	( char *buf, int size, LinkLayerAddress *remote,
-	  EtherPort *port );
+	( char *buf, int size, LinkLayerAddress *remote, CommonPort *port );
 };
 
 /*Exact fit. No padding*/
@@ -1267,16 +1258,10 @@ public:
 	bool sendPort
 	( EtherPort *port, PortIdentity *destIdentity );
 
-	/**
-	 * @brief  Processes PTP messages
-	 * @param  port [in] EtherPort
-	 * @return void
-	 */
-	void processMessage( EtherPort *port );
+	void processMessage( CommonPort *port );
 
 	friend PTPMessageCommon *buildPTPMessage
-	( char *buf, int size, LinkLayerAddress *remote,
-	  EtherPort * port);
+	( char *buf, int size, LinkLayerAddress *remote, CommonPort *port );
 };
 
 #endif
