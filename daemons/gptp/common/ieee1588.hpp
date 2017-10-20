@@ -233,8 +233,11 @@ class ClockIdentity {
 	 * @param  id [in] Value to be set
 	 * @return void
 	 */
-	void set(const uint8_t * id) {
-		memcpy(this->id, id, PTP_CLOCK_IDENTITY_LENGTH);
+	void set(const uint8_t * other) {
+		if (other != nullptr)
+		{
+			memcpy(id, other, PTP_CLOCK_IDENTITY_LENGTH);
+		}
 	}
 
 	void set(const ClockIdentity& other)

@@ -130,8 +130,7 @@ void PTPMessageCommon::MaybePerformCalculations(EtherPort *port)
 
 		if (PTP_SLAVE == port->getPortState()) 
 		{
-			std::shared_ptr<PortIdentity> respPortIdentity;
-			port->getPortIdentity(respPortIdentity);
+			std::shared_ptr<PortIdentity> respPortIdentity = port->getPortIdentity();
 
 			GPTP_LOG_DEBUG("MaybePerformCalculations Processing as slave.");
 			PTPMessageSync *sync = port->getLastSync(false);
@@ -147,8 +146,7 @@ void PTPMessageCommon::MaybePerformCalculations(EtherPort *port)
 				// same clock.
 				uint16_t syncSeqId = sync->getSequenceId();
 				std::shared_ptr<PortIdentity> syncPortId = sync->getPortIdentity();
-				std::shared_ptr<PortIdentity> slavePortId = std::make_shared<PortIdentity>();
-				port->getPortIdentity(slavePortId);
+				std::shared_ptr<PortIdentity> slavePortId = port->getPortIdentity();
 				
 				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   sync clockId:%s", sync->getPortIdentity()->getClockIdentity().getIdentityString().c_str());
 				// GPTP_LOG_VERBOSE("PTPMessageCommon::MaybePerformCalculations   req clockId:%s", port->getLastDelayReq().getPortIdentity()->getClockIdentity().getIdentityString().c_str());
@@ -1277,8 +1275,7 @@ void PTPMessageSync::processMessage(EtherPort *port)
 		req.setOriginTimestamp(zeroTime);		
 		req.setSequenceId(sequenceId);
 		
-		std::shared_ptr<PortIdentity> reqPortId = std::make_shared<PortIdentity>();
-		port->getPortIdentity(reqPortId);
+		std::shared_ptr<PortIdentity> reqPortId = port->getPortIdentity();
 		req.setPortIdentity(reqPortId);
 		GPTP_LOG_VERBOSE("PTPMessageSync::processMessage   req clockId:%s",
 		 req.getPortIdentity()->getClockIdentity().getIdentityString().c_str());
@@ -2079,7 +2076,7 @@ PTPMessageDelayResp::PTPMessageDelayResp(EtherPort * port):
 	logMeanMessageInterval = 0;
 	control = MESSAGE_OTHER;
 	messageType = DELAY_RESP_MESSAGE;
-	port->getPortIdentity(requestingPortIdentity);
+	requestingPortIdentity = port->getPortIdentity();
 }
 
 PTPMessageDelayResp::~PTPMessageDelayResp()
@@ -2274,7 +2271,8 @@ void PTPMessagePathDelayReq::processMessage(EtherPort *port)
 
 	/* Generate and send message */
 	resp = new PTPMessagePathDelayResp(port);
-	port->getPortIdentity(resp_id);
+
+	resp_id = port->getPortIdentity();
 	resp->setPortIdentity(resp_id);
 	resp->setSequenceId(sequenceId);
 
@@ -2286,7 +2284,7 @@ void PTPMessagePathDelayReq::processMessage(EtherPort *port)
 	}
 #endif
 
-	this->getPortIdentity(requestingPortIdentity_p);
+	requestingPortIdentity_p = this->getPortIdentity();
 	resp->setRequestingPortIdentity(requestingPortIdentity_p);
 	resp->setRequestReceiptTimestamp(_timestamp);
 
@@ -2305,7 +2303,7 @@ void PTPMessagePathDelayReq::processMessage(EtherPort *port)
 	}
 
 	resp_fwup = new PTPMessagePathDelayRespFollowUp(port);
-	port->getPortIdentity(resp_fwup_id);
+	resp_fwup_id = port->getPortIdentity();
 	resp_fwup->setPortIdentity(resp_fwup_id);
 	resp_fwup->setSequenceId(sequenceId);
 	resp_fwup->setRequestingPortIdentity(sourcePortIdentity);
@@ -2414,9 +2412,9 @@ void PTPMessagePathDelayResp::processMessage( EtherPort *port )
 		goto bypass_verify_duplicate;
 	}
 
-	old_pdelay_resp->getPortIdentity(oldresp_id);
+	oldresp_id = old_pdelay_resp->getPortIdentity();
 	oldresp_id->getPortNumber(&oldresp_port_number);
-	getPortIdentity(resp_id);
+	resp_id = getPortIdentity();
 	resp_id->getPortNumber(&resp_port_number);
 
 	/* In the case where we have multiple PDelay responses for the same
@@ -2595,14 +2593,14 @@ void PTPMessagePathDelayRespFollowUp::processMessage
 		goto abort;
 	}
 
-	req->getPortIdentity(req_id);
+	req_id = req->getPortIdentity();
 	resp->getRequestingPortIdentity(resp_id);
 	req_clkId = req_id->getClockIdentity();
 	resp_clkId = resp_id->getClockIdentity();
 	resp_id->getPortNumber(&resp_port_number);
 	requestingPortIdentity->getPortNumber(&req_port_number);
-	resp->getPortIdentity(resp_sourcePortIdentity);
-	getPortIdentity(fup_sourcePortIdentity);
+	resp_sourcePortIdentity = resp->getPortIdentity();
+	fup_sourcePortIdentity = getPortIdentity();
 
 	if( req->getSequenceId() != sequenceId ) {
 		GPTP_LOG_ERROR
