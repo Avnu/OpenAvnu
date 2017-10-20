@@ -120,3 +120,10 @@ XMOS is a semiconductor company providing a reference design for AVB/TSN
 endpoints in pro audio and automotive. XMOS endpoint source code is open source 
 and available on Github - https://github.com/xcore/sw_avb
 
+apple vendor ptp profile
+------------------------
+Support for the apple vendor ptp profile can be found on this fork of the OpenAvnu code within the branch ArtAndLogic-aPTP-changes.
+
++ https://github.com/rroussel/OpenAvnu/tree/ArtAndLogic-aPTP-changes 
+
+These changes allow interaction with apple proprietary ptp clocks. This implementation has been tested with the apple airplay SDK on a raspberry pi 3 running within a group of devices playing the same music stream.
