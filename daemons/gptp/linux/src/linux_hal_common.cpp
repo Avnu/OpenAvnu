@@ -704,9 +704,10 @@ bool LinuxLock::initialize( OSLockType type ) {
 	lock_c = pthread_mutex_init(&_private->mutex,&_private->mta);
 	if(lock_c != 0) {
 		GPTP_LOG_ERROR("Mutex initialization failed - %s",strerror(errno));
-		return oslock_fail;
+		return false;
 	}
-	return oslock_ok;
+
+	return true;
 }
 
 LinuxLock::~LinuxLock() {

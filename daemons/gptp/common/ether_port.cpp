@@ -408,7 +408,8 @@ bool EtherPort::_processEvent( Event e )
 		} else if( getPortState() == PTP_MASTER ) {
 			becomeMaster( true );
 		} else {
-			startAnnounce();
+			clock->addEventTimerLocked(this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
+				ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER * pow(2.0, getAnnounceInterval()) * 1000000000.0);
 		}
 
 		if (automotive_profile) {

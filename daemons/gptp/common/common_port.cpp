@@ -550,7 +550,7 @@ bool CommonPort::processEvent( Event e )
 
 		// If port has been configured as master or slave, run media
 		// specific configuration. If it hasn't been configured
-		// start announce message time
+		// start listening for announce messages
 		if( clock->getPriority1() == 255 ||
 		    port_state == PTP_SLAVE )
 		{
@@ -562,7 +562,8 @@ bool CommonPort::processEvent( Event e )
 		}
 		else
 		{
-			startAnnounce();
+			clock->addEventTimerLocked(this, ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES,
+				ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER * pow(2.0, getAnnounceInterval()) * 1000000000.0);
 		}
 
 		// Do any media specific initialization
