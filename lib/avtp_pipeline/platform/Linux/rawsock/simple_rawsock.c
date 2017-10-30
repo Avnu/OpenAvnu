@@ -55,7 +55,7 @@ bool simpleAvbCheckInterface(const char *ifname, if_info_t *info)
 	memset(info, 0, sizeof(if_info_t));
 
 	AVB_LOGF_DEBUG("ifname=%s", ifname);
-	strncpy(info->name, ifname, IFNAMSIZ - 1);
+	strncpy(info->name, ifname, sizeof(info->name) - 1);
 
 	// open a throw-away socket - used for our ioctls
 	int sk = socket(AF_INET, SOCK_STREAM, 0);

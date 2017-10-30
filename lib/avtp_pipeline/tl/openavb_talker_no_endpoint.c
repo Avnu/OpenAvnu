@@ -62,11 +62,10 @@ bool openavbTLRunTalkerInit(tl_state_t *pTLState)
 	talker_data_t *pTalkerData = pTLState->pPvtTalkerData;
 	//avtp_stream_t *pStream = (avtp_stream_t *)(pTalkerData->avtpHandle);
 
-	strncpy(pTalkerData->ifname, pCfg->ifname, IFNAMSIZ);
+	strncpy(pTalkerData->ifname, pCfg->ifname, sizeof(pTalkerData->ifname) - 1);
 
 	// CORE_TODO: It would be good to have some parts of endpoint moved into non-endpoint general code to handle some the stream
 	// configuration values.
-	// strncpy(pTalkerData->ifname, pCfg->ifname, IFNAMSIZ);
 	if (pCfg->stream_addr.mac) {
 		memcpy(pTalkerData->streamID.addr, pCfg->stream_addr.mac, ETH_ALEN);
 	}else {
