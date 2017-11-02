@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdarg.h>
 #include <string.h>
 #include <inttypes.h>
+#include <limits.h>
 
 #include "platform.h"
 #include "maap_log_queue.h"
@@ -74,7 +75,14 @@ extern void *loggingThreadFn(void *pv);
 THREAD_TYPE(loggingThread);
 THREAD_DEFINITON(loggingThread);
 
-#define THREAD_STACK_SIZE 									65536
+#if !defined(PTHREAD_STACK_MIN)
+#error "PTHREAD_STACK_MIN variable not defined"
+#elif (PTHREAD_STACK_MIN > 65536)
+#define THREAD_STACK_SIZE							PTHREAD_STACK_MIN
+#else
+#define THREAD_STACK_SIZE							65536
+#endif
+
 #define loggingThread_THREAD_STK_SIZE    					THREAD_STACK_SIZE
 
 static MUTEX_HANDLE_ALT(gLogMutex);
