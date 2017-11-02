@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdarg.h>
 #include <string.h>
 #include <inttypes.h>
+#include <limits.h>
 
 #include "platform.h"
 #include "shaper_log_queue.h"
@@ -74,7 +75,13 @@ extern void *loggingThreadFn(void *pv);
 THREAD_TYPE(loggingThread);
 THREAD_DEFINITON(loggingThread);
 
-#define THREAD_STACK_SIZE 									65536
+#if !defined(PTHREAD_STACK_MIN)
+#error "PTHREAD_STACK_MIN variable not defined"
+#elif (PTHREAD_STACK_MIN > 65536)
+#define THREAD_STACK_SIZE							PTHREAD_STACK_MIN
+#else
+#define THREAD_STACK_SIZE							65536
+#endif
 #define loggingThread_THREAD_STK_SIZE    					THREAD_STACK_SIZE
 
 static MUTEX_HANDLE_ALT(gLogMutex);
@@ -217,13 +224,16 @@ void shaperLogInit(void)
 		loggingThreadRunning = TRUE;
 		THREAD_CREATE(loggingThread, loggingThread, NULL, loggingThreadFn, NULL);
 		THREAD_CHECK_ERROR(loggingThread, "Thread / task creation failed", errResult);
-		if (errResult) {}		// Already reported
+		if (errResult) {
+			loggingThreadRunning = FALSE;
+			SHAPER_LOG_ERROR("Could not log data: loggingThread create failure");
+		}
 	}
 }
 
 void shaperLogExit()
 {
-	if (SHAPER_LOG_FROM_THREAD) {
+	if (SHAPER_LOG_FROM_THREAD && loggingThreadRunning) {
 		loggingThreadRunning = FALSE;
 		THREAD_JOIN(loggingThread, NULL);
 	}
