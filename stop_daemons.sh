@@ -1,9 +1,10 @@
 #!/bin/bash
 # Stop all daemons
 
-sudo killall maap_daemon
-sudo killall mrpd
-sudo killall daemon_cl
+killall shaper_daemon
+killall maap_daemon
+killall mrpd
+killall daemon_cl
 
 # possibly add rmmod igb_avb here
 
