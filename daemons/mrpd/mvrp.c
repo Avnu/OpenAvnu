@@ -331,7 +331,8 @@ int mvrp_event(int event, struct mvrp_attribute *rattrib)
 		}
 		attrib = mvrp_conditional_reclaim(attrib);
 #if LOG_MVRP
-		mvrp_print_debug_info(event, attrib);
+		if (attrib != NULL)
+			mvrp_print_debug_info(event, attrib);
 #endif
 		break;
 	default:
