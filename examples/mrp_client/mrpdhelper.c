@@ -301,8 +301,8 @@ static int parse_mmrp(char *sz, size_t len, struct mrpdhelper_notify *n)
 	if (parse_state(&sz[5], n) < 0)
 		return -1;
 
-	n->attrib = mrpdhelper_attribtype_mvrp;
-	if (sscanf(&sz[8], "M=%" SCNx64, &n->u.m.mac) != 1)
+	n->attrib = mrpdhelper_attribtype_mmrp;
+	if (sscanf(&sz[4], "M=%" SCNx64, &n->u.m.mac) != 1)
 		return -1;
 	return parse_registrar(sz, n, NULL);
 }
