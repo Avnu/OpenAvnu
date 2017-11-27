@@ -33,6 +33,8 @@
 
 #include <linux_hal_generic.hpp>
 #include <linux_hal_generic_tsprivate.hpp>
+#include <platform.hpp>
+#include <avbts_message.hpp>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <netpacket/packet.h>
@@ -285,6 +287,10 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	struct cmsghdr *cmsg;
 	struct sockaddr_ll remote;
 	struct iovec sgentry;
+	PTPMessageId reflectedMessageId;
+	uint8_t reflected_bytes[46];
+	uint8_t *gptpCommonHeader;
+	uint16_t sequenceId;
 	struct {
 		struct cmsghdr cm;
 		char control[256];
@@ -296,8 +302,10 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	msg.msg_iov = &sgentry;
 	msg.msg_iovlen = 1;
 
-	sgentry.iov_base = NULL;
-	sgentry.iov_len = 0;
+	sgentry.iov_base = reflected_bytes;
+	sgentry.iov_len = sizeof(reflected_bytes);
+
+	gptpCommonHeader = reflected_bytes + 14;
 
 	memset( &remote, 0, sizeof(remote));
 	msg.msg_name = (caddr_t) &remote;
@@ -315,6 +323,14 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 			ret = GPTP_EC_FAILURE;
 			goto done;
 		}
+	}
+	sequenceId = PLAT_ntohs(*((uint16_t*)(PTP_COMMON_HDR_SEQUENCE_ID(gptpCommonHeader))));
+	reflectedMessageId.setSequenceId(sequenceId);
+	reflectedMessageId.setMessageType((MessageType)(*gptpCommonHeader & 0xF));
+	if (messageId != reflectedMessageId) {
+		GPTP_LOG_WARNING("Timestamp discarded due to wrong message id");
+		ret = GPTP_EC_EAGAIN;
+		goto done;
 	}
 
 	// Retrieve the timestamp
