@@ -30,7 +30,6 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-
 #include <linux_hal_generic.hpp>
 #include <linux_hal_generic_tsprivate.hpp>
 #include <platform.hpp>
@@ -288,7 +287,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	struct sockaddr_ll remote;
 	struct iovec sgentry;
 	PTPMessageId reflectedMessageId;
-	uint8_t reflected_bytes[46];
+	uint8_t reflected_bytes[ETHER_HDR_LEN + PTP_COMMON_HDR_LENGTH];
 	uint8_t *gptpCommonHeader;
 	uint16_t sequenceId;
 	struct {
@@ -305,7 +304,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	sgentry.iov_base = reflected_bytes;
 	sgentry.iov_len = sizeof(reflected_bytes);
 
-	gptpCommonHeader = reflected_bytes + 14;
+	gptpCommonHeader = reflected_bytes + ETHER_HDR_LEN;
 
 	memset( &remote, 0, sizeof(remote));
 	msg.msg_name = (caddr_t) &remote;
@@ -326,7 +325,7 @@ int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
 	}
 	sequenceId = PLAT_ntohs(*((uint16_t*)(PTP_COMMON_HDR_SEQUENCE_ID(gptpCommonHeader))));
 	reflectedMessageId.setSequenceId(sequenceId);
-	reflectedMessageId.setMessageType((MessageType)(*gptpCommonHeader & 0xF));
+	reflectedMessageId.setMessageType((MessageType)(*PTP_COMMON_HDR_TRANSSPEC_MSGTYPE(gptpCommonHeader) & 0xF));
 	if (messageId != reflectedMessageId) {
 		GPTP_LOG_WARNING("Timestamp discarded due to wrong message id");
 		ret = GPTP_EC_EAGAIN;
