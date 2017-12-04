@@ -1,8 +1,6 @@
 #!/bin/bash
 # Start all daemons
 
-nic=$1
-
 if [ "$1" == "-h" ]; then
         echo "Usage: $0 <network interface>"
         echo "   eg: $0 eth1"
@@ -21,11 +19,11 @@ if [ "$1" == "" ]; then
         exit -1
 fi
 
+nic=$1
 echo "Starting daemons on "$nic
 
 groupadd ptp > /dev/null 2>&1
-daemons/gptp/linux/build/obj/daemon_cl $1 &
-daemons/mrpd/mrpd -mvs -i $1 &
-daemons/maap/linux/build/maap_daemon -i $1 -d /dev/null
+daemons/gptp/linux/build/obj/daemon_cl $nic &
+daemons/mrpd/mrpd -mvs -i $nic &
+daemons/maap/linux/build/maap_daemon -i $nic -d /dev/null
 daemons/shaper/shaper_daemon -d &
-

@@ -253,7 +253,7 @@ void GptpIniParser::print_phy_delay( void )
 		tx = i->second.get_tx_delay();
 		rx = i->second.get_rx_delay();
 
-		snprintf( phy_delay_desc, PHY_DELAY_DESC_LEN+1,
+		PLAT_snprintf( phy_delay_desc, PHY_DELAY_DESC_LEN+1,
 			  "TX: %hu | RX: %hu", tx, rx );
 
 		speed_name = findNameBySpeed( speed );
