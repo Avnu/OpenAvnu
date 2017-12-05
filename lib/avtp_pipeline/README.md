@@ -63,22 +63,35 @@ The openavb_avdecc binary needs to be run in addition to the AVTP pipeline binar
 ## Running OpenAvnu daemons
 - Helper scripts in the repo root.
 - `$ sudo ./run_igb.sh eth1`
-    - Load the igb driver. Supply the interface name (ethx) as parameter.  Only needed if using IGB support for the Intel i210 adapter.
+    - Load the igb driver.  Supply the interface name (ethx) as parameter.  Only needed if using IGB support for the Intel i210 adapter.
 - `$ sudo ./run_daemons.sh eth1`
-    - Start gptp, msrp, maap, and shaper daemons. Supply the interface name (ethx) as parameter.
+    - Start the gptp, msrp, maap, and shaper daemons.  Supply the interface name (ethx) as parameter.
     - Daemons can also be started individually using the run_gptp.sh, run_srp.sh, run_maap.sh, and run_shaper.sh scripts.
+- `$ sudo ./stop_daemons.sh`
+    - Stop the gptp, msrp, maap, and shaper daemons.  Don't use this command while AVTP Pipeline is running.
 
-## Running OpenAvnu simple talker example
-- `$ sudo ./run_simple_talker.sh eth1`
-    - Run the current OpenAvnu simple talker example.  Supply the interface name (ethx) as parameter.
+## Running OpenAvnu AVTP Pipeline example
+- `$ sudo ./run_avtp_pipeline.sh eth1`
+    - Run the current OpenAvnu AVTP Pipeline example.  Supply the interface name (ethx) as parameter.
+- `$ sudo ./stop_avtp_pipeline.sh eth1`
+    - Stop the current OpenAvnu AVTP Pipeline example.  The script will also attempt to cleanly recover if the AVTP pipeline binaries crashed.
 
-## Running OpenAvnu Echo Talker
-- `$ sudo ./run_echo_talker.sh eth1`
-    - Run the AVTP Echo talker test stream. Supply the interface name (ethx) as parameter.
+The AVTP Pipeline example is expected to be run simultaneously on two or more different Linux computers,
+with the network interfaces connected using AVB-capable switches.
+(The daemons do not currently support using two different network interfaces on the same computer, so different computers must be used.)
+You can refer to the list of [Avnu Certified Products](http://avnu.org/certified-products/) for switches with AVB/TSN support.
 
-## Running OpenAvnu Echo Listener
-- `$ sudo ./run_echo_listener.sh eth1`
-    - Run the AVTP Echo talker test stream. Supply the interface name (ethx) as parameter.
+To connect the Talker and Listener with the example implementation, you need to use an AVDECC controller.
+(These are also referred to as 1722.1 or ATDECC controllers.)
+This will tell the Listener(s) which stream to listen to,
+and allow the Talker and Listener(s) to coordinate when they should start streaming.
+There are several AVDECC controllers available, including one in the OpenAvnu avdecc-lib/controller folder.
+
+The AVTP Pipeline example Talker and Listener should also be compatible with other AVB/TSN products that support 8-channel,
+48K/24-bit [IEC 61883-6](https://webstore.iec.ch/preview/info_iec61883-6%7Bed2.0%7Den.pdf) audio and AVDECC management.
+The list of [Avnu Certified Products](http://avnu.org/certified-products/) includes some of them.
+The example Talker and Listener has also been used successfully to stream audio to and from Apple Macbooks running macOS version 10.12 (Sierra) and later,
+and controlled with the Apple Macbook built-in AVDECC controller (avbutil).
 
 
 ## Benchmark results
