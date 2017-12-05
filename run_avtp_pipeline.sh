@@ -13,12 +13,12 @@ fi
 nic=$1
 echo "Starting AVTP Pipeline on "$nic
 
-currentdir="$PWD"
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+pushd .
 cd $scriptdir/lib/avtp_pipeline/build/bin
 ./openavb_avdecc -I pcap:$nic example_talker.ini example_listener.ini &
 sleep 5
 ./openavb_host -I pcap:$nic example_talker.ini example_listener.ini &
-cd $currentdir
+popd
 
