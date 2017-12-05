@@ -6,8 +6,7 @@
     - gPTP
     - MAAP
     - MSRP
-    - igb direct for packet TX.
-    - igb credit based shaper
+    - credit based shaper
     - build system
 - Credit-based shaper algorithm is not used for individual streams.
 - Testing of various mappings and benchmarking has been performed. Look at the end of this file for benchmark results.
@@ -25,15 +24,17 @@
     - $ sudo apt-get install linux-headers-generic
         - linux-headers (same version as the kernel you're building for)
 
-- Install dependencies for AVTP pipeline
+- Additional install dependencies for AVTP pipeline
     - $ sudo apt-get install libglib2.0-dev
+    - $ sudo apt-get install libasound2-dev
+
+- Additional install dependencies for AVTP pipeline if GStreamer support is enabled
     - $ sudo apt-get install libgstreamer0.10-dev
     - $ sudo apt-get install libgstreamer-plugins-base0.10-dev
-    - $ sudo apt-get install libasound2-dev 
 
 ### Building everything
 - Building from the repo root
-- $ ARCH=I210 make all
+- $ make all
 
 ### Building just AVTP pipeline
 - $ make avtp_pipeline
@@ -51,7 +52,8 @@ Make sure to call `make avtp_pipeline_clean` before.
 ### Building just AVTP AVDECC support
 - $ make avtp_avdecc
 
-Binaries will be installed in lib/avtp_pipeline/build_avdecc/bin.
+Binaries will be installed in lib/avtp_pipeline/build/bin.
+Build files will be in the lib/avtp_pipeline/build_avdecc directory, to avoid interfering with the AVTP Pipeline build files.
 
 The openavb_avdecc binary needs to be run in addition to the AVTP pipeline binary (openavb_harness or openavb_host) for AVDECC to be supported.
 
@@ -61,13 +63,10 @@ The openavb_avdecc binary needs to be run in addition to the AVTP pipeline binar
 ## Running OpenAvnu daemons
 - Helper scripts in the repo root.
 - `$ sudo ./run_igb.sh eth1`
-    - Load the igb driver. Supply the interface name (ethx) as parameter.
-- `$ sudo ./run_gptp.sh eth1`
-    - Start gptp daemon. Supply the interface name (ethx) as parameter.
-- `$ sudo ./run_srp.sh eth1`
-    - Start msrp daemon. Supply the interface name (ethx) as parameter.
-- `$ sudo ./run_maap.sh eth1`
-    - Start maap daemon. Supply the interface name (ethx) as parameter.
+    - Load the igb driver. Supply the interface name (ethx) as parameter.  Only needed if using IGB support for the Intel i210 adapter.
+- `$ sudo ./run_daemons.sh eth1`
+    - Start gptp, msrp, maap, and shaper daemons. Supply the interface name (ethx) as parameter.
+    - Daemons can also be started individually using the run_gptp.sh, run_srp.sh, run_maap.sh, and run_shaper.sh scripts.
 
 ## Running OpenAvnu simple talker example
 - `$ sudo ./run_simple_talker.sh eth1`
@@ -84,7 +83,7 @@ The openavb_avdecc binary needs to be run in addition to the AVTP pipeline binar
 
 ## Benchmark results
 
-All test done on DELL Optiplex 755 with Intel Core 2 Duo CPU E8400 @ 3.00GHz 
+All test done on DELL Optiplex 755 with Intel Core 2 Duo CPU E8400 @ 3.00GHz
 
 | Type    | Comment      | Class | Streams | CPU Talker | CPU Listener |
 |:-------:| -------------|:-----:| -------:| ----------:| ------------:|
