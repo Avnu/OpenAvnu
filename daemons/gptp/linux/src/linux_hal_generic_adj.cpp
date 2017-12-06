@@ -31,10 +31,8 @@
 
 ******************************************************************************/
 
-#include <linux/timex.h>
- // avoid indirect inclusion of time.h since this will clash with linux/timex.h
-#define _TIME_H  1
-#define _STRUCT_TIMEVAL 1
+#include <sys/timex.h>
+#define ADJ_SETOFFSET 0x0100 // Missing from older header files
 #include <linux_hal_generic.hpp>
 #include <syscall.h>
 #include <math.h>
