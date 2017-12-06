@@ -83,6 +83,13 @@ typedef struct {
 } avtp_state_t;
 
 
+/* If EXTENDED_SEQUENCE_NUMBERS is defined, uses the 4 most significant bits of the reserved space
+ *  immediately following the sequence_num value to allow for larger sequence numbers.
+ * The bit following those 4 bits is also set to indicate that
+ *  extended sequence numbers are in use.
+ */
+//#define EXTENDED_SEQUENCE_NUMBERS
+
 /* Info associated with an AVTP stream (RX or TX).
  *
  * The void* handle that is returned to the client
@@ -117,7 +124,11 @@ typedef struct
 	// Max frame size
 	U16 frameLen;
 	// AVTP sequence number
+#ifdef EXTENDED_SEQUENCE_NUMBERS
+	U16 avtp_sequence_num;
+#else
 	U8 avtp_sequence_num;
+#endif
 	// Paused state of the stream
 	bool bPause;
 	// Encapsulation-specific state information

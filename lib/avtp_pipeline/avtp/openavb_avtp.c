@@ -322,12 +322,23 @@ static openavbRC fillAvtpHdr(avtp_stream_t *pStream, U8 *pFill)
 			// - 1 bit		tv (timestamp valid)		= 1
 			// TODO: set mr correctly
 			*pFill++ = 0x81;
+#ifdef EXTENDED_SEQUENCE_NUMBERS
+			// - 8 bits		sequence num				= increments with each frame
+			*pFill++ = (pStream->avtp_sequence_num & 0x00FF);
+			// - 4 bits		upper bits of sequence num  = increments every 256 frames
+			// - 1 bit		using extended seq numbers	= 1
+			// - 2 bits		reserved					= 0
+			// - 1 bit		tu (timestamp uncertain)	= 1 when no PTP sync
+			// TODO: set tu correctly
+			*pFill++ = (U8) ((pStream->avtp_sequence_num & 0x0F00) >> 4) | 0x08;
+#else
 			// - 8 bits		sequence num				= increments with each frame
 			*pFill++ = pStream->avtp_sequence_num;
-			// - 7 bits		reserved					= 0;
+			// - 7 bits		reserved					= 0
 			// - 1 bit		tu (timestamp uncertain)	= 1 when no PTP sync
 			// TODO: set tu correctly
 			*pFill++ = 0;
+#endif
 			// - 8 bytes    stream_id
 			memcpy(pFill, (U8 *)&pStream->streamIDnet, 8);
 			break;
@@ -424,7 +435,11 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			}
 
 			// Increment the sequence number now that we are sure this is a good packet.
+#ifdef EXTENDED_SEQUENCE_NUMBERS
+			pStream->avtp_sequence_num = ((pStream->avtp_sequence_num + 1) & 0x0FFF);
+#else
 			pStream->avtp_sequence_num++;
+#endif
 
 			// Mirror the frame.
 			int i;
@@ -544,8 +559,13 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP_DETAIL);
 	IF_LOG_INTERVAL(4096) AVB_LOGF_DEBUG("pFrame=%p, len=%u", pFrame, frameLen);
-	U8 subtype, flags, flags2, rxSeq, nLost, avtpVersion;
+	U8 subtype, flags, flags2, avtpVersion;
 	U8 *pRead = pFrame;
+#ifdef EXTENDED_SEQUENCE_NUMBERS
+	U16 rxSeq, nLost;
+#else
+	U8 rxSeq, nLost;
+#endif
 
 	// AVTP Header
 	//
@@ -561,23 +581,53 @@ static void x_avtpRxFrame(avtp_stream_t *pStream, U8 *pFrame, U32 frameLen)
 
 			rxSeq = *pRead++;
 
-			if (pStream->nLost == -1) {
-				// first frame received, don't check for mismatch
-				pStream->nLost = 0;
-			}
-			else if (pStream->avtp_sequence_num != rxSeq) {
-				nLost = (rxSeq - pStream->avtp_sequence_num)
-					+ (rxSeq < pStream->avtp_sequence_num ? 256 : 0);
-				AVB_LOGF_INFO("AVTP sequence mismatch: expected: %3u,\tgot: %3u,\tlost %3d",
-					pStream->avtp_sequence_num, rxSeq, nLost);
-				pStream->nLost += nLost;
+#ifdef EXTENDED_SEQUENCE_NUMBERS
+			if ((*pRead & 0x08) != 0) {
+				// Get the upper 4 bits of the sequence number.
+				rxSeq |= (((U16) (*pRead & 0xF0)) << 4);
 
-				// Notify the map that frames were lost.
-				if (pStream->pMapCB->map_rx_lost_cb) {
-					pStream->pMapCB->map_rx_lost_cb(pStream->pMediaQ, nLost);
+				if (pStream->nLost == -1) {
+					// first frame received, don't check for mismatch
+					pStream->nLost = 0;
 				}
+				else if (pStream->avtp_sequence_num != rxSeq) {
+					nLost = (rxSeq - pStream->avtp_sequence_num)
+						+ (rxSeq < pStream->avtp_sequence_num ? 0x1000 : 0);
+					AVB_LOGF_INFO("AVTP sequence mismatch: expected: %4u,\tgot: %4u,\tlost %4d",
+						pStream->avtp_sequence_num, rxSeq, nLost);
+					pStream->nLost += nLost;
+
+					// Notify the map that frames were lost.
+					if (pStream->pMapCB->map_rx_lost_cb) {
+						pStream->pMapCB->map_rx_lost_cb(pStream->pMediaQ, nLost);
+					}
+				}
+				pStream->avtp_sequence_num = ((rxSeq + 1) & 0x0FFF);
+			} else
+#endif
+			{
+				if (pStream->nLost == -1) {
+					// first frame received, don't check for mismatch
+					pStream->nLost = 0;
+				}
+				else if (pStream->avtp_sequence_num != rxSeq) {
+					nLost = (rxSeq - pStream->avtp_sequence_num)
+						+ (rxSeq < pStream->avtp_sequence_num ? 0x100 : 0);
+					AVB_LOGF_INFO("AVTP sequence mismatch: expected: %3u,\tgot: %3u,\tlost %3d",
+						pStream->avtp_sequence_num, rxSeq, nLost);
+					pStream->nLost += nLost;
+
+					// Notify the map that frames were lost.
+					if (pStream->pMapCB->map_rx_lost_cb) {
+						pStream->pMapCB->map_rx_lost_cb(pStream->pMediaQ, nLost);
+					}
+				}
+#ifdef EXTENDED_SEQUENCE_NUMBERS
+				pStream->avtp_sequence_num = ((rxSeq + 1) & 0x00FF);
+#else
+				pStream->avtp_sequence_num = rxSeq + 1;
+#endif
 			}
-			pStream->avtp_sequence_num = rxSeq + 1;
 
 			pStream->bytes += frameLen;
 

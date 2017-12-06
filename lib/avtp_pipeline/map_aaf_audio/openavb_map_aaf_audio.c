@@ -1063,7 +1063,7 @@ bool openavbMapAVTPAudioRxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 }
 
 // This callback occurs when running as a listener and data is not available.
-bool openavbMapAVTPAudioRxLostCB(media_q_t *pMediaQ, U8 numLost)
+bool openavbMapAVTPAudioRxLostCB(media_q_t *pMediaQ, U16 numLost)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_MAP_DETAIL);
 
