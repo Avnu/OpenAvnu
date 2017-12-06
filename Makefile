@@ -18,7 +18,6 @@ help:
 	@echo '  avtp_pipeline     - AVTP pipeline'
 	@echo '  avtp_pipeline_doc - AVTP pipeline doc'
 	@echo '  avtp_avdecc       - AVTP avdecc'
-	@echo '  avtp_avdecc_doc   - AVTP avdecc doc'
 	@echo ''
 	@echo '  examples_all      - build all examples (simple_talker simple_listener mrp_client live_stream jackd-talker jackd-listener)'
 	@echo '  simple_talker     - simple_talker application'
@@ -131,23 +130,20 @@ live_stream:
 live_stream_clean:
 	$(call descend,examples/live_stream/,clean)
 
-avtp_pipeline: lib
+avtp_pipeline:
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_pipeline.mk
 
 avtp_pipeline_clean:
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_pipeline.mk clean
 
-avtp_pipeline_doc: lib
+avtp_pipeline_doc:
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_pipeline.mk doc
 
-avtp_avdecc: lib
+avtp_avdecc:
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_avdecc.mk
 
 avtp_avdecc_clean:
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_avdecc.mk clean
-
-avtp_avdecc_doc: lib
-	$(MAKE) -s -C lib/avtp_pipeline -f avtp_avdecc.mk doc
 
 examples_all: examples_common simple_talker simple_listener mrp_client live_stream jackd-talker \
 	jackd-listener simple_rx
