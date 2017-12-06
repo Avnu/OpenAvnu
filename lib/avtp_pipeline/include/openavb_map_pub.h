@@ -141,7 +141,7 @@ typedef bool (*openavb_map_rx_cb_t)(media_q_t *pMediaQ, U8 *pData, U32 datalen);
  * \param pMediaQ A pointer to the media queue for this stream
  * \param numLost The number of sequence numbers missing (i.e. number of lost packets)
  */
-typedef bool (*openavb_map_rx_lost_cb_t)(media_q_t *pMediaQ, U8 numLost);
+typedef bool (*openavb_map_rx_lost_cb_t)(media_q_t *pMediaQ, U16 numLost);
 
 /** This callback will be called when the stream is closing.
  *
