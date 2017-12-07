@@ -82,7 +82,7 @@ with the network interfaces connected using AVB-capable switches.
 You can refer to the list of [Avnu Certified Products](http://avnu.org/certified-products/) for switches with AVB/TSN support.
 
 To connect the Talker and Listener with the example implementation, you need to use an AVDECC controller.
-(These are also referred to as 1722.1 or ATDECC controllers.)
+(These are also referred to as 1722.1 or ATDECC controllers.  AVDECC was renamed to ATDECC by the IEEE P1722.1 work group in 2017.)
 This will tell the Listener(s) which stream to listen to,
 and allow the Talker and Listener(s) to coordinate when they should start streaming.
 There are several AVDECC controllers available, including one in the OpenAvnu avdecc-lib/controller folder.
