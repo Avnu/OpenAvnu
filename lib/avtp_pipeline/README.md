@@ -6,8 +6,7 @@
     - gPTP
     - MAAP
     - MSRP
-    - igb direct for packet TX.
-    - igb credit based shaper
+    - credit based shaper
     - build system
 - Credit-based shaper algorithm is not used for individual streams.
 - Testing of various mappings and benchmarking has been performed. Look at the end of this file for benchmark results.
@@ -25,15 +24,17 @@
     - $ sudo apt-get install linux-headers-generic
         - linux-headers (same version as the kernel you're building for)
 
-- Install dependencies for AVTP pipeline
+- Additional install dependencies for AVTP pipeline
     - $ sudo apt-get install libglib2.0-dev
+    - $ sudo apt-get install libasound2-dev
+
+- Additional install dependencies for AVTP pipeline if GStreamer support is enabled
     - $ sudo apt-get install libgstreamer0.10-dev
     - $ sudo apt-get install libgstreamer-plugins-base0.10-dev
-    - $ sudo apt-get install libasound2-dev 
 
 ### Building everything
 - Building from the repo root
-- $ ARCH=I210 make all
+- $ make all
 
 ### Building just AVTP pipeline
 - $ make avtp_pipeline
@@ -51,7 +52,8 @@ Make sure to call `make avtp_pipeline_clean` before.
 ### Building just AVTP AVDECC support
 - $ make avtp_avdecc
 
-Binaries will be installed in lib/avtp_pipeline/build_avdecc/bin.
+Binaries will be installed in lib/avtp_pipeline/build/bin.
+Build files will be in the lib/avtp_pipeline/build_avdecc directory, to avoid interfering with the AVTP Pipeline build files.
 
 The openavb_avdecc binary needs to be run in addition to the AVTP pipeline binary (openavb_harness or openavb_host) for AVDECC to be supported.
 
@@ -61,30 +63,40 @@ The openavb_avdecc binary needs to be run in addition to the AVTP pipeline binar
 ## Running OpenAvnu daemons
 - Helper scripts in the repo root.
 - `$ sudo ./run_igb.sh eth1`
-    - Load the igb driver. Supply the interface name (ethx) as parameter.
-- `$ sudo ./run_gptp.sh eth1`
-    - Start gptp daemon. Supply the interface name (ethx) as parameter.
-- `$ sudo ./run_srp.sh eth1`
-    - Start msrp daemon. Supply the interface name (ethx) as parameter.
-- `$ sudo ./run_maap.sh eth1`
-    - Start maap daemon. Supply the interface name (ethx) as parameter.
+    - Load the igb driver.  Supply the interface name (ethx) as parameter.  Only needed if using IGB support for the Intel i210 adapter.
+- `$ sudo ./run_daemons.sh eth1`
+    - Start the gptp, msrp, maap, and shaper daemons.  Supply the interface name (ethx) as parameter.
+    - Daemons can also be started individually using the run_gptp.sh, run_srp.sh, run_maap.sh, and run_shaper.sh scripts.
+- `$ sudo ./stop_daemons.sh`
+    - Stop the gptp, msrp, maap, and shaper daemons.  Don't use this command while AVTP Pipeline is running.
 
-## Running OpenAvnu simple talker example
-- `$ sudo ./run_simple_talker.sh eth1`
-    - Run the current OpenAvnu simple talker example.  Supply the interface name (ethx) as parameter.
+## Running OpenAvnu AVTP Pipeline example
+- `$ sudo ./run_avtp_pipeline.sh eth1`
+    - Run the current OpenAvnu AVTP Pipeline example.  Supply the interface name (ethx) as parameter.
+- `$ sudo ./stop_avtp_pipeline.sh eth1`
+    - Stop the current OpenAvnu AVTP Pipeline example.  The script will also attempt to cleanly recover if the AVTP pipeline binaries crashed.
 
-## Running OpenAvnu Echo Talker
-- `$ sudo ./run_echo_talker.sh eth1`
-    - Run the AVTP Echo talker test stream. Supply the interface name (ethx) as parameter.
+The AVTP Pipeline example is expected to be run simultaneously on two or more different Linux computers,
+with the network interfaces connected using AVB-capable switches.
+(The daemons do not currently support using two different network interfaces on the same computer, so different computers must be used.)
+You can refer to the list of [Avnu Certified Products](http://avnu.org/certified-products/) for switches with AVB/TSN support.
 
-## Running OpenAvnu Echo Listener
-- `$ sudo ./run_echo_listener.sh eth1`
-    - Run the AVTP Echo talker test stream. Supply the interface name (ethx) as parameter.
+To connect the Talker and Listener with the example implementation, you need to use an AVDECC controller.
+(These are also referred to as 1722.1 or ATDECC controllers.  AVDECC was renamed to ATDECC by the IEEE P1722.1 work group in 2017.)
+This will tell the Listener(s) which stream to listen to,
+and allow the Talker and Listener(s) to coordinate when they should start streaming.
+There are several AVDECC controllers available, including one in the OpenAvnu avdecc-lib/controller folder.
+
+The AVTP Pipeline example Talker and Listener should also be compatible with other AVB/TSN products that support 8-channel,
+48K/24-bit [IEC 61883-6](https://webstore.iec.ch/preview/info_iec61883-6%7Bed2.0%7Den.pdf) audio and AVDECC management.
+The list of [Avnu Certified Products](http://avnu.org/certified-products/) includes some of them.
+The example Talker and Listener has also been used successfully to stream audio to and from Apple Macbooks running macOS version 10.12 (Sierra) and later,
+and controlled with the Apple Macbook built-in AVDECC controller (avbutil).
 
 
 ## Benchmark results
 
-All test done on DELL Optiplex 755 with Intel Core 2 Duo CPU E8400 @ 3.00GHz 
+All test done on DELL Optiplex 755 with Intel Core 2 Duo CPU E8400 @ 3.00GHz
 
 | Type    | Comment      | Class | Streams | CPU Talker | CPU Listener |
 |:-------:| -------------|:-----:| -------:| ----------:| ------------:|
