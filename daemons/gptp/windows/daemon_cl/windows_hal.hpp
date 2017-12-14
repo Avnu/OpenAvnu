@@ -36,7 +36,6 @@
 
 /**@file*/
 
-#include <minwindef.h>
 #include <IPCListener.hpp>
 #include "avbts_osnet.hpp"
 #include "avbts_oslock.hpp"
@@ -47,6 +46,7 @@
 #include "packet.hpp"
 #include "ieee1588.hpp"
 #include "ether_tstamper.hpp"
+#include "wireless_tstamper.hpp"
 #include "iphlpapi.h"
 #include "windows_ipc.hpp"
 #include "tsc.hpp"
@@ -590,6 +590,114 @@ public:
 	}
 };
 
+void WirelessTimestamperCallback(LPVOID arg);
+
+class WindowsWirelessAdapter;
+
+/**
+* @brief Windows Wireless (802.11) HWTimestamper implementation
+*/
+class WindowsWirelessTimestamper : public WirelessTimestamper
+{
+private:
+	WindowsWirelessAdapter *adapter;
+
+	uint64_t system_counter;
+	Timestamp system_time;
+	Timestamp device_time;
+	LARGE_INTEGER tsc_hz;
+	bool initialized;
+
+public:
+	WindowsWirelessTimestamper()
+	{
+		initialized = false;
+	}
+
+	net_result _requestTimingMeasurement
+	( TIMINGMSMT_REQUEST *timingmsmt_req );
+
+	bool HWTimestamper_gettime
+	( Timestamp *system_time, Timestamp * device_time,
+	  uint32_t * local_clock, uint32_t * nominal_clock_rate ) const;
+
+	virtual bool HWTimestamper_init
+	( InterfaceLabel *iface_label, OSNetworkInterface *iface );
+
+	/**
+	 * @brief attach adapter to timestamper
+	 * @param adapter [in] adapter to attach
+	 */
+	void setAdapter( WindowsWirelessAdapter *adapter )
+	{
+		this->adapter = adapter;
+	}
+
+	/**
+	 * @brief get attached adapter
+	 * @return attached adapter
+	 */
+	WindowsWirelessAdapter *getAdapter(void)
+	{
+		return adapter;
+	}
+
+	~WindowsWirelessTimestamper();
+
+	friend void WirelessTimestamperCallback( LPVOID arg );
+};
+
+class WindowsWirelessAdapter
+{
+public:
+	/**
+	 * @brief initiate wireless TM request (completion is asynchronous)
+	 * @param tm_request [in] pointer to TM request object
+	 * @return true on success
+	 */
+	virtual bool initiateTimingRequest(TIMINGMSMT_REQUEST *tm_request) = 0;
+
+	/**
+	 * @brief attempt to refresh cross timestamp (extrapolate on failure)
+	 * @return true on success
+	 */
+	virtual bool refreshCrossTimestamp() = 0;
+
+	/**
+	 * @brief register timestamper with adapter
+	 * @param timestamper [in] timestamper object
+	 * @return true on success
+	 */
+	virtual bool registerTimestamper
+	( WindowsWirelessTimestamper *timestamper ) = 0;
+
+	/**
+	 * @brief deregister timestamper
+	 * @param timestamper [in] timestamper object
+	 * @return true on success
+	 */
+	virtual bool deregisterTimestamper
+	( WindowsWirelessTimestamper *timestamper ) = 0;
+
+	/**
+	 * @brief initialize adapter object
+	 * @return true on success
+	 */
+	virtual bool initialize() = 0;
+
+	/**
+	 * @brief shutdown adapter
+	 */
+	virtual void shutdown() = 0;
+
+	/**
+	 * @brief attach adapter to MAC address
+	 * @param mac_addr [in] MAC address to attach to
+	 * @return true on success
+	 */
+	virtual bool attachAdapter( uint8_t *mac_addr ) = 0;
+};
+
 #define I217_DESC "I217-LM"
 #define I219_DESC "I219-V"
 
@@ -616,9 +724,9 @@ static DeviceClockRateMapping DeviceClockRateMap[] =
 };
 
 /**
- * @brief Windows HWTimestamper implementation
+ * @brief Windows Ethernet HWTimestamper implementation
  */
-class WindowsTimestamper : public EtherTimestamper {
+class WindowsEtherTimestamper : public EtherTimestamper {
 private:
     // No idea whether the underlying implementation is thread safe
 	HANDLE miniport;

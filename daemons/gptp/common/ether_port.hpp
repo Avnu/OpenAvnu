@@ -60,10 +60,6 @@
 #define TEST_STATUS_MULTICAST 0x011BC50AC000ULL	/*!< AVnu Automotive profile test status msg Multicast value */
 
 #define PDELAY_RESP_RECEIPT_TIMEOUT_MULTIPLIER 3	/*!< PDelay timeout multiplier*/
-#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER 3			/*!< Sync receipt timeout multiplier*/
-#define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3		/*!< Announce receipt timeout multiplier*/
-
-#define LOG2_INTERVAL_INVALID -127	/* Simple out of range Log base 2 value used for Sync and PDelay msg internvals */
 
 /**
  * @brief PortType enumeration. Selects between delay request-response (E2E) mechanism
@@ -98,7 +94,6 @@ class EtherPort : public CommonPort
 	/* Port Configuration */
 	signed char log_mean_unicast_sync_interval;
 	signed char log_min_mean_delay_req_interval;
-	signed char log_min_mean_pdelay_req_interval;
 
 	unsigned int duplicate_resp_counter;
 	uint16_t last_invalid_seqid;
@@ -109,8 +104,6 @@ class EtherPort : public CommonPort
 	// asCapable : already defined as asCapable
 	signed char operLogPdelayReqInterval;
 	signed char operLogSyncInterval;
-	signed char initialLogPdelayReqInterval;
-	bool automotive_profile;
 
 	// Test Status variables
 	uint32_t linkUpCount;
@@ -199,12 +192,6 @@ protected:
 	 * @return void
 	 */
 	void syncDone();
-
-	/**
-	 * @brief  Gets the AVnu automotive profile flag
-	 * @return automotive_profile flag
-	 */
-	bool getAutomotiveProfile() { return( automotive_profile ); }
 
 	/**
 	 * @brief Destroys a EtherPort
@@ -301,31 +288,6 @@ protected:
 	 * @todo Currently not implemented
 	 */
 	void removeForeignMasterAll(void);
-
-	/**
-	 * @brief  Gets the pDelay minimum interval
-	 * @return PDelay interval
-	 */
-	signed char getPDelayInterval(void) {
-		return log_min_mean_pdelay_req_interval;
-	}
-
-	/**
-	 * @brief  Sets the pDelay minimum interval
-	 * @param  val time interval
-	 * @return none
-	 */
-	void setPDelayInterval(signed char val) {
-		log_min_mean_pdelay_req_interval = val;
-	}
-
-	/**
-	 * @brief  Sets the pDelay minimum interval back to initial
-	 *         value
-	 * @return none */
-	void setInitPDelayInterval(void) {
-		log_min_mean_pdelay_req_interval = initialLogPdelayReqInterval;
-	}
 
 	/**
 	 * @brief  Start pDelay interval timer
