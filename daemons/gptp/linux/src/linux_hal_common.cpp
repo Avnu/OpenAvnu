@@ -92,6 +92,7 @@ net_result LinuxNetworkInterface::send
 	sockaddr *remote;
 	size_t remoteSize;
 	int err;
+	GPTP_LOG_VERBOSE("LinuxNetworkInterface::send  1  addr:%s", addr->AddressString().c_str());
 #ifdef APTP
 	struct sockaddr_in6 remoteIpv6;
 	struct sockaddr_in remoteIpv4;
@@ -125,6 +126,8 @@ net_result LinuxNetworkInterface::send
 	remoteSize = sizeof(remoteOrig);
 #endif
 
+GPTP_LOG_VERBOSE("LinuxNetworkInterface::send  2  addr:%s", addr->AddressString().c_str());
+
 	if (timestamp)
 	{
 #ifndef ARCH_INTELCE
@@ -132,13 +135,13 @@ net_result LinuxNetworkInterface::send
 		net_lock.lock();
 #endif
 #endif
-		GPTP_LOG_VERBOSE("sendto  sd_event   ipVersion:%d  port:%d remoteSize:%d",
+		GPTP_LOG_VERBOSE("LinuxNetworkInterface::send  sd_event   ipVersion:%d  port:%d remoteSize:%d",
 		 addr->IpVersion(), addr->Port(), remoteSize);
 		err = sendto(sd_event, payload, length, 0, remote, remoteSize);
 	}
 	else
 	{
-		GPTP_LOG_VERBOSE("sendto  sd_general  ipVersion:%d  port:%d remoteSize:%d",
+		GPTP_LOG_VERBOSE("LinuxNetworkInterface::send  sd_general  ipVersion:%d  port:%d remoteSize:%d",
 		 addr->IpVersion(), addr->Port(), remoteSize);
 		err = sendto(sd_general, payload, length, 0, remote, remoteSize);
   	}
@@ -1159,7 +1162,7 @@ void LinuxSharedMemoryIPC::stop() {
 }
 
 bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_iface,
- InterfaceLabel *label, CommonTimestamper *timestamper )
+ InterfaceLabel *label, std::shared_ptr<CommonTimestamper> timestamper )
 {
 	struct ifreq device;
 	int err;
@@ -1324,7 +1327,7 @@ bool LinuxNetworkInterfaceFactory::createInterface(OSNetworkInterface **net_ifac
 	}
 
 	net_iface_l->timestamper =
-		dynamic_cast <LinuxTimestamper *>(timestamper);
+		std::dynamic_pointer_cast<LinuxTimestamper>(timestamper);
 	if (nullptr == net_iface_l->timestamper)
 	{
 		GPTP_LOG_ERROR("timestamper == NULL");

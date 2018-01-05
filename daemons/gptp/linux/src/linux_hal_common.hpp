@@ -160,7 +160,7 @@ private:
 	AMacAddress local_addr;
 	int sd_event;
 	int sd_general;
-	LinuxTimestamper *timestamper;
+	std::shared_ptr<LinuxTimestamper> timestamper;
 	int ifindex;
 
 	TicketingLock net_lock;
@@ -312,6 +312,13 @@ class LinuxLock : public OSLock {
 private:
 	OSLockType type;
 	LinuxLockPrivate_t _private;
+
+public:
+	/**
+	 * @brief Destroys mutexes if lock is still valid
+	 */
+	~LinuxLock();
+
 protected:
 	/**
 	 * @brief Default constructor.
@@ -327,11 +334,6 @@ protected:
 	 * @return If successful, returns oslock_ok. Returns oslock_fail otherwise
 	 */
 	bool initialize( OSLockType type );
-
-	/**
-	 * @brief Destroys mutexes if lock is still valid
-	 */
-	~LinuxLock();
 
 	/**
 	 * @brief  Provides a simple lock mechanism.
@@ -371,6 +373,8 @@ public:
 		}
 		return lock;
 	}
+	~LinuxLockFactory()
+	{}
 };
 
 struct LinuxConditionPrivate;
@@ -650,7 +654,7 @@ public:
 	 * @return TRUE if no error during interface creation, FALSE otherwise
 	 */
 	virtual bool createInterface(OSNetworkInterface **net_iface, InterfaceLabel *label,
-	  CommonTimestamper *timestamper);
+	  std::shared_ptr<CommonTimestamper> timestamper);
 };
 
 /**

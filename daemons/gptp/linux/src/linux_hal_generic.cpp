@@ -135,7 +135,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
     	return net_fatal;
     }
 
-	LinuxTimestamperGeneric *gtimestamper;
+	std::shared_ptr<LinuxTimestamperGeneric> gtimestamper;
 
 	struct timeval timeout = { 0, 16000 }; // 16 ms
 
@@ -225,7 +225,7 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 					clock_gettime(CLOCK_REALTIME, &ts);
 					ingressTime = Timestamp(ts);
 
-					gtimestamper = dynamic_cast<LinuxTimestamperGeneric *>(timestamper);
+					gtimestamper = std::dynamic_pointer_cast<LinuxTimestamperGeneric>(timestamper);
 					if (err > 0 && !(payload[0] & 0x8) && gtimestamper != NULL)
 					{
 						GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  getting timestamp");
@@ -234,9 +234,11 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 						cmsg = CMSG_FIRSTHDR(&msg);
 						if (nullptr == cmsg)
 						{
+#ifndef APTP
 							// There are no headers to process so we need to set the ingress time
 							Timestamp device = ingressTime;
 							gtimestamper->pushRXTimestamp(&device);
+#endif
 						}
 						else
 						{
@@ -255,7 +257,9 @@ net_result LinuxNetworkInterface::receive(LinkLayerAddress *addr, uint8_t *paylo
 									device = tsToTimestamp( ts_device );
 									ingressTime = device;
 									GPTP_LOG_VERBOSE("LinuxNetworkInterface::receive  ts_device.tv_sec:%d  ts_device.tv_nsec:%d", ts_device->tv_sec, ts_device->tv_nsec);
+#ifndef APTP
 									gtimestamper->pushRXTimestamp( &device );
+#endif
 									break;
 								}
 								cmsg = CMSG_NXTHDR(&msg,cmsg);

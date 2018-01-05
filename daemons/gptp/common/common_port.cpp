@@ -80,6 +80,11 @@ CommonPort::CommonPort( PortInit_t *portInit ) :
 
 CommonPort::~CommonPort()
 {
+	delete link_thread;
+	delete listening_thread;
+	delete syncReceiptTimerLock;
+	delete syncIntervalTimerLock;
+	delete announceIntervalTimerLock;
 }
 
 bool CommonPort::init_port( void )
@@ -770,7 +775,11 @@ void CommonPort::getDeviceTime(Timestamp &system_time, Timestamp &device_time,
 
 void CommonPort::startAnnounce()
 {
+#ifdef APTP	
+	startAnnounceIntervalTimer(1000000000);
+#else
 	startAnnounceIntervalTimer(16000000);
+#endif
 }
 
 int CommonPort::getTimestampVersion()

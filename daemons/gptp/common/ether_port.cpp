@@ -33,6 +33,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <math.h>
+#include <memory>
 #include <mutex>
 
 #include "ieee1588.hpp"
@@ -100,6 +101,12 @@ EtherPort::~EtherPort()
 	delete port_ready_condition;
 #endif
 	delete qualified_announce;
+	delete link_thread;
+	delete eventThread;
+	delete generalThread;
+	delete pdelay_rx_lock;
+	delete port_tx_lock;
+	delete pDelayIntervalTimerLock;
 }
 
 EtherPort::EtherPort( PortInit_t *portInit ) :
@@ -385,6 +392,7 @@ net_result EtherPort::port_send(uint16_t etherType, uint8_t * buf, int size,
 {
 	net_result ok;
 	LinkLayerAddress dest;
+	bool sendToList = false;
 
 	if (mcast_type != MCAST_NONE)
 	{
@@ -397,13 +405,24 @@ net_result EtherPort::port_send(uint16_t etherType, uint8_t * buf, int size,
 		else {
 			dest = other_multicast;
 		}
+		GPTP_LOG_VERBOSE("EtherPort::port_send   mcast_type != MCAST_NONE");
 		ok = send(&dest, etherType, (uint8_t *) buf, size, timestamp);
 	}
 	else
 	{
-		mapSocketAddr(destIdentity, &dest);
+		if (NULL == destIdentity)
+		{
+			sendToList = true;
+		}
+		else
+		{
+			mapSocketAddr(destIdentity, &dest);	
+		}
+		
 		dest.Port(port);
-		if (PTP_MASTER == port_state && !fUnicastSendNodeList.empty() && sendToAllUnicast)
+		if (sendToList || 
+		   (PTP_MASTER == port_state && !fUnicastSendNodeList.empty() &&
+		    sendToAllUnicast))
 		{
 			ok = net_succeed;
 			bool foundDest = false;
@@ -415,11 +434,12 @@ net_result EtherPort::port_send(uint16_t etherType, uint8_t * buf, int size,
 			 	 GPTP_LOG_VERBOSE("EtherPort::port_send   address: %s, port:%d",
 			 	  address.c_str(), port);
 				 LinkLayerAddress unicastDest(address, port);
+				 GPTP_LOG_VERBOSE("etherPort::port_send  unicastDest:%s", unicastDest.AddressString().c_str());
 				 status = net_iface->send(&unicastDest, etherType, buf, size, timestamp);
 				 ok = status != net_succeed ? status : ok;
 				 foundDest = dest == unicastDest;
 			 });
-			if (!foundDest)
+			if (!foundDest && !sendToList)
 			{
 				status = net_iface->send(&dest, etherType, (uint8_t *) buf, size, timestamp);	
 			}
@@ -736,7 +756,7 @@ bool EtherPort::_processEvent( Event e )
 			PTPMessageSync sync(this);
 			std::shared_ptr<PortIdentity> dest_id = getPortIdentity();
 
-			GPTP_LOG_VERBOSE("EtherPort::_processEvent   portIdentity:%s", dest_id->getClockIdentityString().c_str());
+			GPTP_LOG_VERBOSE("EtherPort::_processEvent  SYNC_INTERVAL_TIMEOUT_EXPIRES  portIdentity:%s", dest_id->getClockIdentityString().c_str());
 
 			sync.setPortIdentity(dest_id);
 
@@ -865,12 +885,10 @@ bool EtherPort::_processEvent( Event e )
 		break;
 	case ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES:
 		{
+			GPTP_LOG_VERBOSE("EtherPort::_processEvent  ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES");
 			// Send an announce message
 			PTPMessageAnnounce annc = PTPMessageAnnounce(this);
-			PortIdentity gmId;
-			ClockIdentity clock_id = clock->getClockIdentity();
-			gmId.setClockIdentity(clock_id);
-			 
+		 
 			annc.setPortIdentity(getPortIdentity());
 			annc.sendPort(this, NULL);
 
@@ -1004,7 +1022,8 @@ int EtherPort::getTxTimestamp
 (std::shared_ptr<PortIdentity> sourcePortIdentity, PTPMessageId messageId,
  Timestamp &timestamp, unsigned &counter_value, bool last )
 {
-	EtherTimestamper *timestamper = dynamic_cast<EtherTimestamper *>(_hw_timestamper);
+	std::shared_ptr<EtherTimestamper> timestamper = 
+	 std::dynamic_pointer_cast<EtherTimestamper>(_hw_timestamper);
 	if (timestamper && fUseHardwareTimestamp)
 	{
 		return timestamper->HWTimestamper_txtimestamp
@@ -1019,8 +1038,8 @@ int EtherPort::getRxTimestamp
 ( std::shared_ptr<PortIdentity> sourcePortIdentity, PTPMessageId messageId,
   Timestamp &timestamp, unsigned &counter_value, bool last )
 {
-	EtherTimestamper *timestamper =
-		dynamic_cast<EtherTimestamper *>(_hw_timestamper);
+	std::shared_ptr<EtherTimestamper> timestamper =
+	 	std::dynamic_pointer_cast<EtherTimestamper>(_hw_timestamper);
 	if (timestamper && fUseHardwareTimestamp)
 	{
 		return timestamper->HWTimestamper_rxtimestamp
