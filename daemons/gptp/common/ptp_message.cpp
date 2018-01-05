@@ -449,6 +449,7 @@ PTPMessageCommon *buildPTPMessage
 	messageId.setMessageType(messageType);
 	messageId.setSequenceId(sequenceId);
 
+#ifndef APTP
 	if (!(messageType >> 3)) {
 		int iter = 5;
 		long req = 4000;	// = 1 ms
@@ -484,6 +485,7 @@ PTPMessageCommon *buildPTPMessage
 		}
 
 	}
+#endif
 
 	if (1 != transportSpecific) {
 		GPTP_LOG_EXCEPTION("*** Received message with unsupported "

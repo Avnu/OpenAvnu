@@ -132,12 +132,41 @@ int watchdog_setup(OSThreadFactory *thread_factory)
 static IEEE1588Clock *pClock = nullptr;
 static EtherPort *pPort = nullptr;
 
+InterfaceName *ifname;
+LinuxSharedMemoryIPC *ipc;
+LinuxThreadFactory *thread_factory;
+LinuxTimerQueueFactory *timerq_factory;
+LinuxLockFactory *lock_factory;
+LinuxTimerFactory *timer_factory;
+LinuxConditionFactory *condition_factory;
+
+// Use RAII for removal of heap allocations
+class AKeeper
+{
+	public:
+		AKeeper()
+		{
+		}
+
+		~AKeeper()
+		{
+			delete ifname;
+			delete pClock;
+			delete pPort;
+			delete ipc;
+			delete thread_factory;
+			delete timerq_factory;
+			delete lock_factory;
+			delete timer_factory;
+			delete condition_factory;
+		}
+};
+
 int main(int argc, char **argv)
 {
 	PortInit_t portInit;
 
 	sigset_t set;
-	InterfaceName *ifname;
 	int sig;
 
 	bool syntonize = false;
@@ -197,16 +226,17 @@ int main(int argc, char **argv)
 	portInit.neighborPropDelayThreshold =
 		CommonPort::NEIGHBOR_PROP_DELAY_THRESH;
 
-	LinuxNetworkInterfaceFactory *default_factory =
-		new LinuxNetworkInterfaceFactory;
+	std::shared_ptr<LinuxNetworkInterfaceFactory> default_factory =
+		std::make_shared<LinuxNetworkInterfaceFactory>();
 	OSNetworkInterfaceFactory::registerFactory
 		(factory_name_t("default"), default_factory);
-	LinuxThreadFactory *thread_factory = new LinuxThreadFactory();
-	LinuxTimerQueueFactory *timerq_factory = new LinuxTimerQueueFactory();
-	LinuxLockFactory *lock_factory = new LinuxLockFactory();
-	LinuxTimerFactory *timer_factory = new LinuxTimerFactory();
-	LinuxConditionFactory *condition_factory = new LinuxConditionFactory();
-	LinuxSharedMemoryIPC *ipc = new LinuxSharedMemoryIPC();
+
+	thread_factory = new LinuxThreadFactory();
+	timerq_factory = new LinuxTimerQueueFactory();
+	lock_factory = new LinuxLockFactory();
+	timer_factory = new LinuxTimerFactory();
+	condition_factory = new LinuxConditionFactory();
+	ipc = new LinuxSharedMemoryIPC();
 
 	if (watchdog_setup(thread_factory) != 0) {
 		GPTP_LOG_ERROR("Watchdog handler setup error");
@@ -370,14 +400,15 @@ int main(int argc, char **argv)
 	}
 
 #ifdef ARCH_INTELCE
-	EtherTimestamper  *timestamper = new LinuxTimestamperIntelCE();
+	std::shared_ptr<EtherTimestamper>  timestamper = std::make_shared<LinuxTimestamperIntelCE>();
 #else
-	EtherTimestamper  *timestamper = new LinuxTimestamperGeneric();
 	#ifdef RPI
+		std::shared_ptr<LinuxTimestamperGeneric>  timestamper = std::make_shared<LinuxTimestamperGeneric>();
 		std::shared_ptr<LinuxThreadFactory> pulseThreadFactory = 
 	 	 std::make_shared<LinuxThreadFactory>();
-		LinuxTimestamperGeneric* ts = static_cast<LinuxTimestamperGeneric*>(timestamper);
-		ts->PulseThreadFactory(pulseThreadFactory);
+		timestamper->PulseThreadFactory(pulseThreadFactory);
+	#else
+		std::shared_ptr<EtherTimestamper>  timestamper = std::make_shared<LinuxTimestamperGeneric>();
 	#endif
 #endif
 
@@ -545,6 +576,8 @@ int main(int argc, char **argv)
 		pGPTPPersist->registerWriteCB(gPTPPersistWriteCB);
 	}
 
+	AKeeper k();
+
 	pPort->processEvent(POWERUP);
 
 	do {
@@ -586,9 +619,6 @@ int main(int argc, char **argv)
 			GPTP_LOG_ERROR("Failed to stop pulse per second I/O");
 		}
 	}
-
-	delete ipc;
-	ipc = nullptr;
 
 	GPTP_LOG_UNREGISTER();
 	return 0;

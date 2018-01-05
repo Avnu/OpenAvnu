@@ -36,6 +36,7 @@
 
 #include <unordered_map>
 #include <stdint.h>
+#include <memory>
 
 #include "ptptypes.hpp"
 
@@ -45,6 +46,8 @@ class EtherPort;
 class InterfaceLabel;
 class Timestamp;
 class OSNetworkInterface;
+class PortIdentity;
+class PTPMessageId;
 
 /**
  * @brief Provides a generic interface for hardware timestamping
@@ -134,6 +137,16 @@ class CommonTimestamper
 		 * @return true
 		 */
 		virtual bool HWTimestamper_PPS_stop();
+
+		virtual int HWTimestamper_txtimestamp
+		(std::shared_ptr<PortIdentity> identity, PTPMessageId messageId,
+		  Timestamp &timestamp, unsigned &clock_value, bool last ) = 0;
+
+		virtual int HWTimestamper_rxtimestamp(std::shared_ptr<PortIdentity> identity,
+			PTPMessageId messageId,
+			Timestamp & timestamp,
+			unsigned &clock_value,
+			bool last) = 0;
 
 		/**
 		 * @brief  Gets the HWTimestamper version

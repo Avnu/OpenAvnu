@@ -87,6 +87,7 @@ class OSLock {
 		bool initialize(OSLockType type) {
 			return false;
 		}
+	public:
 		virtual ~OSLock() = 0;
 };
 

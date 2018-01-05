@@ -631,7 +631,7 @@ class OSNetworkInterfaceFactory;
 /**
  * @brief Provides a map for the OSNetworkInterfaceFactory::registerFactory method
  */
-typedef std::map < factory_name_t, OSNetworkInterfaceFactory * >FactoryMap_t;
+typedef std::map <factory_name_t, std::shared_ptr<OSNetworkInterfaceFactory> > FactoryMap_t;
 
 /**
  * @brief Builds and registers a network interface
@@ -645,7 +645,7 @@ class OSNetworkInterfaceFactory {
 	  * @return TRUE success, FALSE when could not register it.
 	  */
 	static bool registerFactory
-	(factory_name_t id, OSNetworkInterfaceFactory * factory) {
+	(factory_name_t id, std::shared_ptr<OSNetworkInterfaceFactory> factory) {
 		FactoryMap_t::iterator iter = factoryMap.find(id);
 		if (iter != factoryMap.end())
 			return false;
@@ -662,7 +662,7 @@ class OSNetworkInterfaceFactory {
 	 * @return TRUE ok, FALSE error.
 	 */
 	static bool buildInterface(OSNetworkInterface ** iface, factory_name_t id,
-	 InterfaceLabel * iflabel, CommonTimestamper * timestamper)
+	 InterfaceLabel * iflabel, std::shared_ptr<CommonTimestamper> timestamper)
 	{
 		return factoryMap[id]->createInterface(iface, iflabel, timestamper);
 	}
@@ -670,7 +670,7 @@ class OSNetworkInterfaceFactory {
 	virtual ~OSNetworkInterfaceFactory() = 0;
 private:
 	virtual bool createInterface(OSNetworkInterface ** iface,
-	 InterfaceLabel * iflabel, CommonTimestamper * timestamper) = 0;
+	 InterfaceLabel * iflabel, std::shared_ptr<CommonTimestamper> timestamper) = 0;
 
 	static FactoryMap_t factoryMap;
 };

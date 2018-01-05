@@ -34,7 +34,7 @@
 #include <avbts_osnet.hpp>
 #include <regex>
 
-std::map<factory_name_t, OSNetworkInterfaceFactory *>
+std::map<factory_name_t, std::shared_ptr<OSNetworkInterfaceFactory> >
 OSNetworkInterfaceFactory::factoryMap;
 
 LinkLayerAddress::LinkLayerAddress(const std::string& ip, uint16_t portNumber) :
