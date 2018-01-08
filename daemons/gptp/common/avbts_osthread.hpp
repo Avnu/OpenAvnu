@@ -87,7 +87,7 @@ public:
 	virtual OSThread * createThread() const = 0;
 
 #ifdef RPI
-	virtual std::shared_ptr<OSThread> create() = 0;
+	virtual std::shared_ptr<OSThread> create() const = 0;
 #endif	
 
 	/**

@@ -53,8 +53,10 @@ CommonPort::CommonPort( PortInit_t *portInit ) :
 	one_way_delay = ONE_WAY_DELAY_DEFAULT;
 	neighbor_prop_delay_thresh = portInit->neighborPropDelayThreshold;
 	net_label = portInit->net_label;
-	link_thread = thread_factory->createThread();
-	listening_thread = thread_factory->createThread();
+#ifndef RPI
+	link_thread = thread_factory->create();
+#endif
+	listening_thread = thread_factory->create();
 	sync_receipt_thresh = portInit->syncReceiptThreshold;
 	wrongSeqIDCounter = 0;
 	_peer_rate_offset = 1.0;
@@ -80,8 +82,6 @@ CommonPort::CommonPort( PortInit_t *portInit ) :
 
 CommonPort::~CommonPort()
 {
-	delete link_thread;
-	delete listening_thread;
 	delete syncReceiptTimerLock;
 	delete syncIntervalTimerLock;
 	delete announceIntervalTimerLock;

@@ -451,10 +451,10 @@ protected:
 	IEEE1588Clock * clock;
 	const bool isGM;
 
-	OSThread *listening_thread;
-	OSThread *link_thread;
-	OSThread *eventThread;
-	OSThread *generalThread;
+	std::shared_ptr<OSThread> listening_thread;
+	std::shared_ptr<OSThread> link_thread;
+	std::shared_ptr<OSThread> eventThread;
+	std::shared_ptr<OSThread> generalThread;
 
 	phy_delay_map_t const * const phy_delay;
 
