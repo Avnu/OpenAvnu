@@ -79,6 +79,7 @@ static igb_vendor_info_t igb_vendor_info_array[] = {
 	{ 0x8086, E1000_DEV_ID_I210_SERDES_FLASHLESS,
 		PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I210_SGMII, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_EXT_SGMII, PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
