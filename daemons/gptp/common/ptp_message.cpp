@@ -1037,6 +1037,7 @@ void PTPMessageFollowUp::processMessage
 	port->incCounter_ieee8021AsPortStatRxFollowUpCount();
 
 	if (!port->getLinkDelay(&delay))
+		GPTP_LOG_ERROR("Received Follow up but there is no valid link delay");
 		goto done;
 
 	master_local_freq_offset = tlv.getRateOffset();

@@ -528,9 +528,7 @@ bool LinuxTimerQueue::addEvent
 		its.it_value.tv_nsec = (micros % 1000000) * 1000;
 		err = timer_settime( outer_arg->timer_handle, 0, &its, NULL );
 		if( err < 0 ) {
-			fprintf
-				( stderr, "Failed to arm timer: %s\n",
-				  strerror( errno ));
+			GPTP_LOG_ERROR("Failed to arm timer: %s", strerror(errno));
 			return false;
 		}
 	}
