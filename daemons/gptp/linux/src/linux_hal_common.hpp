@@ -615,7 +615,7 @@ class LinuxThread : public OSThread {
 	 */
 	virtual bool join(OSThreadExitCode & exit_code);
 	virtual ~LinuxThread();
- protected:
+
 	LinuxThread();
 };
 
@@ -633,9 +633,9 @@ class LinuxThreadFactory:public OSThreadFactory {
 	 }
 
 #ifdef RPI
-	std::shared_ptr<OSThread> create()
+	std::shared_ptr<OSThread> create() const
 	{
-		return std::shared_ptr<OSThread>(new LinuxThread());
+		return std::make_shared<LinuxThread>();
 	}
 #endif	
 

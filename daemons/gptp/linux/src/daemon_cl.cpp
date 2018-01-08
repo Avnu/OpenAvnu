@@ -129,30 +129,37 @@ int watchdog_setup(OSThreadFactory *thread_factory)
 #endif
 }
 
-static IEEE1588Clock *pClock = nullptr;
-static EtherPort *pPort = nullptr;
-
-InterfaceName *ifname;
-LinuxSharedMemoryIPC *ipc;
-LinuxThreadFactory *thread_factory;
-LinuxTimerQueueFactory *timerq_factory;
-LinuxLockFactory *lock_factory;
-LinuxTimerFactory *timer_factory;
-LinuxConditionFactory *condition_factory;
-
 // Use RAII for removal of heap allocations
 class AKeeper
 {
 	public:
-		AKeeper()
+		static IEEE1588Clock *pClock;
+		static EtherPort *pPort;
+
+		InterfaceName *ifname;
+		LinuxSharedMemoryIPC *ipc;
+		LinuxThreadFactory *thread_factory;
+		LinuxTimerQueueFactory *timerq_factory;
+		LinuxLockFactory *lock_factory;
+		LinuxTimerFactory *timer_factory;
+		LinuxConditionFactory *condition_factory;
+
+		AKeeper(char* interfaceName)
 		{
+			ifname = new InterfaceName(interfaceName, strlen(interfaceName));
+			thread_factory = new LinuxThreadFactory();
+			timerq_factory = new LinuxTimerQueueFactory();
+			lock_factory = new LinuxLockFactory();
+			timer_factory = new LinuxTimerFactory();
+			condition_factory = new LinuxConditionFactory();
+			ipc = new LinuxSharedMemoryIPC();
 		}
 
 		~AKeeper()
 		{
 			delete ifname;
-			delete pClock;
 			delete pPort;
+			delete pClock;
 			delete ipc;
 			delete thread_factory;
 			delete timerq_factory;
@@ -162,8 +169,14 @@ class AKeeper
 		}
 };
 
+IEEE1588Clock *AKeeper::pClock = nullptr;
+EtherPort *AKeeper::pPort = nullptr;
+
+
 int main(int argc, char **argv)
 {
+	AKeeper k(argv[1]);
+
 	PortInit_t portInit;
 
 	sigset_t set;
@@ -231,14 +244,7 @@ int main(int argc, char **argv)
 	OSNetworkInterfaceFactory::registerFactory
 		(factory_name_t("default"), default_factory);
 
-	thread_factory = new LinuxThreadFactory();
-	timerq_factory = new LinuxTimerQueueFactory();
-	lock_factory = new LinuxLockFactory();
-	timer_factory = new LinuxTimerFactory();
-	condition_factory = new LinuxConditionFactory();
-	ipc = new LinuxSharedMemoryIPC();
-
-	if (watchdog_setup(thread_factory) != 0) {
+	if (watchdog_setup(k.thread_factory) != 0) {
 		GPTP_LOG_ERROR("Watchdog handler setup error");
 		return -1;
 	}
@@ -249,8 +255,6 @@ int main(int argc, char **argv)
 		print_usage( argv[0] );
 		return -1;
 	}
-	ifname = new InterfaceName( argv[1], strlen(argv[1]) );
-
 
 	/* Process optional arguments */
 	for( i = 2; i < argc; ++i ) {
@@ -426,23 +430,23 @@ int main(int argc, char **argv)
 
 	// TODO: The setting of values into temporary variables should be changed to
 	// just set directly into the portInit struct.
-	portInit.clock = pClock;
+	portInit.clock = k.pClock;
 	portInit.index = 1;
 	portInit.timestamper = timestamper;
-	portInit.net_label = ifname;
-	portInit.condition_factory = condition_factory;
-	portInit.thread_factory = thread_factory;
-	portInit.timer_factory = timer_factory;
-	portInit.lock_factory = lock_factory;
+	portInit.net_label = k.ifname;
+	portInit.condition_factory = k.condition_factory;
+	portInit.thread_factory = k.thread_factory;
+	portInit.timer_factory = k.timer_factory;
+	portInit.lock_factory = k.lock_factory;
 
-	pPort = new EtherPort(&portInit);
+	k.pPort = new EtherPort(&portInit);
 
-	GPTP_LOG_INFO("smoothRateChange: %s", (pPort->SmoothRateChange() ? "true" : "false"));
+	GPTP_LOG_INFO("smoothRateChange: %s", (k.pPort->SmoothRateChange() ? "true" : "false"));
 	
 	if(use_config_file)
 	{
 		GptpIniParser iniParser(config_file_path);
-		pPort->setIniParser(iniParser);
+		k.pPort->setIniParser(iniParser);
 
 		if (iniParser.parserError() < 0) {
 			GPTP_LOG_ERROR("Cant parse ini file. Aborting file reading.");
@@ -472,22 +476,22 @@ int main(int argc, char **argv)
 			/* If using config file, set the syncReceiptThreshold, otherwise
 			 * it will use the default value (SYNC_RECEIPT_THRESH)
 			 */
-			pPort->setSyncReceiptThresh(iniParser.getSyncReceiptThresh());
+			k.pPort->setSyncReceiptThresh(iniParser.getSyncReceiptThresh());
 
-			pPort->setSyncInterval(iniParser.getInitialLogSyncInterval());
-			GPTP_LOG_VERBOSE("pPort->getSyncInterval:%d", pPort->getSyncInterval());
+			k.pPort->setSyncInterval(iniParser.getInitialLogSyncInterval());
+			GPTP_LOG_VERBOSE("pPort->getSyncInterval:%d", k.pPort->getSyncInterval());
 
 			// Set the delay_mechanism from the ini file valid values are E2E or P2P
-			pPort->setDelayMechanism(V2_E2E);
+			k.pPort->setDelayMechanism(V2_E2E);
 
 			// Allows for an initial setting of unicast send and receive 
 			// ip addresses if the destination platform doesn't have
 			// socket support for the send and receive address registration api
-			pPort->UnicastSendNodes(iniParser.UnicastSendNodes());
-			pPort->UnicastReceiveNodes(iniParser.UnicastReceiveNodes());
+			k.pPort->UnicastSendNodes(iniParser.UnicastSendNodes());
+			k.pPort->UnicastReceiveNodes(iniParser.UnicastReceiveNodes());
 
 			// Set the address registration api ip and port
-			pPort->AdrRegSocketPort(iniParser.AdrRegSocketPort());
+			k.pPort->AdrRegSocketPort(iniParser.AdrRegSocketPort());
 
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
 			if (!input_delay)
@@ -498,7 +502,7 @@ int main(int argc, char **argv)
 
 	}
 
-	if (!pPort->init_port()) {
+	if (!k.pPort->init_port()) {
 		GPTP_LOG_ERROR("failed to initialize port");
 		GPTP_LOG_UNREGISTER();
 		return -1;
@@ -508,27 +512,27 @@ int main(int argc, char **argv)
 	{
 		ipc_arg = new LinuxIPCArg;
 	}
-	ipc_arg->AdrRegSocketPort(pPort->AdrRegSocketPort());
-	if (!ipc->init(ipc_arg))
+	ipc_arg->AdrRegSocketPort(k.pPort->AdrRegSocketPort());
+	if (!k.ipc->init(ipc_arg))
 	{
-		delete ipc;
-		ipc = nullptr;
+		delete k.ipc;
+		k.ipc = nullptr;
 	}
 
 	delete ipc_arg;
 	ipc_arg = nullptr;
 
-	pClock = new IEEE1588Clock(false, syntonize, priority1, timerq_factory, ipc,
-	  lock_factory);
+	k.pClock = new IEEE1588Clock(false, syntonize, priority1, k.timerq_factory, k.ipc,
+	  k.lock_factory);
 
-	pPort->setClock(pClock);
+	k.pPort->setClock(k.pClock);
 
 	if (restoredataptr != nullptr)
 	{
 		if (!restorefailed)
 		{
 			restorefailed =
-				!pClock->restoreSerializedState( restoredataptr, &restoredatacount );
+				!k.pClock->restoreSerializedState( restoredataptr, &restoredatacount );
 		}
 		restoredataptr = ((char *)restoredata) + (restoredatalength - restoredatacount);
 	}
@@ -544,7 +548,7 @@ int main(int argc, char **argv)
 	}
 
 	if( override_portstate ) {
-		pPort->setPortState( port_state );
+		k.pPort->setPortState( port_state );
 	}
 
 	// Start PPS if requested
@@ -556,7 +560,7 @@ int main(int argc, char **argv)
 
 #ifdef APTP
 	// Start the address api listener
-	AAddressRegisterListener adrListener(ifname->Name(), pPort);
+	AAddressRegisterListener adrListener(k.ifname->Name(), k.pPort);
 	std::shared_ptr<LinuxThreadFactory> addressApiThreadFactory =
 	 std::make_shared<LinuxThreadFactory>();
 	adrListener.ThreadFactory(addressApiThreadFactory);
@@ -568,17 +572,15 @@ int main(int argc, char **argv)
 	if (pGPTPPersist) {
 		off_t len = 0;
 		restoredatacount = 0;
-		pClock->serializeState(NULL, &len);
+		k.pClock->serializeState(NULL, &len);
 		restoredatacount += len;
-		pPort->serializeState(NULL, &len);
+		k.pPort->serializeState(NULL, &len);
 		restoredatacount += len;
 		pGPTPPersist->setWriteSize((uint32_t)restoredatacount);
 		pGPTPPersist->registerWriteCB(gPTPPersistWriteCB);
 	}
 
-	AKeeper k();
-
-	pPort->processEvent(POWERUP);
+	k.pPort->processEvent(POWERUP);
 
 	do {
 		sig = 0;
@@ -592,14 +594,14 @@ int main(int argc, char **argv)
 		if (sig == SIGHUP) {
 			if (pGPTPPersist) {
 			  // If port is either master or slave, save clock and then port state
-			  if (pPort->getPortState() == PTP_MASTER || pPort->getPortState() == PTP_SLAVE) {
+			  if (k.pPort->getPortState() == PTP_MASTER || k.pPort->getPortState() == PTP_SLAVE) {
 				pGPTPPersist->triggerWriteStorage();
 			  }
 			}
 		}
 
 		if (sig == SIGUSR2) {
-			pPort->logIEEEPortCounters();
+			k.pPort->logIEEEPortCounters();
 		}
 	} while (sig == SIGHUP || sig == SIGUSR2);
 
@@ -633,8 +635,8 @@ void gPTPPersistWriteCB(char *bufPtr, uint32_t bufSize)
 	GPTP_LOG_INFO("Signal received to write restore data");
 
 	restoredataptr = (char *)bufPtr;
-	pClock->serializeState(restoredataptr, &restoredatacount);
+	AKeeper::pClock->serializeState(restoredataptr, &restoredatacount);
 	restoredataptr = ((char *)bufPtr) + (restoredatalength - restoredatacount);
-	pPort->serializeState(restoredataptr, &restoredatacount);
+	AKeeper::pPort->serializeState(restoredataptr, &restoredatacount);
 	restoredataptr = ((char *)bufPtr) + (restoredatalength - restoredatacount);
 }

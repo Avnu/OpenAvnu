@@ -101,9 +101,6 @@ EtherPort::~EtherPort()
 	delete port_ready_condition;
 #endif
 	delete qualified_announce;
-	delete link_thread;
-	delete eventThread;
-	delete generalThread;
 	delete pdelay_rx_lock;
 	delete port_tx_lock;
 	delete pDelayIntervalTimerLock;
@@ -508,7 +505,7 @@ bool EtherPort::_processEvent( Event e )
 #endif		
 
 #ifdef RPI
-		link_thread = thread_factory->createThread();
+		link_thread = thread_factory->create();
 		if(!link_thread->start(watchNetLinkWrapper, (void *)this))
 		{
 			GPTP_LOG_ERROR("Error creating port link thread");
@@ -516,7 +513,7 @@ bool EtherPort::_processEvent( Event e )
 		}
 
 		GPTP_LOG_VERBOSE("Starting event port thread");
-		eventThread = thread_factory->createThread();
+		eventThread = thread_factory->create();
 		if (!eventThread->start(openEventPortWrapper, (void *)this))
 		{
 			GPTP_LOG_ERROR("Error creating event port thread");
@@ -524,7 +521,7 @@ bool EtherPort::_processEvent( Event e )
 		}
 
 		GPTP_LOG_VERBOSE("Starting general port thread");
-		generalThread = thread_factory->createThread();
+		generalThread = thread_factory->create();
 		if (!generalThread->start(openGeneralPortWrapper, (void *)this))
 		{
 			GPTP_LOG_ERROR("Error creating general port thread");
