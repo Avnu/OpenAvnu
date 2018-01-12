@@ -67,8 +67,184 @@ VOID CALLBACK WindowsTimerQueueHandler( PVOID arg_in, BOOLEAN ignore ) {
 	ReleaseSRWLockExclusive( &arg->queue->retiredTimersLock );
 }
 
+inline uint64_t scale64(uint64_t i, uint32_t m, uint32_t n)
+{
+	uint64_t tmp, res, rem;
 
-bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetworkInterface *net_iface ) {
+	rem = i % n;
+	i /= n;
+
+	res = i * m;
+	tmp = rem * m;
+
+	tmp /= n;
+
+	return res + tmp;
+}
+
+void WirelessTimestamperCallback( LPVOID arg )
+{
+	WirelessTimestamperCallbackArg *larg =
+		(WirelessTimestamperCallbackArg *)arg;
+	WindowsWirelessTimestamper *timestamper =
+		dynamic_cast<WindowsWirelessTimestamper *> (larg->timestamper);
+	WirelessDialog tmp1, tmp2;
+	LinkLayerAddress *peer_addr = NULL;
+
+	if (timestamper == NULL)
+	{
+		GPTP_LOG_ERROR( "Wrong timestamper type: %p",
+				larg->timestamper );
+		return;
+	}
+
+	switch( larg->iEvent_type )
+	{
+	default:
+	case TIMINGMSMT_CONFIRM_EVENT:
+		tmp1.action_devclk = larg->event_data.confirm.T1;
+		tmp1.ack_devclk = larg->event_data.confirm.T4;
+		tmp1.dialog_token = (BYTE)larg->event_data.confirm.DialogToken;
+		GPTP_LOG_VERBOSE
+			( "Got confirm, %hhu(%llu,%llu)", tmp1.dialog_token,
+			  tmp1.action_devclk, tmp1.ack_devclk );
+		peer_addr = new LinkLayerAddress
+			( larg->event_data.confirm.PeerMACAddress );
+		larg->timestamper->
+			timingMeasurementConfirmCB( *peer_addr, &tmp1 );
+
+		break;
+
+	case TIMINGMSMT_EVENT:
+		tmp1/*prev*/.action_devclk = larg->event_data.indication.
+			indication.T1;
+		tmp1/*prev*/.ack_devclk = larg->event_data.indication.
+			indication.T4;
+		tmp1/*prev*/.dialog_token = (BYTE)larg->event_data.indication.
+			indication.FollowUpDialogToken;
+		tmp2/*curr*/.action_devclk = larg->event_data.indication.
+			indication.T2;
+		tmp2/*curr*/.ack_devclk = larg->event_data.indication.
+			indication.T3;
+		tmp2/*curr*/.dialog_token = (BYTE)larg->event_data.indication.
+			indication.DialogToken;
+		GPTP_LOG_VERBOSE
+			("Got indication, %hhu(%llu,%llu) %hhu(%llu,%llu)",
+			 tmp1.dialog_token, tmp1.action_devclk,
+			 tmp1.ack_devclk, tmp2.dialog_token,
+			 tmp2.action_devclk, tmp2.ack_devclk);
+		peer_addr = new LinkLayerAddress(larg->event_data.indication.
+						 indication.PeerMACAddress);
+
+		larg->timestamper->timeMeasurementIndicationCB
+			( *peer_addr, &tmp2, &tmp1,
+			  larg->event_data.indication.
+			  indication.PtpSpec.fwup_data,
+			  larg->event_data.indication.
+			  indication.WiFiVSpecHdr.Length - (sizeof(PTP_SPEC) -
+							    1));
+
+		break;
+
+	case TIMINGMSMT_CORRELATEDTIME_EVENT:
+		timestamper->system_counter =
+			scale64( larg->event_data.ptm_wa.TSC, NS_PER_SECOND,
+				 (uint32_t)timestamper->tsc_hz.QuadPart );
+		timestamper->system_time.set64(timestamper->system_counter);
+		// Scale from TM timescale to nanoseconds
+		larg->event_data.ptm_wa.LocalClk *= 10;
+		timestamper->device_time.set64
+			(larg->event_data.ptm_wa.LocalClk*10);
+
+		break;
+	}
+
+	delete peer_addr;
+}
+
+net_result WindowsWirelessTimestamper::_requestTimingMeasurement
+(TIMINGMSMT_REQUEST *timingmsmt_req)
+{
+	net_result ret = net_succeed;
+
+	if (!adapter->initiateTimingRequest(timingmsmt_req)) {
+		GPTP_LOG_ERROR("Failed to send timing measurement request\n");
+		ret = net_fatal;
+	}
+
+	return ret;
+}
+
+bool WindowsWirelessTimestamper::HWTimestamper_gettime
+(	Timestamp *system_time,
+	Timestamp * device_time,
+	uint32_t * local_clock,
+	uint32_t * nominal_clock_rate ) const
+{
+	bool refreshed = adapter->refreshCrossTimestamp();
+	if (refreshed)
+	{
+		// We have a fresh cross-timestamp just use it
+		*system_time = this->system_time;
+		*device_time = this->device_time;
+	} else
+	{
+		// We weren't able to get a fresh timestamp,
+		// extrapolate from the last
+		LARGE_INTEGER tsc_now;
+		QueryPerformanceCounter(&tsc_now);
+		unsigned device_delta = (unsigned)
+			(((long double) (tsc_now.QuadPart - system_counter)) /
+			 (((long double)tsc_hz.QuadPart) / 1000000000));
+		device_delta = (unsigned)(device_delta*getPort()->
+					  getLocalSystemFreqOffset());
+		system_time->set64((uint64_t)
+				   (((long double)tsc_now.QuadPart) /
+				    ((long double)tsc_hz.QuadPart /
+				     1000000000)));
+		device_time->set64(device_delta);
+		*device_time = *device_time + this->device_time;
+	}
+
+	return true;
+}
+
+bool WindowsWirelessTimestamper::HWTimestamper_init
+(InterfaceLabel *iface_label, OSNetworkInterface *iface)
+{
+	uint8_t mac_addr_local[ETHER_ADDR_OCTETS];
+
+	if (!initialized) {
+		if (!adapter->initialize()) return false;
+		if (getPort()->getLocalAddr() == NULL)
+			return false;
+
+		getPort()->getLocalAddr()->toOctetArray(mac_addr_local);
+		if (!adapter->attachAdapter(mac_addr_local)) {
+			return false;
+		}
+
+		tsc_hz.QuadPart = getTSCFrequency(false);
+		if (tsc_hz.QuadPart == 0) {
+			return false;
+		}
+
+		if (!adapter->registerTimestamper(this))
+			return false;
+	}
+
+	initialized = true;
+	return true;
+}
+
+WindowsWirelessTimestamper::~WindowsWirelessTimestamper() {
+	if (adapter->deregisterTimestamper(this))
+		adapter->shutdown();
+	else
+		GPTP_LOG_INFO("Failed to shutdown time sync on adapter");
+}
+
+bool WindowsEtherTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetworkInterface *net_iface ) {
 	char network_card_id[64];
 	LinkLayerAddress *addr = dynamic_cast<LinkLayerAddress *>(iface_label);
 	if( addr == NULL ) return false;
@@ -112,7 +288,7 @@ bool WindowsTimestamper::HWTimestamper_init( InterfaceLabel *iface_label, OSNetw
 		NULL, OPEN_EXISTING, 0, NULL );
 	if( miniport == INVALID_HANDLE_VALUE ) return false;
 
-	tsc_hz.QuadPart = getTSCFrequency( 1000 );
+	tsc_hz.QuadPart = getTSCFrequency( true );
 	if( tsc_hz.QuadPart == 0 ) {
 		return false;
 	}

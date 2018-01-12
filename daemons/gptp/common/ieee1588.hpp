@@ -452,16 +452,4 @@ static inline void TIMESTAMP_ADD_NS( Timestamp &ts, uint64_t ns ) {
 	   ts.nanoseconds = (uint32_t)nanos;
 }
 
-/**
- * @brief  Builds a PTP message
- * @param  buf [in] message buffer to send
- * @param  size message length
- * @param  remote Destination link layer address
- * @param  port [in] IEEE1588 port
- * @return PTP message instance of PTPMessageCommon
- */
-PTPMessageCommon *buildPTPMessage
-( char *buf, int size, LinkLayerAddress *remote,
-  EtherPort *port );
-
 #endif

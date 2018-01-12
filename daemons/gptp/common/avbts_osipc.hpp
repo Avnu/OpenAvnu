@@ -36,7 +36,6 @@
 
 #include <stdint.h>
 #include <ptptypes.hpp>
-#include <ether_port.hpp>
 
 /**@file*/
 

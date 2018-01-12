@@ -60,7 +60,7 @@ int _tmain(int argc, _TCHAR* argv[])
     strcpy_s( pipename, 64, PIPE_PREFIX );
     strcat_s( pipename, 64-strlen(pipename), P802_1AS_PIPENAME );
     HANDLE pipe;
-	uint64_t tsc_frequency = getTSCFrequency( 1000 );
+	uint64_t tsc_frequency = getTSCFrequency( true );
 
    // Wait for Ctrl-C
     if( !SetConsoleCtrlHandler( ctrl_handler, true )) {

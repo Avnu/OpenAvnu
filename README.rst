@@ -98,6 +98,16 @@ Starting from the OpenAvnu dir, one would go::
 
 to build in OpenAvnu/tmp
 
+Apple Vendor PTP Profile
+========================
+
+Support for the Apple Vendor PTP Profile can be found on the
+feature-aptp-experimental branch of the OpenAvnu repository.
+
+These changes allow interaction with Apple proprietary PTP clocks. This 
+implementation has been tested with the Apple AirPlay SDK on a Raspberry Pi 3 
+running within a group of devices playing the same music stream.
+
 RELATED OPEN SOURCE PROJECTS
 ============================
 
@@ -119,11 +129,3 @@ XMOS
 XMOS is a semiconductor company providing a reference design for AVB/TSN
 endpoints in pro audio and automotive. XMOS endpoint source code is open source 
 and available on Github - https://github.com/xcore/sw_avb
-
-Apple Vendor PTP Profile
-------------------------
-Support for the Apple Vendor PTP Profile can be found on this fork of the OpenAvnu code within the branch ArtAndLogic-aPTP-changes.
-
-+ https://github.com/rroussel/OpenAvnu/tree/ArtAndLogic-aPTP-changes 
-
-These changes allow interaction with Apple proprietary PTP clocks. This implementation has been tested with the Apple AirPlay SDK on a Raspberry Pi 3 running within a group of devices playing the same music stream.
