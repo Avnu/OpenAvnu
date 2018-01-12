@@ -37,6 +37,7 @@
 #include "avbts_oslock.hpp"
 #include "avbts_persist.hpp"
 #include "gptp_cfg.hpp"
+#include "ether_port.hpp"
 
 #ifdef ARCH_INTELCE
 #include "linux_hal_intelce.hpp"

@@ -550,6 +550,15 @@ public:
     FrequencyRatio local_system_freq_offset, unsigned sync_count,
     unsigned pdelay_count, PortState port_state, bool asCapable );
 
+	/**
+	 * @brief  Get local:system frequency ratio
+	 * @return clock ratio
+	 */
+	FrequencyRatio getLocalSystemFreqOffset()
+	{
+		return _local_system_freq_offset;
+	}
+
   /**
    * @brief  Get the IEEE1588Clock identity value
    * @return clock identity
