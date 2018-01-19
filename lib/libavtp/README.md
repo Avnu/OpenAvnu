@@ -37,3 +37,12 @@ AVTP protocol defines several AVTPDU type formats (see Table 6 from IEEE
 1722-2016 spec). Libavtp doesn't support all of them yet. The list of supported
 formarts is:
 * AAF (PCM encapsulation only)
+
+# Examples
+
+The `examples/` directory in the top-level directory provides example
+applications which demonstrate the libavtp functionalities. To build an
+example application run `$ ninja -C build <example name>`.
+
+Information about what exactly each example application does and how it works
+is provided in the beginning of the .c file from each application.
