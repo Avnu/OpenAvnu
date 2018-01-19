@@ -30,3 +30,10 @@ To install libavtp on your system run:
 ```
 $ sudo ninja -C build install
 ```
+
+# AVTP Formats Support
+
+AVTP protocol defines several AVTPDU type formats (see Table 6 from IEEE
+1722-2016 spec). Libavtp doesn't support all of them yet. The list of supported
+formarts is:
+* AAF (PCM encapsulation only)
