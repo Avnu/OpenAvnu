@@ -40,3 +40,11 @@ test_aaf = executable(
 
 test('AVTP API', test_avtp)
 test('AAF API', test_aaf)
+
+executable(
+	'aaf-talker',
+	'examples/aaf-talker.c',
+	include_directories: include_directories('include'),
+	link_with: avtp_lib,
+	build_by_default: false,
+)
