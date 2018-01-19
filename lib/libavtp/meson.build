@@ -5,7 +5,7 @@ project(
 	license: 'BSD-3-Clause',
 )
 
-library(
+avtp_lib = library(
 	'avtp',
 	[
 	 'src/avtp.c',
@@ -19,3 +19,14 @@ install_headers(
 	'include/avtp.h',
 	'include/avtp_aaf.h',
 )
+
+test_avtp = executable(
+	'test-avtp',
+	'unit/test-avtp.c',
+	include_directories: include_directories('include'),
+	link_with: avtp_lib,
+	dependencies: dependency('cmocka'),
+	build_by_default: false,
+)
+
+test('AVTP API', test_avtp)
