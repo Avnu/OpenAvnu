@@ -29,4 +29,14 @@ test_avtp = executable(
 	build_by_default: false,
 )
 
+test_aaf = executable(
+	'test-aaf',
+	'unit/test-aaf.c',
+	include_directories: include_directories('include'),
+	link_with: avtp_lib,
+	dependencies: dependency('cmocka'),
+	build_by_default: false,
+)
+
 test('AVTP API', test_avtp)
+test('AAF API', test_aaf)
