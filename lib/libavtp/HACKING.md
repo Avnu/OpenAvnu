@@ -1,11 +1,23 @@
 # Contributing
 
-Before submitting your patch to review, make sure it doesn't break any unit
-test. See the following section for information about how to build and run
-the unit tests.
+If you have a bug fixed or added support for some AVTP feature, your patches
+are welcomed! In order to get your patches merged faster, please follow the
+guidelines:
 
-Additionally, if your patch adds new APIs to libavtp, please also provide
-patches adding test cases that cover the new APIs.
+* Before submitting your patch to review, make sure it doesn't break any unit
+test. See section 'Running Unit Tests' for information about how to build and
+run unit tests.
+
+* Besides the bugfix/feature itself, also provide unit test covering the code
+you're contributing. See section 'Code Coverage' to check how you can easily
+generate coverage reports and see where you need to work on to get your code
+covered.
+
+* If your patch adds new public APIs to libavtp, please also provide patches
+adding example applications (or modify an existing one if it makes sense)
+which demonstrate how to use the new APIs.
+
+* Make sure the author's name and email are set properly.
 
 # Running Unit Tests
 
