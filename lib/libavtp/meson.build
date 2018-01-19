@@ -48,3 +48,11 @@ executable(
 	link_with: avtp_lib,
 	build_by_default: false,
 )
+
+executable(
+	'aaf-listener',
+	'examples/aaf-listener.c',
+	include_directories: include_directories('include'),
+	link_with: avtp_lib,
+	build_by_default: false,
+)
