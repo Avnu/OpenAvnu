@@ -19,3 +19,20 @@ for more information.
 ```
 $ ninja -C build test
 ```
+
+# Code Coverage
+
+Meson build system provides some built-in code coverage support based on `lcov`
+so make sure you have this package installed on your system in order to
+generate coverage reports.
+
+To generate html reports run the following commands:
+
+```
+$ rm -rf build/
+$ meson build -Db_coverage=true
+$ ninja -C build/ test
+$ ninja -C build/ coverage-html
+```
+
+The coverage report can be found in build/meson-logs/coveragereport/ directory.
