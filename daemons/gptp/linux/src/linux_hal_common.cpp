@@ -428,14 +428,19 @@ void *LinuxTimerQueueHandler( void *arg ) {
 	timeout.tv_sec = 0; timeout.tv_nsec = 100000000; /* 100 ms */
 
 	sigemptyset( &waitfor );
-
+	GPTP_LOG_DEBUG("Signal thread started");
 	while( !timerq->stop ) {
 		siginfo_t info;
 		LinuxTimerQueueMap_t::iterator iter;
 		sigaddset( &waitfor, SIGUSR1 );
 		if( sigtimedwait( &waitfor, &info, &timeout ) == -1 ) {
-			if( errno == EAGAIN ) continue;
-			else break;
+			if( errno == EAGAIN ) {
+				continue;
+			}
+			else {
+				GPTP_LOG_ERROR("Signal thread sigtimedwait error: %d", errno);
+				break;
+			}
 		}
 		if( timerq->lock->lock() != oslock_ok ) {
 			break;
@@ -456,7 +461,7 @@ void *LinuxTimerQueueHandler( void *arg ) {
 			break;
 		}
 	}
-
+	GPTP_LOG_DEBUG("Signal thread exit");
 	return NULL;
 }
 
@@ -474,16 +479,15 @@ OSTimerQueue *LinuxTimerQueueFactory::createOSTimerQueue
 		return NULL;
 	}
 
+	ret->key = 0;
+	ret->stop = false;
+	ret->lock = clock->timerQLock();
 	if( pthread_create
 		( &(ret->_private->signal_thread),
 		  NULL, LinuxTimerQueueHandler, ret ) != 0 ) {
 		delete ret;
 		return NULL;
 	}
-
-	ret->stop = false;
-	ret->key = 0;
-	ret->lock = clock->timerQLock();
 
 	return ret;
 }

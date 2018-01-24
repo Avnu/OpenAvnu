@@ -174,14 +174,8 @@ void EtherPort::startPDelay()
 			if( getPDelayInterval() !=
 			    PTPMessageSignalling::sigMsgInterval_NoSend)
 			{
-				long long unsigned int waitTime;
-				waitTime = ((long long)
-					    (pow((double)2,
-						 getPDelayInterval()) *
-					     1000000000.0));
-				waitTime = waitTime > EVENT_TIMER_GRANULARITY ? waitTime : EVENT_TIMER_GRANULARITY;
 				pdelay_started = true;
-				startPDelayIntervalTimer(waitTime);
+				startPDelayIntervalTimer(EVENT_TIMER_GRANULARITY);
 			}
 		}
 		else {
