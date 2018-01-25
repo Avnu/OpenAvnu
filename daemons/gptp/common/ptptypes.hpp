@@ -43,6 +43,7 @@ typedef double FrequencyRatio;		/*!< Frequency Ratio */
 typedef long double FrequencyRatio;	/*!< Frequency Ratio */
 #endif
 
+#define ETHER_HDR_LEN (14)
 #define ETHER_ADDR_OCTETS	6		/*!< Number of octets in a link layer address*/
 #define IP_ADDR_OCTETS		4		/*!< Number of octets in a ip address*/
 #define PTP_ETHERTYPE 0x88F7		/*!< PTP ethertype */

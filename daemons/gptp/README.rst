@@ -94,6 +94,35 @@ To run from the command line:
 
 where xx-xx-xx-xx-xx-xx is the mac address of the local interface
 
+Windows Wireless Specific
++++++++++++++++++++++++++
+
+Additional Driver/Hardware Requirements:
+
+* Intel(R) 8260 Adapter
+
+* Intel(R) PROSet/Wireless Software
+
+
+The wireless software can be downloaded from:
+
+https://downloadcenter.intel.com/ (Search)
+
+Running the daemon:
+
+Currently, the driver only works with peer-to-peer wireless connections.
+The connection must be established prior to running the daemon.
+
+./gptp.exe -w <local hw device MAC> <local P2P MAC> <remove P2P MAC>
+
+Other limitations:
+
+Some versions of Windows(R) 10 do not allow WinPcap(R) to inject frames and
+the BMCA algorithm can't complete. The result is both peers assume the master
+role. To fix this, force one peer to be slave with the following command line:
+
+./gptp.exe -w -R 255 <local hw device MAC> <local P2P MAC> <remove P2P MAC>
+
 Other Available PTP Daemons
 ---------------------------
 There are a number of existing ptp daemon projects. Some of the other known 

@@ -45,6 +45,10 @@
 
 #include <math.h>
 
+#define SYNC_RECEIPT_TIMEOUT_MULTIPLIER 3 /*!< Sync rcpt timeout multiplier */
+#define ANNOUNCE_RECEIPT_TIMEOUT_MULTIPLIER 3 /*!< Annc rcpt timeout mult */
+#define LOG2_INTERVAL_INVALID -127 /* Invalid Log base 2 interval value */
+
 class IEEE1588Clock;
 
 /**
@@ -214,6 +218,9 @@ typedef struct {
 	/* net_label Network label */
 	InterfaceLabel *net_label;
 
+	/* Virtual Network label (e.g. WiFi Direct network MAC) */
+	InterfaceLabel *virtual_label;
+
 	/* automotive_profile set the AVnu automotive profile */
 	bool automotive_profile;
 
@@ -313,6 +320,7 @@ private:
 
 	PortState port_state;
 	bool testMode;
+	bool automotive_profile;
 
 	signed char log_mean_sync_interval;
 	signed char log_mean_announce_interval;
@@ -335,6 +343,9 @@ private:
 	unsigned sync_count;  /* 0 for master, increment for each sync
 			       * received as slave */
 	unsigned pdelay_count;
+
+	signed char initialLogPdelayReqInterval;
+	signed char log_min_mean_pdelay_req_interval;
 
 	PTPMessageAnnounce *qualified_announce;
 
@@ -434,6 +445,13 @@ public:
 
 		return (abs_delay <= neighbor_prop_delay_thresh);
 	}
+
+	/**
+	* @brief Return frequency offset between local timestamp clock
+	*	system clock
+	* @return local:system ratio
+	*/
+	FrequencyRatio getLocalSystemFreqOffset();
 
 	/**
 	 * @brief  Gets a pointer to IEEE1588Clock
@@ -1115,6 +1133,63 @@ public:
 	virtual void becomeSlave( bool restart_syntonization ) = 0;
 
 	/**
+	* @brief  Gets the AVnu automotive profile flag
+	* @return automotive_profile flag
+	*/
+	bool getAutomotiveProfile() { return(automotive_profile); }
+
+	/**
+	* @brief  Sets the pDelay minimum interval
+	* @param  val time interval
+	* @return none
+	*/
+	void setPDelayInterval(signed char val) {
+		log_min_mean_pdelay_req_interval = val;
+	}
+
+	/**
+	* @brief  Gets the pDelay minimum interval
+	* @return PDelay interval
+	*/
+	signed char getPDelayInterval(void) {
+		return log_min_mean_pdelay_req_interval;
+	}
+
+	/**
+	* @brief  Sets the pDelay minimum interval back to initial
+	*         value
+	* @return none
+	*/
+	void resetInitPDelayInterval(void) {
+		log_min_mean_pdelay_req_interval = initialLogPdelayReqInterval;
+	}
+
+	/**
+	 * @brief set initial pdelay interval
+	 * @param interval [in] log base 2 pdelay rate
+	 */
+	void setInitPDelayInterval( int8_t interval )
+	{
+		initialLogPdelayReqInterval = interval;
+	}
+
+	/**
+	 * @brief get  initial pdelay interval
+	 * @return log base 2 pdelay rate
+	 */
+	int8_t getInitPDelayInterval(void)
+	{
+		return initialLogPdelayReqInterval;
+	}
+
+	/**
+	* @brief  Start pDelay interval timer
+	* @param  waitTime time interval
+	* @return none
+	*/
+	virtual void startPDelayIntervalTimer( unsigned long long waitTime ) {}
+
+	/**
 	 * @brief  Sets current sync count value.
 	 * @param  cnt [in] sync count value
 	 * @return void
@@ -1336,20 +1411,24 @@ public:
 	 */
 	virtual bool _processEvent( Event e ) = 0;
 
+	/**
+	* @brief  Performs media specific setup after start sync is completed
+	* @return void
+	*/
 	virtual void syncDone() = 0;
 
 	/**
-	 * @brief Sends a general message to a port. No timestamps
-	 * @param buf [in] Pointer to the data buffer
-	 * @param len Size of the message
-	 * @param mcast_type Enumeration
-	 * MulticastType (pdelay, none or other). Depracated.
-	 * @param destIdentity Destination port identity
-	 * @return void
-	 */
+	* @brief Sends a general message to a port. No timestamps
+	* @param buf [in] Pointer to the data buffer
+	* @param len Size of the message
+	* @param mcast_type Enumeration
+	* MulticastType (pdelay, none or other). Depracated.
+	* @param destIdentity Destination port identity
+	* @return void
+	*/
 	virtual void sendGeneralPort
 	(uint16_t etherType, uint8_t * buf, int len, MulticastType mcast_type,
-	 PortIdentity * destIdentity) = 0;
+		PortIdentity * destIdentity) = 0;
 
 	/**
 	 * @brief Sets link speed
