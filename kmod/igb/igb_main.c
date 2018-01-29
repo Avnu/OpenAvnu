@@ -10218,8 +10218,15 @@ static int igb_bind(struct file *file, void __user *argp)
 
 	if (copy_from_user(&req, argp, sizeof(req)))
 		return -EFAULT;
-
-	printk("bind to iface %s\n", req.iface);
+	
+	if (req.iface[IGB_BIND_NAMESZ-1] == 0) {
+		printk("bind to iface %s\n", req.iface);
+	} else {
+		//invalid argument passed,
+		//iface string not null-terminated
+		printk("Invalid argument passed, iface string not null-terminated\n");
+		return -EINVAL;
+	}
 
 	if (igb_priv == NULL) {
 		printk("cannot find private data!\n");
