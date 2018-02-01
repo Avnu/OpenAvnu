@@ -10218,7 +10218,15 @@ static int igb_bind(struct file *file, void __user *argp)
 
 	if (copy_from_user(&req, argp, sizeof(req)))
 		return -EFAULT;
+	
+	/*setting the last character of req.iface to '/0'
+	in order to avoid not null terminated string printk call.
+	Regardless of the initial state of string, that change
+	will prevent from stack leaking.
+	In this case no need to check the string or iterate over it 
+	in order to ensure null termination exists*/
 
+	req.iface[IGB_BIND_NAMESZ-1] = 0;
 	printk("bind to iface %s\n", req.iface);
 
 	if (igb_priv == NULL) {
