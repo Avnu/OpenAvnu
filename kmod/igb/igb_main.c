@@ -214,7 +214,7 @@ static long igb_ioctl_file(struct file *file, unsigned int cmd,
 			   unsigned long arg);
 static void igb_vm_open(struct vm_area_struct *vma);
 static void igb_vm_close(struct vm_area_struct *vma);
-static int igb_vm_fault(struct vm_area_struct *area, struct vm_fault *fdata);
+static int igb_vm_fault(struct vm_fault *fdata);
 static int igb_mmap(struct file *file, struct vm_area_struct *vma);
 static ssize_t igb_read(struct file *file, char __user *buf, size_t count,
 			loff_t *pos);
@@ -1090,7 +1090,7 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter, bool msix)
 			for (i = 0; i < numvecs; i++)
 				adapter->msix_entries[i].entry = i;
 
-			err = pci_enable_msix(pdev,
+			err = pci_enable_msix_exact(pdev,
 					      adapter->msix_entries, numvecs);
 			if (err == 0)
 				break;
@@ -10709,7 +10709,7 @@ static void igb_vm_close(struct vm_area_struct *vma)
 {
 }
 
-static int igb_vm_fault(struct vm_area_struct *area, struct vm_fault *fdata)
+static int igb_vm_fault(struct vm_fault *fdata)
 {
 		return VM_FAULT_SIGBUS;
 }
