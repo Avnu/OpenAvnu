@@ -1528,7 +1528,7 @@ static void igb_loopback_cleanup(struct igb_adapter *adapter)
 	e1000_read_phy_reg(hw, PHY_CONTROL, &phy_reg);
 	if (phy_reg & MII_CR_LOOPBACK) {
 		phy_reg &= ~MII_CR_LOOPBACK;
-		if (hw->phy.type == I210_I_PHY_ID)
+		if (hw->phy.id == I210_I_PHY_ID)
 			e1000_write_phy_reg(hw, I347AT4_PAGE_SELECT, 0);
 		e1000_write_phy_reg(hw, PHY_CONTROL, phy_reg);
 		e1000_phy_commit(hw);
@@ -1714,9 +1714,9 @@ static int igb_loopback_test(struct igb_adapter *adapter, u64 *data)
 	if (*data)
 		goto out;
 	*data = igb_setup_loopback_test(adapter);
+	*data = igb_run_loopback_test(adapter);
 	if (*data)
 		goto err_loopback;
-	*data = igb_run_loopback_test(adapter);
 
 	igb_loopback_cleanup(adapter);
 
@@ -2141,7 +2141,7 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 	switch (stringset) {
 	case ETH_SS_TEST:
-		memcpy(data, *igb_gstrings_test,
+		memcpy(data, igb_gstrings_test,
 			IGB_TEST_LEN*ETH_GSTRING_LEN);
 		break;
 	case ETH_SS_STATS:

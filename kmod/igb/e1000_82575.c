@@ -3218,8 +3218,6 @@ s32 e1000_read_i2c_byte_generic(struct e1000_hw *hw, u8 byte_offset,
 			goto fail;
 
 		status = e1000_clock_in_i2c_byte(hw, data);
-		if (status != E1000_SUCCESS)
-			goto fail;
 
 		status = e1000_clock_out_i2c_bit(hw, nack);
 		if (status != E1000_SUCCESS)

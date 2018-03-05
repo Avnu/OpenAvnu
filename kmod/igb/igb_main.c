@@ -9615,10 +9615,7 @@ static void igb_io_resume(struct pci_dev *pdev)
 	}
 
 	if (netif_running(netdev)) {
-		if (igb_up(adapter)) {
-			dev_err(pci_dev_to_dev(pdev), "igb_up failed after reset\n");
-			return;
-		}
+		igb_up(adapter);
 	}
 
 	netif_device_attach(netdev);
