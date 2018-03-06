@@ -121,11 +121,17 @@ static void igb_clean_all_tx_rings(struct igb_adapter *);
 static void igb_clean_all_rx_rings(struct igb_adapter *);
 static void igb_clean_tx_ring(struct igb_ring *);
 static void igb_set_rx_mode(struct net_device *);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+static void igb_update_phy_info(struct timer_list *);
+static void igb_watchdog(struct timer_list *);
+static void igb_dma_err_timer(struct timer_list *);
+#else
 static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
+static void igb_dma_err_timer(unsigned long data);
+#endif
 static void igb_watchdog_task(struct work_struct *);
 static void igb_dma_err_task(struct work_struct *);
-static void igb_dma_err_timer(unsigned long data);
 /* AVB specific */
 #ifdef HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
 static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb,
@@ -462,7 +468,7 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 u32 e1000_read_reg(struct e1000_hw *hw, u32 reg)
 {
 	struct igb_adapter *igb = container_of(hw, struct igb_adapter, hw);
-	u8 __iomem *hw_addr = ACCESS_ONCE(hw->hw_addr);
+	u8 __iomem *hw_addr = READ_ONCE(hw->hw_addr);
 	u32 value = 0;
 
 	if (E1000_REMOVED(hw_addr))
@@ -2886,6 +2892,13 @@ static int igb_probe(struct pci_dev *pdev,
 	/* Check if Media Autosense is enabled */
 	if (hw->mac.type == e1000_82580)
 		igb_init_mas(adapter);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+	timer_setup(&adapter->watchdog_timer, &igb_watchdog, 0);
+	if (adapter->flags & IGB_FLAG_DETECT_BAD_DMA)
+		timer_setup(&adapter->dma_err_timer, &igb_dma_err_timer, 0);
+	timer_setup(&adapter->phy_info_timer, &igb_update_phy_info, 0);
+#else
 	setup_timer(&adapter->watchdog_timer, &igb_watchdog,
 		    (unsigned long) adapter);
 	if (adapter->flags & IGB_FLAG_DETECT_BAD_DMA)
@@ -2893,6 +2906,7 @@ static int igb_probe(struct pci_dev *pdev,
 			    (unsigned long) adapter);
 	setup_timer(&adapter->phy_info_timer, &igb_update_phy_info,
 		    (unsigned long) adapter);
+#endif
 
 	INIT_WORK(&adapter->reset_task, igb_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igb_watchdog_task);
@@ -4682,9 +4696,19 @@ static void igb_spoof_check(struct igb_adapter *adapter)
 /* Need to wait a few seconds after link up to get diagnostic information from
  * the phy
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+static void igb_update_phy_info(struct timer_list *timer)
+#else
 static void igb_update_phy_info(unsigned long data)
+#endif
 {
-	struct igb_adapter *adapter = (struct igb_adapter *) data;
+	struct igb_adapter *adapter;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+	adapter = container_of(timer, struct igb_adapter, watchdog_timer);
+#else
+	adapter = (struct igb_adapter *) data;
+#endif
 
 	e1000_get_phy_info(&adapter->hw);
 }
@@ -4734,9 +4758,20 @@ bool igb_has_link(struct igb_adapter *adapter)
  * igb_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+static void igb_watchdog(struct timer_list *timer)
+#else
 static void igb_watchdog(unsigned long data)
+#endif
 {
-	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct igb_adapter *adapter;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+	adapter = container_of(timer, struct igb_adapter, watchdog_timer);
+#else
+	adapter = (struct igb_adapter *)data;
+#endif
+
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
 }
@@ -4992,9 +5027,20 @@ dma_timer_reset:
  * igb_dma_err_timer - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+static void igb_dma_err_timer(struct timer_list *timer)
+#else
 static void igb_dma_err_timer(unsigned long data)
+#endif
 {
-	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct igb_adapter *adapter;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+	adapter = container_of(timer, struct igb_adapter, dma_err_timer);
+#else
+	adapter = (struct igb_adapter *)data;
+#endif
+
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->dma_err_task);
 }

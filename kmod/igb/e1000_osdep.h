@@ -90,7 +90,7 @@ struct e1000_hw;
 /* write operations, indexed using DWORDS */
 #define E1000_WRITE_REG(hw, reg, val) \
 do { \
-	u8 __iomem *hw_addr = ACCESS_ONCE((hw)->hw_addr); \
+	u8 __iomem *hw_addr = READ_ONCE((hw)->hw_addr); \
 	if (!E1000_REMOVED(hw_addr)) \
 		writel((val), &hw_addr[(reg)]); \
 } while (0)
