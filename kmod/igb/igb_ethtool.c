@@ -1713,7 +1713,7 @@ static int igb_loopback_test(struct igb_adapter *adapter, u64 *data)
 	*data = igb_setup_desc_rings(adapter);
 	if (*data)
 		goto out;
-	*data = igb_setup_loopback_test(adapter);
+	igb_setup_loopback_test(adapter);
 	*data = igb_run_loopback_test(adapter);
 	if (*data)
 		goto err_loopback;
