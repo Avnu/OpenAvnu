@@ -1825,7 +1825,7 @@ static s32 igb_init_i2c(struct igb_adapter *adapter)
  * igb_up - Open the interface and prepare it to handle traffic
  * @adapter: board private structure
  **/
-int igb_up(struct igb_adapter *adapter)
+void igb_up(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	int i;
@@ -1869,7 +1869,6 @@ int igb_up(struct igb_adapter *adapter)
 	    (!hw->dev_spec._82575.eee_disable))
 		adapter->eee_advert = MDIO_EEE_100TX | MDIO_EEE_1000T;
 
-	return 0;
 }
 
 void igb_down(struct igb_adapter *adapter)
@@ -9661,10 +9660,7 @@ static void igb_io_resume(struct pci_dev *pdev)
 	}
 
 	if (netif_running(netdev)) {
-		if (igb_up(adapter)) {
-			dev_err(pci_dev_to_dev(pdev), "igb_up failed after reset\n");
-			return;
-		}
+		igb_up(adapter);
 	}
 
 	netif_device_attach(netdev);

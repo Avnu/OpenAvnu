@@ -799,7 +799,7 @@ enum e1000_state_t {
 extern char igb_driver_name[];
 extern char igb_driver_version[];
 
-extern int igb_up(struct igb_adapter *);
+extern void igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
 extern void igb_reset(struct igb_adapter *);
