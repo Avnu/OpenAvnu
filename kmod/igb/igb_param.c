@@ -539,7 +539,7 @@ void igb_check_options(struct igb_adapter *adapter)
 					 .max = (MAX_VMDQ
 					   - adapter->vfs_allocated_count)} }
 		};
-		if ((hw->mac.type != e1000_i210) ||
+		if ((hw->mac.type != e1000_i210) &&
 		    (hw->mac.type != e1000_i211)) {
 #ifdef module_param_array
 		if (num_VMDQ > bd) {

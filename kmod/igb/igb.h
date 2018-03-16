@@ -92,6 +92,9 @@ struct igb_user_page {
 #include <linux/i2c-algo-bit.h>
 #endif /* HAVE_I2C_SUPPORT */
 
+#include <linux/miscdevice.h>
+typedef u64 cycle_t;
+
 /* Interrupt defines */
 #define IGB_START_ITR                    648 /* ~6000 ints/sec */
 #define IGB_4K_ITR                       980
@@ -796,7 +799,7 @@ enum e1000_state_t {
 extern char igb_driver_name[];
 extern char igb_driver_version[];
 
-extern int igb_up(struct igb_adapter *);
+extern void igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
 extern void igb_reset(struct igb_adapter *);
