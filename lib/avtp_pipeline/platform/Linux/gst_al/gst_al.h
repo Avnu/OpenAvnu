@@ -128,6 +128,14 @@ gboolean gst_al_rtp_buffer_get_marker(GstAlBuf *buf);
  */
 void gst_al_rtp_buffer_set_marker(GstAlBuf *buf, gboolean mark);
 /**
+ * \brief - gets a RTP buffer timestamp
+ *
+ * \param buf - a RTP buffer
+ *
+ * \return - a RTP buffer timestamp
+ */
+guint32 gst_al_rtp_buffer_get_timestamp(GstAlBuf *buf);
+/**
  * \brief - set a RTP buffer params
  *
  * \param buf - a RTP buffer
