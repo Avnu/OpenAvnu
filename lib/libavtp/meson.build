@@ -20,6 +20,15 @@ install_headers(
 	'include/avtp_aaf.h',
 )
 
+pkg = import('pkgconfig')
+pkg.generate(
+	name: 'avtp',
+	description: 'AVTP packetization library',
+	version: '0.1',
+	url: 'github.com/AVnu/OpenAvnu',
+	libraries: avtp_lib,
+)
+
 test_avtp = executable(
 	'test-avtp',
 	'unit/test-avtp.c',
