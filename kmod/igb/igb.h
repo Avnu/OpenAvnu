@@ -883,6 +883,22 @@ void igb_procfs_topdir_exit(void);
 #define IGB_MAP_RX_RING    _IOW('E', 207, int)
 #define IGB_UNMAP_RX_RING  _IOW('E', 208, int)
 
+/*set of newly defined ioctl calls - new libigb compatibility
+  each of them is an equivalent of the old ioctl
+  changed numberiong convention: new_ioctl = old_ioctl + 100*/
+
+#define IGB_IOCTL_MAPRING       _IOW('E', 302, int)
+#define IGB_IOCTL_MAP_TX_RING    IGB_IOCTL_MAPRING
+#define IGB_IOCTL_UNMAPRING     _IOW('E', 303, int)
+#define IGB_IOCTL_UNMAP_TX_RING  IGB_IOCTL_UNMAPRING
+#define IGB_IOCTL_MAPBUF        _IOW('E', 304, int)
+#define IGB_IOCTL_UNMAPBUF      _IOW('E', 305, int)
+#define IGB_IOCTL_MAP_RX_RING   _IOW('E', 307, int)
+#define IGB_IOCTL_UNMAP_RX_RING _IOW('E', 308, int)
+
+
+/*END*/
+
 #define IGB_BIND_NAMESZ	24
 
 struct igb_bind_cmd {
@@ -900,6 +916,7 @@ struct igb_buf_cmd {
 	u64	 	physaddr;
 	u32		queue;
 	u32		mmap_size;
+	u64	 	pa;
 };
 
 struct igb_link_cmd {

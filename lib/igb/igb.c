@@ -682,14 +682,15 @@ int igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *dma)
 		error = errno;
 		goto err;
 	}
-	error = ioctl(adapter->ldev, IGB_MAPBUF, &ubuf);
+	error = ioctl(adapter->ldev, IGB_IOCTL_MAPBUF, &ubuf);
 	if (igb_unlock(dev) != 0) {
 		error = errno;
 		goto err;
 	}
 
 	if (error < 0) {
-		error = -ENOMEM;
+		if(error != -EINVAL)
+			error = -ENOMEM;
 		goto err;
 	}
 
@@ -700,7 +701,7 @@ int igb_dma_malloc_page(device_t *dev, struct igb_dma_alloc *dma)
 				      PROT_READ | PROT_WRITE,
 				      MAP_SHARED,
 				      adapter->ldev,
-				      ubuf.physaddr);
+				      ubuf.pa);
 
 	if (dma->dma_vaddr == MAP_FAILED)
 		error = -ENOMEM;
@@ -730,7 +731,7 @@ void igb_dma_free_page(device_t *dev, struct igb_dma_alloc *dma)
 	if (igb_lock(dev) != 0)
 		goto err;
 
-	ioctl(adapter->ldev, IGB_UNMAPBUF, &ubuf);
+	ioctl(adapter->ldev, IGB_IOCTL_UNMAPBUF, &ubuf);
 	if (igb_unlock(dev) != 0)
 		goto err;
 
@@ -768,8 +769,11 @@ static int igb_allocate_queues(struct adapter *adapter)
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		ubuf.queue = i;
-		error = ioctl(dev, IGB_MAPRING, &ubuf);
+		error = ioctl(dev, IGB_IOCTL_MAPRING, &ubuf);
 		if (error < 0) {
+			if(error == -EINVAL)
+				goto tx_fail;
+
 			error = EBUSY;
 			goto tx_desc;
 		}
@@ -785,7 +789,7 @@ static int igb_allocate_queues(struct adapter *adapter)
 			(struct e1000_tx_desc *)mmap(NULL, ubuf.mmap_size,
 						     PROT_READ | PROT_WRITE,
 						     MAP_SHARED, adapter->ldev,
-						     ubuf.physaddr);
+						     ubuf.pa);
 
 		if (adapter->tx_rings[i].tx_base == MAP_FAILED) {
 			error = -ENOMEM;
@@ -829,7 +833,7 @@ tx_desc:
 			munmap(adapter->tx_rings[i].tx_base,
 			       adapter->tx_rings[i].txdma.mmap_size);
 		ubuf.queue = i;
-		ioctl(dev, IGB_UNMAPRING, &ubuf);
+		ioctl(dev, IGB_IOCTL_UNMAPRING, &ubuf);
 	};
 tx_fail:
 	free(adapter->tx_rings);
@@ -909,7 +913,7 @@ static void igb_free_transmit_structures(struct adapter *adapter)
 			munmap(adapter->tx_rings[i].tx_base,
 			       adapter->tx_rings[i].txdma.mmap_size);
 		ubuf.queue = i;
-		ioctl(adapter->ldev, IGB_UNMAPRING, &ubuf);
+		ioctl(adapter->ldev, IGB_IOCTL_UNMAPRING, &ubuf);
 		free(adapter->tx_rings[i].tx_buffers);
 	}
 
@@ -1353,8 +1357,12 @@ static int igb_allocate_rx_queues(struct adapter *adapter)
 		}
 
 		ubuf.queue = i;
-		error = ioctl(dev, IGB_MAP_RX_RING, &ubuf);
+		error = ioctl(dev, IGB_IOCTL_MAP_RX_RING, &ubuf);
 		if (error < 0) {
+
+			if(error == -EINVAL)
+				goto rx_fail;
+
 			error = EBUSY;
 			goto rx_desc;
 		}
@@ -1368,7 +1376,7 @@ static int igb_allocate_rx_queues(struct adapter *adapter)
 		adapter->rx_rings[i].rx_base = NULL;
 		adapter->rx_rings[i].rx_base =
 			mmap(NULL, ubuf.mmap_size, PROT_READ | PROT_WRITE,
-			     MAP_SHARED, adapter->ldev, ubuf.physaddr);
+			     MAP_SHARED, adapter->ldev, ubuf.pa);
 
 		if (adapter->rx_rings[i].rx_base == MAP_FAILED) {
 			error = -ENOMEM;
@@ -1417,7 +1425,7 @@ rx_desc:
 			munmap(adapter->rx_rings[i].rx_base,
 			       adapter->rx_rings[i].rxdma.mmap_size);
 		ubuf.queue = i;
-		ioctl(dev, IGB_UNMAP_RX_RING, &ubuf);
+		ioctl(dev, IGB_IOCTL_UNMAP_RX_RING, &ubuf);
 
 		sem_destroy(&adapter->rx_rings[i].lock);
 	};
@@ -1572,7 +1580,7 @@ static void igb_free_receive_structures(struct adapter *adapter)
 			munmap(rxr->rx_base, rxr->rxdma.mmap_size);
 		}
 		ubuf.queue = i;
-		ioctl(adapter->ldev, IGB_UNMAP_RX_RING, &ubuf);
+		ioctl(adapter->ldev, IGB_IOCTL_UNMAP_RX_RING, &ubuf);
 		igb_free_receive_buffers(rxr);
 
 		(void)sem_destroy(&adapter->rx_rings[i].lock);
