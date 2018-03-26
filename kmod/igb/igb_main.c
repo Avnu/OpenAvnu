@@ -10368,10 +10368,15 @@ static long igb_mapbuf_user(struct file *file, void __user *arg, int ring)
 	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_buf_cmd req;
+	/*size used for the purpose of copying the contents of igb_buf_cmd
+ 	  between userspace and kernel space	
+	  introduced to handle possible mismatch in libigb and igb version*/
+	int buf_cmd_size = 0;
 	int err = 0;
 	struct page *page;
 	dma_addr_t page_dma;
 	struct igb_user_page *userpage;
+
 
 	if (igb_priv == NULL) {
 		printk("cannot find private data!\n");
@@ -10384,7 +10389,22 @@ static long igb_mapbuf_user(struct file *file, void __user *arg, int ring)
 		return -ENOENT;
 	}
 
-	if (copy_from_user(&req, arg, sizeof(req)))
+	if(ring != IGB_IOCTL_MAPBUF)
+	{
+		dev_warn(&adapter->pdev->dev, "Old ioctl value used: %d, consider using a new one from libigb \n", ring);
+		/* this situation suggest using an old ioctl by libigb
+ 		   as a consequence the igb_buf_cmd struct from libigb perspective does not contain the "pa" field
+		   we need to align the requested size in copy_from_user() for possibility */
+		buf_cmd_size = sizeof(req) - sizeof(u64);
+	} else {
+		/* assuming no compatibility issue:
+  		   libigb and kernel module have the same
+	  	   igb_buf_cmd structs ("pa" field included in both)
+ 		*/ 	
+		buf_cmd_size = sizeof(req);
+	}
+
+	if (copy_from_user(&req, arg, buf_cmd_size))
 		return -EFAULT;
 
 	userpage = vzalloc(sizeof(struct igb_user_page));
@@ -10427,11 +10447,14 @@ static long igb_mapbuf_user(struct file *file, void __user *arg, int ring)
 	igb_priv->userpages->page = page;
 	igb_priv->userpages->page_dma = page_dma;
 
+	if(ring == IGB_IOCTL_MAPBUF)
+		req.pa = page_to_phys(page);
+
 	req.physaddr = page_dma;
 	req.mmap_size = PAGE_SIZE;
 	mutex_unlock(&adapter->lock);
 
-	if (copy_to_user(arg, &req, sizeof(req))) {
+	if (copy_to_user(arg, &req, buf_cmd_size)) {
 		printk("copyout to user failed\n");
 		err = -EFAULT;
 		mutex_lock(&adapter->lock);
@@ -10464,15 +10487,17 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_buf_cmd req;
+	/*size used for the purpose of copying the contents of igb_buf_cmd
+ 	  between userspace and kernel space	
+	  introduced to handle possible mismatch in libigb and igb version*/
+	int buf_cmd_size = 0;
+
 	int err = 0;
 
 	if (igb_priv == NULL) {
 		printk("cannot find private data!\n");
 		return -ENOENT;
-	}
-
-	if (copy_from_user(&req, arg, sizeof(req)))
-		return -EFAULT;
+	}	
 
 	adapter = igb_priv->adapter;
 	if (adapter == NULL) {
@@ -10480,7 +10505,29 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		return -ENOENT;
 	}
 
-	if ((ring == IGB_MAPRING) || (ring == IGB_MAP_TX_RING)) {
+	if((ring != IGB_IOCTL_MAP_TX_RING) && (ring != IGB_IOCTL_MAP_RX_RING))
+	{
+		dev_warn(&adapter->pdev->dev, "Old ioctl value used: %d, consider using new one from libigb \n", ring);
+		/* this situation suggest using an old ioctl by libigb
+ 		   as a consequence the igb_buf_cmd struct from libigb perspective does not contain the "pa" field
+		   we need to align the requested size in copy_from_user() for possibility */
+		buf_cmd_size = sizeof(req) - sizeof(u64);	
+	
+	} else {
+
+		/* assuming no compatibility issue:
+  		   libigb and kernel module have the same
+		   igb_buf_cmd structs ("pa" field included in both)
+ 		*/ 
+		buf_cmd_size = sizeof(req);
+
+	}	
+
+	if (copy_from_user(&req, arg, buf_cmd_size))
+		return -EFAULT;
+	
+	if ((ring == IGB_MAPRING) || (ring == IGB_MAP_TX_RING) ||
+	     ring == IGB_IOCTL_MAP_TX_RING) {
 		if (req.queue >= 3) {
 			printk("mapring:invalid queue specified(%d)\n",
 			       req.queue);
@@ -10502,10 +10549,13 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		adapter->uring_tx_init |= (1 << req.queue);
 		igb_priv->uring_tx_init |= (1 << req.queue);
 
+		if(ring == IGB_IOCTL_MAP_TX_RING)	
+			req.pa = virt_to_phys(adapter->tx_ring[req.queue]->desc);
+
 		req.physaddr = adapter->tx_ring[req.queue]->dma;
 		req.mmap_size = adapter->tx_ring[req.queue]->size;
 		mutex_unlock(&adapter->lock);
-	} else if (ring == IGB_MAP_RX_RING) {
+	} else if ((ring == IGB_MAP_RX_RING) || (ring == IGB_IOCTL_MAP_RX_RING)) {
 		if (req.queue >= 3) {
 			printk("mapring:invalid queue specified(%d)\n",
 			       req.queue);
@@ -10526,6 +10576,9 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 
 		adapter->uring_rx_init |= (1 << req.queue);
 		igb_priv->uring_rx_init |= (1 << req.queue);
+		
+		if(ring == IGB_IOCTL_MAP_RX_RING)	
+			req.pa = virt_to_phys(adapter->rx_ring[req.queue]->desc);
 
 		req.physaddr = adapter->rx_ring[req.queue]->dma;
 		req.mmap_size = adapter->rx_ring[req.queue]->size;
@@ -10535,7 +10588,7 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		return -EINVAL;
 	}
 
-	if (copy_to_user(arg, &req, sizeof(req))) {
+	if (copy_to_user(arg, &req, buf_cmd_size)) {
 		printk("copyout to user failed\n");
 		err = -EFAULT;
 		goto failed;
@@ -10553,14 +10606,12 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_buf_cmd req;
+	int buf_cmd_size = 0;
 
 	if (igb_priv == NULL) {
 		printk("cannot find private data!\n");
 		return -ENOENT;
 	}
-
-	if (copy_from_user(&req, arg, sizeof(req)))
-		return -EFAULT;
 
 	adapter = igb_priv->adapter;
 	if (adapter == NULL) {
@@ -10568,7 +10619,23 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		return -ENOENT;
 	}
 
-	if ((ring == IGB_UNMAP_TX_RING)) {
+
+	if((ring != IGB_IOCTL_UNMAPBUF) && (ring != IGB_IOCTL_UNMAP_TX_RING) &&
+	  (ring != IGB_IOCTL_UNMAP_RX_RING)) {
+
+		dev_warn(&adapter->pdev->dev, "Old ioctl number used: %d, consider using new one from libigb \n", ring);
+		buf_cmd_size = sizeof(req) - sizeof(u64);
+
+	} else {
+		
+		buf_cmd_size = sizeof(req);
+	}
+
+	if (copy_from_user(&req, arg, buf_cmd_size))
+		return -EFAULT;
+
+
+	if ((ring == IGB_UNMAP_TX_RING) || (ring == IGB_IOCTL_UNMAP_TX_RING)) {
 		/* its easy to figure out what to free on the rings ... */
 		if (req.queue >= 3)
 			return -EINVAL;
@@ -10586,7 +10653,7 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		adapter->uring_tx_init &= ~(1 << req.queue);
 		igb_priv->uring_tx_init &= ~(1 << req.queue);
 		mutex_unlock(&adapter->lock);
-	} else if (ring == IGB_UNMAP_RX_RING) {
+	} else if ((ring == IGB_UNMAP_RX_RING) || (ring == IGB_IOCTL_UNMAP_RX_RING)) {
 		/* its easy to figure out what to free on the rings ... */
 		if (req.queue >= 3)
 			return -EINVAL;
@@ -10660,14 +10727,20 @@ static long igb_ioctl_file(struct file *file, unsigned int cmd,
 		break;
 	case IGB_MAP_TX_RING:
 	case IGB_MAP_RX_RING:
+	case IGB_IOCTL_MAP_TX_RING:
+	case IGB_IOCTL_MAP_RX_RING:
 		err = igb_mapbuf(file, argp, cmd);
 		break;
 	case IGB_MAPBUF:
+	case IGB_IOCTL_MAPBUF:
 		err = igb_mapbuf_user(file, argp, cmd);
 		break;
 	case IGB_UNMAP_TX_RING:
 	case IGB_UNMAP_RX_RING:
 	case IGB_UNMAPBUF:
+	case IGB_IOCTL_UNMAPBUF:
+	case IGB_IOCTL_UNMAP_TX_RING:
+	case IGB_IOCTL_UNMAP_RX_RING:
 		err = igb_unmapbuf(file, argp, cmd);
 		break;
 	case IGB_LINKSPEED:
