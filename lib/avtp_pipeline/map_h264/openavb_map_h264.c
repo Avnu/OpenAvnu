@@ -59,11 +59,11 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 // Header sizes
 #define AVTP_V0_HEADER_SIZE			12
-#define MAP_HEADER_SIZE				12
+#define MAP_HEADER_SIZE				16
 
 #define TOTAL_HEADER_SIZE			(AVTP_V0_HEADER_SIZE + MAP_HEADER_SIZE)
 
-#define MAX_PAYLOAD_SIZE 1412
+#define MAX_PAYLOAD_SIZE 1416
 
 //////
 // AVTP Version 0 Header
@@ -84,7 +84,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 //////
 
 // - 4 bytes	avtp_timestamp
-#define HIDX_AVTP_TIMESPAMP32		12
+#define HIDX_AVTP_TIMESTAMP32		12
 
 // - 1 bytes	Format information 			= 0x02 RTP Video
 #define HIDX_FORMAT8				16
@@ -108,6 +108,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 // - 1 byte		Reserved					= binary 0x00
 #define HIDX_RESV8					23
+
+// - 4 bytes	h264_timestamp
+#define HIDX_H264_TIMESTAMP32		24
 
 typedef struct {
 	/////////////
@@ -261,7 +264,7 @@ tx_cb_ret_t openavbMapH264TxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 			return TX_CB_RET_PACKET_NOT_READY;
 		}
 
-		//pHdr[HIDX_AVTP_TIMESPAMP32] = 0x00;				// Set later
+		//pHdr[HIDX_AVTP_TIMESTAMP32] = 0x00;				// Set later
 		pHdr[HIDX_FORMAT8] = 0x02;                          // RTP Payload type
 		pHdr[HIDX_FORMAT_SUBTYPE8] = 0x01;                  // H.264 subtype
 		pHdr[HIDX_RESV16] = 0x0000;           				// Reserved	
@@ -295,7 +298,7 @@ tx_cb_ret_t openavbMapH264TxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 				else pHdr[HIDX_AVTP_HIDE7_TU1] &= ~0x01;    // Clear
 
 				// Set the timestamp.
-				*(U32 *)(&pHdr[HIDX_AVTP_TIMESPAMP32]) = htonl(openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime));
+				*(U32 *)(&pHdr[HIDX_AVTP_TIMESTAMP32]) = htonl(openavbAvtpTimeGetAvtpTimestamp(pMediaQItem->pAvtpTime));
 
 				if (((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->lastPacket) {
 					pHdr[HIDX_M31_M21_M11_M01_EVT2_RESV2] = 0x10;;
@@ -304,7 +307,11 @@ tx_cb_ret_t openavbMapH264TxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 					pHdr[HIDX_M31_M21_M11_M01_EVT2_RESV2] = 0x00;
 				}
 
-				// Copy the JPEG fragment into the outgoing avtp packet.
+				// Set h264_timestamp
+				*(U32 *)(&pHdr[HIDX_H264_TIMESTAMP32]) =
+						htonl(((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->timestamp);
+
+				// Copy the h264 rtp payload into the outgoing avtp packet.
 				memcpy(pPayload, pMediaQItem->pPubData, pMediaQItem->dataLen);
 
 				*(U16 *)(&pHdr[HIDX_STREAM_DATA_LEN16]) = htons(pMediaQItem->dataLen);
@@ -347,7 +354,7 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 		U8 *pPayload = pData + TOTAL_HEADER_SIZE;
 
 
-		//pHdr[HIDX_AVTP_TIMESPAMP32]
+		//pHdr[HIDX_AVTP_TIMESTAMP32]
 		//pHdr[HIDX_FORMAT8]
 		//pHdr[HIDX_FORMAT_SUBTYPE8]
 		//pHdr[HIDX_RESV16]
@@ -367,7 +374,7 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 		media_q_item_t *pMediaQItem = openavbMediaQHeadLock(pMediaQ);
 		if (pMediaQItem) {
 			// Get the timestamp and place it in the media queue item.
-			U32 timestamp = ntohl(*(U32 *)(&pHdr[HIDX_AVTP_TIMESPAMP32]));
+			U32 timestamp = ntohl(*(U32 *)(&pHdr[HIDX_AVTP_TIMESTAMP32]));
 			openavbAvtpTimeSetToTimestamp(pMediaQItem->pAvtpTime, timestamp);
 
 			// Set timestamp valid and timestamp uncertain flags
@@ -378,6 +385,9 @@ bool openavbMapH264RxCB(media_q_t *pMediaQ, U8 *pData, U32 dataLen)
 				((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->lastPacket = TRUE;
 			else
 				((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->lastPacket = FALSE;
+
+			((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->timestamp =
+					ntohl(*(U32 *)(&pHdr[HIDX_H264_TIMESTAMP32]));
 
 			if (pMediaQItem->itemSize >= payloadLen) {
 				memcpy(pMediaQItem->pPubData, pPayload, payloadLen);

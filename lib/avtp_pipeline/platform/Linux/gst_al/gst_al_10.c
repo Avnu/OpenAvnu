@@ -185,6 +185,11 @@ void gst_al_rtp_buffer_set_marker(GstAlBuf *buf, gboolean mark)
 	gst_rtp_buffer_set_marker(&buf->m_rtpbuf, mark);
 }
 
+guint32 gst_al_rtp_buffer_get_timestamp(GstAlBuf *buf)
+{
+	return gst_rtp_buffer_get_timestamp(&buf->m_rtpbuf);
+}
+
 void gst_al_rtp_buffer_set_params(GstAlBuf *buf, gint ssrc,
                                   gint payload_type, gint version,
                                   gint sequence)

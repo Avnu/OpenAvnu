@@ -96,6 +96,7 @@ static const struct pci_device_id igb_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_FIBER) },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_SERDES) },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_SGMII) },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_AUTOMOTIVE) },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_COPPER_FLASHLESS) },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_SERDES_FLASHLESS) },
 	/* required last entry */
@@ -121,11 +122,17 @@ static void igb_clean_all_tx_rings(struct igb_adapter *);
 static void igb_clean_all_rx_rings(struct igb_adapter *);
 static void igb_clean_tx_ring(struct igb_ring *);
 static void igb_set_rx_mode(struct net_device *);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+static void igb_update_phy_info(struct timer_list *);
+static void igb_watchdog(struct timer_list *);
+static void igb_dma_err_timer(struct timer_list *);
+#else
 static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
+static void igb_dma_err_timer(unsigned long data);
+#endif
 static void igb_watchdog_task(struct work_struct *);
 static void igb_dma_err_task(struct work_struct *);
-static void igb_dma_err_timer(unsigned long data);
 /* AVB specific */
 #ifdef HAVE_NDO_SELECT_QUEUE_ACCEL_FALLBACK
 static u16 igb_select_queue(struct net_device *dev, struct sk_buff *skb,
@@ -214,7 +221,11 @@ static long igb_ioctl_file(struct file *file, unsigned int cmd,
 			   unsigned long arg);
 static void igb_vm_open(struct vm_area_struct *vma);
 static void igb_vm_close(struct vm_area_struct *vma);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
+static int igb_vm_fault(struct vm_fault *fdata);
+#else
 static int igb_vm_fault(struct vm_area_struct *area, struct vm_fault *fdata);
+#endif
 static int igb_mmap(struct file *file, struct vm_area_struct *vma);
 static ssize_t igb_read(struct file *file, char __user *buf, size_t count,
 			loff_t *pos);
@@ -458,7 +469,7 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 u32 e1000_read_reg(struct e1000_hw *hw, u32 reg)
 {
 	struct igb_adapter *igb = container_of(hw, struct igb_adapter, hw);
-	u8 __iomem *hw_addr = ACCESS_ONCE(hw->hw_addr);
+	u8 __iomem *hw_addr = READ_ONCE(hw->hw_addr);
 	u32 value = 0;
 
 	if (E1000_REMOVED(hw_addr))
@@ -1090,8 +1101,13 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter, bool msix)
 			for (i = 0; i < numvecs; i++)
 				adapter->msix_entries[i].entry = i;
 
-			err = pci_enable_msix(pdev,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)
+			err = pci_enable_msix_exact(pdev,
 					      adapter->msix_entries, numvecs);
+#else
+            err = pci_enable_msix(pdev,
+                            adapter->msix_entries, numvecs);
+#endif
 			if (err == 0)
 				break;
 		}
@@ -1810,7 +1826,7 @@ static s32 igb_init_i2c(struct igb_adapter *adapter)
  * igb_up - Open the interface and prepare it to handle traffic
  * @adapter: board private structure
  **/
-int igb_up(struct igb_adapter *adapter)
+void igb_up(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	int i;
@@ -1854,7 +1870,6 @@ int igb_up(struct igb_adapter *adapter)
 	    (!hw->dev_spec._82575.eee_disable))
 		adapter->eee_advert = MDIO_EEE_100TX | MDIO_EEE_1000T;
 
-	return 0;
 }
 
 void igb_down(struct igb_adapter *adapter)
@@ -2877,6 +2892,13 @@ static int igb_probe(struct pci_dev *pdev,
 	/* Check if Media Autosense is enabled */
 	if (hw->mac.type == e1000_82580)
 		igb_init_mas(adapter);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+	timer_setup(&adapter->watchdog_timer, &igb_watchdog, 0);
+	if (adapter->flags & IGB_FLAG_DETECT_BAD_DMA)
+		timer_setup(&adapter->dma_err_timer, &igb_dma_err_timer, 0);
+	timer_setup(&adapter->phy_info_timer, &igb_update_phy_info, 0);
+#else
 	setup_timer(&adapter->watchdog_timer, &igb_watchdog,
 		    (unsigned long) adapter);
 	if (adapter->flags & IGB_FLAG_DETECT_BAD_DMA)
@@ -2884,6 +2906,7 @@ static int igb_probe(struct pci_dev *pdev,
 			    (unsigned long) adapter);
 	setup_timer(&adapter->phy_info_timer, &igb_update_phy_info,
 		    (unsigned long) adapter);
+#endif
 
 	INIT_WORK(&adapter->reset_task, igb_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igb_watchdog_task);
@@ -4673,9 +4696,19 @@ static void igb_spoof_check(struct igb_adapter *adapter)
 /* Need to wait a few seconds after link up to get diagnostic information from
  * the phy
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+static void igb_update_phy_info(struct timer_list *timer)
+#else
 static void igb_update_phy_info(unsigned long data)
+#endif
 {
-	struct igb_adapter *adapter = (struct igb_adapter *) data;
+	struct igb_adapter *adapter;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+	adapter = container_of(timer, struct igb_adapter, watchdog_timer);
+#else
+	adapter = (struct igb_adapter *) data;
+#endif
 
 	e1000_get_phy_info(&adapter->hw);
 }
@@ -4725,9 +4758,20 @@ bool igb_has_link(struct igb_adapter *adapter)
  * igb_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+static void igb_watchdog(struct timer_list *timer)
+#else
 static void igb_watchdog(unsigned long data)
+#endif
 {
-	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct igb_adapter *adapter;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+	adapter = container_of(timer, struct igb_adapter, watchdog_timer);
+#else
+	adapter = (struct igb_adapter *)data;
+#endif
+
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
 }
@@ -4983,9 +5027,20 @@ dma_timer_reset:
  * igb_dma_err_timer - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+static void igb_dma_err_timer(struct timer_list *timer)
+#else
 static void igb_dma_err_timer(unsigned long data)
+#endif
 {
-	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct igb_adapter *adapter;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+	adapter = container_of(timer, struct igb_adapter, dma_err_timer);
+#else
+	adapter = (struct igb_adapter *)data;
+#endif
+
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->dma_err_task);
 }
@@ -9606,10 +9661,7 @@ static void igb_io_resume(struct pci_dev *pdev)
 	}
 
 	if (netif_running(netdev)) {
-		if (igb_up(adapter)) {
-			dev_err(pci_dev_to_dev(pdev), "igb_up failed after reset\n");
-			return;
-		}
+		igb_up(adapter);
 	}
 
 	netif_device_attach(netdev);
@@ -10218,7 +10270,14 @@ static int igb_bind(struct file *file, void __user *argp)
 
 	if (copy_from_user(&req, argp, sizeof(req)))
 		return -EFAULT;
+	
+	/*
+	 * Set the last character of req.iface to '/0' to
+	 * guarantee null termination of req.iface string
+	 * param in printk call.
+	 */
 
+	req.iface[IGB_BIND_NAMESZ-1] = 0;
 	printk("bind to iface %s\n", req.iface);
 
 	if (igb_priv == NULL) {
@@ -10309,10 +10368,15 @@ static long igb_mapbuf_user(struct file *file, void __user *arg, int ring)
 	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_buf_cmd req;
+	/*size used for the purpose of copying the contents of igb_buf_cmd
+ 	  between userspace and kernel space	
+	  introduced to handle possible mismatch in libigb and igb version*/
+	int buf_cmd_size = 0;
 	int err = 0;
 	struct page *page;
 	dma_addr_t page_dma;
 	struct igb_user_page *userpage;
+
 
 	if (igb_priv == NULL) {
 		printk("cannot find private data!\n");
@@ -10325,7 +10389,22 @@ static long igb_mapbuf_user(struct file *file, void __user *arg, int ring)
 		return -ENOENT;
 	}
 
-	if (copy_from_user(&req, arg, sizeof(req)))
+	if(ring != IGB_IOCTL_MAPBUF)
+	{
+		dev_warn(&adapter->pdev->dev, "Old ioctl value used: %d, consider using a new one from libigb \n", ring);
+		/* this situation suggest using an old ioctl by libigb
+ 		   as a consequence the igb_buf_cmd struct from libigb perspective does not contain the "pa" field
+		   we need to align the requested size in copy_from_user() for possibility */
+		buf_cmd_size = sizeof(req) - sizeof(u64);
+	} else {
+		/* assuming no compatibility issue:
+  		   libigb and kernel module have the same
+	  	   igb_buf_cmd structs ("pa" field included in both)
+ 		*/ 	
+		buf_cmd_size = sizeof(req);
+	}
+
+	if (copy_from_user(&req, arg, buf_cmd_size))
 		return -EFAULT;
 
 	userpage = vzalloc(sizeof(struct igb_user_page));
@@ -10368,11 +10447,14 @@ static long igb_mapbuf_user(struct file *file, void __user *arg, int ring)
 	igb_priv->userpages->page = page;
 	igb_priv->userpages->page_dma = page_dma;
 
+	if(ring == IGB_IOCTL_MAPBUF)
+		req.pa = page_to_phys(page);
+
 	req.physaddr = page_dma;
 	req.mmap_size = PAGE_SIZE;
 	mutex_unlock(&adapter->lock);
 
-	if (copy_to_user(arg, &req, sizeof(req))) {
+	if (copy_to_user(arg, &req, buf_cmd_size)) {
 		printk("copyout to user failed\n");
 		err = -EFAULT;
 		mutex_lock(&adapter->lock);
@@ -10405,15 +10487,17 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_buf_cmd req;
+	/*size used for the purpose of copying the contents of igb_buf_cmd
+ 	  between userspace and kernel space	
+	  introduced to handle possible mismatch in libigb and igb version*/
+	int buf_cmd_size = 0;
+
 	int err = 0;
 
 	if (igb_priv == NULL) {
 		printk("cannot find private data!\n");
 		return -ENOENT;
-	}
-
-	if (copy_from_user(&req, arg, sizeof(req)))
-		return -EFAULT;
+	}	
 
 	adapter = igb_priv->adapter;
 	if (adapter == NULL) {
@@ -10421,7 +10505,29 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		return -ENOENT;
 	}
 
-	if ((ring == IGB_MAPRING) || (ring == IGB_MAP_TX_RING)) {
+	if((ring != IGB_IOCTL_MAP_TX_RING) && (ring != IGB_IOCTL_MAP_RX_RING))
+	{
+		dev_warn(&adapter->pdev->dev, "Old ioctl value used: %d, consider using new one from libigb \n", ring);
+		/* this situation suggest using an old ioctl by libigb
+ 		   as a consequence the igb_buf_cmd struct from libigb perspective does not contain the "pa" field
+		   we need to align the requested size in copy_from_user() for possibility */
+		buf_cmd_size = sizeof(req) - sizeof(u64);	
+	
+	} else {
+
+		/* assuming no compatibility issue:
+  		   libigb and kernel module have the same
+		   igb_buf_cmd structs ("pa" field included in both)
+ 		*/ 
+		buf_cmd_size = sizeof(req);
+
+	}	
+
+	if (copy_from_user(&req, arg, buf_cmd_size))
+		return -EFAULT;
+	
+	if ((ring == IGB_MAPRING) || (ring == IGB_MAP_TX_RING) ||
+	     ring == IGB_IOCTL_MAP_TX_RING) {
 		if (req.queue >= 3) {
 			printk("mapring:invalid queue specified(%d)\n",
 			       req.queue);
@@ -10443,10 +10549,13 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		adapter->uring_tx_init |= (1 << req.queue);
 		igb_priv->uring_tx_init |= (1 << req.queue);
 
+		if(ring == IGB_IOCTL_MAP_TX_RING)	
+			req.pa = virt_to_phys(adapter->tx_ring[req.queue]->desc);
+
 		req.physaddr = adapter->tx_ring[req.queue]->dma;
 		req.mmap_size = adapter->tx_ring[req.queue]->size;
 		mutex_unlock(&adapter->lock);
-	} else if (ring == IGB_MAP_RX_RING) {
+	} else if ((ring == IGB_MAP_RX_RING) || (ring == IGB_IOCTL_MAP_RX_RING)) {
 		if (req.queue >= 3) {
 			printk("mapring:invalid queue specified(%d)\n",
 			       req.queue);
@@ -10467,6 +10576,9 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 
 		adapter->uring_rx_init |= (1 << req.queue);
 		igb_priv->uring_rx_init |= (1 << req.queue);
+		
+		if(ring == IGB_IOCTL_MAP_RX_RING)	
+			req.pa = virt_to_phys(adapter->rx_ring[req.queue]->desc);
 
 		req.physaddr = adapter->rx_ring[req.queue]->dma;
 		req.mmap_size = adapter->rx_ring[req.queue]->size;
@@ -10476,7 +10588,7 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 		return -EINVAL;
 	}
 
-	if (copy_to_user(arg, &req, sizeof(req))) {
+	if (copy_to_user(arg, &req, buf_cmd_size)) {
 		printk("copyout to user failed\n");
 		err = -EFAULT;
 		goto failed;
@@ -10494,14 +10606,12 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 	struct igb_private_data *igb_priv = file->private_data;
 	struct igb_adapter *adapter;
 	struct igb_buf_cmd req;
+	int buf_cmd_size = 0;
 
 	if (igb_priv == NULL) {
 		printk("cannot find private data!\n");
 		return -ENOENT;
 	}
-
-	if (copy_from_user(&req, arg, sizeof(req)))
-		return -EFAULT;
 
 	adapter = igb_priv->adapter;
 	if (adapter == NULL) {
@@ -10509,7 +10619,23 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		return -ENOENT;
 	}
 
-	if ((ring == IGB_UNMAP_TX_RING)) {
+
+	if((ring != IGB_IOCTL_UNMAPBUF) && (ring != IGB_IOCTL_UNMAP_TX_RING) &&
+	  (ring != IGB_IOCTL_UNMAP_RX_RING)) {
+
+		dev_warn(&adapter->pdev->dev, "Old ioctl number used: %d, consider using new one from libigb \n", ring);
+		buf_cmd_size = sizeof(req) - sizeof(u64);
+
+	} else {
+		
+		buf_cmd_size = sizeof(req);
+	}
+
+	if (copy_from_user(&req, arg, buf_cmd_size))
+		return -EFAULT;
+
+
+	if ((ring == IGB_UNMAP_TX_RING) || (ring == IGB_IOCTL_UNMAP_TX_RING)) {
 		/* its easy to figure out what to free on the rings ... */
 		if (req.queue >= 3)
 			return -EINVAL;
@@ -10527,7 +10653,7 @@ static long igb_unmapbuf(struct file *file, void __user *arg, int ring)
 		adapter->uring_tx_init &= ~(1 << req.queue);
 		igb_priv->uring_tx_init &= ~(1 << req.queue);
 		mutex_unlock(&adapter->lock);
-	} else if (ring == IGB_UNMAP_RX_RING) {
+	} else if ((ring == IGB_UNMAP_RX_RING) || (ring == IGB_IOCTL_UNMAP_RX_RING)) {
 		/* its easy to figure out what to free on the rings ... */
 		if (req.queue >= 3)
 			return -EINVAL;
@@ -10601,14 +10727,20 @@ static long igb_ioctl_file(struct file *file, unsigned int cmd,
 		break;
 	case IGB_MAP_TX_RING:
 	case IGB_MAP_RX_RING:
+	case IGB_IOCTL_MAP_TX_RING:
+	case IGB_IOCTL_MAP_RX_RING:
 		err = igb_mapbuf(file, argp, cmd);
 		break;
 	case IGB_MAPBUF:
+	case IGB_IOCTL_MAPBUF:
 		err = igb_mapbuf_user(file, argp, cmd);
 		break;
 	case IGB_UNMAP_TX_RING:
 	case IGB_UNMAP_RX_RING:
 	case IGB_UNMAPBUF:
+	case IGB_IOCTL_UNMAPBUF:
+	case IGB_IOCTL_UNMAP_TX_RING:
+	case IGB_IOCTL_UNMAP_RX_RING:
 		err = igb_unmapbuf(file, argp, cmd);
 		break;
 	case IGB_LINKSPEED:
@@ -10701,8 +10833,11 @@ static void igb_vm_open(struct vm_area_struct *vma)
 static void igb_vm_close(struct vm_area_struct *vma)
 {
 }
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
+static int igb_vm_fault(struct vm_fault *fdata)
+#else
 static int igb_vm_fault(struct vm_area_struct *area, struct vm_fault *fdata)
+#endif
 {
 		return VM_FAULT_SIGBUS;
 }

@@ -340,6 +340,8 @@ bool openavbIntfH264RtpGstTxCB(media_q_t *pMediaQ)
 			{
 				((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->lastPacket = FALSE;
 			}
+			((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->timestamp =
+					gst_al_rtp_buffer_get_timestamp(txBuf);
 			openavbAvtpTimeSetToWallTime(pMediaQItem->pAvtpTime);
 			openavbMediaQHeadPush(pMediaQ);
 
@@ -545,7 +547,8 @@ bool openavbIntfH264RtpGstRxCB(media_q_t *pMediaQ)
 		}
 		memcpy(GST_AL_BUF_DATA(rxBuf), pMediaQItem->pPubData, pMediaQItem->dataLen);
 
-		GST_AL_BUFFER_TIMESTAMP(rxBuf) = GST_CLOCK_TIME_NONE;
+		//GST_AL_BUFFER_TIMESTAMP(rxBuf) = GST_CLOCK_TIME_NONE;
+		GST_AL_BUFFER_TIMESTAMP(rxBuf) = ((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->timestamp;
 		GST_AL_BUFFER_DURATION(rxBuf) = GST_CLOCK_TIME_NONE;
 		if ( ((media_q_item_map_h264_pub_data_t *)pMediaQItem->pPubMapData)->lastPacket )
 		{

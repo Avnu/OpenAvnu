@@ -95,13 +95,14 @@ inline uint32_t FindFrequencyByModel(uint8_t model_query) {
 
 /**
  * @brief  Gets the TSC frequnecy
- * @param  millis time in miliseconds
+ * @param  builtin whether device is connected to the Intel bus (not PCIE)
  * @return TSC frequency, or 0 on error
  */
-inline uint64_t getTSCFrequency( unsigned millis ) {
+inline uint64_t getTSCFrequency( bool builtin ) {
 	int max_cpuid_level;
 	int tmp[4];
 	BOOL is_windows_10;
+	LARGE_INTEGER freq;
 
 	// Find the max cpuid level, and if possible find clock info
 	__cpuid(tmp, 0);
@@ -124,9 +125,11 @@ inline uint64_t getTSCFrequency( unsigned millis ) {
 	// clock will be returned, *else* use QPC for everything else
 	//
 	// EAX (tmp[0]) must be >= 1, See Intel SDM 17.15.4 "Invariant Time-keeping"
-	if (is_windows_10 &&
+	if (!is_windows_10 &&
 		max_cpuid_level >= CLOCK_INFO_CPUID_LEAF &&
-		tmp[0] >= 1) {
+		tmp[0] >= 1 &&
+		builtin )
+	{
 		SYSTEM_INFO info;
 
 		GetSystemInfo(&info);
@@ -134,8 +137,6 @@ inline uint64_t getTSCFrequency( unsigned millis ) {
 		// Look at processor model (upper byte of revision) number to determine clock rate
 		return FindFrequencyByModel(info.wProcessorRevision >> 8);
 	}
-
-	LARGE_INTEGER freq;
 
 	if (QueryPerformanceFrequency(&freq))
 		return freq.QuadPart;

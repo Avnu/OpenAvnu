@@ -216,6 +216,21 @@ typedef struct _igb_vendor_info_t {
 #define IGB_MAP_RX_RING    _IOW('E', 207, int)
 #define IGB_UNMAP_RX_RING  _IOW('E', 208, int)
 
+/*set of newly defined ioctl calls - new libigb compatibility
+  each of them is an equivalent of the old ioctl
+  changed numberiong convention: new_ioctl = old_ioctl + 100*/
+
+#define IGB_IOCTL_MAPRING	_IOW('E', 302, int)
+#define IGB_IOCTL_MAP_TX_RING	 IGB_IOCTL_MAPRING
+#define IGB_IOCTL_UNMAPRING	_IOW('E', 303, int)
+#define IGB_IOCTL_UNMAP_TX_RING  IGB_IOCTL_UNMAPRING
+#define IGB_IOCTL_MAPBUF	_IOW('E', 304, int)
+#define IGB_IOCTL_UNMAPBUF	_IOW('E', 305, int)
+#define IGB_IOCTL_MAP_RX_RING	_IOW('E', 307, int)
+#define IGB_IOCTL_UNMAP_RX_RING _IOW('E', 308, int)
+
+/*END*/
+
 #define IGB_BIND_NAMESZ 24
 
 struct igb_bind_cmd {
@@ -227,6 +242,7 @@ struct igb_buf_cmd {
 	u_int64_t physaddr; /* dma_addr_t is 64-bit */
 	unsigned int queue;
 	unsigned int mmap_size;
+	u_int64_t pa;
 };
 
 struct igb_link_cmd {

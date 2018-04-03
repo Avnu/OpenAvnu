@@ -54,6 +54,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 typedef struct {
 	// Last fragment of frame flag.
 	bool lastPacket;		// For details see 1722a 9.4.3.1.1 M0 field
+	// The timestamp of h.264 NAL unit fragment.
+	U32 timestamp;			// For details see 1722-2016 8.5.3.1 h264_timestamp field
 } media_q_item_map_h264_pub_data_t;
 
 #endif  // OPENAVB_MAP_H264_PUB_H
