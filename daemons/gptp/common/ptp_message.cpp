@@ -1818,8 +1818,6 @@ void PTPMessagePathDelayRespFollowUp::processMessage
 	port->setPeerOffset( request_tx_timestamp, remote_req_rx_timestamp );
 
  abort:
-	delete req;
-	eport->setLastPDelayReq(NULL);
 	delete resp;
 	eport->setLastPDelayResp(NULL);
 
