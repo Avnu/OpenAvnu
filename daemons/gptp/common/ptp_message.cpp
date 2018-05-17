@@ -1688,7 +1688,7 @@ void PTPMessagePathDelayRespFollowUp::processMessage
 
 	GPTP_LOG_VERBOSE("Request Sequence Id: %u", req->getSequenceId());
 	GPTP_LOG_VERBOSE("Response Sequence Id: %u", resp->getSequenceId());
-	GPTP_LOG_VERBOSE("Follow-Up Sequence Id: %u", req->getSequenceId());
+	GPTP_LOG_VERBOSE("Follow-Up Sequence Id: %u", sequenceId);
 
 	int64_t link_delay;
 	unsigned long long turn_around;
