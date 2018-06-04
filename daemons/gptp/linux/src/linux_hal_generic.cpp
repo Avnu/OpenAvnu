@@ -34,6 +34,8 @@
 #include <linux_hal_generic_tsprivate.hpp>
 #include <platform.hpp>
 #include <avbts_message.hpp>
+#include <gptp_cfg.hpp>
+
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <netpacket/packet.h>
@@ -194,6 +196,13 @@ int findPhcIndex( InterfaceLabel *iface_label ) {
 	return info.phc_index;
 }
 
+LinuxTimestamperGeneric::clock_map_t
+LinuxTimestamperGeneric::system_clock_map[] =
+{
+	{ CLOCK_REALTIME, "Realtime" },
+	{ CLOCK_MONOTONIC_RAW, "MonotonicRaw" }
+};
+
 LinuxTimestamperGeneric::~LinuxTimestamperGeneric() {
 	if( _private != NULL ) delete _private;
 #ifdef WITH_IGBLIB
@@ -207,6 +216,22 @@ LinuxTimestamperGeneric::LinuxTimestamperGeneric() {
 	igb_private = NULL;
 #endif
 	sd = -1;
+	system_clockid = CLOCK_REALTIME;
+}
+
+const char *LinuxTimestamperGeneric::getClockNameFromId( clockid_t clockid )
+	const
+{
+	unsigned i;
+
+	for( i = 0; i < sizeof(system_clock_map)/sizeof(system_clock_map[0]);
+	     ++i )
+	{
+		if( system_clock_map[i].clockid == clockid  )
+			return system_clock_map[i].clock_name;
+	}
+
+	return NULL;
 }
 
 bool LinuxTimestamperGeneric::Adjust( void *tmx ) const {
@@ -274,6 +299,32 @@ void LinuxTimestamperGeneric::HWTimestamper_reset()
 	if( !resetFrequencyAdjustment() ) {
 		GPTP_LOG_ERROR("Failed to reset (zero) frequency adjustment");
 	}
+}
+
+bool LinuxTimestamperGeneric::HWTimestamper_setsystemclock
+( const char *system_clock_desc )
+{
+	unsigned i;
+
+	if( system_clock_desc == NULL )
+		return false;
+
+	for( i = 0; i < sizeof(system_clock_map)/sizeof(system_clock_map[0]);
+	     ++i )
+	{
+		if( strncmp( system_clock_desc, system_clock_map[i].clock_name,
+			     MAX_CLOCK_DESC_LEN ) == 0 )
+		{
+			system_clockid = system_clock_map[i].clockid;
+
+			return true;
+		}
+	}
+
+	GPTP_LOG_ERROR
+		( "Requested clock type: '%s' not found", system_clock_desc );
+
+	return false;
 }
 
 int LinuxTimestamperGeneric::HWTimestamper_txtimestamp
@@ -454,13 +505,33 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 	{
 		struct ptp_sys_offset_precise offset;
 		memset( &offset, 0, sizeof(offset));
-		if( ioctl( phc_fd, PTP_SYS_OFFSET_PRECISE, &offset ) == 0 )
+		if( ioctl( phc_fd, PTP_SYS_OFFSET_PRECISE, &offset ) != 0 )
 		{
-			*device_time = pctTimestamp( &offset.device );
-			*system_time = pctTimestamp( &offset.sys_realtime );
+			GPTP_LOG_ERROR( "Read PHC Crosstime IOCTL failed" );
 
-			return true;
+			return false;
 		}
+
+		*device_time = pctTimestamp( &offset.device );
+
+		if( system_clockid == CLOCK_REALTIME )
+			*system_time = pctTimestamp( &offset.sys_realtime );
+		else if( system_clockid == CLOCK_MONOTONIC_RAW )
+			*system_time = pctTimestamp( &offset.sys_monoraw );
+
+		else
+		{
+			const char * clock_name =
+				getClockNameFromId( system_clockid );
+			GPTP_LOG_ERROR(
+				"Requested clock type: '%s' not supported",
+				clock_name != NULL ? clock_name : "Unknown"
+				);
+
+			return false;
+		}
+
+		return true;
 	}
 #endif
 
@@ -474,7 +545,11 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 		memset( &offset, 0, sizeof(offset));
 		offset.n_samples = PTP_MAX_SAMPLES;
 		if( ioctl( phc_fd, PTP_SYS_OFFSET, &offset ) == -1 )
+		{
+			GPTP_LOG_ERROR( "Read PHC Crosstime IOCTL failed" );
+
 			return false;
+		}
 
 		pct = &offset.ts[0];
 		for( i = 0; i < offset.n_samples; ++i ) {
@@ -487,10 +562,26 @@ bool LinuxTimestamperGeneric::HWTimestamper_gettime
 			}
 		}
 
-		if (device_time_l)
-			*device_time = pctTimestamp( device_time_l );
-		if (system_time_l)
+		if( !device_time_l || !system_time_l )
+		{
+			GPTP_LOG_ERROR( "PHC Crosstime result is empty" );
+
+			return false;
+		}
+
+		*device_time = pctTimestamp( device_time_l );
+
+		if( system_clockid == CLOCK_REALTIME )
 			*system_time = pctTimestamp( system_time_l );
+		else
+		{
+			const char *clock_name =
+				getClockNameFromId( system_clockid );
+			GPTP_LOG_ERROR(
+				"Requested clock type: '%s' not supported",
+				clock_name != NULL ? clock_name : "Unknown"
+				);
+		}
 	}
 
 	return true;
