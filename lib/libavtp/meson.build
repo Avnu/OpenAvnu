@@ -29,12 +29,14 @@ pkg.generate(
 	libraries: avtp_lib,
 )
 
+cmockadep = dependency('cmocka', required: false, version: '>=1.1.1')
+
 test_avtp = executable(
 	'test-avtp',
 	'unit/test-avtp.c',
 	include_directories: include_directories('include'),
 	link_with: avtp_lib,
-	dependencies: dependency('cmocka'),
+	dependencies: cmockadep,
 	build_by_default: false,
 )
 
@@ -43,7 +45,7 @@ test_aaf = executable(
 	'unit/test-aaf.c',
 	include_directories: include_directories('include'),
 	link_with: avtp_lib,
-	dependencies: dependency('cmocka'),
+	dependencies: cmockadep,
 	build_by_default: false,
 )
 
