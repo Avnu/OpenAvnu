@@ -67,10 +67,21 @@ private:
 #endif
 
 	TicketingLock *net_lock;
+	clockid_t system_clockid;
 
 #ifdef WITH_IGBLIB
 	LinuxTimestamperIGBPrivate_t igb_private;
 #endif
+
+	struct clock_map_t
+	{
+		clockid_t clockid;
+		const char *clock_name;
+	};
+
+	static clock_map_t system_clock_map[];
+
+	const char *getClockNameFromId( clockid_t clockid ) const;
 
 public:
 	/**
@@ -107,6 +118,9 @@ public:
 	 * @return void
 	 */
 	virtual void HWTimestamper_reset();
+
+	virtual bool HWTimestamper_setsystemclock
+	( const char *system_clock_desc );
 
 	/**
 	 * @brief  Inserts a new timestamp to the beginning of the

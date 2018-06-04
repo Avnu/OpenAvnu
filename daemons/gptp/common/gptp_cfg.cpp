@@ -52,6 +52,7 @@ uint32_t findSpeedByName( const char *name, const char **end );
 
 GptpIniParser::GptpIniParser(std::string filename)
 {
+    _config.systemClockDesc[0] = '\0';
     _error = ini_parse(filename.c_str(), iniCallBack, this);
 }
 
@@ -84,6 +85,16 @@ int GptpIniParser::iniCallBack(void *user, const char *section, const char *name
                 valOK = true;
                 parser->_config.priority1 = p1;
             }
+        }
+    }
+    else if( parseMatch(section, "clock") )
+    {
+        if( parseMatch(name, "SystemClock") )
+        {
+		valOK = true;
+		strncpy( parser->_config.systemClockDesc, value,
+			 MAX_CLOCK_DESC_LEN );
+		parser->_config.systemClockDesc[MAX_CLOCK_DESC_LEN] = '\0';
         }
     }
     else if( parseMatch(section, "port") )

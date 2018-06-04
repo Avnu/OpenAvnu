@@ -45,6 +45,7 @@ const uint32_t LINKSPEED_2_5G =		2500000;
 const uint32_t LINKSPEED_1G =		1000000;
 const uint32_t LINKSPEED_100MB =	100000;
 const uint32_t INVALID_LINKSPEED =	UINT_MAX;
+const uint8_t  MAX_CLOCK_DESC_LEN =	64;
 
 /**
  * @brief Returns name given numeric link speed
@@ -67,6 +68,9 @@ class GptpIniParser
         {
             /*ptp data set*/
             unsigned char priority1;
+
+		/* Clock data set */
+		char systemClockDesc[MAX_CLOCK_DESC_LEN+1];
 
             /*port data set*/
             unsigned int announceReceiptTimeout;
@@ -92,6 +96,15 @@ class GptpIniParser
          * @return Parser Error
          */
         int parserError(void);
+
+	/**
+	 * @brief Read SystemClock description
+	 * @return pointer to c-string representing system clock
+	 */
+	const char *getSystemClockDesc(void)
+	{
+		return _config.systemClockDesc;
+	}
 
         /**
          * @brief  Reads priority1 config value
