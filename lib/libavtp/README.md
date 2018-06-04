@@ -23,7 +23,7 @@ Then build libavtp by running the following command. The building artifacts
 will be created under the build/ in the top-level directory.
 
 ```
-$ ninja -C build
+$ ninja -C build/ libavtp.so
 ```
 
 To install libavtp on your system run:
