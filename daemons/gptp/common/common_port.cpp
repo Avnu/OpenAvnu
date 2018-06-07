@@ -296,18 +296,22 @@ bool CommonPort::restoreSerializedState
 void CommonPort::startSyncReceiptTimer
 ( long long unsigned int waitTime )
 {
+	clock->getTimerQLock();
 	syncReceiptTimerLock->lock();
-	clock->deleteEventTimerLocked( this, SYNC_RECEIPT_TIMEOUT_EXPIRES );
-	clock->addEventTimerLocked
+	clock->deleteEventTimer( this, SYNC_RECEIPT_TIMEOUT_EXPIRES );
+	clock->addEventTimer
 		( this, SYNC_RECEIPT_TIMEOUT_EXPIRES, waitTime );
 	syncReceiptTimerLock->unlock();
+	clock->putTimerQLock();
 }
 
 void CommonPort::stopSyncReceiptTimer( void )
 {
+	clock->getTimerQLock();
 	syncReceiptTimerLock->lock();
-	clock->deleteEventTimerLocked( this, SYNC_RECEIPT_TIMEOUT_EXPIRES );
+	clock->deleteEventTimer( this, SYNC_RECEIPT_TIMEOUT_EXPIRES );
 	syncReceiptTimerLock->unlock();
+	clock->putTimerQLock();
 }
 
 void CommonPort::startSyncIntervalTimer
