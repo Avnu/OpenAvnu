@@ -54,14 +54,6 @@ patches with GPL content into existing “BSD” licensed components. Third
 party copyrights can be included provided they do not narrow the licensing 
 terms of an existing component.
 
-Prior to accepting a commit, Intel may perform scans using third-party tools 
-to identify suspected hits of GPL code. Intel may also perform vulnerability 
-scans of patches in an attempt to find various coding errors such as memory 
-leaks, buffer overflows and usage of uninitialized variables. The submitter 
-will be asked to correct any detected issues prior to a commit. Owners
-of submitted third-party content are free to apply changes without supervision
-by Intel.
-
 The OpenAvnu project has a development mailing list. To subscribe, visit
 https://lists.sourceforge.net/lists/listinfo/open-avb-devel to sign up.
 
