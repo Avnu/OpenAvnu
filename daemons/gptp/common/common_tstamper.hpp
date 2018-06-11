@@ -73,6 +73,15 @@ public:
 	}
 
 	/**
+	 * @brief  Sets system clock descriptor
+	 * @param  system_clock_desc name of local clock
+	 * @return false if unimplemented
+	 */
+	virtual bool HWTimestamper_setsystemclock
+	( const char *system_clock_desc )
+	{ return false; }
+
+	/**
 	 * @brief  Adjusts the hardware clock frequency
 	 * @param  frequency_offset Frequency offset
 	 * @return false
