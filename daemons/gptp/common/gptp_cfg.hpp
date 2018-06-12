@@ -66,23 +66,23 @@ class GptpIniParser
          */
         typedef struct
         {
-            /*ptp data set*/
-            unsigned char priority1;
+		/*ptp data set*/
+		unsigned char priority1;
 
 		/* Clock data set */
 		char systemClockDesc[MAX_CLOCK_DESC_LEN+1];
 
-            /*port data set*/
-            unsigned int announceReceiptTimeout;
-            unsigned int syncReceiptTimeout;
-            unsigned int syncReceiptThresh;		//!< Number of wrong sync messages that will trigger a switch to master
-            int64_t neighborPropDelayThresh;
-            unsigned int seqIdAsCapableThresh;
-            uint16_t lostPdelayRespThresh;
-            PortState port_state;
+		/*port data set*/
+		unsigned int announceReceiptTimeout;
+		unsigned int syncReceiptTimeout;
+		unsigned int syncReceiptThresh; //!< Number of wrong sync messages that will trigger a switch to master
+		int64_t neighborPropDelayThresh;
+		unsigned int seqIdAsCapableThresh;
+		uint16_t lostPdelayRespThresh;
+		PortState port_state;
 
-            /*ethernet adapter data set*/
-	    std::string ifname;
+		/*ethernet adapter data set*/
+		std::string ifname;
 		phy_delay_map_t phy_delay;
         } gptp_cfg_t;
 
