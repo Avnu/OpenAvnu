@@ -45,6 +45,7 @@ const uint32_t LINKSPEED_2_5G =		2500000;
 const uint32_t LINKSPEED_1G =		1000000;
 const uint32_t LINKSPEED_100MB =	100000;
 const uint32_t INVALID_LINKSPEED =	UINT_MAX;
+const uint8_t  MAX_CLOCK_DESC_LEN =	64;
 
 /**
  * @brief Returns name given numeric link speed
@@ -65,20 +66,23 @@ class GptpIniParser
          */
         typedef struct
         {
-            /*ptp data set*/
-            unsigned char priority1;
+		/*ptp data set*/
+		unsigned char priority1;
 
-            /*port data set*/
-            unsigned int announceReceiptTimeout;
-            unsigned int syncReceiptTimeout;
-            unsigned int syncReceiptThresh;		//!< Number of wrong sync messages that will trigger a switch to master
-            int64_t neighborPropDelayThresh;
-            unsigned int seqIdAsCapableThresh;
-            uint16_t lostPdelayRespThresh;
-            PortState port_state;
+		/* Clock data set */
+		char systemClockDesc[MAX_CLOCK_DESC_LEN+1];
 
-            /*ethernet adapter data set*/
-	    std::string ifname;
+		/*port data set*/
+		unsigned int announceReceiptTimeout;
+		unsigned int syncReceiptTimeout;
+		unsigned int syncReceiptThresh; //!< Number of wrong sync messages that will trigger a switch to master
+		int64_t neighborPropDelayThresh;
+		unsigned int seqIdAsCapableThresh;
+		uint16_t lostPdelayRespThresh;
+		PortState port_state;
+
+		/*ethernet adapter data set*/
+		std::string ifname;
 		phy_delay_map_t phy_delay;
         } gptp_cfg_t;
 
@@ -92,6 +96,15 @@ class GptpIniParser
          * @return Parser Error
          */
         int parserError(void);
+
+	/**
+	 * @brief Read SystemClock description
+	 * @return pointer to c-string representing system clock
+	 */
+	const char *getSystemClockDesc(void)
+	{
+		return _config.systemClockDesc;
+	}
 
         /**
          * @brief  Reads priority1 config value

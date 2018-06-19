@@ -150,6 +150,7 @@ int main(int argc, char **argv)
 	LinuxIPCArg *ipc_arg = NULL;
 	bool use_config_file = false;
 	char config_file_path[512];
+	const char *systemClockDesc = NULL;
 	memset(config_file_path, 0, 512);
 
 	GPTPPersist *pGPTPPersist = NULL;
@@ -424,6 +425,11 @@ int main(int argc, char **argv)
 			portInit.syncReceiptThreshold =
 				iniParser.getSyncReceiptThresh();
 
+			if( strnlen( iniParser.getSystemClockDesc(),
+				     MAX_CLOCK_DESC_LEN ) != 0 )
+				systemClockDesc =
+					iniParser.getSystemClockDesc();
+
 			/*Only overwrites phy_delay default values if not input_delay switch enabled*/
 			if(!input_delay)
 			{
@@ -431,6 +437,14 @@ int main(int argc, char **argv)
 			}
 		}
 
+	}
+
+	if( systemClockDesc != NULL )
+	{
+		if( timestamper->HWTimestamper_setsystemclock
+		    ( systemClockDesc ))
+			GPTP_LOG_INFO
+				( "Using system Clock: %s", systemClockDesc );
 	}
 
 	pPort = new EtherPort(&portInit);
