@@ -20,6 +20,3 @@ mkdir build
 cd build
 cmake ..
 make doc
-cd $ROOT_DIR
-CFLAGS=-Wno-missing-braces meson lib/libavtp/ lib/libavtp/build
-ninja -C lib/libavtp/build/ test aaf-talker aaf-listener
