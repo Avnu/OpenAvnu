@@ -5,8 +5,6 @@ descend = \
 help:
 	@echo 'Possible targets:'
 	@echo ''
-	@echo '  igb               - igb module'
-	@echo ''
 	@echo '  lib               - igb library'
 	@echo ''
 	@echo '  daemons_all       - build all daemons (mrpd gptp maap shaper)'
@@ -35,18 +33,12 @@ help:
 	@echo '  clean: a summary clean target to clean _all_ folders'
 	@echo ''
 
-igb: FORCE
-	$(call descend,kmod/$@)
-
-igb_clean:
-	$(call descend,kmod/igb/,clean)
-
 lib: FORCE
-	$(call descend,lib/igb)
+	$(call descend,lib/igb_avb/lib)
 	$(call descend,lib/common)
 
 lib_clean:
-	$(call descend,lib/igb/,clean)
+	$(call descend,lib/igb_avb/lib/,clean)
 	$(call descend,lib/common/,clean)
 
 mrpd:
@@ -155,8 +147,8 @@ examples_all: examples_common simple_talker simple_listener mrp_client live_stre
 examples_all_clean: examples_common_clean simple_talker_clean simple_listener_clean mrp_client_clean \
 	jackd-talker_clean jackd-listener_clean live_stream_clean simple_rx_clean
 
-all: igb lib daemons_all examples_all avtp_pipeline avtp_avdecc
+all: lib daemons_all examples_all avtp_pipeline avtp_avdecc
 
-clean: igb_clean lib_clean daemons_all_clean examples_all_clean avtp_pipeline_clean avtp_avdecc_clean
+clean: lib_clean daemons_all_clean examples_all_clean avtp_pipeline_clean avtp_avdecc_clean
 
 .PHONY: FORCE

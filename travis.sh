@@ -1,8 +1,6 @@
 #!/bin/bash
 set -ev
 
-make igb
-make lib
 make daemons_all
 make examples_all
 make avtp_pipeline
