@@ -15,7 +15,7 @@ ALL_OBJS = avb_avtp.o avb_gptp.o $(AVB_IGB_OBJ)
 
 all: $(ALL_OBJS)
 
-avb_igb.o: CPPFLAGS = -I../igb
+avb_igb.o: CPPFLAGS = -I../igb_avb/lib
 avb_igb.o: avb_igb.c avb_igb.h
 avb_avtp.o: avb_avtp.c avb_avtp.h
 avb_gptp.o: avb_gptp.c avb_gptp.h

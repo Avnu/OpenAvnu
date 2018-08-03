@@ -6,7 +6,7 @@ MRPCLIENT_DIR = ../common
 MRPTALKER_OBJS = talker_mrp_client.o
 MRPTALKER_TARGETS = $(addprefix $(MRPCLIENT_DIR)/,$(MRPTALKER_OBJS))
 
-IGBLIB_DIR = ../../lib/igb
+IGBLIB_DIR = ../../lib/igb_avb/lib
 DAEMONS_DIR = ../../daemons
 
 CC ?= gcc
