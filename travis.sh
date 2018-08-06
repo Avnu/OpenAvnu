@@ -11,8 +11,3 @@ cmake .. -G "Unix Makefiles"
 make
 export ARGS=--output-on-failure
 make test
-cd ../daemons/gptp/doc
-mkdir build
-cd build
-cmake ..
-make doc
