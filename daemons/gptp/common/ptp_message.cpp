@@ -154,8 +154,8 @@ PTPMessageCommon *buildPTPMessage
 			char err_msg[HWTIMESTAMPER_EXTENDED_MESSAGE_SIZE];
 			port->getExtendedError(err_msg);
 			GPTP_LOG_ERROR
-			    ("*** Received an event packet but cannot retrieve timestamp, discarding. messageType=%u,error=%d\n%s",
-			     messageType, ts_good, msg);
+			    ("*** Received an event packet but cannot retrieve timestamp, discarding. messageType=%u,error=%d\t%s",
+			     messageType, ts_good, err_msg);
 			//_exit(-1);
 			goto abort;
 		}
