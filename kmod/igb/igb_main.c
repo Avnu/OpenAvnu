@@ -3538,6 +3538,8 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
+		if (adapter->tx_ring[i]->tx_buffer_info)
+			continue;
 		err = igb_setup_tx_resources(adapter->tx_ring[i]);
 		if (err) {
 			dev_err(pci_dev_to_dev(pdev),
@@ -3701,6 +3703,8 @@ static int igb_setup_all_rx_resources(struct igb_adapter *adapter)
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
+		if (adapter->rx_ring[i]->rx_buffer_info)
+			continue;
 		err = igb_setup_rx_resources(adapter->rx_ring[i]);
 		if (err) {
 			dev_err(pci_dev_to_dev(pdev),
@@ -4166,7 +4170,8 @@ static void igb_free_all_tx_resources(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_free_tx_resources(adapter->tx_ring[i]);
+		if (!(adapter->uring_tx_init & (1 << i)))
+			igb_free_tx_resources(adapter->tx_ring[i]);
 }
 
 void igb_unmap_and_free_tx_resource(struct igb_ring *ring,
@@ -4268,7 +4273,8 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_free_rx_resources(adapter->rx_ring[i]);
+		if (!(adapter->uring_rx_init & (1 << i)))
+			igb_free_rx_resources(adapter->rx_ring[i]);
 }
 
 /**
@@ -10546,6 +10552,12 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 			return -EBUSY;
 		}
 
+		if (!adapter->tx_ring[req.queue]->tx_buffer_info) {
+			mutex_unlock(&adapter->lock);
+			printk("TX ring DMA memory not allocated\n");
+			return -EINVAL;
+		}
+
 		adapter->uring_tx_init |= (1 << req.queue);
 		igb_priv->uring_tx_init |= (1 << req.queue);
 
@@ -10572,6 +10584,12 @@ static long igb_mapbuf(struct file *file, void __user *arg, int ring)
 			mutex_unlock(&adapter->lock);
 			printk("mapring:queue in use (%d)\n", req.queue);
 			return -EBUSY;
+		}
+
+		if (!adapter->rx_ring[req.queue]->rx_buffer_info) {
+			mutex_unlock(&adapter->lock);
+			printk("RX ring DMA memory not allocated\n");
+			return -EINVAL;
 		}
 
 		adapter->uring_rx_init |= (1 << req.queue);
