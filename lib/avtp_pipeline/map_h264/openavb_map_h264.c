@@ -112,6 +112,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 // - 4 bytes	h264_timestamp
 #define HIDX_H264_TIMESTAMP32		24
 
+// - 4 bytes    h264_timestamp size
+#define HIDX_H264_TIMESTAMP_SIZE    4
+
 typedef struct {
 	/////////////
 	// Config data
@@ -314,7 +317,8 @@ tx_cb_ret_t openavbMapH264TxCB(media_q_t *pMediaQ, U8 *pData, U32 *dataLen)
 				// Copy the h264 rtp payload into the outgoing avtp packet.
 				memcpy(pPayload, pMediaQItem->pPubData, pMediaQItem->dataLen);
 
-				*(U16 *)(&pHdr[HIDX_STREAM_DATA_LEN16]) = htons(pMediaQItem->dataLen);
+				// Add h264_timestamp size into the H264 data length
+				*(U16 *)(&pHdr[HIDX_STREAM_DATA_LEN16]) = htons(pMediaQItem->dataLen + HIDX_H264_TIMESTAMP_SIZE);
 
 				// Set out bound data length (entire packet length)
 				*dataLen = pMediaQItem->dataLen + TOTAL_HEADER_SIZE;
