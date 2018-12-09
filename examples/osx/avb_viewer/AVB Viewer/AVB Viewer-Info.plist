@@ -2,13 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>resourceUsage</key>
-	<dict>
-		<key>iokit.user-client</key>
-		<array>
-			<string>IOAVB17221EntityDiscoveryUserClient</string>
-		</array>
-	</dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>
@@ -16,7 +9,7 @@
 	<key>CFBundleIconFile</key>
 	<string>Brick-Icons</string>
 	<key>CFBundleIdentifier</key>
-	<string>avbio.${PRODUCT_NAME:rfc1034identifier}</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -39,5 +32,12 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>resourceUsage</key>
+	<dict>
+		<key>iokit.user-client</key>
+		<array>
+			<string>IOAVB17221EntityDiscoveryUserClient</string>
+		</array>
+	</dict>
 </dict>
 </plist>
