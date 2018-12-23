@@ -10,10 +10,12 @@
 
 #define kIconImageSize          16.0
 
-@implementation OutlineViewController
+static NSString *avbDevicesChanged = @"AVBCHANGED";
 
-NSString *avbDevicesChanged = @"AVBCHANGED";
-NSString *interfaceName;
+@implementation OutlineViewController
+{
+    NSString *interfaceName;
+}
 
 - (id)init {
     self = [super init];
@@ -25,7 +27,7 @@ NSString *interfaceName;
         //[newDevice addChild:[[AvbDevice alloc] initWithId: @"Test Talker"]];
         //[self.avbDevices addObject:newDevice];
         
-        [self getLocalInterface];
+        interfaceName = [self getLocalInterface];
         //[self createLocalEntity];  Not used yet
         [self resetDiscovery];
     }
@@ -105,7 +107,7 @@ NSString *interfaceName;
     [entity setTalkerStreamSources:1];
     [entity setEntityID:666666];
     [entity setLocalEntity:YES];
-    AVB17221ACMPInterface *acmp = [[AVB17221ACMPInterface alloc] init];
+    AVB17221ACMPInterface *acmp = [AVB17221ACMPInterface new];
     return acmp;
 }
 
