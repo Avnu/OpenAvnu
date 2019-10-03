@@ -3,9 +3,11 @@ if (AVB_FEATURE_AVDECC)
 	set ( AVB_FEATURE_GSTREAMER 0 )
 	set ( AVB_FEATURE_PCAP 0 )
 	set ( AVB_FEATURE_IGB 0 )
+	set ( AVB_FEATURE_ATL 0 )
 else ()
 	set ( AVB_FEATURE_PCAP 1 )
 	set ( AVB_FEATURE_IGB 1 )
+	set ( AVB_FEATURE_ATL 0 )
 
 	set ( GSTREAMER_1_0 0 )
 endif ()
@@ -24,7 +26,7 @@ set ( OPENAVB_PLATFORM "${OPENAVB_HAL}-${OPENAVB_OSAL}" )
 set ( PLATFORM_INCLUDE_DIRECTORIES
 	${CMAKE_SOURCE_DIR}/platform/x86_i210/include
 if (AVB_FEATURE_IGB)
-	${CMAKE_SOURCE_DIR}/../igb
+	${CMAKE_SOURCE_DIR}/../igb_avb/lib
 endif ()
 	${CMAKE_SOURCE_DIR}/openavb_common
 	${CMAKE_SOURCE_DIR}/../../daemons/common
@@ -34,7 +36,7 @@ endif ()
 
 if (AVB_FEATURE_IGB)
 	set ( PLATFORM_LINK_DIRECTORIES
-		${CMAKE_SOURCE_DIR}/../igb
+		${CMAKE_SOURCE_DIR}/../igb_avb/lib
 	)
 endif ()
 

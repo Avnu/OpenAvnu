@@ -615,7 +615,7 @@ int mrp_get_domain(int *class_a_id, int *a_priority, u_int16_t * a_vid,
 		*b_priority = domain_class_b_priority;
 		*b_vid = domain_class_b_vid;
 	}
-	return domain_a_valid && domain_b_valid ? 0 : -1;
+	return domain_a_valid || domain_b_valid ? 0 : -1;
 }
 
 int mrp_join_vlan()

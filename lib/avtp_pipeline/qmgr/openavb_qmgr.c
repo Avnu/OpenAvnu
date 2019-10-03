@@ -46,6 +46,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #if (AVB_FEATURE_IGB)
 #include "openavb_igb.h"
 #endif
+#if (AVB_FEATURE_ATL)
+#include "openavb_atl.h"
+#endif
 
 #define AVB_DEFAULT_QDISC_MODE AVB_SHAPER_HWQ_PER_CLASS
 
@@ -55,6 +58,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 typedef struct {
 #if (AVB_FEATURE_IGB)
 	device_t *igb_dev;
+#endif
+#if (AVB_FEATURE_ATL)
+	device_t *atl_dev;
 #endif
 	int mode;
 	int ifindex;
@@ -67,6 +73,9 @@ typedef struct {
 
 static qdisc_data_t qdisc_data = {
 #if (AVB_FEATURE_IGB)
+	NULL,
+#endif
+#if (AVB_FEATURE_ATL)
 	NULL,
 #endif
 	0, 0, {0}, 0, 0, 0, 0
@@ -103,13 +112,13 @@ static qmgrStream_t qmgr_streams[MAX_AVB_STREAMS];
 static bool setupHWQueue(int nClass, unsigned classBytesPerSec)
 {
 	int err = 0;
-#if (AVB_FEATURE_IGB)
+#if (AVB_FEATURE_IGB) || (AVB_FEATURE_ATL)
 	U32 class_a_bytes_per_sec, class_b_bytes_per_sec;
 #endif
 
 	AVB_TRACE_ENTRY(AVB_TRACE_QUEUE_MANAGER);
 
-#if (AVB_FEATURE_IGB)
+#if (AVB_FEATURE_IGB) || (AVB_FEATURE_ATL)
 	if (nClass == SR_CLASS_A) {
 		class_a_bytes_per_sec = classBytesPerSec;
 		class_b_bytes_per_sec = qmgr_classes[SR_CLASS_B].classBytesPerSec;
@@ -117,9 +126,17 @@ static bool setupHWQueue(int nClass, unsigned classBytesPerSec)
 		class_a_bytes_per_sec = qmgr_classes[SR_CLASS_A].classBytesPerSec;
 		class_b_bytes_per_sec = classBytesPerSec;
 	}
+#if (AVB_FEATURE_IGB)
 	err = igb_set_class_bandwidth2(qdisc_data.igb_dev, class_a_bytes_per_sec, class_b_bytes_per_sec);
 	if (err)
 		AVB_LOGF_ERROR("Adding stream; igb_set_class_bandwidth failed: %s", strerror(err));
+#else // (AVB_FEATURE_ATL)
+	err = atl_set_class_bandwidth(qdisc_data.atl_dev, 
+								  class_a_bytes_per_sec, 
+								  class_b_bytes_per_sec);
+	if (err)
+		AVB_LOGF_ERROR("Adding stream; atl_set_class_bandwidth failed: %s", strerror(err));
+#endif
 #endif
 
 	AVB_TRACE_EXIT(AVB_TRACE_QUEUE_MANAGER);
@@ -268,6 +285,14 @@ bool openavbQmgrInitialize(int mode, int ifindex, const char* ifname, unsigned m
 	}
 	else
 #endif
+#if (AVB_FEATURE_ATL)
+	if ( qdisc_data.mode != AVB_SHAPER_DISABLED
+	     && (qdisc_data.atl_dev = atlAcquireDevice(ifname)) == 0)
+	{
+		AVB_LOG_ERROR("Initializing QMgr; unable to acquire atl device");
+	}
+	else
+#endif
 	{
 		// Initialize data for classes and streams
 		memset(qmgr_classes, 0, sizeof(qmgr_classes));
@@ -314,6 +339,10 @@ void openavbQmgrFinalize(void)
 #if (AVB_FEATURE_IGB)
 		igbReleaseDevice(qdisc_data.igb_dev);
 		qdisc_data.igb_dev = NULL;
+#endif
+#if (AVB_FEATURE_ATL)
+		atlReleaseDevice(qdisc_data.atl_dev);
+		qdisc_data.atl_dev = NULL;
 #endif
 	}
 
