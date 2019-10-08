@@ -2,7 +2,8 @@ EXAMPLE APPLICATIONS
 
 The 'simple_talker' application illustrates the various steps to publish a stream
 and streaming 1722/61883 audio frames after a listener connects. The audio is a
-simple sine wave.
+simple sine wave. This application was tested with AQC107 as talker, and i210
+running existing simple_listener application.
 
 The simple talker application requires root permissions to execute and 
 attach to the driver.
