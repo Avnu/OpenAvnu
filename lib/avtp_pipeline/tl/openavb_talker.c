@@ -238,7 +238,7 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 				// sleep until the next interval
 				SLEEP_UNTIL_NSEC(pTalkerData->nextCycleNS);
 			} else {
-#if !IGB_LAUNCHTIME_ENABLED
+#if !IGB_LAUNCHTIME_ENABLED && !ATL_LAUNCHTIME_ENABLED
 				SPIN_UNTIL_NSEC(pTalkerData->nextCycleNS);
 #endif
 			}

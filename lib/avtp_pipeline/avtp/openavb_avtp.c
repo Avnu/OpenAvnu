@@ -338,6 +338,10 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 				timeNsec = item->pAvtpTime->timeNsec;
 				openavbMediaQTailUnlock(pStream->pMediaQ);
 			}
+#elif ATL_LAUNCHTIME_ENABLED
+			if( pStream->pMapCB->map_lt_calc_cb ) {
+				pStream->pMapCB->map_lt_calc_cb(pStream->pMediaQ, &timeNsec);
+			}
 #endif
 
 			// Call mapping module to move data into AVTP frame
@@ -353,6 +357,10 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			if (item) {
 				timeNsec = item->pAvtpTime->timeNsec;
 				openavbMediaQTailUnlock(pStream->pMediaQ);
+			}
+#elif ATL_LAUNCHTIME_ENABLED
+			if( pStream->pMapCB->map_lt_calc_cb ) {
+				pStream->pMapCB->map_lt_calc_cb(pStream->pMediaQ, &timeNsec);
 			}
 #endif
 

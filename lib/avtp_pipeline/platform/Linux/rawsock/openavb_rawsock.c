@@ -37,6 +37,9 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 #if AVB_FEATURE_IGB
 #include "igb_rawsock.h"
 #endif
+#if AVB_FEATURE_ATL
+#include "atl_rawsock.h"
+#endif
 #endif
 
 #include "openavb_rawsock.h"
@@ -79,6 +82,8 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 #if AVB_FEATURE_PCAP
 #if AVB_FEATURE_IGB
 	char proto[IF_NAMESIZE] = "igb";
+#elif AVB_FEATURE_ATL
+    char proto[IF_NAMESIZE] = "atl";
 #else
 	char proto[IF_NAMESIZE] = "pcap";
 #endif
@@ -165,6 +170,21 @@ void *openavbRawsockOpen(const char *ifname_uri, bool rx_mode, bool tx_mode, U16
 
 		// call constructor
 		pvRawsock = igbRawsockOpen((igb_rawsock_t*)rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
+#endif
+#if AVB_FEATURE_ATL
+	} else if (strcmp(proto, "atl") == 0) {
+
+		AVB_LOG_INFO("Using *atl* implementation");
+
+		// allocate memory for rawsock object
+		atl_rawsock_t *rawsock = calloc(1, sizeof(atl_rawsock_t));
+		if (!rawsock) {
+			AVB_LOG_ERROR("Creating rawsock; malloc failed");
+			return NULL;
+		}
+
+		// call constructor
+		pvRawsock = atlRawsockOpen((atl_rawsock_t*)rawsock, ifname, rx_mode, tx_mode, ethertype, frame_size, num_frames);
 #endif
 #endif
 	} else {

@@ -149,7 +149,10 @@ typedef struct {
 	U8 DBC;
 
 	avb_audio_mcr_t audioMcr;
-
+#if ATL_LAUNCHTIME_ENABLED
+	// Transmit interval in nanoseconds.
+	U32 txIntervalNs;
+#endif
 } pvt_data_t;
 
 static void x_calculateSizes(media_q_t *pMediaQ)
@@ -232,6 +235,10 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 
 		pPubMapInfo->packetSampleSizeBytes = 4;
 
+#if ATL_LAUNCHTIME_ENABLED
+		pPvtData->txIntervalNs = 1000000000u / pPvtData->txInterval;
+		AVB_LOGF_INFO("LT interval ns:%d", pPvtData->txIntervalNs);
+#endif
 		AVB_LOGF_INFO("Rate:%d", pPubMapInfo->audioRate);
 		AVB_LOGF_INFO("Bits:%d", pPubMapInfo->audioBitDepth);
 		AVB_LOGF_INFO("Channels:%d", pPubMapInfo->audioChannels);
@@ -394,6 +401,42 @@ void openavbMapUncmpAudioAVDECCInitCB(media_q_t *pMediaQ, U16 configIdx, U16 des
 
 	AVB_TRACE_EXIT(AVB_TRACE_MAP);
 }
+
+#if ATL_LAUNCHTIME_ENABLED
+#define ATL_LT_OFFSET 500000
+bool openavbMapUncmpLaunchtimCalculationCB(media_q_t *pMediaQ, U64 *lt)
+{
+static U64 last_time = 0;
+	bool res = false;
+	media_q_item_t* pMediaQItem;
+	pvt_data_t *pPvtData = pMediaQ->pPvtMapInfo;
+	AVB_TRACE_ENTRY(AVB_TRACE_INTF);
+	if (!lt) {
+		AVB_LOG_ERROR("Mapping module launchtime argument incorrect.");
+		return false;
+	}
+	if (!pPvtData) {
+		AVB_LOG_ERROR("Private mapping module data not allocated.");
+		return false;
+	}
+
+	pMediaQItem = openavbMediaQTailLock(pMediaQ, true);
+	if (pMediaQItem) {
+		if (pMediaQItem->readIdx == 0) {
+			last_time = pMediaQItem->pAvtpTime->timeNsec;
+			*lt = last_time + ATL_LT_OFFSET;
+			res = true;
+		} else if( last_time != 0 ) {
+			last_time += pPvtData->txIntervalNs;
+			*lt = last_time + ATL_LT_OFFSET;
+			res = true;
+		}
+		openavbMediaQTailUnlock(pMediaQ);
+	}
+	AVB_TRACE_EXIT(AVB_TRACE_INTF);
+	return res;
+}
+#endif
 
 // A call to this callback indicates that this mapping module will be
 // a talker. Any talker initialization can be done in this function.
@@ -737,6 +780,9 @@ extern DLL_EXPORT bool openavbMapUncmpAudioInitialize(media_q_t *pMediaQ, openav
 		pMapCB->map_rx_cb = openavbMapUncmpAudioRxCB;
 		pMapCB->map_end_cb = openavbMapUncmpAudioEndCB;
 		pMapCB->map_gen_end_cb = openavbMapUncmpAudioGenEndCB;
+#if ATL_LAUNCHTIME_ENABLED
+		pMapCB->map_lt_calc_cb = openavbMapUncmpLaunchtimCalculationCB;
+#endif
 
 		pPvtData->itemCount = 20;
 		pPvtData->txInterval = 0;

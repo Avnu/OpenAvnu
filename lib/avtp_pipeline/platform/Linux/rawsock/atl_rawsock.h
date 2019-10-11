@@ -1,7 +1,6 @@
 /*************************************************************************************************************
-Copyright (c) 2012-2015, Symphony Teleca Corporation, a Harman International Industries, Incorporated company
-Copyright (c) 2016-2017, Harman International Industries, Incorporated
-All rights reserved.
+Copyright (c) 2019, Aquantia Corporation
+All rights reserved
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -28,50 +27,41 @@ Brush Technology and Ben Hoyt - Copyright (c) 2009, Brush Technology and Copyrig
 Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
+#ifndef ATL_RAWSOCK_H
+#define ATL_RAWSOCK_H
 
-/*
-* MODULE SUMMARY : Media clock timestamp synthesis for stored or generated media
-*/
+#include "rawsock_impl.h"
+#include <pcap/pcap.h>
+#include "atl.h"
 
-#include "openavb_platform_pub.h"
-#include "openavb_types_pub.h"
-#include "openavb_log_pub.h"
-#include "openavb_mcs.h"
+typedef struct {
+	base_rawsock_t base;
+	pcap_t *handle;
+	device_t *atl_dev;
+	struct atl_packet *tx_packet;
+	int queue;
+	unsigned long txOutOfBuffer;
+	unsigned long txOutOfBufferCyclic;
+} atl_rawsock_t;
 
-void openavbMcsInit(mcs_t *mediaClockSynth, U64 nsPerAdvance, S32 correctionAmount, U32 correctionInterval)
-{
-	mediaClockSynth->firstTimeSet = FALSE;
-	mediaClockSynth->nsPerAdvance = nsPerAdvance;
-	mediaClockSynth->correctionAmount = correctionAmount;
-	mediaClockSynth->correctionInterval = correctionInterval;
-	mediaClockSynth->startTime = 0;
-	mediaClockSynth->tickCount = 0;
-	mediaClockSynth->edgeTime = 0;
-}
+void *atlRawsockOpen(atl_rawsock_t* rawsock, const char *ifname, bool rx_mode, bool tx_mode, U16 ethertype, U32 frame_size, U32 num_frames);
 
-void openavbMcsAdvance(mcs_t *mediaClockSynth)
-{
-	if (mediaClockSynth->firstTimeSet == FALSE) {
-		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &mediaClockSynth->edgeTime);
-		if (mediaClockSynth->edgeTime) {
-			mediaClockSynth->firstTimeSet = TRUE;
-			mediaClockSynth->startTime = mediaClockSynth->edgeTime;
-		}
-	}
-	else
-	{
-		mediaClockSynth->edgeTime += mediaClockSynth->nsPerAdvance;
-		mediaClockSynth->tickCount++;
-		if (mediaClockSynth->tickCount % mediaClockSynth->correctionInterval == 0) {
-			mediaClockSynth->edgeTime += mediaClockSynth->correctionAmount;
-		}
-#if !IGB_LAUNCHTIME_ENABLED && !ATL_LAUNCHTIME_ENABLED
-		IF_LOG_INTERVAL(8000) {
-			U64 nowNS;
-			CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
-			S64 fixedRealDelta = mediaClockSynth->edgeTime - nowNS;
-			AVB_LOGF_INFO("Fixed/Real TS Delta: %lld", fixedRealDelta);
-		}
+void atlRawsockClose(void *pvRawsock);
+
+bool atlRawsockTxSetMark(void *pvRawsock, int mark);
+
+U8 *atlRawsockGetTxFrame(void *pvRawsock, bool blocking, unsigned int *len);
+
+bool atlRawsockRelTxFrame(void *pvRawsock, U8 *pBuffer);
+
+bool atlRawsockTxFrameReady(void *pvRawsock, U8 *pBuffer, unsigned int len, U64 timeNsec);
+
+int atlRawsockSend(void *pvRawsock);
+
+int atlRawsockTxBufLevel(void *pvRawsock);
+
+unsigned long atlRawsockGetTXOutOfBuffers(void *pvRawsock);
+
+unsigned long atlRawsockGetTXOutOfBuffersCyclic(void *pvRawsock);
+
 #endif
-	}
-}
