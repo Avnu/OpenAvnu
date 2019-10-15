@@ -117,7 +117,7 @@ struct openavb_tl_data_cfg {
 	/// An array of 4-octet sample rates supported by this Audio Unit
 	U32 sampling_rates[MAX_SAMPLING_RATES_COUNT];
 	/// intf_nv_audio_rate
-	U16 audioRate;
+	U32 audioRate;
 	/// intf_nv_audio_bit_depth
 	U8 audioBitDepth;
 	/// intf_nv_channels
