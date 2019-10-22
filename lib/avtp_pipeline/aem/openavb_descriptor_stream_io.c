@@ -32,7 +32,7 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 /*
  ******************************************************************
  * MODULE : AEM - AVDECC Stream IO Descriptor
- * MODULE SUMMARY : Implements the AVDECC Stream IO IEEE Std 1722.1-2013 clause 7.2.6 
+ * MODULE SUMMARY : Implements the AVDECC Stream IO IEEE Std 1722.1-2013 clause 7.2.6
  ******************************************************************
  */
 
@@ -349,6 +349,10 @@ extern DLL_EXPORT openavb_aem_descriptor_stream_io_t *openavbAemDescriptorStream
 	return pDescriptor;
 }
 
+/*
+ *      Initial and static values for stream input / output descriptors.
+ *      ToDo : read actual endpoint configuration.
+ */
 static void fillInStreamFormat(openavb_aem_descriptor_stream_io_t *pDescriptor, const openavb_avdecc_configuration_cfg_t *pConfig)
 {	// AVDECC_TODO - Specify the stream format information for MMA Stream Format.
 	if (strcmp(pConfig->stream->map_fn,"openavbMapAVTPAudioInitialize") == 0)
@@ -368,12 +372,21 @@ static void fillInStreamFormat(openavb_aem_descriptor_stream_io_t *pDescriptor, 
 		pDescriptor->stream_formats[0].subtypes.iec_61883_iidc.sf = 1;
 		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.fmt = OPENAVB_AEM_STREAM_FORMAT_FMT_61883_6;
 		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.fdf_evt = OPENAVB_AEM_STREAM_FORMAT_FDF_EVT_61883_6_AM824;
+		/*
+		 *      static sampling rate. Requires fixing. 0x02 = 48kHz, 0x04 = 96kHz
+		 */
 		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.fdf_sfc = 0x02;
+		/*
+		 *      static channel count. Requires fixing. 0x08 = 8 channels
+		 */
 		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.dbs = 0x08;
 		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.b = 0x00;
 		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.nb = 0x01;
 		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_iec_60958_cnt = 0;
-		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_mbla_cnt = 8;
+		/*
+		 *      static channel count. Requires fixing. 0x08 = 8 channels
+		 */
+		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_mbla_cnt = pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.dbs;
 		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_midi_cnt = 0;
 		pDescriptor->stream_formats[0].subtypes.iec_61883_6_am824.label_smptecnt = 0;
 	}
