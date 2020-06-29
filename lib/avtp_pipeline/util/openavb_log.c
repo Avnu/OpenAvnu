@@ -243,7 +243,7 @@ extern void DLL_EXPORT avbLogExit()
 	logOutputFd = NULL;
 }
 
-extern void DLL_EXPORT avbLogFn(
+void __avbLogFn(
 	int level, 
 	const char *tag, 
 	const char *company,
@@ -251,12 +251,9 @@ extern void DLL_EXPORT avbLogFn(
 	const char *path,
 	int line,
 	const char *fmt, 
-	...)
+	va_list args)
 {
 	if (level <= AVB_LOG_LEVEL) {
-		va_list args;
-		va_start(args, fmt);
-
 		LOG_LOCK();
 
 		vsprintf(msg, fmt, args);
@@ -313,10 +310,24 @@ extern void DLL_EXPORT avbLogFn(
 			}
 		}
 
-		va_end(args);
-
 		LOG_UNLOCK();
 	}
+}
+
+extern void DLL_EXPORT avbLogFn(
+	int level, 
+	const char *tag, 
+	const char *company,
+	const char *component,
+	const char *path,
+	int line,
+	const char *fmt, 
+	...)
+{
+ 	va_list args;
+	va_start(args, fmt);
+	__avbLogFn(level, tag, company, component, path, line, fmt, args);
+	va_end(args);
 }
 
 extern void DLL_EXPORT avbLogRT(int level, bool bBegin, bool bItem, bool bEnd, char *pFormat, log_rt_datatype_t dataType, void *pVar)

@@ -4,13 +4,20 @@ _Note:_ this tutorial targets a Linux OS.
 
 ## Preparation
 
-Fetch the Open-AVB repository. To ease the further steps, enter your local copy
+Fetch the Open-AVB repository and the gPTP repository:
+```bash
+git clone https://github.com/Avnu/OpenAvnu.git
+git clone https://github.com/Avnu/gptp.git
+```
+To ease the further steps, enter your local copy
 and export its path and AVB interfaces via
 ```bash
 export AVB_PATH=$(pwd)
+export GPTP_PATH="$AVB_PATH/../gptp"
 export AVB_PC1_IF="eth0"
 export AVB_PC2_IF="eth2"
 ```
+Build both repositories as described in the README files.
 Then, you can use a terminal multiplexer like _byobu_ to start all needed AVB
 tools in different windows.
 
@@ -19,7 +26,7 @@ We assume the following PC setup:
   * PC2: ethernet eth2 for AVB connection
   * Both ethernet cards are using the `igb_avb` driver.
     * Check via `ethtool -i eth0`.
-    * If not, launch `sudo ./startup.sh eth0` in `kmod/igb` to load the required
+    * If not, launch `sudo ./startup.sh eth0` in `lib/igb_avb/kmod` to load the required
       driver for the AVB interface.
   * Both PCs can ping each other through the AVB network cards.
 
@@ -29,7 +36,7 @@ Start AVB environment:
 
 ```bash
 # GPTP time synchronization daemon
-cd "${AVB_PATH}/daemons/gptp/linux/build/obj"
+cd "${GPTP_PATH}/linux/build/obj"
 sudo ./daemon_cl $AVB_PC1_IF -R 1
 
 # Stream reservation daemon (m: MMRP, v: MVRP, s: MSRP)
@@ -50,7 +57,7 @@ Start AVB environment similar to PC 1:
 
 ```bash
 # GPTP time synchronization daemon (will synchronize on PC 1)
-cd "${AVB_PATH}/daemons/gptp/linux/build/obj"
+cd "${GPTP_PATH}/linux/build/obj"
 sudo ./daemon_cl $AVB_PC2_IF
 
 # Stream reservation daemon (m: MMRP, v: MVRP, s: MSRP)

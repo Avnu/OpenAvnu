@@ -5,6 +5,7 @@ descend = \
 help:
 	@echo 'Possible targets:'
 	@echo ''
+	@echo '  atl_lib	       - atl library'
 	@echo '  lib               - igb library'
 	@echo ''
 	@echo '  daemons_all       - build all daemons (mrpd maap shaper)'
@@ -31,6 +32,14 @@ help:
 	@echo '    the respective build directory.'
 	@echo '  clean: a summary clean target to clean _all_ folders'
 	@echo ''
+
+atl_lib: FORCE
+	$(call descend,lib/atl_avb/lib)
+	$(call descend,lib/common)
+
+atl_lib_clean:
+	$(call descend,lib/atl_avb/lib/,clean)
+	$(call descend,lib/common/,clean)
 
 lib: FORCE
 	$(call descend,lib/igb_avb/lib)
@@ -116,7 +125,7 @@ live_stream:
 live_stream_clean:
 	$(call descend,examples/live_stream/,clean)
 
-avtp_pipeline: lib
+avtp_pipeline: lib atl_lib
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_pipeline.mk
 
 avtp_pipeline_clean:
@@ -140,8 +149,8 @@ examples_all: examples_common simple_talker simple_listener mrp_client live_stre
 examples_all_clean: examples_common_clean simple_talker_clean simple_listener_clean mrp_client_clean \
 	jackd-talker_clean jackd-listener_clean live_stream_clean simple_rx_clean
 
-all: lib daemons_all examples_all avtp_pipeline avtp_avdecc
+all: lib atl_lib daemons_all examples_all avtp_pipeline avtp_avdecc
 
-clean: lib_clean daemons_all_clean examples_all_clean avtp_pipeline_clean avtp_avdecc_clean
+clean: lib_clean atl_lib_clean daemons_all_clean examples_all_clean avtp_pipeline_clean avtp_avdecc_clean
 
 .PHONY: FORCE

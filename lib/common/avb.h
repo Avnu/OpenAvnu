@@ -27,5 +27,10 @@
 #define AVB_FEATURE_IGB 1
 #include "avb_igb.h"
 #endif
+#ifndef AVB_FEATURE_ATL
+/* IGB has not been disabled, so assume it is enabled. */
+#define AVB_FEATURE_ATL 1
+#include "avb_atl.h"
+#endif
 
 #endif		/*  __AVB_H__ */

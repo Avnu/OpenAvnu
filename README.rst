@@ -73,6 +73,15 @@ configured by going::
     git submodule init
     git submodule update
 
+MAKE on debian
+==============
+
+```bash
+sudo apt install libpci-dev libpcap-dev libsndfile-dev libjack-dev
+make all
+make -C lib/igb_avb all
+```
+
 CMAKE
 =====
 

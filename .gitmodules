@@ -7,3 +7,6 @@
 [submodule "lib/igb_avb"]
 	path = lib/igb_avb
 	url = https://github.com/AVnu/igb_avb.git
+[submodule "lib/atl_avb"]
+	path = lib/atl_avb
+	url = https://github.com/Aquantia/atl_avb

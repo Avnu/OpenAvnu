@@ -177,6 +177,17 @@ typedef void (*openavb_map_set_src_bitrate_cb_t)(media_q_t *pMediaQ, unsigned in
  */
 typedef unsigned int (*openavb_map_get_max_interval_frames_cb_t)(media_q_t *pMediaQ, SRClassIdx_t sr_class);
 
+#if ATL_LAUNCHTIME_ENABLED
+/** This talker callback will be called for each AVB observation interval to calculate a launchtime of packet.
+ *
+ * \param pMediaQ A pointer to the media queue for this stream
+ * \param pData pointer to data
+ * \param lt launchtime of media q item
+ * \return One of enum \ref tx_cb_ret_t values.
+ */
+typedef bool (*openavb_map_lt_calc_cb_t)(media_q_t *pMediaQ, U64 *lt);
+#endif
+
 /** Mapping callbacks structure.
  */
 typedef struct {
@@ -208,6 +219,11 @@ typedef struct {
 	openavb_map_set_src_bitrate_cb_t    map_set_src_bitrate_cb;
 	/// Max interval frames callback.
 	openavb_map_get_max_interval_frames_cb_t map_get_max_interval_frames_cb;
+
+#if ATL_LAUNCHTIME_ENABLED
+	// Launchtime calculation
+	openavb_map_lt_calc_cb_t            map_lt_calc_cb;
+#endif
 } openavb_map_cb_t;
 
 /** Main initialization entry point into the mapping module.

@@ -182,6 +182,16 @@ void avbLogInit(void);
 
 void avbLogExit(void);
 
+void __avbLogFn(
+	int level, 
+	const char *tag, 
+	const char *company,
+	const char *component,
+	const char *path,
+	int line,
+	const char *fmt, 
+	va_list args);
+
 void avbLogFn(
 	int level,
 	const char *tag,
