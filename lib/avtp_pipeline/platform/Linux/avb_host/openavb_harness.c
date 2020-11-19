@@ -157,6 +157,31 @@ void openavbTlHarnessMenu()
 		);
 }
 
+int parse_idx_name_value(char* line, int* pIdx, char** pName, char** pValue)
+{
+	char *token = NULL;
+
+	int tmp = strtol(line, &token, 10);
+	if (token == line) return 0;
+	*pIdx = tmp;
+
+	while (isspace(*token)) ++token;
+	if (*token == '\0') return 1;
+
+	*pName = token;
+	while (!isspace(*++token) && *token != '\0') ;
+	if (*token == '\0') return 2;
+	*token = '\0';
+
+	while (isspace(*++token)) ;
+	if (*token == '\0') return 2;
+	*pValue = token;
+
+	token += strlen(token);
+	while (isspace(*--token) && *token != '\0') *token = '\0';
+
+	return 3;
+}
 
 /**********************************************
  * main
@@ -451,10 +476,11 @@ int main(int argc, char *argv[])
 					break;
 				case 'c':
 					{
-						int i1;
-						char name[512];
-						char value[512];
-						if (sscanf(&buf[1], "%d %s %s", &i1, name, value) == 3 && i1 < tlCount) {
+						int i1 = -1;
+						char *name = NULL;
+						char *value = NULL;
+
+						if (parse_idx_name_value(&buf[1], &i1, &name, &value) == 3 && i1 < tlCount) {
 							openavb_tl_cfg_name_value_t NVCfg = {{name}, {value}, 1};
 							openavbTlChangeConfig(tlHandleList[i1], &NVCfg);
 						} else {
