@@ -125,7 +125,7 @@ live_stream:
 live_stream_clean:
 	$(call descend,examples/live_stream/,clean)
 
-avtp_pipeline: lib atl_lib
+avtp_pipeline: lib
 	$(MAKE) -s -C lib/avtp_pipeline -f avtp_pipeline.mk
 
 avtp_pipeline_clean:
@@ -149,8 +149,8 @@ examples_all: examples_common simple_talker simple_listener mrp_client live_stre
 examples_all_clean: examples_common_clean simple_talker_clean simple_listener_clean mrp_client_clean \
 	jackd-talker_clean jackd-listener_clean live_stream_clean simple_rx_clean
 
-all: lib atl_lib daemons_all examples_all avtp_pipeline avtp_avdecc
+all: lib daemons_all examples_all avtp_pipeline avtp_avdecc
 
-clean: lib_clean atl_lib_clean daemons_all_clean examples_all_clean avtp_pipeline_clean avtp_avdecc_clean
+clean: lib_clean daemons_all_clean examples_all_clean avtp_pipeline_clean avtp_avdecc_clean
 
 .PHONY: FORCE
