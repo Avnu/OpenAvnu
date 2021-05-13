@@ -127,7 +127,7 @@ bool talkerStartStream(tl_state_t *pTLState)
 	// setup the initial times
 	U64 nowNS;
 
-	if (!pCfg->spin_wait) {
+	if (!pCfg->spin_wait && !pCfg->launchtime) {
 		CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
 	} else {
 		CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);
@@ -234,13 +234,11 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 
 		if (!pCfg->tx_blocking_in_intf) {
 
-			if (!pCfg->spin_wait) {
+			if (!pCfg->spin_wait && !pCfg->launchtime) {
 				// sleep until the next interval
 				SLEEP_UNTIL_NSEC(pTalkerData->nextCycleNS);
-			} else {
-#if !IGB_LAUNCHTIME_ENABLED && !ATL_LAUNCHTIME_ENABLED
+			} else if (pCfg->spin_wait) {
 				SPIN_UNTIL_NSEC(pTalkerData->nextCycleNS);
-#endif
 			}
 
 			//AVB_DBG_INTERVAL(8000, TRUE);
@@ -260,7 +258,7 @@ static inline bool talkerDoStream(tl_state_t *pTLState)
 				pTalkerData->cntFrames++;
 		}
 
-		if (!pCfg->spin_wait) {
+		if (!pCfg->spin_wait && !pCfg->launchtime) {
 			CLOCK_GETTIME64(OPENAVB_TIMER_CLOCK, &nowNS);
 		} else {
 			CLOCK_GETTIME64(OPENAVB_CLOCK_WALLTIME, &nowNS);

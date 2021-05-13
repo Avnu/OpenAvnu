@@ -150,6 +150,8 @@ typedef struct {
 	U32 fixed_timestamp;
 	/// Wait for next observation interval by spinning rather than sleeping
 	bool spin_wait;
+	/// Do now wait for next observation interval, use launchtime feature
+	bool launchtime;
 	/// Bit mask used for CPU pinning
 	U32 thread_affinity;
 	/// Real time priority of thread.
