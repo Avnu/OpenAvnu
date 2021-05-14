@@ -535,7 +535,6 @@ int main(int argc, char *argv[])
 
 						AVB_LOGF_INFO("%s Drop %d AVTP packets from stream: %d", wallclock_msg, drop_count, idx);
 
-						openavbTLPauseStream(tlHandleList[idx], true);
 						openavbTLDropAvtpPackets(tlHandleList[idx], drop_count);
 					}
 					break;
