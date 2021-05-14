@@ -153,7 +153,7 @@ void openavbTlHarnessMenu()
 		" m            Display this menu\n"
 		" z            Stats\n"
 		" x            Exit\n"
-		" e NUM        Next NUM ethernet frames will be sent with FCS errors\n"
+//		" e NUM        Next NUM ethernet frames will be sent with FCS errors\n"
 		" d NUM        Drop next NUM avtp frames from stream number 0\n"
 		);
 }
