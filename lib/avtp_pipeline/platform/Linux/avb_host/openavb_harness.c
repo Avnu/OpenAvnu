@@ -153,7 +153,6 @@ void openavbTlHarnessMenu()
 		" m            Display this menu\n"
 		" z            Stats\n"
 		" x            Exit\n"
-//		" e NUM        Next NUM ethernet frames will be sent with FCS errors\n"
 		" d NUM        Drop next NUM avtp frames from stream number 0\n"
 		);
 }
@@ -493,31 +492,6 @@ int main(int argc, char *argv[])
 							}
 						}
 						bRunning = FALSE;
-					}
-					break;
-				case 'e':
-					// fcs errors
-					{
-						int fd = open("/sys/module/igb_avb/parameters/insert_fcs_err", O_WRONLY);
-
-						int fcs_err = strtol(buf + 1, NULL, 0);
-						char fcs_err_str[10];
-						char wallclock_msg[32];
-						struct timespec nowTS;
-
-						snprintf(fcs_err_str, 10, "%d", fcs_err);
-
-						if (CLOCK_GETTIME(OPENAVB_CLOCK_WALLTIME, &nowTS))
-							sprintf(wallclock_msg, "<%lu:%06lu>", nowTS.tv_sec, nowTS.tv_nsec / 1000);
-						else
-							sprintf(wallclock_msg, "<%lu:%06lu>", nowTS.tv_sec, 0UL, 0UL);
-
-						AVB_LOGF_INFO("%s Insert %d FCS errors", wallclock_msg, fcs_err);
-
-						if (write(fd, fcs_err_str, strlen(fcs_err_str)) < 0) {
-							AVB_LOGF_ERROR("write error %d", errno);
-						}
-						close(fd);
 					}
 					break;
 				case 'd':
