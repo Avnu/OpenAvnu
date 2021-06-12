@@ -265,6 +265,12 @@ static void x_calculateSizes(media_q_t *pMediaQ)
 					break;
 			}
 		}
+
+		// If little endian byte order is requested switch to user specific format
+		if (pPubMapInfo->audioEndian == AVB_AUDIO_ENDIAN_LITTLE) {
+			pPvtData->aaf_format = AAF_FORMAT_UNSPEC;
+		}
+
 		AVB_LOGF_INFO("aaf_format=%d (%s%d)",
 			pPvtData->aaf_format, typeStr, pPubMapInfo->audioBitDepth);
 
