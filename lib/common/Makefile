@@ -1,5 +1,5 @@
 AVB_FEATURE_IGB ?= 1
-AVB_FEATURE_ATL ?= 1
+AVB_FEATURE_ATL ?= 0
 
 ifeq ($(AVB_FEATURE_IGB),1)
 AVB_IGB_OBJ = avb_igb.o
