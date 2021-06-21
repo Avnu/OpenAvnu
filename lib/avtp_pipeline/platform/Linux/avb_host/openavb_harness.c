@@ -510,7 +510,7 @@ int main(int argc, char *argv[])
 						if (CLOCK_GETTIME(OPENAVB_CLOCK_WALLTIME, &nowTS))
 							sprintf(wallclock_msg, "<%lu:%06lu>", nowTS.tv_sec, nowTS.tv_nsec / 1000);
 						else
-							sprintf(wallclock_msg, "<%lu:%06lu>", nowTS.tv_sec, 0UL, 0UL);
+							sprintf(wallclock_msg, "<%lu:%06lu>", 0UL, 0UL);
 
 						AVB_LOGF_INFO("%s Drop %d AVTP packets from stream: %d", wallclock_msg, drop_count, idx);
 
