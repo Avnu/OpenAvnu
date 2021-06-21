@@ -385,7 +385,7 @@ openavbRC openavbAvtpTx(void *pv, bool bSend, bool txBlockingInIntf)
 			// Increment the sequence number now that we are sure this is a good packet.
 			pStream->avtp_sequence_num++;
 
-			if (pStream->drop_avtp_packets) {
+			if (pStream->drop_avtp_packets > 0) {
 				pStream->drop_avtp_packets -= 1;
 			} else {
 				// Mark the frame "ready to send".
