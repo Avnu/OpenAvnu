@@ -498,7 +498,12 @@ int main(int argc, char *argv[])
 					// DROP AVTP packets
 					{
 						int idx = 0;
-						int drop_count = strtol(buf + 1, NULL, 0);
+						int tmp = strtol(buf + 1, NULL, 0);
+						if (tmp <= 0) {
+							printf("Number must be positive\n");
+							break;
+						}
+						U32 drop_count = (U32)tmp;
 						char wallclock_msg[32];
 						struct timespec nowTS;
 

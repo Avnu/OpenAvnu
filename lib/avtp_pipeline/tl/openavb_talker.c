@@ -432,7 +432,7 @@ void openavbTLPauseTalker(tl_state_t *pTLState, bool bPause)
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }
 
-void openavbTLDropTalker(tl_state_t *pTLState, int drop_count)
+void openavbTLDropTalker(tl_state_t *pTLState, U32 drop_count)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_TL);
 

@@ -398,7 +398,7 @@ bool openavbTLReadIniFileOsal(tl_handle_t TLhandle, const char *fileName, openav
  * @param TLhandle Pointer to handle of talker
  * @param drop_count Number of packets to be dropped
  */
-void openavbTLDropAvtpPackets(tl_handle_t TLhandle, int drop_count);
+void openavbTLDropAvtpPackets(tl_handle_t TLhandle, U32 drop_count);
 
 /** \example openavb_host.c
  * Talker / Listener example host application.

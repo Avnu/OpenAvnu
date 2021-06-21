@@ -76,6 +76,6 @@ bool talkerStartStream(tl_state_t *pTLState);
 void talkerStopStream(tl_state_t *pTLState);
 bool openavbTLRunTalkerInit(tl_state_t *pTLState);
 void openavbTLRunTalkerFinish(tl_state_t *pTLState);
-void openavbTLDropTalker(tl_state_t *pTLState, int drop_count);
+void openavbTLDropTalker(tl_state_t *pTLState, U32 drop_count);
 
 #endif  // OPENAVB_TL_TALKER_H

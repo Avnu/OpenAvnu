@@ -716,7 +716,7 @@ void openavbAvtpPause(void *handle, bool bPause)
 	AVB_TRACE_EXIT(AVB_TRACE_AVTP);
 }
 
-void openavbAvtpDrop(void *handle, int count)
+void openavbAvtpDrop(void *handle, U32 count)
 {
 	AVB_TRACE_ENTRY(AVB_TRACE_AVTP);
 
