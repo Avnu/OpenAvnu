@@ -142,7 +142,7 @@ typedef struct
 	U64 bytes;
 
 	// Drop mode counter
-	U32 drop_avtp_packets;
+	int drop_avtp_packets;
 } avtp_stream_t;
 
 
@@ -180,7 +180,7 @@ void openavbAvtpConfigTimsstampEval(void *handle, U32 tsInterval, U32 reportInte
 
 void openavbAvtpPause(void *handle, bool bPause);
 
-void openavbAvtpDrop(void *handle, U32 count);
+void openavbAvtpDrop(void *handle, int count);
 
 void openavbAvtpShutdownTalker(void *handle);
 void openavbAvtpShutdownListener(void *handle);
