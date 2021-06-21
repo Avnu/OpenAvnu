@@ -240,7 +240,17 @@ tl_handle_t openavbTLOpen(void);
 void openavbTLInitCfg(openavb_tl_cfg_t *pCfg);
 
 
-void openavbTlChangeConfig(tl_handle_t handle, openavb_tl_cfg_name_value_t *pNVCfg);
+/** Change talker's / listener's configuration item
+ *
+ * Changes one configuration option of talker / listener from name value pair.
+ * Only intf_nv_ and map_nv_ names are supported.
+ * Can be called while stream is running, assuming that map and intf modules
+ * are prepared for runtime changes of particular configration item.
+ *
+ * @param handle Handle of talker/listener
+ * @param pNVCfg Pointer to name value pair configuration structure
+ */
+void openavbTlChangeConfig(tl_handle_t handle, openavb_tl_cfg_name_value_t* pNVCfg);
 
 /** Configure the talker / listener.
  *

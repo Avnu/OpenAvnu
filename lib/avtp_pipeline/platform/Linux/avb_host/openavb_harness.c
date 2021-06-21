@@ -157,6 +157,14 @@ void openavbTlHarnessMenu()
 		);
 }
 
+// manually matches following regular expression:
+//
+//     /(\d+)\s+([^\s]+)\s+(.*)\s*/
+//
+// where:
+//   $1 - idx
+//   $2 - name
+//   $3 - value
 int parse_idx_name_value(char* line, int* pIdx, char** pName, char** pValue)
 {
 	char *token = NULL;
