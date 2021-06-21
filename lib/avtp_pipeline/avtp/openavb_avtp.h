@@ -140,7 +140,8 @@ typedef struct
 	int nLost;
 	// Bytes sent or recieved
 	U64 bytes;
-	
+
+	// Drop mode counter
 	int drop_avtp_packets;
 } avtp_stream_t;
 
