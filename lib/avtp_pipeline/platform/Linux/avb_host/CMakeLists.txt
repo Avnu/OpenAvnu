@@ -29,7 +29,6 @@ target_link_libraries( openavb_host
 	avbTl
 	${PLATFORM_LINK_LIBRARIES}
 	${ALSA_LIBRARIES}
-	${GLIB_PKG_LIBRARIES}
 	pthread 
 	rt 
 	dl )
@@ -58,7 +57,6 @@ target_link_libraries( openavb_harness
 	avbTl
 	${PLATFORM_LINK_LIBRARIES}
 	${ALSA_LIBRARIES}
-	${GLIB_PKG_LIBRARIES}
 	pthread 
 	rt 
 	dl )
