@@ -140,7 +140,9 @@ typedef struct
 	int nLost;
 	// Bytes sent or recieved
 	U64 bytes;
-	
+
+	// Drop mode counter
+	int drop_avtp_packets;
 } avtp_stream_t;
 
 
@@ -177,6 +179,8 @@ openavbRC openavbAvtpRx(void *handle);
 void openavbAvtpConfigTimsstampEval(void *handle, U32 tsInterval, U32 reportInterval, bool smoothing, U32 tsMaxJitter, U32 tsMaxDrift);
 
 void openavbAvtpPause(void *handle, bool bPause);
+
+void openavbAvtpDrop(void *handle, int count);
 
 void openavbAvtpShutdownTalker(void *handle);
 void openavbAvtpShutdownListener(void *handle);

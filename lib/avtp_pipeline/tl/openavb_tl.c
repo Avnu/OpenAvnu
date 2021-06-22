@@ -764,5 +764,25 @@ EXTERN_DLL_EXPORT void openavbTLPauseStream(tl_handle_t handle, bool bPause)
 	AVB_TRACE_EXIT(AVB_TRACE_TL);
 }
 
+EXTERN_DLL_EXPORT void openavbTLDropAvtpPackets(tl_handle_t handle, int drop_count)
+{
+	AVB_TRACE_ENTRY(AVB_TRACE_TL);
 
+	tl_state_t *pTLState = (tl_state_t *)handle;
+
+	if (!pTLState) {
+		AVB_LOG_ERROR("Invalid handle.");
+		AVB_TRACE_EXIT(AVB_TRACE_TL);
+		return;
+	}
+
+	if (pTLState->cfg.role == AVB_ROLE_TALKER) {
+		openavbTLDropTalker(pTLState, drop_count);
+	}
+	else if (pTLState->cfg.role == AVB_ROLE_LISTENER) {
+		AVB_LOG_ERROR("Listener cannot drop AVTP packets");
+	}
+
+	AVB_TRACE_EXIT(AVB_TRACE_TL);
+}
 

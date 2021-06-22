@@ -153,6 +153,7 @@ void openavbTlHarnessMenu()
 		" m            Display this menu\n"
 		" z            Stats\n"
 		" x            Exit\n"
+		" d NUM        Drop next NUM avtp frames from stream number 0\n"
 		);
 }
 
@@ -491,6 +492,24 @@ int main(int argc, char *argv[])
 							}
 						}
 						bRunning = FALSE;
+					}
+					break;
+				case 'd':
+					// DROP AVTP packets
+					{
+						int idx = 0;
+						int drop_count = strtol(buf + 1, NULL, 0);
+						char wallclock_msg[32];
+						struct timespec nowTS;
+
+						if (CLOCK_GETTIME(OPENAVB_CLOCK_WALLTIME, &nowTS))
+							sprintf(wallclock_msg, "<%lu:%06lu>", nowTS.tv_sec, nowTS.tv_nsec / 1000);
+						else
+							sprintf(wallclock_msg, "<%lu:%06lu>", 0UL, 0UL);
+
+						AVB_LOGF_INFO("%s Drop %d AVTP packets from stream: %d", wallclock_msg, drop_count, idx);
+
+						openavbTLDropAvtpPackets(tlHandleList[idx], drop_count);
 					}
 					break;
 				default:
