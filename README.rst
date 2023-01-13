@@ -76,11 +76,11 @@ configured by going::
 MAKE on debian
 ==============
 
-```bash
+``bash
 sudo apt install libpci-dev libpcap-dev libsndfile-dev libjack-dev
 make all
 make -C lib/igb_avb all
-```
+``
 
 CMAKE
 =====
