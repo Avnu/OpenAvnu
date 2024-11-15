@@ -36,6 +36,8 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #if !defined(PTHREAD_STACK_MIN)
 #error "PTHREAD_STACK_MIN variable not defined"
+#elif defined(_DYNAMIC_STACK_SIZE_SOURCE) || defined(_GNU_SOURCE)
+#define THREAD_STACK_SIZE             ((PTHREAD_STACK_MIN) > 65536 ? (PTHREAD_STACK_MIN) : 65536 )
 #elif (PTHREAD_STACK_MIN > 65536)
 #define THREAD_STACK_SIZE							PTHREAD_STACK_MIN
 #else
