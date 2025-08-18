@@ -104,35 +104,35 @@ void maapLogRTRender(log_queue_item_t *pLogItem)
 						strcat((char *)pLogItem->msg, pLogRTItem->pFormat);
 						break;
 					case LOG_RT_DATATYPE_NOW_TS:
-						sprintf(rt_msg, "[%lu:%09lu] ", pLogRTItem->data.nowTS.tv_sec, pLogRTItem->data.nowTS.tv_nsec);
+                                                snprintf(rt_msg, sizeof(rt_msg), "[%lu:%09lu] ", pLogRTItem->data.nowTS.tv_sec, pLogRTItem->data.nowTS.tv_nsec);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_U16:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.unsignedShortVar);
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.unsignedShortVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_S16:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.signedShortVar);
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.signedShortVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_U32:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.unsignedLongVar);
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.unsignedLongVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_S32:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.signedLongVar);
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.signedLongVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_U64:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.unsignedLongLongVar);
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.unsignedLongLongVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_S64:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.signedLongLongVar);
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.signedLongLongVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					case LOG_RT_DATATYPE_FLOAT:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.floatVar);
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.floatVar);
 						strcat((char *)pLogItem->msg, rt_msg);
 						break;
 					default:
@@ -250,7 +250,7 @@ void maapLogFn(
 
 		LOG_LOCK();
 
-		vsprintf(msg, fmt, args);
+                vsnprintf(msg, sizeof(msg), fmt, args);
 
 		if (MAAP_LOG_FILE_INFO && path) {
 			char* file = strrchr(path, '/');
@@ -260,33 +260,33 @@ void maapLogFn(
 				file += 1;
 			else
 				file = (char*)path;
-			sprintf(file_msg, " %s:%d", file, line);
+                        snprintf(file_msg, sizeof(file_msg), " %s:%d", file, line);
 		}
 		if (MAAP_LOG_PROC_INFO) {
-			sprintf(proc_msg, " P:%5.5d", GET_PID());
+                        snprintf(proc_msg, sizeof(proc_msg), " P:%5.5d", GET_PID());
 		}
 		if (MAAP_LOG_THREAD_INFO) {
-			sprintf(thread_msg, " T:%lu", THREAD_SELF());
+                        snprintf(thread_msg, sizeof(thread_msg), " T:%lu", THREAD_SELF());
 		}
 		if (MAAP_LOG_TIME_INFO) {
 			time_t tNow = time(NULL);
 			struct tm tmNow;
 			localtime_r(&tNow, &tmNow);
 
-			sprintf(time_msg, "%2.2d:%2.2d:%2.2d", tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
+                        snprintf(time_msg, sizeof(time_msg), "%2.2d:%2.2d:%2.2d", tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
 		}
 		if (MAAP_LOG_TIMESTAMP_INFO) {
 			struct timespec nowTS;
 			clock_gettime(CLOCK_REALTIME, &nowTS);
 
-			sprintf(timestamp_msg, "%lu:%09lu", nowTS.tv_sec, nowTS.tv_nsec);
+                        snprintf(timestamp_msg, sizeof(timestamp_msg), "%lu:%09lu", nowTS.tv_sec, nowTS.tv_nsec);
 		}
 
 		// using sprintf and puts allows using static buffers rather than heap.
-		if (MAAP_LOG_EXTRA_NEWLINE)
-			/* int32_t full_msg_len = */ sprintf(full_msg, "[%s%s%s%s %s %s%s] %s: %s\n", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
-		else
-			/* int32_t full_msg_len = */ sprintf(full_msg, "[%s%s%s%s %s %s%s] %s: %s", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
+                if (MAAP_LOG_EXTRA_NEWLINE)
+                        /* int32_t full_msg_len = */ snprintf(full_msg, sizeof(full_msg), "[%s%s%s%s %s %s%s] %s: %s\n", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
+                else
+                        /* int32_t full_msg_len = */ snprintf(full_msg, sizeof(full_msg), "[%s%s%s%s %s %s%s] %s: %s", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
 
 		if (!MAAP_LOG_FROM_THREAD && !MAAP_LOG_PULL_MODE) {
 			fputs(full_msg, MAAP_LOG_OUTPUT_FD);
@@ -297,8 +297,8 @@ void maapLogFn(
 				if (elem) {
 					log_queue_item_t *pLogItem = (log_queue_item_t *)maapLogQueueData(elem);
 					pLogItem->bRT = FALSE;
-					strncpy((char *)pLogItem->msg, full_msg, LOG_QUEUE_MSG_LEN);
-					maapLogQueueHeadPush(logQueue);
+                                        snprintf((char *)pLogItem->msg, LOG_QUEUE_MSG_SIZE, "%s", full_msg);
+                                        maapLogQueueHeadPush(logQueue);
 				}
 			}
 		}

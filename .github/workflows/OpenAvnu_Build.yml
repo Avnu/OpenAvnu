@@ -1,0 +1,100 @@
+name: OpenAvnu Build CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false  # wir setzen die URLs gleich manuell
+
+      - name: Set up dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git build-essential cmake g++ \
+            libpcap-dev libnl-3-dev libnl-genl-3-dev \
+            uuid-dev libavahi-client-dev \
+            linux-headers-generic libglib2.0-dev \
+            libpci-dev libsndfile1-dev libjack-dev \
+            libasound2-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+
+      - name: Fix submodule URLs
+        run: |
+          git config --file .gitmodules submodule.avdecc-lib.url https://github.com/AVnu/avdecc-lib.git
+          git config --file .gitmodules submodule.lib/atl_avb.url https://github.com/zarfld/atl_avb.git
+          git config --file .gitmodules submodule.lib/igb_avb.url https://github.com/AVnu/igb_avb.git
+          git config --file .gitmodules submodule.thirdparty/cpputest.url https://github.com/cpputest/cpputest.git
+          git submodule sync
+          git submodule update --init --recursive
+
+      - name: Build daemons/maap seperately
+        run: |
+          make -C daemons/maap
+        continue-on-error: true
+
+      - name: Build daemons/mrpd seperately
+        run: |
+          make -C daemons/mrpd
+        continue-on-error: true
+
+      - name: Build daemons/shaper seperately
+        run: |
+          make -C daemons/shaper
+        continue-on-error: true
+        
+      - name: Build examples/simple_listener seperately
+        run: |
+          make -C examples/simple_listener
+        continue-on-error: true
+
+      - name: Build examples/simple_talker seperately
+        run: |
+          make -C examples/simple_talker
+        continue-on-error: true
+
+      - name: Build all
+        run: |
+          make all
+          
+      - name: Build lib/igb_avb/lib
+        run: |
+          make -C lib/igb_avb/lib all
+
+      # ───────────────────────────────────────────────────────────────
+      # Fehlerbehandlung: nur ausführen, wenn obiger Build fehlschlägt
+      # ───────────────────────────────────────────────────────────────
+
+      - name: Print directory contents on failure
+        if: failure()
+        run: |
+          echo "::group::Directory structure"
+          find . -type f | sort
+          echo "::endgroup::"
+
+      - name: Show last 100 lines of all *.log or *.txt
+        if: failure()
+        run: |
+          find . -type f \( -name "*.log" -o -name "*.txt" \) -exec echo "::group::{}" \; -exec tail -n 100 {} \; -exec echo "::endgroup::" \;
+
+      - name: Upload build output (if any)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output-on-failure
+          path: |
+            lib/**/lib*.a
+            **/*.o
+            **/*.log
+            **/*.txt

@@ -1033,14 +1033,14 @@ int mvrp_send_notifications(struct mvrp_attribute *attrib, int notify)
 
 	memset(msgbuf, 0, MAX_MRPD_CMDSZ);
 
-	sprintf(variant, "%04x", attrib->attribute);
+       snprintf(variant, 128, "%04x", attrib->attribute);
 
-	sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x",
-		attrib->registrar.macaddr[0],
-		attrib->registrar.macaddr[1],
-		attrib->registrar.macaddr[2],
-		attrib->registrar.macaddr[3],
-		attrib->registrar.macaddr[4], attrib->registrar.macaddr[5]);
+       snprintf(regsrc, 128, "R=%02x%02x%02x%02x%02x%02x",
+               attrib->registrar.macaddr[0],
+               attrib->registrar.macaddr[1],
+               attrib->registrar.macaddr[2],
+               attrib->registrar.macaddr[3],
+               attrib->registrar.macaddr[4], attrib->registrar.macaddr[5]);
 
 	mrp_decode_state(&attrib->registrar, &attrib->applicant,
 				 mrp_state, sizeof(mrp_state));
@@ -1105,25 +1105,27 @@ int mvrp_dumptable(struct sockaddr_in *client)
 
 	attrib = MVRP_db->attrib_list;
 	if (attrib == NULL) {
-		sprintf(msgbuf, "MVRP:Empty\n");
+               snprintf(msgbuf, MAX_MRPD_CMDSZ, "MVRP:Empty\n");
 	}
 
 	while (NULL != attrib) {
-		sprintf(variant, "V:I=%04x", attrib->attribute);
+               snprintf(variant, 128, "V:I=%04x", attrib->attribute);
 
 		mrp_decode_state(&attrib->registrar, &attrib->applicant,
 				 mrp_state, sizeof(mrp_state));
 
-		sprintf(regsrc, "R=%02x%02x%02x%02x%02x%02x %s",
-			attrib->registrar.macaddr[0],
-			attrib->registrar.macaddr[1],
-			attrib->registrar.macaddr[2],
-			attrib->registrar.macaddr[3],
-			attrib->registrar.macaddr[4],
-			attrib->registrar.macaddr[5], mrp_state);
+               snprintf(regsrc, 128, "R=%02x%02x%02x%02x%02x%02x %s",
+                       attrib->registrar.macaddr[0],
+                       attrib->registrar.macaddr[1],
+                       attrib->registrar.macaddr[2],
+                       attrib->registrar.macaddr[3],
+                       attrib->registrar.macaddr[4],
+                       attrib->registrar.macaddr[5], mrp_state);
 
-		sprintf(stage, "%s %s\n", variant, regsrc);
-		sprintf(msgbuf_wrptr, "%s", stage);
+               snprintf(stage, 128, "%s %s\n", variant, regsrc);
+               snprintf(msgbuf_wrptr,
+                        MAX_MRPD_CMDSZ - (msgbuf_wrptr - msgbuf),
+                        "%s", stage);
 		msgbuf_wrptr += strnlen(stage, 128);
 		attrib = attrib->next;
 	}
@@ -1173,7 +1175,7 @@ int mvrp_recv_cmd(char *buf, int buflen, struct sockaddr_in *client)
 {
 	int rc;
 	int mrp_event;
-	char respbuf[12];
+       char respbuf[64];
 	uint16_t vid_param;
 	int err_index;
 

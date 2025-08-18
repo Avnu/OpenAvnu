@@ -232,16 +232,18 @@ int main(int argc, char *argv[]) {
 	bpf_u_int32 mask;
 	bpf_u_int32 net;
 
-	if (argc < 2) {
-		dev = pcap_lookupdev(errbuf);
-		if (dev == NULL) {
-			fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
-			fprintf(stderr, "Try specifying the device you want: %s <device>\n", argv[0]);
-			return 2;
-		}
-	} else {
-		dev = argv[1];
-	}
+        if (argc < 2) {
+                pcap_if_t *alldevs;
+                if (pcap_findalldevs(&alldevs, errbuf) == -1 || alldevs == NULL) {
+                        fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
+                        fprintf(stderr, "Try specifying the device you want: %s <device>\n", argv[0]);
+                        return 2;
+                }
+                dev = alldevs->name;
+                pcap_freealldevs(alldevs);
+        } else {
+                dev = argv[1];
+        }
 
 	if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1) {
 		fprintf(stderr, "Couldn't get netmask for device: %s\n", dev);

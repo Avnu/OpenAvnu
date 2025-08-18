@@ -271,13 +271,16 @@ int process_mrp_msg(char *buf, int buflen, struct mrp_talker_ctx *ctx)
 					printf("listener left\n");
 				}
 				break;
-			case 'J':
-			case 'N':
-				printf("got a new/join indication\n");
-				if (substate > MSRP_LISTENER_ASKFAILED) {
-					if (memcmp
-					    (recovered_streamid,
-					     ctx->monitor_stream_id,
+                       case 'J':
+                               /* fall through */
+			       printf("fall through\n");
+				break;
+                       case 'N':
+                               printf("got a new/join indication\n");
+                               if (substate > MSRP_LISTENER_ASKFAILED) {
+                                       if (memcmp
+                                           (recovered_streamid,
+                                            ctx->monitor_stream_id,
 					     sizeof(recovered_streamid)) == 0)
 						ctx->listeners = 1;
 				}

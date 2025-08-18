@@ -470,14 +470,14 @@ int process_command(int sockfd, char command[])
 			return -1;
 		}
 	}
-	if (input.unreserve_bw)
-	{
-		if (input.stream_da == 0)
-		{
-			log_client_error_message(sockfd, "Stream Destination Address is required to unreserve bandwidth");
-			usage(sockfd);
-			return -1;
-		}
+        if (input.unreserve_bw)
+        {
+                if (strlen(input.stream_da) == 0)
+                {
+                        log_client_error_message(sockfd, "Stream Destination Address is required to unreserve bandwidth");
+                        usage(sockfd);
+                        return -1;
+                }
 	}
 	if ((input.quit==1 || input.delete_qdisc==1) &&(input.reserve_bw==1 || input.unreserve_bw==1))
 	{

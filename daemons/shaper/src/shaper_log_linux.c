@@ -60,7 +60,7 @@ typedef struct {
 static shaper_log_queue_t logQueue;
 static shaper_log_queue_t logRTQueue;
 
-static char msg[LOG_MSG_LEN] = "";
+static char msg[LOG_QUEUE_MSG_LEN] = "";
 static char time_msg[LOG_TIME_LEN] = "";
 static char timestamp_msg[LOG_TIMESTAMP_LEN] = "";
 static char file_msg[LOG_FILE_LEN] = "";
@@ -102,38 +102,38 @@ void shaperLogRTRender(log_queue_item_t *pLogItem)
 					case LOG_RT_DATATYPE_CONST_STR:
 						strcat((char *)pLogItem->msg, pLogRTItem->pFormat);
 						break;
-					case LOG_RT_DATATYPE_NOW_TS:
-						sprintf(rt_msg, "[%lu:%09lu] ", pLogRTItem->data.nowTS.tv_sec, pLogRTItem->data.nowTS.tv_nsec);
-						strcat((char *)pLogItem->msg, rt_msg);
-						break;
-					case LOG_RT_DATATYPE_U16:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.unsignedShortVar);
-						strcat((char *)pLogItem->msg, rt_msg);
-						break;
-					case LOG_RT_DATATYPE_S16:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.signedShortVar);
-						strcat((char *)pLogItem->msg, rt_msg);
-						break;
-					case LOG_RT_DATATYPE_U32:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.unsignedLongVar);
-						strcat((char *)pLogItem->msg, rt_msg);
-						break;
-					case LOG_RT_DATATYPE_S32:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.signedLongVar);
-						strcat((char *)pLogItem->msg, rt_msg);
-						break;
-					case LOG_RT_DATATYPE_U64:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.unsignedLongLongVar);
-						strcat((char *)pLogItem->msg, rt_msg);
-						break;
-					case LOG_RT_DATATYPE_S64:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.signedLongLongVar);
-						strcat((char *)pLogItem->msg, rt_msg);
-						break;
-					case LOG_RT_DATATYPE_FLOAT:
-						sprintf(rt_msg, pLogRTItem->pFormat, pLogRTItem->data.floatVar);
-						strcat((char *)pLogItem->msg, rt_msg);
-						break;
+                                        case LOG_RT_DATATYPE_NOW_TS:
+                                                snprintf(rt_msg, sizeof(rt_msg), "[%lu:%09lu] ", pLogRTItem->data.nowTS.tv_sec, pLogRTItem->data.nowTS.tv_nsec);
+                                                strcat((char *)pLogItem->msg, rt_msg);
+                                                break;
+                                        case LOG_RT_DATATYPE_U16:
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.unsignedShortVar);
+                                                strcat((char *)pLogItem->msg, rt_msg);
+                                                break;
+                                        case LOG_RT_DATATYPE_S16:
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.signedShortVar);
+                                                strcat((char *)pLogItem->msg, rt_msg);
+                                                break;
+                                        case LOG_RT_DATATYPE_U32:
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.unsignedLongVar);
+                                                strcat((char *)pLogItem->msg, rt_msg);
+                                                break;
+                                        case LOG_RT_DATATYPE_S32:
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.signedLongVar);
+                                                strcat((char *)pLogItem->msg, rt_msg);
+                                                break;
+                                        case LOG_RT_DATATYPE_U64:
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.unsignedLongLongVar);
+                                                strcat((char *)pLogItem->msg, rt_msg);
+                                                break;
+                                        case LOG_RT_DATATYPE_S64:
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.signedLongLongVar);
+                                                strcat((char *)pLogItem->msg, rt_msg);
+                                                break;
+                                        case LOG_RT_DATATYPE_FLOAT:
+                                                snprintf(rt_msg, sizeof(rt_msg), pLogRTItem->pFormat, pLogRTItem->data.floatVar);
+                                                strcat((char *)pLogItem->msg, rt_msg);
+                                                break;
 					default:
 						break;
 				}
@@ -250,12 +250,12 @@ void shaperLogFn(
 	...)
 {
 	if (level <= SHAPER_LOG_LEVEL) {
-		va_list args;
-		va_start(args, fmt);
+                va_list args;
+                va_start(args, fmt);
 
-		LOG_LOCK();
+                LOG_LOCK();
 
-		vsprintf(msg, fmt, args);
+                vsnprintf(msg, sizeof(msg), fmt, args);
 
 		if (SHAPER_LOG_FILE_INFO && path) {
 			char* file = strrchr(path, '/');
@@ -265,33 +265,33 @@ void shaperLogFn(
 				file += 1;
 			else
 				file = (char*)path;
-			sprintf(file_msg, " %s:%d", file, line);
+                        snprintf(file_msg, sizeof(file_msg), " %s:%d", file, line);
 		}
 		if (SHAPER_LOG_PROC_INFO) {
-			sprintf(proc_msg, " P:%5.5d", GET_PID());
+                        snprintf(proc_msg, sizeof(proc_msg), " P:%5.5d", GET_PID());
 		}
 		if (SHAPER_LOG_THREAD_INFO) {
-			sprintf(thread_msg, " T:%lu", THREAD_SELF());
+                        snprintf(thread_msg, sizeof(thread_msg), " T:%lu", THREAD_SELF());
 		}
 		if (SHAPER_LOG_TIME_INFO) {
 			time_t tNow = time(NULL);
 			struct tm tmNow;
 			localtime_r(&tNow, &tmNow);
 
-			sprintf(time_msg, "%2.2d:%2.2d:%2.2d", tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
+                        snprintf(time_msg, sizeof(time_msg), "%2.2d:%2.2d:%2.2d", tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
 		}
 		if (SHAPER_LOG_TIMESTAMP_INFO) {
 			struct timespec nowTS;
 			clock_gettime(CLOCK_REALTIME, &nowTS);
 
-			sprintf(timestamp_msg, "%lu:%09lu", nowTS.tv_sec, nowTS.tv_nsec);
+                        snprintf(timestamp_msg, sizeof(timestamp_msg), "%lu:%09lu", nowTS.tv_sec, nowTS.tv_nsec);
 		}
 
 		// using sprintf and puts allows using static buffers rather than heap.
-		if (SHAPER_LOG_EXTRA_NEWLINE)
-			/* int32_t full_msg_len = */ sprintf(full_msg, "[%s%s%s%s %s %s%s] %s: %s\n", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
-		else
-			/* int32_t full_msg_len = */ sprintf(full_msg, "[%s%s%s%s %s %s%s] %s: %s", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
+                if (SHAPER_LOG_EXTRA_NEWLINE)
+                        /* int32_t full_msg_len = */ snprintf(full_msg, sizeof(full_msg), "[%s%s%s%s %s %s%s] %s: %s\n", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
+                else
+                        /* int32_t full_msg_len = */ snprintf(full_msg, sizeof(full_msg), "[%s%s%s%s %s %s%s] %s: %s", time_msg, timestamp_msg, proc_msg, thread_msg, company, component, file_msg, tag, msg);
 
 		if (!SHAPER_LOG_FROM_THREAD && !SHAPER_LOG_PULL_MODE) {
 			fputs(full_msg, SHAPER_LOG_OUTPUT_FD);
@@ -302,7 +302,12 @@ void shaperLogFn(
 				if (elem) {
 					log_queue_item_t *pLogItem = (log_queue_item_t *)shaperLogQueueData(elem);
 					pLogItem->bRT = FALSE;
-					strncpy((char *)pLogItem->msg, full_msg, LOG_QUEUE_MSG_LEN);
+                                        size_t len = strlen(full_msg);
+                                        if (len >= LOG_QUEUE_MSG_LEN) {
+                                                len = LOG_QUEUE_MSG_LEN - 1;
+                                        }
+                                        memcpy(pLogItem->msg, full_msg, len);
+                                        pLogItem->msg[len] = '\0';
 					shaperLogQueueHeadPush(logQueue);
 				}
 			}
@@ -428,11 +433,11 @@ void shaperLogBuffer(
 		pszOut = szDataLine;
 		*pszOut++ = '\t';
 		for (j = i; j < i + lineLen; ++j) {
-			if (j < dataLen) {
-				sprintf(pszOut, "%02x ", pData[j]);
-			} else {
-				strcpy(pszOut, "   ");
-			}
+                        if (j < dataLen) {
+                                snprintf(pszOut, 4, "%02x ", pData[j]);
+                        } else {
+                                strcpy(pszOut, "   ");
+                        }
 			pszOut += 3;
 		}
 

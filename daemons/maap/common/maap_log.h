@@ -85,7 +85,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define LOG_MSG_LEN 1024
 
 // The length of the full message
-#define LOG_FULL_MSG_LEN 1024
+#define LOG_FULL_MSG_LEN 2048
 
 #ifndef TRUE
 #define TRUE  1
@@ -135,7 +135,7 @@ static const int MAAP_LOG_FROM_THREAD = TRUE;
 static const int MAAP_LOG_PULL_MODE = FALSE;
 
 // When using the MAAP_LOG_FROM_THREAD option. These defines control the behavior of the msg queue
-#define LOG_QUEUE_MSG_LEN		256
+#define LOG_QUEUE_MSG_LEN               2048
 #define LOG_QUEUE_MSG_SIZE		(LOG_QUEUE_MSG_LEN + 1)
 #define LOG_QUEUE_MSG_CNT		82
 #define LOG_QUEUE_SLEEP_MSEC	100

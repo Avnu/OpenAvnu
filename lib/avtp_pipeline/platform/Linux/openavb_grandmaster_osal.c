@@ -51,7 +51,7 @@ static pthread_mutex_t gOSALGrandmasterInitMutex = PTHREAD_MUTEX_INITIALIZER;
 static bool bInitialized = FALSE;
 static int gShmFd = -1;
 static char *gMmap = NULL;
-gPtpTimeData gPtpTD;
+static gPtpTimeData gPtpTD;
 
 static bool x_grandmasterInit(void) {
 	AVB_TRACE_ENTRY(AVB_TRACE_GRANDMASTER);

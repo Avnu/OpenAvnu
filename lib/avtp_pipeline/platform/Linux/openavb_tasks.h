@@ -34,12 +34,14 @@ https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 
 #include <limits.h>
 
-#if !defined(PTHREAD_STACK_MIN)
-#error "PTHREAD_STACK_MIN variable not defined"
-#elif (PTHREAD_STACK_MIN > 65536)
-#define THREAD_STACK_SIZE							PTHREAD_STACK_MIN
+#if defined(PTHREAD_STACK_MIN) && !defined(__USE_DYNAMIC_STACK_SIZE)
+#  if PTHREAD_STACK_MIN > 65536
+#    define THREAD_STACK_SIZE PTHREAD_STACK_MIN
+#  else
+#    define THREAD_STACK_SIZE 65536
+#  endif
 #else
-#define THREAD_STACK_SIZE							65536
+#  define THREAD_STACK_SIZE 65536
 #endif
 
 ///////////////////////////
