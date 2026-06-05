@@ -29,6 +29,9 @@ Complete license and copyright information can be found at
 https://github.com/benhoyt/inih/commit/74d2ca064fb293bc60a77b0bd068075b293cf175.
 *************************************************************************************************************/
 
+#define _GNU_SOURCE
+#include <poll.h>
+
 #include "ring_rawsock.h"
 #include "simple_rawsock.h"
 #include <linux/if_packet.h>
