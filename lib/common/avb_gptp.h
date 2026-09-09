@@ -2,6 +2,7 @@
 #define __AVB_GPTP_H__
 
 #include <inttypes.h>
+#include <stdbool.h>
 
 #define SHM_SIZE (4*8 + sizeof(pthread_mutex_t)) /* 3 - 64 bit and 2 - 32 bits */
 #define SHM_NAME  "/ptp"
@@ -34,11 +35,6 @@ typedef struct {
 	int8_t   log_pdelay_interval;			/* The currentLogPDelayReqInterval field of the grandmaster functionality of the interface, or 0 if not supported */
 	uint16_t port_number;					/* The portNumber field of the interface, or 0x0000 if not supported */
 } gPtpTimeData;
-
-/*TODO fix this*/
-#ifndef false
-typedef enum { false = 0, true = 1 } bool;
-#endif
 
 int gptpinit(int *shm_fd, char **shm_map);
 int gptpdeinit(int *shm_fd, char **shm_map);
